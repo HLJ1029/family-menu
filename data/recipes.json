@@ -651,5 +651,1427 @@
       "倒入料汁，翻炒至浓稠即可。"
     ],
     "tips": "茄子提前撒少量盐静置，可以减少吸油。"
+  },
+  {
+    "id": "braised-pork-belly",
+    "name": "红烧肉",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "经典",
+      "下饭菜",
+      "60分钟"
+    ],
+    "servings": 3,
+    "difficulty": "中等",
+    "timeMinutes": 60,
+    "accent": "meat",
+    "description": "肥而不腻的经典家常肉菜，适合周末正餐。",
+    "ingredients": [
+      {
+        "name": "五花肉",
+        "amount": 500,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 4,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 2,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "冰糖",
+        "amount": 20,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "五花肉切块，冷水下锅焯水后捞出。",
+      "锅中放少量油和冰糖，小火炒出糖色。",
+      "放入五花肉翻炒上色。",
+      "加入姜片、生抽、老抽和料酒，加热水没过食材。",
+      "小火炖 45 分钟，最后大火收汁。"
+    ],
+    "tips": "炖肉时用热水，肉质更不容易发柴。"
+  },
+  {
+    "id": "yu-shiang-pork",
+    "name": "鱼香肉丝",
+    "categories": [
+      "肉菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "酸甜微辣",
+      "下饭菜",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 30,
+    "accent": "spicy",
+    "description": "酸甜咸辣平衡的经典下饭菜。",
+    "ingredients": [
+      {
+        "name": "猪里脊",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 0.5,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "木耳",
+        "amount": 30,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "豆瓣酱",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "醋",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "猪肉切丝，用少量生抽和淀粉抓匀。",
+      "配菜切丝，调好糖醋生抽料汁。",
+      "热锅加油，滑炒肉丝至变色后盛出。",
+      "锅中炒香豆瓣酱，加入配菜翻炒。",
+      "倒回肉丝和料汁，快速炒匀收汁。"
+    ],
+    "tips": "肉丝提前上浆，口感会更嫩。"
+  },
+  {
+    "id": "kung-pao-chicken",
+    "name": "宫保鸡丁",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "微辣",
+      "花生香",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 30,
+    "accent": "spicy",
+    "description": "鸡肉嫩滑、花生酥香的经典家常菜。",
+    "ingredients": [
+      {
+        "name": "鸡腿肉",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "花生米",
+        "amount": 50,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 0.5,
+        "unit": "根",
+        "required": false
+      },
+      {
+        "name": "干辣椒",
+        "amount": 4,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "醋",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡腿肉切丁，用生抽和淀粉腌 10 分钟。",
+      "黄瓜切丁，花生米备好。",
+      "热锅加油，炒香干辣椒。",
+      "放入鸡丁炒至变色，再加黄瓜丁。",
+      "倒入料汁翻炒，最后放花生米拌匀。"
+    ],
+    "tips": "花生米最后放，口感更脆。"
+  },
+  {
+    "id": "hot-sour-potato-shreds",
+    "name": "酸辣土豆丝",
+    "categories": [
+      "素菜",
+      "快手菜"
+    ],
+    "tags": [
+      "酸辣",
+      "脆爽",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "green",
+    "description": "酸辣开胃的快手素菜，适合新手。",
+    "ingredients": [
+      {
+        "name": "土豆",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "干辣椒",
+        "amount": 3,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "蒜",
+        "amount": 2,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "白醋",
+        "amount": 1.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "土豆切丝，用清水冲洗后沥干。",
+      "蒜切末，干辣椒剪段。",
+      "热锅加油，放蒜末和辣椒炒香。",
+      "倒入土豆丝大火快炒。",
+      "加盐和白醋，炒至断生出锅。"
+    ],
+    "tips": "土豆丝冲洗掉淀粉后更脆。"
+  },
+  {
+    "id": "home-style-tofu",
+    "name": "家常豆腐",
+    "categories": [
+      "素菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "豆制品",
+      "下饭菜",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "spicy",
+    "description": "豆腐外香内嫩，适合日常配米饭。",
+    "ingredients": [
+      {
+        "name": "北豆腐",
+        "amount": 1,
+        "unit": "块",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "木耳",
+        "amount": 30,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "豆瓣酱",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "豆腐切片，煎至两面微黄。",
+      "青椒切块，蒜切末。",
+      "锅中炒香蒜末和豆瓣酱。",
+      "加入青椒、木耳和豆腐翻炒。",
+      "加生抽和少量水，焖 3 分钟后收汁。"
+    ],
+    "tips": "豆腐先煎一下，不容易碎也更香。"
+  },
+  {
+    "id": "sweet-sour-pork",
+    "name": "糖醋里脊",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "酸甜",
+      "孩子爱吃",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 35,
+    "accent": "tomato",
+    "description": "酸甜开胃，外酥里嫩。",
+    "ingredients": [
+      {
+        "name": "猪里脊",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 3,
+        "unit": "勺",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "番茄酱",
+        "amount": 3,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 12,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白醋",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "里脊切条，加盐、鸡蛋和淀粉抓匀。",
+      "锅中加油，将肉条炸至定型后捞出。",
+      "升高油温复炸至酥脆。",
+      "锅中放番茄酱、白糖和白醋炒成酱汁。",
+      "倒入里脊条快速裹匀。"
+    ],
+    "tips": "复炸时间不用太长，表面酥脆即可。"
+  },
+  {
+    "id": "boiled-fish",
+    "name": "水煮鱼",
+    "categories": [
+      "鱼虾海鲜",
+      "川菜"
+    ],
+    "tags": [
+      "麻辣",
+      "聚餐菜",
+      "40分钟"
+    ],
+    "servings": 3,
+    "difficulty": "较难",
+    "timeMinutes": 40,
+    "accent": "spicy",
+    "description": "麻辣鲜香的川味鱼菜，适合重口味晚餐。",
+    "ingredients": [
+      {
+        "name": "草鱼片",
+        "amount": 500,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "豆芽",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "青菜",
+        "amount": 150,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "蒜",
+        "amount": 5,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "火锅底料",
+        "amount": 60,
+        "unit": "克",
+        "pantryItem": false
+      },
+      {
+        "name": "花椒",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "干辣椒",
+        "amount": 8,
+        "unit": "个",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鱼片用盐和淀粉轻轻抓匀。",
+      "豆芽和青菜焯熟，铺在碗底。",
+      "锅中炒香底料和蒜末，加水煮开。",
+      "下鱼片煮至变白，连汤倒入碗中。",
+      "撒花椒和干辣椒，淋热油激香。"
+    ],
+    "tips": "鱼片下锅后不要频繁翻动，避免碎掉。"
+  },
+  {
+    "id": "braised-crucian-carp",
+    "name": "红烧鲫鱼",
+    "categories": [
+      "鱼虾海鲜",
+      "家常菜"
+    ],
+    "tags": [
+      "咸鲜",
+      "家常鱼",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 35,
+    "accent": "meat",
+    "description": "咸鲜入味的家常烧鱼。",
+    "ingredients": [
+      {
+        "name": "鲫鱼",
+        "amount": 1,
+        "unit": "条",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 4,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鲫鱼处理干净，擦干表面水分。",
+      "锅中加油，将鱼两面煎至微黄。",
+      "放姜蒜炒香，加料酒、生抽、老抽和热水。",
+      "中小火烧 15 分钟。",
+      "加少量白糖，大火收汁，撒葱花。"
+    ],
+    "tips": "鱼表面擦干再煎，更不容易破皮。"
+  },
+  {
+    "id": "shiitake-steamed-chicken",
+    "name": "香菇滑鸡",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "鲜香",
+      "蒸菜",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "soup2",
+    "description": "鸡肉嫩滑、香菇鲜香，油烟少。",
+    "ingredients": [
+      {
+        "name": "鸡腿肉",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "香菇",
+        "amount": 6,
+        "unit": "朵",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 3,
+        "unit": "片",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 1.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡腿肉切块，香菇切片。",
+      "加入生抽、蚝油、淀粉和少量油抓匀。",
+      "腌制 15 分钟后装盘。",
+      "水开后上锅蒸 15 分钟。",
+      "出锅后撒葱花即可。"
+    ],
+    "tips": "用鸡腿肉比鸡胸肉更嫩。"
+  },
+  {
+    "id": "greens-shiitake",
+    "name": "青菜烧香菇",
+    "categories": [
+      "素菜",
+      "快手菜"
+    ],
+    "tags": [
+      "清淡",
+      "鲜香",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "green",
+    "description": "清爽家常素菜，适合搭配肉菜。",
+    "ingredients": [
+      {
+        "name": "青菜",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "香菇",
+        "amount": 6,
+        "unit": "朵",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 2,
+        "unit": "瓣",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "青菜洗净，香菇切片。",
+      "热锅加油，炒香蒜末。",
+      "放香菇炒软。",
+      "加入青菜大火翻炒。",
+      "加盐和蚝油调味，炒匀出锅。"
+    ],
+    "tips": "青菜下锅后大火快炒，颜色更好看。"
+  },
+  {
+    "id": "sweet-sour-lotus-root",
+    "name": "糖醋藕丁",
+    "categories": [
+      "素菜",
+      "快手菜"
+    ],
+    "tags": [
+      "酸甜",
+      "脆爽",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "fresh",
+    "description": "酸甜脆爽的小炒，适合开胃。",
+    "ingredients": [
+      {
+        "name": "莲藕",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "白醋",
+        "amount": 1.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 10,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "莲藕去皮切丁，焯水 1 分钟。",
+      "调糖醋汁：白醋、白糖、生抽、淀粉和少量水。",
+      "热锅加油，放藕丁翻炒。",
+      "倒入糖醋汁快速炒匀。",
+      "汤汁变亮后撒葱花出锅。"
+    ],
+    "tips": "藕丁焯水后更容易保持脆感。"
+  },
+  {
+    "id": "spicy-chicken-feet",
+    "name": "香辣烧鸡爪",
+    "categories": [
+      "肉菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "香辣",
+      "下酒菜",
+      "45分钟"
+    ],
+    "servings": 3,
+    "difficulty": "中等",
+    "timeMinutes": 45,
+    "accent": "spicy",
+    "description": "软糯入味的香辣鸡爪，适合配饭或小聚。",
+    "ingredients": [
+      {
+        "name": "鸡爪",
+        "amount": 500,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 4,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 4,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "豆瓣酱",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡爪剪去指甲，冷水下锅焯水。",
+      "锅中加油，炒香姜蒜和豆瓣酱。",
+      "放鸡爪翻炒上色。",
+      "加入生抽、老抽、料酒和热水。",
+      "中小火焖 30 分钟后收汁。"
+    ],
+    "tips": "喜欢软糯口感可以多焖 10 分钟。"
+  },
+  {
+    "id": "braised-wuchang-fish",
+    "name": "红烧武昌鱼",
+    "categories": [
+      "鱼虾海鲜",
+      "家常菜"
+    ],
+    "tags": [
+      "咸鲜",
+      "家常鱼",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 35,
+    "accent": "meat",
+    "description": "肉质细嫩、酱香入味的烧鱼。",
+    "ingredients": [
+      {
+        "name": "武昌鱼",
+        "amount": 1,
+        "unit": "条",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 4,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鱼处理干净，在鱼身两面划几刀。",
+      "锅中加油，将鱼两面煎香。",
+      "放姜蒜，淋料酒去腥。",
+      "加入生抽、老抽、盐和热水。",
+      "盖盖烧 15 分钟，大火收汁。"
+    ],
+    "tips": "煎鱼前用厨房纸吸干水分，能减少粘锅。"
+  },
+  {
+    "id": "yam-rib-soup",
+    "name": "山药排骨汤",
+    "categories": [
+      "汤",
+      "肉菜"
+    ],
+    "tags": [
+      "清淡",
+      "滋补",
+      "70分钟"
+    ],
+    "servings": 3,
+    "difficulty": "简单",
+    "timeMinutes": 70,
+    "accent": "soup2",
+    "description": "汤色清爽、口感温和的家庭汤。",
+    "ingredients": [
+      {
+        "name": "排骨",
+        "amount": 500,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "山药",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 4,
+        "unit": "片",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 4,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "排骨冷水下锅，加料酒焯水后洗净。",
+      "锅中加水，放排骨和姜片炖 45 分钟。",
+      "山药去皮切段。",
+      "加入山药继续炖 20 分钟。",
+      "加盐调味后出锅。"
+    ],
+    "tips": "山药去皮时可戴手套，避免手痒。"
+  },
+  {
+    "id": "preserved-egg-pork-congee",
+    "name": "皮蛋瘦肉粥",
+    "categories": [
+      "主食",
+      "早餐"
+    ],
+    "tags": [
+      "暖胃",
+      "早餐",
+      "50分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 50,
+    "accent": "rice",
+    "description": "咸香绵软，适合早餐或夜宵。",
+    "ingredients": [
+      {
+        "name": "大米",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "皮蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "瘦肉",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 2,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒粉",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 0.5,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "大米洗净，加水煮开后转小火。",
+      "瘦肉切丝，用少量盐抓匀。",
+      "粥煮至开花后加入肉丝和姜丝。",
+      "加入切好的皮蛋再煮 10 分钟。",
+      "加盐、白胡椒粉和香油调味。"
+    ],
+    "tips": "煮粥时偶尔搅动，口感更绵。"
+  },
+  {
+    "id": "garlic-sprout-pork",
+    "name": "蒜苔炒肉",
+    "categories": [
+      "肉菜",
+      "快手菜"
+    ],
+    "tags": [
+      "家常小炒",
+      "下饭菜",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "green",
+    "description": "香味足、下饭快的日常小炒。",
+    "ingredients": [
+      {
+        "name": "蒜苔",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "猪肉",
+        "amount": 150,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 2,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "蒜苔切段，猪肉切片。",
+      "热锅加油，放肉片炒至变色。",
+      "加入姜片和生抽炒香。",
+      "放蒜苔大火翻炒。",
+      "加盐调味，炒至蒜苔断生。"
+    ],
+    "tips": "蒜苔不要炒太久，保留脆感更好吃。"
+  },
+  {
+    "id": "jing-sauce-pork",
+    "name": "京酱肉丝",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "酱香",
+      "卷饼",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 30,
+    "accent": "meat",
+    "description": "酱香浓郁，可搭配豆皮或薄饼。",
+    "ingredients": [
+      {
+        "name": "猪里脊",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "大葱",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "豆皮",
+        "amount": 2,
+        "unit": "张",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "甜面酱",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": false
+      },
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "里脊切丝，用生抽和淀粉抓匀。",
+      "大葱切细丝，铺在盘底。",
+      "热锅加油，滑炒肉丝后盛出。",
+      "锅中放甜面酱和少量水炒开。",
+      "倒回肉丝，加白糖炒匀后装盘。"
+    ],
+    "tips": "大葱切细一点，和肉丝一起吃更协调。"
+  },
+  {
+    "id": "vinegar-cabbage",
+    "name": "醋溜白菜",
+    "categories": [
+      "素菜",
+      "快手菜"
+    ],
+    "tags": [
+      "酸爽",
+      "便宜好做",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "fresh",
+    "description": "酸爽开胃，成本低的快手家常菜。",
+    "ingredients": [
+      {
+        "name": "白菜",
+        "amount": 400,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      },
+      {
+        "name": "干辣椒",
+        "amount": 2,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "醋",
+        "amount": 1.5,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "白菜帮和叶分开切片。",
+      "蒜切末，干辣椒剪段。",
+      "热锅加油，炒香蒜末和辣椒。",
+      "先放白菜帮炒软，再放白菜叶。",
+      "加醋、生抽、盐和白糖，快速炒匀。"
+    ],
+    "tips": "白菜帮先下锅，整体熟度更一致。"
+  },
+  {
+    "id": "steamed-sea-bass",
+    "name": "清蒸鲈鱼",
+    "categories": [
+      "鱼虾海鲜",
+      "家常菜"
+    ],
+    "tags": [
+      "清淡",
+      "宴客菜",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "fresh",
+    "description": "清淡鲜嫩，适合家庭正餐。",
+    "ingredients": [
+      {
+        "name": "鲈鱼",
+        "amount": 1,
+        "unit": "条",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 5,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 2,
+        "unit": "根",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "蒸鱼豉油",
+        "amount": 2,
+        "unit": "勺",
+        "pantryItem": false
+      },
+      {
+        "name": "料酒",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鲈鱼处理干净，鱼身划几刀。",
+      "鱼身抹少量料酒，铺姜片。",
+      "水开后上锅蒸 8 到 10 分钟。",
+      "倒掉盘中汤汁，淋蒸鱼豉油。",
+      "撒葱丝，淋热油激香。"
+    ],
+    "tips": "蒸鱼时间不要过长，鱼肉更嫩。"
+  },
+  {
+    "id": "twice-cooked-pork",
+    "name": "回锅肉",
+    "categories": [
+      "肉菜",
+      "川菜"
+    ],
+    "tags": [
+      "酱香微辣",
+      "下饭菜",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 35,
+    "accent": "spicy",
+    "description": "肥瘦相间、酱香浓郁的经典川味家常菜。",
+    "ingredients": [
+      {
+        "name": "五花肉",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜苗",
+        "amount": 150,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 3,
+        "unit": "片",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "豆瓣酱",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "五花肉冷水下锅，加姜片煮至能扎透。",
+      "肉放凉后切薄片，蒜苗切段。",
+      "锅中少油，煸炒肉片至微卷。",
+      "加入豆瓣酱炒出香味。",
+      "放蒜苗、生抽和白糖，炒匀出锅。"
+    ],
+    "tips": "肉片切薄一些，炒出来更香。"
   }
 ]
