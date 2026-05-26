@@ -35,6 +35,48 @@ python3 -m http.server 4173
 http://localhost:4173
 ```
 
+## 项目结构
+
+```text
+family-menu/
+  index.html          页面结构
+  styles.css          页面样式
+  app.js              菜谱数据和交互逻辑
+  docs/product-plan.md 产品企划书
+  README.md           项目说明
+```
+
+## 新手开发流程
+
+每次准备改功能时，建议按这个顺序来：
+
+```bash
+git status
+git checkout -b feature/your-feature-name
+```
+
+改完后检查页面，再提交：
+
+```bash
+git status
+git add .
+git commit -m "feat: describe your change"
+```
+
+常用提交类型：
+
+- `feat`: 新功能。
+- `fix`: 修复问题。
+- `docs`: 文档修改。
+- `style`: 样式调整。
+- `refactor`: 代码整理但不改变功能。
+
+当前仓库已经有第一笔提交：
+
+```text
+feat: build family menu MVP
+```
+
 ## 当前技术方案
 
 - HTML
@@ -58,3 +100,14 @@ http://localhost:4173
 - Supabase
 
 建议先把 `app.js` 里的菜谱数据拆到 `recipes.json`，再逐步组件化。
+
+## 下一阶段建议
+
+建议按下面顺序继续：
+
+1. 把菜谱数据从 `app.js` 拆到 `data/recipes.json`。
+2. 增加更多真实菜品数据。
+3. 优化移动端做饭步骤阅读体验。
+4. 使用 GitHub 创建远程仓库并推送代码。
+5. 使用 Vercel 或 Netlify 部署静态站点。
+6. 再考虑迁移到 Next.js。
