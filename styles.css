@@ -188,6 +188,11 @@ button {
   font-weight: 800;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .tab.active,
 .primary-button {
   border-color: var(--green);
@@ -468,12 +473,17 @@ button {
 }
 
 .detail-content {
-  padding: 18px;
+  padding: 18px 18px 86px;
 }
 
 .detail-content h2 {
   margin: 0 0 8px;
   font-size: 30px;
+}
+
+.detail-header {
+  display: grid;
+  gap: 10px;
 }
 
 .detail-grid {
@@ -501,6 +511,102 @@ button {
   margin-bottom: 8px;
 }
 
+.cook-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #c9ddc4;
+  border-radius: 8px;
+  background: #f5fbf0;
+}
+
+.cook-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cook-panel-head span,
+.cook-panel-head strong {
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cook-panel p {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.cook-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.step-cards {
+  display: grid;
+  gap: 8px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.step-cards li {
+  margin: 0;
+}
+
+.step-cards button {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  min-height: 54px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+}
+
+.step-cards span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--leaf);
+  color: var(--green-dark);
+  font-weight: 900;
+}
+
+.step-cards strong {
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.step-cards li.active button {
+  border-color: var(--green);
+  background: #f5fbf0;
+}
+
+.detail-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  margin: 18px -18px -86px;
+  padding: 12px 18px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+}
+
 @media (max-width: 820px) {
   .app-shell {
     padding: 14px;
@@ -520,13 +626,63 @@ button {
 }
 
 @media (max-width: 560px) {
-  .recipe-grid,
-  .detail-grid {
-    grid-template-columns: 1fr;
+  body {
+    background: var(--bg);
+  }
+
+  .app-shell {
+    padding: 12px;
+  }
+
+  .topbar {
+    padding-bottom: 12px;
+  }
+
+  .topbar h1 {
+    font-size: 32px;
+  }
+
+  .icon-button {
+    width: 52px;
+    height: 52px;
+  }
+
+  .hero {
+    min-height: 128px;
+    margin-bottom: 12px;
   }
 
   .hero-copy {
-    padding: 22px;
+    padding: 18px;
+  }
+
+  .hero-copy p {
+    font-size: 24px;
+  }
+
+  .tabs {
+    gap: 6px;
+    padding-bottom: 10px;
+  }
+
+  .tab,
+  .primary-button,
+  .ghost-button,
+  .small-button {
+    min-height: 48px;
+  }
+
+  .search-box {
+    padding: 12px;
+  }
+
+  .search-box input {
+    font-size: 16px;
+  }
+
+  .recipe-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
   }
 
   .menu-card,
@@ -541,5 +697,80 @@ button {
 
   .card-actions {
     grid-template-columns: 1fr;
+  }
+
+  .dish-art {
+    min-height: 118px;
+  }
+
+  .recipe-dialog {
+    width: 100%;
+    max-width: none;
+    max-height: 100dvh;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .detail-cover {
+    min-height: 96px;
+    padding: 12px;
+  }
+
+  .dialog-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .detail-content {
+    padding: 16px 14px 92px;
+  }
+
+  .detail-content h2 {
+    font-size: 28px;
+  }
+
+  .detail-section {
+    margin-top: 16px;
+  }
+
+  .plain-list li {
+    margin-bottom: 10px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .cook-panel {
+    padding: 14px;
+  }
+
+  .cook-panel p {
+    font-size: 22px;
+    line-height: 1.5;
+  }
+
+  .cook-controls {
+    position: sticky;
+    bottom: 76px;
+    z-index: 2;
+  }
+
+  .step-cards button {
+    min-height: 62px;
+    padding: 12px 10px;
+  }
+
+  .shopping-item {
+    min-height: 54px;
+  }
+
+  .shopping-item input {
+    width: 24px;
+    height: 24px;
+  }
+
+  .detail-actions {
+    margin: 18px -14px -92px;
+    padding: 12px 14px max(16px, env(safe-area-inset-bottom));
   }
 }

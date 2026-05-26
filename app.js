@@ -277,17 +277,30 @@ function renderShoppingGroup(title, items) {
 
 function openRecipeDetail(recipeId) {
   const recipe = getRecipe(recipeId);
+  renderRecipeDetail(recipe, 0);
+  nodes.recipeDialog.showModal();
+}
+
+function renderRecipeDetail(recipe, activeStep) {
+  const currentStep = recipe.steps[activeStep];
+  const isFirstStep = activeStep === 0;
+  const isLastStep = activeStep === recipe.steps.length - 1;
+
   nodes.recipeDetail.innerHTML = `
     <div class="detail-cover" style="--dish-bg: ${artThemes[recipe.accent]}">
       <button class="dialog-close" type="button" aria-label="关闭">×</button>
     </div>
     <div class="detail-content">
-      <h2>${recipe.name}</h2>
-      <p>${recipe.description}</p>
-      <div class="meta">
-        <span>${recipe.servings} 人份</span>
-        <span>${recipe.timeMinutes} 分钟</span>
-        <span>${recipe.difficulty}</span>
+      <div class="detail-header">
+        <div>
+          <h2>${recipe.name}</h2>
+          <p>${recipe.description}</p>
+        </div>
+        <div class="meta">
+          <span>${recipe.servings} 人份</span>
+          <span>${recipe.timeMinutes} 分钟</span>
+          <span>${recipe.difficulty}</span>
+        </div>
       </div>
       <div class="detail-grid">
         <section class="detail-section">
@@ -303,17 +316,41 @@ function openRecipeDetail(recipeId) {
           </ul>
         </section>
       </div>
-      <section class="detail-section">
-        <h3>做法</h3>
-        <ol class="steps">
-          ${recipe.steps.map((step) => `<li>${step}</li>`).join("")}
+      <section class="cook-panel" aria-live="polite">
+        <div class="cook-panel-head">
+          <span>第 ${activeStep + 1} 步 / 共 ${recipe.steps.length} 步</span>
+          <strong>${isLastStep ? "最后一步" : "当前步骤"}</strong>
+        </div>
+        <p>${currentStep}</p>
+        <div class="cook-controls">
+          <button class="ghost-button" type="button" data-action="prev-step" ${isFirstStep ? "disabled" : ""}>上一步</button>
+          <button class="primary-button" type="button" data-action="next-step" ${isLastStep ? "disabled" : ""}>下一步</button>
+        </div>
+      </section>
+      <section class="detail-section all-steps-section">
+        <h3>全部步骤</h3>
+        <ol class="steps step-cards">
+          ${recipe.steps
+            .map(
+              (step, index) => `
+                <li class="${index === activeStep ? "active" : ""}">
+                  <button type="button" data-action="select-step" data-step="${index}">
+                    <span>${index + 1}</span>
+                    <strong>${step}</strong>
+                  </button>
+                </li>
+              `,
+            )
+            .join("")}
         </ol>
       </section>
       <section class="detail-section">
         <h3>小贴士</h3>
         <p>${recipe.tips}</p>
       </section>
-      <button class="primary-button" type="button" data-action="add" data-id="${recipe.id}">加入今日菜单</button>
+      <div class="detail-actions">
+        <button class="primary-button" type="button" data-action="add" data-id="${recipe.id}">加入今日菜单</button>
+      </div>
     </div>
   `;
 
@@ -322,7 +359,16 @@ function openRecipeDetail(recipeId) {
     addToMenu(recipe.id);
     nodes.recipeDialog.close();
   });
-  nodes.recipeDialog.showModal();
+
+  const prevButton = nodes.recipeDetail.querySelector("[data-action='prev-step']");
+  const nextButton = nodes.recipeDetail.querySelector("[data-action='next-step']");
+
+  prevButton.addEventListener("click", () => renderRecipeDetail(recipe, Math.max(0, activeStep - 1)));
+  nextButton.addEventListener("click", () => renderRecipeDetail(recipe, Math.min(recipe.steps.length - 1, activeStep + 1)));
+
+  nodes.recipeDetail.querySelectorAll("[data-action='select-step']").forEach((button) => {
+    button.addEventListener("click", () => renderRecipeDetail(recipe, Number(button.dataset.step)));
+  });
 }
 
 function addToMenu(recipeId) {
