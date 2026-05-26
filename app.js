@@ -1,293 +1,4 @@
-const recipes = [
-  {
-    id: "tomato-egg",
-    name: "西红柿炒鸡蛋",
-    categories: ["家常菜", "快手菜"],
-    tags: ["新手友好", "下饭菜", "15分钟"],
-    servings: 2,
-    difficulty: "简单",
-    timeMinutes: 15,
-    accent: "tomato",
-    description: "酸甜开胃的经典家常菜，适合新手快速上手。",
-    ingredients: [
-      { name: "西红柿", amount: 2, unit: "个", required: true },
-      { name: "鸡蛋", amount: 3, unit: "个", required: true },
-      { name: "小葱", amount: 1, unit: "根", required: false },
-    ],
-    seasonings: [
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-      { name: "白糖", amount: 3, unit: "克", pantryItem: true },
-    ],
-    steps: [
-      "西红柿洗净切块，鸡蛋打散备用。",
-      "热锅加油，倒入鸡蛋炒至凝固后盛出。",
-      "锅中补少量油，放入西红柿翻炒出汁。",
-      "倒回鸡蛋，加盐和少量白糖调味。",
-      "翻炒均匀，撒小葱后出锅。",
-    ],
-    tips: "想要汤汁更多，可以把西红柿多炒 1 分钟。",
-  },
-  {
-    id: "potato-shreds",
-    name: "青椒土豆丝",
-    categories: ["家常菜", "素菜"],
-    tags: ["清爽", "下饭菜", "20分钟"],
-    servings: 2,
-    difficulty: "简单",
-    timeMinutes: 20,
-    accent: "green",
-    description: "口感脆爽，适合作为日常素菜。",
-    ingredients: [
-      { name: "土豆", amount: 2, unit: "个", required: true },
-      { name: "青椒", amount: 1, unit: "个", required: true },
-      { name: "蒜", amount: 2, unit: "瓣", required: true },
-    ],
-    seasonings: [
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-      { name: "白醋", amount: 1, unit: "勺", pantryItem: true },
-    ],
-    steps: [
-      "土豆切细丝，用清水冲洗去淀粉。",
-      "青椒切丝，蒜切末。",
-      "热锅加油爆香蒜末。",
-      "放入土豆丝快速翻炒。",
-      "加入青椒、盐和白醋，炒至断生出锅。",
-    ],
-    tips: "土豆丝冲水后更容易炒出脆感。",
-  },
-  {
-    id: "seaweed-egg-soup",
-    name: "紫菜蛋花汤",
-    categories: ["汤", "快手菜"],
-    tags: ["10分钟", "清淡", "新手友好"],
-    servings: 2,
-    difficulty: "简单",
-    timeMinutes: 10,
-    accent: "soup",
-    description: "快速暖胃的家常汤，适合搭配主菜。",
-    ingredients: [
-      { name: "紫菜", amount: 5, unit: "克", required: true },
-      { name: "鸡蛋", amount: 1, unit: "个", required: true },
-      { name: "小葱", amount: 1, unit: "根", required: false },
-    ],
-    seasonings: [
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-      { name: "香油", amount: 0.5, unit: "勺", pantryItem: true },
-      { name: "白胡椒粉", amount: "少许", unit: "", pantryItem: true },
-    ],
-    steps: [
-      "锅中加水烧开，放入紫菜。",
-      "鸡蛋打散，沿锅边慢慢淋入。",
-      "加盐和白胡椒粉调味。",
-      "关火后滴香油，撒小葱即可。",
-    ],
-    tips: "蛋液要慢慢淋入，蛋花会更细。",
-  },
-  {
-    id: "garlic-broccoli",
-    name: "蒜蓉西兰花",
-    categories: ["素菜", "快手菜"],
-    tags: ["清淡", "15分钟", "低脂"],
-    servings: 2,
-    difficulty: "简单",
-    timeMinutes: 15,
-    accent: "broccoli",
-    description: "颜色清爽，适合补充蔬菜。",
-    ingredients: [
-      { name: "西兰花", amount: 1, unit: "颗", required: true },
-      { name: "蒜", amount: 4, unit: "瓣", required: true },
-    ],
-    seasonings: [
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-      { name: "生抽", amount: 1, unit: "勺", pantryItem: true },
-    ],
-    steps: [
-      "西兰花切小朵，洗净备用。",
-      "锅中烧水，加少量盐，焯水 1 分钟后捞出。",
-      "热锅加油，放入蒜末炒香。",
-      "加入西兰花翻炒，放盐和生抽调味。",
-      "炒匀后出锅。",
-    ],
-    tips: "焯水后过一下冷水，颜色会更翠绿。",
-  },
-  {
-    id: "cola-wings",
-    name: "可乐鸡翅",
-    categories: ["肉菜", "家常菜"],
-    tags: ["孩子爱吃", "35分钟", "微甜"],
-    servings: 2,
-    difficulty: "中等",
-    timeMinutes: 35,
-    accent: "meat",
-    description: "甜咸适中，适合家庭聚餐。",
-    ingredients: [
-      { name: "鸡翅中", amount: 8, unit: "个", required: true },
-      { name: "姜", amount: 3, unit: "片", required: true },
-      { name: "可乐", amount: 330, unit: "毫升", required: true },
-    ],
-    seasonings: [
-      { name: "生抽", amount: 2, unit: "勺", pantryItem: true },
-      { name: "老抽", amount: 0.5, unit: "勺", pantryItem: true },
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-    ],
-    steps: [
-      "鸡翅两面划口，冷水下锅焯水后捞出。",
-      "热锅加油，放姜片和鸡翅煎至两面微黄。",
-      "加入生抽、老抽和可乐。",
-      "中小火炖煮 20 分钟。",
-      "转大火收汁，裹匀鸡翅即可。",
-    ],
-    tips: "收汁时要勤翻动，避免糖分糊锅。",
-  },
-  {
-    id: "mapo-tofu",
-    name: "麻婆豆腐",
-    categories: ["家常菜", "下饭菜"],
-    tags: ["微辣", "25分钟", "下饭菜"],
-    servings: 2,
-    difficulty: "中等",
-    timeMinutes: 25,
-    accent: "spicy",
-    description: "香辣入味，适合配米饭。",
-    ingredients: [
-      { name: "嫩豆腐", amount: 1, unit: "盒", required: true },
-      { name: "猪肉末", amount: 100, unit: "克", required: true },
-      { name: "蒜", amount: 3, unit: "瓣", required: true },
-    ],
-    seasonings: [
-      { name: "豆瓣酱", amount: 1, unit: "勺", pantryItem: true },
-      { name: "生抽", amount: 1, unit: "勺", pantryItem: true },
-      { name: "淀粉", amount: 1, unit: "勺", pantryItem: true },
-      { name: "花椒粉", amount: "少许", unit: "", pantryItem: true },
-    ],
-    steps: [
-      "豆腐切块，蒜切末。",
-      "热锅加油，放肉末炒散。",
-      "加入豆瓣酱和蒜末炒出红油。",
-      "加少量水，放入豆腐小火煮 5 分钟。",
-      "淋入水淀粉勾芡，撒花椒粉出锅。",
-    ],
-    tips: "翻动豆腐时用锅铲轻推，避免碎掉。",
-  },
-  {
-    id: "cucumber-egg",
-    name: "黄瓜炒鸡蛋",
-    categories: ["快手菜", "家常菜"],
-    tags: ["清爽", "15分钟", "新手友好"],
-    servings: 2,
-    difficulty: "简单",
-    timeMinutes: 15,
-    accent: "fresh",
-    description: "清淡快手，适合工作日晚餐。",
-    ingredients: [
-      { name: "黄瓜", amount: 1, unit: "根", required: true },
-      { name: "鸡蛋", amount: 2, unit: "个", required: true },
-      { name: "蒜", amount: 2, unit: "瓣", required: false },
-    ],
-    seasonings: [
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-    ],
-    steps: [
-      "黄瓜切片，鸡蛋打散。",
-      "热锅加油，先炒鸡蛋后盛出。",
-      "锅中放蒜片和黄瓜翻炒。",
-      "倒回鸡蛋，加盐调味。",
-      "快速炒匀后出锅。",
-    ],
-    tips: "黄瓜不要炒太久，保留脆感。",
-  },
-  {
-    id: "wintermelon-rib-soup",
-    name: "冬瓜排骨汤",
-    categories: ["汤", "肉菜"],
-    tags: ["清淡", "60分钟", "家庭汤"],
-    servings: 3,
-    difficulty: "中等",
-    timeMinutes: 60,
-    accent: "soup2",
-    description: "清甜不腻，适合家庭正餐。",
-    ingredients: [
-      { name: "排骨", amount: 500, unit: "克", required: true },
-      { name: "冬瓜", amount: 400, unit: "克", required: true },
-      { name: "姜", amount: 4, unit: "片", required: true },
-    ],
-    seasonings: [
-      { name: "盐", amount: 4, unit: "克", pantryItem: true },
-      { name: "料酒", amount: 1, unit: "勺", pantryItem: true },
-    ],
-    steps: [
-      "排骨冷水下锅，加料酒焯水后洗净。",
-      "锅中加水，放排骨和姜片炖 40 分钟。",
-      "冬瓜切块后加入锅中。",
-      "继续炖 15 分钟，加盐调味。",
-      "冬瓜变软后即可出锅。",
-    ],
-    tips: "排骨焯水后汤会更清。",
-  },
-  {
-    id: "egg-fried-rice",
-    name: "蛋炒饭",
-    categories: ["主食", "快手菜"],
-    tags: ["10分钟", "剩饭友好", "新手友好"],
-    servings: 1,
-    difficulty: "简单",
-    timeMinutes: 10,
-    accent: "rice",
-    description: "处理剩米饭的快速主食。",
-    ingredients: [
-      { name: "米饭", amount: 1, unit: "碗", required: true },
-      { name: "鸡蛋", amount: 2, unit: "个", required: true },
-      { name: "小葱", amount: 1, unit: "根", required: false },
-    ],
-    seasonings: [
-      { name: "食用油", amount: "适量", unit: "", pantryItem: true },
-      { name: "盐", amount: 2, unit: "克", pantryItem: true },
-      { name: "生抽", amount: 0.5, unit: "勺", pantryItem: true },
-    ],
-    steps: [
-      "鸡蛋打散，小葱切碎。",
-      "热锅加油，炒散鸡蛋。",
-      "加入米饭压散翻炒。",
-      "加盐和少量生抽调味。",
-      "撒葱花炒匀出锅。",
-    ],
-    tips: "隔夜米饭更容易炒散。",
-  },
-  {
-    id: "braised-eggplant",
-    name: "红烧茄子",
-    categories: ["素菜", "下饭菜"],
-    tags: ["浓香", "30分钟", "下饭菜"],
-    servings: 2,
-    difficulty: "中等",
-    timeMinutes: 30,
-    accent: "eggplant",
-    description: "软糯入味，适合搭配米饭。",
-    ingredients: [
-      { name: "茄子", amount: 2, unit: "根", required: true },
-      { name: "蒜", amount: 4, unit: "瓣", required: true },
-      { name: "青椒", amount: 1, unit: "个", required: false },
-    ],
-    seasonings: [
-      { name: "生抽", amount: 2, unit: "勺", pantryItem: true },
-      { name: "老抽", amount: 0.5, unit: "勺", pantryItem: true },
-      { name: "白糖", amount: 3, unit: "克", pantryItem: true },
-      { name: "淀粉", amount: 1, unit: "勺", pantryItem: true },
-    ],
-    steps: [
-      "茄子切条，蒜切末。",
-      "调一碗料汁：生抽、老抽、白糖、淀粉和少量水。",
-      "锅中加油，将茄子炒软。",
-      "加入蒜末和青椒翻炒。",
-      "倒入料汁，翻炒至浓稠即可。",
-    ],
-    tips: "茄子提前撒少量盐静置，可以减少吸油。",
-  },
-];
+let recipes = [];
 
 const artThemes = {
   tomato: "linear-gradient(135deg, #d94c35, #f6bd46)",
@@ -348,8 +59,44 @@ nodes.recipeDialog.addEventListener("click", (event) => {
   }
 });
 
-renderCategories();
-renderAll();
+initApp();
+
+async function initApp() {
+  try {
+    recipes = await loadRecipes();
+    pruneMissingMenuItems();
+    renderCategories();
+    renderAll();
+  } catch (error) {
+    renderLoadError(error);
+  }
+}
+
+async function loadRecipes() {
+  const response = await fetch("./data/recipes.json");
+  if (!response.ok) {
+    throw new Error(`菜谱数据读取失败：${response.status}`);
+  }
+  return response.json();
+}
+
+function renderLoadError(error) {
+  nodes.recipeGrid.innerHTML = '<div class="empty-state">菜谱数据加载失败。请通过本地服务访问页面，例如 python3 -m http.server 4173。</div>';
+  nodes.menuList.innerHTML = `<div class="empty-state">${error.message}</div>`;
+  nodes.shoppingSummary.textContent = "菜谱数据加载失败。";
+  nodes.shoppingList.innerHTML = "";
+  nodes.menuCount.textContent = state.menu.length;
+  nodes.shoppingBadge.textContent = 0;
+}
+
+function pruneMissingMenuItems() {
+  const validRecipeIds = new Set(recipes.map((recipe) => recipe.id));
+  const nextMenu = state.menu.filter((item) => validRecipeIds.has(item.recipeId));
+  if (nextMenu.length !== state.menu.length) {
+    state.menu = nextMenu;
+    saveMenu();
+  }
+}
 
 function renderAll() {
   renderRecipes();
@@ -612,6 +359,8 @@ function buildShoppingList() {
 
   state.menu.forEach((menuItem) => {
     const recipe = getRecipe(menuItem.recipeId);
+    if (!recipe) return;
+
     const ratio = menuItem.servings / recipe.servings;
 
     [

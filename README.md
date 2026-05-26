@@ -17,13 +17,7 @@
 
 ## 如何运行
 
-直接用浏览器打开：
-
-```text
-index.html
-```
-
-或进入本目录后启动一个简单静态服务：
+进入本目录后启动一个简单静态服务：
 
 ```bash
 python3 -m http.server 4173
@@ -35,13 +29,16 @@ python3 -m http.server 4173
 http://localhost:4173
 ```
 
+因为菜谱数据已经拆到 `data/recipes.json`，浏览器需要通过本地服务读取 JSON。直接双击打开 `index.html` 可能会被浏览器拦截数据读取。
+
 ## 项目结构
 
 ```text
 family-menu/
   index.html          页面结构
   styles.css          页面样式
-  app.js              菜谱数据和交互逻辑
+  app.js              页面交互逻辑
+  data/recipes.json   菜谱数据
   docs/product-plan.md 产品企划书
   README.md           项目说明
 ```
@@ -105,9 +102,8 @@ feat: build family menu MVP
 
 建议按下面顺序继续：
 
-1. 把菜谱数据从 `app.js` 拆到 `data/recipes.json`。
-2. 增加更多真实菜品数据。
-3. 优化移动端做饭步骤阅读体验。
-4. 使用 GitHub 创建远程仓库并推送代码。
-5. 使用 Vercel 或 Netlify 部署静态站点。
-6. 再考虑迁移到 Next.js。
+1. 增加更多真实菜品数据。
+2. 优化移动端做饭步骤阅读体验。
+3. 使用 GitHub 创建远程仓库并推送代码。
+4. 使用 Vercel 或 Netlify 部署静态站点。
+5. 再考虑迁移到 Next.js。
