@@ -83,6 +83,7 @@ function App() {
   const [checkedItems, setCheckedItems] = useState({});
   const [customItems, setCustomItems] = useState([]);
   const [newCustomItem, setNewCustomItem] = useState("");
+  const [excludedGroceryKeys, setExcludedGroceryKeys] = useState([]);
   const [draggedRecipeId, setDraggedRecipeId] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [cookingStep, setCookingStep] = useState(0);
@@ -129,6 +130,25 @@ function App() {
   const groceryItems = useMemo(
     () => buildShoppingListFromEntries(recipeEntries),
     [recipeEntries],
+  );
+  const excludedGrocerySet = useMemo(() => new Set(excludedGroceryKeys), [excludedGroceryKeys]);
+  const visibleGroceryGroups = useMemo(
+    () =>
+      groceryGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !excludedGrocerySet.has(item.key)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [excludedGrocerySet, groceryGroups],
+  );
+  const visibleGroceryItems = useMemo(
+    () => groceryItems.filter((item) => !excludedGrocerySet.has(item.key)),
+    [excludedGrocerySet, groceryItems],
+  );
+  const excludedGroceryItems = useMemo(
+    () => groceryGroups.flatMap((group) => group.items.filter((item) => excludedGrocerySet.has(item.key))),
+    [excludedGrocerySet, groceryGroups],
   );
 
   function showNotice(message) {
@@ -203,8 +223,16 @@ function App() {
     setCustomItems((current) => current.filter((item) => item.key !== key));
   }
 
+  function excludeGroceryItem(key) {
+    setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
+  }
+
+  function restoreGroceryItem(key) {
+    setExcludedGroceryKeys((current) => current.filter((itemKey) => itemKey !== key));
+  }
+
   async function shareGroceryList() {
-    const text = formatShareText(groceryGroups, customItems);
+    const text = formatShareText(visibleGroceryGroups, customItems);
     try {
       if (navigator.share) {
         await navigator.share({ title: "家庭菜单食材清单", text });
@@ -241,6 +269,7 @@ function App() {
               setCategory={setCategory}
               recipes={filteredRecipes}
               onAdd={addToday}
+              onUpdateQuantity={updateTodayQuantity}
               menuQuantities={todayMenu}
               onOpenRecipe={openRecipe}
               onDragStart={setDraggedRecipeId}
@@ -257,13 +286,17 @@ function App() {
           )}
           {activeView === "grocery" && (
             <GroceryList
-              items={groceryItems}
-              groups={groceryGroups}
+              items={visibleGroceryItems}
+              groups={visibleGroceryGroups}
               customItems={customItems}
               newCustomItem={newCustomItem}
               setNewCustomItem={setNewCustomItem}
               onAddCustomItem={addCustomItem}
               onRemoveCustomItem={removeCustomItem}
+              onExcludeItem={excludeGroceryItem}
+              onRestoreItem={restoreGroceryItem}
+              onRestoreAllItems={() => setExcludedGroceryKeys([])}
+              excludedItems={excludedGroceryItems}
               onShare={shareGroceryList}
               checkedItems={checkedItems}
               setCheckedItems={setCheckedItems}
@@ -443,6 +476,7 @@ function Library({
   setCategory,
   recipes: visibleRecipes,
   onAdd,
+  onUpdateQuantity,
   menuQuantities,
   onOpenRecipe,
   onDragStart,
@@ -473,6 +507,7 @@ function Library({
             key={recipe.id}
             recipe={recipe}
             onAdd={onAdd}
+            onUpdateQuantity={onUpdateQuantity}
             quantity={quantityByRecipe[recipe.id] ?? 0}
             onOpen={onOpenRecipe}
             onDragStart={onDragStart}
@@ -483,7 +518,7 @@ function Library({
   );
 }
 
-function RecipeCard({ recipe, onAdd, quantity, onOpen, onDragStart }) {
+function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragStart }) {
   return (
     <article
       draggable
@@ -507,17 +542,43 @@ function RecipeCard({ recipe, onAdd, quantity, onOpen, onDragStart }) {
             <h3 className="text-2xl font-black tracking-[-0.03em]">{recipe.name}</h3>
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink/56">{recipe.description}</p>
           </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAdd(recipe.id);
-            }}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
-            aria-label={`加入 ${recipe.name}`}
-          >
-            {quantity > 0 ? <span className="text-sm font-black">{quantity}</span> : <Plus size={20} />}
-          </button>
+          {quantity > 0 ? (
+            <div
+              className="flex shrink-0 items-center gap-1 rounded-full border border-line bg-canvas p-1"
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`${recipe.name} 已加入 ${quantity} 份`}
+            >
+              <button
+                type="button"
+                onClick={() => onUpdateQuantity(recipe.id, -1)}
+                className="grid h-9 w-9 place-items-center rounded-full bg-white text-ink transition hover:bg-ink hover:text-white"
+                aria-label={`减少 ${recipe.name}`}
+              >
+                <Minus size={16} />
+              </button>
+              <span className="min-w-7 text-center text-sm font-black">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => onUpdateQuantity(recipe.id, 1)}
+                className="grid h-9 w-9 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
+                aria-label={`增加 ${recipe.name}`}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAdd(recipe.id);
+              }}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
+              aria-label={`加入 ${recipe.name}`}
+            >
+              <Plus size={20} />
+            </button>
+          )}
         </div>
         <div className="mt-5 flex flex-wrap gap-2 text-xs font-black text-ink/58">
           <span className="pill">
@@ -535,7 +596,7 @@ function RecipeCard({ recipe, onAdd, quantity, onOpen, onDragStart }) {
           }}
           className="mt-5 w-full rounded-full border border-ink/10 bg-ink px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `已加入 ${quantity} 份 · 查看详情` : "查看详情"}
+          {quantity > 0 ? `今日菜单 ${quantity} 份 · 查看详情` : "查看详情"}
         </button>
       </div>
     </article>
@@ -543,6 +604,15 @@ function RecipeCard({ recipe, onAdd, quantity, onOpen, onDragStart }) {
 }
 
 function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, onDragStart }) {
+  const [selectedDay, setSelectedDay] = useState(days[0]);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0]?.id ?? "");
+  const selectedRecipe = getRecipe(selectedRecipeId);
+
+  function addSelectedRecipe() {
+    if (!selectedDay || !selectedRecipeId) return;
+    onAssign(selectedDay, selectedRecipeId);
+  }
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
@@ -589,6 +659,59 @@ function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, onDragStart })
       <Card>
         <p className="eyebrow">Drag to plan</p>
         <h3 className="card-title">快速安排</h3>
+        <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
+          选择菜品和日期后添加，也可以把下面的菜品拖到左侧某一天。
+        </p>
+
+        <div className="mt-5 rounded-[22px] border border-line bg-canvas p-3">
+          <div className="grid gap-3">
+            <label className="grid gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">Dish</span>
+              <select
+                value={selectedRecipeId}
+                onChange={(event) => setSelectedRecipeId(event.target.value)}
+                className="h-12 rounded-full border border-line bg-white px-4 text-sm font-black outline-none focus:border-ink/30"
+              >
+                {recipes.map((recipe) => (
+                  <option key={recipe.id} value={recipe.id}>
+                    {recipe.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <select
+                value={selectedDay}
+                onChange={(event) => setSelectedDay(event.target.value)}
+                className="h-12 rounded-full border border-line bg-white px-4 text-sm font-black outline-none focus:border-ink/30"
+              >
+                {days.map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={addSelectedRecipe}
+                className="flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <Plus size={16} className="text-acid" />
+                添加
+              </button>
+            </div>
+          </div>
+          {selectedRecipe && (
+            <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-white p-2">
+              <img src={photoFor(selectedRecipe)} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+              <div>
+                <p className="text-sm font-black">{selectedRecipe.name}</p>
+                <p className="text-xs font-bold text-ink/45">{selectedRecipe.timeMinutes} min · {selectedRecipe.difficulty}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="mt-5 grid gap-3">
           {recipes.slice(0, 8).map((recipe) => (
             <button
@@ -616,10 +739,16 @@ function GroceryList({
   setNewCustomItem,
   onAddCustomItem,
   onRemoveCustomItem,
+  onExcludeItem,
+  onRestoreItem,
+  onRestoreAllItems,
+  excludedItems,
   onShare,
   checkedItems,
   setCheckedItems,
 }) {
+  const visibleItemCount = groups.reduce((total, group) => total + group.items.length, 0);
+
   function toggle(key) {
     setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
   }
@@ -627,29 +756,40 @@ function GroceryList({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
-        {groups.map((group) => (
-          <Card key={group.key}>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="eyebrow">{group.source}</p>
-                <h3 className="card-title">{group.recipe.name}</h3>
+        {groups.length > 0 ? (
+          groups.map((group) => (
+            <Card key={group.key}>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="eyebrow">{group.source}</p>
+                  <h3 className="card-title">{group.recipe.name}</h3>
+                </div>
+                <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+                  {group.items.length} 项
+                </span>
               </div>
-              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
-                {group.items.length} 项
-              </span>
-            </div>
-            <div className="grid gap-2">
-              {group.items.map((item) => (
-                <GroceryItem
-                  key={item.key}
-                  item={item}
-                  checked={checkedItems[item.key]}
-                  onToggle={() => toggle(item.key)}
-                />
-              ))}
-            </div>
+              <div className="grid gap-2">
+                {group.items.map((item) => (
+                  <GroceryItem
+                    key={item.key}
+                    item={item}
+                    checked={checkedItems[item.key]}
+                    onToggle={() => toggle(item.key)}
+                    onRemove={() => onExcludeItem(item.key)}
+                  />
+                ))}
+              </div>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <p className="eyebrow">Empty list</p>
+            <h3 className="card-title">暂无可购买食材</h3>
+            <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
+              可以先去菜单库加入菜品，或从右侧恢复已隐藏的材料。
+            </p>
           </Card>
-        ))}
+        )}
 
         <Card>
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -700,7 +840,7 @@ function GroceryList({
           系统已把今日菜单和一周计划里的重复食材合并，适合直接用于买菜测试。
         </p>
         <div className="mt-6 rounded-[22px] bg-ink p-5 text-white">
-          <p className="text-5xl font-black tracking-[-0.05em]">{items.length + customItems.length}</p>
+          <p className="text-5xl font-black tracking-[-0.05em]">{visibleItemCount + customItems.length}</p>
           <p className="mt-1 text-sm font-bold text-white/56">total grocery items</p>
         </div>
         <div className="mt-4 grid gap-2">
@@ -719,25 +859,68 @@ function GroceryList({
             </p>
           </div>
         </div>
+        {excludedItems.length > 0 && (
+          <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Hidden items</p>
+                <p className="mt-1 text-sm font-black">已隐藏材料</p>
+              </div>
+              <button
+                type="button"
+                onClick={onRestoreAllItems}
+                className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink transition hover:-translate-y-0.5"
+              >
+                全部恢复
+              </button>
+            </div>
+            <div className="grid gap-2">
+              {excludedItems.map((item) => (
+                <div key={item.key} className="flex items-center gap-2 rounded-[16px] bg-white p-2">
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink/58">
+                    {item.name} {formatAmount(item)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRestoreItem(item.key)}
+                    className="rounded-full bg-acid px-3 py-2 text-xs font-black text-ink"
+                  >
+                    恢复
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
     </section>
   );
 }
 
-function GroceryItem({ item, checked, onToggle }) {
+function GroceryItem({ item, checked, onToggle, onRemove }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
-      <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-      <span className="grid h-6 w-6 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
-        {checked && <Check size={15} />}
-      </span>
-      <span className={`flex-1 font-black ${checked ? "text-ink/35 line-through" : ""}`}>
-        {item.name}
-        {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">常备</em>}
-        {item.required === false && <em className="ml-2 text-xs not-italic text-ink/38">可选</em>}
-      </span>
-      <span className="font-black text-ink/66">{formatAmount(item)}</span>
-    </label>
+    <div className="flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+        <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+          {checked && <Check size={15} />}
+        </span>
+        <span className={`min-w-0 flex-1 font-black ${checked ? "text-ink/35 line-through" : ""}`}>
+          {item.name}
+          {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">常备</em>}
+          {item.required === false && <em className="ml-2 text-xs not-italic text-ink/38">可选</em>}
+        </span>
+        <span className="shrink-0 font-black text-ink/66">{formatAmount(item)}</span>
+      </label>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
+        aria-label={`隐藏 ${item.name}`}
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
   );
 }
 
