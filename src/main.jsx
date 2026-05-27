@@ -8,14 +8,18 @@ import {
   Check,
   ChefHat,
   Clock3,
+  Copy,
   Heart,
   Home,
   ListChecks,
+  Minus,
   Plus,
   Search,
   Settings,
+  Share2,
   ShoppingBasket,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -64,20 +68,25 @@ function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
-  const [todayMenu, setTodayMenu] = useState(() => recipes.slice(0, 3).map((recipe) => recipe.id));
+  const [todayMenu, setTodayMenu] = useState(() =>
+    recipes.slice(0, 3).map((recipe) => ({ recipeId: recipe.id, quantity: 1 })),
+  );
   const [weekPlan, setWeekPlan] = useState(() => ({
-    周一: recipes[0].id,
-    周二: recipes[4].id,
-    周三: recipes[10].id,
-    周四: recipes[12].id,
-    周五: recipes[15].id,
-    周六: recipes[20].id,
-    周日: recipes[24].id,
+    周一: [recipes[0].id, recipes[1].id],
+    周二: [recipes[4].id, recipes[6].id],
+    周三: [recipes[10].id, recipes[11].id],
+    周四: [recipes[12].id],
+    周五: [recipes[15].id, recipes[16].id],
+    周六: [recipes[20].id, recipes[21].id],
+    周日: [recipes[24].id],
   }));
   const [checkedItems, setCheckedItems] = useState({});
+  const [customItems, setCustomItems] = useState([]);
+  const [newCustomItem, setNewCustomItem] = useState("");
   const [draggedRecipeId, setDraggedRecipeId] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [cookingStep, setCookingStep] = useState(0);
+  const [notice, setNotice] = useState("");
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -101,13 +110,32 @@ function App() {
     });
   }, [category, query]);
 
-  const todayRecipes = todayMenu.map((id) => getRecipe(id)).filter(Boolean);
-  const plannedRecipes = Object.values(weekPlan).map((id) => getRecipe(id)).filter(Boolean);
-  const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
-  const groceryItems = useMemo(
-    () => buildShoppingList([...todayRecipes, ...plannedRecipes]),
-    [todayRecipes, plannedRecipes],
+  const todayRecipes = todayMenu
+    .map((item) => {
+      const recipe = getRecipe(item.recipeId);
+      return recipe ? { ...recipe, menuQuantity: item.quantity } : null;
+    })
+    .filter(Boolean);
+  const plannedEntries = Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
+    recipeIds.map((recipeId) => ({ day, recipeId, quantity: 1 })),
   );
+  const plannedRecipes = plannedEntries.map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
+  const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
+  const recipeEntries = [
+    ...todayMenu.map((item) => ({ ...item, source: "今日菜单" })),
+    ...plannedEntries.map((item) => ({ ...item, source: item.day })),
+  ];
+  const groceryGroups = useMemo(() => buildRecipeGroceryGroups(recipeEntries), [recipeEntries]);
+  const groceryItems = useMemo(
+    () => buildShoppingListFromEntries(recipeEntries),
+    [recipeEntries],
+  );
+
+  function showNotice(message) {
+    setNotice(message);
+    window.clearTimeout(showNotice.timer);
+    showNotice.timer = window.setTimeout(() => setNotice(""), 1800);
+  }
 
   function openRecipe(recipeId) {
     setSelectedRecipeId(recipeId);
@@ -120,15 +148,74 @@ function App() {
   }
 
   function addToday(recipeId) {
-    setTodayMenu((current) => (current.includes(recipeId) ? current : [...current, recipeId]));
+    const recipe = getRecipe(recipeId);
+    setTodayMenu((current) => {
+      const existing = current.find((item) => item.recipeId === recipeId);
+      if (existing) {
+        return current.map((item) =>
+          item.recipeId === recipeId ? { ...item, quantity: item.quantity + 1 } : item,
+        );
+      }
+      return [...current, { recipeId, quantity: 1 }];
+    });
+    showNotice(`${recipe?.name ?? "菜品"} 已加入今日菜单`);
   }
 
-  function removeToday(recipeId) {
-    setTodayMenu((current) => current.filter((id) => id !== recipeId));
+  function updateTodayQuantity(recipeId, delta) {
+    setTodayMenu((current) =>
+      current
+        .map((item) =>
+          item.recipeId === recipeId
+            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+            : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
   }
 
   function assignPlan(day, recipeId) {
-    setWeekPlan((current) => ({ ...current, [day]: recipeId }));
+    setWeekPlan((current) => {
+      const currentDay = current[day] ?? [];
+      if (currentDay.includes(recipeId)) return current;
+      return { ...current, [day]: [...currentDay, recipeId] };
+    });
+    showNotice(`已添加到${day}`);
+  }
+
+  function removePlanRecipe(day, recipeId) {
+    setWeekPlan((current) => ({
+      ...current,
+      [day]: (current[day] ?? []).filter((id) => id !== recipeId),
+    }));
+  }
+
+  function addCustomItem(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setCustomItems((current) => [
+      ...current,
+      { key: `custom:${Date.now()}`, name: trimmed, amount: "自定义", source: "手动添加" },
+    ]);
+    setNewCustomItem("");
+  }
+
+  function removeCustomItem(key) {
+    setCustomItems((current) => current.filter((item) => item.key !== key));
+  }
+
+  async function shareGroceryList() {
+    const text = formatShareText(groceryGroups, customItems);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "家庭菜单食材清单", text });
+        showNotice("清单已打开分享面板");
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showNotice("食材清单已复制");
+    } catch {
+      showNotice("分享失败，可稍后重试");
+    }
   }
 
   return (
@@ -154,6 +241,7 @@ function App() {
               setCategory={setCategory}
               recipes={filteredRecipes}
               onAdd={addToday}
+              menuQuantities={todayMenu}
               onOpenRecipe={openRecipe}
               onDragStart={setDraggedRecipeId}
             />
@@ -163,12 +251,20 @@ function App() {
               weekPlan={weekPlan}
               draggedRecipeId={draggedRecipeId}
               onAssign={assignPlan}
+              onRemove={removePlanRecipe}
               onDragStart={setDraggedRecipeId}
             />
           )}
           {activeView === "grocery" && (
             <GroceryList
               items={groceryItems}
+              groups={groceryGroups}
+              customItems={customItems}
+              newCustomItem={newCustomItem}
+              setNewCustomItem={setNewCustomItem}
+              onAddCustomItem={addCustomItem}
+              onRemoveCustomItem={removeCustomItem}
+              onShare={shareGroceryList}
               checkedItems={checkedItems}
               setCheckedItems={setCheckedItems}
             />
@@ -176,12 +272,19 @@ function App() {
         </main>
       </div>
       <MobileTabbar activeView={activeView} onChange={setActiveView} />
+      {notice && (
+        <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
+          {notice}
+        </div>
+      )}
       <RecipeDetailDrawer
         recipe={selectedRecipe}
         cookingStep={cookingStep}
         setCookingStep={setCookingStep}
         onClose={closeRecipe}
         onAddToday={addToday}
+        todayEntry={todayMenu.find((item) => item.recipeId === selectedRecipeId)}
+        onUpdateTodayQuantity={updateTodayQuantity}
       />
     </div>
   );
@@ -258,7 +361,7 @@ function Topbar({ query, setQuery }) {
 }
 
 function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, onOpenRecipe }) {
-  const weekCoverage = Object.values(weekPlan).filter(Boolean).length;
+  const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
   return (
     <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
       <section className="relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
@@ -334,7 +437,18 @@ function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, onOpenR
   );
 }
 
-function Library({ categories, category, setCategory, recipes: visibleRecipes, onAdd, onOpenRecipe, onDragStart }) {
+function Library({
+  categories,
+  category,
+  setCategory,
+  recipes: visibleRecipes,
+  onAdd,
+  menuQuantities,
+  onOpenRecipe,
+  onDragStart,
+}) {
+  const quantityByRecipe = Object.fromEntries(menuQuantities.map((item) => [item.recipeId, item.quantity]));
+
   return (
     <section>
       <div className="mb-5 flex flex-wrap gap-2">
@@ -359,6 +473,7 @@ function Library({ categories, category, setCategory, recipes: visibleRecipes, o
             key={recipe.id}
             recipe={recipe}
             onAdd={onAdd}
+            quantity={quantityByRecipe[recipe.id] ?? 0}
             onOpen={onOpenRecipe}
             onDragStart={onDragStart}
           />
@@ -368,7 +483,7 @@ function Library({ categories, category, setCategory, recipes: visibleRecipes, o
   );
 }
 
-function RecipeCard({ recipe, onAdd, onOpen, onDragStart }) {
+function RecipeCard({ recipe, onAdd, quantity, onOpen, onDragStart }) {
   return (
     <article
       draggable
@@ -401,7 +516,7 @@ function RecipeCard({ recipe, onAdd, onOpen, onDragStart }) {
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
             aria-label={`加入 ${recipe.name}`}
           >
-            <Plus size={20} />
+            {quantity > 0 ? <span className="text-sm font-black">{quantity}</span> : <Plus size={20} />}
           </button>
         </div>
         <div className="mt-5 flex flex-wrap gap-2 text-xs font-black text-ink/58">
@@ -420,19 +535,19 @@ function RecipeCard({ recipe, onAdd, onOpen, onDragStart }) {
           }}
           className="mt-5 w-full rounded-full border border-ink/10 bg-ink px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          查看详情
+          {quantity > 0 ? `已加入 ${quantity} 份 · 查看详情` : "查看详情"}
         </button>
       </div>
     </article>
   );
 }
 
-function Planner({ weekPlan, draggedRecipeId, onAssign, onDragStart }) {
+function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, onDragStart }) {
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-4">
         {days.map((day) => {
-          const recipe = getRecipe(weekPlan[day]);
+          const dayRecipes = (weekPlan[day] ?? []).map((id) => getRecipe(id)).filter(Boolean);
           return (
             <div
               key={day}
@@ -442,9 +557,31 @@ function Planner({ weekPlan, draggedRecipeId, onAssign, onDragStart }) {
             >
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/38">{day}</p>
-                <p className="mt-2 text-xs font-bold text-ink/42">Drop meal here</p>
+                <p className="mt-2 text-xs font-bold text-ink/42">
+                  {dayRecipes.length} 道菜 · 可拖拽添加
+                </p>
               </div>
-              {recipe ? <MiniMeal recipe={recipe} /> : <div className="rounded-[20px] bg-canvas p-4">未安排</div>}
+              <div className="grid gap-3 md:grid-cols-2">
+                {dayRecipes.length > 0 ? (
+                  dayRecipes.map((recipe) => (
+                    <div key={`${day}-${recipe.id}`} className="relative">
+                      <MiniMeal recipe={recipe} />
+                      <button
+                        type="button"
+                        onClick={() => onRemove(day, recipe.id)}
+                        className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink shadow-card"
+                        aria-label={`移除 ${recipe.name}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/45">
+                    未安排，拖一道菜到这里
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -471,12 +608,18 @@ function Planner({ weekPlan, draggedRecipeId, onAssign, onDragStart }) {
   );
 }
 
-function GroceryList({ items, checkedItems, setCheckedItems }) {
-  const grouped = {
-    食材: items.filter((item) => item.type === "ingredient"),
-    调料: items.filter((item) => item.type === "seasoning"),
-  };
-
+function GroceryList({
+  items,
+  groups,
+  customItems,
+  newCustomItem,
+  setNewCustomItem,
+  onAddCustomItem,
+  onRemoveCustomItem,
+  onShare,
+  checkedItems,
+  setCheckedItems,
+}) {
   function toggle(key) {
     setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
   }
@@ -484,40 +627,71 @@ function GroceryList({ items, checkedItems, setCheckedItems }) {
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
-        {Object.entries(grouped).map(([title, groupItems]) => (
-          <Card key={title}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="card-title">{title}</h3>
-              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">{groupItems.length} items</span>
+        {groups.map((group) => (
+          <Card key={group.key}>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow">{group.source}</p>
+                <h3 className="card-title">{group.recipe.name}</h3>
+              </div>
+              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+                {group.items.length} 项
+              </span>
             </div>
             <div className="grid gap-2">
-              {groupItems.map((item) => {
-                const checked = checkedItems[item.key];
-                return (
-                  <label
-                    key={item.key}
-                    className="flex cursor-pointer items-center gap-3 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(checked)}
-                      onChange={() => toggle(item.key)}
-                      className="peer sr-only"
-                    />
-                    <span className="grid h-6 w-6 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
-                      {checked && <Check size={15} />}
-                    </span>
-                    <span className={`flex-1 font-black ${checked ? "text-ink/35 line-through" : ""}`}>
-                      {item.name}
-                      {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">家中可能已有</em>}
-                    </span>
-                    <span className="font-black text-ink/66">{formatAmount(item)}</span>
-                  </label>
-                );
-              })}
+              {group.items.map((item) => (
+                <GroceryItem
+                  key={item.key}
+                  item={item}
+                  checked={checkedItems[item.key]}
+                  onToggle={() => toggle(item.key)}
+                />
+              ))}
             </div>
           </Card>
         ))}
+
+        <Card>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="eyebrow">Manual list</p>
+              <h3 className="card-title">手动添加</h3>
+            </div>
+            <Plus size={20} />
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onAddCustomItem(newCustomItem);
+            }}
+          >
+            <input
+              value={newCustomItem}
+              onChange={(event) => setNewCustomItem(event.target.value)}
+              className="min-w-0 flex-1 rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
+              placeholder="例如：厨房纸、牛奶、保鲜袋"
+            />
+            <button type="submit" className="rounded-full bg-ink px-5 text-sm font-black text-white">
+              添加
+            </button>
+          </form>
+          <div className="mt-4 grid gap-2">
+            {customItems.map((item) => (
+              <div key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-canvas p-3">
+                <span className="flex-1 font-black">{item.name}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveCustomItem(item.key)}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-white text-ink/55 transition hover:text-ink"
+                  aria-label={`删除 ${item.name}`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
       <Card>
         <p className="eyebrow">Auto merged</p>
@@ -526,11 +700,44 @@ function GroceryList({ items, checkedItems, setCheckedItems }) {
           系统已把今日菜单和一周计划里的重复食材合并，适合直接用于买菜测试。
         </p>
         <div className="mt-6 rounded-[22px] bg-ink p-5 text-white">
-          <p className="text-5xl font-black tracking-[-0.05em]">{items.length}</p>
+          <p className="text-5xl font-black tracking-[-0.05em]">{items.length + customItems.length}</p>
           <p className="mt-1 text-sm font-bold text-white/56">total grocery items</p>
+        </div>
+        <div className="mt-4 grid gap-2">
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
+          >
+            <Share2 size={17} />
+            分享 / 复制清单
+          </button>
+          <div className="rounded-[20px] border border-line bg-canvas p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Preview card</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/62">
+              已按每道菜拆分食材，也保留合并摘要，适合发给家人分工采购。
+            </p>
+          </div>
         </div>
       </Card>
     </section>
+  );
+}
+
+function GroceryItem({ item, checked, onToggle }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+      <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
+      <span className="grid h-6 w-6 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+        {checked && <Check size={15} />}
+      </span>
+      <span className={`flex-1 font-black ${checked ? "text-ink/35 line-through" : ""}`}>
+        {item.name}
+        {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">常备</em>}
+        {item.required === false && <em className="ml-2 text-xs not-italic text-ink/38">可选</em>}
+      </span>
+      <span className="font-black text-ink/66">{formatAmount(item)}</span>
+    </label>
   );
 }
 
@@ -584,7 +791,15 @@ function MetricCard({ icon: Icon, label, value, note, action, onClick }) {
   );
 }
 
-function RecipeDetailDrawer({ recipe, cookingStep, setCookingStep, onClose, onAddToday }) {
+function RecipeDetailDrawer({
+  recipe,
+  cookingStep,
+  setCookingStep,
+  onClose,
+  onAddToday,
+  todayEntry,
+  onUpdateTodayQuantity,
+}) {
   if (!recipe) return null;
 
   const isFirstStep = cookingStep === 0;
@@ -726,14 +941,38 @@ function RecipeDetailDrawer({ recipe, cookingStep, setCookingStep, onClose, onAd
         </div>
 
         <div className="absolute inset-x-0 bottom-0 border-t border-line bg-white/92 p-4 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={() => onAddToday(recipe.id)}
-            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5"
-          >
-            <Plus size={18} className="text-acid" />
-            加入今日菜单
-          </button>
+          {todayEntry ? (
+            <div className="grid grid-cols-[52px_1fr_52px] items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onUpdateTodayQuantity(recipe.id, -1)}
+                className="grid h-12 place-items-center rounded-full border border-line bg-canvas"
+                aria-label="减少份数"
+              >
+                <Minus size={18} />
+              </button>
+              <div className="rounded-full bg-ink px-5 py-4 text-center text-sm font-black text-white shadow-card">
+                今日菜单 · {todayEntry.quantity} 份
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdateTodayQuantity(recipe.id, 1)}
+                className="grid h-12 place-items-center rounded-full bg-acid"
+                aria-label="增加份数"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddToday(recipe.id)}
+              className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5"
+            >
+              <Plus size={18} className="text-acid" />
+              加入今日菜单
+            </button>
+          )}
         </div>
       </aside>
     </div>
@@ -784,6 +1023,7 @@ function MiniMeal({ recipe, dark = false, onClick }) {
         <p className="truncate font-black">{recipe.name}</p>
         <p className={`mt-1 text-xs font-bold ${dark ? "text-white/55" : "text-ink/45"}`}>
           {recipe.timeMinutes} min · {recipe.difficulty}
+          {recipe.menuQuantity > 1 ? ` · ${recipe.menuQuantity} 份` : ""}
         </p>
       </div>
     </Wrapper>
@@ -841,13 +1081,41 @@ function photoFor(recipe) {
   return photoByAccent[recipe.accent] ?? photoByAccent.fresh;
 }
 
-function buildShoppingList(recipeList) {
+function buildRecipeGroceryGroups(entries) {
+  return entries
+    .map((entry, index) => {
+      const recipe = getRecipe(entry.recipeId);
+      if (!recipe) return null;
+      const items = [
+        ...recipe.ingredients.map((item) => ({ ...item, type: "ingredient" })),
+        ...recipe.seasonings.map((item) => ({ ...item, type: "seasoning" })),
+      ].map((item) => {
+        const scaled = scaleItem(item, entry.quantity);
+        return {
+          ...scaled,
+          key: `${entry.source}:${index}:${recipe.id}:${scaled.type}:${scaled.name}:${scaled.unit}`,
+        };
+      });
+      return {
+        key: `${entry.source}:${index}:${recipe.id}`,
+        source: entry.quantity > 1 ? `${entry.source} · ${entry.quantity} 份` : entry.source,
+        recipe,
+        items,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildShoppingListFromEntries(entries) {
   const merged = new Map();
-  recipeList.forEach((recipe) => {
+  entries.forEach((entry) => {
+    const recipe = getRecipe(entry.recipeId);
+    if (!recipe) return;
     [
       ...recipe.ingredients.map((item) => ({ ...item, type: "ingredient" })),
       ...recipe.seasonings.map((item) => ({ ...item, type: "seasoning" })),
-    ].forEach((item) => {
+    ].forEach((rawItem) => {
+      const item = scaleItem(rawItem, entry.quantity);
       const key = `${item.type}:${item.name}:${item.unit}:${typeof item.amount}`;
       const current = merged.get(key);
       if (current && typeof current.amount === "number" && typeof item.amount === "number") {
@@ -860,6 +1128,26 @@ function buildShoppingList(recipeList) {
     });
   });
   return [...merged.values()].sort((a, b) => Number(a.pantryItem) - Number(b.pantryItem));
+}
+
+function scaleItem(item, multiplier = 1) {
+  if (typeof item.amount !== "number") return { ...item };
+  const amount = Math.round(item.amount * multiplier * 10) / 10;
+  return { ...item, amount };
+}
+
+function formatShareText(groups, customItems) {
+  const recipeSections = groups
+    .map((group) => {
+      const lines = group.items.map((item) => `- ${item.name} ${formatAmount(item)}`);
+      return `${group.recipe.name}（${group.source}）\n${lines.join("\n")}`;
+    })
+    .join("\n\n");
+  const customSection =
+    customItems.length > 0
+      ? `\n\n手动添加\n${customItems.map((item) => `- ${item.name}`).join("\n")}`
+      : "";
+  return `家庭菜单食材清单\n\n${recipeSections}${customSection}`;
 }
 
 function formatAmount(item) {
