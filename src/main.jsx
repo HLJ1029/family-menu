@@ -68,9 +68,7 @@ function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
-  const [todayMenu, setTodayMenu] = useState(() =>
-    recipes.slice(0, 3).map((recipe) => ({ recipeId: recipe.id, quantity: 1 })),
-  );
+  const [todayMenu, setTodayMenu] = useState([]);
   const [weekPlan, setWeekPlan] = useState(() => ({
     周一: [recipes[0].id, recipes[1].id],
     周二: [recipes[4].id, recipes[6].id],
@@ -170,7 +168,7 @@ function App() {
   function addToday(recipeId) {
     const recipe = getRecipe(recipeId);
     const currentDay = getCurrentPlanDay();
-    const alreadyInToday = todayMenu.some((item) => item.recipeId === recipeId);
+    const alreadyInCurrentPlan = (weekPlan[currentDay] ?? []).includes(recipeId);
     setTodayMenu((current) => {
       const existing = current.find((item) => item.recipeId === recipeId);
       if (existing) {
@@ -180,7 +178,7 @@ function App() {
       }
       return [...current, { recipeId, quantity: 1 }];
     });
-    if (!alreadyInToday) {
+    if (!alreadyInCurrentPlan) {
       setWeekPlan((current) => {
         const currentDayPlan = current[currentDay] ?? [];
         if (currentDayPlan.includes(recipeId)) return current;
@@ -417,15 +415,27 @@ function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, onOpenR
         </div>
         <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today board</p>
         <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-          今日菜单已经准备好。
+          {todayRecipes.length > 0 ? "今日菜单已经准备好。" : "今天想吃什么？"}
         </h2>
         <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-          用一个轻量 dashboard 管住菜单、购物清单和家庭偏好。克制一点，生活就顺一点。
+          {todayRecipes.length > 0
+            ? "用一个轻量 dashboard 管住菜单、购物清单和家庭偏好。克制一点，生活就顺一点。"
+            : "先去菜单库选一道菜，系统会同步到今日菜单、今天计划和食材清单。"}
         </p>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
-          {todayRecipes.map((recipe) => (
-            <MiniMeal key={recipe.id} recipe={recipe} dark onClick={() => onOpenRecipe(recipe.id)} />
-          ))}
+          {todayRecipes.length > 0 ? (
+            todayRecipes.map((recipe) => (
+              <MiniMeal key={recipe.id} recipe={recipe} dark onClick={() => onOpenRecipe(recipe.id)} />
+            ))
+          ) : (
+            <button
+              type="button"
+              onClick={() => onViewChange("library")}
+              className="flex min-h-24 items-center justify-center rounded-[22px] border border-white/12 bg-white/8 px-5 text-sm font-black text-white transition hover:bg-white/12 md:col-span-2"
+            >
+              去菜单库添加今日第一道菜
+            </button>
+          )}
         </div>
       </section>
 
