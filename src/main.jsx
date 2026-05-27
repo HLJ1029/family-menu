@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  ArrowLeft,
+  ArrowRight,
   BarChart3,
   CalendarDays,
   Check,
@@ -15,6 +17,7 @@ import {
   ShoppingBasket,
   Sparkles,
   Users,
+  X,
 } from "lucide-react";
 import recipes from "../data/recipes.json";
 import "./styles.css";
@@ -73,6 +76,8 @@ function App() {
   }));
   const [checkedItems, setCheckedItems] = useState({});
   const [draggedRecipeId, setDraggedRecipeId] = useState(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [cookingStep, setCookingStep] = useState(0);
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -98,10 +103,21 @@ function App() {
 
   const todayRecipes = todayMenu.map((id) => getRecipe(id)).filter(Boolean);
   const plannedRecipes = Object.values(weekPlan).map((id) => getRecipe(id)).filter(Boolean);
+  const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
   const groceryItems = useMemo(
     () => buildShoppingList([...todayRecipes, ...plannedRecipes]),
     [todayRecipes, plannedRecipes],
   );
+
+  function openRecipe(recipeId) {
+    setSelectedRecipeId(recipeId);
+    setCookingStep(0);
+  }
+
+  function closeRecipe() {
+    setSelectedRecipeId(null);
+    setCookingStep(0);
+  }
 
   function addToday(recipeId) {
     setTodayMenu((current) => (current.includes(recipeId) ? current : [...current, recipeId]));
@@ -128,6 +144,7 @@ function App() {
               weekPlan={weekPlan}
               groceryItems={groceryItems}
               onViewChange={setActiveView}
+              onOpenRecipe={openRecipe}
             />
           )}
           {activeView === "library" && (
@@ -137,6 +154,7 @@ function App() {
               setCategory={setCategory}
               recipes={filteredRecipes}
               onAdd={addToday}
+              onOpenRecipe={openRecipe}
               onDragStart={setDraggedRecipeId}
             />
           )}
@@ -158,6 +176,13 @@ function App() {
         </main>
       </div>
       <MobileTabbar activeView={activeView} onChange={setActiveView} />
+      <RecipeDetailDrawer
+        recipe={selectedRecipe}
+        cookingStep={cookingStep}
+        setCookingStep={setCookingStep}
+        onClose={closeRecipe}
+        onAddToday={addToday}
+      />
     </div>
   );
 }
@@ -232,7 +257,7 @@ function Topbar({ query, setQuery }) {
   );
 }
 
-function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange }) {
+function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, onOpenRecipe }) {
   const weekCoverage = Object.values(weekPlan).filter(Boolean).length;
   return (
     <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
@@ -249,7 +274,7 @@ function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange }) {
         </p>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
           {todayRecipes.map((recipe) => (
-            <MiniMeal key={recipe.id} recipe={recipe} dark />
+            <MiniMeal key={recipe.id} recipe={recipe} dark onClick={() => onOpenRecipe(recipe.id)} />
           ))}
         </div>
       </section>
@@ -309,7 +334,7 @@ function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange }) {
   );
 }
 
-function Library({ categories, category, setCategory, recipes: visibleRecipes, onAdd, onDragStart }) {
+function Library({ categories, category, setCategory, recipes: visibleRecipes, onAdd, onOpenRecipe, onDragStart }) {
   return (
     <section>
       <div className="mb-5 flex flex-wrap gap-2">
@@ -330,19 +355,26 @@ function Library({ categories, category, setCategory, recipes: visibleRecipes, o
       </div>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {visibleRecipes.map((recipe) => (
-          <RecipeCard key={recipe.id} recipe={recipe} onAdd={onAdd} onDragStart={onDragStart} />
+          <RecipeCard
+            key={recipe.id}
+            recipe={recipe}
+            onAdd={onAdd}
+            onOpen={onOpenRecipe}
+            onDragStart={onDragStart}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function RecipeCard({ recipe, onAdd, onDragStart }) {
+function RecipeCard({ recipe, onAdd, onOpen, onDragStart }) {
   return (
     <article
       draggable
       onDragStart={() => onDragStart(recipe.id)}
-      className="group overflow-hidden rounded-[20px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
+      onClick={() => onOpen(recipe.id)}
+      className="group cursor-pointer overflow-hidden rounded-[20px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
     >
       <div className="relative h-52 overflow-hidden">
         <img
@@ -362,7 +394,10 @@ function RecipeCard({ recipe, onAdd, onDragStart }) {
           </div>
           <button
             type="button"
-            onClick={() => onAdd(recipe.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAdd(recipe.id);
+            }}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
             aria-label={`加入 ${recipe.name}`}
           >
@@ -377,6 +412,16 @@ function RecipeCard({ recipe, onAdd, onDragStart }) {
           <span className="pill">{recipe.difficulty}</span>
           <span className="pill">{recipe.servings} 人份</span>
         </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(recipe.id);
+          }}
+          className="mt-5 w-full rounded-full border border-ink/10 bg-ink px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
+        >
+          查看详情
+        </button>
       </div>
     </article>
   );
@@ -539,12 +584,200 @@ function MetricCard({ icon: Icon, label, value, note, action, onClick }) {
   );
 }
 
-function MiniMeal({ recipe, dark = false }) {
+function RecipeDetailDrawer({ recipe, cookingStep, setCookingStep, onClose, onAddToday }) {
+  if (!recipe) return null;
+
+  const isFirstStep = cookingStep === 0;
+  const isLastStep = cookingStep === recipe.steps.length - 1;
+  const currentStep = recipe.steps[cookingStep];
+
+  function previousStep() {
+    setCookingStep((step) => Math.max(0, step - 1));
+  }
+
+  function nextStep() {
+    setCookingStep((step) => Math.min(recipe.steps.length - 1, step + 1));
+  }
+
   return (
-    <div
-      className={`flex items-center gap-3 rounded-[22px] p-3 ${
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        className="absolute inset-0 bg-ink/38 backdrop-blur-sm"
+        aria-label="关闭菜谱详情"
+        onClick={onClose}
+      />
+      <aside className="absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-canvas shadow-lift md:w-[560px] md:rounded-l-[32px]">
+        <div className="relative h-56 shrink-0 overflow-hidden md:h-64">
+          <img src={photoFor(recipe)} alt={recipe.name} className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/72 via-ink/10 to-transparent" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-ink shadow-card backdrop-blur transition hover:scale-105"
+            aria-label="关闭"
+          >
+            <X size={20} />
+          </button>
+          <div className="absolute bottom-5 left-5 right-5 text-white">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-acid">Recipe detail</p>
+            <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">{recipe.name}</h2>
+            <p className="mt-2 hidden text-sm leading-6 text-white/72 sm:block">{recipe.description}</p>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-28 pt-5 md:px-6">
+          <div className="grid grid-cols-3 gap-2">
+            <InfoPill label="时间" value={`${recipe.timeMinutes} min`} />
+            <InfoPill label="难度" value={recipe.difficulty} />
+            <InfoPill label="份量" value={`${recipe.servings} 人份`} />
+          </div>
+
+          <section className="mt-5 grid gap-4 md:grid-cols-2">
+            <IngredientPanel title="食材" items={recipe.ingredients} />
+            <IngredientPanel title="调料" items={recipe.seasonings} />
+          </section>
+
+          <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow">Cooking mode</p>
+                <h3 className="card-title">跟做步骤</h3>
+              </div>
+              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+                {cookingStep + 1}/{recipe.steps.length}
+              </span>
+            </div>
+
+            <div className="rounded-[24px] bg-ink p-5 text-white">
+              <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/14">
+                <div
+                  className="h-full rounded-full bg-acid transition-all duration-300"
+                  style={{ width: `${((cookingStep + 1) / recipe.steps.length) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+                Step {String(cookingStep + 1).padStart(2, "0")}
+              </p>
+              <p className="mt-3 text-2xl font-black leading-snug tracking-[-0.03em]">
+                {currentStep}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={isFirstStep}
+                  onClick={previousStep}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/8 text-sm font-black text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ArrowLeft size={17} />
+                  上一步
+                </button>
+                <button
+                  type="button"
+                  disabled={isLastStep}
+                  onClick={nextStep}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid text-sm font-black text-ink transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  下一步
+                  <ArrowRight size={17} />
+                </button>
+              </div>
+            </div>
+
+            <ol className="mt-4 grid gap-2">
+              {recipe.steps.map((step, index) => (
+                <li key={step}>
+                  <button
+                    type="button"
+                    onClick={() => setCookingStep(index)}
+                    className={`grid w-full grid-cols-[34px_1fr] gap-3 rounded-[18px] border p-3 text-left transition ${
+                      index === cookingStep
+                        ? "border-ink bg-canvas"
+                        : "border-line bg-white hover:border-ink/18"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
+                        index === cookingStep ? "bg-ink text-acid" : "bg-canvas text-ink/45"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-bold leading-6 text-ink/72">{step}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {recipe.tips && (
+            <section className="mt-5 rounded-[24px] border border-line bg-white p-5 shadow-card">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-acid">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-black">Chef note</p>
+                  <p className="mt-1 text-sm leading-6 text-ink/56">{recipe.tips}</p>
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 border-t border-line bg-white/92 p-4 backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={() => onAddToday(recipe.id)}
+            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5"
+          >
+            <Plus size={18} className="text-acid" />
+            加入今日菜单
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function InfoPill({ label, value }) {
+  return (
+    <div className="rounded-[20px] border border-line bg-white p-4 shadow-card">
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-ink/35">{label}</p>
+      <p className="mt-1 font-black">{value}</p>
+    </div>
+  );
+}
+
+function IngredientPanel({ title, items }) {
+  return (
+    <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
+      <h3 className="text-lg font-black tracking-[-0.03em]">{title}</h3>
+      <ul className="mt-4 grid gap-3">
+        {items.map((item) => (
+          <li key={`${title}-${item.name}-${item.unit}`} className="flex items-center justify-between gap-3">
+            <span className="font-bold text-ink/72">
+              {item.name}
+              {item.required === false && <em className="ml-2 text-xs not-italic text-ink/35">可选</em>}
+              {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/35">常备</em>}
+            </span>
+            <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black">{formatRawAmount(item)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MiniMeal({ recipe, dark = false, onClick }) {
+  const Wrapper = onClick ? "button" : "div";
+  return (
+    <Wrapper
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-[22px] p-3 text-left transition ${
         dark ? "bg-white/10 text-white" : "border border-line bg-canvas text-ink"
-      }`}
+      } ${onClick ? "hover:-translate-y-0.5 hover:bg-white/15" : ""}`}
     >
       <img src={photoFor(recipe)} alt="" className="h-16 w-16 rounded-[18px] object-cover" />
       <div className="min-w-0">
@@ -553,7 +786,7 @@ function MiniMeal({ recipe, dark = false }) {
           {recipe.timeMinutes} min · {recipe.difficulty}
         </p>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -630,6 +863,11 @@ function buildShoppingList(recipeList) {
 }
 
 function formatAmount(item) {
+  if (typeof item.amount !== "number") return item.amount;
+  return `${Number.isInteger(item.amount) ? item.amount : item.amount.toFixed(1)}${item.unit || ""}`;
+}
+
+function formatRawAmount(item) {
   if (typeof item.amount !== "number") return item.amount;
   return `${Number.isInteger(item.amount) ? item.amount : item.amount.toFixed(1)}${item.unit || ""}`;
 }
