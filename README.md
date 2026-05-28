@@ -52,6 +52,12 @@ http://localhost:4173/family-menu/
 npm run build
 ```
 
+校验菜谱数据：
+
+```bash
+npm run validate:data
+```
+
 ## 项目结构
 
 ```text
