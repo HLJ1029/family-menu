@@ -8,6 +8,7 @@ import { Planner } from "./components/Planner";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
+import { TodayMenu } from "./components/TodayMenu";
 import { DoodleWash } from "./components/ui/Doodles";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { formatDateKey, formatDateLabel, getCurrentPlanDay } from "./lib/date";
@@ -283,6 +284,15 @@ function App() {
               draggedRecipeId={draggedRecipeId}
               onAssign={assignPlan}
               onRemove={removePlanRecipe}
+            />
+          )}
+          {activeView === "today" && (
+            <TodayMenu
+              todayRecipes={todayRecipes}
+              groceryItems={visibleGroceryItems}
+              onUpdateQuantity={updateTodayQuantity}
+              onOpenRecipe={openRecipe}
+              onViewChange={setActiveView}
             />
           )}
           {activeView === "calendar" && (

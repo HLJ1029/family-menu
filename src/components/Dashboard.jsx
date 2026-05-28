@@ -42,6 +42,15 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
             </button>
           )}
         </div>
+        {todayRecipes.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onViewChange("today")}
+            className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+          >
+            管理今日菜单
+          </button>
+        )}
       </section>
 
       <section className="grid gap-5">
