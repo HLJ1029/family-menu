@@ -15,17 +15,18 @@ import { MiniMeal } from "./ui/MiniMeal";
 
 export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
   const todayKey = formatDateKey(new Date());
-  const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
+  const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [visibleMonthKey, setVisibleMonthKey] = useState(todayKey);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const detailRef = useRef(null);
   const visibleMonthDate = parseDateKey(visibleMonthKey);
   const calendarDates = useMemo(() => getCalendarMonthDates(visibleMonthDate), [visibleMonthKey]);
-  const selectedRecipeIds = mealCalendar[selectedDateKey] ?? [];
+  const hasSelectedDate = Boolean(selectedDateKey);
+  const selectedRecipeIds = hasSelectedDate ? mealCalendar[selectedDateKey] ?? [] : [];
   const selectedRecipes = selectedRecipeIds.map((id) => getRecipe(id)).filter(Boolean);
   const selectedSummary = getNutritionSummary(selectedRecipes);
-  const selectedIsPast = selectedDateKey < todayKey;
+  const selectedIsPast = hasSelectedDate && selectedDateKey < todayKey;
   const selectedIsToday = selectedDateKey === todayKey;
   const pickerRecipes = recipes.filter((recipe) => {
     const keyword = pickerQuery.trim().toLowerCase();
@@ -47,6 +48,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   }
 
   function chooseRecipe(recipeId) {
+    if (!selectedDateKey) return;
     onAssign(selectedDateKey, recipeId);
     closePicker();
   }
@@ -60,21 +62,19 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
     setSelectedDateKey(dateKey);
     setVisibleMonthKey(dateKey);
     window.setTimeout(() => {
-      if (window.matchMedia("(max-width: 1279px)").matches) {
-        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   }
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+    <section className="grid gap-5">
       <Card>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="eyebrow">Meal calendar</p>
             <h3 className="card-title">{formatMonthTitle(visibleMonthKey)}</h3>
             <p className="mt-2 text-sm font-bold text-ink/48">
-              每天先看日期、菜品数量和营养环；点击后再查看当天明细。
+              点击某一天，会在月历下方展开当天饮食子页面。
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -91,6 +91,9 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
               onClick={() => {
                 setSelectedDateKey(todayKey);
                 setVisibleMonthKey(todayKey);
+                window.setTimeout(() => {
+                  detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 80);
               }}
               className="rounded-full bg-acid px-4 py-2 text-xs font-black"
             >
@@ -149,70 +152,88 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
       </Card>
 
       <div ref={detailRef} className="grid scroll-mt-5 gap-5">
-        <section
-          key={selectedDateKey}
-          className="calendar-detail-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-card"
-        >
-          <div className="grid gap-5 bg-ink p-5 text-white sm:grid-cols-[112px_1fr] sm:items-center">
-            <NutritionRings summary={selectedSummary} selected size="lg" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
-                {selectedIsPast ? "History" : "Planning"}
-              </p>
-              <h3 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-                {formatDateLabel(selectedDateKey)}
-              </h3>
-              <p className="mt-2 text-sm font-bold text-white/55">
-                {selectedIsPast
-                  ? "过去日期展示饮食记录。"
-                  : selectedIsToday
-                    ? "今天可以继续补充菜单，也会影响食材清单。"
+        {hasSelectedDate ? (
+          <section
+            key={selectedDateKey}
+            className="calendar-detail-enter overflow-hidden rounded-[30px] border border-line bg-white shadow-lift"
+          >
+            <div className="grid gap-6 bg-ink p-5 text-white md:grid-cols-[124px_1fr_auto] md:items-center md:p-6">
+              <NutritionRings summary={selectedSummary} selected size="lg" />
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+                  Daily page · {selectedIsPast ? "History" : "Planning"}
+                </p>
+                <h3 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+                  {formatDateLabel(selectedDateKey)}
+                </h3>
+                <p className="mt-2 text-sm font-bold text-white/55">
+                  {selectedIsPast
+                    ? "过去日期展示饮食记录。"
+                    : selectedIsToday
+                      ? "今天可以继续补充菜单，也会影响食材清单。"
                     : "未来日期可以提前规划食谱。"}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 p-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <NutritionMetric icon={Utensils} label="菜品" value={`${selectedSummary.meals} 道`} />
-              <NutritionMetric icon={Flame} label="估算能量" value={`${selectedSummary.energy} kcal`} />
-              <NutritionMetric icon={Plus} label="结构" value={selectedSummary.balanceLabel} />
-            </div>
-
-            {selectedRecipes.length > 0 ? (
-              selectedRecipes.map((recipe) => (
-                <div key={`${selectedDateKey}-${recipe.id}`} className="relative">
-                  <MiniMeal recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
-                  {!selectedIsPast && (
-                    <button
-                      type="button"
-                      onClick={() => onRemove(selectedDateKey, recipe.id)}
-                      className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink shadow-card"
-                      aria-label={`移除 ${recipe.name}`}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[22px] bg-canvas p-5 text-sm font-bold leading-6 text-ink/50">
-                {selectedIsPast ? "这一天还没有饮食记录。" : "这一天还没有规划菜品。"}
+                </p>
               </div>
-            )}
+              {!selectedIsPast && (
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                >
+                  <Plus size={17} />
+                  添加菜品
+                </button>
+              )}
+            </div>
 
-            {!selectedIsPast && (
-              <button
-                type="button"
-                onClick={openPicker}
-                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Plus size={17} />
-                为这一天添加菜品
-              </button>
-            )}
+            <div className="grid gap-5 p-5 md:p-6">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <NutritionMetric icon={Utensils} label="菜品" value={`${selectedSummary.meals} 道`} />
+                <NutritionMetric icon={Flame} label="估算能量" value={`${selectedSummary.energy} kcal`} />
+                <NutritionMetric icon={Plus} label="结构" value={selectedSummary.balanceLabel} />
+              </div>
+
+              {selectedRecipes.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {selectedRecipes.map((recipe) => (
+                    <div key={`${selectedDateKey}-${recipe.id}`} className="relative">
+                      <MiniMeal recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
+                      {!selectedIsPast && (
+                        <button
+                          type="button"
+                          onClick={() => onRemove(selectedDateKey, recipe.id)}
+                          className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink shadow-card"
+                          aria-label={`移除 ${recipe.name}`}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[22px] bg-canvas p-5 text-sm font-bold leading-6 text-ink/50">
+                  {selectedIsPast ? "这一天还没有饮食记录。" : "这一天还没有规划菜品。"}
+                </div>
+              )}
+
+              {!selectedIsPast && (
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/10 bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:bg-acid md:hidden"
+                >
+                  <Plus size={17} />
+                  为这一天添加菜品
+                </button>
+              )}
+            </div>
+          </section>
+        ) : (
+          <div className="rounded-[24px] border border-dashed border-line bg-white/55 p-5 text-center text-sm font-bold text-ink/45">
+            选择一个日期后，这里会展开当天饮食子页面。
           </div>
-        </section>
+        )}
 
         <Card>
           <p className="eyebrow">How it works</p>
