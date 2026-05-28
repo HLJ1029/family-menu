@@ -1,4 +1,4 @@
-import { Check, Plus, Share2, Trash2 } from "lucide-react";
+import { Check, PackageCheck, Plus, RotateCcw, Share2, Trash2 } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
 
@@ -13,6 +13,7 @@ export function GroceryList({
   onExcludeItem,
   onRestoreItem,
   onRestoreAllItems,
+  onMarkPantryItemsOwned,
   excludedItems,
   onShare,
   checkedItems,
@@ -20,6 +21,7 @@ export function GroceryList({
 }) {
   const visibleRecipeItemCount = groups.reduce((total, group) => total + group.items.length, 0);
   const totalItemCount = items.length + customItems.length;
+  const pantryCandidateCount = items.filter((item) => item.pantryItem).length;
 
   function toggle(key) {
     setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
@@ -58,7 +60,7 @@ export function GroceryList({
             <p className="eyebrow">Empty list</p>
             <h3 className="card-title">暂无可购买食材</h3>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              可以先去菜单库加入菜品，或从右侧恢复已隐藏的材料。
+              可以先去菜单库加入菜品，或从右侧恢复“家中已有”的材料。
             </p>
           </Card>
         )}
@@ -110,11 +112,33 @@ export function GroceryList({
         <p className="eyebrow">Auto merged</p>
         <h3 className="card-title">合并采购清单</h3>
         <p className="mt-4 text-sm leading-7 text-ink/56">
-          重复食材会合并数量，常备调料排在后面；买菜时优先看这里。
+          重复食材会合并数量，常备调料排在后面；买菜时优先看这里，也可以把家里已有的材料移出清单。
         </p>
         <div className="mt-6 rounded-[22px] bg-ink p-5 text-white">
           <p className="text-5xl font-black tracking-[-0.05em]">{totalItemCount}</p>
           <p className="mt-1 text-sm font-bold text-white/56">merged grocery items</p>
+        </div>
+        <div className="mt-5 rounded-[22px] border border-line bg-canvas p-4">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
+              <PackageCheck size={19} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black">家中已有</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
+                盐、油、酱油这类常备调料通常不用再买，可以一键移到恢复区。
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onMarkPantryItemsOwned}
+            disabled={pantryCandidateCount === 0}
+            className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <PackageCheck size={16} />
+            {pantryCandidateCount > 0 ? `移出 ${pantryCandidateCount} 个常备项` : "常备项已处理"}
+          </button>
         </div>
         <div className="mt-5 grid gap-2">
           {items.length > 0 ? (
@@ -153,14 +177,15 @@ export function GroceryList({
           <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Hidden items</p>
-                <p className="mt-1 text-sm font-black">已隐藏材料</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Already at home</p>
+                <p className="mt-1 text-sm font-black">家中已有材料</p>
               </div>
               <button
                 type="button"
                 onClick={onRestoreAllItems}
-                className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink transition hover:-translate-y-0.5"
+                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink transition hover:-translate-y-0.5"
               >
+                <RotateCcw size={13} />
                 全部恢复
               </button>
             </div>
@@ -206,9 +231,9 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`隐藏 ${item.name}`}
+        aria-label={`${item.name} 家中已有`}
       >
-        <Trash2 size={15} />
+        <PackageCheck size={15} />
       </button>
     </div>
   );
@@ -238,9 +263,9 @@ function MergedGroceryItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`隐藏 ${item.name}`}
+        aria-label={`${item.name} 家中已有`}
       >
-        <Trash2 size={15} />
+        <PackageCheck size={15} />
       </button>
     </div>
   );

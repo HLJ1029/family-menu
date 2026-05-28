@@ -234,6 +234,16 @@ function App() {
     setExcludedGroceryKeys((current) => current.filter((itemKey) => itemKey !== key));
   }
 
+  function markPantryItemsOwned() {
+    const pantryKeys = visibleGroceryItems.filter((item) => item.pantryItem).map((item) => item.hiddenKey);
+    if (pantryKeys.length === 0) {
+      showNotice("当前没有常备项需要处理");
+      return;
+    }
+    setExcludedGroceryKeys((current) => [...new Set([...current, ...pantryKeys])]);
+    showNotice(`已把 ${pantryKeys.length} 个常备项标为家中已有`);
+  }
+
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
     try {
@@ -315,6 +325,7 @@ function App() {
               onExcludeItem={excludeGroceryItem}
               onRestoreItem={restoreGroceryItem}
               onRestoreAllItems={() => setExcludedGroceryKeys([])}
+              onMarkPantryItemsOwned={markPantryItemsOwned}
               excludedItems={excludedGroceryItems}
               onShare={shareGroceryList}
               checkedItems={checkedItems}
