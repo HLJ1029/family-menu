@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Plus, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Flame, Plus, Search, Utensils, X } from "lucide-react";
 import {
   addMonths,
   calendarWeekdays,
@@ -23,6 +23,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   const calendarDates = useMemo(() => getCalendarMonthDates(visibleMonthDate), [visibleMonthKey]);
   const selectedRecipeIds = mealCalendar[selectedDateKey] ?? [];
   const selectedRecipes = selectedRecipeIds.map((id) => getRecipe(id)).filter(Boolean);
+  const selectedSummary = getNutritionSummary(selectedRecipes);
   const selectedIsPast = selectedDateKey < todayKey;
   const selectedIsToday = selectedDateKey === todayKey;
   const pickerRecipes = recipes.filter((recipe) => {
@@ -66,6 +67,9 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
           <div>
             <p className="eyebrow">Meal calendar</p>
             <h3 className="card-title">{formatMonthTitle(visibleMonthKey)}</h3>
+            <p className="mt-2 text-sm font-bold text-ink/48">
+              每天先看日期、菜品数量和营养环；点击后再查看当天明细。
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -97,7 +101,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
           {calendarWeekdays.map((weekday) => (
             <div key={weekday} className="py-2 text-center text-xs font-black text-ink/35">
               {weekday}
@@ -105,35 +109,33 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
           ))}
           {calendarDates.map((date) => {
             const dateKey = formatDateKey(date);
-            const itemCount = mealCalendar[dateKey]?.length ?? 0;
+            const dayRecipes = (mealCalendar[dateKey] ?? []).map((id) => getRecipe(id)).filter(Boolean);
+            const itemCount = dayRecipes.length;
+            const summary = getNutritionSummary(dayRecipes);
             const isSelected = dateKey === selectedDateKey;
             const isToday = dateKey === todayKey;
-            const isPast = dateKey < todayKey;
-            const isCurrentMonth = date.getMonth() === parseDateKey(selectedDateKey).getMonth();
+            const isCurrentMonth = date.getMonth() === visibleMonthDate.getMonth();
             return (
               <button
                 key={dateKey}
                 type="button"
                 onClick={() => selectDate(dateKey)}
-                className={`min-h-[88px] rounded-[18px] border p-3 text-left transition hover:-translate-y-0.5 ${
+                className={`relative grid min-h-[74px] place-items-center rounded-[18px] border p-2 text-center transition hover:-translate-y-0.5 sm:min-h-[104px] ${
                   isSelected
                     ? "border-ink bg-ink text-white shadow-lift"
-                    : "border-line bg-white text-ink hover:border-ink/20"
+                    : "border-line bg-white text-ink hover:border-ink/20 hover:shadow-card"
                 } ${!isCurrentMonth ? "opacity-35" : ""}`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-lg font-black">{date.getDate()}</span>
-                  {isToday && (
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-black ${
-                      isSelected ? "bg-acid text-ink" : "bg-acid text-ink"
-                    }`}>
-                      今天
-                    </span>
-                  )}
+                <div className="absolute left-2 top-2 flex items-center gap-1.5">
+                  <span className="text-sm font-black sm:text-base">{date.getDate()}</span>
+                  {isToday && <span className="h-1.5 w-1.5 rounded-full bg-acid" aria-label="今天" />}
                 </div>
-                <p className={`mt-3 text-xs font-bold ${isSelected ? "text-white/58" : "text-ink/42"}`}>
-                  {isPast ? "记录" : "计划"} · {itemCount} 道菜
-                </p>
+                <NutritionRings summary={summary} selected={isSelected} size="xs" />
+                <span className={`absolute bottom-2 rounded-full px-2 py-1 text-[10px] font-black ${
+                  isSelected ? "bg-white/12 text-white/72" : "bg-canvas text-ink/46"
+                }`}>
+                  {itemCount} 道
+                </span>
               </button>
             );
           })}
@@ -142,23 +144,32 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
 
       <div className="grid gap-5">
         <section className="overflow-hidden rounded-[28px] border border-line bg-white shadow-card">
-          <div className="bg-ink p-5 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
-              {selectedIsPast ? "History" : "Planning"}
-            </p>
-            <h3 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-              {formatDateLabel(selectedDateKey)}
-            </h3>
-            <p className="mt-2 text-sm font-bold text-white/55">
-              {selectedIsPast
-                ? "过去日期展示饮食记录，不再编辑。"
-                : selectedIsToday
-                  ? "今天可以继续补充菜单，也会影响食材清单。"
-                  : "未来日期可以提前规划食谱。"}
-            </p>
+          <div className="grid gap-5 bg-ink p-5 text-white sm:grid-cols-[112px_1fr] sm:items-center">
+            <NutritionRings summary={selectedSummary} selected size="lg" />
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+                {selectedIsPast ? "History" : "Planning"}
+              </p>
+              <h3 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+                {formatDateLabel(selectedDateKey)}
+              </h3>
+              <p className="mt-2 text-sm font-bold text-white/55">
+                {selectedIsPast
+                  ? "过去日期展示饮食记录。"
+                  : selectedIsToday
+                    ? "今天可以继续补充菜单，也会影响食材清单。"
+                    : "未来日期可以提前规划食谱。"}
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-3 p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <NutritionMetric icon={Utensils} label="菜品" value={`${selectedSummary.meals} 道`} />
+              <NutritionMetric icon={Flame} label="估算能量" value={`${selectedSummary.energy} kcal`} />
+              <NutritionMetric icon={Plus} label="结构" value={selectedSummary.balanceLabel} />
+            </div>
+
             {selectedRecipes.length > 0 ? (
               selectedRecipes.map((recipe) => (
                 <div key={`${selectedDateKey}-${recipe.id}`} className="relative">
@@ -196,11 +207,11 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
 
         <Card>
           <p className="eyebrow">How it works</p>
-          <h3 className="card-title">日历规则</h3>
+          <h3 className="card-title">营养环说明</h3>
           <div className="mt-4 grid gap-3 text-sm font-bold leading-6 text-ink/55">
-            <p>点击过去日期：查看当天饮食记录。</p>
-            <p>点击今天或未来日期：提前规划菜品。</p>
-            <p>当前版本先使用本地测试数据，后续接数据库后会保存真实历史。</p>
+            <p>黑色环表示当天餐次完整度，按 3 道菜为满环。</p>
+            <p>绿色环表示蔬菜/清爽类比例，橙色环表示蛋白类比例。</p>
+            <p>当前版本基于菜谱分类和食材估算，后续可替换为真实营养数据。</p>
           </div>
         </Card>
       </div>
@@ -274,4 +285,146 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
       )}
     </section>
   );
+}
+
+function NutritionRings({ summary, selected = false, size = "sm" }) {
+  const dimensions = {
+    lg: { dimension: 112, stroke: 8, mealRadius: 48, vegRadius: 37, proteinRadius: 26, text: "text-2xl" },
+    sm: { dimension: 58, stroke: 5, mealRadius: 25, vegRadius: 19, proteinRadius: 13, text: "text-xs" },
+    xs: { dimension: 38, stroke: 4, mealRadius: 16, vegRadius: 11, proteinRadius: 6, text: "text-[10px]" },
+  };
+  const { dimension, stroke, mealRadius, vegRadius, proteinRadius, text: centerTextClass } = dimensions[size];
+  const mutedText = selected ? "text-white/54" : "text-ink/42";
+
+  return (
+    <div className="relative grid place-items-center" style={{ width: dimension, height: dimension }}>
+      <svg width={dimension} height={dimension} viewBox={`0 0 ${dimension} ${dimension}`} aria-hidden="true">
+        <RingTrack
+          progress={summary.mealProgress}
+          radius={mealRadius}
+          stroke={stroke}
+          color={selected ? "#FFFFFF" : "#111111"}
+          trackColor={selected ? "rgba(255,255,255,0.16)" : "rgba(17,17,17,0.08)"}
+          center={dimension / 2}
+        />
+        <RingTrack
+          progress={summary.vegetableProgress}
+          radius={vegRadius}
+          stroke={stroke}
+          color="#D9F06B"
+          trackColor={selected ? "rgba(217,240,107,0.16)" : "rgba(217,240,107,0.28)"}
+          center={dimension / 2}
+        />
+        <RingTrack
+          progress={summary.proteinProgress}
+          radius={proteinRadius}
+          stroke={stroke}
+          color="#FFB86A"
+          trackColor={selected ? "rgba(255,184,106,0.16)" : "rgba(255,184,106,0.26)"}
+          center={dimension / 2}
+        />
+      </svg>
+      <div className="absolute grid place-items-center text-center">
+        <span className={`font-black tracking-[-0.04em] ${centerTextClass}`}>{summary.meals}</span>
+        {size === "lg" && <span className={`-mt-1 text-[10px] font-black uppercase ${mutedText}`}>meals</span>}
+      </div>
+    </div>
+  );
+}
+
+function RingTrack({ progress, radius, stroke, color, trackColor, center }) {
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - clamp(progress));
+
+  return (
+    <>
+      <circle
+        cx={center}
+        cy={center}
+        r={radius}
+        fill="none"
+        stroke={trackColor}
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={center}
+        cy={center}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${center} ${center})`}
+      />
+    </>
+  );
+}
+
+function NutritionMetric({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-[20px] bg-canvas p-4">
+      <div className="flex items-center gap-2 text-ink/42">
+        <Icon size={16} />
+        <p className="text-xs font-black uppercase tracking-[0.14em]">{label}</p>
+      </div>
+      <p className="mt-2 text-xl font-black tracking-[-0.03em]">{value}</p>
+    </div>
+  );
+}
+
+function getNutritionSummary(dayRecipes) {
+  const meals = dayRecipes.length;
+  const vegetableCount = dayRecipes.filter(hasVegetableSignal).length;
+  const proteinCount = dayRecipes.filter(hasProteinSignal).length;
+  const energy = dayRecipes.reduce((total, recipe) => total + estimateEnergy(recipe), 0);
+  const vegetableProgress = meals > 0 ? vegetableCount / meals : 0;
+  const proteinProgress = meals > 0 ? proteinCount / meals : 0;
+
+  return {
+    meals,
+    energy,
+    mealProgress: meals / 3,
+    vegetableProgress,
+    proteinProgress,
+    balanceLabel: getBalanceLabel(meals, vegetableProgress, proteinProgress),
+  };
+}
+
+function hasVegetableSignal(recipe) {
+  const words = [
+    ...recipe.categories,
+    ...recipe.tags,
+    ...recipe.ingredients.map((item) => item.name),
+  ].join(" ");
+  return /素菜|清爽|青菜|白菜|西红柿|番茄|黄瓜|土豆|青椒|西兰花|冬瓜|胡萝卜|木耳|茄子|香菇|莲藕|山药|蒜苔|蒜苗/.test(words);
+}
+
+function hasProteinSignal(recipe) {
+  const words = [
+    ...recipe.categories,
+    ...recipe.tags,
+    ...recipe.ingredients.map((item) => item.name),
+  ].join(" ");
+  return /肉菜|鱼虾海鲜|鸡|蛋|肉|排骨|豆腐|鱼|虾|皮蛋/.test(words);
+}
+
+function estimateEnergy(recipe) {
+  const base = recipe.categories.includes("主食") ? 520 : 260;
+  const proteinBonus = hasProteinSignal(recipe) ? 150 : 0;
+  const vegetableBonus = hasVegetableSignal(recipe) ? 60 : 0;
+  return base + proteinBonus + vegetableBonus;
+}
+
+function getBalanceLabel(meals, vegetableProgress, proteinProgress) {
+  if (meals === 0) return "未记录";
+  if (vegetableProgress >= 0.5 && proteinProgress >= 0.5) return "均衡";
+  if (vegetableProgress < 0.5 && proteinProgress >= 0.5) return "补蔬菜";
+  if (proteinProgress < 0.5 && vegetableProgress >= 0.5) return "补蛋白";
+  return "待丰富";
+}
+
+function clamp(value) {
+  return Math.min(1, Math.max(0, value));
 }
