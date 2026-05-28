@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Minus, Plus, Sparkles, X } from "lucide-react";
 import { formatRawAmount } from "../lib/grocery";
-import { photoFor } from "../lib/recipes";
+import { nutritionFor, photoFor } from "../lib/recipes";
 
 export function RecipeDetailDrawer({
   recipe,
@@ -35,6 +35,7 @@ export function RecipeDetailDrawer({
   const isFirstStep = cookingStep === 0;
   const isLastStep = cookingStep === recipe.steps.length - 1;
   const currentStep = recipe.steps[cookingStep];
+  const nutrition = nutritionFor(recipe);
 
   function previousStep() {
     setCookingStep((step) => Math.max(0, step - 1));
@@ -120,6 +121,26 @@ export function RecipeDetailDrawer({
           <section className="mt-5 grid gap-4 md:grid-cols-2">
             <IngredientPanel title="食材" items={scaledIngredients} />
             <IngredientPanel title="调料" items={scaledSeasonings} />
+          </section>
+
+          <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow">Nutrition</p>
+                <h3 className="card-title">每人份营养</h3>
+              </div>
+              <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/52">
+                estimated
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <NutritionStat label="热量" value={`${nutrition.caloriesKcal} kcal`} />
+              <NutritionStat label="蛋白质" value={`${nutrition.proteinG} g`} />
+              <NutritionStat label="脂肪" value={`${nutrition.fatG} g`} />
+              <NutritionStat label="碳水" value={`${nutrition.carbsG} g`} />
+              <NutritionStat label="膳食纤维" value={`${nutrition.fiberG} g`} />
+              <NutritionStat label="钠" value={`${nutrition.sodiumMg} mg`} />
+            </div>
           </section>
 
           <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
@@ -281,6 +302,15 @@ function IngredientPanel({ title, items }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function NutritionStat({ label, value }) {
+  return (
+    <div className="rounded-[18px] bg-canvas p-4">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-ink/35">{label}</p>
+      <p className="mt-1 text-lg font-black tracking-[-0.03em]">{value}</p>
     </div>
   );
 }

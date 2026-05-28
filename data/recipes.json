@@ -63,7 +63,35 @@
       "倒回鸡蛋，加盐和少量白糖调味。",
       "翻炒均匀，撒小葱后出锅。"
     ],
-    "tips": "想要汤汁更多，可以把西红柿多炒 1 分钟。"
+    "tips": "想要汤汁更多，可以把西红柿多炒 1 分钟。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80",
+      "alt": "西红柿炒鸡蛋成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/chinese%20tomato%20egg%20stir-fry",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 230,
+      "proteinG": 13,
+      "fatG": 16,
+      "carbsG": 9,
+      "fiberG": 2,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "potato-shreds",
@@ -129,7 +157,35 @@
       "放入土豆丝快速翻炒。",
       "加入青椒、盐和白醋，炒至断生出锅。"
     ],
-    "tips": "土豆丝冲水后更容易炒出脆感。"
+    "tips": "土豆丝冲水后更容易炒出脆感。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
+      "alt": "青椒土豆丝成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/chinese%20potato%20stir-fry",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 170,
+      "proteinG": 4,
+      "fatG": 8,
+      "carbsG": 23,
+      "fiberG": 3,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "seaweed-egg-soup",
@@ -194,7 +250,35 @@
       "加盐和白胡椒粉调味。",
       "关火后滴香油，撒小葱即可。"
     ],
-    "tips": "蛋液要慢慢淋入，蛋花会更细。"
+    "tips": "蛋液要慢慢淋入，蛋花会更细。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=80",
+      "alt": "紫菜蛋花汤成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/chinese%20egg%20soup",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 80,
+      "proteinG": 6,
+      "fatG": 4,
+      "carbsG": 5,
+      "fiberG": 1,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "garlic-broccoli",
@@ -254,7 +338,35 @@
       "加入西兰花翻炒，放盐和生抽调味。",
       "炒匀后出锅。"
     ],
-    "tips": "焯水后过一下冷水，颜色会更翠绿。"
+    "tips": "焯水后过一下冷水，颜色会更翠绿。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?auto=format&fit=crop&w=900&q=80",
+      "alt": "蒜蓉西兰花成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/broccoli%20garlic%20vegetable%20dish",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 95,
+      "proteinG": 5,
+      "fatG": 6,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 360,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "cola-wings",
@@ -320,7 +432,35 @@
       "中小火炖煮 20 分钟。",
       "转大火收汁，裹匀鸡翅即可。"
     ],
-    "tips": "收汁时要勤翻动，避免糖分糊锅。"
+    "tips": "收汁时要勤翻动，避免糖分糊锅。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "可乐鸡翅成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/chicken%20wings%20asian%20food",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 420,
+      "proteinG": 27,
+      "fatG": 24,
+      "carbsG": 24,
+      "fiberG": 0,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "mapo-tofu",
@@ -392,7 +532,35 @@
       "加少量水，放入豆腐小火煮 5 分钟。",
       "淋入水淀粉勾芡，撒花椒粉出锅。"
     ],
-    "tips": "翻动豆腐时用锅铲轻推，避免碎掉。"
+    "tips": "翻动豆腐时用锅铲轻推，避免碎掉。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
+      "alt": "麻婆豆腐成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/mapo%20tofu%20chinese%20food",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 22,
+      "fatG": 24,
+      "carbsG": 15,
+      "fiberG": 3,
+      "sodiumMg": 920,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "cucumber-egg",
@@ -452,7 +620,35 @@
       "倒回鸡蛋，加盐调味。",
       "快速炒匀后出锅。"
     ],
-    "tips": "黄瓜不要炒太久，保留脆感。"
+    "tips": "黄瓜不要炒太久，保留脆感。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80",
+      "alt": "黄瓜炒鸡蛋成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/cucumber%20egg%20chinese%20stir-fry",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 13,
+      "fatG": 15,
+      "carbsG": 7,
+      "fiberG": 1,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "wintermelon-rib-soup",
@@ -512,7 +708,35 @@
       "继续炖 15 分钟，加盐调味。",
       "冬瓜变软后即可出锅。"
     ],
-    "tips": "排骨焯水后汤会更清。"
+    "tips": "排骨焯水后汤会更清。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?auto=format&fit=crop&w=900&q=80",
+      "alt": "冬瓜排骨汤成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/pork%20rib%20soup%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约3人份菜谱的1人份",
+      "caloriesKcal": 280,
+      "proteinG": 18,
+      "fatG": 20,
+      "carbsG": 5,
+      "fiberG": 1,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "egg-fried-rice",
@@ -578,7 +802,35 @@
       "加盐和少量生抽调味。",
       "撒葱花炒匀出锅。"
     ],
-    "tips": "隔夜米饭更容易炒散。"
+    "tips": "隔夜米饭更容易炒散。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=80",
+      "alt": "蛋炒饭成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/egg%20fried%20rice%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约1人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 16,
+      "fatG": 18,
+      "carbsG": 70,
+      "fiberG": 3,
+      "sodiumMg": 820,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "braised-eggplant",
@@ -650,7 +902,35 @@
       "加入蒜末和青椒翻炒。",
       "倒入料汁，翻炒至浓稠即可。"
     ],
-    "tips": "茄子提前撒少量盐静置，可以减少吸油。"
+    "tips": "茄子提前撒少量盐静置，可以减少吸油。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
+      "alt": "红烧茄子成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/braised%20eggplant%20chinese%20food",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 220,
+      "proteinG": 4,
+      "fatG": 14,
+      "carbsG": 24,
+      "fiberG": 5,
+      "sodiumMg": 680,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "braised-pork-belly",
@@ -722,7 +1002,35 @@
       "加入姜片、生抽、老抽和料酒，加热水没过食材。",
       "小火炖 45 分钟，最后大火收汁。"
     ],
-    "tips": "炖肉时用热水，肉质更不容易发柴。"
+    "tips": "炖肉时用热水，肉质更不容易发柴。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "红烧肉成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/braised%20pork%20belly%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约3人份菜谱的1人份",
+      "caloriesKcal": 620,
+      "proteinG": 22,
+      "fatG": 52,
+      "carbsG": 18,
+      "fiberG": 1,
+      "sodiumMg": 860,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "yu-shiang-pork",
@@ -806,7 +1114,35 @@
       "锅中炒香豆瓣酱，加入配菜翻炒。",
       "倒回肉丝和料汁，快速炒匀收汁。"
     ],
-    "tips": "肉丝提前上浆，口感会更嫩。"
+    "tips": "肉丝提前上浆，口感会更嫩。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
+      "alt": "鱼香肉丝成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/shredded%20pork%20chinese%20food",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 390,
+      "proteinG": 28,
+      "fatG": 22,
+      "carbsG": 24,
+      "fiberG": 3,
+      "sodiumMg": 980,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "kung-pao-chicken",
@@ -884,7 +1220,35 @@
       "放入鸡丁炒至变色，再加黄瓜丁。",
       "倒入料汁翻炒，最后放花生米拌匀。"
     ],
-    "tips": "花生米最后放，口感更脆。"
+    "tips": "花生米最后放，口感更脆。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
+      "alt": "宫保鸡丁成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/kung%20pao%20chicken%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 430,
+      "proteinG": 32,
+      "fatG": 26,
+      "carbsG": 18,
+      "fiberG": 3,
+      "sodiumMg": 840,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "hot-sour-potato-shreds",
@@ -950,7 +1314,35 @@
       "倒入土豆丝大火快炒。",
       "加盐和白醋，炒至断生出锅。"
     ],
-    "tips": "土豆丝冲洗掉淀粉后更脆。"
+    "tips": "土豆丝冲洗掉淀粉后更脆。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
+      "alt": "酸辣土豆丝成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/spicy%20potato%20stir-fry%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 160,
+      "proteinG": 4,
+      "fatG": 7,
+      "carbsG": 24,
+      "fiberG": 3,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "home-style-tofu",
@@ -1022,7 +1414,35 @@
       "加入青椒、木耳和豆腐翻炒。",
       "加生抽和少量水，焖 3 分钟后收汁。"
     ],
-    "tips": "豆腐先煎一下，不容易碎也更香。"
+    "tips": "豆腐先煎一下，不容易碎也更香。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
+      "alt": "家常豆腐成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/tofu%20chinese%20stir-fry",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 300,
+      "proteinG": 18,
+      "fatG": 18,
+      "carbsG": 18,
+      "fiberG": 3,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "sweet-sour-pork",
@@ -1094,7 +1514,35 @@
       "锅中放番茄酱、白糖和白醋炒成酱汁。",
       "倒入里脊条快速裹匀。"
     ],
-    "tips": "复炸时间不用太长，表面酥脆即可。"
+    "tips": "复炸时间不用太长，表面酥脆即可。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "糖醋里脊成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/sweet%20sour%20pork%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 30,
+      "fatG": 24,
+      "carbsG": 45,
+      "fiberG": 1,
+      "sodiumMg": 780,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "boiled-fish",
@@ -1172,7 +1620,35 @@
       "下鱼片煮至变白，连汤倒入碗中。",
       "撒花椒和干辣椒，淋热油激香。"
     ],
-    "tips": "鱼片下锅后不要频繁翻动，避免碎掉。"
+    "tips": "鱼片下锅后不要频繁翻动，避免碎掉。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
+      "alt": "水煮鱼成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/spicy%20fish%20chinese%20soup",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约3人份菜谱的1人份",
+      "caloriesKcal": 460,
+      "proteinG": 38,
+      "fatG": 28,
+      "carbsG": 10,
+      "fiberG": 2,
+      "sodiumMg": 1120,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "hard"
   },
   {
     "id": "braised-crucian-carp",
@@ -1250,7 +1726,35 @@
       "中小火烧 15 分钟。",
       "加少量白糖，大火收汁，撒葱花。"
     ],
-    "tips": "鱼表面擦干再煎，更不容易破皮。"
+    "tips": "鱼表面擦干再煎，更不容易破皮。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
+      "alt": "红烧鲫鱼成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/braised%20fish%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 330,
+      "proteinG": 32,
+      "fatG": 18,
+      "carbsG": 8,
+      "fiberG": 1,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "shiitake-steamed-chicken",
@@ -1322,7 +1826,35 @@
       "水开后上锅蒸 15 分钟。",
       "出锅后撒葱花即可。"
     ],
-    "tips": "用鸡腿肉比鸡胸肉更嫩。"
+    "tips": "用鸡腿肉比鸡胸肉更嫩。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "香菇滑鸡成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/steamed%20chicken%20mushroom%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 340,
+      "proteinG": 30,
+      "fatG": 20,
+      "carbsG": 10,
+      "fiberG": 2,
+      "sodiumMg": 680,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "greens-shiitake",
@@ -1388,7 +1920,35 @@
       "加入青菜大火翻炒。",
       "加盐和蚝油调味，炒匀出锅。"
     ],
-    "tips": "青菜下锅后大火快炒，颜色更好看。"
+    "tips": "青菜下锅后大火快炒，颜色更好看。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
+      "alt": "青菜烧香菇成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/bok%20choy%20shiitake%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 130,
+      "proteinG": 5,
+      "fatG": 8,
+      "carbsG": 14,
+      "fiberG": 4,
+      "sodiumMg": 480,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "sweet-sour-lotus-root",
@@ -1454,7 +2014,35 @@
       "倒入糖醋汁快速炒匀。",
       "汤汁变亮后撒葱花出锅。"
     ],
-    "tips": "藕丁焯水后更容易保持脆感。"
+    "tips": "藕丁焯水后更容易保持脆感。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
+      "alt": "糖醋藕丁成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/lotus%20root%20chinese%20food",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 180,
+      "proteinG": 4,
+      "fatG": 7,
+      "carbsG": 30,
+      "fiberG": 4,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "spicy-chicken-feet",
@@ -1526,7 +2114,35 @@
       "加入生抽、老抽、料酒和热水。",
       "中小火焖 30 分钟后收汁。"
     ],
-    "tips": "喜欢软糯口感可以多焖 10 分钟。"
+    "tips": "喜欢软糯口感可以多焖 10 分钟。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
+      "alt": "香辣烧鸡爪成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/spicy%20chicken%20feet%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约3人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 24,
+      "fatG": 22,
+      "carbsG": 16,
+      "fiberG": 1,
+      "sodiumMg": 980,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "braised-wuchang-fish",
@@ -1598,7 +2214,35 @@
       "加入生抽、老抽、盐和热水。",
       "盖盖烧 15 分钟，大火收汁。"
     ],
-    "tips": "煎鱼前用厨房纸吸干水分，能减少粘锅。"
+    "tips": "煎鱼前用厨房纸吸干水分，能减少粘锅。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
+      "alt": "红烧武昌鱼成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/braised%20whole%20fish%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 340,
+      "proteinG": 34,
+      "fatG": 18,
+      "carbsG": 9,
+      "fiberG": 1,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "yam-rib-soup",
@@ -1658,7 +2302,35 @@
       "加入山药继续炖 20 分钟。",
       "加盐调味后出锅。"
     ],
-    "tips": "山药去皮时可戴手套，避免手痒。"
+    "tips": "山药去皮时可戴手套，避免手痒。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?auto=format&fit=crop&w=900&q=80",
+      "alt": "山药排骨汤成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/pork%20rib%20yam%20soup%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约3人份菜谱的1人份",
+      "caloriesKcal": 310,
+      "proteinG": 20,
+      "fatG": 20,
+      "carbsG": 12,
+      "fiberG": 2,
+      "sodiumMg": 640,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "preserved-egg-pork-congee",
@@ -1730,7 +2402,35 @@
       "加入切好的皮蛋再煮 10 分钟。",
       "加盐、白胡椒粉和香油调味。"
     ],
-    "tips": "煮粥时偶尔搅动，口感更绵。"
+    "tips": "煮粥时偶尔搅动，口感更绵。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1625944525533-473f1a3d54e7?auto=format&fit=crop&w=900&q=80",
+      "alt": "皮蛋瘦肉粥成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/congee%20preserved%20egg%20pork",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 13,
+      "fatG": 8,
+      "carbsG": 35,
+      "fiberG": 1,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "garlic-sprout-pork",
@@ -1796,7 +2496,35 @@
       "放蒜苔大火翻炒。",
       "加盐调味，炒至蒜苔断生。"
     ],
-    "tips": "蒜苔不要炒太久，保留脆感更好吃。"
+    "tips": "蒜苔不要炒太久，保留脆感更好吃。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "蒜苔炒肉成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/pork%20garlic%20sprout%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 330,
+      "proteinG": 24,
+      "fatG": 20,
+      "carbsG": 13,
+      "fiberG": 3,
+      "sodiumMg": 820,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "jing-sauce-pork",
@@ -1868,7 +2596,35 @@
       "锅中放甜面酱和少量水炒开。",
       "倒回肉丝，加白糖炒匀后装盘。"
     ],
-    "tips": "大葱切细一点，和肉丝一起吃更协调。"
+    "tips": "大葱切细一点，和肉丝一起吃更协调。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "京酱肉丝成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/pork%20scallion%20chinese%20pancake",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 390,
+      "proteinG": 29,
+      "fatG": 18,
+      "carbsG": 28,
+      "fiberG": 2,
+      "sodiumMg": 950,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   },
   {
     "id": "vinegar-cabbage",
@@ -1940,7 +2696,35 @@
       "先放白菜帮炒软，再放白菜叶。",
       "加醋、生抽、盐和白糖，快速炒匀。"
     ],
-    "tips": "白菜帮先下锅，整体熟度更一致。"
+    "tips": "白菜帮先下锅，整体熟度更一致。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
+      "alt": "醋溜白菜成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/chinese%20cabbage%20stir-fry",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 110,
+      "proteinG": 3,
+      "fatG": 6,
+      "carbsG": 14,
+      "fiberG": 4,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "steamed-sea-bass",
@@ -2006,7 +2790,35 @@
       "倒掉盘中汤汁，淋蒸鱼豉油。",
       "撒葱丝，淋热油激香。"
     ],
-    "tips": "蒸鱼时间不要过长，鱼肉更嫩。"
+    "tips": "蒸鱼时间不要过长，鱼肉更嫩。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
+      "alt": "清蒸鲈鱼成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/steamed%20fish%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 34,
+      "fatG": 10,
+      "carbsG": 4,
+      "fiberG": 0,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   },
   {
     "id": "twice-cooked-pork",
@@ -2072,6 +2884,34 @@
       "加入豆瓣酱炒出香味。",
       "放蒜苗、生抽和白糖，炒匀出锅。"
     ],
-    "tips": "肉片切薄一些，炒出来更香。"
+    "tips": "肉片切薄一些，炒出来更香。",
+    "image": {
+      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+      "alt": "回锅肉成品实拍参考图",
+      "sourceName": "Unsplash food photography",
+      "sourceUrl": "https://unsplash.com/s/photos/twice%20cooked%20pork%20chinese",
+      "license": "Unsplash License",
+      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 25,
+      "fatG": 42,
+      "carbsG": 14,
+      "fiberG": 3,
+      "sodiumMg": 1080,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常菜整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
   }
 ]

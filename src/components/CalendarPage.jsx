@@ -9,7 +9,7 @@ import {
   getCalendarMonthDates,
   parseDateKey,
 } from "../lib/date";
-import { getRecipe, photoFor, recipes } from "../lib/recipes";
+import { getRecipe, nutritionFor, photoFor, recipes } from "../lib/recipes";
 import { Card } from "./ui/Card";
 import { MiniMeal } from "./ui/MiniMeal";
 
@@ -408,7 +408,7 @@ function getNutritionSummary(dayRecipes) {
   const meals = dayRecipes.length;
   const vegetableCount = dayRecipes.filter(hasVegetableSignal).length;
   const proteinCount = dayRecipes.filter(hasProteinSignal).length;
-  const energy = dayRecipes.reduce((total, recipe) => total + estimateEnergy(recipe), 0);
+  const energy = dayRecipes.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0);
   const vegetableProgress = meals > 0 ? vegetableCount / meals : 0;
   const proteinProgress = meals > 0 ? proteinCount / meals : 0;
 
@@ -438,13 +438,6 @@ function hasProteinSignal(recipe) {
     ...recipe.ingredients.map((item) => item.name),
   ].join(" ");
   return /肉菜|鱼虾海鲜|鸡|蛋|肉|排骨|豆腐|鱼|虾|皮蛋/.test(words);
-}
-
-function estimateEnergy(recipe) {
-  const base = recipe.categories.includes("主食") ? 520 : 260;
-  const proteinBonus = hasProteinSignal(recipe) ? 150 : 0;
-  const vegetableBonus = hasVegetableSignal(recipe) ? 60 : 0;
-  return base + proteinBonus + vegetableBonus;
 }
 
 function getBalanceLabel(meals, vegetableProgress, proteinProgress) {

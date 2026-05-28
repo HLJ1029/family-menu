@@ -10,7 +10,9 @@ const requiredRecipeFields = [
   "timeMinutes",
   "accent",
   "description",
+  "image",
   "ingredients",
+  "nutrition",
   "seasonings",
   "steps",
   "tips",
@@ -64,9 +66,49 @@ function validateRecipe(recipe, index) {
   validateStringArray(recipe?.steps, `${label}: steps`);
   validateItems(recipe?.ingredients, `${label}: ingredients`);
   validateItems(recipe?.seasonings, `${label}: seasonings`);
+  validateImage(recipe?.image, `${label}: image`);
+  validateNutrition(recipe?.nutrition, `${label}: nutrition`);
 
   if (Array.isArray(recipe?.steps) && recipe.steps.length < 3) {
     warnings.push(`${label}: steps has fewer than 3 items.`);
+  }
+}
+
+function validateImage(image, label) {
+  if (!image || typeof image !== "object") {
+    errors.push(`${label} must be an object.`);
+    return;
+  }
+
+  ["url", "alt", "sourceName", "sourceUrl"].forEach((field) => {
+    if (typeof image[field] !== "string" || image[field].trim() === "") {
+      errors.push(`${label}.${field} must be a non-empty string.`);
+    }
+  });
+
+  if (typeof image.url === "string" && !image.url.startsWith("https://")) {
+    errors.push(`${label}.url must be an https URL.`);
+  }
+}
+
+function validateNutrition(nutrition, label) {
+  if (!nutrition || typeof nutrition !== "object") {
+    errors.push(`${label} must be an object.`);
+    return;
+  }
+
+  ["caloriesKcal", "proteinG", "fatG", "carbsG", "fiberG", "sodiumMg"].forEach((field) => {
+    if (typeof nutrition[field] !== "number" || !Number.isFinite(nutrition[field]) || nutrition[field] < 0) {
+      errors.push(`${label}.${field} must be a non-negative number.`);
+    }
+  });
+
+  if (nutrition.perServing !== true) {
+    errors.push(`${label}.perServing must be true.`);
+  }
+
+  if (typeof nutrition.servingSize !== "string" || nutrition.servingSize.trim() === "") {
+    errors.push(`${label}.servingSize must be a non-empty string.`);
   }
 }
 

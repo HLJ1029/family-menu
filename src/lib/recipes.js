@@ -1,29 +1,6 @@
 import recipes from "../../data/recipes.json";
 import { addDays, formatDateKey } from "./date";
 
-const photoByAccent = {
-  tomato:
-    "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=80",
-  green:
-    "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
-  soup:
-    "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=80",
-  broccoli:
-    "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?auto=format&fit=crop&w=900&q=80",
-  meat:
-    "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-  spicy:
-    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-  fresh:
-    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
-  soup2:
-    "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?auto=format&fit=crop&w=900&q=80",
-  rice:
-    "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=80",
-  eggplant:
-    "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
-};
-
 export { recipes };
 
 export function createDefaultWeekPlan() {
@@ -61,5 +38,16 @@ export function getRecipe(id) {
 }
 
 export function photoFor(recipe) {
-  return photoByAccent[recipe.accent] ?? photoByAccent.fresh;
+  return recipe.image?.url ?? "";
+}
+
+export function nutritionFor(recipe) {
+  return recipe.nutrition ?? {
+    caloriesKcal: 0,
+    proteinG: 0,
+    fatG: 0,
+    carbsG: 0,
+    fiberG: 0,
+    sodiumMg: 0,
+  };
 }
