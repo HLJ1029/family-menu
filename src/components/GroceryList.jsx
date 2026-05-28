@@ -8,8 +8,13 @@ export function GroceryList({
   customItems,
   newCustomItem,
   setNewCustomItem,
+  pantryItems,
+  newPantryItem,
+  setNewPantryItem,
   onAddCustomItem,
   onRemoveCustomItem,
+  onAddPantryItem,
+  onRemovePantryItem,
   onExcludeItem,
   onRestoreItem,
   onRestoreAllItems,
@@ -173,6 +178,54 @@ export function GroceryList({
             </p>
           </div>
         </div>
+        <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Pantry</p>
+              <p className="mt-1 text-sm font-black">厨房库存</p>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/52">
+              {pantryItems.length} 项
+            </span>
+          </div>
+          <form
+            className="mt-3 flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onAddPantryItem(newPantryItem);
+            }}
+          >
+            <input
+              value={newPantryItem}
+              onChange={(event) => setNewPantryItem(event.target.value)}
+              className="min-w-0 flex-1 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
+              placeholder="例如：盐、鸡蛋、葱"
+            />
+            <button type="submit" className="rounded-full bg-ink px-3 text-xs font-black text-white">
+              加入
+            </button>
+          </form>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {pantryItems.length > 0 ? (
+              pantryItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => onRemovePantryItem(item.key)}
+                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-white"
+                  aria-label={`从厨房库存移除 ${item.name}`}
+                >
+                  {item.name}
+                  <Trash2 size={12} />
+                </button>
+              ))
+            ) : (
+              <p className="text-xs font-bold leading-5 text-ink/45">
+                加入库存后，同名材料会自动从待买清单移出。
+              </p>
+            )}
+          </div>
+        </div>
         {excludedItems.length > 0 && (
           <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -197,7 +250,7 @@ export function GroceryList({
                   </span>
                   <button
                     type="button"
-                    onClick={() => onRestoreItem(item.hiddenKey)}
+                    onClick={() => onRestoreItem(item)}
                     className="rounded-full bg-acid px-3 py-2 text-xs font-black text-ink"
                   >
                     恢复

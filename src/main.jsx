@@ -38,6 +38,8 @@ function App() {
   const [checkedItems, setCheckedItems] = useLocalStorageState("family-menu:checked-items", {});
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
   const [newCustomItem, setNewCustomItem] = useState("");
+  const [pantryItems, setPantryItems] = useLocalStorageState("family-menu:pantry-items", []);
+  const [newPantryItem, setNewPantryItem] = useState("");
   const [excludedGroceryKeys, setExcludedGroceryKeys] = useLocalStorageState(
     "family-menu:excluded-grocery-keys",
     [],
@@ -90,23 +92,28 @@ function App() {
     [recipeEntries],
   );
   const excludedGrocerySet = useMemo(() => new Set(excludedGroceryKeys), [excludedGroceryKeys]);
+  const pantryNameSet = useMemo(
+    () => new Set(pantryItems.map((item) => normalizeName(item.name))),
+    [pantryItems],
+  );
+  const isGroceryItemOwned = (item) => excludedGrocerySet.has(item.hiddenKey) || pantryNameSet.has(normalizeName(item.name));
   const visibleGroceryGroups = useMemo(
     () =>
       groceryGroups
         .map((group) => ({
           ...group,
-          items: group.items.filter((item) => !excludedGrocerySet.has(item.hiddenKey)),
+          items: group.items.filter((item) => !isGroceryItemOwned(item)),
         }))
         .filter((group) => group.items.length > 0),
-    [excludedGrocerySet, groceryGroups],
+    [excludedGrocerySet, groceryGroups, pantryNameSet],
   );
   const visibleGroceryItems = useMemo(
-    () => groceryItems.filter((item) => !excludedGrocerySet.has(item.hiddenKey)),
-    [excludedGrocerySet, groceryItems],
+    () => groceryItems.filter((item) => !isGroceryItemOwned(item)),
+    [excludedGrocerySet, groceryItems, pantryNameSet],
   );
   const excludedGroceryItems = useMemo(
-    () => groceryItems.filter((item) => excludedGrocerySet.has(item.hiddenKey)),
-    [excludedGrocerySet, groceryItems],
+    () => groceryItems.filter((item) => isGroceryItemOwned(item)),
+    [excludedGrocerySet, groceryItems, pantryNameSet],
   );
 
   function showNotice(message) {
@@ -226,22 +233,51 @@ function App() {
     setCustomItems((current) => current.filter((item) => item.key !== key));
   }
 
+  function addPantryItem(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const normalized = normalizeName(trimmed);
+    setPantryItems((current) => {
+      if (current.some((item) => normalizeName(item.name) === normalized)) return current;
+      return [...current, { key: `pantry:${Date.now()}`, name: trimmed }];
+    });
+    setNewPantryItem("");
+    showNotice(`${trimmed} 已加入厨房库存`);
+  }
+
+  function removePantryItem(key) {
+    setPantryItems((current) => current.filter((item) => item.key !== key));
+  }
+
   function excludeGroceryItem(key) {
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
   }
 
-  function restoreGroceryItem(key) {
-    setExcludedGroceryKeys((current) => current.filter((itemKey) => itemKey !== key));
+  function restoreGroceryItem(item) {
+    setExcludedGroceryKeys((current) => current.filter((itemKey) => itemKey !== item.hiddenKey));
+    setPantryItems((current) => current.filter((pantryItem) => normalizeName(pantryItem.name) !== normalizeName(item.name)));
+  }
+
+  function restoreAllGroceryItems() {
+    const hiddenNames = new Set(excludedGroceryItems.map((item) => normalizeName(item.name)));
+    setExcludedGroceryKeys([]);
+    setPantryItems((current) => current.filter((item) => !hiddenNames.has(normalizeName(item.name))));
   }
 
   function markPantryItemsOwned() {
-    const pantryKeys = visibleGroceryItems.filter((item) => item.pantryItem).map((item) => item.hiddenKey);
-    if (pantryKeys.length === 0) {
+    const pantryItemsToAdd = visibleGroceryItems.filter((item) => item.pantryItem);
+    if (pantryItemsToAdd.length === 0) {
       showNotice("当前没有常备项需要处理");
       return;
     }
-    setExcludedGroceryKeys((current) => [...new Set([...current, ...pantryKeys])]);
-    showNotice(`已把 ${pantryKeys.length} 个常备项标为家中已有`);
+    setPantryItems((current) => {
+      const currentNames = new Set(current.map((item) => normalizeName(item.name)));
+      const additions = pantryItemsToAdd
+        .filter((item) => !currentNames.has(normalizeName(item.name)))
+        .map((item, index) => ({ key: `pantry:${Date.now()}:${index}`, name: item.name }));
+      return [...current, ...additions];
+    });
+    showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
   }
 
   async function shareGroceryList() {
@@ -320,11 +356,16 @@ function App() {
               customItems={customItems}
               newCustomItem={newCustomItem}
               setNewCustomItem={setNewCustomItem}
+              pantryItems={pantryItems}
+              newPantryItem={newPantryItem}
+              setNewPantryItem={setNewPantryItem}
               onAddCustomItem={addCustomItem}
               onRemoveCustomItem={removeCustomItem}
+              onAddPantryItem={addPantryItem}
+              onRemovePantryItem={removePantryItem}
               onExcludeItem={excludeGroceryItem}
               onRestoreItem={restoreGroceryItem}
-              onRestoreAllItems={() => setExcludedGroceryKeys([])}
+              onRestoreAllItems={restoreAllGroceryItems}
               onMarkPantryItemsOwned={markPantryItemsOwned}
               excludedItems={excludedGroceryItems}
               onShare={shareGroceryList}
@@ -360,6 +401,10 @@ function App() {
       />
     </div>
   );
+}
+
+function normalizeName(value) {
+  return value.trim().toLowerCase();
 }
 
 createRoot(document.getElementById("root")).render(<App />);
