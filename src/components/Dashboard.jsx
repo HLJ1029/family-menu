@@ -1,7 +1,7 @@
-import { BarChart3, CalendarDays, ListChecks, Sparkles, Users } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, ListChecks, Sparkles, Users } from "lucide-react";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
-import { MetricCard, Stat } from "./ui/StatsBlocks";
+import { MetricCard } from "./ui/StatsBlocks";
 import { MiniMeal } from "./ui/MiniMeal";
 
 const familyMembers = [
@@ -80,25 +80,39 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
         </div>
       </section>
 
-      <section className="grid gap-5 xl:col-span-2 xl:grid-cols-[0.85fr_1.15fr]">
-        <button
-          type="button"
-          onClick={() => onViewChange("stats")}
-          className="rounded-[20px] border border-line bg-white p-5 text-left shadow-card transition hover:-translate-y-1 hover:shadow-lift"
-        >
+      <section className="xl:col-span-2">
+        <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="eyebrow">Dining stats</p>
-              <h3 className="card-title">饮食统计</h3>
+              <p className="eyebrow">More tools</p>
+              <h3 className="card-title">更多功能</h3>
             </div>
-            <BarChart3 size={22} />
+            <Sparkles size={22} />
           </div>
-          <div className="mt-7 grid grid-cols-3 gap-3">
-            <Stat label="蔬菜" value="42%" />
-            <Stat label="蛋白质" value="31%" />
-            <Stat label="汤粥" value="18%" />
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <DashboardTool
+              icon={ClipboardList}
+              title="今日菜单"
+              note="调整份数、进入做法"
+              onClick={() => onViewChange("today")}
+            />
+            <DashboardTool
+              icon={CalendarDays}
+              title="日历"
+              note="按日期安排饮食"
+              onClick={() => onViewChange("calendar")}
+            />
+            <DashboardTool
+              icon={BarChart3}
+              title="统计"
+              note="查看饮食结构"
+              onClick={() => onViewChange("stats")}
+            />
           </div>
-        </button>
+        </Card>
+      </section>
+
+      <section className="xl:col-span-2">
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -121,5 +135,19 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
         </Card>
       </section>
     </div>
+  );
+}
+
+function DashboardTool({ icon: Icon, title, note, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-acid"
+    >
+      <Icon size={20} />
+      <p className="mt-3 font-black">{title}</p>
+      <p className="mt-1 text-xs font-bold text-ink/50">{note}</p>
+    </button>
   );
 }
