@@ -80,14 +80,37 @@ function validateImage(image, label) {
     return;
   }
 
-  ["url", "alt", "sourceName", "sourceUrl"].forEach((field) => {
+  if (!["exact", "needs-photo"].includes(image.status)) {
+    errors.push(`${label}.status must be either exact or needs-photo.`);
+  }
+
+  ["alt", "sourceName"].forEach((field) => {
     if (typeof image[field] !== "string" || image[field].trim() === "") {
       errors.push(`${label}.${field} must be a non-empty string.`);
     }
   });
 
-  if (typeof image.url === "string" && !image.url.startsWith("https://")) {
-    errors.push(`${label}.url must be an https URL.`);
+  if (image.status === "exact") {
+    ["url", "sourceUrl"].forEach((field) => {
+      if (typeof image[field] !== "string" || image[field].trim() === "") {
+        errors.push(`${label}.${field} must be a non-empty string for exact images.`);
+      }
+    });
+
+    if (typeof image.url === "string" && !image.url.startsWith("https://")) {
+      errors.push(`${label}.url must be an https URL.`);
+    }
+  }
+
+  if (image.status === "needs-photo") {
+    if (typeof image.note !== "string" || image.note.trim() === "") {
+      errors.push(`${label}.note must explain why a placeholder is used.`);
+    }
+    ["url", "sourceUrl"].forEach((field) => {
+      if (typeof image[field] !== "string") {
+        errors.push(`${label}.${field} must be a string when image status is needs-photo.`);
+      }
+    });
   }
 }
 

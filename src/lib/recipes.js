@@ -37,8 +37,35 @@ export function getRecipe(id) {
   return recipes.find((recipe) => recipe.id === id);
 }
 
+function placeholderPhotoFor(recipe) {
+  const title = escapeSvgText(recipe?.name ?? "菜品");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
+      <rect width="640" height="420" fill="#f5f0e8"/>
+      <rect x="34" y="34" width="572" height="352" rx="28" fill="#fffaf3" stroke="#d8c8b0" stroke-width="3"/>
+      <circle cx="320" cy="174" r="76" fill="#e7d6be"/>
+      <circle cx="292" cy="154" r="18" fill="#b96d3a"/>
+      <circle cx="348" cy="154" r="18" fill="#4d8061"/>
+      <path d="M252 204c36 32 100 32 136 0" fill="none" stroke="#8e6b4b" stroke-width="16" stroke-linecap="round"/>
+      <text x="320" y="290" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700" fill="#3f3328">${title}</text>
+      <text x="320" y="334" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" fill="#8a735f">待补真实图</text>
+    </svg>`;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function escapeSvgText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 export function photoFor(recipe) {
-  return recipe.image?.url ?? "";
+  if (recipe?.image?.status === "exact" && recipe.image.url) {
+    return recipe.image.url;
+  }
+  return placeholderPhotoFor(recipe);
 }
 
 export function nutritionFor(recipe) {

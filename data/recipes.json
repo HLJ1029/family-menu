@@ -65,12 +65,12 @@
     ],
     "tips": "想要汤汁更多，可以把西红柿多炒 1 分钟。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80",
-      "alt": "西红柿炒鸡蛋成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/chinese%20tomato%20egg%20stir-fry",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tomato%20with%20egg.jpg",
+      "alt": "西红柿炒鸡蛋真实成品图",
+      "sourceName": "Wikimedia Commons: Tomato with egg.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tomato_with_egg.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -159,12 +159,13 @@
     ],
     "tips": "土豆丝冲水后更容易炒出脆感。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
-      "alt": "青椒土豆丝成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/chinese%20potato%20stir-fry",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "青椒土豆丝待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -252,12 +253,13 @@
     ],
     "tips": "蛋液要慢慢淋入，蛋花会更细。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=80",
-      "alt": "紫菜蛋花汤成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/chinese%20egg%20soup",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "紫菜蛋花汤待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -340,12 +342,13 @@
     ],
     "tips": "焯水后过一下冷水，颜色会更翠绿。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?auto=format&fit=crop&w=900&q=80",
-      "alt": "蒜蓉西兰花成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/broccoli%20garlic%20vegetable%20dish",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "蒜蓉西兰花待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -434,12 +437,12 @@
     ],
     "tips": "收汁时要勤翻动，避免糖分糊锅。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "可乐鸡翅成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/chicken%20wings%20asian%20food",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E5%8F%AF%E4%B9%90%E9%B8%A1%E7%BF%85%20Cola%20Jichi.jpg",
+      "alt": "可乐鸡翅真实成品图",
+      "sourceName": "Wikimedia Commons: 可乐鸡翅 Cola Jichi.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%8F%AF%E4%B9%90%E9%B8%A1%E7%BF%85%20Cola%20Jichi.jpg",
+      "license": "CC0 1.0"
     },
     "nutrition": {
       "perServing": true,
@@ -534,12 +537,12 @@
     ],
     "tips": "翻动豆腐时用锅铲轻推，避免碎掉。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
-      "alt": "麻婆豆腐成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/mapo%20tofu%20chinese%20food",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mapo%20tofu.JPG",
+      "alt": "麻婆豆腐真实成品图",
+      "sourceName": "Wikimedia Commons: Mapo tofu.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mapo_tofu.JPG",
+      "license": "CC BY-SA 2.0"
     },
     "nutrition": {
       "perServing": true,
@@ -622,12 +625,12 @@
     ],
     "tips": "黄瓜不要炒太久，保留脆感。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=80",
-      "alt": "黄瓜炒鸡蛋成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/cucumber%20egg%20chinese%20stir-fry",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Scrambled%20eggs%20with%20cucumbers.jpg",
+      "alt": "黄瓜炒鸡蛋真实成品图",
+      "sourceName": "Wikimedia Commons: Scrambled eggs with cucumbers.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Scrambled%20eggs%20with%20cucumbers.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -710,12 +713,13 @@
     ],
     "tips": "排骨焯水后汤会更清。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?auto=format&fit=crop&w=900&q=80",
-      "alt": "冬瓜排骨汤成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/pork%20rib%20soup%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "冬瓜排骨汤待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -804,12 +808,12 @@
     ],
     "tips": "隔夜米饭更容易炒散。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=80",
-      "alt": "蛋炒饭成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/egg%20fried%20rice%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Egg%20fried%20rice.jpg",
+      "alt": "蛋炒饭真实成品图",
+      "sourceName": "Wikimedia Commons: Egg fried rice.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/Category:Egg_fried_rice",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -904,12 +908,12 @@
     ],
     "tips": "茄子提前撒少量盐静置，可以减少吸油。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
-      "alt": "红烧茄子成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/braised%20eggplant%20chinese%20food",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E7%BA%A2%E7%83%A7%E8%8C%84%E5%AD%90-%E4%BA%91%E5%8D%97%E6%98%86%E6%98%8E.jpg",
+      "alt": "红烧茄子真实成品图",
+      "sourceName": "Wikimedia Commons: 红烧茄子-云南昆明.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%BA%A2%E7%83%A7%E8%8C%84%E5%AD%90-%E4%BA%91%E5%8D%97%E6%98%86%E6%98%8E.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -1004,12 +1008,12 @@
     ],
     "tips": "炖肉时用热水，肉质更不容易发柴。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "红烧肉成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/braised%20pork%20belly%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Red%20braised%20pork%20belly.jpg",
+      "alt": "红烧肉真实成品图",
+      "sourceName": "Wikimedia Commons: Red braised pork belly.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Red_braised_pork_belly.jpg",
+      "license": "CC BY 2.0"
     },
     "nutrition": {
       "perServing": true,
@@ -1116,12 +1120,12 @@
     ],
     "tips": "肉丝提前上浆，口感会更嫩。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-      "alt": "鱼香肉丝成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/shredded%20pork%20chinese%20food",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E9%B1%BC%E9%A6%99%E8%82%89%E4%B8%9D.jpg",
+      "alt": "鱼香肉丝真实成品图",
+      "sourceName": "Wikimedia Commons: 鱼香肉丝.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%B1%BC%E9%A6%99%E8%82%89%E4%B8%9D.jpg",
+      "license": "CC BY-SA 3.0"
     },
     "nutrition": {
       "perServing": true,
@@ -1222,12 +1226,12 @@
     ],
     "tips": "花生米最后放，口感更脆。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-      "alt": "宫保鸡丁成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/kung%20pao%20chicken%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kungpao%20chicken.jpg",
+      "alt": "宫保鸡丁真实成品图",
+      "sourceName": "Wikimedia Commons: Kungpao chicken.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kungpao_chicken.jpg",
+      "license": "CC BY 2.0"
     },
     "nutrition": {
       "perServing": true,
@@ -1316,12 +1320,13 @@
     ],
     "tips": "土豆丝冲洗掉淀粉后更脆。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
-      "alt": "酸辣土豆丝成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/spicy%20potato%20stir-fry%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "酸辣土豆丝待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -1416,12 +1421,12 @@
     ],
     "tips": "豆腐先煎一下，不容易碎也更香。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=900&q=80",
-      "alt": "家常豆腐成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/tofu%20chinese%20stir-fry",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hunan%20cuisine%2C%20Fried%20Tofu%2C%20Home%20Style.jpg",
+      "alt": "家常豆腐真实成品图",
+      "sourceName": "Wikimedia Commons: Hunan cuisine, Fried Tofu, Home Style.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hunan%20cuisine%2C%20Fried%20Tofu%2C%20Home%20Style.jpg",
+      "license": "CC BY 3.0"
     },
     "nutrition": {
       "perServing": true,
@@ -1516,12 +1521,12 @@
     ],
     "tips": "复炸时间不用太长，表面酥脆即可。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "糖醋里脊成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/sweet%20sour%20pork%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tangcu%20liji.jpg",
+      "alt": "糖醋里脊真实成品图",
+      "sourceName": "Wikimedia Commons: Tangcu liji.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tangcu%20liji.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -1622,12 +1627,12 @@
     ],
     "tips": "鱼片下锅后不要频繁翻动，避免碎掉。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
-      "alt": "水煮鱼成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/spicy%20fish%20chinese%20soup",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E6%B0%B4%E7%85%AE%E9%B1%BC%20Spicy%20Fish%20with%20Rice%20-%20Spicy%20Fish%2C%20Glen%20Waverley%20(3012467062).jpg",
+      "alt": "水煮鱼真实成品图",
+      "sourceName": "Wikimedia Commons: 水煮鱼 Spicy Fish with Rice.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%B0%B4%E7%85%AE%E9%B1%BC%20Spicy%20Fish%20with%20Rice%20-%20Spicy%20Fish%2C%20Glen%20Waverley%20(3012467062).jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -1728,12 +1733,13 @@
     ],
     "tips": "鱼表面擦干再煎，更不容易破皮。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
-      "alt": "红烧鲫鱼成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/braised%20fish%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "红烧鲫鱼待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -1828,12 +1834,13 @@
     ],
     "tips": "用鸡腿肉比鸡胸肉更嫩。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "香菇滑鸡成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/steamed%20chicken%20mushroom%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "香菇滑鸡待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -1922,12 +1929,13 @@
     ],
     "tips": "青菜下锅后大火快炒，颜色更好看。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
-      "alt": "青菜烧香菇成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/bok%20choy%20shiitake%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "青菜烧香菇待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2016,12 +2024,13 @@
     ],
     "tips": "藕丁焯水后更容易保持脆感。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80",
-      "alt": "糖醋藕丁成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/lotus%20root%20chinese%20food",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "糖醋藕丁待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2116,12 +2125,13 @@
     ],
     "tips": "喜欢软糯口感可以多焖 10 分钟。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-      "alt": "香辣烧鸡爪成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/spicy%20chicken%20feet%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "香辣烧鸡爪待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2216,12 +2226,13 @@
     ],
     "tips": "煎鱼前用厨房纸吸干水分，能减少粘锅。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
-      "alt": "红烧武昌鱼成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/braised%20whole%20fish%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "红烧武昌鱼待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2304,12 +2315,13 @@
     ],
     "tips": "山药去皮时可戴手套，避免手痒。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?auto=format&fit=crop&w=900&q=80",
-      "alt": "山药排骨汤成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/pork%20rib%20yam%20soup%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "山药排骨汤待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2404,12 +2416,12 @@
     ],
     "tips": "煮粥时偶尔搅动，口感更绵。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1625944525533-473f1a3d54e7?auto=format&fit=crop&w=900&q=80",
-      "alt": "皮蛋瘦肉粥成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/congee%20preserved%20egg%20pork",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pork%20preserved%20duck%20egg%20congee.jpg",
+      "alt": "皮蛋瘦肉粥真实成品图",
+      "sourceName": "Wikimedia Commons: Pork preserved duck egg congee.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pork%20preserved%20duck%20egg%20congee.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -2498,12 +2510,13 @@
     ],
     "tips": "蒜苔不要炒太久，保留脆感更好吃。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "蒜苔炒肉成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/pork%20garlic%20sprout%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "蒜苔炒肉待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2598,12 +2611,12 @@
     ],
     "tips": "大葱切细一点，和肉丝一起吃更协调。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "京酱肉丝成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/pork%20scallion%20chinese%20pancake",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E4%BA%AC%E9%85%B1%E8%82%89%E4%B8%9D.jpg",
+      "alt": "京酱肉丝真实成品图",
+      "sourceName": "Wikimedia Commons: 京酱肉丝.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E4%BA%AC%E9%85%B1%E8%82%89%E4%B8%9D.jpg",
+      "license": "CC BY-SA 3.0"
     },
     "nutrition": {
       "perServing": true,
@@ -2698,12 +2711,13 @@
     ],
     "tips": "白菜帮先下锅，整体熟度更一致。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
-      "alt": "醋溜白菜成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/chinese%20cabbage%20stir-fry",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "needs-photo",
+      "url": "",
+      "alt": "醋溜白菜待补真实成品图",
+      "sourceName": "待补真实菜品图",
+      "sourceUrl": "",
+      "license": "N/A",
+      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
     },
     "nutrition": {
       "perServing": true,
@@ -2792,12 +2806,12 @@
     ],
     "tips": "蒸鱼时间不要过长，鱼肉更嫩。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=900&q=80",
-      "alt": "清蒸鲈鱼成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/steamed%20fish%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Steamed%20fish%20with%20soy%20sauce.jpg",
+      "alt": "清蒸鲈鱼真实成品图",
+      "sourceName": "Wikimedia Commons: Steamed fish with soy sauce.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Steamed_fish_with_soy_sauce.jpg",
+      "license": "CC license per file page"
     },
     "nutrition": {
       "perServing": true,
@@ -2886,12 +2900,12 @@
     ],
     "tips": "肉片切薄一些，炒出来更香。",
     "image": {
-      "url": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-      "alt": "回锅肉成品实拍参考图",
-      "sourceName": "Unsplash food photography",
-      "sourceUrl": "https://unsplash.com/s/photos/twice%20cooked%20pork%20chinese",
-      "license": "Unsplash License",
-      "note": "真实食物摄影参考图；当前阶段按菜品类型匹配，后续可替换为自托管精确菜品图。"
+      "status": "exact",
+      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Twice%20Cooked%20Pork%20%2813974362633%29.jpg",
+      "alt": "回锅肉真实成品图",
+      "sourceName": "Wikimedia Commons: Twice Cooked Pork (13974362633).jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Twice_Cooked_Pork_(13974362633).jpg",
+      "license": "CC BY-SA 2.0"
     },
     "nutrition": {
       "perServing": true,
