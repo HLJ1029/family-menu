@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Flame, Plus, Search, Utensils, X } from "lucide-react";
 import {
   addMonths,
@@ -19,6 +19,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   const [visibleMonthKey, setVisibleMonthKey] = useState(todayKey);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+  const detailRef = useRef(null);
   const visibleMonthDate = parseDateKey(visibleMonthKey);
   const calendarDates = useMemo(() => getCalendarMonthDates(visibleMonthDate), [visibleMonthKey]);
   const selectedRecipeIds = mealCalendar[selectedDateKey] ?? [];
@@ -58,6 +59,11 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   function selectDate(dateKey) {
     setSelectedDateKey(dateKey);
     setVisibleMonthKey(dateKey);
+    window.setTimeout(() => {
+      if (window.matchMedia("(max-width: 1279px)").matches) {
+        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 80);
   }
 
   return (
@@ -122,7 +128,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                 onClick={() => selectDate(dateKey)}
                 className={`relative grid min-h-[74px] place-items-center rounded-[18px] border p-2 text-center transition hover:-translate-y-0.5 sm:min-h-[104px] ${
                   isSelected
-                    ? "border-ink bg-ink text-white shadow-lift"
+                    ? "calendar-day-selected border-ink bg-ink text-white shadow-lift"
                     : "border-line bg-white text-ink hover:border-ink/20 hover:shadow-card"
                 } ${!isCurrentMonth ? "opacity-35" : ""}`}
               >
@@ -142,8 +148,11 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
         </div>
       </Card>
 
-      <div className="grid gap-5">
-        <section className="overflow-hidden rounded-[28px] border border-line bg-white shadow-card">
+      <div ref={detailRef} className="grid scroll-mt-5 gap-5">
+        <section
+          key={selectedDateKey}
+          className="calendar-detail-enter overflow-hidden rounded-[28px] border border-line bg-white shadow-card"
+        >
           <div className="grid gap-5 bg-ink p-5 text-white sm:grid-cols-[112px_1fr] sm:items-center">
             <NutritionRings summary={selectedSummary} selected size="lg" />
             <div>
