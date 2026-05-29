@@ -293,7 +293,13 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                       disabled={alreadyAdded}
                       className="flex items-center gap-3 rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      <img src={photoFor(recipe)} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                      <img
+                        src={photoFor(recipe, { variant: "thumb" })}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-16 w-16 rounded-2xl object-cover"
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-base font-black">{recipe.name}</span>
                         <span className="mt-1 block text-xs font-bold text-ink/45">

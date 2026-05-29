@@ -59,7 +59,12 @@ export function RecipeDetailDrawer({
       />
       <aside className="absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-canvas shadow-lift md:w-[560px] md:rounded-l-[32px]">
         <div className="relative h-56 shrink-0 overflow-hidden md:h-64">
-          <img src={photoFor(recipe)} alt={recipe.name} className="h-full w-full object-cover" />
+          <img
+            src={photoFor(recipe)}
+            alt={recipe.name}
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/72 via-ink/10 to-transparent" />
           <button
             type="button"

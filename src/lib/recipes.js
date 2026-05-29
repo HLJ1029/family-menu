@@ -61,11 +61,22 @@ function escapeSvgText(value) {
     .replaceAll(">", "&gt;");
 }
 
-export function photoFor(recipe) {
+export function photoFor(recipe, options = {}) {
   if (recipe?.image?.status !== "needs-photo" && recipe?.image?.url) {
+    if (options.variant === "thumb") {
+      return thumbnailUrlFor(recipe.image.url);
+    }
     return recipe.image.url;
   }
   return placeholderPhotoFor(recipe);
+}
+
+function thumbnailUrlFor(url) {
+  if (!url.includes("/assets/dishes/") || !url.endsWith(".png")) {
+    return url;
+  }
+
+  return url.replace("/assets/dishes/", "/assets/dishes/thumbs/").replace(/\.png$/, ".jpg");
 }
 
 export function nutritionFor(recipe) {

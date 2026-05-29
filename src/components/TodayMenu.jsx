@@ -85,7 +85,13 @@ export function TodayMenu({
                 className="overflow-hidden rounded-[22px] bg-canvas"
                 aria-label={`查看 ${recipe.name} 菜谱`}
               >
-                <img src={photoFor(recipe)} alt="" className="aspect-[4/3] h-full w-full object-cover" />
+                <img
+                  src={photoFor(recipe, { variant: "thumb" })}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="aspect-[4/3] h-full w-full object-cover"
+                />
               </button>
 
               <div className="grid gap-4">

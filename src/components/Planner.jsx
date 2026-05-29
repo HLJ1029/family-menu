@@ -113,7 +113,13 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove }) {
             </div>
             {selectedRecipe && (
               <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-white p-2">
-                <img src={photoFor(selectedRecipe)} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+                <img
+                  src={photoFor(selectedRecipe, { variant: "thumb" })}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-12 w-12 rounded-2xl object-cover"
+                />
                 <div>
                   <p className="text-sm font-black">{selectedRecipe.name}</p>
                   <p className="text-xs font-bold text-ink/45">
@@ -228,7 +234,13 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove }) {
                       disabled={alreadyAdded}
                       className="flex items-center gap-3 rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      <img src={photoFor(recipe)} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                      <img
+                        src={photoFor(recipe, { variant: "thumb" })}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-16 w-16 rounded-2xl object-cover"
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-base font-black">{recipe.name}</span>
                         <span className="mt-1 block text-xs font-bold text-ink/45">

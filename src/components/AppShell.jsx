@@ -37,7 +37,7 @@ export function Sidebar({ activeView, onChange }) {
         <DoodlePot />
         <p className="mt-4 text-sm font-black">Smart pantry beta</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
-          当前版本用 30 道菜测试菜单、计划和购物清单体验。
+          当前版本用 43 道菜测试菜单、计划和购物清单体验。
         </p>
       </div>
     </aside>

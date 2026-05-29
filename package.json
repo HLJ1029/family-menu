@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "generate:dish-images": "node scripts/generate-dish-images.mjs",
+    "generate:dish-thumbs": "node scripts/generate-dish-thumbnails.mjs",
     "validate:data": "node scripts/validate-recipes.mjs"
   },
   "dependencies": {
