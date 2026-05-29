@@ -1,0 +1,217 @@
+[
+  {
+    "id": "tomato-egg",
+    "name": "西红柿炒鸡蛋",
+    "image": "/assets/dishes/tomato-egg.png"
+  },
+  {
+    "id": "potato-shreds",
+    "name": "青椒土豆丝",
+    "image": "/assets/dishes/potato-shreds.png"
+  },
+  {
+    "id": "seaweed-egg-soup",
+    "name": "紫菜蛋花汤",
+    "image": "/assets/dishes/seaweed-egg-soup.png"
+  },
+  {
+    "id": "garlic-broccoli",
+    "name": "蒜蓉西兰花",
+    "image": "/assets/dishes/garlic-broccoli.png"
+  },
+  {
+    "id": "cola-wings",
+    "name": "可乐鸡翅",
+    "image": "/assets/dishes/cola-wings.png"
+  },
+  {
+    "id": "mapo-tofu",
+    "name": "麻婆豆腐",
+    "image": "/assets/dishes/mapo-tofu.png"
+  },
+  {
+    "id": "cucumber-egg",
+    "name": "黄瓜炒鸡蛋",
+    "image": "/assets/dishes/cucumber-egg.png"
+  },
+  {
+    "id": "wintermelon-rib-soup",
+    "name": "冬瓜排骨汤",
+    "image": "/assets/dishes/wintermelon-rib-soup.png"
+  },
+  {
+    "id": "egg-fried-rice",
+    "name": "蛋炒饭",
+    "image": "/assets/dishes/egg-fried-rice.png"
+  },
+  {
+    "id": "braised-eggplant",
+    "name": "红烧茄子",
+    "image": "/assets/dishes/braised-eggplant.png"
+  },
+  {
+    "id": "braised-pork-belly",
+    "name": "红烧肉",
+    "image": "/assets/dishes/braised-pork-belly.png"
+  },
+  {
+    "id": "yu-shiang-pork",
+    "name": "鱼香肉丝",
+    "image": "/assets/dishes/yu-shiang-pork.png"
+  },
+  {
+    "id": "kung-pao-chicken",
+    "name": "宫保鸡丁",
+    "image": "/assets/dishes/kung-pao-chicken.png"
+  },
+  {
+    "id": "hot-sour-potato-shreds",
+    "name": "酸辣土豆丝",
+    "image": "/assets/dishes/hot-sour-potato-shreds.png"
+  },
+  {
+    "id": "home-style-tofu",
+    "name": "家常豆腐",
+    "image": "/assets/dishes/home-style-tofu.png"
+  },
+  {
+    "id": "sweet-sour-pork",
+    "name": "糖醋里脊",
+    "image": "/assets/dishes/sweet-sour-pork.png"
+  },
+  {
+    "id": "boiled-fish",
+    "name": "水煮鱼",
+    "image": "/assets/dishes/boiled-fish.png"
+  },
+  {
+    "id": "braised-crucian-carp",
+    "name": "红烧鲫鱼",
+    "image": "/assets/dishes/braised-crucian-carp.png"
+  },
+  {
+    "id": "shiitake-steamed-chicken",
+    "name": "香菇滑鸡",
+    "image": "/assets/dishes/shiitake-steamed-chicken.png"
+  },
+  {
+    "id": "greens-shiitake",
+    "name": "青菜烧香菇",
+    "image": "/assets/dishes/greens-shiitake.png"
+  },
+  {
+    "id": "sweet-sour-lotus-root",
+    "name": "糖醋藕丁",
+    "image": "/assets/dishes/sweet-sour-lotus-root.png"
+  },
+  {
+    "id": "spicy-chicken-feet",
+    "name": "香辣烧鸡爪",
+    "image": "/assets/dishes/spicy-chicken-feet.png"
+  },
+  {
+    "id": "braised-wuchang-fish",
+    "name": "红烧武昌鱼",
+    "image": "/assets/dishes/braised-wuchang-fish.png"
+  },
+  {
+    "id": "yam-rib-soup",
+    "name": "山药排骨汤",
+    "image": "/assets/dishes/yam-rib-soup.png"
+  },
+  {
+    "id": "preserved-egg-pork-congee",
+    "name": "皮蛋瘦肉粥",
+    "image": "/assets/dishes/preserved-egg-pork-congee.png"
+  },
+  {
+    "id": "garlic-sprout-pork",
+    "name": "蒜苔炒肉",
+    "image": "/assets/dishes/garlic-sprout-pork.png"
+  },
+  {
+    "id": "jing-sauce-pork",
+    "name": "京酱肉丝",
+    "image": "/assets/dishes/jing-sauce-pork.png"
+  },
+  {
+    "id": "vinegar-cabbage",
+    "name": "醋溜白菜",
+    "image": "/assets/dishes/vinegar-cabbage.png"
+  },
+  {
+    "id": "steamed-sea-bass",
+    "name": "清蒸鲈鱼",
+    "image": "/assets/dishes/steamed-sea-bass.png"
+  },
+  {
+    "id": "twice-cooked-pork",
+    "name": "回锅肉",
+    "image": "/assets/dishes/twice-cooked-pork.png"
+  },
+  {
+    "id": "di-san-xian",
+    "name": "地三鲜",
+    "image": "/assets/dishes/di-san-xian.png"
+  },
+  {
+    "id": "dry-fried-green-beans",
+    "name": "干煸四季豆",
+    "image": "/assets/dishes/dry-fried-green-beans.png"
+  },
+  {
+    "id": "sauerkraut-fish",
+    "name": "酸菜鱼",
+    "image": "/assets/dishes/sauerkraut-fish.png"
+  },
+  {
+    "id": "potato-beef",
+    "name": "土豆烧牛肉",
+    "image": "/assets/dishes/potato-beef.png"
+  },
+  {
+    "id": "green-pepper-pork",
+    "name": "青椒肉丝",
+    "image": "/assets/dishes/green-pepper-pork.png"
+  },
+  {
+    "id": "chive-egg",
+    "name": "韭菜炒蛋",
+    "image": "/assets/dishes/chive-egg.png"
+  },
+  {
+    "id": "scallion-lamb",
+    "name": "葱爆羊肉",
+    "image": "/assets/dishes/scallion-lamb.png"
+  },
+  {
+    "id": "salt-pepper-shrimp",
+    "name": "椒盐虾",
+    "image": "/assets/dishes/salt-pepper-shrimp.png"
+  },
+  {
+    "id": "tomato-beef-brisket",
+    "name": "番茄牛腩",
+    "image": "/assets/dishes/tomato-beef-brisket.png"
+  },
+  {
+    "id": "wood-ear-yam",
+    "name": "木耳炒山药",
+    "image": "/assets/dishes/wood-ear-yam.png"
+  },
+  {
+    "id": "dry-pot-cauliflower",
+    "name": "干锅花菜",
+    "image": "/assets/dishes/dry-pot-cauliflower.png"
+  },
+  {
+    "id": "loofah-shrimp",
+    "name": "丝瓜炒虾仁",
+    "image": "/assets/dishes/loofah-shrimp.png"
+  },
+  {
+    "id": "minced-pork-steamed-egg",
+    "name": "肉末蒸蛋",
+    "image": "/assets/dishes/minced-pork-steamed-egg.png"
+  }
+]

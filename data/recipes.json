@@ -66,12 +66,12 @@
     "tips": "想要汤汁更多，可以把西红柿多炒 1 分钟。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/tomato-egg.jpg",
-      "alt": "西红柿炒鸡蛋手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/tomato-egg.png",
+      "alt": "西红柿炒鸡蛋现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -160,13 +160,13 @@
     ],
     "tips": "土豆丝冲水后更容易炒出脆感。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "青椒土豆丝待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/potato-shreds.png",
+      "alt": "青椒土豆丝现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -255,12 +255,12 @@
     "tips": "蛋液要慢慢淋入，蛋花会更细。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/seaweed-egg-soup.jpg",
-      "alt": "紫菜蛋花汤手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/seaweed-egg-soup.png",
+      "alt": "紫菜蛋花汤现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -344,12 +344,12 @@
     "tips": "焯水后过一下冷水，颜色会更翠绿。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/garlic-broccoli.jpg",
-      "alt": "蒜蓉西兰花手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/garlic-broccoli.png",
+      "alt": "蒜蓉西兰花现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -439,12 +439,12 @@
     "tips": "收汁时要勤翻动，避免糖分糊锅。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/cola-wings.jpg",
-      "alt": "可乐鸡翅手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/cola-wings.png",
+      "alt": "可乐鸡翅现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -540,12 +540,12 @@
     "tips": "翻动豆腐时用锅铲轻推，避免碎掉。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/mapo-tofu.jpg",
-      "alt": "麻婆豆腐手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/mapo-tofu.png",
+      "alt": "麻婆豆腐现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -628,12 +628,13 @@
     ],
     "tips": "黄瓜不要炒太久，保留脆感。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Scrambled%20eggs%20with%20cucumbers.jpg",
-      "alt": "黄瓜炒鸡蛋真实成品图",
-      "sourceName": "Wikimedia Commons: Scrambled eggs with cucumbers.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Scrambled%20eggs%20with%20cucumbers.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cucumber-egg.png",
+      "alt": "黄瓜炒鸡蛋现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -717,12 +718,12 @@
     "tips": "排骨焯水后汤会更清。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/wintermelon-rib-soup.jpg",
-      "alt": "冬瓜排骨汤手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/wintermelon-rib-soup.png",
+      "alt": "冬瓜排骨汤现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -812,12 +813,12 @@
     "tips": "隔夜米饭更容易炒散。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/egg-fried-rice.jpg",
-      "alt": "蛋炒饭手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/egg-fried-rice.png",
+      "alt": "蛋炒饭现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -913,12 +914,12 @@
     "tips": "茄子提前撒少量盐静置，可以减少吸油。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/braised-eggplant.jpg",
-      "alt": "红烧茄子手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/braised-eggplant.png",
+      "alt": "红烧茄子现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1014,12 +1015,12 @@
     "tips": "炖肉时用热水，肉质更不容易发柴。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/braised-pork-belly.jpg",
-      "alt": "红烧肉手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/braised-pork-belly.png",
+      "alt": "红烧肉现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1127,12 +1128,12 @@
     "tips": "肉丝提前上浆，口感会更嫩。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/yu-shiang-pork.jpg",
-      "alt": "鱼香肉丝手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/yu-shiang-pork.png",
+      "alt": "鱼香肉丝现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1234,12 +1235,12 @@
     "tips": "花生米最后放，口感更脆。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/kung-pao-chicken.jpg",
-      "alt": "宫保鸡丁手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/kung-pao-chicken.png",
+      "alt": "宫保鸡丁现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1328,13 +1329,13 @@
     ],
     "tips": "土豆丝冲洗掉淀粉后更脆。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "酸辣土豆丝待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/hot-sour-potato-shreds.png",
+      "alt": "酸辣土豆丝现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1429,12 +1430,13 @@
     ],
     "tips": "豆腐先煎一下，不容易碎也更香。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hunan%20cuisine%2C%20Fried%20Tofu%2C%20Home%20Style.jpg",
-      "alt": "家常豆腐真实成品图",
-      "sourceName": "Wikimedia Commons: Hunan cuisine, Fried Tofu, Home Style.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hunan%20cuisine%2C%20Fried%20Tofu%2C%20Home%20Style.jpg",
-      "license": "CC BY 3.0"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/home-style-tofu.png",
+      "alt": "家常豆腐现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1530,12 +1532,12 @@
     "tips": "复炸时间不用太长，表面酥脆即可。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/sweet-sour-pork.jpg",
-      "alt": "糖醋里脊手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/sweet-sour-pork.png",
+      "alt": "糖醋里脊现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1636,12 +1638,13 @@
     ],
     "tips": "鱼片下锅后不要频繁翻动，避免碎掉。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E6%B0%B4%E7%85%AE%E9%B1%BC%20Spicy%20Fish%20with%20Rice%20-%20Spicy%20Fish%2C%20Glen%20Waverley%20(3012467062).jpg",
-      "alt": "水煮鱼真实成品图",
-      "sourceName": "Wikimedia Commons: 水煮鱼 Spicy Fish with Rice.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%B0%B4%E7%85%AE%E9%B1%BC%20Spicy%20Fish%20with%20Rice%20-%20Spicy%20Fish%2C%20Glen%20Waverley%20(3012467062).jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/boiled-fish.png",
+      "alt": "水煮鱼现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1742,13 +1745,13 @@
     ],
     "tips": "鱼表面擦干再煎，更不容易破皮。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "红烧鲫鱼待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/braised-crucian-carp.png",
+      "alt": "红烧鲫鱼现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1844,12 +1847,12 @@
     "tips": "用鸡腿肉比鸡胸肉更嫩。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/shiitake-steamed-chicken.jpg",
-      "alt": "香菇滑鸡手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/shiitake-steamed-chicken.png",
+      "alt": "香菇滑鸡现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -1938,13 +1941,13 @@
     ],
     "tips": "青菜下锅后大火快炒，颜色更好看。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "青菜烧香菇待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/greens-shiitake.png",
+      "alt": "青菜烧香菇现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2033,13 +2036,13 @@
     ],
     "tips": "藕丁焯水后更容易保持脆感。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "糖醋藕丁待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/sweet-sour-lotus-root.png",
+      "alt": "糖醋藕丁现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2134,13 +2137,13 @@
     ],
     "tips": "喜欢软糯口感可以多焖 10 分钟。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "香辣烧鸡爪待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/spicy-chicken-feet.png",
+      "alt": "香辣烧鸡爪现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2235,13 +2238,13 @@
     ],
     "tips": "煎鱼前用厨房纸吸干水分，能减少粘锅。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "红烧武昌鱼待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/braised-wuchang-fish.png",
+      "alt": "红烧武昌鱼现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2324,13 +2327,13 @@
     ],
     "tips": "山药去皮时可戴手套，避免手痒。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "山药排骨汤待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/yam-rib-soup.png",
+      "alt": "山药排骨汤现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2425,12 +2428,13 @@
     ],
     "tips": "煮粥时偶尔搅动，口感更绵。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pork%20preserved%20duck%20egg%20congee.jpg",
-      "alt": "皮蛋瘦肉粥真实成品图",
-      "sourceName": "Wikimedia Commons: Pork preserved duck egg congee.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pork%20preserved%20duck%20egg%20congee.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/preserved-egg-pork-congee.png",
+      "alt": "皮蛋瘦肉粥现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2519,13 +2523,13 @@
     ],
     "tips": "蒜苔不要炒太久，保留脆感更好吃。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "蒜苔炒肉待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/garlic-sprout-pork.png",
+      "alt": "蒜苔炒肉现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2620,12 +2624,13 @@
     ],
     "tips": "大葱切细一点，和肉丝一起吃更协调。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E4%BA%AC%E9%85%B1%E8%82%89%E4%B8%9D.jpg",
-      "alt": "京酱肉丝真实成品图",
-      "sourceName": "Wikimedia Commons: 京酱肉丝.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E4%BA%AC%E9%85%B1%E8%82%89%E4%B8%9D.jpg",
-      "license": "CC BY-SA 3.0"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/jing-sauce-pork.png",
+      "alt": "京酱肉丝现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2720,13 +2725,13 @@
     ],
     "tips": "白菜帮先下锅，整体熟度更一致。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "醋溜白菜待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/vinegar-cabbage.png",
+      "alt": "醋溜白菜现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2816,12 +2821,12 @@
     "tips": "蒸鱼时间不要过长，鱼肉更嫩。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/steamed-sea-bass.jpg",
-      "alt": "清蒸鲈鱼手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/steamed-sea-bass.png",
+      "alt": "清蒸鲈鱼现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -2911,12 +2916,12 @@
     "tips": "肉片切薄一些，炒出来更香。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/twice-cooked-pork.jpg",
-      "alt": "回锅肉手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/twice-cooked-pork.png",
+      "alt": "回锅肉现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3024,12 +3029,12 @@
     "tips": "茄子吸油，可以先用少量盐抓匀静置 5 分钟再下锅。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/di-san-xian.jpg",
-      "alt": "地三鲜手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/di-san-xian.png",
+      "alt": "地三鲜现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3131,12 +3136,12 @@
     "tips": "四季豆必须炒熟，表皮起皱后再继续翻炒 1 到 2 分钟更安心。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/dry-fried-green-beans.jpg",
-      "alt": "干煸四季豆手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/dry-fried-green-beans.png",
+      "alt": "干煸四季豆现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3250,12 +3255,12 @@
     "tips": "下鱼片时汤不要猛烈翻滚，鱼片更容易保持完整。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/sauerkraut-fish.jpg",
-      "alt": "酸菜鱼手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/sauerkraut-fish.png",
+      "alt": "酸菜鱼现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3369,12 +3374,12 @@
     "tips": "炖牛肉尽量加热水，口感会更软。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/potato-beef.jpg",
-      "alt": "土豆烧牛肉手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/potato-beef.png",
+      "alt": "土豆烧牛肉现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3482,12 +3487,12 @@
     "tips": "肉丝下锅后快速划散，变色就先盛出，口感更嫩。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/green-pepper-pork.jpg",
-      "alt": "青椒肉丝手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/green-pepper-pork.png",
+      "alt": "青椒肉丝现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3571,12 +3576,12 @@
     "tips": "韭菜很容易出水，入锅后大火快炒即可。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/chive-egg.jpg",
-      "alt": "韭菜炒蛋手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/chive-egg.png",
+      "alt": "韭菜炒蛋现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3678,12 +3683,12 @@
     "tips": "这道菜要大火快炒，羊肉变色后不要久炒。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/scallion-lamb.jpg",
-      "alt": "葱爆羊肉手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/scallion-lamb.png",
+      "alt": "葱爆羊肉现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3785,12 +3790,12 @@
     "tips": "虾要尽量擦干再下锅，表面更容易煎香。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/salt-pepper-shrimp.jpg",
-      "alt": "椒盐虾手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/salt-pepper-shrimp.png",
+      "alt": "椒盐虾现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3898,12 +3903,12 @@
     "tips": "一半番茄先炒出汁，另一半后放，汤底和口感都会更好。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/tomato-beef-brisket.jpg",
-      "alt": "番茄牛腩手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/tomato-beef-brisket.png",
+      "alt": "番茄牛腩现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -3999,12 +4004,12 @@
     "tips": "处理山药时可以戴手套，避免手痒。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/wood-ear-yam.jpg",
-      "alt": "木耳炒山药手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/wood-ear-yam.png",
+      "alt": "木耳炒山药现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4106,12 +4111,12 @@
     "tips": "花菜不要焯太久，保留一点脆感更适合干锅风味。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/dry-pot-cauliflower.jpg",
-      "alt": "干锅花菜手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/dry-pot-cauliflower.png",
+      "alt": "干锅花菜现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4213,12 +4218,12 @@
     "tips": "丝瓜容易出水，少加水即可。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/loofah-shrimp.jpg",
-      "alt": "丝瓜炒虾仁手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/loofah-shrimp.png",
+      "alt": "丝瓜炒虾仁现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4314,12 +4319,12 @@
     "tips": "蛋液过滤一次，蒸出来更细腻。",
     "image": {
       "status": "illustration",
-      "url": "/family-menu/recipe-images/minced-pork-steamed-egg.jpg",
-      "alt": "肉末蒸蛋手绘水彩菜单风菜品图",
-      "sourceName": "用户提供的家常菜单手绘水彩总图",
-      "sourceUrl": "local-upload:照片 1.jpg",
-      "license": "User provided for this project",
-      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+      "url": "/family-menu/assets/dishes/minced-pork-steamed-egg.png",
+      "alt": "肉末蒸蛋现代手绘水彩菜品图",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
     },
     "nutrition": {
       "perServing": true,
