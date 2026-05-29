@@ -1,0 +1,576 @@
+[
+  {
+    "id": "tomato-egg",
+    "filename": "tomato-egg.png",
+    "name": "西红柿炒鸡蛋",
+    "category": "家常菜",
+    "ingredients": [
+      "西红柿",
+      "鸡蛋",
+      "小葱"
+    ],
+    "taste": "酸甜鲜香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "potato-shreds",
+    "filename": "potato-shreds.png",
+    "name": "青椒土豆丝",
+    "category": "家常菜",
+    "ingredients": [
+      "土豆",
+      "青椒",
+      "蒜"
+    ],
+    "taste": "清爽咸鲜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "seaweed-egg-soup",
+    "filename": "seaweed-egg-soup.png",
+    "name": "紫菜蛋花汤",
+    "category": "汤",
+    "ingredients": [
+      "紫菜",
+      "鸡蛋",
+      "小葱"
+    ],
+    "taste": "清淡鲜香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "garlic-broccoli",
+    "filename": "garlic-broccoli.png",
+    "name": "蒜蓉西兰花",
+    "category": "素菜",
+    "ingredients": [
+      "西兰花",
+      "蒜"
+    ],
+    "taste": "蒜香清爽",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "cola-wings",
+    "filename": "cola-wings.png",
+    "name": "可乐鸡翅",
+    "category": "肉菜",
+    "ingredients": [
+      "鸡翅中",
+      "姜",
+      "可乐"
+    ],
+    "taste": "甜咸酱香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "mapo-tofu",
+    "filename": "mapo-tofu.png",
+    "name": "麻婆豆腐",
+    "category": "家常菜",
+    "ingredients": [
+      "嫩豆腐",
+      "猪肉末",
+      "蒜"
+    ],
+    "taste": "麻辣鲜香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "cucumber-egg",
+    "filename": "cucumber-egg.png",
+    "name": "黄瓜炒鸡蛋",
+    "category": "快手菜",
+    "ingredients": [
+      "黄瓜",
+      "鸡蛋",
+      "蒜"
+    ],
+    "taste": "清爽蛋香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "wintermelon-rib-soup",
+    "filename": "wintermelon-rib-soup.png",
+    "name": "冬瓜排骨汤",
+    "category": "汤",
+    "ingredients": [
+      "排骨",
+      "冬瓜",
+      "姜"
+    ],
+    "taste": "清甜鲜香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "egg-fried-rice",
+    "filename": "egg-fried-rice.png",
+    "name": "蛋炒饭",
+    "category": "主食",
+    "ingredients": [
+      "米饭",
+      "鸡蛋",
+      "小葱"
+    ],
+    "taste": "咸鲜蛋香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "braised-eggplant",
+    "filename": "braised-eggplant.png",
+    "name": "红烧茄子",
+    "category": "素菜",
+    "ingredients": [
+      "茄子",
+      "蒜",
+      "青椒"
+    ],
+    "taste": "酱香软糯",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "braised-pork-belly",
+    "filename": "braised-pork-belly.png",
+    "name": "红烧肉",
+    "category": "肉菜",
+    "ingredients": [
+      "五花肉",
+      "姜",
+      "小葱"
+    ],
+    "taste": "浓郁咸甜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "yu-shiang-pork",
+    "filename": "yu-shiang-pork.png",
+    "name": "鱼香肉丝",
+    "category": "肉菜",
+    "ingredients": [
+      "猪里脊",
+      "胡萝卜",
+      "青椒",
+      "木耳"
+    ],
+    "taste": "鱼香酸甜微辣",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "kung-pao-chicken",
+    "filename": "kung-pao-chicken.png",
+    "name": "宫保鸡丁",
+    "category": "肉菜",
+    "ingredients": [
+      "鸡腿肉",
+      "花生米",
+      "黄瓜",
+      "干辣椒"
+    ],
+    "taste": "香辣酸甜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "hot-sour-potato-shreds",
+    "filename": "hot-sour-potato-shreds.png",
+    "name": "酸辣土豆丝",
+    "category": "素菜",
+    "ingredients": [
+      "土豆",
+      "干辣椒",
+      "蒜"
+    ],
+    "taste": "酸辣清脆",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "home-style-tofu",
+    "filename": "home-style-tofu.png",
+    "name": "家常豆腐",
+    "category": "素菜",
+    "ingredients": [
+      "北豆腐",
+      "青椒",
+      "木耳",
+      "蒜"
+    ],
+    "taste": "咸鲜微辣",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "sweet-sour-pork",
+    "filename": "sweet-sour-pork.png",
+    "name": "糖醋里脊",
+    "category": "肉菜",
+    "ingredients": [
+      "猪里脊",
+      "鸡蛋",
+      "淀粉"
+    ],
+    "taste": "酸甜酥香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "boiled-fish",
+    "filename": "boiled-fish.png",
+    "name": "水煮鱼",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "草鱼片",
+      "豆芽",
+      "青菜",
+      "蒜"
+    ],
+    "taste": "麻辣鲜嫩",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "braised-crucian-carp",
+    "filename": "braised-crucian-carp.png",
+    "name": "红烧鲫鱼",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "鲫鱼",
+      "姜",
+      "蒜",
+      "小葱"
+    ],
+    "taste": "酱香鲜美",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "shiitake-steamed-chicken",
+    "filename": "shiitake-steamed-chicken.png",
+    "name": "香菇滑鸡",
+    "category": "肉菜",
+    "ingredients": [
+      "鸡腿肉",
+      "香菇",
+      "姜"
+    ],
+    "taste": "菌香鲜嫩",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "greens-shiitake",
+    "filename": "greens-shiitake.png",
+    "name": "青菜烧香菇",
+    "category": "素菜",
+    "ingredients": [
+      "青菜",
+      "香菇",
+      "蒜"
+    ],
+    "taste": "清鲜菌香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "sweet-sour-lotus-root",
+    "filename": "sweet-sour-lotus-root.png",
+    "name": "糖醋藕丁",
+    "category": "素菜",
+    "ingredients": [
+      "莲藕",
+      "小葱"
+    ],
+    "taste": "酸甜脆爽",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "spicy-chicken-feet",
+    "filename": "spicy-chicken-feet.png",
+    "name": "香辣烧鸡爪",
+    "category": "肉菜",
+    "ingredients": [
+      "鸡爪",
+      "姜",
+      "蒜"
+    ],
+    "taste": "香辣软糯",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "braised-wuchang-fish",
+    "filename": "braised-wuchang-fish.png",
+    "name": "红烧武昌鱼",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "武昌鱼",
+      "姜",
+      "蒜"
+    ],
+    "taste": "酱香鲜嫩",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "yam-rib-soup",
+    "filename": "yam-rib-soup.png",
+    "name": "山药排骨汤",
+    "category": "汤",
+    "ingredients": [
+      "排骨",
+      "山药",
+      "姜"
+    ],
+    "taste": "清甜鲜香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "preserved-egg-pork-congee",
+    "filename": "preserved-egg-pork-congee.png",
+    "name": "皮蛋瘦肉粥",
+    "category": "主食",
+    "ingredients": [
+      "大米",
+      "皮蛋",
+      "瘦肉",
+      "姜"
+    ],
+    "taste": "咸鲜绵滑",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "garlic-sprout-pork",
+    "filename": "garlic-sprout-pork.png",
+    "name": "蒜苔炒肉",
+    "category": "肉菜",
+    "ingredients": [
+      "蒜苔",
+      "猪肉",
+      "姜"
+    ],
+    "taste": "蒜香咸鲜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "jing-sauce-pork",
+    "filename": "jing-sauce-pork.png",
+    "name": "京酱肉丝",
+    "category": "肉菜",
+    "ingredients": [
+      "猪里脊",
+      "大葱",
+      "豆皮"
+    ],
+    "taste": "酱香微甜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "vinegar-cabbage",
+    "filename": "vinegar-cabbage.png",
+    "name": "醋溜白菜",
+    "category": "素菜",
+    "ingredients": [
+      "白菜",
+      "蒜",
+      "干辣椒"
+    ],
+    "taste": "酸香清爽",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "steamed-sea-bass",
+    "filename": "steamed-sea-bass.png",
+    "name": "清蒸鲈鱼",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "鲈鱼",
+      "姜",
+      "小葱"
+    ],
+    "taste": "清鲜豉香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "twice-cooked-pork",
+    "filename": "twice-cooked-pork.png",
+    "name": "回锅肉",
+    "category": "肉菜",
+    "ingredients": [
+      "五花肉",
+      "蒜苗",
+      "姜"
+    ],
+    "taste": "酱香微辣",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "di-san-xian",
+    "filename": "di-san-xian.png",
+    "name": "地三鲜",
+    "category": "家常菜",
+    "ingredients": [
+      "土豆",
+      "茄子",
+      "青椒",
+      "蒜"
+    ],
+    "taste": "酱香软糯",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "dry-fried-green-beans",
+    "filename": "dry-fried-green-beans.png",
+    "name": "干煸四季豆",
+    "category": "家常菜",
+    "ingredients": [
+      "四季豆",
+      "蒜",
+      "干辣椒",
+      "猪肉末"
+    ],
+    "taste": "香辣干香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "sauerkraut-fish",
+    "filename": "sauerkraut-fish.png",
+    "name": "酸菜鱼",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "黑鱼片",
+      "酸菜",
+      "豆芽",
+      "姜",
+      "蒜"
+    ],
+    "taste": "酸辣鲜嫩",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "potato-beef",
+    "filename": "potato-beef.png",
+    "name": "土豆烧牛肉",
+    "category": "肉菜",
+    "ingredients": [
+      "牛腩",
+      "土豆",
+      "胡萝卜",
+      "姜",
+      "小葱"
+    ],
+    "taste": "酱香浓郁",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "green-pepper-pork",
+    "filename": "green-pepper-pork.png",
+    "name": "青椒肉丝",
+    "category": "家常菜",
+    "ingredients": [
+      "猪里脊",
+      "青椒",
+      "姜",
+      "蒜"
+    ],
+    "taste": "清香咸鲜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "chive-egg",
+    "filename": "chive-egg.png",
+    "name": "韭菜炒蛋",
+    "category": "快手菜",
+    "ingredients": [
+      "韭菜",
+      "鸡蛋"
+    ],
+    "taste": "韭香蛋香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "scallion-lamb",
+    "filename": "scallion-lamb.png",
+    "name": "葱爆羊肉",
+    "category": "肉菜",
+    "ingredients": [
+      "羊肉片",
+      "大葱",
+      "姜"
+    ],
+    "taste": "葱香咸鲜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "salt-pepper-shrimp",
+    "filename": "salt-pepper-shrimp.png",
+    "name": "椒盐虾",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "鲜虾",
+      "蒜",
+      "小葱",
+      "红椒"
+    ],
+    "taste": "椒盐咸香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "tomato-beef-brisket",
+    "filename": "tomato-beef-brisket.png",
+    "name": "番茄牛腩",
+    "category": "肉菜",
+    "ingredients": [
+      "牛腩",
+      "番茄",
+      "洋葱",
+      "姜"
+    ],
+    "taste": "酸甜浓郁",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "wood-ear-yam",
+    "filename": "wood-ear-yam.png",
+    "name": "木耳炒山药",
+    "category": "素菜",
+    "ingredients": [
+      "山药",
+      "干木耳",
+      "胡萝卜",
+      "蒜"
+    ],
+    "taste": "清爽脆嫩",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "dry-pot-cauliflower",
+    "filename": "dry-pot-cauliflower.png",
+    "name": "干锅花菜",
+    "category": "家常菜",
+    "ingredients": [
+      "花菜",
+      "五花肉",
+      "青蒜",
+      "干辣椒"
+    ],
+    "taste": "香辣干香",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "loofah-shrimp",
+    "filename": "loofah-shrimp.png",
+    "name": "丝瓜炒虾仁",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "丝瓜",
+      "虾仁",
+      "蒜",
+      "姜"
+    ],
+    "taste": "清鲜微甜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "minced-pork-steamed-egg",
+    "filename": "minced-pork-steamed-egg.png",
+    "name": "肉末蒸蛋",
+    "category": "蛋类",
+    "ingredients": [
+      "鸡蛋",
+      "猪肉末",
+      "小葱"
+    ],
+    "taste": "嫩滑咸鲜",
+    "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  }
+]
