@@ -80,8 +80,8 @@ function validateImage(image, label) {
     return;
   }
 
-  if (!["exact", "needs-photo"].includes(image.status)) {
-    errors.push(`${label}.status must be either exact or needs-photo.`);
+  if (!["exact", "illustration", "needs-photo"].includes(image.status)) {
+    errors.push(`${label}.status must be exact, illustration, or needs-photo.`);
   }
 
   ["alt", "sourceName"].forEach((field) => {
@@ -90,15 +90,19 @@ function validateImage(image, label) {
     }
   });
 
-  if (image.status === "exact") {
+  if (image.status === "exact" || image.status === "illustration") {
     ["url", "sourceUrl"].forEach((field) => {
       if (typeof image[field] !== "string" || image[field].trim() === "") {
-        errors.push(`${label}.${field} must be a non-empty string for exact images.`);
+        errors.push(`${label}.${field} must be a non-empty string for sourced images.`);
       }
     });
 
-    if (typeof image.url === "string" && !image.url.startsWith("https://")) {
-      errors.push(`${label}.url must be an https URL.`);
+    if (
+      typeof image.url === "string" &&
+      !image.url.startsWith("https://") &&
+      !image.url.startsWith("/family-menu/")
+    ) {
+      errors.push(`${label}.url must be an https URL or a /family-menu/ local asset path.`);
     }
   }
 

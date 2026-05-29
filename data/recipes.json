@@ -65,12 +65,13 @@
     ],
     "tips": "想要汤汁更多，可以把西红柿多炒 1 分钟。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tomato%20with%20egg.jpg",
-      "alt": "西红柿炒鸡蛋真实成品图",
-      "sourceName": "Wikimedia Commons: Tomato with egg.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tomato_with_egg.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/tomato-egg.jpg",
+      "alt": "西红柿炒鸡蛋手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -253,13 +254,13 @@
     ],
     "tips": "蛋液要慢慢淋入，蛋花会更细。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "紫菜蛋花汤待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/seaweed-egg-soup.jpg",
+      "alt": "紫菜蛋花汤手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -342,13 +343,13 @@
     ],
     "tips": "焯水后过一下冷水，颜色会更翠绿。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "蒜蓉西兰花待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/garlic-broccoli.jpg",
+      "alt": "蒜蓉西兰花手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -437,12 +438,13 @@
     ],
     "tips": "收汁时要勤翻动，避免糖分糊锅。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E5%8F%AF%E4%B9%90%E9%B8%A1%E7%BF%85%20Cola%20Jichi.jpg",
-      "alt": "可乐鸡翅真实成品图",
-      "sourceName": "Wikimedia Commons: 可乐鸡翅 Cola Jichi.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%8F%AF%E4%B9%90%E9%B8%A1%E7%BF%85%20Cola%20Jichi.jpg",
-      "license": "CC0 1.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/cola-wings.jpg",
+      "alt": "可乐鸡翅手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -537,12 +539,13 @@
     ],
     "tips": "翻动豆腐时用锅铲轻推，避免碎掉。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mapo%20tofu.JPG",
-      "alt": "麻婆豆腐真实成品图",
-      "sourceName": "Wikimedia Commons: Mapo tofu.JPG",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mapo_tofu.JPG",
-      "license": "CC BY-SA 2.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/mapo-tofu.jpg",
+      "alt": "麻婆豆腐手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -713,13 +716,13 @@
     ],
     "tips": "排骨焯水后汤会更清。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "冬瓜排骨汤待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/wintermelon-rib-soup.jpg",
+      "alt": "冬瓜排骨汤手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -808,12 +811,13 @@
     ],
     "tips": "隔夜米饭更容易炒散。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Egg%20fried%20rice.jpg",
-      "alt": "蛋炒饭真实成品图",
-      "sourceName": "Wikimedia Commons: Egg fried rice.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/Category:Egg_fried_rice",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/egg-fried-rice.jpg",
+      "alt": "蛋炒饭手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -908,12 +912,13 @@
     ],
     "tips": "茄子提前撒少量盐静置，可以减少吸油。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E7%BA%A2%E7%83%A7%E8%8C%84%E5%AD%90-%E4%BA%91%E5%8D%97%E6%98%86%E6%98%8E.jpg",
-      "alt": "红烧茄子真实成品图",
-      "sourceName": "Wikimedia Commons: 红烧茄子-云南昆明.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%BA%A2%E7%83%A7%E8%8C%84%E5%AD%90-%E4%BA%91%E5%8D%97%E6%98%86%E6%98%8E.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/braised-eggplant.jpg",
+      "alt": "红烧茄子手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -1008,12 +1013,13 @@
     ],
     "tips": "炖肉时用热水，肉质更不容易发柴。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Red%20braised%20pork%20belly.jpg",
-      "alt": "红烧肉真实成品图",
-      "sourceName": "Wikimedia Commons: Red braised pork belly.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Red_braised_pork_belly.jpg",
-      "license": "CC BY 2.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/braised-pork-belly.jpg",
+      "alt": "红烧肉手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -1120,12 +1126,13 @@
     ],
     "tips": "肉丝提前上浆，口感会更嫩。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/%E9%B1%BC%E9%A6%99%E8%82%89%E4%B8%9D.jpg",
-      "alt": "鱼香肉丝真实成品图",
-      "sourceName": "Wikimedia Commons: 鱼香肉丝.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%B1%BC%E9%A6%99%E8%82%89%E4%B8%9D.jpg",
-      "license": "CC BY-SA 3.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/yu-shiang-pork.jpg",
+      "alt": "鱼香肉丝手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -1226,12 +1233,13 @@
     ],
     "tips": "花生米最后放，口感更脆。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kungpao%20chicken.jpg",
-      "alt": "宫保鸡丁真实成品图",
-      "sourceName": "Wikimedia Commons: Kungpao chicken.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kungpao_chicken.jpg",
-      "license": "CC BY 2.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/kung-pao-chicken.jpg",
+      "alt": "宫保鸡丁手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -1521,12 +1529,13 @@
     ],
     "tips": "复炸时间不用太长，表面酥脆即可。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tangcu%20liji.jpg",
-      "alt": "糖醋里脊真实成品图",
-      "sourceName": "Wikimedia Commons: Tangcu liji.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tangcu%20liji.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/sweet-sour-pork.jpg",
+      "alt": "糖醋里脊手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -1834,13 +1843,13 @@
     ],
     "tips": "用鸡腿肉比鸡胸肉更嫩。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
-      "alt": "香菇滑鸡待补真实成品图",
-      "sourceName": "待补真实菜品图",
-      "sourceUrl": "",
-      "license": "N/A",
-      "note": "未找到可确认对应该菜品且适合使用的公开授权图片；为避免货不对版，前端显示占位图。"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/shiitake-steamed-chicken.jpg",
+      "alt": "香菇滑鸡手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -2806,12 +2815,13 @@
     ],
     "tips": "蒸鱼时间不要过长，鱼肉更嫩。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Steamed%20fish%20with%20soy%20sauce.jpg",
-      "alt": "清蒸鲈鱼真实成品图",
-      "sourceName": "Wikimedia Commons: Steamed fish with soy sauce.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Steamed_fish_with_soy_sauce.jpg",
-      "license": "CC license per file page"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/steamed-sea-bass.jpg",
+      "alt": "清蒸鲈鱼手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -2900,12 +2910,13 @@
     ],
     "tips": "肉片切薄一些，炒出来更香。",
     "image": {
-      "status": "exact",
-      "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Twice%20Cooked%20Pork%20%2813974362633%29.jpg",
-      "alt": "回锅肉真实成品图",
-      "sourceName": "Wikimedia Commons: Twice Cooked Pork (13974362633).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Twice_Cooked_Pork_(13974362633).jpg",
-      "license": "CC BY-SA 2.0"
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/twice-cooked-pork.jpg",
+      "alt": "回锅肉手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
     },
     "nutrition": {
       "perServing": true,
@@ -2927,5 +2938,1408 @@
       "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
     ],
     "difficultyLevel": "medium"
+  },
+  {
+    "id": "di-san-xian",
+    "name": "地三鲜",
+    "categories": [
+      "家常菜",
+      "素菜"
+    ],
+    "tags": [
+      "东北风味",
+      "下饭菜",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "普通",
+    "timeMinutes": 30,
+    "accent": "eggplant",
+    "description": "土豆、茄子和青椒软糯入味，是非常经典的下饭素菜。",
+    "ingredients": [
+      {
+        "name": "土豆",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "茄子",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "土豆、茄子和青椒切滚刀块，蒜切末。",
+      "锅中放油，先把土豆煎至边缘金黄，再煎软茄子。",
+      "留少量底油炒香蒜末，放入土豆、茄子和青椒。",
+      "加入生抽、蚝油、白糖和少量清水翻炒。",
+      "淋入水淀粉收汁，翻匀后出锅。"
+    ],
+    "tips": "茄子吸油，可以先用少量盐抓匀静置 5 分钟再下锅。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/di-san-xian.jpg",
+      "alt": "地三鲜手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 330,
+      "proteinG": 6,
+      "fatG": 18,
+      "carbsG": 39,
+      "fiberG": 7,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "地三鲜来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "dry-fried-green-beans",
+    "name": "干煸四季豆",
+    "categories": [
+      "家常菜",
+      "素菜"
+    ],
+    "tags": [
+      "香辣",
+      "下饭菜",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "普通",
+    "timeMinutes": 25,
+    "accent": "green",
+    "description": "四季豆煸到微皱，再用蒜末和辣椒提香，口感干香有嚼劲。",
+    "ingredients": [
+      {
+        "name": "四季豆",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      },
+      {
+        "name": "干辣椒",
+        "amount": 4,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "猪肉末",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "四季豆去筋掰段，洗净后充分沥干。",
+      "锅中加油，放入四季豆中火煸到表皮起皱。",
+      "另起少量油炒香蒜末、干辣椒和肉末。",
+      "倒回四季豆，加生抽、盐和白糖调味。",
+      "大火翻炒至香味融合即可。"
+    ],
+    "tips": "四季豆必须炒熟，表皮起皱后再继续翻炒 1 到 2 分钟更安心。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/dry-fried-green-beans.jpg",
+      "alt": "干煸四季豆手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 10,
+      "fatG": 18,
+      "carbsG": 18,
+      "fiberG": 6,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "干煸四季豆来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "sauerkraut-fish",
+    "name": "酸菜鱼",
+    "categories": [
+      "鱼虾海鲜",
+      "汤"
+    ],
+    "tags": [
+      "酸辣",
+      "开胃",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "进阶",
+    "timeMinutes": 35,
+    "accent": "fish",
+    "description": "酸菜汤底清爽开胃，鱼片滑嫩，适合做家庭聚餐主菜。",
+    "ingredients": [
+      {
+        "name": "黑鱼片",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "酸菜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "豆芽",
+        "amount": 150,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 10,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 3,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒粉",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鱼片用料酒、盐、白胡椒粉和淀粉抓匀腌 10 分钟。",
+      "酸菜切段，姜蒜切片，豆芽洗净。",
+      "锅中加油炒香姜蒜和酸菜，加水煮出酸香味。",
+      "放入豆芽煮熟后捞入碗底。",
+      "转小火下鱼片，煮至变白后连汤倒入碗中。"
+    ],
+    "tips": "下鱼片时汤不要猛烈翻滚，鱼片更容易保持完整。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/sauerkraut-fish.jpg",
+      "alt": "酸菜鱼手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 300,
+      "proteinG": 34,
+      "fatG": 12,
+      "carbsG": 14,
+      "fiberG": 3,
+      "sodiumMg": 1280,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "酸菜鱼来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "potato-beef",
+    "name": "土豆烧牛肉",
+    "categories": [
+      "肉菜",
+      "家常菜"
+    ],
+    "tags": [
+      "酱香",
+      "下饭菜",
+      "50分钟"
+    ],
+    "servings": 2,
+    "difficulty": "进阶",
+    "timeMinutes": 50,
+    "accent": "pork",
+    "description": "牛肉炖到软烂，土豆吸足汤汁，适合搭配米饭。",
+    "ingredients": [
+      {
+        "name": "牛腩",
+        "amount": 400,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "土豆",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      },
+      {
+        "name": "姜",
+        "amount": 10,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 2,
+        "unit": "根",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 18,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 15,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "冰糖",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "牛腩切块焯水，土豆和胡萝卜切块。",
+      "锅中加油炒香姜片，放入牛肉翻炒。",
+      "加入料酒、生抽、老抽和冰糖炒匀上色。",
+      "加热水没过牛肉，小火炖 35 分钟。",
+      "放入土豆和胡萝卜继续炖至软烂，收汁出锅。"
+    ],
+    "tips": "炖牛肉尽量加热水，口感会更软。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/potato-beef.jpg",
+      "alt": "土豆烧牛肉手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 31,
+      "fatG": 30,
+      "carbsG": 32,
+      "fiberG": 4,
+      "sodiumMg": 880,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "土豆烧牛肉来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "green-pepper-pork",
+    "name": "青椒肉丝",
+    "categories": [
+      "家常菜",
+      "肉菜"
+    ],
+    "tags": [
+      "下饭菜",
+      "快手",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "green",
+    "description": "青椒清脆、肉丝嫩滑，是非常常见的快手下饭菜。",
+    "ingredients": [
+      {
+        "name": "猪里脊",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 5,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 2,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "猪肉切丝，用料酒、生抽和淀粉抓匀。",
+      "青椒切丝，姜蒜切末。",
+      "热锅加油，放肉丝快速滑散后盛出。",
+      "锅中炒香姜蒜，放青椒炒至断生。",
+      "倒回肉丝，加盐调味后翻匀。"
+    ],
+    "tips": "肉丝下锅后快速划散，变色就先盛出，口感更嫩。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/green-pepper-pork.jpg",
+      "alt": "青椒肉丝手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 310,
+      "proteinG": 25,
+      "fatG": 19,
+      "carbsG": 9,
+      "fiberG": 2,
+      "sodiumMg": 680,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "青椒肉丝来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "chive-egg",
+    "name": "韭菜炒蛋",
+    "categories": [
+      "快手菜",
+      "家常菜"
+    ],
+    "tags": [
+      "蛋类",
+      "10分钟",
+      "新手友好"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 10,
+    "accent": "green",
+    "description": "韭菜香气浓，鸡蛋蓬松，是十分钟就能完成的家常菜。",
+    "ingredients": [
+      {
+        "name": "韭菜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 3,
+        "unit": "个",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒粉",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "韭菜洗净切段，鸡蛋加少量盐打散。",
+      "热锅加油，倒入鸡蛋炒至蓬松后盛出。",
+      "锅中补少量油，放韭菜快速翻炒。",
+      "倒回鸡蛋，加盐和白胡椒粉调味。",
+      "翻匀后立刻出锅。"
+    ],
+    "tips": "韭菜很容易出水，入锅后大火快炒即可。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/chive-egg.jpg",
+      "alt": "韭菜炒蛋手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 240,
+      "proteinG": 15,
+      "fatG": 18,
+      "carbsG": 7,
+      "fiberG": 2,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "韭菜炒蛋来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "scallion-lamb",
+    "name": "葱爆羊肉",
+    "categories": [
+      "肉菜",
+      "快手菜"
+    ],
+    "tags": [
+      "葱香",
+      "下饭菜",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "普通",
+    "timeMinutes": 15,
+    "accent": "pork",
+    "description": "大葱香气包裹羊肉片，火候短、香味足。",
+    "ingredients": [
+      {
+        "name": "羊肉片",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "大葱",
+        "amount": 2,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 5,
+        "unit": "克",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "孜然粉",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "大葱斜切段，姜切丝。",
+      "羊肉片用料酒和少量生抽抓匀。",
+      "热锅宽油，放羊肉片快速炒至变色。",
+      "放入姜丝和大葱段，大火翻炒出葱香。",
+      "加盐、生抽和孜然粉调味，快速出锅。"
+    ],
+    "tips": "这道菜要大火快炒，羊肉变色后不要久炒。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/scallion-lamb.jpg",
+      "alt": "葱爆羊肉手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 430,
+      "proteinG": 31,
+      "fatG": 32,
+      "carbsG": 8,
+      "fiberG": 2,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "葱爆羊肉来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "salt-pepper-shrimp",
+    "name": "椒盐虾",
+    "categories": [
+      "鱼虾海鲜",
+      "快手菜"
+    ],
+    "tags": [
+      "咸香",
+      "聚餐",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "普通",
+    "timeMinutes": 20,
+    "accent": "fish",
+    "description": "虾壳酥香、虾肉弹嫩，椒盐味很适合做下酒或聚餐菜。",
+    "ingredients": [
+      {
+        "name": "鲜虾",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 4,
+        "unit": "瓣",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "红椒",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "椒盐粉",
+        "amount": 4,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 10,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鲜虾剪须开背，沥干后用料酒抓匀。",
+      "虾表面薄薄拍一层淀粉。",
+      "锅中加油，把虾煎至两面金黄。",
+      "加入蒜末、红椒和葱花炒香。",
+      "撒椒盐粉翻匀即可。"
+    ],
+    "tips": "虾要尽量擦干再下锅，表面更容易煎香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/salt-pepper-shrimp.jpg",
+      "alt": "椒盐虾手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 280,
+      "proteinG": 32,
+      "fatG": 13,
+      "carbsG": 10,
+      "fiberG": 1,
+      "sodiumMg": 780,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "椒盐虾来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "tomato-beef-brisket",
+    "name": "番茄牛腩",
+    "categories": [
+      "肉菜",
+      "汤"
+    ],
+    "tags": [
+      "酸甜",
+      "炖菜",
+      "60分钟"
+    ],
+    "servings": 2,
+    "difficulty": "进阶",
+    "timeMinutes": 60,
+    "accent": "tomato",
+    "description": "番茄汤汁浓郁，牛腩软烂，适合做一锅暖胃主菜。",
+    "ingredients": [
+      {
+        "name": "牛腩",
+        "amount": 400,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "番茄",
+        "amount": 3,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "洋葱",
+        "amount": 0.5,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "姜",
+        "amount": 10,
+        "unit": "克",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "番茄酱",
+        "amount": 20,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 15,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "牛腩切块焯水，番茄切块。",
+      "锅中加油炒香姜片和洋葱，放牛腩翻炒。",
+      "加入料酒、生抽和番茄酱炒匀。",
+      "加入番茄和热水，小火炖 45 分钟。",
+      "加盐调味，炖到汤汁浓稠即可。"
+    ],
+    "tips": "一半番茄先炒出汁，另一半后放，汤底和口感都会更好。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/tomato-beef-brisket.jpg",
+      "alt": "番茄牛腩手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 500,
+      "proteinG": 32,
+      "fatG": 29,
+      "carbsG": 24,
+      "fiberG": 4,
+      "sodiumMg": 850,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "番茄牛腩来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "wood-ear-yam",
+    "name": "木耳炒山药",
+    "categories": [
+      "素菜",
+      "家常菜"
+    ],
+    "tags": [
+      "清爽",
+      "脆嫩",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "greens",
+    "description": "山药脆嫩，木耳爽口，适合做清淡蔬菜搭配。",
+    "ingredients": [
+      {
+        "name": "山药",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "干木耳",
+        "amount": 10,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "蒜",
+        "amount": 2,
+        "unit": "瓣",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "鸡精",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "木耳泡发撕小朵，山药去皮切片。",
+      "山药和木耳分别焯水 30 秒后沥干。",
+      "锅中加油炒香蒜片。",
+      "放入山药、木耳和胡萝卜片翻炒。",
+      "加盐和少量鸡精调味后出锅。"
+    ],
+    "tips": "处理山药时可以戴手套，避免手痒。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/wood-ear-yam.jpg",
+      "alt": "木耳炒山药手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 180,
+      "proteinG": 5,
+      "fatG": 7,
+      "carbsG": 28,
+      "fiberG": 5,
+      "sodiumMg": 460,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "木耳炒山药来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "dry-pot-cauliflower",
+    "name": "干锅花菜",
+    "categories": [
+      "家常菜",
+      "素菜"
+    ],
+    "tags": [
+      "香辣",
+      "下饭菜",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "普通",
+    "timeMinutes": 25,
+    "accent": "green",
+    "description": "花菜干香入味，带一点辣味，很适合搭配米饭。",
+    "ingredients": [
+      {
+        "name": "花菜",
+        "amount": 400,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "五花肉",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "青蒜",
+        "amount": 2,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "干辣椒",
+        "amount": 4,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "豆瓣酱",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "花菜掰小朵，用淡盐水浸泡后沥干。",
+      "五花肉切薄片，青蒜切段。",
+      "锅中少油煸出五花肉油脂。",
+      "加入豆瓣酱和干辣椒炒香，放花菜翻炒。",
+      "加生抽和少量盐调味，最后放青蒜炒匀。"
+    ],
+    "tips": "花菜不要焯太久，保留一点脆感更适合干锅风味。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/dry-pot-cauliflower.jpg",
+      "alt": "干锅花菜手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 300,
+      "proteinG": 12,
+      "fatG": 21,
+      "carbsG": 18,
+      "fiberG": 6,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "干锅花菜来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "loofah-shrimp",
+    "name": "丝瓜炒虾仁",
+    "categories": [
+      "鱼虾海鲜",
+      "快手菜"
+    ],
+    "tags": [
+      "清鲜",
+      "低脂",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "green",
+    "description": "丝瓜清甜，虾仁鲜嫩，是一道清爽低脂的快手菜。",
+    "ingredients": [
+      {
+        "name": "丝瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜",
+        "amount": 2,
+        "unit": "瓣",
+        "required": true
+      },
+      {
+        "name": "姜",
+        "amount": 5,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒粉",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "丝瓜去皮切滚刀块，虾仁用料酒和白胡椒粉抓匀。",
+      "热锅加油，先把虾仁炒至变色后盛出。",
+      "锅中炒香蒜片和姜丝，放丝瓜翻炒。",
+      "加少量水把丝瓜焖软。",
+      "倒回虾仁，加盐调味后出锅。"
+    ],
+    "tips": "丝瓜容易出水，少加水即可。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/loofah-shrimp.jpg",
+      "alt": "丝瓜炒虾仁手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 24,
+      "fatG": 9,
+      "carbsG": 9,
+      "fiberG": 2,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "丝瓜炒虾仁来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "minced-pork-steamed-egg",
+    "name": "肉末蒸蛋",
+    "categories": [
+      "蛋类",
+      "家常菜"
+    ],
+    "tags": [
+      "嫩滑",
+      "儿童友好",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "egg",
+    "description": "鸡蛋羹嫩滑，肉末咸香，适合老人小孩和日常晚餐。",
+    "ingredients": [
+      {
+        "name": "鸡蛋",
+        "amount": 3,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "猪肉末",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "适量",
+        "unit": "",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡蛋加约 1.5 倍温水和盐打散，过滤到蒸碗中。",
+      "盖上盘子或保鲜膜，水开后中小火蒸 10 分钟。",
+      "肉末用少量油炒散，加生抽调味。",
+      "把肉末铺在蛋羹表面，再蒸 2 分钟。",
+      "出锅后淋香油，撒葱花。"
+    ],
+    "tips": "蛋液过滤一次，蒸出来更细腻。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/recipe-images/minced-pork-steamed-egg.jpg",
+      "alt": "肉末蒸蛋手绘水彩菜单风菜品图",
+      "sourceName": "用户提供的家常菜单手绘水彩总图",
+      "sourceUrl": "local-upload:照片 1.jpg",
+      "license": "User provided for this project",
+      "note": "由用户提供的 28 道家常菜菜单总图拆分裁切，用于 App 菜品卡片展示。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 290,
+      "proteinG": 22,
+      "fatG": 20,
+      "carbsG": 5,
+      "fiberG": 0,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "肉末蒸蛋来自用户提供的家常菜单图片素材，做法按常见中式家庭烹饪方式原创整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   }
 ]

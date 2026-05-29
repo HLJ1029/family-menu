@@ -62,7 +62,7 @@ function escapeSvgText(value) {
 }
 
 export function photoFor(recipe) {
-  if (recipe?.image?.status === "exact" && recipe.image.url) {
+  if (recipe?.image?.status !== "needs-photo" && recipe?.image?.url) {
     return recipe.image.url;
   }
   return placeholderPhotoFor(recipe);
