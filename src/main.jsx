@@ -29,7 +29,9 @@ import {
   createFamilySpace,
   getCurrentSession,
   loadPrimaryFamily,
+  signInWithPassword,
   signOut,
+  signUpWithPassword,
   subscribeToAuthChanges,
 } from "./lib/supabase/family";
 import { registerServiceWorker } from "./registerServiceWorker";
@@ -62,6 +64,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [authStatus, setAuthStatus] = useState("");
   const [session, setSession] = useState(null);
   const [family, setFamily] = useState(null);
@@ -397,6 +400,38 @@ function App() {
     }
   }
 
+  async function handlePasswordAuth(mode) {
+    const email = authEmail.trim();
+    if (!email || !authPassword) {
+      setAuthStatus("请输入邮箱和密码。");
+      return;
+    }
+
+    setCloudLoading(true);
+    setAuthStatus(mode === "signup" ? "正在创建账号..." : "正在登录...");
+    try {
+      const nextSession =
+        mode === "signup"
+          ? await signUpWithPassword({ email, password: authPassword })
+          : await signInWithPassword({ email, password: authPassword });
+      setSession(nextSession);
+      if (nextSession?.user) {
+        const currentFamily = await loadPrimaryFamily(nextSession.user);
+        setFamily(currentFamily);
+      }
+      setAuthStatus(
+        mode === "signup"
+          ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
+          : "已登录 FamilyOS。",
+      );
+      showNotice(mode === "signup" ? "账号已创建" : "已登录 FamilyOS");
+    } catch (error) {
+      setAuthStatus(error.message);
+    } finally {
+      setCloudLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     setCloudLoading(true);
     try {
@@ -428,6 +463,8 @@ function App() {
               recommendation={todayRecommendation}
               authEmail={authEmail}
               setAuthEmail={setAuthEmail}
+              authPassword={authPassword}
+              setAuthPassword={setAuthPassword}
               authStatus={authStatus}
               setAuthStatus={setAuthStatus}
               session={session}
@@ -435,6 +472,7 @@ function App() {
               familyName={familyName}
               setFamilyName={setFamilyName}
               cloudLoading={cloudLoading}
+              onPasswordAuth={handlePasswordAuth}
               onCreateFamily={createFamily}
               onSignOut={handleSignOut}
               showNotice={showNotice}

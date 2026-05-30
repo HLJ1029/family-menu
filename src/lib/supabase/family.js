@@ -12,6 +12,26 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+export async function signInWithPassword({ email, password }) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data.session ?? null;
+}
+
+export async function signUpWithPassword({ email, password }) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: window.location.href,
+    },
+  });
+  if (error) throw error;
+  return data.session ?? null;
+}
+
 export async function ensureUserProfile(user) {
   const supabase = await getSupabase();
   const email = user.email ?? "";
