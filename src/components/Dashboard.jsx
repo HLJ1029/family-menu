@@ -94,18 +94,21 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
               icon={ClipboardList}
               title="今日菜单"
               note="调整份数、进入做法"
+              ariaLabel="打开今日菜单"
               onClick={() => onViewChange("today")}
             />
             <DashboardTool
               icon={CalendarDays}
               title="日历"
               note="按日期安排饮食"
+              ariaLabel="打开日历"
               onClick={() => onViewChange("calendar")}
             />
             <DashboardTool
               icon={BarChart3}
               title="统计"
               note="查看饮食结构"
+              ariaLabel="打开统计"
               onClick={() => onViewChange("stats")}
             />
           </div>
@@ -138,10 +141,11 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
   );
 }
 
-function DashboardTool({ icon: Icon, title, note, onClick }) {
+function DashboardTool({ icon: Icon, title, note, ariaLabel, onClick }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       onClick={onClick}
       className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-acid"
     >

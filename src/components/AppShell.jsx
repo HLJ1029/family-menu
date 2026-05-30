@@ -1,5 +1,5 @@
 import { ChefHat, Search } from "lucide-react";
-import { navItems } from "./navigation";
+import { mobileNavItems, navItems } from "./navigation";
 import { DoodlePot } from "./ui/Doodles";
 
 export function Sidebar({ activeView, onChange }) {
@@ -75,10 +75,9 @@ export function Topbar({ query, setQuery }) {
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 bottom-3 z-30 grid rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl lg:hidden"
-      style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+      className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl lg:hidden"
     >
-      {navItems.map((item) => {
+      {mobileNavItems.map((item) => {
         const Icon = item.icon;
         const active = item.id === activeView;
         return (
