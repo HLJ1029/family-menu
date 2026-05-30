@@ -16,11 +16,23 @@ export async function ensureUserProfile(user) {
   const supabase = await getSupabase();
   const email = user.email ?? "";
   const displayName = user.user_metadata?.name ?? email.split("@")[0] ?? "FamilyOS 用户";
-  const { error } = await supabase.from("profiles").upsert({
+  const profile = {
     id: user.id,
     email,
     display_name: displayName,
-  });
+  };
+
+  const { error } = await supabase.from("profiles").upsert(profile);
+
+  if (isMissingProfileEmailColumn(error)) {
+    const { error: fallbackError } = await supabase.from("profiles").upsert({
+      id: profile.id,
+      display_name: profile.display_name,
+    });
+
+    if (fallbackError) throw fallbackError;
+    return;
+  }
 
   if (error) throw error;
 }
@@ -82,4 +94,12 @@ export async function subscribeToAuthChanges(callback) {
     callback(session ?? null);
   });
   return () => data.subscription.unsubscribe();
+}
+
+function isMissingProfileEmailColumn(error) {
+  return Boolean(
+    error &&
+      error.code === "PGRST204" &&
+      error.message?.includes("'email' column of 'profiles'"),
+  );
 }
