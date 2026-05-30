@@ -19,8 +19,18 @@ export function Dashboard({
   recommendation,
   authEmail,
   setAuthEmail,
+  authPassword,
+  setAuthPassword,
   authStatus,
   setAuthStatus,
+  session,
+  family,
+  familyName,
+  setFamilyName,
+  cloudLoading,
+  onPasswordAuth,
+  onCreateFamily,
+  onSignOut,
   showNotice,
   onViewChange,
   onOpenRecipe,
@@ -169,8 +179,18 @@ export function Dashboard({
         <CloudAccount
           authEmail={authEmail}
           setAuthEmail={setAuthEmail}
+          authPassword={authPassword}
+          setAuthPassword={setAuthPassword}
           authStatus={authStatus}
           setAuthStatus={setAuthStatus}
+          session={session}
+          family={family}
+          familyName={familyName}
+          setFamilyName={setFamilyName}
+          cloudLoading={cloudLoading}
+          onPasswordAuth={onPasswordAuth}
+          onCreateFamily={onCreateFamily}
+          onSignOut={onSignOut}
           showNotice={showNotice}
         />
       </section>
