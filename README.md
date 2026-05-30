@@ -28,6 +28,7 @@ mobile FamilyOS + clean SaaS dashboard + light doodle accent
 - 家庭成员偏好。
 - 饮食统计卡片。
 - Supabase 邮箱登录接入骨架。
+- 登录后创建家庭空间的云端基础流程。
 - 43 道测试菜谱数据。
 
 ## 如何运行
@@ -145,7 +146,7 @@ git push
 ## 下一阶段建议
 
 1. 创建 Supabase 项目并执行 `docs/supabase-schema.sql`。
-2. 完成邮箱登录后的家庭空间创建。
-3. 把今日菜单、周计划、购物清单迁移到云端同步。
-4. 将厨房库存升级为独立库存页。
+2. 把今日菜单、周计划、购物清单迁移到云端同步。
+3. 将厨房库存升级为独立库存页。
+4. 添加家庭成员邀请和偏好编辑。
 5. 添加 Supabase Edge Function，让 AI 解释规则推荐结果。

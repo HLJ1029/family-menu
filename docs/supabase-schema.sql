@@ -1,5 +1,6 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  email text,
   display_name text,
   avatar_url text,
   wechat_openid text,
@@ -7,6 +8,8 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists email text;
 
 create table if not exists public.families (
   id uuid primary key default gen_random_uuid(),

@@ -10,11 +10,11 @@ export async function getSupabase() {
   if (!supabaseClientPromise) {
     supabaseClientPromise = import("@supabase/supabase-js").then(({ createClient }) =>
       createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
       }),
     );
   }

@@ -25,6 +25,13 @@ import {
   recipes,
 } from "./lib/recipes";
 import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import {
+  createFamilySpace,
+  getCurrentSession,
+  loadPrimaryFamily,
+  signOut,
+  subscribeToAuthChanges,
+} from "./lib/supabase/family";
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
 
@@ -56,6 +63,10 @@ function App() {
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authEmail, setAuthEmail] = useState("");
   const [authStatus, setAuthStatus] = useState("");
+  const [session, setSession] = useState(null);
+  const [family, setFamily] = useState(null);
+  const [familyName, setFamilyName] = useState("我的家庭");
+  const [cloudLoading, setCloudLoading] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -65,6 +76,49 @@ function App() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe = () => {};
+
+    async function bootCloud() {
+      try {
+        const currentSession = await getCurrentSession();
+        if (!active) return;
+        setSession(currentSession);
+        if (currentSession?.user) {
+          setCloudLoading(true);
+          const currentFamily = await loadPrimaryFamily(currentSession.user);
+          if (active) setFamily(currentFamily);
+        }
+      } catch (error) {
+        if (active) setAuthStatus(error.message);
+      } finally {
+        if (active) setCloudLoading(false);
+      }
+
+      unsubscribe = await subscribeToAuthChanges(async (nextSession) => {
+        setSession(nextSession);
+        setFamily(null);
+        if (!nextSession?.user) return;
+        setCloudLoading(true);
+        try {
+          const currentFamily = await loadPrimaryFamily(nextSession.user);
+          setFamily(currentFamily);
+        } catch (error) {
+          setAuthStatus(error.message);
+        } finally {
+          setCloudLoading(false);
+        }
+      });
+    }
+
+    bootCloud();
+    return () => {
+      active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -324,6 +378,39 @@ function App() {
     }
   }
 
+  async function createFamily() {
+    if (!session?.user) {
+      setAuthStatus("请先通过邮箱登录，再创建家庭空间。");
+      return;
+    }
+    setCloudLoading(true);
+    setAuthStatus("正在创建家庭空间...");
+    try {
+      const nextFamily = await createFamilySpace({ user: session.user, name: familyName });
+      setFamily(nextFamily);
+      setAuthStatus("家庭空间已创建。");
+      showNotice(`${nextFamily.name} 已开启云同步`);
+    } catch (error) {
+      setAuthStatus(error.message);
+    } finally {
+      setCloudLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setCloudLoading(true);
+    try {
+      await signOut();
+      setSession(null);
+      setFamily(null);
+      setAuthStatus("已退出登录，本地模式仍可继续使用。");
+    } catch (error) {
+      setAuthStatus(error.message);
+    } finally {
+      setCloudLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <DoodleWash />
@@ -343,6 +430,13 @@ function App() {
               setAuthEmail={setAuthEmail}
               authStatus={authStatus}
               setAuthStatus={setAuthStatus}
+              session={session}
+              family={family}
+              familyName={familyName}
+              setFamilyName={setFamilyName}
+              cloudLoading={cloudLoading}
+              onCreateFamily={createFamily}
+              onSignOut={handleSignOut}
               showNotice={showNotice}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
