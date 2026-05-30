@@ -12,6 +12,7 @@
     "validate:data": "node scripts/validate-recipes.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.22",
     "lucide-react": "^0.556.0",

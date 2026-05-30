@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { CalendarPage } from "./components/CalendarPage";
 import { Dashboard } from "./components/Dashboard";
@@ -9,6 +9,7 @@ import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
+import { OfflineStatus } from "./components/system/OfflineStatus";
 import { DoodleWash } from "./components/ui/Doodles";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { formatDateKey, formatDateLabel, getCurrentPlanDay } from "./lib/date";
@@ -23,7 +24,11 @@ import {
   getRecipe,
   recipes,
 } from "./lib/recipes";
+import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
+
+registerServiceWorker();
 
 function App() {
   const [activeView, setActiveView] = useState("dashboard");
@@ -48,6 +53,20 @@ function App() {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [cookingStep, setCookingStep] = useState(0);
   const [notice, setNotice] = useState("");
+  const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [authEmail, setAuthEmail] = useState("");
+  const [authStatus, setAuthStatus] = useState("");
+
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -114,6 +133,16 @@ function App() {
   const excludedGroceryItems = useMemo(
     () => groceryItems.filter((item) => isGroceryItemOwned(item)),
     [excludedGrocerySet, groceryItems, pantryNameSet],
+  );
+  const todayRecommendation = useMemo(
+    () =>
+      buildTodayRecommendation({
+        pantryItems,
+        weekPlan,
+        groceryItems: visibleGroceryItems,
+        todayRecipes,
+      }),
+    [pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
   );
 
   function showNotice(message) {
@@ -298,15 +327,23 @@ function App() {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <DoodleWash />
+      <OfflineStatus online={online} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
         <Sidebar activeView={activeView} onChange={setActiveView} />
-        <main className="min-w-0 flex-1 pb-24 lg:pb-0">
+        <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           <Topbar query={query} setQuery={setQuery} />
           {activeView === "dashboard" && (
             <Dashboard
               todayRecipes={todayRecipes}
               weekPlan={weekPlan}
               groceryItems={groceryItems}
+              pantryItems={pantryItems}
+              recommendation={todayRecommendation}
+              authEmail={authEmail}
+              setAuthEmail={setAuthEmail}
+              authStatus={authStatus}
+              setAuthStatus={setAuthStatus}
+              showNotice={showNotice}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
             />

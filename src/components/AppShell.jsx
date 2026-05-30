@@ -11,7 +11,7 @@ export function Sidebar({ activeView, onChange }) {
         </div>
         <div>
           <p className="text-sm font-black uppercase tracking-[0.22em]">Family</p>
-          <p className="-mt-1 text-2xl font-black tracking-tight">Menu</p>
+          <p className="-mt-1 text-2xl font-black tracking-tight">OS</p>
         </div>
       </div>
       <nav className="space-y-2">
@@ -35,9 +35,9 @@ export function Sidebar({ activeView, onChange }) {
       </nav>
       <div className="mt-auto rounded-[24px] border border-line bg-canvas p-4">
         <DoodlePot />
-        <p className="mt-4 text-sm font-black">Smart pantry beta</p>
+        <p className="mt-4 text-sm font-black">FamilyOS cloud beta</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
-          当前版本用 43 道菜测试菜单、计划和购物清单体验。
+          当前版本用 43 道菜打通推荐、计划、库存和购物清单体验。
         </p>
       </div>
     </aside>
@@ -50,10 +50,10 @@ export function Topbar({ query, setQuery }) {
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <span className="h-2 w-2 rounded-full bg-acid" />
-          Urban family kitchen
+          FamilyOS mobile MVP
         </div>
         <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
-          Eat well, plan lightly.
+          今天吃什么，交给系统。
         </h1>
       </div>
       <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
@@ -75,7 +75,8 @@ export function Topbar({ query, setQuery }) {
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl lg:hidden"
+      style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {
         const Icon = item.icon;

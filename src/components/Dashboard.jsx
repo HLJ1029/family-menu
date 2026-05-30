@@ -1,4 +1,5 @@
-import { BarChart3, CalendarDays, ClipboardList, ListChecks, Sparkles, Users } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, ListChecks, PackageCheck, Sparkles, Users } from "lucide-react";
+import { CloudAccount } from "./system/CloudAccount";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { MetricCard } from "./ui/StatsBlocks";
@@ -10,7 +11,20 @@ const familyMembers = [
   { name: "Noah", note: "少辣、高蛋白", mood: "Fit" },
 ];
 
-export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, onOpenRecipe }) {
+export function Dashboard({
+  todayRecipes,
+  weekPlan,
+  groceryItems,
+  pantryItems,
+  recommendation,
+  authEmail,
+  setAuthEmail,
+  authStatus,
+  setAuthStatus,
+  showNotice,
+  onViewChange,
+  onOpenRecipe,
+}) {
   const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
   return (
     <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
@@ -18,14 +32,14 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
         <div className="absolute right-8 top-7 hidden md:block">
           <DoodleArrow />
         </div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today board</p>
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Decision center</p>
         <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-          {todayRecipes.length > 0 ? "今日菜单已经准备好。" : "今天想吃什么？"}
+          {todayRecipes.length > 0 ? "今日菜单已经准备好。" : "今天吃什么，交给 FamilyOS。"}
         </h2>
         <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
           {todayRecipes.length > 0
-            ? "用一个轻量 dashboard 管住菜单、购物清单和家庭偏好。克制一点，生活就顺一点。"
-            : "直接在今日菜单里选菜，系统会同步到今天计划和食材清单。"}
+            ? "用一个移动端决策中心管住菜单、库存、购物清单和家庭偏好。"
+            : "先从规则推荐开始，结合库存、计划和营养粗览，逐步升级到 AI 饮食管家。"}
         </p>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
           {todayRecipes.length > 0 ? (
@@ -56,10 +70,10 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
       <section className="grid gap-5">
         <MetricCard
           icon={Sparkles}
-          label="AI 推荐"
-          value="番茄牛腩 + 青菜"
-          note="基于本周口味，偏清爽但不寡淡。"
-          action="看推荐"
+          label="今日推荐"
+          value={recommendation.title}
+          note={recommendation.reason}
+          action="去菜单库确认"
           onClick={() => onViewChange("library")}
         />
         <div className="grid grid-cols-2 gap-5">
@@ -78,6 +92,35 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
             onClick={() => onViewChange("grocery")}
           />
         </div>
+      </section>
+
+      <section className="xl:col-span-2">
+        <Card>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-xl">
+              <p className="eyebrow">Rule engine</p>
+              <h3 className="card-title">规则推荐结果</h3>
+              <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
+                当前推荐先由规则引擎生成，后续会交给 Supabase Edge Function 调用 AI 做解释表达。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <SummaryPill label="库存命中" value={`${recommendation.inventoryHits} 项`} />
+              <SummaryPill label="缺少食材" value={`${recommendation.missingItems.length} 项`} />
+              <SummaryPill label="蛋白质" value={`${Math.round(recommendation.nutrition.proteinG)} g`} />
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {recommendation.recipes.map((recipe) => (
+              <MiniMeal key={recipe.id} recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
+            ))}
+          </div>
+          <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/56">
+            {recommendation.missingItems.length > 0
+              ? `采购提醒：${recommendation.missingItems.map((item) => item.name).join("、")}`
+              : "当前推荐与厨房库存匹配度不错，可以直接加入今日菜单。"}
+          </div>
+        </Card>
       </section>
 
       <section className="xl:col-span-2">
@@ -111,8 +154,25 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
               ariaLabel="打开统计"
               onClick={() => onViewChange("stats")}
             />
+            <DashboardTool
+              icon={PackageCheck}
+              title="家庭库存"
+              note={`${pantryItems.length} 项已有材料`}
+              ariaLabel="打开家庭库存"
+              onClick={() => onViewChange("grocery")}
+            />
           </div>
         </Card>
+      </section>
+
+      <section className="xl:col-span-2">
+        <CloudAccount
+          authEmail={authEmail}
+          setAuthEmail={setAuthEmail}
+          authStatus={authStatus}
+          setAuthStatus={setAuthStatus}
+          showNotice={showNotice}
+        />
       </section>
 
       <section className="xl:col-span-2">
@@ -137,6 +197,15 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
           </div>
         </Card>
       </section>
+    </div>
+  );
+}
+
+function SummaryPill({ label, value }) {
+  return (
+    <div className="rounded-[18px] bg-canvas p-3">
+      <p className="text-xl font-black tracking-[-0.04em]">{value}</p>
+      <p className="mt-1 text-xs font-black uppercase tracking-[0.16em] text-ink/38">{label}</p>
     </div>
   );
 }

@@ -1,0 +1,14 @@
+import { WifiOff } from "lucide-react";
+
+export function OfflineStatus({ online }) {
+  if (online) return null;
+
+  return (
+    <div className="fixed inset-x-4 top-4 z-[80] flex items-center gap-3 rounded-[20px] border border-line bg-white px-4 py-3 text-sm font-black text-ink shadow-lift">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
+        <WifiOff size={17} />
+      </span>
+      当前离线，FamilyOS 会保留应用壳；云端同步恢复联网后继续。
+    </div>
+  );
+}

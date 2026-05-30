@@ -1,30 +1,34 @@
-# Family Menu
+# FamilyOS
 
-一个现代都市家庭使用的家庭菜单与饮食管理 Web App。
+AI 驱动的家庭饮食决策与管理系统。
 
-当前版本已经从早期静态 MVP 升级为 `React + Vite + TailwindCSS`，视觉方向是：
+当前版本已经从早期家庭菜单 MVP 升级为 `React + Vite + TailwindCSS` 的移动端优先 PWA，视觉方向是：
 
 ```text
-modern lifestyle app + clean SaaS dashboard + light doodle accent
+mobile FamilyOS + clean SaaS dashboard + light doodle accent
 ```
 
 ## 已实现功能
 
 - Dashboard 首页。
+- 可安装 PWA 基础壳。
+- iPhone 安全区底部导航适配。
 - 左侧桌面 sidebar 导航。
 - 移动端底部 tab bar。
 - 顶部搜索。
 - 菜单库卡片展示。
 - 分类筛选。
 - 今日菜单。
-- AI 推荐卡片。
+- 规则驱动的今日推荐卡片。
 - 一周计划。
 - 拖拽菜品到周计划。
 - 自动合并食材清单。
 - checkbox 风格购物清单。
+- 厨房库存 / 家中已有材料。
 - 家庭成员偏好。
 - 饮食统计卡片。
-- 30 道测试菜谱数据。
+- Supabase 邮箱登录接入骨架。
+- 43 道测试菜谱数据。
 
 ## 如何运行
 
@@ -56,6 +60,25 @@ npm run build
 
 ```bash
 npm run validate:data
+```
+
+配置云同步：
+
+```bash
+cp .env.example .env.local
+```
+
+然后填写：
+
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Supabase schema 草案见：
+
+```text
+docs/supabase-schema.sql
 ```
 
 ## 项目结构
@@ -121,8 +144,8 @@ git push
 
 ## 下一阶段建议
 
-1. 增加真实菜品图片或自托管图片资源。
-2. 把 `src/main.jsx` 拆成多个组件文件。
-3. 补充做饭详情页或菜谱详情抽屉。
-4. 引入真实用户测试反馈。
-5. 后续需要云端数据时再接 Supabase。
+1. 创建 Supabase 项目并执行 `docs/supabase-schema.sql`。
+2. 完成邮箱登录后的家庭空间创建。
+3. 把今日菜单、周计划、购物清单迁移到云端同步。
+4. 将厨房库存升级为独立库存页。
+5. 添加 Supabase Edge Function，让 AI 解释规则推荐结果。
