@@ -336,6 +336,7 @@ function App() {
             <TodayMenu
               todayRecipes={todayRecipes}
               groceryItems={visibleGroceryItems}
+              onAddToday={addToday}
               onUpdateQuantity={updateTodayQuantity}
               onOpenRecipe={openRecipe}
               onViewChange={setActiveView}

@@ -25,7 +25,7 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
         <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
           {todayRecipes.length > 0
             ? "用一个轻量 dashboard 管住菜单、购物清单和家庭偏好。克制一点，生活就顺一点。"
-            : "先去菜单库选一道菜，系统会同步到今日菜单、今天计划和食材清单。"}
+            : "直接在今日菜单里选菜，系统会同步到今天计划和食材清单。"}
         </p>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
           {todayRecipes.length > 0 ? (
@@ -35,10 +35,10 @@ export function Dashboard({ todayRecipes, weekPlan, groceryItems, onViewChange, 
           ) : (
             <button
               type="button"
-              onClick={() => onViewChange("library")}
+              onClick={() => onViewChange("today")}
               className="flex min-h-24 items-center justify-center rounded-[22px] border border-white/12 bg-white/8 px-5 text-sm font-black text-white transition hover:bg-white/12 md:col-span-2"
             >
-              去菜单库添加今日第一道菜
+              添加今日第一道菜
             </button>
           )}
         </div>

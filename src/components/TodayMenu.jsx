@@ -1,14 +1,17 @@
-import { Minus, Plus, ShoppingBasket, Trash2, Utensils } from "lucide-react";
-import { nutritionFor, photoFor } from "../lib/recipes";
+import { useMemo, useState } from "react";
+import { Minus, Plus, Search, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { nutritionFor, photoFor, recipes } from "../lib/recipes";
 import { Card } from "./ui/Card";
 
 export function TodayMenu({
   todayRecipes,
   groceryItems,
+  onAddToday,
   onUpdateQuantity,
   onOpenRecipe,
   onViewChange,
 }) {
+  const [showAddPanel, setShowAddPanel] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -33,17 +36,14 @@ export function TodayMenu({
             今天菜单还是空的。
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            先去菜单库加一道菜，系统会自动生成今天的购物清单和做饭步骤入口。
+            选好菜后，系统会自动生成今天的购物清单和做饭步骤入口。
           </p>
-          <button
-            type="button"
-            onClick={() => onViewChange("library")}
-            className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-          >
-            <Plus size={18} />
-            去菜单库选菜
-          </button>
         </div>
+        <QuickAddRecipes
+          todayRecipes={todayRecipes}
+          onAddToday={onAddToday}
+          onOpenRecipe={onOpenRecipe}
+        />
       </section>
     );
   }
@@ -62,16 +62,34 @@ export function TodayMenu({
                 调整份数后，采购清单会同步更新。买菜前看右侧汇总，做饭时点菜卡进入步骤。
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => onViewChange("grocery")}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-            >
-              <ShoppingBasket size={18} />
-              查看采购清单
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddPanel((current) => !current)}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+              >
+                <Plus size={18} />
+                添加菜品
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewChange("grocery")}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <ShoppingBasket size={18} />
+                查看采购清单
+              </button>
+            </div>
           </div>
         </div>
+
+        {showAddPanel && (
+          <QuickAddRecipes
+            todayRecipes={todayRecipes}
+            onAddToday={onAddToday}
+            onOpenRecipe={onOpenRecipe}
+          />
+        )}
 
         <div className="grid gap-4">
           {todayRecipes.map((recipe) => (
@@ -173,6 +191,94 @@ export function TodayMenu({
           </p>
         </Card>
       </aside>
+    </section>
+  );
+}
+
+function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
+  const [keyword, setKeyword] = useState("");
+  const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
+  const visibleRecipes = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    return recipes
+      .filter((recipe) => {
+        if (!normalizedKeyword) return true;
+        return [
+          recipe.name,
+          recipe.description,
+          ...recipe.categories,
+          ...recipe.tags,
+          ...recipe.ingredients.map((item) => item.name),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedKeyword);
+      })
+      .slice(0, 12);
+  }, [keyword]);
+
+  return (
+    <section className="rounded-[28px] border border-line bg-white p-4 shadow-card md:p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="eyebrow">Add dishes</p>
+          <h3 className="mt-1 text-2xl font-black">添加到今日菜单</h3>
+        </div>
+        <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4 md:w-72">
+          <Search size={17} className="text-ink/38" />
+          <input
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-ink/35"
+            placeholder="搜索菜名、食材"
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {visibleRecipes.map((recipe) => {
+          const inTodayMenu = todayRecipeIds.has(recipe.id);
+          return (
+            <article
+              key={recipe.id}
+              className="grid grid-cols-[76px_1fr] gap-3 rounded-[20px] border border-line bg-canvas p-2"
+            >
+              <button
+                type="button"
+                onClick={() => onOpenRecipe(recipe.id)}
+                className="overflow-hidden rounded-[16px] bg-white"
+                aria-label={`查看 ${recipe.name} 菜谱`}
+              >
+                <img
+                  src={photoFor(recipe, { variant: "thumb" })}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-20 w-full object-cover"
+                />
+              </button>
+              <div className="min-w-0 py-1 pr-1">
+                <p className="truncate text-base font-black">{recipe.name}</p>
+                <p className="mt-1 truncate text-xs font-bold text-ink/45">
+                  {recipe.categories[0]} · {recipe.timeMinutes} min
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onAddToday(recipe.id)}
+                  className={`mt-3 inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-full px-3 text-xs font-black transition ${
+                    inTodayMenu
+                      ? "border border-line bg-white text-ink hover:border-ink/20"
+                      : "bg-ink text-white hover:-translate-y-0.5"
+                  }`}
+                >
+                  <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-acid"} />
+                  {inTodayMenu ? "再加一份" : "加入今日"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
