@@ -1,8 +1,9 @@
 import { Cloud, Database, UserRound } from "lucide-react";
 import { CloudAccount } from "./system/CloudAccount";
+import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { Card } from "./ui/Card";
 
-export function UserCenter({ authProps, session, family }) {
+export function UserCenter({ authProps, cloudMenuProps, session, family }) {
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
@@ -17,6 +18,7 @@ export function UserCenter({ authProps, session, family }) {
         </section>
 
         <CloudAccount {...authProps} />
+        <CloudSyncPanel {...cloudMenuProps} />
       </div>
 
       <aside className="grid content-start gap-5">
@@ -31,7 +33,10 @@ export function UserCenter({ authProps, session, family }) {
           <div className="mt-5 grid gap-3">
             <StatusRow label="登录" value={session?.user?.email ?? "未登录"} />
             <StatusRow label="家庭空间" value={family?.name ?? "未创建"} />
-            <StatusRow label="同步模式" value={family ? "云同步准备中" : "本地体验"} />
+            <StatusRow
+              label="同步模式"
+              value={cloudMenuProps?.cloudMenuEnabled ? "菜单云同步" : family ? "待迁移" : "本地体验"}
+            />
           </div>
         </Card>
 
@@ -44,7 +49,7 @@ export function UserCenter({ authProps, session, family }) {
             <Database size={22} />
           </div>
           <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            家庭空间创建后，下一阶段会把今日菜单、周计划、购物清单和库存逐步迁移到 Supabase。
+            今日菜单和一周计划已开始接入 Supabase；下一步会继续同步购物清单和家庭库存。
           </p>
         </Card>
 

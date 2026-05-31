@@ -36,6 +36,12 @@ import {
   signUpWithPassword,
   subscribeToAuthChanges,
 } from "./lib/supabase/family";
+import {
+  loadMenuSync,
+  migrateLocalMenusToCloud,
+  saveTodayMenu,
+  saveWeekPlan,
+} from "./lib/supabase/menuSync";
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
 
@@ -73,6 +79,9 @@ function App() {
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [guestMode, setGuestMode] = useLocalStorageState("familyos:guest-mode", false);
+  const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("familyos:cloud-menu-enabled", false);
+  const [cloudMenuLoading, setCloudMenuLoading] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState("家庭空间创建后，可把本地菜单迁移到云端。");
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
@@ -85,6 +94,60 @@ function App() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!family?.id || !cloudMenuEnabled) return;
+    let active = true;
+
+    async function loadCloudMenus() {
+      setCloudMenuLoading(true);
+      setCloudSyncStatus("正在从云端读取菜单...");
+      try {
+        const cloudMenus = await loadMenuSync(family.id);
+        if (!active) return;
+        setTodayMenu(cloudMenus.todayMenu);
+        setWeekPlan(cloudMenus.weekPlan);
+        setCloudSyncStatus("已从云端读取今日菜单和一周计划。");
+      } catch (error) {
+        if (active) setCloudSyncStatus(error.message);
+      } finally {
+        if (active) setCloudMenuLoading(false);
+      }
+    }
+
+    loadCloudMenus();
+    return () => {
+      active = false;
+    };
+  }, [cloudMenuEnabled, family?.id, setTodayMenu, setWeekPlan]);
+
+  useEffect(() => {
+    if (!family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await saveTodayMenu(family.id, todayMenu);
+        setCloudSyncStatus("今日菜单已同步到家庭空间。");
+      } catch (error) {
+        setCloudSyncStatus(error.message);
+      }
+    }, 450);
+
+    return () => window.clearTimeout(timer);
+  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, todayMenu]);
+
+  useEffect(() => {
+    if (!family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await saveWeekPlan(family.id, weekPlan);
+        setCloudSyncStatus("一周计划已同步到家庭空间。");
+      } catch (error) {
+        setCloudSyncStatus(error.message);
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, weekPlan]);
 
   useEffect(() => {
     let active = true;
@@ -395,8 +458,9 @@ function App() {
     try {
       const nextFamily = await createFamilySpace({ user: session.user, name: familyName });
       setFamily(nextFamily);
+      setCloudMenuEnabled(false);
       setAuthStatus("家庭空间已创建。");
-      showNotice(`${nextFamily.name} 已开启云同步`);
+      showNotice(`${nextFamily.name} 已创建`);
     } catch (error) {
       setAuthStatus(error.message);
     } finally {
@@ -443,6 +507,7 @@ function App() {
       setSession(null);
       setFamily(null);
       setGuestMode(false);
+      setCloudMenuEnabled(false);
       setAuthStatus("已退出登录，本地模式仍可继续使用。");
     } catch (error) {
       setAuthStatus(error.message);
@@ -467,6 +532,57 @@ function App() {
     onCreateFamily: createFamily,
     onSignOut: handleSignOut,
     showNotice,
+  };
+
+  async function migrateMenusToCloud() {
+    if (!family?.id) {
+      setCloudSyncStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    setCloudMenuLoading(true);
+    setCloudSyncStatus("正在迁移本地菜单...");
+    try {
+      await migrateLocalMenusToCloud({ familyId: family.id, todayMenu, weekPlan });
+      setCloudMenuEnabled(true);
+      setCloudSyncStatus("本地今日菜单和一周计划已迁移到家庭空间。");
+      showNotice("菜单已迁移到云端");
+    } catch (error) {
+      setCloudSyncStatus(error.message);
+    } finally {
+      setCloudMenuLoading(false);
+    }
+  }
+
+  async function refreshCloudMenus() {
+    if (!family?.id) {
+      setCloudSyncStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    setCloudMenuLoading(true);
+    setCloudSyncStatus("正在从云端刷新...");
+    try {
+      const cloudMenus = await loadMenuSync(family.id);
+      setTodayMenu(cloudMenus.todayMenu);
+      setWeekPlan(cloudMenus.weekPlan);
+      setCloudMenuEnabled(true);
+      setCloudSyncStatus("已刷新云端今日菜单和一周计划。");
+      showNotice("云端菜单已刷新");
+    } catch (error) {
+      setCloudSyncStatus(error.message);
+    } finally {
+      setCloudMenuLoading(false);
+    }
+  }
+
+  const cloudMenuProps = {
+    family,
+    cloudMenuEnabled,
+    cloudMenuLoading,
+    cloudSyncStatus,
+    onMigrateLocalMenus: migrateMenusToCloud,
+    onRefreshCloudMenus: refreshCloudMenus,
   };
 
   if (isMobileViewport && !session?.user && !guestMode) {
@@ -582,7 +698,12 @@ function App() {
             />
           )}
           {activeView === "user" && (
-            <UserCenter authProps={authProps} session={session} family={family} />
+            <UserCenter
+              authProps={authProps}
+              cloudMenuProps={cloudMenuProps}
+              session={session}
+              family={family}
+            />
           )}
         </main>
       </div>
