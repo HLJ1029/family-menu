@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
@@ -9,6 +10,7 @@ import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
+import { UserCenter } from "./components/UserCenter";
 import { OfflineStatus } from "./components/system/OfflineStatus";
 import { DoodleWash } from "./components/ui/Doodles";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
@@ -70,6 +72,8 @@ function App() {
   const [family, setFamily] = useState(null);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [guestMode, setGuestMode] = useLocalStorageState("familyos:guest-mode", false);
+  const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -438,12 +442,52 @@ function App() {
       await signOut();
       setSession(null);
       setFamily(null);
+      setGuestMode(false);
       setAuthStatus("已退出登录，本地模式仍可继续使用。");
     } catch (error) {
       setAuthStatus(error.message);
     } finally {
       setCloudLoading(false);
     }
+  }
+
+  const authProps = {
+    authEmail,
+    setAuthEmail,
+    authPassword,
+    setAuthPassword,
+    authStatus,
+    setAuthStatus,
+    session,
+    family,
+    familyName,
+    setFamilyName,
+    cloudLoading,
+    onPasswordAuth: handlePasswordAuth,
+    onCreateFamily: createFamily,
+    onSignOut: handleSignOut,
+    showNotice,
+  };
+
+  if (isMobileViewport && !session?.user && !guestMode) {
+    return (
+      <>
+        <DoodleWash />
+        <OfflineStatus online={online} />
+        <AuthLanding
+          authProps={authProps}
+          onContinueGuest={() => {
+            setGuestMode(true);
+            showNotice("已进入本地体验模式");
+          }}
+        />
+        {notice && (
+          <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
+            {notice}
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
@@ -461,21 +505,6 @@ function App() {
               groceryItems={groceryItems}
               pantryItems={pantryItems}
               recommendation={todayRecommendation}
-              authEmail={authEmail}
-              setAuthEmail={setAuthEmail}
-              authPassword={authPassword}
-              setAuthPassword={setAuthPassword}
-              authStatus={authStatus}
-              setAuthStatus={setAuthStatus}
-              session={session}
-              family={family}
-              familyName={familyName}
-              setFamilyName={setFamilyName}
-              cloudLoading={cloudLoading}
-              onPasswordAuth={handlePasswordAuth}
-              onCreateFamily={createFamily}
-              onSignOut={handleSignOut}
-              showNotice={showNotice}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
             />
@@ -552,6 +581,9 @@ function App() {
               onViewChange={setActiveView}
             />
           )}
+          {activeView === "user" && (
+            <UserCenter authProps={authProps} session={session} family={family} />
+          )}
         </main>
       </div>
       <MobileTabbar activeView={activeView} onChange={setActiveView} />
@@ -575,6 +607,22 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(max-width: 767px)").matches,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const handleChange = () => setIsMobile(query.matches);
+    handleChange();
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
+  }, []);
+
+  return isMobile;
 }
 
 createRoot(document.getElementById("root")).render(<App />);

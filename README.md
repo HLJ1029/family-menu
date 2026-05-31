@@ -20,6 +20,8 @@ mobile FamilyOS + clean SaaS dashboard + light doodle accent
 - 分类筛选。
 - 今日菜单。
 - 规则驱动的今日推荐卡片。
+- 移动端未登录登录页，可选择先体验部分本地功能。
+- 网页端/体验模式下的用户中心。
 - 一周计划。
 - 拖拽菜品到周计划。
 - 自动合并食材清单。

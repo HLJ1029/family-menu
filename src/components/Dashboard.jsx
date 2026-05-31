@@ -1,5 +1,4 @@
-import { BarChart3, CalendarDays, ClipboardList, ListChecks, PackageCheck, Sparkles, Users } from "lucide-react";
-import { CloudAccount } from "./system/CloudAccount";
+import { BarChart3, CalendarDays, ClipboardList, ListChecks, PackageCheck, Sparkles, UserRound, Users } from "lucide-react";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { MetricCard } from "./ui/StatsBlocks";
@@ -17,21 +16,6 @@ export function Dashboard({
   groceryItems,
   pantryItems,
   recommendation,
-  authEmail,
-  setAuthEmail,
-  authPassword,
-  setAuthPassword,
-  authStatus,
-  setAuthStatus,
-  session,
-  family,
-  familyName,
-  setFamilyName,
-  cloudLoading,
-  onPasswordAuth,
-  onCreateFamily,
-  onSignOut,
-  showNotice,
   onViewChange,
   onOpenRecipe,
 }) {
@@ -171,28 +155,15 @@ export function Dashboard({
               ariaLabel="打开家庭库存"
               onClick={() => onViewChange("grocery")}
             />
+            <DashboardTool
+              icon={UserRound}
+              title="用户中心"
+              note="登录、家庭和云同步"
+              ariaLabel="打开用户中心"
+              onClick={() => onViewChange("user")}
+            />
           </div>
         </Card>
-      </section>
-
-      <section className="xl:col-span-2">
-        <CloudAccount
-          authEmail={authEmail}
-          setAuthEmail={setAuthEmail}
-          authPassword={authPassword}
-          setAuthPassword={setAuthPassword}
-          authStatus={authStatus}
-          setAuthStatus={setAuthStatus}
-          session={session}
-          family={family}
-          familyName={familyName}
-          setFamilyName={setFamilyName}
-          cloudLoading={cloudLoading}
-          onPasswordAuth={onPasswordAuth}
-          onCreateFamily={onCreateFamily}
-          onSignOut={onSignOut}
-          showNotice={showNotice}
-        />
       </section>
 
       <section className="xl:col-span-2">

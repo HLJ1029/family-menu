@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Home,
   ShoppingBasket,
+  UserRound,
 } from "lucide-react";
 
 export const navItems = [
@@ -15,6 +16,7 @@ export const navItems = [
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "grocery", label: "食材清单", icon: ShoppingBasket },
   { id: "stats", label: "统计", icon: BarChart3 },
+  { id: "user", label: "用户中心", icon: UserRound },
 ];
 
 export const mobileNavItems = navItems.filter((item) =>
