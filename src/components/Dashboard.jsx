@@ -122,6 +122,13 @@ export function Dashboard({
               ? `采购提醒：${recommendation.missingItems.map((item) => item.name).join("、")}`
               : "当前推荐与可用库存匹配度不错，可以直接加入今日菜单。"}
           </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {Object.entries(recommendation.explanation ?? {}).map(([key, text]) => (
+              <div key={key} className="rounded-[18px] border border-line bg-canvas p-3 text-xs font-bold leading-5 text-ink/52">
+                {text}
+              </div>
+            ))}
+          </div>
           <button
             type="button"
             onClick={onAddRecommended}

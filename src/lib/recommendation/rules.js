@@ -79,6 +79,7 @@ export function buildTodayRecommendation({
     .reduce((total, item) => total + item.preferenceScore.hits, 0);
   const calories = selected.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0);
   const protein = selected.reduce((total, recipe) => total + nutritionFor(recipe).proteinG, 0);
+  const matchedPantryItems = collectMatchedPantryItems(selected, pantryState);
 
   return {
     recipes: selected,
@@ -95,11 +96,41 @@ export function buildTodayRecommendation({
     expiringHits,
     preferenceHits,
     missingItems: dedupeItems(selectedMissing),
+    explanation: {
+      pantry: buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItems }),
+      preference: buildPreferenceExplanation(preferenceHits),
+      grocery: buildGroceryExplanation(selectedMissing),
+    },
     nutrition: {
       caloriesKcal: calories,
       proteinG: protein,
     },
   };
+}
+
+function collectMatchedPantryItems(selected, pantryState) {
+  const selectedIngredientNames = selected.flatMap((recipe) =>
+    recipe.ingredients.map((item) => normalize(item.name)),
+  );
+  return [...new Set(selectedIngredientNames)]
+    .filter((name) => pantryState.usableNames.has(name))
+    .slice(0, 5);
+}
+
+function buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItems }) {
+  if (expiringHits > 0) return `优先消耗临期库存：${matchedPantryItems.join("、") || `${expiringHits} 项食材`}。`;
+  if (inventoryHits > 0) return `可利用家中已有：${matchedPantryItems.join("、") || `${inventoryHits} 项食材`}。`;
+  return "当前推荐主要依赖新采购食材。";
+}
+
+function buildPreferenceExplanation(preferenceHits) {
+  if (preferenceHits > 0) return `匹配 ${preferenceHits} 个家庭偏好或饮食目标。`;
+  return "暂无明确偏好命中，按库存、营养和耗时排序。";
+}
+
+function buildGroceryExplanation(missingItems) {
+  if (missingItems.length === 0) return "无需额外补齐核心食材。";
+  return `需要补齐：${dedupeItems(missingItems).map((item) => item.name).join("、")}。`;
 }
 
 function buildPantryState(pantryItems) {
