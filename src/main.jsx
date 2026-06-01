@@ -430,6 +430,20 @@ function App() {
     showNotice(`${recipe?.name ?? "菜品"} 已加入今日菜单`);
   }
 
+  function addRecommendedToday() {
+    const recommendedIds = todayRecommendation.recipes
+      .map((recipe) => recipe.id)
+      .filter((recipeId) => !todayMenu.some((item) => item.recipeId === recipeId));
+
+    if (recommendedIds.length === 0) {
+      showNotice("推荐菜品已在今日菜单中");
+      return;
+    }
+
+    recommendedIds.forEach(addToday);
+    showNotice(`已加入 ${recommendedIds.length} 道推荐菜`);
+  }
+
   function updateTodayQuantity(recipeId, delta) {
     setTodayMenu((current) =>
       current
@@ -875,6 +889,7 @@ function App() {
               familyMembers={familyMembers}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
+              onAddRecommended={addRecommendedToday}
             />
           )}
           {activeView === "library" && (

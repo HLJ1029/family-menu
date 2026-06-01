@@ -20,6 +20,7 @@ export function Dashboard({
   familyMembers,
   onViewChange,
   onOpenRecipe,
+  onAddRecommended,
 }) {
   const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
   const displayedMembers = familyMembers.length > 0
@@ -121,6 +122,13 @@ export function Dashboard({
               ? `采购提醒：${recommendation.missingItems.map((item) => item.name).join("、")}`
               : "当前推荐与可用库存匹配度不错，可以直接加入今日菜单。"}
           </div>
+          <button
+            type="button"
+            onClick={onAddRecommended}
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+          >
+            加入今日菜单
+          </button>
         </Card>
       </section>
 
