@@ -4,7 +4,7 @@ import { DoodleArrow } from "./ui/Doodles";
 import { MetricCard } from "./ui/StatsBlocks";
 import { MiniMeal } from "./ui/MiniMeal";
 
-const familyMembers = [
+const fallbackFamilyMembers = [
   { name: "Alex", note: "低油、偏清淡", mood: "Clean" },
   { name: "Mia", note: "爱吃番茄和鸡蛋", mood: "Comfort" },
   { name: "Noah", note: "少辣、高蛋白", mood: "Fit" },
@@ -16,10 +16,14 @@ export function Dashboard({
   groceryItems,
   pantryItems,
   recommendation,
+  familyMembers,
   onViewChange,
   onOpenRecipe,
 }) {
   const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
+  const displayedMembers = familyMembers.length > 0
+    ? familyMembers.map(formatFamilyMember)
+    : fallbackFamilyMembers;
   return (
     <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
       <section className="relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
@@ -98,8 +102,9 @@ export function Dashboard({
                 当前推荐先由规则引擎生成，后续会交给 Supabase Edge Function 调用 AI 做解释表达。
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <SummaryPill label="库存命中" value={`${recommendation.inventoryHits} 项`} />
+              <SummaryPill label="偏好命中" value={`${recommendation.preferenceHits ?? 0} 项`} />
               <SummaryPill label="缺少食材" value={`${recommendation.missingItems.length} 项`} />
               <SummaryPill label="蛋白质" value={`${Math.round(recommendation.nutrition.proteinG)} g`} />
             </div>
@@ -176,7 +181,7 @@ export function Dashboard({
             <Users size={22} />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {familyMembers.map((member) => (
+            {displayedMembers.map((member) => (
               <div key={member.name} className="rounded-[20px] border border-line bg-canvas p-4">
                 <p className="text-lg font-black">{member.name}</p>
                 <p className="mt-1 text-sm text-ink/56">{member.note}</p>
@@ -190,6 +195,21 @@ export function Dashboard({
       </section>
     </div>
   );
+}
+
+function formatFamilyMember(member) {
+  const preference = member.preference ?? {};
+  const signals = [
+    ...(preference.likes ?? []).slice(0, 2),
+    ...(preference.goals ?? []).slice(0, 2),
+  ];
+  const cautions = [...(preference.dislikes ?? []), ...(preference.allergies ?? [])].slice(0, 2);
+
+  return {
+    name: member.email?.split("@")[0] ?? "家庭成员",
+    note: signals.length > 0 ? signals.join("、") : "偏好待补充",
+    mood: cautions.length > 0 ? `避开 ${cautions.join("、")}` : member.role,
+  };
 }
 
 function SummaryPill({ label, value }) {

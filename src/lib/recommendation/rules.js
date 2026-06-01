@@ -3,8 +3,15 @@ import { nutritionFor, recipes } from "../recipes";
 const recentRecipeIds = new Set();
 const dislikedSignals = ["鸡爪", "肥肠"];
 
-export function buildTodayRecommendation({ pantryItems = [], weekPlan = {}, groceryItems = [], todayRecipes = [] }) {
+export function buildTodayRecommendation({
+  pantryItems = [],
+  weekPlan = {},
+  groceryItems = [],
+  todayRecipes = [],
+  familyMembers = [],
+}) {
   const pantryNames = new Set(pantryItems.map((item) => normalize(item.name)));
+  const familyPreference = collectFamilyPreference(familyMembers);
   Object.values(weekPlan)
     .flat()
     .slice(-8)
@@ -26,8 +33,17 @@ export function buildTodayRecommendation({ pantryItems = [], weekPlan = {}, groc
       const nutritionBonus = nutrition.proteinG >= 15 ? 10 : 0;
       const repeatedPenalty = recentRecipeIds.has(recipe.id) ? 22 : 0;
       const dislikedPenalty = dislikedSignals.some((signal) => recipe.name.includes(signal)) ? 16 : 0;
-      const score = quickBonus + balanceBonus + pantryBonus + nutritionBonus - repeatedPenalty - dislikedPenalty;
-      return { recipe, score, pantryMatches, missingRequired };
+      const preferenceScore = scorePreference(recipe, familyPreference);
+      const score =
+        quickBonus +
+        balanceBonus +
+        pantryBonus +
+        nutritionBonus +
+        preferenceScore.bonus -
+        repeatedPenalty -
+        dislikedPenalty -
+        preferenceScore.penalty;
+      return { recipe, score, pantryMatches, missingRequired, preferenceScore };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -45,19 +61,67 @@ export function buildTodayRecommendation({ pantryItems = [], weekPlan = {}, groc
   const inventoryHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
     .reduce((total, item) => total + item.pantryMatches, 0);
+  const preferenceHits = scored
+    .filter(({ recipe }) => selectedIds.has(recipe.id))
+    .reduce((total, item) => total + item.preferenceScore.hits, 0);
   const calories = selected.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0);
   const protein = selected.reduce((total, recipe) => total + nutritionFor(recipe).proteinG, 0);
 
   return {
     recipes: selected,
     title: selected.map((recipe) => recipe.name).join(" + "),
-    reason: buildReason({ selected, inventoryHits, groceryItems, selectedMissing }),
+    reason: buildReason({ selected, inventoryHits, groceryItems, selectedMissing, preferenceHits }),
     inventoryHits,
+    preferenceHits,
     missingItems: dedupeItems(selectedMissing),
     nutrition: {
       caloriesKcal: calories,
       proteinG: protein,
     },
+  };
+}
+
+function collectFamilyPreference(members) {
+  return members.reduce(
+    (summary, member) => {
+      const preference = member.preference ?? {};
+      return {
+        likes: [...summary.likes, ...(preference.likes ?? [])].map(normalize),
+        dislikes: [...summary.dislikes, ...(preference.dislikes ?? [])].map(normalize),
+        allergies: [...summary.allergies, ...(preference.allergies ?? [])].map(normalize),
+        goals: [...summary.goals, ...(preference.goals ?? [])].map(normalize),
+      };
+    },
+    { likes: [], dislikes: [], allergies: [], goals: [] },
+  );
+}
+
+function scorePreference(recipe, familyPreference) {
+  const haystack = [
+    recipe.name,
+    recipe.description,
+    ...recipe.categories,
+    ...recipe.tags,
+    ...recipe.ingredients.map((item) => item.name),
+  ]
+    .map(normalize)
+    .join(" ");
+  const nutrition = nutritionFor(recipe);
+  const likeHits = familyPreference.likes.filter((signal) => signal && haystack.includes(signal)).length;
+  const dislikeHits = familyPreference.dislikes.filter((signal) => signal && haystack.includes(signal)).length;
+  const allergyHits = familyPreference.allergies.filter((signal) => signal && haystack.includes(signal)).length;
+  const goalBonus = familyPreference.goals.reduce((bonus, goal) => {
+    if (goal.includes("高蛋白") && nutrition.proteinG >= 15) return bonus + 12;
+    if ((goal.includes("低脂") || goal.includes("少油")) && nutrition.fatG <= 12) return bonus + 8;
+    if ((goal.includes("快手") || goal.includes("省时")) && recipe.timeMinutes <= 25) return bonus + 8;
+    if ((goal.includes("清淡") || goal.includes("少辣")) && !haystack.includes("辣")) return bonus + 6;
+    return bonus;
+  }, 0);
+
+  return {
+    bonus: likeHits * 10 + goalBonus,
+    penalty: dislikeHits * 40 + allergyHits * 120,
+    hits: likeHits + (goalBonus > 0 ? 1 : 0),
   };
 }
 
@@ -79,8 +143,11 @@ function pairsWell(primary, candidate) {
   return candidate.timeMinutes <= 30;
 }
 
-function buildReason({ selected, inventoryHits, groceryItems, selectedMissing }) {
+function buildReason({ selected, inventoryHits, groceryItems, selectedMissing, preferenceHits }) {
   const quickCount = selected.filter((recipe) => recipe.timeMinutes <= 25).length;
+  if (preferenceHits > 0) {
+    return `已参考家庭偏好和饮食目标，优先避开忌口并匹配 ${preferenceHits} 个偏好信号。`;
+  }
   if (inventoryHits > 0) {
     return `优先消耗家中已有食材，预计少买 ${inventoryHits} 项，适合今天快速开火。`;
   }

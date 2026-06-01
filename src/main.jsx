@@ -361,8 +361,9 @@ function App() {
         weekPlan,
         groceryItems: visibleGroceryItems,
         todayRecipes,
+        familyMembers,
       }),
-    [pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
+    [familyMembers, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
   );
 
   function showNotice(message) {
@@ -847,6 +848,7 @@ function App() {
               groceryItems={groceryItems}
               pantryItems={pantryItems}
               recommendation={todayRecommendation}
+              familyMembers={familyMembers}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
             />
