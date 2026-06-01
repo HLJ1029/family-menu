@@ -35,7 +35,7 @@ export function UserCenter({ authProps, cloudMenuProps, session, family }) {
             <StatusRow label="家庭空间" value={family?.name ?? "未创建"} />
             <StatusRow
               label="同步模式"
-              value={cloudMenuProps?.cloudMenuEnabled ? "菜单云同步" : family ? "待迁移" : "本地体验"}
+              value={getSyncModeLabel({ family, cloudMenuProps })}
             />
           </div>
         </Card>
@@ -49,7 +49,7 @@ export function UserCenter({ authProps, cloudMenuProps, session, family }) {
             <Database size={22} />
           </div>
           <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            今日菜单和一周计划已开始接入 Supabase；下一步会继续同步购物清单和家庭库存。
+            今日菜单、一周计划、食材清单和厨房库存已开始接入 Supabase；后续会继续补本地数据迁移提示和冲突处理。
           </p>
         </Card>
 
@@ -69,6 +69,13 @@ export function UserCenter({ authProps, cloudMenuProps, session, family }) {
       </aside>
     </section>
   );
+}
+
+function getSyncModeLabel({ family, cloudMenuProps }) {
+  if (!family) return "本地体验";
+  if (cloudMenuProps?.cloudMenuEnabled && cloudMenuProps?.cloudGroceryEnabled) return "核心数据云同步";
+  if (cloudMenuProps?.cloudMenuEnabled || cloudMenuProps?.cloudGroceryEnabled) return "部分云同步";
+  return "待迁移";
 }
 
 function StatusRow({ label, value }) {

@@ -37,6 +37,11 @@ import {
   subscribeToAuthChanges,
 } from "./lib/supabase/family";
 import {
+  loadGrocerySync,
+  migrateLocalGroceryToCloud,
+  saveGrocerySync,
+} from "./lib/supabase/grocerySync";
+import {
   loadMenuSync,
   migrateLocalMenusToCloud,
   saveTodayMenu,
@@ -82,6 +87,9 @@ function App() {
   const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("familyos:cloud-menu-enabled", false);
   const [cloudMenuLoading, setCloudMenuLoading] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState("家庭空间创建后，可把本地菜单迁移到云端。");
+  const [cloudGroceryEnabled, setCloudGroceryEnabled] = useLocalStorageState("familyos:cloud-grocery-enabled", false);
+  const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
+  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单同步后，可继续迁移食材清单和库存。");
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
@@ -148,6 +156,69 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [cloudMenuEnabled, cloudMenuLoading, family?.id, weekPlan]);
+
+  useEffect(() => {
+    if (!family?.id || !cloudGroceryEnabled) return;
+    let active = true;
+
+    async function loadCloudGrocery() {
+      setCloudGroceryLoading(true);
+      setCloudGroceryStatus("正在从云端读取食材清单...");
+      try {
+        const cloudGrocery = await loadGrocerySync(family.id);
+        if (!active) return;
+        setCustomItems(cloudGrocery.customItems);
+        setCheckedItems(cloudGrocery.checkedItems);
+        setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
+        setPantryItems(cloudGrocery.pantryItems);
+        setCloudGroceryStatus("已从云端读取食材清单和厨房库存。");
+      } catch (error) {
+        if (active) setCloudGroceryStatus(error.message);
+      } finally {
+        if (active) setCloudGroceryLoading(false);
+      }
+    }
+
+    loadCloudGrocery();
+    return () => {
+      active = false;
+    };
+  }, [
+    cloudGroceryEnabled,
+    family?.id,
+    setCheckedItems,
+    setCustomItems,
+    setExcludedGroceryKeys,
+    setPantryItems,
+  ]);
+
+  useEffect(() => {
+    if (!family?.id || !cloudGroceryEnabled || cloudGroceryLoading) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await saveGrocerySync({
+          familyId: family.id,
+          customItems,
+          checkedItems,
+          excludedGroceryKeys,
+          pantryItems,
+        });
+        setCloudGroceryStatus("食材清单和厨房库存已同步到家庭空间。");
+      } catch (error) {
+        setCloudGroceryStatus(error.message);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    checkedItems,
+    cloudGroceryEnabled,
+    cloudGroceryLoading,
+    customItems,
+    excludedGroceryKeys,
+    family?.id,
+    pantryItems,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -459,6 +530,7 @@ function App() {
       const nextFamily = await createFamilySpace({ user: session.user, name: familyName });
       setFamily(nextFamily);
       setCloudMenuEnabled(false);
+      setCloudGroceryEnabled(false);
       setAuthStatus("家庭空间已创建。");
       showNotice(`${nextFamily.name} 已创建`);
     } catch (error) {
@@ -508,6 +580,7 @@ function App() {
       setFamily(null);
       setGuestMode(false);
       setCloudMenuEnabled(false);
+      setCloudGroceryEnabled(false);
       setAuthStatus("已退出登录，本地模式仍可继续使用。");
     } catch (error) {
       setAuthStatus(error.message);
@@ -576,6 +649,56 @@ function App() {
     }
   }
 
+  async function migrateGroceryToCloud() {
+    if (!family?.id) {
+      setCloudGroceryStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    setCloudGroceryLoading(true);
+    setCloudGroceryStatus("正在迁移食材清单和库存...");
+    try {
+      await migrateLocalGroceryToCloud({
+        familyId: family.id,
+        customItems,
+        checkedItems,
+        excludedGroceryKeys,
+        pantryItems,
+      });
+      setCloudGroceryEnabled(true);
+      setCloudGroceryStatus("本地食材清单和厨房库存已迁移到家庭空间。");
+      showNotice("食材清单已迁移到云端");
+    } catch (error) {
+      setCloudGroceryStatus(error.message);
+    } finally {
+      setCloudGroceryLoading(false);
+    }
+  }
+
+  async function refreshCloudGrocery() {
+    if (!family?.id) {
+      setCloudGroceryStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    setCloudGroceryLoading(true);
+    setCloudGroceryStatus("正在从云端刷新食材清单...");
+    try {
+      const cloudGrocery = await loadGrocerySync(family.id);
+      setCustomItems(cloudGrocery.customItems);
+      setCheckedItems(cloudGrocery.checkedItems);
+      setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
+      setPantryItems(cloudGrocery.pantryItems);
+      setCloudGroceryEnabled(true);
+      setCloudGroceryStatus("已刷新云端食材清单和厨房库存。");
+      showNotice("云端食材清单已刷新");
+    } catch (error) {
+      setCloudGroceryStatus(error.message);
+    } finally {
+      setCloudGroceryLoading(false);
+    }
+  }
+
   const cloudMenuProps = {
     family,
     cloudMenuEnabled,
@@ -583,6 +706,11 @@ function App() {
     cloudSyncStatus,
     onMigrateLocalMenus: migrateMenusToCloud,
     onRefreshCloudMenus: refreshCloudMenus,
+    cloudGroceryEnabled,
+    cloudGroceryLoading,
+    cloudGroceryStatus,
+    onMigrateLocalGrocery: migrateGroceryToCloud,
+    onRefreshCloudGrocery: refreshCloudGrocery,
   };
 
   if (isMobileViewport && !session?.user && !guestMode) {
