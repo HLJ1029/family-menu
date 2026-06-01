@@ -37,6 +37,12 @@ import {
   subscribeToAuthChanges,
 } from "./lib/supabase/family";
 import {
+  draftToPreference,
+  loadFamilyPreferences,
+  preferenceToDraft,
+  saveMemberPreference,
+} from "./lib/supabase/familyPreferences";
+import {
   loadGrocerySync,
   migrateLocalGroceryToCloud,
   saveGrocerySync,
@@ -90,6 +96,10 @@ function App() {
   const [cloudGroceryEnabled, setCloudGroceryEnabled] = useLocalStorageState("familyos:cloud-grocery-enabled", false);
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单同步后，可继续迁移食材清单和库存。");
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [preferenceDraft, setPreferenceDraft] = useState({});
+  const [preferencesLoading, setPreferencesLoading] = useState(false);
+  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
@@ -262,6 +272,21 @@ function App() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!family?.id) {
+      setFamilyMembers([]);
+      setPreferenceDraft({});
+      setPreferencesStatus("创建家庭空间后，可维护家庭成员偏好。");
+      return;
+    }
+
+    let active = true;
+    loadPreferencesForFamily({ active: () => active });
+    return () => {
+      active = false;
+    };
+  }, [family?.id]);
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -581,11 +606,73 @@ function App() {
       setGuestMode(false);
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
+      setFamilyMembers([]);
+      setPreferenceDraft({});
       setAuthStatus("已退出登录，本地模式仍可继续使用。");
     } catch (error) {
       setAuthStatus(error.message);
     } finally {
       setCloudLoading(false);
+    }
+  }
+
+  async function loadPreferencesForFamily({ active = () => true } = {}) {
+    if (!family?.id) return;
+
+    setPreferencesLoading(true);
+    setPreferencesStatus("正在读取家庭成员偏好...");
+    try {
+      const members = await loadFamilyPreferences(family.id);
+      if (!active()) return;
+      setFamilyMembers(members);
+      setPreferenceDraft(
+        members.reduce(
+          (drafts, member) => ({
+            ...drafts,
+            [member.id]: preferenceToDraft(member.preference),
+          }),
+          {},
+        ),
+      );
+      setPreferencesStatus("家庭成员偏好已读取。");
+    } catch (error) {
+      if (active()) setPreferencesStatus(error.message);
+    } finally {
+      if (active()) setPreferencesLoading(false);
+    }
+  }
+
+  function updatePreferenceDraft(memberId, key, value) {
+    setPreferenceDraft((current) => ({
+      ...current,
+      [memberId]: {
+        ...current[memberId],
+        [key]: value,
+      },
+    }));
+  }
+
+  async function savePreference(memberId) {
+    if (!family?.id) {
+      setPreferencesStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    setPreferencesLoading(true);
+    setPreferencesStatus("正在保存家庭成员偏好...");
+    try {
+      await saveMemberPreference({
+        familyId: family.id,
+        memberId,
+        preference: draftToPreference(preferenceDraft[memberId] ?? {}),
+      });
+      setPreferencesStatus("家庭成员偏好已保存。");
+      showNotice("成员偏好已保存");
+      await loadPreferencesForFamily();
+    } catch (error) {
+      setPreferencesStatus(error.message);
+    } finally {
+      setPreferencesLoading(false);
     }
   }
 
@@ -711,6 +798,17 @@ function App() {
     cloudGroceryStatus,
     onMigrateLocalGrocery: migrateGroceryToCloud,
     onRefreshCloudGrocery: refreshCloudGrocery,
+  };
+
+  const preferenceProps = {
+    family,
+    members: familyMembers,
+    draft: preferenceDraft,
+    loading: preferencesLoading,
+    status: preferencesStatus,
+    onDraftChange: updatePreferenceDraft,
+    onSavePreference: savePreference,
+    onRefreshPreferences: () => loadPreferencesForFamily(),
   };
 
   if (isMobileViewport && !session?.user && !guestMode) {
@@ -856,6 +954,7 @@ function App() {
             <UserCenter
               authProps={authProps}
               cloudMenuProps={cloudMenuProps}
+              preferenceProps={preferenceProps}
               session={session}
               family={family}
             />

@@ -1,9 +1,10 @@
 import { Cloud, Database, UserRound } from "lucide-react";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
+import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 
-export function UserCenter({ authProps, cloudMenuProps, session, family }) {
+export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session, family }) {
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
@@ -19,6 +20,7 @@ export function UserCenter({ authProps, cloudMenuProps, session, family }) {
 
         <CloudAccount {...authProps} />
         <CloudSyncPanel {...cloudMenuProps} />
+        <FamilyPreferencesPanel {...preferenceProps} />
       </div>
 
       <aside className="grid content-start gap-5">
