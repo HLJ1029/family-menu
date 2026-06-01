@@ -9,14 +9,12 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    const model = Deno.env.get("OPENAI_MODEL");
+    const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const model = Deno.env.get("DEEPSEEK_MODEL") ?? "deepseek-chat";
+    const baseUrl = Deno.env.get("DEEPSEEK_BASE_URL") ?? "https://api.deepseek.com";
 
     if (!apiKey) {
-      return jsonResponse({ error: "OPENAI_API_KEY is not configured." }, 500);
-    }
-    if (!model) {
-      return jsonResponse({ error: "OPENAI_MODEL is not configured." }, 500);
+      return jsonResponse({ error: "DEEPSEEK_API_KEY is not configured." }, 500);
     }
 
     const payload = await request.json();
@@ -26,7 +24,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Missing recommendation payload." }, 400);
     }
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -34,7 +32,7 @@ Deno.serve(async (request) => {
       },
       body: JSON.stringify({
         model,
-        input: [
+        messages: [
           {
             role: "system",
             content:
@@ -58,37 +56,27 @@ Deno.serve(async (request) => {
             }),
           },
         ],
-        max_output_tokens: 220,
+        temperature: 0.4,
+        max_tokens: 220,
       }),
     });
 
     const data = await response.json();
     if (!response.ok) {
-      return jsonResponse({ error: data?.error?.message ?? "OpenAI request failed." }, response.status);
+      return jsonResponse({ error: data?.error?.message ?? "DeepSeek request failed." }, response.status);
     }
 
     return jsonResponse({
       text: extractText(data) || ruleResult.reason,
-      source: "openai",
+      source: "deepseek",
     });
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : "Unexpected error." }, 500);
   }
 });
 
-function extractText(data: { output_text?: string; output?: Array<Record<string, unknown>> }) {
-  if (data.output_text) return data.output_text;
-
-  return data.output
-    ?.flatMap((item) => (Array.isArray(item.content) ? item.content : []))
-    .map((content) => {
-      if (typeof content === "object" && content && "text" in content) {
-        return String(content.text);
-      }
-      return "";
-    })
-    .join("")
-    .trim();
+function extractText(data: { choices?: Array<{ message?: { content?: string } }> }) {
+  return data.choices?.[0]?.message?.content?.trim();
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
