@@ -15,6 +15,7 @@ export function Dashboard({
   weekPlan,
   groceryItems,
   pantryItems,
+  pantryExpirySummary,
   recommendation,
   familyMembers,
   onViewChange,
@@ -156,7 +157,7 @@ export function Dashboard({
             <DashboardTool
               icon={PackageCheck}
               title="家庭库存"
-              note={`${pantryItems.length} 项已有材料`}
+              note={formatPantryNote(pantryItems.length, pantryExpirySummary)}
               ariaLabel="打开家庭库存"
               onClick={() => onViewChange("grocery")}
             />
@@ -210,6 +211,12 @@ function formatFamilyMember(member) {
     note: signals.length > 0 ? signals.join("、") : "偏好待补充",
     mood: cautions.length > 0 ? `避开 ${cautions.join("、")}` : member.role,
   };
+}
+
+function formatPantryNote(count, summary = {}) {
+  if (summary.expiredCount > 0) return `${count} 项已有 · ${summary.expiredCount} 项已过期`;
+  if (summary.expiringCount > 0) return `${count} 项已有 · ${summary.expiringCount} 项临期`;
+  return `${count} 项已有材料`;
 }
 
 function SummaryPill({ label, value }) {

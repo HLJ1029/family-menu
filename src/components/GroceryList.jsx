@@ -15,6 +15,7 @@ export function GroceryList({
   setNewPantryAmount,
   newPantryExpiresOn,
   setNewPantryExpiresOn,
+  pantryExpirySummary,
   onAddCustomItem,
   onRemoveCustomItem,
   onAddPantryItem,
@@ -192,7 +193,7 @@ export function GroceryList({
               <p className="mt-1 text-sm font-black">厨房库存</p>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/52">
-              {pantryItems.length} 项
+              {formatPantryCount(pantryItems.length, pantryExpirySummary)}
             </span>
           </div>
           <form
@@ -234,18 +235,7 @@ export function GroceryList({
           <div className="mt-3 flex flex-wrap gap-2">
             {pantryItems.length > 0 ? (
               pantryItems.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => onRemovePantryItem(item.key)}
-                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-white"
-                  aria-label={`从厨房库存移除 ${item.name}`}
-                >
-                  <span>{item.name}</span>
-                  {item.amount && <span className="text-ink/38">{item.amount}</span>}
-                  {item.expiresOn && <span className="text-ink/38">{formatExpiry(item.expiresOn)}</span>}
-                  <Trash2 size={12} />
-                </button>
+                <PantryChip key={item.key} item={item} onRemove={() => onRemovePantryItem(item.key)} />
               ))
             ) : (
               <p className="text-xs font-bold leading-5 text-ink/45">
@@ -293,8 +283,55 @@ export function GroceryList({
   );
 }
 
-function formatExpiry(value) {
+function PantryChip({ item, onRemove }) {
+  const expiryState = getExpiryState(item.expiresOn);
+  const expiryClass =
+    expiryState === "expired"
+      ? "bg-rose-100 text-rose-700"
+      : expiryState === "soon"
+        ? "bg-acid text-ink"
+        : "bg-canvas text-ink/45";
+
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-white"
+      aria-label={`从厨房库存移除 ${item.name}`}
+    >
+      <span>{item.name}</span>
+      {item.amount && <span className="text-ink/38">{item.amount}</span>}
+      {item.expiresOn && (
+        <span className={`rounded-full px-2 py-0.5 ${expiryClass}`}>
+          {formatExpiry(item.expiresOn, expiryState)}
+        </span>
+      )}
+      <Trash2 size={12} />
+    </button>
+  );
+}
+
+function formatPantryCount(count, summary = {}) {
+  if (summary.expiredCount > 0) return `${count} 项 · ${summary.expiredCount} 过期`;
+  if (summary.expiringCount > 0) return `${count} 项 · ${summary.expiringCount} 临期`;
+  return `${count} 项`;
+}
+
+function formatExpiry(value, state) {
+  if (state === "expired") return `已过期 ${value.slice(5)}`;
+  if (state === "soon") return `临期 ${value.slice(5)}`;
   return `至 ${value.slice(5)}`;
+}
+
+function getExpiryState(expiresOn) {
+  if (!expiresOn) return "none";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiryDate = new Date(`${expiresOn}T00:00:00`);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000);
+  if (daysUntilExpiry < 0) return "expired";
+  if (daysUntilExpiry <= 3) return "soon";
+  return "fresh";
 }
 
 function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {

@@ -338,6 +338,16 @@ function App() {
     () => new Set(pantryItems.map((item) => normalizeName(item.name))),
     [pantryItems],
   );
+  const pantryExpirySummary = useMemo(() => {
+    const expiringItems = pantryItems.filter((item) => {
+      const state = getExpiryState(item.expiresOn);
+      return state === "expired" || state === "soon";
+    });
+    return {
+      expiringCount: expiringItems.length,
+      expiredCount: expiringItems.filter((item) => getExpiryState(item.expiresOn) === "expired").length,
+    };
+  }, [pantryItems]);
   const isGroceryItemOwned = (item) => excludedGrocerySet.has(item.hiddenKey) || pantryNameSet.has(normalizeName(item.name));
   const visibleGroceryGroups = useMemo(
     () =>
@@ -860,6 +870,7 @@ function App() {
               weekPlan={weekPlan}
               groceryItems={groceryItems}
               pantryItems={pantryItems}
+              pantryExpirySummary={pantryExpirySummary}
               recommendation={todayRecommendation}
               familyMembers={familyMembers}
               onViewChange={setActiveView}
@@ -931,6 +942,7 @@ function App() {
               newCustomItem={newCustomItem}
               setNewCustomItem={setNewCustomItem}
               pantryItems={pantryItems}
+              pantryExpirySummary={pantryExpirySummary}
               newPantryItem={newPantryItem}
               setNewPantryItem={setNewPantryItem}
               newPantryAmount={newPantryAmount}
@@ -1001,6 +1013,17 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function getExpiryState(expiresOn) {
+  if (!expiresOn) return "none";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiryDate = new Date(`${expiresOn}T00:00:00`);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000);
+  if (daysUntilExpiry < 0) return "expired";
+  if (daysUntilExpiry <= 3) return "soon";
+  return "fresh";
 }
 
 function useIsMobileViewport() {
