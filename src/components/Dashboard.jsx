@@ -103,8 +103,9 @@ export function Dashboard({
                 当前推荐先由规则引擎生成，后续会交给 Supabase Edge Function 调用 AI 做解释表达。
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               <SummaryPill label="库存命中" value={`${recommendation.inventoryHits} 项`} />
+              <SummaryPill label="临期命中" value={`${recommendation.expiringHits ?? 0} 项`} />
               <SummaryPill label="偏好命中" value={`${recommendation.preferenceHits ?? 0} 项`} />
               <SummaryPill label="缺少食材" value={`${recommendation.missingItems.length} 项`} />
               <SummaryPill label="蛋白质" value={`${Math.round(recommendation.nutrition.proteinG)} g`} />
@@ -118,7 +119,7 @@ export function Dashboard({
           <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/56">
             {recommendation.missingItems.length > 0
               ? `采购提醒：${recommendation.missingItems.map((item) => item.name).join("、")}`
-              : "当前推荐与厨房库存匹配度不错，可以直接加入今日菜单。"}
+              : "当前推荐与可用库存匹配度不错，可以直接加入今日菜单。"}
           </div>
         </Card>
       </section>

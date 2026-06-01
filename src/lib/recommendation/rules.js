@@ -10,7 +10,7 @@ export function buildTodayRecommendation({
   todayRecipes = [],
   familyMembers = [],
 }) {
-  const pantryNames = new Set(pantryItems.map((item) => normalize(item.name)));
+  const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers);
   Object.values(weekPlan)
     .flat()
@@ -22,14 +22,16 @@ export function buildTodayRecommendation({
     .filter((recipe) => !todayRecipes.some((item) => item.id === recipe.id))
     .map((recipe) => {
       const ingredientNames = recipe.ingredients.map((item) => normalize(item.name));
-      const pantryMatches = ingredientNames.filter((name) => pantryNames.has(name)).length;
+      const usablePantryMatches = ingredientNames.filter((name) => pantryState.usableNames.has(name)).length;
+      const expiringPantryMatches = ingredientNames.filter((name) => pantryState.expiringNames.has(name)).length;
       const missingRequired = recipe.ingredients.filter(
-        (item) => item.required !== false && !pantryNames.has(normalize(item.name)),
+        (item) => item.required !== false && !pantryState.usableNames.has(normalize(item.name)),
       );
       const nutrition = nutritionFor(recipe);
       const quickBonus = recipe.timeMinutes <= 25 ? 18 : 0;
       const balanceBonus = balancedCategoryScore(recipe);
-      const pantryBonus = pantryMatches * 16;
+      const pantryBonus = usablePantryMatches * 14 + expiringPantryMatches * 18;
+      const shoppingGapPenalty = Math.min(missingRequired.length, 4) * 5;
       const nutritionBonus = nutrition.proteinG >= 15 ? 10 : 0;
       const repeatedPenalty = recentRecipeIds.has(recipe.id) ? 22 : 0;
       const dislikedPenalty = dislikedSignals.some((signal) => recipe.name.includes(signal)) ? 16 : 0;
@@ -42,8 +44,16 @@ export function buildTodayRecommendation({
         preferenceScore.bonus -
         repeatedPenalty -
         dislikedPenalty -
-        preferenceScore.penalty;
-      return { recipe, score, pantryMatches, missingRequired, preferenceScore };
+        preferenceScore.penalty -
+        shoppingGapPenalty;
+      return {
+        recipe,
+        score,
+        usablePantryMatches,
+        expiringPantryMatches,
+        missingRequired,
+        preferenceScore,
+      };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -60,7 +70,10 @@ export function buildTodayRecommendation({
     .slice(0, 5);
   const inventoryHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
-    .reduce((total, item) => total + item.pantryMatches, 0);
+    .reduce((total, item) => total + item.usablePantryMatches, 0);
+  const expiringHits = scored
+    .filter(({ recipe }) => selectedIds.has(recipe.id))
+    .reduce((total, item) => total + item.expiringPantryMatches, 0);
   const preferenceHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
     .reduce((total, item) => total + item.preferenceScore.hits, 0);
@@ -70,8 +83,16 @@ export function buildTodayRecommendation({
   return {
     recipes: selected,
     title: selected.map((recipe) => recipe.name).join(" + "),
-    reason: buildReason({ selected, inventoryHits, groceryItems, selectedMissing, preferenceHits }),
+    reason: buildReason({
+      selected,
+      inventoryHits,
+      expiringHits,
+      groceryItems,
+      selectedMissing,
+      preferenceHits,
+    }),
     inventoryHits,
+    expiringHits,
     preferenceHits,
     missingItems: dedupeItems(selectedMissing),
     nutrition: {
@@ -79,6 +100,24 @@ export function buildTodayRecommendation({
       proteinG: protein,
     },
   };
+}
+
+function buildPantryState(pantryItems) {
+  return pantryItems.reduce(
+    (state, item) => {
+      const name = normalize(item.name);
+      if (!name) return state;
+      const expiryState = getExpiryState(item.expiresOn);
+      if (expiryState === "expired") {
+        state.expiredNames.add(name);
+        return state;
+      }
+      state.usableNames.add(name);
+      if (expiryState === "soon") state.expiringNames.add(name);
+      return state;
+    },
+    { usableNames: new Set(), expiringNames: new Set(), expiredNames: new Set() },
+  );
 }
 
 function collectFamilyPreference(members) {
@@ -143,8 +182,11 @@ function pairsWell(primary, candidate) {
   return candidate.timeMinutes <= 30;
 }
 
-function buildReason({ selected, inventoryHits, groceryItems, selectedMissing, preferenceHits }) {
+function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits }) {
   const quickCount = selected.filter((recipe) => recipe.timeMinutes <= 25).length;
+  if (expiringHits > 0) {
+    return `优先消耗 ${expiringHits} 项临期库存，同时避开已过期食材，适合今天减少浪费。`;
+  }
   if (preferenceHits > 0) {
     return `已参考家庭偏好和饮食目标，优先避开忌口并匹配 ${preferenceHits} 个偏好信号。`;
   }
@@ -172,4 +214,15 @@ function dedupeItems(items) {
 
 function normalize(value) {
   return String(value).trim().toLowerCase();
+}
+
+function getExpiryState(expiresOn) {
+  if (!expiresOn) return "none";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiryDate = new Date(`${expiresOn}T00:00:00`);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000);
+  if (daysUntilExpiry < 0) return "expired";
+  if (daysUntilExpiry <= 3) return "soon";
+  return "fresh";
 }
