@@ -18,12 +18,15 @@ export function Dashboard({
   pantryExpirySummary,
   recommendation,
   familyMembers,
+  aiRecommendationStatus,
+  aiRecommendationLoading,
   aiExplanation,
   aiExplanationStatus,
   aiExplanationLoading,
   onViewChange,
   onOpenRecipe,
   onAddRecommended,
+  onRequestAiRecommendation,
   onRequestAiExplanation,
 }) {
   const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
@@ -102,10 +105,10 @@ export function Dashboard({
         <Card>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-xl">
-              <p className="eyebrow">Rule engine</p>
-              <h3 className="card-title">规则推荐结果</h3>
+              <p className="eyebrow">{recommendation.source === "deepseek" ? "DeepSeek engine" : "Fallback engine"}</p>
+              <h3 className="card-title">{recommendation.source === "deepseek" ? "DeepSeek 推荐结果" : "本地规则推荐结果"}</h3>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
-                当前推荐先由规则引擎生成，后续会交给 Supabase Edge Function 调用 AI 做解释表达。
+                AI 推荐和 AI 解释都通过 Supabase Edge Function 调用 DeepSeek；未配置时自动回退本地规则。
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -114,6 +117,22 @@ export function Dashboard({
               <SummaryPill label="偏好命中" value={`${recommendation.preferenceHits ?? 0} 项`} />
               <SummaryPill label="缺少食材" value={`${recommendation.missingItems.length} 项`} />
               <SummaryPill label="蛋白质" value={`${Math.round(recommendation.nutrition.proteinG)} g`} />
+            </div>
+          </div>
+          <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">AI recommendation</p>
+                <p className="mt-1 text-sm font-bold leading-6 text-ink/56">{aiRecommendationStatus}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onRequestAiRecommendation}
+                disabled={aiRecommendationLoading}
+                className="min-h-11 shrink-0 rounded-full bg-acid px-4 text-xs font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {aiRecommendationLoading ? "生成中" : "生成 DeepSeek 推荐"}
+              </button>
             </div>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -136,7 +155,7 @@ export function Dashboard({
           <div className="mt-3 rounded-[20px] border border-line bg-white p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">AI explanation</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">DeepSeek explanation</p>
                 <p className="mt-1 text-sm font-bold leading-6 text-ink/56">
                   {aiExplanation || recommendation.reason}
                 </p>
@@ -148,7 +167,7 @@ export function Dashboard({
                 disabled={aiExplanationLoading}
                 className="min-h-11 shrink-0 rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {aiExplanationLoading ? "生成中" : "生成 AI 解释"}
+                {aiExplanationLoading ? "生成中" : "生成 DeepSeek 解释"}
               </button>
             </div>
           </div>

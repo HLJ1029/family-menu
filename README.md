@@ -19,7 +19,7 @@ mobile FamilyOS + clean SaaS dashboard + light doodle accent
 - 菜单库卡片展示。
 - 分类筛选。
 - 今日菜单。
-- 规则驱动的今日推荐卡片。
+- DeepSeek AI 推荐入口，未配置时回退本地规则。
 - 移动端未登录登录页，可选择先体验部分本地功能。
 - 网页端/体验模式下的用户中心。
 - 一周计划。
@@ -151,4 +151,4 @@ git push
 2. 把今日菜单、周计划、购物清单迁移到云端同步。
 3. 将厨房库存升级为独立库存页。
 4. 添加家庭成员邀请和偏好编辑。
-5. 添加 Supabase Edge Function，让 AI 解释规则推荐结果。
+5. 配置 Supabase Edge Functions，让 DeepSeek AI 推荐和解释正式启用。

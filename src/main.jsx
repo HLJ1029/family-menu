@@ -25,10 +25,12 @@ import {
   createDefaultWeekPlan,
   createInitialMealCalendar,
   getRecipe,
+  nutritionFor,
   recipes,
 } from "./lib/recipes";
 import { buildTodayRecommendation } from "./lib/recommendation/rules";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
+import { recommendMeals } from "./lib/supabase/aiRecommendation";
 import {
   createFamilySpace,
   getCurrentSession,
@@ -105,8 +107,11 @@ function App() {
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const [aiExplanation, setAiExplanation] = useState("");
-  const [aiExplanationStatus, setAiExplanationStatus] = useState("AI 解释会在 Edge Function 配置后启用。");
+  const [aiExplanationStatus, setAiExplanationStatus] = useState("DeepSeek 解释会在 Edge Function 配置后启用。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState(null);
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("DeepSeek 推荐会在 Edge Function 配置后启用。");
+  const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
@@ -385,8 +390,11 @@ function App() {
 
   useEffect(() => {
     setAiExplanation("");
-    setAiExplanationStatus("AI 解释会在 Edge Function 配置后启用。");
+    setAiExplanationStatus("DeepSeek 解释会在 Edge Function 配置后启用。");
+    setAiRecommendation(null);
+    setAiRecommendationStatus("DeepSeek 推荐会在 Edge Function 配置后启用。");
   }, [todayRecommendation.title]);
+  const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
   function showNotice(message) {
     setNotice(message);
@@ -440,7 +448,7 @@ function App() {
   }
 
   function addRecommendedToday() {
-    const recommendedIds = todayRecommendation.recipes
+    const recommendedIds = displayedRecommendation.recipes
       .map((recipe) => recipe.id)
       .filter((recipeId) => !todayMenu.some((item) => item.recipeId === recipeId));
 
@@ -455,16 +463,34 @@ function App() {
 
   async function requestAiExplanation() {
     setAiExplanationLoading(true);
-    setAiExplanationStatus("正在生成 AI 解释...");
+    setAiExplanationStatus("正在调用 DeepSeek 生成解释...");
     try {
-      const text = await explainRecommendation(todayRecommendation);
+      const text = await explainRecommendation(displayedRecommendation);
       setAiExplanation(text);
-      setAiExplanationStatus("AI 解释已生成。");
+      setAiExplanationStatus("DeepSeek 解释已生成。");
     } catch (error) {
-      setAiExplanation(todayRecommendation.reason);
+      setAiExplanation(displayedRecommendation.reason);
       setAiExplanationStatus(`${error.message} 已回退到规则解释。`);
     } finally {
       setAiExplanationLoading(false);
+    }
+  }
+
+  async function requestAiRecommendation() {
+    setAiRecommendationLoading(true);
+    setAiRecommendationStatus("正在调用 DeepSeek 生成推荐...");
+    try {
+      const result = await recommendMeals(buildAiRecommendationContext({ todayRecommendation }));
+      const nextRecommendation = hydrateAiRecommendation({ result, fallback: todayRecommendation });
+      setAiRecommendation(nextRecommendation);
+      setAiExplanation("");
+      setAiRecommendationStatus("DeepSeek 推荐已生成。");
+      showNotice("DeepSeek 推荐已更新");
+    } catch (error) {
+      setAiRecommendation(null);
+      setAiRecommendationStatus(`${error.message} 已回退到本地规则推荐。`);
+    } finally {
+      setAiRecommendationLoading(false);
     }
   }
 
@@ -738,6 +764,89 @@ function App() {
     }
   }
 
+  function buildAiRecommendationContext({ todayRecommendation }) {
+    const recentRecipeIds = [
+      ...new Set([
+        ...Object.values(weekPlan).flat(),
+        ...todayMenu.map((item) => item.recipeId),
+      ]),
+    ].slice(-12);
+
+    return {
+      candidates: recipes.map((recipe) => ({
+        id: recipe.id,
+        name: recipe.name,
+        categories: recipe.categories,
+        tags: recipe.tags,
+        timeMinutes: recipe.timeMinutes,
+        difficulty: recipe.difficulty,
+        ingredients: recipe.ingredients.map((item) => item.name),
+        seasonings: recipe.seasonings.map((item) => item.name),
+      })),
+      pantryItems: pantryItems.map((item) => ({
+        name: item.name,
+        amount: item.amount,
+        expiresOn: item.expiresOn,
+      })),
+      familyPreferences: familyMembers.map((member) => ({
+        member: member.email,
+        preference: member.preference,
+      })),
+      recentRecipeIds,
+      currentMissingItems: todayRecommendation.missingItems.map((item) => item.name),
+      ruleFallback: {
+        recipeIds: todayRecommendation.recipes.map((recipe) => recipe.id),
+        reason: todayRecommendation.reason,
+      },
+    };
+  }
+
+  function hydrateAiRecommendation({ result, fallback }) {
+    const selectedRecipes = result.recipeIds
+      .map((recipeId) => getRecipe(recipeId))
+      .filter(Boolean);
+
+    if (selectedRecipes.length === 0) return fallback;
+
+    const selectedIngredientNames = new Set(
+      selectedRecipes.flatMap((recipe) => recipe.ingredients.map((item) => normalizeName(item.name))),
+    );
+    const usablePantryNames = new Set(
+      pantryItems
+        .filter((item) => getExpiryState(item.expiresOn) !== "expired")
+        .map((item) => normalizeName(item.name)),
+    );
+    const expiringPantryNames = new Set(
+      pantryItems
+        .filter((item) => getExpiryState(item.expiresOn) === "soon")
+        .map((item) => normalizeName(item.name)),
+    );
+    const missingItems = selectedRecipes
+      .flatMap((recipe) => recipe.ingredients)
+      .filter((item) => item.required !== false && !usablePantryNames.has(normalizeName(item.name)))
+      .filter((item, index, items) => items.findIndex((candidate) => normalizeName(candidate.name) === normalizeName(item.name)) === index)
+      .slice(0, 5);
+
+    const inventoryHits = [...selectedIngredientNames].filter((name) => usablePantryNames.has(name)).length;
+    const expiringHits = [...selectedIngredientNames].filter((name) => expiringPantryNames.has(name)).length;
+
+    return {
+      ...fallback,
+      recipes: selectedRecipes,
+      title: selectedRecipes.map((recipe) => recipe.name).join(" + "),
+      reason: result.reason,
+      inventoryHits,
+      expiringHits,
+      missingItems,
+      explanation: result.explanation ?? fallback.explanation,
+      source: "deepseek",
+      nutrition: {
+        caloriesKcal: selectedRecipes.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0),
+        proteinG: selectedRecipes.reduce((total, recipe) => total + nutritionFor(recipe).proteinG, 0),
+      },
+    };
+  }
+
   const authProps = {
     authEmail,
     setAuthEmail,
@@ -909,14 +1018,17 @@ function App() {
               groceryItems={groceryItems}
               pantryItems={pantryItems}
               pantryExpirySummary={pantryExpirySummary}
-              recommendation={todayRecommendation}
+              recommendation={displayedRecommendation}
               familyMembers={familyMembers}
+              aiRecommendationStatus={aiRecommendationStatus}
+              aiRecommendationLoading={aiRecommendationLoading}
               aiExplanation={aiExplanation}
               aiExplanationStatus={aiExplanationStatus}
               aiExplanationLoading={aiExplanationLoading}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
+              onRequestAiRecommendation={requestAiRecommendation}
               onRequestAiExplanation={requestAiExplanation}
             />
           )}

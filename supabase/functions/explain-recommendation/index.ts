@@ -10,7 +10,7 @@ Deno.serve(async (request) => {
 
   try {
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
-    const model = Deno.env.get("DEEPSEEK_MODEL") ?? "deepseek-chat";
+    const model = Deno.env.get("DEEPSEEK_MODEL") ?? "deepseek-v4-flash";
     const baseUrl = Deno.env.get("DEEPSEEK_BASE_URL") ?? "https://api.deepseek.com";
 
     if (!apiKey) {
