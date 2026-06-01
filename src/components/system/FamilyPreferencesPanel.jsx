@@ -1,4 +1,4 @@
-import { Heart, Save, ShieldAlert, Target, UserRound } from "lucide-react";
+import { Heart, MailPlus, Save, ShieldAlert, Target, UserRound } from "lucide-react";
 
 const fields = [
   { key: "likes", label: "喜欢", placeholder: "番茄、牛肉、清淡", icon: Heart },
@@ -13,7 +13,10 @@ export function FamilyPreferencesPanel({
   draft,
   loading,
   status,
+  inviteEmail,
+  setInviteEmail,
   onDraftChange,
+  onInviteMember,
   onSavePreference,
   onRefreshPreferences,
 }) {
@@ -43,6 +46,33 @@ export function FamilyPreferencesPanel({
         {loading ? "正在同步家庭偏好..." : status}
       </p>
 
+      <form
+        className="mt-4 grid gap-2 rounded-[22px] border border-line bg-canvas p-4 sm:grid-cols-[1fr_auto]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onInviteMember();
+        }}
+      >
+        <label className="grid gap-2">
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Invite member</span>
+          <input
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            type="email"
+            className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="输入家庭成员邮箱"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <MailPlus size={17} />
+          添加邀请
+        </button>
+      </form>
+
       <div className="mt-5 grid gap-4">
         {members.length > 0 ? (
           members.map((member) => (
@@ -51,7 +81,7 @@ export function FamilyPreferencesPanel({
                 <div>
                   <p className="text-sm font-black">{member.email ?? "家庭成员"}</p>
                   <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-ink/35">
-                    {member.role} · {member.status}
+                    {formatMemberMeta(member)}
                   </p>
                 </div>
                 <button
@@ -84,6 +114,12 @@ export function FamilyPreferencesPanel({
       </div>
     </section>
   );
+}
+
+function formatMemberMeta(member) {
+  const role = member.role === "owner" ? "管理员" : "成员";
+  const status = member.status === "active" ? "已加入" : "待接受邀请";
+  return `${role} · ${status}`;
 }
 
 function PreferenceField({ field, value, onChange }) {

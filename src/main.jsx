@@ -42,6 +42,7 @@ import {
 } from "./lib/supabase/family";
 import {
   draftToPreference,
+  inviteFamilyMember,
   loadFamilyPreferences,
   preferenceToDraft,
   saveMemberPreference,
@@ -104,6 +105,7 @@ function App() {
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单同步后，可继续迁移食材清单和库存。");
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
+  const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const [aiExplanation, setAiExplanation] = useState("");
@@ -289,6 +291,7 @@ function App() {
     if (!family?.id) {
       setFamilyMembers([]);
       setPreferenceDraft({});
+      setInviteEmail("");
       setPreferencesStatus("创建家庭空间后，可维护家庭成员偏好。");
       return;
     }
@@ -696,6 +699,7 @@ function App() {
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
       setPreferenceDraft({});
+      setInviteEmail("");
       setAuthStatus("已退出登录，本地模式仍可继续使用。");
     } catch (error) {
       setAuthStatus(error.message);
@@ -756,6 +760,37 @@ function App() {
       });
       setPreferencesStatus("家庭成员偏好已保存。");
       showNotice("成员偏好已保存");
+      await loadPreferencesForFamily();
+    } catch (error) {
+      setPreferencesStatus(error.message);
+    } finally {
+      setPreferencesLoading(false);
+    }
+  }
+
+  async function inviteMember() {
+    if (!family?.id) {
+      setPreferencesStatus("请先登录并创建家庭空间。");
+      return;
+    }
+
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) {
+      setPreferencesStatus("请输入要邀请的邮箱。");
+      return;
+    }
+    if (familyMembers.some((member) => member.email?.toLowerCase() === email)) {
+      setPreferencesStatus("这个邮箱已经在家庭成员列表中。");
+      return;
+    }
+
+    setPreferencesLoading(true);
+    setPreferencesStatus("正在添加家庭成员邀请...");
+    try {
+      await inviteFamilyMember({ familyId: family.id, email });
+      setInviteEmail("");
+      setPreferencesStatus("家庭成员邀请已添加。");
+      showNotice("成员邀请已添加");
       await loadPreferencesForFamily();
     } catch (error) {
       setPreferencesStatus(error.message);
@@ -977,7 +1012,10 @@ function App() {
     draft: preferenceDraft,
     loading: preferencesLoading,
     status: preferencesStatus,
+    inviteEmail,
+    setInviteEmail,
     onDraftChange: updatePreferenceDraft,
+    onInviteMember: inviteMember,
     onSavePreference: savePreference,
     onRefreshPreferences: () => loadPreferencesForFamily(),
   };

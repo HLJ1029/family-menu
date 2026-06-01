@@ -47,6 +47,20 @@ export async function saveMemberPreference({ familyId, memberId, preference }) {
   if (insertError) throw insertError;
 }
 
+export async function inviteFamilyMember({ familyId, email }) {
+  const supabase = await getSupabase();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { error } = await supabase.from("family_members").insert({
+    family_id: familyId,
+    email: normalizedEmail,
+    role: "member",
+    status: "invited",
+  });
+
+  if (error) throw error;
+}
+
 export function normalizePreference(preference = {}) {
   return {
     likes: cleanList(preference.likes),
