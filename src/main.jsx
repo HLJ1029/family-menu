@@ -473,7 +473,7 @@ function App() {
       setAiExplanationStatus("DeepSeek 解释已生成。");
     } catch (error) {
       setAiExplanation(displayedRecommendation.reason);
-      setAiExplanationStatus(`${error.message} 已回退到规则解释。`);
+      setAiExplanationStatus(`${formatAiError(error)} 已回退到本地规则解释。`);
     } finally {
       setAiExplanationLoading(false);
     }
@@ -491,7 +491,7 @@ function App() {
       showNotice("DeepSeek 推荐已更新");
     } catch (error) {
       setAiRecommendation(null);
-      setAiRecommendationStatus(`${error.message} 已回退到本地规则推荐。`);
+      setAiRecommendationStatus(`${formatAiError(error)} 已回退到本地规则推荐。`);
     } finally {
       setAiRecommendationLoading(false);
     }
@@ -1246,6 +1246,20 @@ function getExpiryState(expiresOn) {
   if (daysUntilExpiry < 0) return "expired";
   if (daysUntilExpiry <= 3) return "soon";
   return "fresh";
+}
+
+function formatAiError(error) {
+  const message = error?.message ?? "DeepSeek 暂时不可用。";
+  if (message.includes("FunctionsHttpError") || message.includes("Edge Function")) {
+    return "DeepSeek Edge Function 尚未部署或返回错误。";
+  }
+  if (message.includes("DEEPSEEK_API_KEY")) {
+    return "DeepSeek API Key 尚未配置。";
+  }
+  if (message.includes("Supabase is not configured")) {
+    return "Supabase 尚未配置，DeepSeek 暂不可用。";
+  }
+  return message;
 }
 
 function useIsMobileViewport() {
