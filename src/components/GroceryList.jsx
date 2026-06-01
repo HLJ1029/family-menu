@@ -1,4 +1,4 @@
-import { Check, PackageCheck, Plus, RotateCcw, Share2, Trash2 } from "lucide-react";
+import { Check, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
 
@@ -23,6 +23,8 @@ export function GroceryList({
   onShare,
   checkedItems,
   setCheckedItems,
+  cloudSync,
+  onOpenUserCenter,
 }) {
   const visibleRecipeItemCount = groups.reduce((total, group) => total + group.items.length, 0);
   const totalItemCount = items.length + customItems.length;
@@ -114,6 +116,7 @@ export function GroceryList({
       </div>
 
       <Card>
+        <GroceryCloudStatus cloudSync={cloudSync} onOpenUserCenter={onOpenUserCenter} />
         <p className="eyebrow">Auto merged</p>
         <h3 className="card-title">合并采购清单</h3>
         <p className="mt-4 text-sm leading-7 text-ink/56">
@@ -262,6 +265,63 @@ export function GroceryList({
         )}
       </Card>
     </section>
+  );
+}
+
+function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
+  const family = cloudSync?.family;
+  const enabled = Boolean(cloudSync?.enabled);
+  const loading = Boolean(cloudSync?.loading);
+  const status = cloudSync?.status ?? "食材清单会先保存在本机。";
+
+  return (
+    <div className="mb-5 rounded-[22px] border border-line bg-canvas p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
+          <Cloud size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Sync</p>
+          <p className="mt-1 text-sm font-black">
+            {enabled ? "食材清单云同步" : family ? "食材清单待迁移" : "本地食材清单"}
+          </p>
+          <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
+            {loading ? "正在同步食材清单..." : status}
+          </p>
+        </div>
+      </div>
+
+      {family ? (
+        <div className="mt-4 grid gap-2">
+          <button
+            type="button"
+            onClick={cloudSync.onMigrate}
+            disabled={loading}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <UploadCloud size={16} />
+            {enabled ? "重新迁移本地清单" : "迁移食材清单"}
+          </button>
+          <button
+            type="button"
+            onClick={cloudSync.onRefresh}
+            disabled={loading}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-transparent px-4 text-sm font-black text-ink/60 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <RefreshCw size={15} />
+            从云端刷新
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenUserCenter}
+          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
+        >
+          去用户中心登录
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -814,6 +814,15 @@ function App() {
               onShare={shareGroceryList}
               checkedItems={checkedItems}
               setCheckedItems={setCheckedItems}
+              cloudSync={{
+                family,
+                enabled: cloudGroceryEnabled,
+                loading: cloudGroceryLoading,
+                status: cloudGroceryStatus,
+                onMigrate: migrateGroceryToCloud,
+                onRefresh: refreshCloudGrocery,
+              }}
+              onOpenUserCenter={() => setActiveView("user")}
             />
           )}
           {activeView === "stats" && (
