@@ -28,6 +28,7 @@ import {
   recipes,
 } from "./lib/recipes";
 import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import { explainRecommendation } from "./lib/supabase/aiExplanation";
 import {
   createFamilySpace,
   getCurrentSession,
@@ -103,6 +104,9 @@ function App() {
   const [preferenceDraft, setPreferenceDraft] = useState({});
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiExplanationStatus, setAiExplanationStatus] = useState("AI 解释会在 Edge Function 配置后启用。");
+  const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
@@ -379,6 +383,11 @@ function App() {
     [familyMembers, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
   );
 
+  useEffect(() => {
+    setAiExplanation("");
+    setAiExplanationStatus("AI 解释会在 Edge Function 配置后启用。");
+  }, [todayRecommendation.title]);
+
   function showNotice(message) {
     setNotice(message);
     window.clearTimeout(showNotice.timer);
@@ -442,6 +451,21 @@ function App() {
 
     recommendedIds.forEach(addToday);
     showNotice(`已加入 ${recommendedIds.length} 道推荐菜`);
+  }
+
+  async function requestAiExplanation() {
+    setAiExplanationLoading(true);
+    setAiExplanationStatus("正在生成 AI 解释...");
+    try {
+      const text = await explainRecommendation(todayRecommendation);
+      setAiExplanation(text);
+      setAiExplanationStatus("AI 解释已生成。");
+    } catch (error) {
+      setAiExplanation(todayRecommendation.reason);
+      setAiExplanationStatus(`${error.message} 已回退到规则解释。`);
+    } finally {
+      setAiExplanationLoading(false);
+    }
   }
 
   function updateTodayQuantity(recipeId, delta) {
@@ -887,9 +911,13 @@ function App() {
               pantryExpirySummary={pantryExpirySummary}
               recommendation={todayRecommendation}
               familyMembers={familyMembers}
+              aiExplanation={aiExplanation}
+              aiExplanationStatus={aiExplanationStatus}
+              aiExplanationLoading={aiExplanationLoading}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
+              onRequestAiExplanation={requestAiExplanation}
             />
           )}
           {activeView === "library" && (

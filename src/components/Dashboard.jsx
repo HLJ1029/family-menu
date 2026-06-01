@@ -18,9 +18,13 @@ export function Dashboard({
   pantryExpirySummary,
   recommendation,
   familyMembers,
+  aiExplanation,
+  aiExplanationStatus,
+  aiExplanationLoading,
   onViewChange,
   onOpenRecipe,
   onAddRecommended,
+  onRequestAiExplanation,
 }) {
   const weekCoverage = Object.values(weekPlan).filter((items) => items.length > 0).length;
   const displayedMembers = familyMembers.length > 0
@@ -128,6 +132,25 @@ export function Dashboard({
                 {text}
               </div>
             ))}
+          </div>
+          <div className="mt-3 rounded-[20px] border border-line bg-white p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">AI explanation</p>
+                <p className="mt-1 text-sm font-bold leading-6 text-ink/56">
+                  {aiExplanation || recommendation.reason}
+                </p>
+                <p className="mt-2 text-xs font-bold leading-5 text-ink/40">{aiExplanationStatus}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onRequestAiExplanation}
+                disabled={aiExplanationLoading}
+                className="min-h-11 shrink-0 rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {aiExplanationLoading ? "生成中" : "生成 AI 解释"}
+              </button>
+            </div>
           </div>
           <button
             type="button"
