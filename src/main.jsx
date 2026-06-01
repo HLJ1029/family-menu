@@ -772,6 +772,15 @@ function App() {
               draggedRecipeId={draggedRecipeId}
               onAssign={assignPlan}
               onRemove={removePlanRecipe}
+              cloudSync={{
+                family,
+                enabled: cloudMenuEnabled,
+                loading: cloudMenuLoading,
+                status: cloudSyncStatus,
+                onMigrate: migrateMenusToCloud,
+                onRefresh: refreshCloudMenus,
+                onOpenUserCenter: () => setActiveView("user"),
+              }}
             />
           )}
           {activeView === "today" && (
@@ -782,6 +791,15 @@ function App() {
               onUpdateQuantity={updateTodayQuantity}
               onOpenRecipe={openRecipe}
               onViewChange={setActiveView}
+              cloudSync={{
+                family,
+                enabled: cloudMenuEnabled,
+                loading: cloudMenuLoading,
+                status: cloudSyncStatus,
+                onMigrate: migrateMenusToCloud,
+                onRefresh: refreshCloudMenus,
+                onOpenUserCenter: () => setActiveView("user"),
+              }}
             />
           )}
           {activeView === "calendar" && (

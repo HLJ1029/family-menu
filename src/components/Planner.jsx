@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
+import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { MiniMeal } from "./ui/MiniMeal";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove }) {
+export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync }) {
   const [selectedDay, setSelectedDay] = useState(days[0]);
   const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0]?.id ?? "");
   const [pickerDay, setPickerDay] = useState(null);
@@ -131,6 +132,14 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove }) {
           </div>
         </div>
       </Card>
+
+      <CloudInlineStatus
+        {...cloudSync}
+        localLabel="本地一周计划"
+        pendingLabel="一周计划待迁移"
+        enabledLabel="一周计划云同步"
+        migrateLabel={cloudSync?.enabled ? "重新迁移本地计划" : "迁移一周计划"}
+      />
 
       <div className="grid gap-4">
         {days.map((day) => {

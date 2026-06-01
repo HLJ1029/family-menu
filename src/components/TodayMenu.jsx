@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Minus, Plus, Search, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor, photoFor, recipes } from "../lib/recipes";
+import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 
 export function TodayMenu({
@@ -10,6 +11,7 @@ export function TodayMenu({
   onUpdateQuantity,
   onOpenRecipe,
   onViewChange,
+  cloudSync,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
@@ -43,6 +45,13 @@ export function TodayMenu({
           todayRecipes={todayRecipes}
           onAddToday={onAddToday}
           onOpenRecipe={onOpenRecipe}
+        />
+        <CloudInlineStatus
+          {...cloudSync}
+          localLabel="本地今日菜单"
+          pendingLabel="今日菜单待迁移"
+          enabledLabel="今日菜单云同步"
+          migrateLabel={cloudSync?.enabled ? "重新迁移本地菜单" : "迁移今日菜单"}
         />
       </section>
     );
@@ -90,6 +99,14 @@ export function TodayMenu({
             onOpenRecipe={onOpenRecipe}
           />
         )}
+
+        <CloudInlineStatus
+          {...cloudSync}
+          localLabel="本地今日菜单"
+          pendingLabel="今日菜单待迁移"
+          enabledLabel="今日菜单云同步"
+          migrateLabel={cloudSync?.enabled ? "重新迁移本地菜单" : "迁移今日菜单"}
+        />
 
         <div className="grid gap-4">
           {todayRecipes.map((recipe) => (
