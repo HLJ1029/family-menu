@@ -11,6 +11,10 @@ export function GroceryList({
   pantryItems,
   newPantryItem,
   setNewPantryItem,
+  newPantryAmount,
+  setNewPantryAmount,
+  newPantryExpiresOn,
+  setNewPantryExpiresOn,
   onAddCustomItem,
   onRemoveCustomItem,
   onAddPantryItem,
@@ -192,10 +196,14 @@ export function GroceryList({
             </span>
           </div>
           <form
-            className="mt-3 flex gap-2"
+            className="mt-3 grid gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              onAddPantryItem(newPantryItem);
+              onAddPantryItem({
+                name: newPantryItem,
+                amount: newPantryAmount,
+                expiresOn: newPantryExpiresOn,
+              });
             }}
           >
             <input
@@ -204,9 +212,24 @@ export function GroceryList({
               className="min-w-0 flex-1 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
               placeholder="例如：盐、鸡蛋、葱"
             />
-            <button type="submit" className="rounded-full bg-ink px-3 text-xs font-black text-white">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <input
+                value={newPantryAmount}
+                onChange={(event) => setNewPantryAmount(event.target.value)}
+                className="min-w-0 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
+                placeholder="数量"
+              />
+              <input
+                value={newPantryExpiresOn}
+                onChange={(event) => setNewPantryExpiresOn(event.target.value)}
+                type="date"
+                aria-label="到期日"
+                className="min-w-0 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
+              />
+              <button type="submit" className="rounded-full bg-ink px-3 text-xs font-black text-white">
               加入
-            </button>
+              </button>
+            </div>
           </form>
           <div className="mt-3 flex flex-wrap gap-2">
             {pantryItems.length > 0 ? (
@@ -218,7 +241,9 @@ export function GroceryList({
                   className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-white"
                   aria-label={`从厨房库存移除 ${item.name}`}
                 >
-                  {item.name}
+                  <span>{item.name}</span>
+                  {item.amount && <span className="text-ink/38">{item.amount}</span>}
+                  {item.expiresOn && <span className="text-ink/38">{formatExpiry(item.expiresOn)}</span>}
                   <Trash2 size={12} />
                 </button>
               ))
@@ -266,6 +291,10 @@ export function GroceryList({
       </Card>
     </section>
   );
+}
+
+function formatExpiry(value) {
+  return `至 ${value.slice(5)}`;
 }
 
 function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {

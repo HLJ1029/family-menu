@@ -14,7 +14,7 @@ export async function loadGrocerySync(familyId) {
         .eq("family_id", familyId),
       supabase
         .from("pantry_items")
-        .select("id, name, amount")
+        .select("id, name, amount, expires_on")
         .eq("family_id", familyId),
     ]);
 
@@ -65,6 +65,7 @@ async function replacePantryItems({ supabase, familyId, pantryItems }) {
     family_id: familyId,
     name: item.name,
     amount: item.amount ?? null,
+    expires_on: item.expiresOn ?? null,
   }));
 
   if (rows.length === 0) return;
@@ -143,5 +144,6 @@ function rowsToPantryItems(rows) {
     key: `cloud:${row.id}`,
     name: row.name,
     amount: row.amount ?? undefined,
+    expiresOn: row.expires_on ?? undefined,
   }));
 }

@@ -18,6 +18,7 @@ import { formatDateKey, formatDateLabel, getCurrentPlanDay } from "./lib/date";
 import {
   buildRecipeGroceryGroups,
   buildShoppingListFromEntries,
+  formatRawAmount,
   formatShareText,
 } from "./lib/grocery";
 import {
@@ -73,6 +74,8 @@ function App() {
   const [newCustomItem, setNewCustomItem] = useState("");
   const [pantryItems, setPantryItems] = useLocalStorageState("family-menu:pantry-items", []);
   const [newPantryItem, setNewPantryItem] = useState("");
+  const [newPantryAmount, setNewPantryAmount] = useState("");
+  const [newPantryExpiresOn, setNewPantryExpiresOn] = useState("");
   const [excludedGroceryKeys, setExcludedGroceryKeys] = useLocalStorageState(
     "family-menu:excluded-grocery-keys",
     [],
@@ -483,15 +486,25 @@ function App() {
     setCustomItems((current) => current.filter((item) => item.key !== key));
   }
 
-  function addPantryItem(name) {
+  function addPantryItem({ name, amount, expiresOn }) {
     const trimmed = name.trim();
     if (!trimmed) return;
     const normalized = normalizeName(trimmed);
     setPantryItems((current) => {
       if (current.some((item) => normalizeName(item.name) === normalized)) return current;
-      return [...current, { key: `pantry:${Date.now()}`, name: trimmed }];
+      return [
+        ...current,
+        {
+          key: `pantry:${Date.now()}`,
+          name: trimmed,
+          amount: amount.trim() || undefined,
+          expiresOn: expiresOn || undefined,
+        },
+      ];
     });
     setNewPantryItem("");
+    setNewPantryAmount("");
+    setNewPantryExpiresOn("");
     showNotice(`${trimmed} 已加入厨房库存`);
   }
 
@@ -524,7 +537,7 @@ function App() {
       const currentNames = new Set(current.map((item) => normalizeName(item.name)));
       const additions = pantryItemsToAdd
         .filter((item) => !currentNames.has(normalizeName(item.name)))
-        .map((item, index) => ({ key: `pantry:${Date.now()}:${index}`, name: item.name }));
+        .map((item, index) => ({ key: `pantry:${Date.now()}:${index}`, name: item.name, amount: formatRawAmount(item) }));
       return [...current, ...additions];
     });
     showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
@@ -920,6 +933,10 @@ function App() {
               pantryItems={pantryItems}
               newPantryItem={newPantryItem}
               setNewPantryItem={setNewPantryItem}
+              newPantryAmount={newPantryAmount}
+              setNewPantryAmount={setNewPantryAmount}
+              newPantryExpiresOn={newPantryExpiresOn}
+              setNewPantryExpiresOn={setNewPantryExpiresOn}
               onAddCustomItem={addCustomItem}
               onRemoveCustomItem={removeCustomItem}
               onAddPantryItem={addPantryItem}
