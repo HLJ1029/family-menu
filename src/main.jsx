@@ -622,14 +622,41 @@ function App() {
 
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
+    await shareText({ title: "家庭菜单食材清单", text, success: "食材清单已复制" });
+  }
+
+  async function shareTodayMenu() {
+    const text = [
+      "FamilyOS 今日菜单",
+      "",
+      ...todayRecipes.map((recipe) => `- ${recipe.name} x${recipe.menuQuantity ?? 1}`),
+      "",
+      `待买食材：${visibleGroceryItems.length} 项`,
+    ].join("\n");
+    await shareText({ title: "FamilyOS 今日菜单", text, success: "今日菜单已复制" });
+  }
+
+  async function shareWeekPlan() {
+    const text = [
+      "FamilyOS 一周计划",
+      "",
+      ...Object.entries(weekPlan).map(([day, recipeIds]) => {
+        const names = recipeIds.map((recipeId) => getRecipe(recipeId)?.name).filter(Boolean);
+        return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
+      }),
+    ].join("\n");
+    await shareText({ title: "FamilyOS 一周计划", text, success: "一周计划已复制" });
+  }
+
+  async function shareText({ title, text, success }) {
     try {
       if (navigator.share) {
-        await navigator.share({ title: "家庭菜单食材清单", text });
+        await navigator.share({ title, text });
         showNotice("清单已打开分享面板");
         return;
       }
       await navigator.clipboard.writeText(text);
-      showNotice("食材清单已复制");
+      showNotice(success);
     } catch {
       showNotice("分享失败，可稍后重试");
     }
@@ -1089,6 +1116,7 @@ function App() {
               draggedRecipeId={draggedRecipeId}
               onAssign={assignPlan}
               onRemove={removePlanRecipe}
+              onShare={shareWeekPlan}
               cloudSync={{
                 family,
                 enabled: cloudMenuEnabled,
@@ -1108,6 +1136,7 @@ function App() {
               onUpdateQuantity={updateTodayQuantity}
               onOpenRecipe={openRecipe}
               onViewChange={setActiveView}
+              onShare={shareTodayMenu}
               cloudSync={{
                 family,
                 enabled: cloudMenuEnabled,

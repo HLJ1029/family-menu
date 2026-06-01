@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, Share2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -8,7 +8,7 @@ import { MiniMeal } from "./ui/MiniMeal";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync }) {
+export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync, onShare }) {
   const [selectedDay, setSelectedDay] = useState(days[0]);
   const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0]?.id ?? "");
   const [pickerDay, setPickerDay] = useState(null);
@@ -70,6 +70,14 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   {day}加菜
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={onShare}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink"
+              >
+                <Share2 size={15} />
+                分享周计划
+              </button>
             </div>
           </div>
 

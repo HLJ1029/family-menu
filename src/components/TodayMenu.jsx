@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Minus, Plus, Search, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { Minus, Plus, Search, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
@@ -12,6 +12,7 @@ export function TodayMenu({
   onOpenRecipe,
   onViewChange,
   cloudSync,
+  onShare,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
@@ -87,6 +88,14 @@ export function TodayMenu({
               >
                 <ShoppingBasket size={18} />
                 查看采购清单
+              </button>
+              <button
+                type="button"
+                onClick={onShare}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <Share2 size={18} />
+                分享菜单
               </button>
             </div>
           </div>
