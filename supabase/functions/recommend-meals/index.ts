@@ -21,6 +21,9 @@ Deno.serve(async (request) => {
     if (!Array.isArray(payload?.candidates) || payload.candidates.length === 0) {
       return jsonResponse({ error: "Missing recommendation candidates." }, 400);
     }
+    const candidates = payload.candidates as Array<{ id: string; name?: string }>;
+    const candidateIds = new Set(candidates.map((candidate) => candidate.id));
+    const candidateList = candidates.map((candidate) => `${candidate.id}=${candidate.name ?? candidate.id}`).join("; ");
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -34,11 +37,13 @@ Deno.serve(async (request) => {
           {
             role: "system",
             content:
-              "你是 FamilyOS 的家庭饮食推荐助手。你必须只从候选菜谱中选择，不能创造新菜。输出 JSON，格式为 {\"recipeIds\":[\"id1\",\"id2\"],\"reason\":\"...\",\"pantry\":\"...\",\"preference\":\"...\",\"grocery\":\"...\"}。recipeIds 必须包含 1-2 个候选 id。",
+              "你是 FamilyOS 的家庭饮食推荐助手。你必须只从候选菜谱中选择，不能创造新菜。输出 JSON，格式为 {\"recipeIds\":[\"id1\",\"id2\"],\"reason\":\"...\",\"pantry\":\"...\",\"preference\":\"...\",\"grocery\":\"...\"}。recipeIds 必须包含 1-2 个候选 id，不能返回菜名。",
           },
           {
             role: "user",
             content: JSON.stringify({
+              validCandidateIds: [...candidateIds],
+              candidateIdMap: candidateList,
               candidates: payload.candidates,
               pantryItems: payload.pantryItems,
               familyPreferences: payload.familyPreferences,
@@ -60,14 +65,7 @@ Deno.serve(async (request) => {
     }
 
     const parsed = parseJson(extractText(data));
-    const candidateIds = new Set(payload.candidates.map((candidate: { id: string }) => candidate.id));
-    const recipeIds = Array.isArray(parsed.recipeIds)
-      ? parsed.recipeIds.filter((id: unknown) => typeof id === "string" && candidateIds.has(id)).slice(0, 2)
-      : [];
-
-    if (recipeIds.length === 0) {
-      return jsonResponse({ error: "DeepSeek did not return valid candidate recipe ids." }, 422);
-    }
+    const recipeIds = resolveRecipeIds({ parsed, candidates, candidateIds, fallbackIds: payload.ruleFallback?.recipeIds });
 
     return jsonResponse({
       recipeIds,
@@ -95,6 +93,64 @@ function parseJson(value: string) {
     const match = value.match(/\{[\s\S]*\}/);
     return match ? JSON.parse(match[0]) : {};
   }
+}
+
+function resolveRecipeIds({
+  parsed,
+  candidates,
+  candidateIds,
+  fallbackIds,
+}: {
+  parsed: Record<string, unknown>;
+  candidates: Array<{ id: string; name?: string }>;
+  candidateIds: Set<string>;
+  fallbackIds?: unknown;
+}) {
+  const byNormalizedKey = new Map<string, string>();
+  candidates.forEach((candidate) => {
+    byNormalizedKey.set(normalizeCandidateKey(candidate.id), candidate.id);
+    if (candidate.name) byNormalizedKey.set(normalizeCandidateKey(candidate.name), candidate.id);
+  });
+
+  const rawIds = collectRecipeSignals(parsed);
+  const resolved = rawIds
+    .map((value) => resolveRecipeId(value, candidateIds, byNormalizedKey))
+    .filter((id): id is string => Boolean(id));
+
+  const fallback = Array.isArray(fallbackIds)
+    ? fallbackIds.filter((id): id is string => typeof id === "string" && candidateIds.has(id))
+    : [];
+
+  return [...new Set([...resolved, ...fallback])].slice(0, 2);
+}
+
+function collectRecipeSignals(parsed: Record<string, unknown>) {
+  const values = [parsed.recipeIds, parsed.recipes, parsed.recipeId, parsed.recipeNames, parsed.names];
+  return values.flatMap((value) => {
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => {
+        if (typeof item === "string") return [item];
+        if (item && typeof item === "object") {
+          const record = item as Record<string, unknown>;
+          return [record.id, record.recipeId, record.name].filter((entry): entry is string => typeof entry === "string");
+        }
+        return [];
+      });
+    }
+    return typeof value === "string" ? [value] : [];
+  });
+}
+
+function resolveRecipeId(value: string, candidateIds: Set<string>, byNormalizedKey: Map<string, string>) {
+  if (candidateIds.has(value)) return value;
+  return byNormalizedKey.get(normalizeCandidateKey(value));
+}
+
+function normalizeCandidateKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-+，,、。.\[\]【】（）()]/g, "");
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
