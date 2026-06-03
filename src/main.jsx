@@ -63,6 +63,8 @@ import {
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
 
+const weekPlanDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+
 registerServiceWorker();
 
 function App() {
@@ -466,6 +468,36 @@ function App() {
     showNotice(`已加入 ${recommendedIds.length} 道推荐菜`);
   }
 
+  function planRecommendedWeek() {
+    const recommendedIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const currentDay = getCurrentPlanDay();
+    const orderedDays = orderPlanDaysFrom(currentDay);
+    const existingIds = new Set(Object.values(weekPlan).flat());
+    const nextWeekPlan = { ...weekPlan };
+    let addedCount = 0;
+
+    recommendedIds.forEach((recipeId) => {
+      if (existingIds.has(recipeId)) return;
+      const targetDay =
+        orderedDays.find((day) => (nextWeekPlan[day] ?? []).length < 2) ??
+        orderedDays.find((day) => (nextWeekPlan[day] ?? []).length < 3) ??
+        currentDay;
+      nextWeekPlan[targetDay] = [...(nextWeekPlan[targetDay] ?? []), recipeId];
+      existingIds.add(recipeId);
+      addedCount += 1;
+    });
+
+    if (addedCount > 0) setWeekPlan(nextWeekPlan);
+    showNotice(addedCount > 0 ? `已安排 ${addedCount} 道推荐菜到本周计划` : "推荐菜已在本周计划中");
+  }
+
+  function completeRecommendedGrocery() {
+    const missingCount = displayedRecommendation.missingItems.length;
+    addRecommendedToday();
+    setActiveView("grocery");
+    showNotice(missingCount > 0 ? `已生成 ${missingCount} 项推荐采购缺口` : "推荐菜已加入，采购清单已更新");
+  }
+
   async function requestAiExplanation() {
     if (!session?.user) {
       setAiExplanation(displayedRecommendation.reason);
@@ -502,8 +534,9 @@ function App() {
       const result = await recommendMeals(buildAiRecommendationContext({ todayRecommendation }));
       const nextRecommendation = hydrateAiRecommendation({ result, fallback: todayRecommendation });
       setAiRecommendation(nextRecommendation);
-      setAiExplanation("");
+      setAiExplanation(result.reason ?? nextRecommendation.reason);
       setAiRecommendationStatus("DeepSeek 推荐已生成。");
+      setAiExplanationStatus("已使用 DeepSeek 推荐理由；可继续生成更完整解释。");
       showNotice("DeepSeek 推荐已更新");
     } catch (error) {
       setAiRecommendation(null);
@@ -1127,6 +1160,8 @@ function App() {
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
+              onPlanRecommended={planRecommendedWeek}
+              onCompleteRecommendedGrocery={completeRecommendedGrocery}
               onRequestAiRecommendation={requestAiRecommendation}
               onRequestAiExplanation={requestAiExplanation}
             />
@@ -1293,6 +1328,11 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function orderPlanDaysFrom(startDay) {
+  const startIndex = Math.max(weekPlanDays.indexOf(startDay), 0);
+  return [...weekPlanDays.slice(startIndex), ...weekPlanDays.slice(0, startIndex)];
 }
 
 function formatAiError(error) {

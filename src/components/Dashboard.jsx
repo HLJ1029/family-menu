@@ -1,4 +1,16 @@
-import { BarChart3, CalendarDays, ClipboardList, ListChecks, PackageCheck, Sparkles, UserRound, Users } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  CalendarPlus,
+  ClipboardList,
+  ListChecks,
+  PackageCheck,
+  ShoppingBasket,
+  Sparkles,
+  UserRound,
+  Users,
+  Utensils,
+} from "lucide-react";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { MetricCard } from "./ui/StatsBlocks";
@@ -26,6 +38,8 @@ export function Dashboard({
   onViewChange,
   onOpenRecipe,
   onAddRecommended,
+  onPlanRecommended,
+  onCompleteRecommendedGrocery,
   onRequestAiRecommendation,
   onRequestAiExplanation,
 }) {
@@ -33,6 +47,9 @@ export function Dashboard({
   const displayedMembers = familyMembers.length > 0
     ? familyMembers.map(formatFamilyMember)
     : fallbackFamilyMembers;
+  const missingSummary = recommendation.missingItems.length > 0
+    ? recommendation.missingItems.map((item) => item.name).join("、")
+    : "不需要额外补齐核心食材";
   return (
     <div className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
       <section className="relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
@@ -143,7 +160,7 @@ export function Dashboard({
           </div>
           <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/56">
             {recommendation.missingItems.length > 0
-              ? `采购提醒：${recommendation.missingItems.map((item) => item.name).join("、")}`
+              ? `采购提醒：${missingSummary}`
               : "当前推荐与可用库存匹配度不错，可以直接加入今日菜单。"}
           </div>
           <div className="mt-3 grid gap-2 md:grid-cols-3">
@@ -172,13 +189,32 @@ export function Dashboard({
               </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onAddRecommended}
-            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
-          >
-            加入今日菜单
-          </button>
+          <div className="mt-4 rounded-[22px] border border-line bg-canvas p-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <RecommendationAction
+                icon={Utensils}
+                label="加入今日菜单"
+                note="同步今天和当天计划"
+                primary
+                onClick={onAddRecommended}
+              />
+              <RecommendationAction
+                icon={CalendarPlus}
+                label="安排到本周"
+                note="填入本周空位"
+                onClick={onPlanRecommended}
+              />
+              <RecommendationAction
+                icon={ShoppingBasket}
+                label="补齐采购清单"
+                note={recommendation.missingItems.length > 0 ? `${recommendation.missingItems.length} 项缺口` : "查看清单"}
+                onClick={onCompleteRecommendedGrocery}
+              />
+            </div>
+            <p className="mt-3 text-xs font-bold leading-5 text-ink/42">
+              加入菜单或计划后，{missingSummary} 会自动合并到食材清单。
+            </p>
+          </div>
         </Card>
       </section>
 
@@ -285,6 +321,26 @@ function SummaryPill({ label, value, note }) {
       <p className="mt-2 text-2xl font-black">{value}</p>
       <p className="mt-2 text-xs font-bold leading-5 text-ink/45">{note}</p>
     </div>
+  );
+}
+
+function RecommendationAction({ icon: Icon, label, note, primary = false, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[74px] items-center gap-3 rounded-[18px] px-3 text-left transition hover:-translate-y-0.5 ${
+        primary ? "bg-ink text-white" : "border border-line bg-white text-ink hover:border-ink/22"
+      }`}
+    >
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${primary ? "bg-acid text-ink" : "bg-acid/70"}`}>
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-black">{label}</span>
+        <span className={`mt-1 block text-xs font-bold leading-4 ${primary ? "text-white/58" : "text-ink/45"}`}>{note}</span>
+      </span>
+    </button>
   );
 }
 
