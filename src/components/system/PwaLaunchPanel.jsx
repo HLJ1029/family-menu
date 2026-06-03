@@ -54,16 +54,16 @@ export function PwaLaunchPanel({ compact = false }) {
           <MonitorSmartphone size={20} />
         </span>
         <div>
-          <p className="eyebrow">PWA launch</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">移动端上线检查</h3>
+          <p className="eyebrow">手机使用</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">添加到手机</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{installState}</p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-2">
-        <LaunchCheck label="线上地址已固定" value={productionUrl} />
+        <LaunchCheck label="手机地址" value={productionUrl} />
         <LaunchCheck label="主屏幕安装" value="Safari 分享按钮 -> 添加到主屏幕" />
-        <LaunchCheck label="离线壳" value="断网后仍可打开 FamilyOS 壳" />
+        <LaunchCheck label="离线可打开" value="断网后也能先打开食间页面" />
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -74,7 +74,7 @@ export function PwaLaunchPanel({ compact = false }) {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
           >
             <Smartphone size={16} />
-            安装 FamilyOS
+            安装食间
           </button>
         ) : (
           <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-4 text-sm font-black text-ink/58">

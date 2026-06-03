@@ -53,7 +53,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
             <p className="eyebrow">Weekly planning</p>
             <h3 className="card-title">快速安排</h3>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              今天是{currentDay}。从菜单库第一次加入今日菜单时，会自动同步到{currentDay}计划；你也可以在下面每一天点“添加菜品”单独安排。
+              今天是{currentDay}。今晚选好的菜会顺手放进今天计划；你也可以在下面单独安排每一天。
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {days.map((day) => (
@@ -144,9 +144,9 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
       <CloudInlineStatus
         {...cloudSync}
         localLabel="本地一周计划"
-        pendingLabel="一周计划待迁移"
-        enabledLabel="一周计划云同步"
-        migrateLabel={cloudSync?.enabled ? "重新迁移本地计划" : "迁移一周计划"}
+        pendingLabel="一周计划待保存"
+        enabledLabel="已保存一周计划"
+        migrateLabel={cloudSync?.enabled ? "重新保存本机计划" : "保存一周计划"}
       />
 
       <div className="grid gap-4">

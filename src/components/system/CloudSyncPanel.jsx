@@ -19,32 +19,32 @@ export function CloudSyncPanel({
     <section className="grid gap-4">
       <SyncCard
         icon={Cloud}
-        eyebrow="Cloud menu sync"
-        title="今日菜单和一周计划"
+        eyebrow="Save"
+        title="今晚菜单和一周计划"
         description={
           cloudMenuEnabled
-            ? `${family.name} 已启用云端菜单同步。`
-            : "先把本地菜单迁移到家庭空间，之后会自动同步。"
+            ? `${family.name} 已经记住这些菜单。`
+            : "把本机菜单保存到我的家，之后换设备也能继续看。"
         }
         loading={cloudMenuLoading}
         status={cloudSyncStatus}
-        primaryLabel="迁移本地菜单"
-        secondaryLabel="从云端刷新"
+        primaryLabel="保存本机菜单"
+        secondaryLabel="刷新菜单"
         onPrimary={onMigrateLocalMenus}
         onSecondary={onRefreshCloudMenus}
       />
       <SyncCard
         icon={ShoppingBasket}
-        eyebrow="Cloud grocery sync"
-        title="食材清单和厨房库存"
+        eyebrow="Save"
+        title="食材清单和家中库存"
         description={
           cloudGroceryEnabled
-            ? "手动清单、勾选状态、家中已有材料和厨房库存会自动同步。"
-            : "菜单迁移后，继续把买菜时会改动的清单状态迁移到云端。"
+            ? "买菜勾选、家里现有和库存都会被记住。"
+            : "菜单保存后，再把买菜时会改动的清单也保存起来。"
         }
         loading={cloudGroceryLoading}
         status={cloudGroceryStatus}
-        primaryLabel="迁移食材清单"
+        primaryLabel="保存食材清单"
         secondaryLabel="刷新食材清单"
         onPrimary={onMigrateLocalGrocery}
         onSecondary={onRefreshCloudGrocery}
@@ -99,7 +99,7 @@ function SyncCard({
       </div>
 
       <p className="mt-4 rounded-[20px] bg-canvas p-4 text-xs font-bold leading-5 text-ink/50">
-        {loading ? "正在同步..." : status}
+        {loading ? "正在保存..." : status}
       </p>
     </section>
   );

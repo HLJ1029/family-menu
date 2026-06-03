@@ -130,7 +130,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           }}
           className="mt-5 w-full rounded-full border border-ink/10 bg-ink px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `今日菜单 ${quantity} 份 · 查看详情` : "查看详情"}
+          {quantity > 0 ? `今晚菜单 ${quantity} 份 · 查看详情` : "查看详情"}
         </button>
       </div>
     </article>

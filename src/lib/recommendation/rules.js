@@ -118,19 +118,19 @@ function collectMatchedPantryItems(selected, pantryState) {
 }
 
 function buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItems }) {
-  if (expiringHits > 0) return `优先消耗临期库存：${matchedPantryItems.join("、") || `${expiringHits} 项食材`}。`;
-  if (inventoryHits > 0) return `可利用家中已有：${matchedPantryItems.join("、") || `${inventoryHits} 项食材`}。`;
-  return "当前推荐主要依赖新采购食材。";
+  if (expiringHits > 0) return `先把快到期的吃掉：${matchedPantryItems.join("、") || `${expiringHits} 项食材`}。`;
+  if (inventoryHits > 0) return `能用上家里现有的：${matchedPantryItems.join("、") || `${inventoryHits} 项食材`}。`;
+  return "这组需要新买几样主食材，适合顺路补齐。";
 }
 
 function buildPreferenceExplanation(preferenceHits) {
-  if (preferenceHits > 0) return `匹配 ${preferenceHits} 个家庭偏好或饮食目标。`;
-  return "暂无明确偏好命中，按库存、营养和耗时排序。";
+  if (preferenceHits > 0) return `照顾到 ${preferenceHits} 个家人口味或饮食目标。`;
+  return "还没记录太多口味，先按家里现有、耗时和搭配来安排。";
 }
 
 function buildGroceryExplanation(missingItems) {
-  if (missingItems.length === 0) return "无需额外补齐核心食材。";
-  return `需要补齐：${dedupeItems(missingItems).map((item) => item.name).join("、")}。`;
+  if (missingItems.length === 0) return "主食材基本够了，可以直接开做。";
+  return `还要买：${dedupeItems(missingItems).map((item) => item.name).join("、")}。`;
 }
 
 function buildPantryState(pantryItems) {
@@ -219,7 +219,7 @@ function buildReason({ selected, inventoryHits, expiringHits, groceryItems, sele
     return `优先消耗 ${expiringHits} 项临期库存，同时避开已过期食材，适合今天减少浪费。`;
   }
   if (preferenceHits > 0) {
-    return `已参考家庭偏好和饮食目标，优先避开忌口并匹配 ${preferenceHits} 个偏好信号。`;
+    return `已参考家人口味和饮食目标，尽量避开忌口，也照顾到 ${preferenceHits} 个口味信号。`;
   }
   if (inventoryHits > 0) {
     return `优先消耗家中已有食材，预计少买 ${inventoryHits} 项，适合今天快速开火。`;

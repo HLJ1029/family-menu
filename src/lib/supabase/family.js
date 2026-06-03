@@ -35,7 +35,7 @@ export async function signUpWithPassword({ email, password }) {
 export async function ensureUserProfile(user) {
   const supabase = await getSupabase();
   const email = user.email ?? "";
-  const displayName = user.user_metadata?.name ?? email.split("@")[0] ?? "FamilyOS 用户";
+  const displayName = user.user_metadata?.name ?? email.split("@")[0] ?? "食间用户";
   const profile = {
     id: user.id,
     email,

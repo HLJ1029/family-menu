@@ -10,12 +10,12 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
         <section className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">User center</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">我的家</p>
           <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            账号、家庭与云同步。
+            把家里的吃饭习惯存下来。
           </h2>
           <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
-            网页端把登录放在用户中心；移动端首次打开会优先进入登录页，也可以先体验本地功能。
+            先体验也可以。想让菜单、清单和口味一直跟着你，再登录保存。
           </p>
         </section>
 
@@ -30,16 +30,16 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="eyebrow">Account</p>
+              <p className="eyebrow">我的家</p>
               <h3 className="card-title">当前状态</h3>
             </div>
             <UserRound size={22} />
           </div>
           <div className="mt-5 grid gap-3">
             <StatusRow label="登录" value={session?.user?.email ?? "未登录"} />
-            <StatusRow label="家庭空间" value={family?.name ?? "未创建"} />
+            <StatusRow label="我的家" value={family?.name ?? "未创建"} />
             <StatusRow
-              label="同步模式"
+              label="保存方式"
               value={getSyncModeLabel({ family, cloudMenuProps })}
             />
           </div>
@@ -48,13 +48,13 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="eyebrow">Next</p>
-              <h3 className="card-title">下一步同步</h3>
+              <p className="eyebrow">接下来</p>
+              <h3 className="card-title">接下来</h3>
             </div>
             <Database size={22} />
           </div>
           <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            今日菜单、一周计划、食材清单、厨房库存和 DeepSeek 推荐闭环已经接入；下一步以线上 PWA 真机验收为主。
+            现在可以先用食间安排晚饭。下一步准备小程序入口，让家里人更容易打开。
           </p>
         </Card>
 
@@ -64,9 +64,9 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
               <Cloud size={20} />
             </span>
             <div>
-              <p className="font-black">微信登录预留</p>
+              <p className="font-black">微信登录准备中</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-                当前不显示可点击登录按钮。等正式域名、开放平台应用、回调地址和隐私协议齐备后接入。
+                当前先不放不可用按钮。等小程序和正式域名准备好，再接微信登录。
               </p>
             </div>
           </div>
@@ -95,10 +95,10 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
 }
 
 function getSyncModeLabel({ family, cloudMenuProps }) {
-  if (!family) return "本地体验";
-  if (cloudMenuProps?.cloudMenuEnabled && cloudMenuProps?.cloudGroceryEnabled) return "核心数据云同步";
-  if (cloudMenuProps?.cloudMenuEnabled || cloudMenuProps?.cloudGroceryEnabled) return "部分云同步";
-  return "待迁移";
+  if (!family) return "先保存在本机";
+  if (cloudMenuProps?.cloudMenuEnabled && cloudMenuProps?.cloudGroceryEnabled) return "已保存到我的家";
+  if (cloudMenuProps?.cloudMenuEnabled || cloudMenuProps?.cloudGroceryEnabled) return "部分已保存";
+  return "待保存";
 }
 
 function StatusRow({ label, value }) {

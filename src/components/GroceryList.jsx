@@ -298,12 +298,12 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
           <Cloud size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Sync</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Save</p>
           <p className="mt-1 text-sm font-black">
-            {enabled ? "食材清单云同步" : family ? "食材清单待迁移" : "本地食材清单"}
+            {enabled ? "已保存到我的家" : family ? "清单待保存" : "先保存在本机"}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            {loading ? "正在同步食材清单..." : status}
+            {loading ? "正在保存食材清单..." : status}
           </p>
         </div>
       </div>
@@ -317,7 +317,7 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
             className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
           >
             <UploadCloud size={16} />
-            {enabled ? "重新迁移本地清单" : "迁移食材清单"}
+            {enabled ? "重新保存本机清单" : "保存食材清单"}
           </button>
           <button
             type="button"
@@ -326,7 +326,7 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
             className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-transparent px-4 text-sm font-black text-ink/60 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
           >
             <RefreshCw size={15} />
-            从云端刷新
+            刷新清单
           </button>
         </div>
       ) : (
@@ -335,7 +335,7 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
           onClick={onOpenUserCenter}
           className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
         >
-          去用户中心登录
+          去我的家登录
         </button>
       )}
     </div>

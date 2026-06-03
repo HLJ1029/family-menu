@@ -247,7 +247,7 @@ export function RecipeDetailDrawer({
                 <Minus size={18} />
               </button>
               <div className="rounded-full bg-ink px-5 py-4 text-center text-sm font-black text-white shadow-card">
-                今日菜单 · {todayEntry.quantity} 份
+                今晚菜单 · {todayEntry.quantity} 份
               </div>
               <button
                 type="button"
@@ -265,7 +265,7 @@ export function RecipeDetailDrawer({
               className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5"
             >
               <Plus size={18} className="text-acid" />
-              加入今日菜单
+              加入今晚菜单
             </button>
           )}
         </div>

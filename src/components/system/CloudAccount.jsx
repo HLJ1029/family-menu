@@ -43,7 +43,7 @@ export function CloudAccount({
     }
 
     setAuthStatus("登录链接已发送，请检查邮箱。");
-    showNotice("FamilyOS 登录链接已发送");
+    showNotice("食间登录链接已发送");
   }
 
   return (
@@ -53,10 +53,10 @@ export function CloudAccount({
           <Cloud size={20} />
         </span>
         <div>
-          <p className="eyebrow">Family cloud</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">云同步准备就绪</h3>
+          <p className="eyebrow">我的家</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">保存家里的吃饭习惯</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            邮箱登录作为第一版入口；微信登录字段和入口已预留，后续接开放平台配置。
+            登录后，食间会记住菜单、清单、库存和家人口味。也可以先直接体验。
           </p>
         </div>
       </div>
@@ -64,15 +64,15 @@ export function CloudAccount({
       {session?.user ? (
         <div className="mt-5 grid gap-3">
           <div className="rounded-[22px] bg-canvas p-4">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Signed in</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">已登录</p>
             <p className="mt-1 text-sm font-black">{session.user.email}</p>
           </div>
           {family ? (
             <div className="rounded-[22px] border border-line bg-canvas p-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Family space</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-                这个家庭空间会承接后续菜单、库存和购物清单云同步。
+                以后菜单、库存、清单和家人口味都会保存在这里。
               </p>
             </div>
           ) : (
@@ -87,7 +87,7 @@ export function CloudAccount({
                 value={familyName}
                 onChange={(event) => setFamilyName(event.target.value)}
                 className="min-h-12 min-w-0 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-                placeholder="家庭空间名称"
+                placeholder="我的家名称"
               />
               <button
                 type="submit"
@@ -95,7 +95,7 @@ export function CloudAccount({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={17} />
-                创建家庭
+                创建我的家
               </button>
             </form>
           )}
@@ -106,7 +106,7 @@ export function CloudAccount({
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             <LogOut size={16} />
-            退出登录
+            退出账号
           </button>
         </div>
       ) : (
@@ -160,7 +160,7 @@ export function CloudAccount({
           </form>
           <form className="grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={requestMagicLink}>
             <p className="text-xs font-bold leading-5 text-ink/45 sm:col-span-2">
-              Magic link 仍然保留；如果遇到发送频率限制，优先用密码登录继续测试。
+              也可以用邮箱链接登录；如果发送太频繁，先用密码登录。
             </p>
             <button
               type="submit"
@@ -168,7 +168,7 @@ export function CloudAccount({
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
             >
               <Link size={16} />
-              发送邮箱登录链接
+              发一封登录邮件
             </button>
           </form>
         </div>
@@ -177,10 +177,10 @@ export function CloudAccount({
       <div className="mt-4 flex items-start gap-2 rounded-[20px] bg-canvas p-4 text-xs font-bold leading-5 text-ink/52">
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ink" />
         {cloudLoading
-          ? "正在同步云端状态..."
+          ? "正在保存状态..."
           : isSupabaseConfigured
-          ? authStatus || "Supabase 已配置，可发送 magic link。"
-          : authStatus || "当前是本地模式：配置 Supabase 环境变量后启用云同步。"}
+          ? authStatus || "登录后可以把家里的菜单和清单保存起来。"
+          : authStatus || "当前会先保存在本机。"}
       </div>
     </section>
   );

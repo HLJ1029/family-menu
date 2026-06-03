@@ -26,10 +26,10 @@ export function FamilyPreferencesPanel({
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="eyebrow">Family preferences</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家庭成员偏好</h3>
+          <p className="eyebrow">Taste</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家人口味</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            先把口味、忌口和目标存下来，下一阶段推荐引擎会读取这些信息。
+            记住家里人爱吃什么、不吃什么，下一顿会更省心。
           </p>
         </div>
         <button
@@ -43,7 +43,7 @@ export function FamilyPreferencesPanel({
       </div>
 
       <p className="mt-4 rounded-[20px] bg-canvas p-4 text-xs font-bold leading-5 text-ink/50">
-        {loading ? "正在同步家庭偏好..." : status}
+        {loading ? "正在保存家人口味..." : status}
       </p>
 
       <form
@@ -54,7 +54,7 @@ export function FamilyPreferencesPanel({
         }}
       >
         <label className="grid gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Invite member</span>
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Family</span>
           <input
             value={inviteEmail}
             onChange={(event) => setInviteEmail(event.target.value)}
@@ -69,7 +69,7 @@ export function FamilyPreferencesPanel({
           className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <MailPlus size={17} />
-          添加邀请
+          加入我的家
         </button>
       </form>
 

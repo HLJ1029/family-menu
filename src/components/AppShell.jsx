@@ -10,8 +10,8 @@ export function Sidebar({ activeView, onChange }) {
           <ChefHat size={22} />
         </div>
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em]">Family</p>
-          <p className="-mt-1 text-2xl font-black tracking-tight">OS</p>
+          <p className="text-2xl font-black tracking-tight">食间</p>
+          <p className="-mt-0.5 text-xs font-black text-ink/45">让每一顿饭都有安排</p>
         </div>
       </div>
       <nav className="space-y-2">
@@ -35,9 +35,9 @@ export function Sidebar({ activeView, onChange }) {
       </nav>
       <div className="mt-auto rounded-[24px] border border-line bg-canvas p-4">
         <DoodlePot />
-        <p className="mt-4 text-sm font-black">FamilyOS cloud beta</p>
+        <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
-          当前版本用 43 道菜打通推荐、计划、库存和购物清单体验。
+          从今晚吃什么，到买菜清单和家里库存，都帮你顺一顺。
         </p>
       </div>
     </aside>
@@ -50,10 +50,10 @@ export function Topbar({ query, setQuery }) {
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <span className="h-2 w-2 rounded-full bg-acid" />
-          FamilyOS mobile MVP
+          食间
         </div>
         <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
-          今天吃什么，交给系统。
+          今晚吃什么？
         </h1>
       </div>
       <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">

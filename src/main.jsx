@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
@@ -100,25 +99,23 @@ function App() {
   const [family, setFamily] = useState(null);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
-  const [guestMode, setGuestMode] = useLocalStorageState("familyos:guest-mode", false);
   const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("familyos:cloud-menu-enabled", false);
   const [cloudMenuLoading, setCloudMenuLoading] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState("家庭空间创建后，可把本地菜单迁移到云端。");
   const [cloudGroceryEnabled, setCloudGroceryEnabled] = useLocalStorageState("familyos:cloud-grocery-enabled", false);
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
-  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单同步后，可继续迁移食材清单和库存。");
+  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const [aiExplanation, setAiExplanation] = useState("");
-  const [aiExplanationStatus, setAiExplanationStatus] = useState("登录后可调用 DeepSeek 解释；未登录时使用本地规则说明。");
+  const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("登录后可调用 DeepSeek 推荐；未登录时使用本地规则推荐。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你推荐；登录后可以保存菜单和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
-  const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -143,7 +140,7 @@ function App() {
         if (!active) return;
         setTodayMenu(cloudMenus.todayMenu);
         setWeekPlan(cloudMenus.weekPlan);
-        setCloudSyncStatus("已从云端读取今日菜单和一周计划。");
+        setCloudSyncStatus("已读取我的家里保存的今晚菜单和一周计划。");
       } catch (error) {
         if (active) setCloudSyncStatus(error.message);
       } finally {
@@ -162,7 +159,7 @@ function App() {
     const timer = window.setTimeout(async () => {
       try {
         await saveTodayMenu(family.id, todayMenu);
-        setCloudSyncStatus("今日菜单已同步到家庭空间。");
+        setCloudSyncStatus("今晚菜单已保存到我的家。");
       } catch (error) {
         setCloudSyncStatus(error.message);
       }
@@ -176,7 +173,7 @@ function App() {
     const timer = window.setTimeout(async () => {
       try {
         await saveWeekPlan(family.id, weekPlan);
-        setCloudSyncStatus("一周计划已同步到家庭空间。");
+        setCloudSyncStatus("一周计划已保存到我的家。");
       } catch (error) {
         setCloudSyncStatus(error.message);
       }
@@ -231,7 +228,7 @@ function App() {
           excludedGroceryKeys,
           pantryItems,
         });
-        setCloudGroceryStatus("食材清单和厨房库存已同步到家庭空间。");
+        setCloudGroceryStatus("食材清单和家中库存已保存到我的家。");
       } catch (error) {
         setCloudGroceryStatus(error.message);
       }
@@ -341,7 +338,7 @@ function App() {
   const plannedRecipes = plannedEntries.map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
   const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
   const recipeEntries = [
-    ...todayMenu.map((item) => ({ ...item, source: "今日菜单" })),
+    ...todayMenu.map((item) => ({ ...item, source: "今晚菜单" })),
     ...plannedEntries.map((item) => ({ ...item, source: item.day })),
   ];
   const groceryGroups = useMemo(() => buildRecipeGroceryGroups(recipeEntries), [recipeEntries]);
@@ -397,9 +394,9 @@ function App() {
 
   useEffect(() => {
     setAiExplanation("");
-    setAiExplanationStatus("登录后可调用 DeepSeek 解释；未登录时使用本地规则说明。");
+    setAiExplanationStatus("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
     setAiRecommendation(null);
-    setAiRecommendationStatus("登录后可调用 DeepSeek 推荐；未登录时使用本地规则推荐。");
+    setAiRecommendationStatus("先按家里现有情况给你推荐；登录后可以保存菜单和口味。");
   }, [todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
@@ -448,10 +445,10 @@ function App() {
       }));
     }
     if (!alreadyInCurrentPlan || !alreadyInTodayPlan) {
-      showNotice(`${recipe?.name ?? "菜品"} 已加入今日菜单和${currentDay}计划`);
+      showNotice(`${recipe?.name ?? "菜品"} 已安排到今晚和${currentDay}`);
       return;
     }
-    showNotice(`${recipe?.name ?? "菜品"} 已加入今日菜单`);
+    showNotice(`${recipe?.name ?? "菜品"} 已放进今晚菜单`);
   }
 
   function addRecommendedToday() {
@@ -460,7 +457,7 @@ function App() {
       .filter((recipeId) => !todayMenu.some((item) => item.recipeId === recipeId));
 
     if (recommendedIds.length === 0) {
-      showNotice("推荐菜品已在今日菜单中");
+      showNotice("这组菜已经在今晚菜单里");
       return;
     }
 
@@ -495,26 +492,25 @@ function App() {
     const missingCount = displayedRecommendation.missingItems.length;
     addRecommendedToday();
     setActiveView("grocery");
-    showNotice(missingCount > 0 ? `已生成 ${missingCount} 项推荐采购缺口` : "推荐菜已加入，采购清单已更新");
+    showNotice(missingCount > 0 ? `还差的 ${missingCount} 样已经放进清单` : "这组晚饭已安排，清单也更新了");
   }
 
   async function requestAiExplanation() {
     if (!session?.user) {
       setAiExplanation(displayedRecommendation.reason);
-      setAiExplanationStatus("请先在用户中心登录，再调用 DeepSeek 解释。当前已显示本地规则说明。");
-      setActiveView("user");
+      setAiExplanationStatus("这组先按当前菜单说明；登录后，食间会慢慢记住家里的口味。");
       return;
     }
 
     setAiExplanationLoading(true);
-    setAiExplanationStatus("正在调用 DeepSeek 生成解释...");
+    setAiExplanationStatus("正在把这组搭配讲清楚...");
     try {
       const text = await explainRecommendation(displayedRecommendation);
       setAiExplanation(text);
-      setAiExplanationStatus("DeepSeek 解释已生成。");
+      setAiExplanationStatus("搭配理由已经整理好了。");
     } catch (error) {
       setAiExplanation(displayedRecommendation.reason);
-      setAiExplanationStatus(`${formatAiError(error)} 已回退到本地规则解释。`);
+      setAiExplanationStatus(`${formatAiError(error)} 先用当前搭配理由。`);
     } finally {
       setAiExplanationLoading(false);
     }
@@ -523,24 +519,23 @@ function App() {
   async function requestAiRecommendation() {
     if (!session?.user) {
       setAiRecommendation(null);
-      setAiRecommendationStatus("请先在用户中心登录，再调用 DeepSeek 推荐。当前继续使用本地规则推荐。");
-      setActiveView("user");
+      setAiRecommendationStatus("先按家里现有情况推荐。想让食间记住你家的口味，可以去我的家登录。");
       return;
     }
 
     setAiRecommendationLoading(true);
-    setAiRecommendationStatus("正在调用 DeepSeek 生成推荐...");
+    setAiRecommendationStatus("正在重新给你想一组晚饭...");
     try {
       const result = await recommendMeals(buildAiRecommendationContext({ todayRecommendation }));
       const nextRecommendation = hydrateAiRecommendation({ result, fallback: todayRecommendation });
       setAiRecommendation(nextRecommendation);
       setAiExplanation(result.reason ?? nextRecommendation.reason);
-      setAiRecommendationStatus("DeepSeek 推荐已生成。");
-      setAiExplanationStatus("已使用 DeepSeek 推荐理由；可继续生成更完整解释。");
-      showNotice("DeepSeek 推荐已更新");
+      setAiRecommendationStatus("给你重新想好了一组。");
+      setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
+      showNotice("晚饭推荐已更新");
     } catch (error) {
       setAiRecommendation(null);
-      setAiRecommendationStatus(`${formatAiError(error)} 已回退到本地规则推荐。`);
+      setAiRecommendationStatus(`${formatAiError(error)} 先按家里现有情况推荐。`);
     } finally {
       setAiRecommendationLoading(false);
     }
@@ -676,25 +671,25 @@ function App() {
 
   async function shareTodayMenu() {
     const text = [
-      "FamilyOS 今日菜单",
+      "食间今晚菜单",
       "",
       ...todayRecipes.map((recipe) => `- ${recipe.name} x${recipe.menuQuantity ?? 1}`),
       "",
       `待买食材：${visibleGroceryItems.length} 项`,
     ].join("\n");
-    await shareText({ title: "FamilyOS 今日菜单", text, success: "今日菜单已复制" });
+    await shareText({ title: "食间今晚菜单", text, success: "今晚菜单已复制" });
   }
 
   async function shareWeekPlan() {
     const text = [
-      "FamilyOS 一周计划",
+      "食间一周计划",
       "",
       ...Object.entries(weekPlan).map(([day, recipeIds]) => {
         const names = recipeIds.map((recipeId) => getRecipe(recipeId)?.name).filter(Boolean);
         return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
       }),
     ].join("\n");
-    await shareText({ title: "FamilyOS 一周计划", text, success: "一周计划已复制" });
+    await shareText({ title: "食间一周计划", text, success: "一周计划已复制" });
   }
 
   async function shareInventorySummary() {
@@ -702,7 +697,7 @@ function App() {
     const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
     const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
     const text = [
-      "FamilyOS 家庭库存",
+      "食间家中库存",
       "",
       `全部库存：${pantryItems.length} 项`,
       `临期：${expiringItems.length} 项`,
@@ -710,9 +705,9 @@ function App() {
       "",
       formatInventoryShareSection("临期优先处理", expiringItems),
       formatInventoryShareSection("已过期", expiredItems),
-      formatInventoryShareSection("可用库存", freshItems),
+      formatInventoryShareSection("家里现有", freshItems),
     ].join("\n");
-    await shareText({ title: "FamilyOS 家庭库存", text, success: "库存摘要已复制" });
+    await shareText({ title: "食间家中库存", text, success: "库存摘要已复制" });
   }
 
   async function shareText({ title, text, success }) {
@@ -772,9 +767,9 @@ function App() {
       setAuthStatus(
         mode === "signup"
           ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
-          : "已登录 FamilyOS。",
+          : "已登录食间。",
       );
-      showNotice(mode === "signup" ? "账号已创建" : "已登录 FamilyOS");
+      showNotice(mode === "signup" ? "账号已创建" : "已登录食间");
     } catch (error) {
       setAuthStatus(error.message);
     } finally {
@@ -788,7 +783,6 @@ function App() {
       await signOut();
       setSession(null);
       setFamily(null);
-      setGuestMode(false);
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
@@ -1005,8 +999,8 @@ function App() {
     try {
       await migrateLocalMenusToCloud({ familyId: family.id, todayMenu, weekPlan });
       setCloudMenuEnabled(true);
-      setCloudSyncStatus("本地今日菜单和一周计划已迁移到家庭空间。");
-      showNotice("菜单已迁移到云端");
+      setCloudSyncStatus("本机今晚菜单和一周计划已保存到我的家。");
+      showNotice("菜单已保存到我的家");
     } catch (error) {
       setCloudSyncStatus(error.message);
     } finally {
@@ -1027,7 +1021,7 @@ function App() {
       setTodayMenu(cloudMenus.todayMenu);
       setWeekPlan(cloudMenus.weekPlan);
       setCloudMenuEnabled(true);
-      setCloudSyncStatus("已刷新云端今日菜单和一周计划。");
+      setCloudSyncStatus("已刷新我的家里保存的今晚菜单和一周计划。");
       showNotice("云端菜单已刷新");
     } catch (error) {
       setCloudSyncStatus(error.message);
@@ -1113,27 +1107,6 @@ function App() {
     onSavePreference: savePreference,
     onRefreshPreferences: () => loadPreferencesForFamily(),
   };
-
-  if (isMobileViewport && !session?.user && !guestMode) {
-    return (
-      <>
-        <DoodleWash />
-        <OfflineStatus online={online} />
-        <AuthLanding
-          authProps={authProps}
-          onContinueGuest={() => {
-            setGuestMode(true);
-            showNotice("已进入本地体验模式");
-          }}
-        />
-        {notice && (
-          <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
-            {notice}
-          </div>
-        )}
-      </>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
@@ -1336,24 +1309,24 @@ function orderPlanDaysFrom(startDay) {
 }
 
 function formatAiError(error) {
-  const message = error?.message ?? "DeepSeek 暂时不可用。";
+  const message = error?.message ?? "今晚建议暂时没想好。";
   if (message.includes("DEEPSEEK_API_KEY")) {
-    return "DeepSeek API Key 尚未配置。";
+    return "今晚建议还没准备好。";
   }
   if (message.includes("UNAUTHORIZED") || message.includes("JWT")) {
-    return "登录状态已过期，请重新登录后再调用 DeepSeek。";
+    return "登录状态过期了，想保存家里的习惯可以重新登录。";
   }
   if (message.toLowerCase().includes("model")) {
-    return `DeepSeek 模型配置可能有误：${message}`;
+    return "今晚建议暂时没想好。";
   }
   if (message.toLowerCase().includes("quota") || message.includes("余额") || message.toLowerCase().includes("balance")) {
-    return `DeepSeek 账户额度可能不足：${message}`;
+    return "今晚建议暂时排队中。";
   }
   if (message.includes("FunctionsHttpError") || message.includes("Edge Function")) {
-    return "DeepSeek Edge Function 返回错误，前端未拿到详细信息。";
+    return "今晚建议暂时没想好。";
   }
   if (message.includes("Supabase is not configured")) {
-    return "Supabase 尚未配置，DeepSeek 暂不可用。";
+    return "暂时只能保存在本机。";
   }
   return message;
 }
@@ -1363,20 +1336,5 @@ function formatInventoryShareSection(title, items) {
   return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 到期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
 
-function useIsMobileViewport() {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window === "undefined" ? false : window.matchMedia("(max-width: 767px)").matches,
-  );
-
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
-    const handleChange = () => setIsMobile(query.matches);
-    handleChange();
-    query.addEventListener("change", handleChange);
-    return () => query.removeEventListener("change", handleChange);
-  }, []);
-
-  return isMobile;
-}
 
 createRoot(document.getElementById("root")).render(<App />);

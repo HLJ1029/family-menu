@@ -1,7 +1,7 @@
 {
-  "name": "FamilyOS",
-  "short_name": "FamilyOS",
-  "description": "AI 驱动的家庭饮食决策与管理系统。",
+  "name": "食间",
+  "short_name": "食间",
+  "description": "帮家里少纠结一顿饭。",
   "start_url": "/family-menu/",
   "scope": "/family-menu/",
   "display": "standalone",

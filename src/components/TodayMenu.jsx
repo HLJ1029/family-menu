@@ -36,10 +36,10 @@ export function TodayMenu({
         <div className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
           <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today menu</p>
           <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            今天菜单还是空的。
+            今晚菜单还是空的。
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            选好菜后，系统会自动生成今天的购物清单和做饭步骤入口。
+            先选一道菜，食间会顺手把要买什么和怎么做整理好。
           </p>
         </div>
         <QuickAddRecipes
@@ -49,10 +49,10 @@ export function TodayMenu({
         />
         <CloudInlineStatus
           {...cloudSync}
-          localLabel="本地今日菜单"
-          pendingLabel="今日菜单待迁移"
-          enabledLabel="今日菜单云同步"
-          migrateLabel={cloudSync?.enabled ? "重新迁移本地菜单" : "迁移今日菜单"}
+          localLabel="本机今晚菜单"
+          pendingLabel="今晚菜单待保存"
+          enabledLabel="已保存今晚菜单"
+          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
         />
       </section>
     );
@@ -66,10 +66,10 @@ export function TodayMenu({
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今天准备做 {todayRecipes.length} 道菜。
+                今晚准备做 {todayRecipes.length} 道菜。
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-                调整份数后，采购清单会同步更新。买菜前看右侧汇总，做饭时点菜卡进入步骤。
+                调整份数后，买菜清单会跟着变。做饭时点菜卡，就能看步骤。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -87,7 +87,7 @@ export function TodayMenu({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <ShoppingBasket size={18} />
-                查看采购清单
+                看看还要买什么
               </button>
               <button
                 type="button"
@@ -111,10 +111,10 @@ export function TodayMenu({
 
         <CloudInlineStatus
           {...cloudSync}
-          localLabel="本地今日菜单"
-          pendingLabel="今日菜单待迁移"
-          enabledLabel="今日菜单云同步"
-          migrateLabel={cloudSync?.enabled ? "重新迁移本地菜单" : "迁移今日菜单"}
+          localLabel="本机今晚菜单"
+          pendingLabel="今晚菜单待保存"
+          enabledLabel="已保存今晚菜单"
+          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
         />
 
         <div className="grid gap-4">
@@ -248,7 +248,7 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="eyebrow">Add dishes</p>
-          <h3 className="mt-1 text-2xl font-black">添加到今日菜单</h3>
+          <h3 className="mt-1 text-2xl font-black">添加到今晚菜单</h3>
         </div>
         <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4 md:w-72">
           <Search size={17} className="text-ink/38" />
@@ -298,7 +298,7 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
                   }`}
                 >
                   <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-acid"} />
-                  {inTodayMenu ? "再加一份" : "加入今日"}
+                  {inTodayMenu ? "再加一份" : "加入今晚"}
                 </button>
               </div>
             </article>

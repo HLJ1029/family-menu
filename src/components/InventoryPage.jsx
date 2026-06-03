@@ -35,24 +35,24 @@ export function InventoryPage({
     <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
       <div className="grid gap-5">
         <section className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Inventory</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Pantry</p>
           <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            家庭库存，现在单独管。
+            家里有什么，先看一眼。
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            记录数量和到期日，推荐会优先消耗临期库存，并避开已过期材料。
+            买菜前先看看家里现有的，快到期的也别忘了吃掉。
           </p>
         </section>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <InventoryMetric label="全部库存" value={`${pantryItems.length} 项`} />
-          <InventoryMetric label="临期" value={`${pantryExpirySummary.expiringCount ?? 0} 项`} />
+          <InventoryMetric label="家里现有" value={`${pantryItems.length} 项`} />
+          <InventoryMetric label="快到期" value={`${pantryExpirySummary.expiringCount ?? 0} 项`} />
           <InventoryMetric label="已过期" value={`${pantryExpirySummary.expiredCount ?? 0} 项`} />
         </div>
 
         <InventoryGroup
-          title="临期优先处理"
-          emptyText="暂无临期库存。"
+          title="先吃掉"
+          emptyText="暂时没有快到期的。"
           items={expiringItems}
           onRemove={onRemovePantryItem}
         />
@@ -63,8 +63,8 @@ export function InventoryPage({
           onRemove={onRemovePantryItem}
         />
         <InventoryGroup
-          title="可用库存"
-          emptyText="暂无库存。"
+          title="家里现有"
+          emptyText="还没记录家里有什么。"
           items={freshItems}
           onRemove={onRemovePantryItem}
         />
@@ -75,7 +75,7 @@ export function InventoryPage({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="eyebrow">Add item</p>
-              <h3 className="card-title">添加库存</h3>
+              <h3 className="card-title">记一笔库存</h3>
             </div>
             <Plus size={22} />
           </div>
@@ -105,7 +105,7 @@ export function InventoryPage({
               type="submit"
               className="min-h-12 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
             >
-              加入库存
+              加到家里现有
             </button>
           </form>
         </Card>
@@ -167,19 +167,19 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
           <Cloud size={20} />
         </span>
         <div>
-          <p className="eyebrow">Cloud sync</p>
+          <p className="eyebrow">Save</p>
           <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
-            {enabled ? "库存云同步" : family ? "库存待迁移" : "本地库存"}
+            {enabled ? "已保存到我的家" : family ? "库存待保存" : "先保存在本机"}
           </h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            {loading ? "正在同步库存..." : cloudSync?.status ?? "库存会先保存在本机。"}
+            {loading ? "正在保存库存..." : cloudSync?.status ?? "库存会先保存在本机。"}
           </p>
         </div>
       </div>
       <div className="mt-5 rounded-[22px] bg-canvas p-4">
         <p className="text-sm font-black">{formatPantryCount(pantryItems.length, pantryExpirySummary)}</p>
         <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-          已同步到食材清单和推荐引擎。
+          这些会影响今晚推荐和买菜清单。
         </p>
       </div>
       <button
@@ -199,7 +199,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-45"
           >
             <UploadCloud size={16} />
-            {enabled ? "重新迁移本地库存" : "迁移库存"}
+            {enabled ? "重新保存本机库存" : "保存库存"}
           </button>
           <button
             type="button"
@@ -208,7 +208,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-4 text-sm font-black text-ink/62 disabled:cursor-not-allowed disabled:opacity-45"
           >
             <RefreshCw size={15} />
-            从云端刷新
+            刷新库存
           </button>
         </div>
       ) : (
@@ -217,7 +217,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
           onClick={onOpenUserCenter}
           className="mt-4 min-h-11 w-full rounded-full bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
         >
-          去用户中心登录
+          去我的家登录
         </button>
       )}
     </Card>
