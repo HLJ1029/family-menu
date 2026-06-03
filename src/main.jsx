@@ -111,10 +111,10 @@ function App() {
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const [aiExplanation, setAiExplanation] = useState("");
-  const [aiExplanationStatus, setAiExplanationStatus] = useState("DeepSeek 解释会在 Edge Function 配置后启用。");
+  const [aiExplanationStatus, setAiExplanationStatus] = useState("登录后可调用 DeepSeek 解释；未登录时使用本地规则说明。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("DeepSeek 推荐会在 Edge Function 配置后启用。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("登录后可调用 DeepSeek 推荐；未登录时使用本地规则推荐。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const isMobileViewport = useIsMobileViewport();
 
@@ -395,9 +395,9 @@ function App() {
 
   useEffect(() => {
     setAiExplanation("");
-    setAiExplanationStatus("DeepSeek 解释会在 Edge Function 配置后启用。");
+    setAiExplanationStatus("登录后可调用 DeepSeek 解释；未登录时使用本地规则说明。");
     setAiRecommendation(null);
-    setAiRecommendationStatus("DeepSeek 推荐会在 Edge Function 配置后启用。");
+    setAiRecommendationStatus("登录后可调用 DeepSeek 推荐；未登录时使用本地规则推荐。");
   }, [todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
@@ -467,6 +467,13 @@ function App() {
   }
 
   async function requestAiExplanation() {
+    if (!session?.user) {
+      setAiExplanation(displayedRecommendation.reason);
+      setAiExplanationStatus("请先在用户中心登录，再调用 DeepSeek 解释。当前已显示本地规则说明。");
+      setActiveView("user");
+      return;
+    }
+
     setAiExplanationLoading(true);
     setAiExplanationStatus("正在调用 DeepSeek 生成解释...");
     try {
@@ -482,6 +489,13 @@ function App() {
   }
 
   async function requestAiRecommendation() {
+    if (!session?.user) {
+      setAiRecommendation(null);
+      setAiRecommendationStatus("请先在用户中心登录，再调用 DeepSeek 推荐。当前继续使用本地规则推荐。");
+      setActiveView("user");
+      return;
+    }
+
     setAiRecommendationLoading(true);
     setAiRecommendationStatus("正在调用 DeepSeek 生成推荐...");
     try {
