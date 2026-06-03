@@ -1,5 +1,6 @@
 import { ChefHat, ShoppingBasket, Sparkles } from "lucide-react";
 import { CloudAccount } from "./system/CloudAccount";
+import { PwaLaunchPanel } from "./system/PwaLaunchPanel";
 
 export function AuthLanding({ authProps, onContinueGuest }) {
   return (
@@ -21,6 +22,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
         </div>
 
         <CloudAccount {...authProps} />
+        <PwaLaunchPanel compact />
 
         <button
           type="button"

@@ -20,6 +20,7 @@ mobile FamilyOS + clean SaaS dashboard + light doodle accent
 - 分类筛选。
 - 今日菜单。
 - DeepSeek AI 推荐入口，未配置时回退本地规则。
+- DeepSeek 推荐闭环：推荐结果可加入今日菜单、本周计划，并自动补齐采购清单。
 - 移动端未登录登录页，可选择先体验部分本地功能。
 - 网页端/体验模式下的用户中心。
 - 一周计划。
@@ -29,8 +30,11 @@ mobile FamilyOS + clean SaaS dashboard + light doodle accent
 - 厨房库存 / 家中已有材料。
 - 家庭成员偏好。
 - 饮食统计卡片。
-- Supabase 邮箱登录接入骨架。
-- 登录后创建家庭空间的云端基础流程。
+- Supabase 邮箱密码登录和 magic link。
+- 登录后创建家庭空间。
+- 今日菜单、一周计划、食材清单、厨房库存、家庭偏好云同步。
+- PWA 上线检查入口和 iPhone 主屏幕安装提示。
+- 微信登录准备态，不阻塞首发。
 - 43 道测试菜谱数据。
 
 ## 如何运行
@@ -82,6 +86,12 @@ Supabase schema 草案见：
 
 ```text
 docs/supabase-schema.sql
+```
+
+PWA 上线检查见：
+
+```text
+docs/mobile-launch-checklist.md
 ```
 
 ## 项目结构
@@ -147,8 +157,8 @@ git push
 
 ## 下一阶段建议
 
-1. 创建 Supabase 项目并执行 `docs/supabase-schema.sql`。
-2. 把今日菜单、周计划、购物清单迁移到云端同步。
-3. 将厨房库存升级为独立库存页。
-4. 添加家庭成员邀请和偏好编辑。
-5. 配置 Supabase Edge Functions，让 DeepSeek AI 推荐和解释正式启用。
+1. 用 iPhone Safari 验收线上 PWA：安装到主屏幕、登录、刷新恢复、离线壳。
+2. 在 Supabase Auth 中确认线上地址和本地地址都已加入 Redirect URLs。
+3. 做一轮移动端上线前 polish：加载、空状态、错误提示、安装提示。
+4. 准备微信开放平台应用、正式域名、回调地址、隐私政策和用户协议。
+5. PWA 稳定后再评估 Capacitor 原生壳。

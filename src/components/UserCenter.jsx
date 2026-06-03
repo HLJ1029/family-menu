@@ -2,6 +2,7 @@ import { Cloud, Database, UserRound } from "lucide-react";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
+import { PwaLaunchPanel } from "./system/PwaLaunchPanel";
 import { Card } from "./ui/Card";
 
 export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session, family }) {
@@ -24,6 +25,8 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
       </div>
 
       <aside className="grid content-start gap-5">
+        <PwaLaunchPanel compact />
+
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -51,7 +54,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
             <Database size={22} />
           </div>
           <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            今日菜单、一周计划、食材清单和厨房库存已开始接入 Supabase；后续会继续补本地数据迁移提示和冲突处理。
+            今日菜单、一周计划、食材清单、厨房库存和 DeepSeek 推荐闭环已经接入；下一步以线上 PWA 真机验收为主。
           </p>
         </Card>
 
@@ -63,9 +66,27 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
             <div>
               <p className="font-black">微信登录预留</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-                首发不阻塞，等开放平台和域名配置齐备后接入。
+                当前不显示可点击登录按钮。等正式域名、开放平台应用、回调地址和隐私协议齐备后接入。
               </p>
             </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <a
+              href="/family-menu/privacy.html"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58 transition hover:text-ink"
+            >
+              隐私政策
+            </a>
+            <a
+              href="/family-menu/terms.html"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58 transition hover:text-ink"
+            >
+              用户协议
+            </a>
           </div>
         </Card>
       </aside>
