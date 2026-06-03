@@ -1,4 +1,4 @@
-import { Cloud, PackageCheck, Plus, RefreshCw, UploadCloud } from "lucide-react";
+import { Cloud, PackageCheck, Plus, RefreshCw, Share2, UploadCloud } from "lucide-react";
 import { formatPantryCount, getExpiryState } from "../lib/pantry";
 import { Card } from "./ui/Card";
 import { PantryChip } from "./ui/PantryChip";
@@ -14,6 +14,7 @@ export function InventoryPage({
   setNewPantryExpiresOn,
   onAddPantryItem,
   onRemovePantryItem,
+  onShare,
   cloudSync,
   onOpenUserCenter,
 }) {
@@ -114,6 +115,7 @@ export function InventoryPage({
           onOpenUserCenter={onOpenUserCenter}
           pantryItems={pantryItems}
           pantryExpirySummary={pantryExpirySummary}
+          onShare={onShare}
         />
       </aside>
     </section>
@@ -154,7 +156,7 @@ function InventoryGroup({ title, emptyText, items, onRemove }) {
   );
 }
 
-function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantryExpirySummary }) {
+function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantryExpirySummary, onShare }) {
   const family = cloudSync?.family;
   const enabled = Boolean(cloudSync?.enabled);
   const loading = Boolean(cloudSync?.loading);
@@ -180,8 +182,16 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
           已同步到食材清单和推荐引擎。
         </p>
       </div>
+      <button
+        type="button"
+        onClick={onShare}
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+      >
+        <Share2 size={16} className="text-acid" />
+        分享库存摘要
+      </button>
       {family ? (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-2 grid gap-2">
           <button
             type="button"
             onClick={cloudSync.onMigrate}

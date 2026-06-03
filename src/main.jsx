@@ -650,6 +650,24 @@ function App() {
     await shareText({ title: "FamilyOS 一周计划", text, success: "一周计划已复制" });
   }
 
+  async function shareInventorySummary() {
+    const expiredItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired");
+    const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
+    const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
+    const text = [
+      "FamilyOS 家庭库存",
+      "",
+      `全部库存：${pantryItems.length} 项`,
+      `临期：${expiringItems.length} 项`,
+      `已过期：${expiredItems.length} 项`,
+      "",
+      formatInventoryShareSection("临期优先处理", expiringItems),
+      formatInventoryShareSection("已过期", expiredItems),
+      formatInventoryShareSection("可用库存", freshItems),
+    ].join("\n");
+    await shareText({ title: "FamilyOS 家庭库存", text, success: "库存摘要已复制" });
+  }
+
   async function shareText({ title, text, success }) {
     try {
       if (navigator.share) {
@@ -1208,6 +1226,7 @@ function App() {
               setNewPantryExpiresOn={setNewPantryExpiresOn}
               onAddPantryItem={addPantryItem}
               onRemovePantryItem={removePantryItem}
+              onShare={shareInventorySummary}
               cloudSync={{
                 family,
                 enabled: cloudGroceryEnabled,
@@ -1274,6 +1293,11 @@ function formatAiError(error) {
     return "Supabase 尚未配置，DeepSeek 暂不可用。";
   }
   return message;
+}
+
+function formatInventoryShareSection(title, items) {
+  if (items.length === 0) return `${title}\n- 无`;
+  return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 到期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
 
 function useIsMobileViewport() {
