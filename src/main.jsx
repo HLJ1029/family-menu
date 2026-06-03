@@ -4,6 +4,7 @@ import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
+import { InventoryPage } from "./components/InventoryPage";
 import { Library } from "./components/Library";
 import { Planner } from "./components/Planner";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
@@ -21,6 +22,7 @@ import {
   formatRawAmount,
   formatShareText,
 } from "./lib/grocery";
+import { getExpiryState } from "./lib/pantry";
 import {
   createDefaultWeekPlan,
   createInitialMealCalendar,
@@ -1194,6 +1196,29 @@ function App() {
               onOpenUserCenter={() => setActiveView("user")}
             />
           )}
+          {activeView === "inventory" && (
+            <InventoryPage
+              pantryItems={pantryItems}
+              pantryExpirySummary={pantryExpirySummary}
+              newPantryItem={newPantryItem}
+              setNewPantryItem={setNewPantryItem}
+              newPantryAmount={newPantryAmount}
+              setNewPantryAmount={setNewPantryAmount}
+              newPantryExpiresOn={newPantryExpiresOn}
+              setNewPantryExpiresOn={setNewPantryExpiresOn}
+              onAddPantryItem={addPantryItem}
+              onRemovePantryItem={removePantryItem}
+              cloudSync={{
+                family,
+                enabled: cloudGroceryEnabled,
+                loading: cloudGroceryLoading,
+                status: cloudGroceryStatus,
+                onMigrate: migrateGroceryToCloud,
+                onRefresh: refreshCloudGrocery,
+              }}
+              onOpenUserCenter={() => setActiveView("user")}
+            />
+          )}
           {activeView === "stats" && (
             <StatsPage
               todayRecipes={todayRecipes}
@@ -1235,17 +1260,6 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
-}
-
-function getExpiryState(expiresOn) {
-  if (!expiresOn) return "none";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiryDate = new Date(`${expiresOn}T00:00:00`);
-  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000);
-  if (daysUntilExpiry < 0) return "expired";
-  if (daysUntilExpiry <= 3) return "soon";
-  return "fresh";
 }
 
 function formatAiError(error) {

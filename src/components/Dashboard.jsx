@@ -217,7 +217,7 @@ export function Dashboard({
               title="家庭库存"
               note={formatPantryNote(pantryItems.length, pantryExpirySummary)}
               ariaLabel="打开家庭库存"
-              onClick={() => onViewChange("grocery")}
+              onClick={() => onViewChange("inventory")}
             />
             <DashboardTool
               icon={UserRound}
