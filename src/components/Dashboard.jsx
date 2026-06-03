@@ -105,18 +105,19 @@ export function Dashboard({
         <Card>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-xl">
-              <p className="eyebrow">{recommendation.source === "deepseek" ? "DeepSeek engine" : "Fallback engine"}</p>
-              <h3 className="card-title">{recommendation.source === "deepseek" ? "DeepSeek 推荐结果" : "本地规则推荐结果"}</h3>
+              <p className="eyebrow">{recommendation.source === "deepseek" ? "DeepSeek AI" : "Local fallback"}</p>
+              <h3 className="card-title">{recommendation.source === "deepseek" ? "DeepSeek 推荐结果" : "本地规则推荐"}</h3>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
-                AI 推荐和 AI 解释都通过 Supabase Edge Function 调用 DeepSeek；未配置时自动回退本地规则。
+                {recommendation.source === "deepseek"
+                  ? "已通过 Supabase Edge Function 调用 DeepSeek，并结合库存、偏好和购物缺口生成建议。"
+                  : "当前展示本地规则结果：先看家里能用什么，再避开忌口并补齐关键食材。"}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <SummaryPill label="库存命中" value={`${recommendation.inventoryHits} 项`} />
-              <SummaryPill label="临期命中" value={`${recommendation.expiringHits ?? 0} 项`} />
-              <SummaryPill label="偏好命中" value={`${recommendation.preferenceHits ?? 0} 项`} />
-              <SummaryPill label="缺少食材" value={`${recommendation.missingItems.length} 项`} />
-              <SummaryPill label="蛋白质" value={`${Math.round(recommendation.nutrition.proteinG)} g`} />
+            <div className="grid grid-cols-2 gap-3 lg:max-w-xl">
+              <SummaryPill label="可用库存" value={`${recommendation.inventoryHits} 项`} note="推荐菜会用到家里已有材料" />
+              <SummaryPill label="临期优先" value={`${recommendation.expiringHits ?? 0} 项`} note="优先消耗快到期食材" />
+              <SummaryPill label="家庭偏好" value={`${recommendation.preferenceHits ?? 0} 项`} note="匹配喜欢、目标或忌口" />
+              <SummaryPill label="采购缺口" value={`${recommendation.missingItems.length} 项`} note={`蛋白质约 ${Math.round(recommendation.nutrition.proteinG)} g`} />
             </div>
           </div>
           <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
@@ -277,11 +278,12 @@ function formatPantryNote(count, summary = {}) {
   return `${count} 项已有材料`;
 }
 
-function SummaryPill({ label, value }) {
+function SummaryPill({ label, value, note }) {
   return (
-    <div className="rounded-[18px] bg-canvas p-3">
-      <p className="text-xl font-black tracking-[-0.04em]">{value}</p>
-      <p className="mt-1 text-xs font-black uppercase tracking-[0.16em] text-ink/38">{label}</p>
+    <div className="min-h-[104px] rounded-[18px] bg-canvas p-3">
+      <p className="text-xs font-black text-ink/42">{label}</p>
+      <p className="mt-2 text-2xl font-black">{value}</p>
+      <p className="mt-2 text-xs font-bold leading-5 text-ink/45">{note}</p>
     </div>
   );
 }

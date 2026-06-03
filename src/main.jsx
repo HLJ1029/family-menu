@@ -1297,11 +1297,20 @@ function normalizeName(value) {
 
 function formatAiError(error) {
   const message = error?.message ?? "DeepSeek 暂时不可用。";
-  if (message.includes("FunctionsHttpError") || message.includes("Edge Function")) {
-    return "DeepSeek Edge Function 尚未部署或返回错误。";
-  }
   if (message.includes("DEEPSEEK_API_KEY")) {
     return "DeepSeek API Key 尚未配置。";
+  }
+  if (message.includes("UNAUTHORIZED") || message.includes("JWT")) {
+    return "登录状态已过期，请重新登录后再调用 DeepSeek。";
+  }
+  if (message.toLowerCase().includes("model")) {
+    return `DeepSeek 模型配置可能有误：${message}`;
+  }
+  if (message.toLowerCase().includes("quota") || message.includes("余额") || message.toLowerCase().includes("balance")) {
+    return `DeepSeek 账户额度可能不足：${message}`;
+  }
+  if (message.includes("FunctionsHttpError") || message.includes("Edge Function")) {
+    return "DeepSeek Edge Function 返回错误，前端未拿到详细信息。";
   }
   if (message.includes("Supabase is not configured")) {
     return "Supabase 尚未配置，DeepSeek 暂不可用。";

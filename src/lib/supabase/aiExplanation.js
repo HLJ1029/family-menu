@@ -1,4 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from "./client";
+import { resolveFunctionError } from "./functionError";
 
 export async function explainRecommendation(recommendation) {
   if (!isSupabaseConfigured) {
@@ -10,7 +11,7 @@ export async function explainRecommendation(recommendation) {
     body: { recommendation },
   });
 
-  if (error) throw error;
+  if (error) throw await resolveFunctionError(error);
   if (data?.error) throw new Error(data.error);
   return data?.text ?? recommendation.reason;
 }

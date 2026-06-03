@@ -1,4 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from "./client";
+import { resolveFunctionError } from "./functionError";
 
 export async function recommendMeals(context) {
   if (!isSupabaseConfigured) {
@@ -10,7 +11,7 @@ export async function recommendMeals(context) {
     body: context,
   });
 
-  if (error) throw error;
+  if (error) throw await resolveFunctionError(error);
   if (data?.error) throw new Error(data.error);
   return data;
 }
