@@ -1,4 +1,4 @@
-import { ChefHat, Search } from "lucide-react";
+import { ChefHat, Search, UserRound } from "lucide-react";
 import { mobileNavItems, navItems } from "./navigation";
 import { DoodlePot } from "./ui/Doodles";
 
@@ -44,7 +44,25 @@ export function Sidebar({ activeView, onChange }) {
   );
 }
 
-export function Topbar({ activeView, query, setQuery }) {
+export function AccountAvatar({ session, onClick, compact = false }) {
+  const email = session?.user?.email;
+  const initial = email ? email.slice(0, 1).toUpperCase() : "";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
+        compact ? "h-11 w-11" : "h-12 w-12"
+      }`}
+      aria-label={email ? "打开我的家" : "登录并保存我的食间"}
+    >
+      {email ? initial : <UserRound size={19} />}
+    </button>
+  );
+}
+
+export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter }) {
   const activeItem = navItems.find((item) => item.id === activeView);
   const title = activeItem?.label ?? "食间";
 
@@ -59,17 +77,17 @@ export function Topbar({ activeView, query, setQuery }) {
           {title}
         </h1>
       </div>
-      <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
-        <Search size={18} className="text-ink/38" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
-          placeholder="搜索菜名、食材、标签"
-        />
-        <div className="hidden h-9 w-9 place-items-center rounded-full bg-ink text-xs font-black text-white sm:grid">
-          H
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
+          <Search size={18} className="text-ink/38" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
+            placeholder="搜索菜名、食材、标签"
+          />
         </div>
+        <AccountAvatar session={session} onClick={onOpenUserCenter} />
       </div>
     </header>
   );

@@ -1,4 +1,5 @@
 import { BarChart3, CalendarDays, ClipboardList, PackageCheck, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
+import { AccountAvatar } from "./AppShell";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { MiniMeal } from "./ui/MiniMeal";
@@ -12,6 +13,8 @@ export function Dashboard({
   onOpenRecipe,
   onAddRecommended,
   onRequestAiRecommendation,
+  session,
+  onOpenUserCenter,
 }) {
   const missingSummary = recommendation.missingItems.length > 0
     ? recommendation.missingItems.map((item) => item.name).join("、")
@@ -21,6 +24,9 @@ export function Dashboard({
   return (
     <div className="grid gap-5">
       <section className="relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
+        <div className="absolute right-5 top-5 z-10">
+          <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
+        </div>
         <div className="absolute right-8 top-7 hidden md:block">
           <DoodleArrow />
         </div>

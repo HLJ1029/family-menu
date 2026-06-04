@@ -63,6 +63,15 @@ import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
 
 const weekPlanDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+const defaultFamilyProfile = {
+  familySize: 2,
+  hasChildren: false,
+  tastePreferences: [],
+  goals: [],
+  dislikes: [],
+  allergies: [],
+  shoppingTolerance: "medium",
+};
 
 registerServiceWorker();
 
@@ -107,6 +116,7 @@ function App() {
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
+  const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
@@ -933,6 +943,8 @@ function App() {
         member: member.email,
         preference: member.preference,
       })),
+      familyProfile,
+      compactFamilyPrompt: buildCompactFamilyPrompt(familyProfile),
       recentRecipeIds,
       currentMissingItems: todayRecommendation.missingItems.map((item) => item.name),
       acceptanceRules: [
@@ -1143,7 +1155,13 @@ function App() {
         <Sidebar activeView={activeView} onChange={setActiveView} />
         <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           {activeView !== "dashboard" && (
-            <Topbar activeView={activeView} query={query} setQuery={setQuery} />
+            <Topbar
+              activeView={activeView}
+              query={query}
+              setQuery={setQuery}
+              session={session}
+              onOpenUserCenter={() => setActiveView("user")}
+            />
           )}
           {activeView === "dashboard" && (
             <Dashboard
@@ -1155,6 +1173,8 @@ function App() {
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
               onRequestAiRecommendation={requestAiRecommendation}
+              session={session}
+              onOpenUserCenter={() => setActiveView("user")}
             />
           )}
           {activeView === "library" && (
@@ -1297,6 +1317,8 @@ function App() {
               preferenceProps={preferenceProps}
               session={session}
               family={family}
+              familyProfile={familyProfile}
+              setFamilyProfile={setFamilyProfile}
             />
           )}
         </main>
@@ -1355,6 +1377,29 @@ function formatAiError(error) {
 function formatInventoryShareSection(title, items) {
   if (items.length === 0) return `${title}\n- 无`;
   return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 到期 ${item.expiresOn}` : ""}`).join("\n")}`;
+}
+
+function buildCompactFamilyPrompt(profile = {}) {
+  const parts = [
+    `${profile.familySize ?? 2}人吃饭`,
+    profile.hasChildren ? "有孩子一起吃" : "",
+    listPart("口味", profile.tastePreferences),
+    listPart("目标", profile.goals),
+    listPart("不喜欢", profile.dislikes),
+    listPart("不能吃", profile.allergies),
+    shoppingToleranceLabel(profile.shoppingTolerance),
+  ].filter(Boolean);
+  return parts.join("；");
+}
+
+function listPart(label, values = []) {
+  return Array.isArray(values) && values.length > 0 ? `${label}:${values.join("、")}` : "";
+}
+
+function shoppingToleranceLabel(value) {
+  if (value === "low") return "少买菜，优先用库存";
+  if (value === "high") return "愿意专门买菜";
+  return "可买2-3样主食材";
 }
 
 
