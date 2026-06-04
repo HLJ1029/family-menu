@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { formatPantryCount } from "../lib/pantry";
@@ -40,16 +40,7 @@ export function GroceryList({
   const pantryCandidateCount = items.filter((item) => item.pantryItem).length;
   const daySections = useMemo(() => buildDaySections(groups), [groups]);
   const shoppingSections = useMemo(() => buildShoppingSections(items), [items]);
-  const defaultOpenKey = daySections[0]?.key ?? "";
-  const [openSections, setOpenSections] = useState(() => (defaultOpenKey ? { [defaultOpenKey]: true } : {}));
-
-  useEffect(() => {
-    if (!defaultOpenKey) return;
-    setOpenSections((current) => {
-      if (Object.values(current).some(Boolean)) return current;
-      return { [defaultOpenKey]: true };
-    });
-  }, [defaultOpenKey]);
+  const [openSections, setOpenSections] = useState({});
 
   function toggle(key) {
     setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
@@ -304,7 +295,7 @@ function ShoppingChecklist({
   onRemoveCustomItem,
   onShare,
 }) {
-  const [openSections, setOpenSections] = useState({ ingredients: true, seasonings: false, custom: false });
+  const [openSections, setOpenSections] = useState({ ingredients: false, seasonings: false, custom: false });
 
   function toggleSection(key) {
     setOpenSections((current) => ({ ...current, [key]: !current[key] }));

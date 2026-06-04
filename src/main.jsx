@@ -124,7 +124,7 @@ function App() {
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你推荐；登录后可以保存菜单和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；登录后会参考家庭画像、库存和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
 
   useEffect(() => {
@@ -406,7 +406,7 @@ function App() {
     setAiExplanation("");
     setAiExplanationStatus("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
     setAiRecommendation(null);
-    setAiRecommendationStatus("先按家里现有情况给你推荐；登录后可以保存菜单和口味。");
+    setAiRecommendationStatus("先按家里现有情况给你安排；登录后会参考家庭画像、库存和口味。");
   }, [todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
@@ -529,7 +529,7 @@ function App() {
   async function requestAiRecommendation() {
     if (!session?.user) {
       setAiRecommendation(null);
-      setAiRecommendationStatus("已经先给你安排好一组。登录后，食间会慢慢记住你家的口味。");
+      setAiRecommendationStatus("已经先给你安排好一组。登录后，食间会参考家庭画像和库存来调整。");
       return;
     }
 
