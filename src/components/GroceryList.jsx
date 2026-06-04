@@ -1,4 +1,5 @@
-import { Check, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { formatPantryCount } from "../lib/pantry";
 import { Card } from "./ui/Card";
@@ -36,38 +37,40 @@ export function GroceryList({
   const visibleRecipeItemCount = groups.reduce((total, group) => total + group.items.length, 0);
   const totalItemCount = items.length + customItems.length;
   const pantryCandidateCount = items.filter((item) => item.pantryItem).length;
+  const daySections = useMemo(() => buildDaySections(groups), [groups]);
+  const defaultOpenKey = daySections[0]?.key ?? "";
+  const [openSections, setOpenSections] = useState(() => (defaultOpenKey ? { [defaultOpenKey]: true } : {}));
+
+  useEffect(() => {
+    if (!defaultOpenKey) return;
+    setOpenSections((current) => {
+      if (Object.values(current).some(Boolean)) return current;
+      return { [defaultOpenKey]: true };
+    });
+  }, [defaultOpenKey]);
 
   function toggle(key) {
     setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
   }
 
+  function toggleSection(key) {
+    setOpenSections((current) => ({ ...current, [key]: !current[key] }));
+  }
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
-        {groups.length > 0 ? (
-          groups.map((group) => (
-            <Card key={group.key}>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="eyebrow">{group.source}</p>
-                  <h3 className="card-title">{group.recipe.name}</h3>
-                </div>
-                <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
-                  {group.items.length} 项
-                </span>
-              </div>
-              <div className="grid gap-2">
-                {group.items.map((item) => (
-                  <GroceryItem
-                    key={item.key}
-                    item={item}
-                    checked={checkedItems[item.key]}
-                    onToggle={() => toggle(item.key)}
-                    onRemove={() => onExcludeItem(item.hiddenKey)}
-                  />
-                ))}
-              </div>
-            </Card>
+        {daySections.length > 0 ? (
+          daySections.map((section) => (
+            <DayGrocerySection
+              key={section.key}
+              section={section}
+              open={Boolean(openSections[section.key])}
+              onToggle={() => toggleSection(section.key)}
+              checkedItems={checkedItems}
+              onToggleItem={toggle}
+              onRemoveItem={onExcludeItem}
+            />
           ))
         ) : (
           <Card>
@@ -339,6 +342,89 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
         </button>
       )}
     </div>
+  );
+}
+
+function buildDaySections(groups) {
+  const sections = new Map();
+  groups.forEach((group) => {
+    const title = formatSectionTitle(group.source);
+    const current = sections.get(title) ?? {
+      key: title,
+      title,
+      recipes: [],
+      itemCount: 0,
+    };
+    current.recipes.push(group);
+    current.itemCount += group.items.length;
+    sections.set(title, current);
+  });
+  return [...sections.values()];
+}
+
+function formatSectionTitle(source) {
+  return source.split(" · ")[0] || source;
+}
+
+function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem, onRemoveItem }) {
+  const recipeNames = section.recipes.map((group) => group.recipe.name).join("、");
+
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 text-left"
+        aria-expanded={open}
+      >
+        <div className="min-w-0">
+          <p className="eyebrow">{section.title}</p>
+          <h3 className="truncate text-2xl font-black tracking-[-0.03em]">
+            {section.recipes.length} 道菜
+          </h3>
+          <p className="mt-2 line-clamp-1 text-sm font-bold text-ink/48">{recipeNames}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+            {section.itemCount} 项
+          </span>
+          <span className={`grid h-10 w-10 place-items-center rounded-full bg-canvas transition ${open ? "rotate-180" : ""}`}>
+            <ChevronDown size={18} />
+          </span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="mt-5 grid gap-4">
+          {section.recipes.map((group) => (
+            <div key={group.key} className="rounded-[22px] border border-line bg-canvas p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-black">{group.recipe.name}</p>
+                  {group.source !== section.title && (
+                    <p className="mt-1 text-xs font-bold text-ink/42">{group.source}</p>
+                  )}
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/48">
+                  {group.items.length} 项
+                </span>
+              </div>
+              <div className="grid gap-2">
+                {group.items.map((item) => (
+                  <GroceryItem
+                    key={item.key}
+                    item={item}
+                    checked={checkedItems[item.key]}
+                    onToggle={() => onToggleItem(item.key)}
+                    onRemove={() => onRemoveItem(item.hiddenKey)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
