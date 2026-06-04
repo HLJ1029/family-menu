@@ -519,7 +519,7 @@ function App() {
   async function requestAiRecommendation() {
     if (!session?.user) {
       setAiRecommendation(null);
-      setAiRecommendationStatus("先按家里现有情况推荐。想让食间记住你家的口味，可以去我的家登录。");
+      setAiRecommendationStatus("已经先给你安排好一组。登录后，食间会慢慢记住你家的口味。");
       return;
     }
 
@@ -1115,28 +1115,19 @@ function App() {
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
         <Sidebar activeView={activeView} onChange={setActiveView} />
         <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
-          <Topbar query={query} setQuery={setQuery} />
+          {activeView !== "dashboard" && (
+            <Topbar activeView={activeView} query={query} setQuery={setQuery} />
+          )}
           {activeView === "dashboard" && (
             <Dashboard
               todayRecipes={todayRecipes}
-              weekPlan={weekPlan}
-              groceryItems={groceryItems}
-              pantryItems={pantryItems}
-              pantryExpirySummary={pantryExpirySummary}
               recommendation={displayedRecommendation}
-              familyMembers={familyMembers}
               aiRecommendationStatus={aiRecommendationStatus}
               aiRecommendationLoading={aiRecommendationLoading}
-              aiExplanation={aiExplanation}
-              aiExplanationStatus={aiExplanationStatus}
-              aiExplanationLoading={aiExplanationLoading}
               onViewChange={setActiveView}
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
-              onPlanRecommended={planRecommendedWeek}
-              onCompleteRecommendedGrocery={completeRecommendedGrocery}
               onRequestAiRecommendation={requestAiRecommendation}
-              onRequestAiExplanation={requestAiExplanation}
             />
           )}
           {activeView === "library" && (

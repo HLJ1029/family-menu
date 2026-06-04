@@ -11,7 +11,7 @@ import {
 
 export const navItems = [
   { id: "dashboard", label: "首页", icon: Home },
-  { id: "library", label: "菜单库", icon: ChefHat },
+  { id: "library", label: "自己挑", icon: ChefHat },
   { id: "today", label: "今晚菜单", icon: ClipboardList },
   { id: "planner", label: "一周计划", icon: CalendarDays },
   { id: "calendar", label: "日历", icon: CalendarDays },

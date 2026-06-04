@@ -74,7 +74,7 @@ export function GroceryList({
             <p className="eyebrow">Empty list</p>
             <h3 className="card-title">暂无可购买食材</h3>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              可以先去菜单库加入菜品，或从右侧恢复“家中已有”的材料。
+              可以先回首页安排晚饭，或去“自己挑”临时加一道菜。
             </p>
           </Card>
         )}
@@ -168,7 +168,7 @@ export function GroceryList({
             ))
           ) : (
             <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold text-ink/50">
-              暂无合并项。先去菜单库或一周计划添加菜品。
+              暂无合并项。先回首页安排晚饭，或在一周计划里加菜。
             </div>
           )}
         </div>

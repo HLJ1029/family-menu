@@ -16,6 +16,16 @@ export function Library({
 
   return (
     <section>
+      <div className="mb-5 rounded-[28px] bg-ink p-6 text-white shadow-lift md:p-8">
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">自己挑</p>
+        <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+          想换一道，就从这里挑。
+        </h2>
+        <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+          首页先帮你安排；这里留给想加菜、换口味、临时补一道的时候。
+        </p>
+      </div>
+
       <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
         {categories.map((item) => (
           <button
@@ -130,7 +140,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           }}
           className="mt-5 w-full rounded-full border border-ink/10 bg-ink px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `今晚菜单 ${quantity} 份 · 查看详情` : "查看详情"}
+          {quantity > 0 ? `今晚已选 ${quantity} 份 · 看做法` : "看做法"}
         </button>
       </div>
     </article>

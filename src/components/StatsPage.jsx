@@ -95,7 +95,7 @@ export function StatsPage({ todayRecipes, plannedRecipes, groceryItems, weekPlan
               ))
             ) : (
               <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/50">
-                暂无统计数据。先去菜单库添加今晚菜单，或在一周计划里安排菜品。
+                暂无统计数据。先回首页安排晚饭，或在一周计划里安排菜品。
               </p>
             )}
           </div>

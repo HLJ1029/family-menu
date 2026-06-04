@@ -44,7 +44,10 @@ export function Sidebar({ activeView, onChange }) {
   );
 }
 
-export function Topbar({ query, setQuery }) {
+export function Topbar({ activeView, query, setQuery }) {
+  const activeItem = navItems.find((item) => item.id === activeView);
+  const title = activeItem?.label ?? "食间";
+
   return (
     <header className="mb-5 flex flex-col gap-4 lg:mb-7 lg:flex-row lg:items-center lg:justify-between">
       <div>
@@ -53,7 +56,7 @@ export function Topbar({ query, setQuery }) {
           食间
         </div>
         <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
-          今晚吃什么？
+          {title}
         </h1>
       </div>
       <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
