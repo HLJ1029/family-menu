@@ -228,7 +228,7 @@ function buildReason({ selected, inventoryHits, expiringHits, groceryItems, sele
     return "缺口食材少，能直接衔接当前采购清单，适合今天执行。";
   }
   if (quickCount > 0) {
-    return "组合里有快手菜，能降低晚餐决策和下厨压力。";
+    return "组合里有省时菜，能降低晚餐决策和下厨压力。";
   }
   return "按荤素和耗时做了平衡，适合作为家庭晚餐方案。";
 }

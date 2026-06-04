@@ -91,10 +91,10 @@ export function RecipeDetailDrawer({
           <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="eyebrow">Serving size</p>
-                <h3 className="card-title">按人数缩放</h3>
+                <p className="eyebrow">People</p>
+                <h3 className="card-title">家里几个人吃</h3>
                 <p className="mt-2 text-sm font-bold text-ink/50">
-                  数字用量会自动换算，适量类调料保持原样。
+                  调整人数后，食材用量会跟着变；调料还是按口味来。
                 </p>
               </div>
               <div className="grid grid-cols-[44px_88px_44px] items-center gap-2">

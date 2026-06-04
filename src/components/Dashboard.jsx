@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, PackageCheck, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { MiniMeal } from "./ui/MiniMeal";
@@ -77,14 +77,25 @@ export function Dashboard({
             <SimpleNote title="还差这些" text={missingSummary} />
           </div>
 
-          <button
-            type="button"
-            onClick={onAddRecommended}
-            className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
-          >
-            <Utensils size={19} className="text-acid" />
-            就吃这组
-          </button>
+          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <button
+              type="button"
+              onClick={onAddRecommended}
+              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
+            >
+              <Utensils size={19} className="text-acid" />
+              就吃这组
+            </button>
+            <button
+              type="button"
+              onClick={onRequestAiRecommendation}
+              disabled={aiRecommendationLoading}
+              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Sparkles size={17} />
+              {aiRecommendationLoading ? "正在换" : "换一组"}
+            </button>
+          </div>
         </Card>
       </section>
 
@@ -97,7 +108,7 @@ export function Dashboard({
             </div>
             <Sparkles size={22} />
           </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-5">
             <FlowAction
               icon={ClipboardList}
               title="今晚菜单"
@@ -115,6 +126,18 @@ export function Dashboard({
               title="还要买什么"
               note="买菜前看一眼"
               onClick={() => onViewChange("grocery")}
+            />
+            <FlowAction
+              icon={PackageCheck}
+              title="家中库存"
+              note="快到期的先看"
+              onClick={() => onViewChange("inventory")}
+            />
+            <FlowAction
+              icon={BarChart3}
+              title="营养视图"
+              note="看看最近吃得怎样"
+              onClick={() => onViewChange("stats")}
             />
           </div>
         </Card>

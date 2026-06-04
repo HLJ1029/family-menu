@@ -1225,6 +1225,8 @@ function App() {
                 onRefresh: refreshCloudGrocery,
               }}
               onOpenUserCenter={() => setActiveView("user")}
+              onOpenInventory={() => setActiveView("inventory")}
+              onOpenStats={() => setActiveView("stats")}
             />
           )}
           {activeView === "inventory" && (
@@ -1257,6 +1259,7 @@ function App() {
               plannedRecipes={plannedRecipes}
               groceryItems={visibleGroceryItems}
               weekPlan={weekPlan}
+              mealCalendar={mealCalendar}
               onViewChange={setActiveView}
             />
           )}
