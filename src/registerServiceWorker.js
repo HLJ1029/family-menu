@@ -1,5 +1,7 @@
+import { isWechatMiniProgramWebView } from "./lib/runtime";
+
 export function registerServiceWorker() {
-  if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
+  if (!("serviceWorker" in navigator) || !import.meta.env.PROD || isWechatMiniProgramWebView()) return;
 
   window.addEventListener("load", () => {
     const swUrl = `${import.meta.env.BASE_URL}sw.js`;

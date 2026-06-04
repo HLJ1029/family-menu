@@ -105,6 +105,7 @@ miniprogram/
 - 默认地址暂时指向 GitHub Pages：`https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram`。
 - 正式上线前把 `HUMI_H5_URL` 换成已备案的正式域名。
 - H5 会读取 `channel=wechat-miniprogram`，用于区分小程序来源。
+- H5 在小程序 WebView 内会跳过 PWA service worker 注册，减少缓存和刷新异常。
 
 示例：
 
@@ -128,13 +129,14 @@ Page({
 - 页面刷新后 session 是否保留。
 - 推荐失败时是否有本地 fallback。
 - 隐私政策和用户协议链接是否能在小程序内打开。
+- WebView 内刷新后是否拿到最新 H5，不被 PWA 缓存影响。
 
 ## 你需要在微信后台完成
 
 1. 创建或进入 Humi 小程序。
 2. 在“开发管理 / 开发设置”配置服务器域名。
 3. 在“业务域名”添加正式 H5 域名。
-4. 下载业务域名校验文件，并放到正式 H5 域名根目录。
+4. 下载业务域名校验文件，并放到正式 H5 域名根目录；如果微信要求 `.well-known/` 路径，可放到 `public/.well-known/`。
 5. 填写小程序基本信息、服务类目和隐私保护指引。
 6. 在微信开发者工具导入 `miniprogram/`，把 `project.config.json` 里的 `appid` 换成正式 AppID。
 7. 在 `miniprogram/utils/config.js` 把 `HUMI_H5_URL` 换成正式域名。

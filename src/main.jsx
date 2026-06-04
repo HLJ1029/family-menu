@@ -30,6 +30,7 @@ import {
   recipes,
 } from "./lib/recipes";
 import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
 import { recommendMeals } from "./lib/supabase/aiRecommendation";
@@ -110,10 +111,14 @@ function App() {
   const [family, setFamily] = useState(null);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
-  const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("familyos:cloud-menu-enabled", false);
+  const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("humi:cloud-menu-enabled", false, {
+    legacyKeys: ["familyos:cloud-menu-enabled"],
+  });
   const [cloudMenuLoading, setCloudMenuLoading] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState("家庭空间创建后，可把本地菜单迁移到云端。");
-  const [cloudGroceryEnabled, setCloudGroceryEnabled] = useLocalStorageState("familyos:cloud-grocery-enabled", false);
+  const [cloudGroceryEnabled, setCloudGroceryEnabled] = useLocalStorageState("humi:cloud-grocery-enabled", false, {
+    legacyKeys: ["familyos:cloud-grocery-enabled"],
+  });
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -1478,12 +1483,6 @@ function getFamilyProfileCompletedCount(profile = {}) {
     profile.dislikes?.length || profile.allergies?.length,
     profile.shoppingTolerance,
   ].filter(Boolean).length;
-}
-
-function getLaunchChannel() {
-  if (typeof window === "undefined") return "h5";
-  const params = new URLSearchParams(window.location.search);
-  return params.get("channel") || "h5";
 }
 
 function formatAiError(error) {
