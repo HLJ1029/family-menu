@@ -4,6 +4,8 @@
 
 先用小程序 `web-view` 承载现有食间 H5/PWA，快速验证“今晚吃什么”这个核心价值。暂不全量重写小程序，也不先接微信登录。
 
+更细的上线材料、域名、后台配置和审核清单见 `docs/miniprogram-launch-readiness.md`。
+
 ## 为什么先 web-view
 
 - 当前 React 版本已经打通推荐、菜单、计划、清单和库存。
