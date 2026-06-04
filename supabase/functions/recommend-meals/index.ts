@@ -37,7 +37,7 @@ Deno.serve(async (request) => {
           {
             role: "system",
             content:
-              "你是 FamilyOS 的家庭饮食推荐助手。你必须只从候选菜谱中选择，不能创造新菜。输出 JSON，格式为 {\"recipeIds\":[\"id1\",\"id2\"],\"reason\":\"...\",\"pantry\":\"...\",\"preference\":\"...\",\"grocery\":\"...\"}。recipeIds 必须包含 1-2 个候选 id，不能返回菜名。",
+              "你是食间的家庭晚饭推荐助手。你的目标不是炫技，而是给出用户今晚真的愿意照做的晚饭组合。必须只从候选菜谱中选择，不能创造新菜。优先考虑：1. 快到期和家里已有的主食材；2. 避开近期重复菜；3. 总耗时尽量不超过45分钟；4. 主食材缺口尽量不超过3项，调料和常备项不要算成主要缺口；5. 尽量一荤/蛋白搭配一蔬菜/汤/清爽类；6. 忌口和过敏优先级最高。输出 JSON，格式为 {\"recipeIds\":[\"id1\",\"id2\"],\"reason\":\"...\",\"pantry\":\"...\",\"preference\":\"...\",\"grocery\":\"...\"}。recipeIds 必须包含 1-2 个候选 id，不能返回菜名。",
           },
           {
             role: "user",
@@ -49,6 +49,7 @@ Deno.serve(async (request) => {
               familyPreferences: payload.familyPreferences,
               recentRecipeIds: payload.recentRecipeIds,
               currentMissingItems: payload.currentMissingItems,
+              acceptanceRules: payload.acceptanceRules,
               ruleFallback: payload.ruleFallback,
             }),
           },

@@ -633,8 +633,25 @@ function App() {
     setPantryItems((current) => current.filter((item) => item.key !== key));
   }
 
-  function excludeGroceryItem(key) {
+  function excludeGroceryItem(itemOrKey) {
+    const key = typeof itemOrKey === "string" ? itemOrKey : itemOrKey?.hiddenKey;
+    if (!key) return;
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
+    if (typeof itemOrKey === "object" && itemOrKey?.name) {
+      const normalized = normalizeName(itemOrKey.name);
+      setPantryItems((current) => {
+        if (current.some((item) => normalizeName(item.name) === normalized)) return current;
+        return [
+          ...current,
+          {
+            key: `pantry:${Date.now()}`,
+            name: itemOrKey.name,
+            amount: formatRawAmount(itemOrKey),
+          },
+        ];
+      });
+      showNotice(`${itemOrKey.name} 已加入厨房库存`);
+    }
   }
 
   function restoreGroceryItem(item) {
@@ -905,6 +922,7 @@ function App() {
         difficulty: recipe.difficulty,
         ingredients: recipe.ingredients.map((item) => item.name),
         seasonings: recipe.seasonings.map((item) => item.name),
+        nutrition: nutritionFor(recipe),
       })),
       pantryItems: pantryItems.map((item) => ({
         name: item.name,
@@ -917,6 +935,15 @@ function App() {
       })),
       recentRecipeIds,
       currentMissingItems: todayRecommendation.missingItems.map((item) => item.name),
+      acceptanceRules: [
+        "只推荐候选菜谱里的菜，不能创造新菜。",
+        "优先使用快到期或家里已有的主食材。",
+        "避开近期已经安排过的菜。",
+        "晚饭组合建议 1-2 道，总耗时尽量控制在 45 分钟内。",
+        "主食材缺口尽量不超过 3 项；调料和常备项不要当作主要缺口。",
+        "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
+        "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
+      ],
       ruleFallback: {
         recipeIds: todayRecommendation.recipes.map((recipe) => recipe.id),
         reason: todayRecommendation.reason,

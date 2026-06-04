@@ -1,6 +1,7 @@
 import { BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket, Sparkles } from "lucide-react";
 import { formatDateKey } from "../lib/date";
 import { getRecipe, nutritionFor } from "../lib/recipes";
+import { getNutritionSummary, NutritionRings } from "./CalendarPage";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
 import { BalanceRow, StatBlock } from "./ui/StatsBlocks";
@@ -46,6 +47,7 @@ export function StatsPage({ todayRecipes, plannedRecipes, groceryItems, weekPlan
     recipe.categories.some((category) => ["蔬菜", "清爽", "素食"].includes(category)),
   ).length;
   const maxCategoryCount = Math.max(...topCategories.map(([, count]) => count), 1);
+  const monthSummary = getNutritionSummary(allRecipes);
 
   return (
     <section className="grid gap-5">
@@ -95,7 +97,7 @@ export function StatsPage({ todayRecipes, plannedRecipes, groceryItems, weekPlan
               <p className="eyebrow">本月估算</p>
               <h3 className="card-title">营养粗览</h3>
             </div>
-            <BarChart3 size={22} />
+            <NutritionRings summary={monthSummary} size="sm" />
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <NutritionTile label="热量" value={`${Math.round(nutrition.caloriesKcal)} kcal`} />

@@ -323,7 +323,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   );
 }
 
-function NutritionRings({ summary, selected = false, size = "sm" }) {
+export function NutritionRings({ summary, selected = false, size = "sm" }) {
   const dimensions = {
     lg: { dimension: 112, stroke: 8, mealRadius: 48, vegRadius: 37, proteinRadius: 26, text: "text-2xl" },
     sm: { dimension: 58, stroke: 5, mealRadius: 25, vegRadius: 19, proteinRadius: 13, text: "text-xs" },
@@ -410,7 +410,7 @@ function NutritionMetric({ icon: Icon, label, value }) {
   );
 }
 
-function getNutritionSummary(dayRecipes) {
+export function getNutritionSummary(dayRecipes) {
   const meals = dayRecipes.length;
   const vegetableCount = dayRecipes.filter(hasVegetableSignal).length;
   const proteinCount = dayRecipes.filter(hasProteinSignal).length;

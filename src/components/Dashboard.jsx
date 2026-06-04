@@ -100,47 +100,38 @@ export function Dashboard({
       </section>
 
       <section>
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="eyebrow">下一步</p>
-              <h3 className="card-title">接下来安排</h3>
-            </div>
-            <Sparkles size={22} />
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-5">
-            <FlowAction
+        <div className="grid grid-cols-3 gap-3 rounded-[26px] border border-line bg-white p-3 shadow-card sm:grid-cols-6">
+            <QuickAppIcon
               icon={ClipboardList}
-              title="今晚菜单"
-              note="看做法和份数"
+              title="今晚"
               onClick={() => onViewChange("today")}
             />
-            <FlowAction
+            <QuickAppIcon
               icon={CalendarDays}
-              title="这周怎么吃"
-              note="自动放进最近空位"
+              title="本周"
               onClick={() => onViewChange("planner")}
             />
-            <FlowAction
+            <QuickAppIcon
               icon={ShoppingBasket}
-              title="还要买什么"
-              note="买菜前看一眼"
+              title="清单"
               onClick={() => onViewChange("grocery")}
             />
-            <FlowAction
+            <QuickAppIcon
               icon={PackageCheck}
-              title="家中库存"
-              note="快到期的先看"
+              title="库存"
               onClick={() => onViewChange("inventory")}
             />
-            <FlowAction
+            <QuickAppIcon
               icon={BarChart3}
-              title="营养视图"
-              note="看看最近吃得怎样"
+              title="营养"
               onClick={() => onViewChange("stats")}
             />
-          </div>
-        </Card>
+            <QuickAppIcon
+              icon={CalendarDays}
+              title="月历"
+              onClick={() => onViewChange("calendar")}
+            />
+        </div>
       </section>
     </div>
   );
@@ -155,16 +146,17 @@ function SimpleNote({ title, text }) {
   );
 }
 
-function FlowAction({ icon: Icon, title, note, onClick }) {
+function QuickAppIcon({ icon: Icon, title, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-acid"
+      className="grid min-h-[82px] place-items-center rounded-[20px] bg-canvas px-2 py-3 text-center transition hover:-translate-y-0.5 hover:bg-acid"
     >
-      <Icon size={20} />
-      <p className="mt-3 font-black">{title}</p>
-      <p className="mt-1 text-xs font-bold text-ink/50">{note}</p>
+      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-ink shadow-card">
+        <Icon size={19} />
+      </span>
+      <p className="mt-2 text-xs font-black text-ink/62">{title}</p>
     </button>
   );
 }

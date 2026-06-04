@@ -241,7 +241,7 @@ export function GroceryList({
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Already at home</p>
-                <p className="mt-1 text-sm font-black">家中已有材料</p>
+                <p className="mt-1 text-sm font-black">已从清单移出</p>
               </div>
               <button
                 type="button"
@@ -304,6 +304,12 @@ function ShoppingChecklist({
   onRemoveCustomItem,
   onShare,
 }) {
+  const [openSections, setOpenSections] = useState({ ingredients: true, seasonings: false, custom: false });
+
+  function toggleSection(key) {
+    setOpenSections((current) => ({ ...current, [key]: !current[key] }));
+  }
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
@@ -322,23 +328,24 @@ function ShoppingChecklist({
       <div className="mt-5 grid gap-4">
         {sections.length > 0 ? (
           sections.map((section) => (
-            <div key={section.key} className="rounded-[22px] border border-line bg-canvas p-3">
-              <div className="mb-3">
-                <p className="text-base font-black">{section.title}</p>
-                <p className="mt-1 text-xs font-bold leading-5 text-ink/45">{section.note}</p>
-              </div>
-              <div className="grid gap-2">
-                {section.items.map((item) => (
-                  <ShoppingItem
-                    key={item.key}
-                    item={item}
-                    checked={checkedItems[item.key]}
-                    onToggle={() => onToggleItem(item.key)}
-                    onRemove={() => onRemoveItem(item.hiddenKey)}
-                  />
-                ))}
-              </div>
-            </div>
+            <CollapsibleChecklistSection
+              key={section.key}
+              title={section.title}
+              note={section.note}
+              count={section.items.length}
+              open={Boolean(openSections[section.key])}
+              onToggle={() => toggleSection(section.key)}
+            >
+              {section.items.map((item) => (
+                <ShoppingItem
+                  key={item.key}
+                  item={item}
+                  checked={checkedItems[item.key]}
+                  onToggle={() => onToggleItem(item.key)}
+                  onRemove={() => onRemoveItem(item)}
+                />
+              ))}
+            </CollapsibleChecklistSection>
           ))
         ) : (
           <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold text-ink/50">
@@ -347,24 +354,27 @@ function ShoppingChecklist({
         )}
 
         {customItems.length > 0 && (
-          <div className="rounded-[22px] border border-line bg-canvas p-3">
-            <p className="mb-3 text-base font-black">顺手买</p>
-            <div className="grid gap-2">
-              {customItems.map((item) => (
-                <div key={item.key} className="flex items-center gap-3 rounded-[18px] bg-white p-3">
-                  <span className="flex-1 font-black">{item.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveCustomItem(item.key)}
-                    className="grid h-9 w-9 place-items-center rounded-full bg-canvas text-ink/55 transition hover:text-ink"
-                    aria-label={`删除 ${item.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <CollapsibleChecklistSection
+            title="顺手买"
+            note="不是菜谱必需，但这趟可以一起带上。"
+            count={customItems.length}
+            open={Boolean(openSections.custom)}
+            onToggle={() => toggleSection("custom")}
+          >
+            {customItems.map((item) => (
+              <div key={item.key} className="flex items-center gap-3 rounded-[18px] bg-white p-3">
+                <span className="flex-1 font-black">{item.name}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveCustomItem(item.key)}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-canvas text-ink/55 transition hover:text-ink"
+                  aria-label={`删除 ${item.name}`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </CollapsibleChecklistSection>
         )}
       </div>
 
@@ -377,6 +387,31 @@ function ShoppingChecklist({
         分享 / 复制清单
       </button>
     </Card>
+  );
+}
+
+function CollapsibleChecklistSection({ title, note, count, open, onToggle, children }) {
+  return (
+    <div className="rounded-[22px] border border-line bg-canvas p-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 text-left"
+        aria-expanded={open}
+      >
+        <span>
+          <span className="block text-base font-black">{title}</span>
+          <span className="mt-1 block text-xs font-bold leading-5 text-ink/45">{note}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/52">{count} 项</span>
+          <span className={`grid h-9 w-9 place-items-center rounded-full bg-white transition ${open ? "rotate-180" : ""}`}>
+            <ChevronDown size={17} />
+          </span>
+        </span>
+      </button>
+      {open && <div className="mt-3 grid gap-2">{children}</div>}
+    </div>
   );
 }
 
@@ -508,7 +543,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
                     item={item}
                     checked={checkedItems[item.key]}
                     onToggle={() => onToggleItem(item.key)}
-                    onRemove={() => onRemoveItem(item.hiddenKey)}
+                    onRemove={() => onRemoveItem(item)}
                   />
                 ))}
               </div>
@@ -539,7 +574,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`${item.name} 家中已有`}
+        aria-label={`${item.name} 加入厨房库存`}
       >
         <PackageCheck size={15} />
       </button>
@@ -571,7 +606,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`${item.name} 家中已有`}
+        aria-label={`${item.name} 加入厨房库存`}
       >
         <PackageCheck size={15} />
       </button>
