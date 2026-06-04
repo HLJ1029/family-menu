@@ -79,13 +79,17 @@
 
 ## WebView 壳技术方案
 
-目录建议：
+当前已添加最小小程序壳：
 
 ```text
 miniprogram/
+  README.md
+  project.config.json
   app.json
   app.js
   app.wxss
+  utils/
+    config.js
   pages/
     index/
       index.json
@@ -97,8 +101,10 @@ miniprogram/
 首页逻辑：
 
 - `pages/index/index.wxml` 放一个全屏 `web-view`。
-- `src` 指向正式 H5 地址。
-- 后续可用 query 参数区分小程序环境，例如 `?channel=wechat-miniprogram`。
+- `src` 从 `utils/config.js` 读取。
+- 默认地址暂时指向 GitHub Pages：`https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram`。
+- 正式上线前把 `HUMI_H5_URL` 换成已备案的正式域名。
+- H5 会读取 `channel=wechat-miniprogram`，用于区分小程序来源。
 
 示例：
 
@@ -122,6 +128,16 @@ Page({
 - 页面刷新后 session 是否保留。
 - 推荐失败时是否有本地 fallback。
 - 隐私政策和用户协议链接是否能在小程序内打开。
+
+## 你需要在微信后台完成
+
+1. 创建或进入 Humi 小程序。
+2. 在“开发管理 / 开发设置”配置服务器域名。
+3. 在“业务域名”添加正式 H5 域名。
+4. 下载业务域名校验文件，并放到正式 H5 域名根目录。
+5. 填写小程序基本信息、服务类目和隐私保护指引。
+6. 在微信开发者工具导入 `miniprogram/`，把 `project.config.json` 里的 `appid` 换成正式 AppID。
+7. 在 `miniprogram/utils/config.js` 把 `HUMI_H5_URL` 换成正式域名。
 
 ## 审核风险
 

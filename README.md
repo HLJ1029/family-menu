@@ -101,6 +101,12 @@ docs/miniprogram-mvp-plan.md
 docs/Humi_微信小程序上线计划_V1.md
 ```
 
+小程序 WebView 壳：
+
+```text
+miniprogram/
+```
+
 ## 开发流程
 
 每个小阶段完成后：

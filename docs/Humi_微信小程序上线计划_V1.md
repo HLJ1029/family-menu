@@ -164,6 +164,7 @@ P3：验证推荐接受率与留存
 - Humi 品牌口径已统一到页面、PWA、协议、隐私政策、分享标题和推荐提示词。
 - 小程序上线指标已规划为 `app_events`：推荐、换一组、接受、加入本周、分享、登录、家庭创建、画像保存。
 - `app_events` migration 已加入项目：`supabase/migrations/20260604130000_add_app_events.sql`。
+- 最小 WebView 小程序壳已加入项目：`miniprogram/`。
 - 当前正式上线阻塞项：准备已备案 HTTPS 域名，并在微信小程序后台配置 WebView 业务域名。
 
 下一步建议：

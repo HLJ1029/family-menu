@@ -149,7 +149,7 @@ function App() {
       eventName: appEvents.appOpen,
       payload: {
         path: window.location.pathname,
-        source: "h5",
+        source: getLaunchChannel(),
         online,
       },
     });
@@ -1478,6 +1478,12 @@ function getFamilyProfileCompletedCount(profile = {}) {
     profile.dislikes?.length || profile.allergies?.length,
     profile.shoppingTolerance,
   ].filter(Boolean).length;
+}
+
+function getLaunchChannel() {
+  if (typeof window === "undefined") return "h5";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("channel") || "h5";
 }
 
 function formatAiError(error) {
