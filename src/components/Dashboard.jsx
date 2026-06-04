@@ -27,7 +27,7 @@ export function Dashboard({
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
+      <section className="trend-hero relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
         <div className="absolute right-5 top-5 z-10">
           <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
         </div>
@@ -46,7 +46,7 @@ export function Dashboard({
             type="button"
             onClick={onRequestAiRecommendation}
             disabled={aiRecommendationLoading}
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-6 text-base font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+            className="trend-button inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-6 text-base font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-55"
           >
             <Sparkles size={19} />
             {aiRecommendationLoading ? "正在想" : "帮我安排晚饭"}
@@ -76,7 +76,7 @@ export function Dashboard({
             </span>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="trend-stagger mt-5 grid gap-3 md:grid-cols-2">
             {recommendation.recipes.map((recipe) => (
               <MiniMeal key={recipe.id} recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
             ))}
@@ -91,7 +91,7 @@ export function Dashboard({
             <button
               type="button"
               onClick={onAddRecommended}
-              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
+              className="trend-button inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1"
             >
               <Utensils size={19} className="text-acid" />
               就吃这组
@@ -100,7 +100,7 @@ export function Dashboard({
               type="button"
               onClick={onOpenRecommendationFeedback}
               disabled={aiRecommendationLoading}
-              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/62 transition hover:-translate-y-1 hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Sparkles size={17} />
               {aiRecommendationLoading ? "正在换" : "换一组"}
@@ -119,7 +119,7 @@ export function Dashboard({
       </section>
 
       <section>
-        <div className="grid grid-cols-3 gap-3 rounded-[26px] border border-line bg-white p-3 shadow-card sm:grid-cols-6">
+        <div className="trend-stagger grid grid-cols-3 gap-3 rounded-[26px] border border-line bg-white p-3 shadow-card sm:grid-cols-6">
             <QuickAppIcon
               icon={ClipboardList}
               title="今晚"
@@ -223,7 +223,7 @@ function QuickAppIcon({ icon: Icon, title, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="grid min-h-[82px] place-items-center rounded-[20px] bg-canvas px-2 py-3 text-center transition hover:-translate-y-0.5 hover:bg-acid"
+      className="motion-card grid min-h-[82px] place-items-center rounded-[20px] bg-canvas px-2 py-3 text-center transition hover:-translate-y-1 hover:bg-acid"
     >
       <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-ink shadow-card">
         <Icon size={19} />

@@ -401,7 +401,9 @@ function CollapsibleChecklistSection({ title, note, count, open, onToggle, child
           </span>
         </span>
       </button>
-      {open && <div className="mt-3 grid gap-2">{children}</div>}
+      <div className="collapse-grid" data-open={open}>
+        <div className="grid gap-2">{children}</div>
+      </div>
     </div>
   );
 }
@@ -512,8 +514,8 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
         </div>
       </button>
 
-      {open && (
-        <div className="mt-5 grid gap-4">
+      <div className="collapse-grid" data-open={open}>
+        <div className="grid gap-4">
           {section.recipes.map((group) => (
             <div key={group.key} className="rounded-[22px] border border-line bg-canvas p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -541,7 +543,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -551,11 +553,13 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
     <div className="flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
-          {checked && <Check size={15} />}
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+          {checked && <Check size={15} className="check-pop" />}
         </span>
-        <span className={`min-w-0 flex-1 font-black ${checked ? "text-ink/35 line-through" : ""}`}>
-          {item.name}
+        <span className="min-w-0 flex-1 font-black">
+          <span className="strike-text" data-checked={Boolean(checked)}>
+            {item.name}
+          </span>
           {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">常备</em>}
           {item.required === false && <em className="ml-2 text-xs not-italic text-ink/38">可选</em>}
         </span>
@@ -578,11 +582,13 @@ function ShoppingItem({ item, checked, onToggle, onRemove }) {
     <div className="flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
-          {checked && <Check size={15} />}
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+          {checked && <Check size={15} className="check-pop" />}
         </span>
-        <span className={`min-w-0 flex-1 ${checked ? "text-ink/35 line-through" : ""}`}>
-          <span className="block truncate text-sm font-black">{item.name}</span>
+        <span className="min-w-0 flex-1">
+          <span className="strike-text max-w-full truncate text-sm font-black" data-checked={Boolean(checked)}>
+            {item.name}
+          </span>
           <span className="mt-0.5 block text-xs font-bold text-ink/42">
             {item.type === "seasoning" ? "调料" : "食材"}
             {item.pantryItem ? " · 常备" : ""}

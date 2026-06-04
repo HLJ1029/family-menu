@@ -6,7 +6,7 @@ export function MiniMeal({ recipe, dark = false, onClick }) {
     <Wrapper
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-[22px] p-3 text-left transition ${
+      className={`motion-card flex w-full items-center gap-3 rounded-[22px] p-3 text-left transition ${
         dark ? "bg-white/10 text-white" : "border border-line bg-canvas text-ink"
       } ${onClick ? "hover:-translate-y-0.5 hover:bg-white/15" : ""}`}
     >
@@ -15,7 +15,7 @@ export function MiniMeal({ recipe, dark = false, onClick }) {
         alt=""
         loading="lazy"
         decoding="async"
-        className="h-16 w-16 rounded-[18px] object-cover"
+        className="h-16 w-16 rounded-[18px] object-cover transition duration-300"
       />
       <div className="min-w-0">
         <p className="truncate font-black">{recipe.name}</p>

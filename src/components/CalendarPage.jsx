@@ -342,6 +342,7 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           color={selected ? "#FFFFFF" : "#111111"}
           trackColor={selected ? "rgba(255,255,255,0.16)" : "rgba(17,17,17,0.08)"}
           center={dimension / 2}
+          delayClass=""
         />
         <RingTrack
           progress={summary.vegetableProgress}
@@ -350,6 +351,7 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           color="#D9F06B"
           trackColor={selected ? "rgba(217,240,107,0.16)" : "rgba(217,240,107,0.28)"}
           center={dimension / 2}
+          delayClass="fitness-ring-delay-1"
         />
         <RingTrack
           progress={summary.proteinProgress}
@@ -358,9 +360,10 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           color="#FFB86A"
           trackColor={selected ? "rgba(255,184,106,0.16)" : "rgba(255,184,106,0.26)"}
           center={dimension / 2}
+          delayClass="fitness-ring-delay-2"
         />
       </svg>
-      <div className="absolute grid place-items-center text-center">
+      <div key={`${summary.meals}-${summary.mealProgress}-${summary.vegetableProgress}-${summary.proteinProgress}`} className="fitness-ring-center absolute grid place-items-center text-center">
         <span className={`font-black tracking-[-0.04em] ${centerTextClass}`}>{summary.meals}</span>
         {size === "lg" && <span className={`-mt-1 text-[10px] font-black uppercase ${mutedText}`}>meals</span>}
       </div>
@@ -368,7 +371,7 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
   );
 }
 
-function RingTrack({ progress, radius, stroke, color, trackColor, center }) {
+function RingTrack({ progress, radius, stroke, color, trackColor, center, delayClass }) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamp(progress));
 
@@ -393,6 +396,11 @@ function RingTrack({ progress, radius, stroke, color, trackColor, center }) {
         strokeDashoffset={offset}
         strokeLinecap="round"
         transform={`rotate(-90 ${center} ${center})`}
+        className={`fitness-ring ${delayClass}`}
+        style={{
+          "--ring-circumference": circumference,
+          "--ring-offset": offset,
+        }}
       />
     </>
   );

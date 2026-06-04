@@ -1283,173 +1283,175 @@ function App() {
               onOpenUserCenter={() => setActiveView("user")}
             />
           )}
-          {activeView === "dashboard" && (
-            <Dashboard
-              todayRecipes={todayRecipes}
-              recommendation={displayedRecommendation}
-              aiRecommendationStatus={aiRecommendationStatus}
-              aiRecommendationLoading={aiRecommendationLoading}
-              onViewChange={setActiveView}
-              onOpenRecipe={openRecipe}
-              onAddRecommended={addRecommendedToday}
-              onRequestAiRecommendation={requestAiRecommendation}
-              onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
-              feedbackOpen={recommendationFeedbackOpen}
-              onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
-              onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
-              session={session}
-              onOpenUserCenter={() => setActiveView("user")}
-            />
-          )}
-          {activeView === "library" && (
-            <Library
-              categories={categories}
-              category={category}
-              setCategory={setCategory}
-              recipes={filteredRecipes}
-              onAdd={addToday}
-              onUpdateQuantity={updateTodayQuantity}
-              menuQuantities={todayMenu}
-              onOpenRecipe={openRecipe}
-              onDragStart={setDraggedRecipeId}
-            />
-          )}
-          {activeView === "planner" && (
-            <Planner
-              weekPlan={weekPlan}
-              draggedRecipeId={draggedRecipeId}
-              onAssign={assignPlan}
-              onRemove={removePlanRecipe}
-              onShare={shareWeekPlan}
-              cloudSync={{
-                family,
-                enabled: cloudMenuEnabled,
-                loading: cloudMenuLoading,
-                status: cloudSyncStatus,
-                onMigrate: migrateMenusToCloud,
-                onRefresh: refreshCloudMenus,
-                onOpenUserCenter: () => setActiveView("user"),
-              }}
-            />
-          )}
-          {activeView === "today" && (
-            <TodayMenu
-              todayRecipes={todayRecipes}
-              groceryItems={visibleGroceryItems}
-              onAddToday={addToday}
-              onUpdateQuantity={updateTodayQuantity}
-              onOpenRecipe={openRecipe}
-              onViewChange={setActiveView}
-              onShare={shareTodayMenu}
-              cloudSync={{
-                family,
-                enabled: cloudMenuEnabled,
-                loading: cloudMenuLoading,
-                status: cloudSyncStatus,
-                onMigrate: migrateMenusToCloud,
-                onRefresh: refreshCloudMenus,
-                onOpenUserCenter: () => setActiveView("user"),
-              }}
-            />
-          )}
-          {activeView === "calendar" && (
-            <CalendarPage
-              mealCalendar={mealCalendar}
-              onAssign={assignDatePlan}
-              onRemove={removeDatePlan}
-              onOpenRecipe={openRecipe}
-            />
-          )}
-          {activeView === "grocery" && (
-            <GroceryList
-              items={visibleGroceryItems}
-              groups={visibleGroceryGroups}
-              customItems={customItems}
-              newCustomItem={newCustomItem}
-              setNewCustomItem={setNewCustomItem}
-              pantryItems={pantryItems}
-              pantryExpirySummary={pantryExpirySummary}
-              newPantryItem={newPantryItem}
-              setNewPantryItem={setNewPantryItem}
-              newPantryAmount={newPantryAmount}
-              setNewPantryAmount={setNewPantryAmount}
-              newPantryExpiresOn={newPantryExpiresOn}
-              setNewPantryExpiresOn={setNewPantryExpiresOn}
-              onAddCustomItem={addCustomItem}
-              onRemoveCustomItem={removeCustomItem}
-              onAddPantryItem={addPantryItem}
-              onRemovePantryItem={removePantryItem}
-              onExcludeItem={excludeGroceryItem}
-              onRestoreItem={restoreGroceryItem}
-              onRestoreAllItems={restoreAllGroceryItems}
-              onMarkPantryItemsOwned={markPantryItemsOwned}
-              excludedItems={excludedGroceryItems}
-              onShare={shareGroceryList}
-              checkedItems={checkedItems}
-              setCheckedItems={setCheckedItems}
-              cloudSync={{
-                family,
-                enabled: cloudGroceryEnabled,
-                loading: cloudGroceryLoading,
-                status: cloudGroceryStatus,
-                onMigrate: migrateGroceryToCloud,
-                onRefresh: refreshCloudGrocery,
-              }}
-              onOpenUserCenter={() => setActiveView("user")}
-              onOpenInventory={() => setActiveView("inventory")}
-              onOpenStats={() => setActiveView("stats")}
-            />
-          )}
-          {activeView === "inventory" && (
-            <InventoryPage
-              pantryItems={pantryItems}
-              pantryExpirySummary={pantryExpirySummary}
-              newPantryItem={newPantryItem}
-              setNewPantryItem={setNewPantryItem}
-              newPantryAmount={newPantryAmount}
-              setNewPantryAmount={setNewPantryAmount}
-              newPantryExpiresOn={newPantryExpiresOn}
-              setNewPantryExpiresOn={setNewPantryExpiresOn}
-              onAddPantryItem={addPantryItem}
-              onRemovePantryItem={removePantryItem}
-              onShare={shareInventorySummary}
-              cloudSync={{
-                family,
-                enabled: cloudGroceryEnabled,
-                loading: cloudGroceryLoading,
-                status: cloudGroceryStatus,
-                onMigrate: migrateGroceryToCloud,
-                onRefresh: refreshCloudGrocery,
-              }}
-              onOpenUserCenter={() => setActiveView("user")}
-            />
-          )}
-          {activeView === "stats" && (
-            <StatsPage
-              todayRecipes={todayRecipes}
-              plannedRecipes={plannedRecipes}
-              groceryItems={visibleGroceryItems}
-              weekPlan={weekPlan}
-              mealCalendar={mealCalendar}
-              onViewChange={setActiveView}
-            />
-          )}
-          {activeView === "user" && (
-            <UserCenter
-              authProps={authProps}
-              cloudMenuProps={cloudMenuProps}
-              preferenceProps={preferenceProps}
-              session={session}
-              family={family}
-              familyProfile={familyProfile}
-              setFamilyProfile={saveFamilyProfile}
-            />
-          )}
+          <div key={activeView} className="view-enter">
+            {activeView === "dashboard" && (
+              <Dashboard
+                todayRecipes={todayRecipes}
+                recommendation={displayedRecommendation}
+                aiRecommendationStatus={aiRecommendationStatus}
+                aiRecommendationLoading={aiRecommendationLoading}
+                onViewChange={setActiveView}
+                onOpenRecipe={openRecipe}
+                onAddRecommended={addRecommendedToday}
+                onRequestAiRecommendation={requestAiRecommendation}
+                onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
+                feedbackOpen={recommendationFeedbackOpen}
+                onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
+                onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
+                session={session}
+                onOpenUserCenter={() => setActiveView("user")}
+              />
+            )}
+            {activeView === "library" && (
+              <Library
+                categories={categories}
+                category={category}
+                setCategory={setCategory}
+                recipes={filteredRecipes}
+                onAdd={addToday}
+                onUpdateQuantity={updateTodayQuantity}
+                menuQuantities={todayMenu}
+                onOpenRecipe={openRecipe}
+                onDragStart={setDraggedRecipeId}
+              />
+            )}
+            {activeView === "planner" && (
+              <Planner
+                weekPlan={weekPlan}
+                draggedRecipeId={draggedRecipeId}
+                onAssign={assignPlan}
+                onRemove={removePlanRecipe}
+                onShare={shareWeekPlan}
+                cloudSync={{
+                  family,
+                  enabled: cloudMenuEnabled,
+                  loading: cloudMenuLoading,
+                  status: cloudSyncStatus,
+                  onMigrate: migrateMenusToCloud,
+                  onRefresh: refreshCloudMenus,
+                  onOpenUserCenter: () => setActiveView("user"),
+                }}
+              />
+            )}
+            {activeView === "today" && (
+              <TodayMenu
+                todayRecipes={todayRecipes}
+                groceryItems={visibleGroceryItems}
+                onAddToday={addToday}
+                onUpdateQuantity={updateTodayQuantity}
+                onOpenRecipe={openRecipe}
+                onViewChange={setActiveView}
+                onShare={shareTodayMenu}
+                cloudSync={{
+                  family,
+                  enabled: cloudMenuEnabled,
+                  loading: cloudMenuLoading,
+                  status: cloudSyncStatus,
+                  onMigrate: migrateMenusToCloud,
+                  onRefresh: refreshCloudMenus,
+                  onOpenUserCenter: () => setActiveView("user"),
+                }}
+              />
+            )}
+            {activeView === "calendar" && (
+              <CalendarPage
+                mealCalendar={mealCalendar}
+                onAssign={assignDatePlan}
+                onRemove={removeDatePlan}
+                onOpenRecipe={openRecipe}
+              />
+            )}
+            {activeView === "grocery" && (
+              <GroceryList
+                items={visibleGroceryItems}
+                groups={visibleGroceryGroups}
+                customItems={customItems}
+                newCustomItem={newCustomItem}
+                setNewCustomItem={setNewCustomItem}
+                pantryItems={pantryItems}
+                pantryExpirySummary={pantryExpirySummary}
+                newPantryItem={newPantryItem}
+                setNewPantryItem={setNewPantryItem}
+                newPantryAmount={newPantryAmount}
+                setNewPantryAmount={setNewPantryAmount}
+                newPantryExpiresOn={newPantryExpiresOn}
+                setNewPantryExpiresOn={setNewPantryExpiresOn}
+                onAddCustomItem={addCustomItem}
+                onRemoveCustomItem={removeCustomItem}
+                onAddPantryItem={addPantryItem}
+                onRemovePantryItem={removePantryItem}
+                onExcludeItem={excludeGroceryItem}
+                onRestoreItem={restoreGroceryItem}
+                onRestoreAllItems={restoreAllGroceryItems}
+                onMarkPantryItemsOwned={markPantryItemsOwned}
+                excludedItems={excludedGroceryItems}
+                onShare={shareGroceryList}
+                checkedItems={checkedItems}
+                setCheckedItems={setCheckedItems}
+                cloudSync={{
+                  family,
+                  enabled: cloudGroceryEnabled,
+                  loading: cloudGroceryLoading,
+                  status: cloudGroceryStatus,
+                  onMigrate: migrateGroceryToCloud,
+                  onRefresh: refreshCloudGrocery,
+                }}
+                onOpenUserCenter={() => setActiveView("user")}
+                onOpenInventory={() => setActiveView("inventory")}
+                onOpenStats={() => setActiveView("stats")}
+              />
+            )}
+            {activeView === "inventory" && (
+              <InventoryPage
+                pantryItems={pantryItems}
+                pantryExpirySummary={pantryExpirySummary}
+                newPantryItem={newPantryItem}
+                setNewPantryItem={setNewPantryItem}
+                newPantryAmount={newPantryAmount}
+                setNewPantryAmount={setNewPantryAmount}
+                newPantryExpiresOn={newPantryExpiresOn}
+                setNewPantryExpiresOn={setNewPantryExpiresOn}
+                onAddPantryItem={addPantryItem}
+                onRemovePantryItem={removePantryItem}
+                onShare={shareInventorySummary}
+                cloudSync={{
+                  family,
+                  enabled: cloudGroceryEnabled,
+                  loading: cloudGroceryLoading,
+                  status: cloudGroceryStatus,
+                  onMigrate: migrateGroceryToCloud,
+                  onRefresh: refreshCloudGrocery,
+                }}
+                onOpenUserCenter={() => setActiveView("user")}
+              />
+            )}
+            {activeView === "stats" && (
+              <StatsPage
+                todayRecipes={todayRecipes}
+                plannedRecipes={plannedRecipes}
+                groceryItems={visibleGroceryItems}
+                weekPlan={weekPlan}
+                mealCalendar={mealCalendar}
+                onViewChange={setActiveView}
+              />
+            )}
+            {activeView === "user" && (
+              <UserCenter
+                authProps={authProps}
+                cloudMenuProps={cloudMenuProps}
+                preferenceProps={preferenceProps}
+                session={session}
+                family={family}
+                familyProfile={familyProfile}
+                setFamilyProfile={saveFamilyProfile}
+              />
+            )}
+          </div>
         </main>
       </div>
       <MobileTabbar activeView={activeView} onChange={setActiveView} />
       {notice && (
-        <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
+        <div className="toast-enter fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
           {notice}
         </div>
       )}

@@ -24,7 +24,7 @@ export function Sidebar({ activeView, onChange }) {
               type="button"
               onClick={() => onChange(item.id)}
               className={`group flex w-full items-center gap-3 rounded-[20px] px-4 py-3 text-left text-sm font-bold transition ${
-                active ? "bg-ink text-white" : "text-ink/62 hover:bg-ink/[0.04] hover:text-ink"
+                active ? "nav-tab-active bg-ink text-white" : "text-ink/62 hover:bg-ink/[0.04] hover:text-ink"
               }`}
             >
               <Icon size={19} className={active ? "text-acid" : "text-ink/48 group-hover:text-ink"} />
@@ -52,7 +52,7 @@ export function AccountAvatar({ session, onClick, compact = false }) {
     <button
       type="button"
       onClick={onClick}
-      className={`grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
+      className={`motion-card grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
       aria-label={email ? "打开我的家" : "登录并保存我的 Humi"}
@@ -96,7 +96,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter 
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {
@@ -107,10 +107,11 @@ export function MobileTabbar({ activeView, onChange }) {
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
-            className={`grid place-items-center gap-1 rounded-[20px] py-2 text-[11px] font-black transition ${
-              active ? "bg-ink text-white" : "text-ink/45"
+            className={`relative grid place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[11px] font-black transition ${
+              active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"
             }`}
           >
+            {active && <span className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-acid" />}
             <Icon size={18} className={active ? "text-acid" : ""} />
             {item.label}
           </button>

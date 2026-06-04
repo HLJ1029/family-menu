@@ -123,7 +123,7 @@ function RecipeQuantityControl({ recipe, quantity, onAdd, onUpdateQuantity }) {
   if (quantity > 0) {
     return (
       <div
-        className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/92 p-1 shadow-card backdrop-blur"
+        className="quantity-morph absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/92 p-1 shadow-card backdrop-blur"
         onClick={(event) => event.stopPropagation()}
         aria-label={`${recipe.name} 已加入 ${quantity} 份`}
       >
@@ -135,7 +135,7 @@ function RecipeQuantityControl({ recipe, quantity, onAdd, onUpdateQuantity }) {
         >
           <Minus size={15} />
         </button>
-        <span className="min-w-5 text-center text-xs font-black">{quantity}</span>
+        <span key={quantity} className="quantity-pop min-w-5 text-center text-xs font-black">{quantity}</span>
         <button
           type="button"
           onClick={() => onUpdateQuantity(recipe.id, 1)}
@@ -155,7 +155,7 @@ function RecipeQuantityControl({ recipe, quantity, onAdd, onUpdateQuantity }) {
         event.stopPropagation();
         onAdd(recipe.id);
       }}
-      className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-acid text-ink shadow-card transition hover:scale-105"
+      className="quantity-morph absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-acid text-ink shadow-card transition hover:scale-105"
       aria-label={`加入 ${recipe.name}`}
     >
       <Plus size={19} />
