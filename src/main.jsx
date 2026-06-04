@@ -117,6 +117,8 @@ function App() {
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
+  const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
+  const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
@@ -526,7 +528,12 @@ function App() {
     }
   }
 
-  async function requestAiRecommendation() {
+  async function requestAiRecommendation(feedbackReason = null) {
+    setRecommendationFeedbackOpen(false);
+    if (feedbackReason) {
+      recordRecommendationFeedback(feedbackReason);
+    }
+
     if (!session?.user) {
       setAiRecommendation(null);
       setAiRecommendationStatus("已经先给你安排好一组。登录后，食间会参考家庭画像和库存来调整。");
@@ -549,6 +556,20 @@ function App() {
     } finally {
       setAiRecommendationLoading(false);
     }
+  }
+
+  function recordRecommendationFeedback(reason) {
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    setRecommendationFeedback((current) => [
+      {
+        id: `feedback:${Date.now()}`,
+        reasonId: reason.id,
+        reasonLabel: reason.label,
+        recipeIds: currentRecipeIds,
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ].slice(0, 12));
   }
 
   function updateTodayQuantity(recipeId, delta) {
@@ -947,6 +968,10 @@ function App() {
       compactFamilyPrompt: buildCompactFamilyPrompt(familyProfile),
       recentRecipeIds,
       currentMissingItems: todayRecommendation.missingItems.map((item) => item.name),
+      recentFeedback: recommendationFeedback.slice(0, 6).map((item) => ({
+        reason: item.reasonLabel,
+        recipeIds: item.recipeIds,
+      })),
       acceptanceRules: [
         "只推荐候选菜谱里的菜，不能创造新菜。",
         "优先使用快到期或家里已有的主食材。",
@@ -1173,6 +1198,10 @@ function App() {
               onOpenRecipe={openRecipe}
               onAddRecommended={addRecommendedToday}
               onRequestAiRecommendation={requestAiRecommendation}
+              onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
+              feedbackOpen={recommendationFeedbackOpen}
+              onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
+              onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
               session={session}
               onOpenUserCenter={() => setActiveView("user")}
             />

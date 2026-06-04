@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, ClipboardList, PackageCheck, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, PackageCheck, ShoppingBasket, Sparkles, Utensils, X } from "lucide-react";
 import { AccountAvatar } from "./AppShell";
 import { Card } from "./ui/Card";
 import { DoodleArrow } from "./ui/Doodles";
@@ -13,6 +13,10 @@ export function Dashboard({
   onOpenRecipe,
   onAddRecommended,
   onRequestAiRecommendation,
+  onOpenRecommendationFeedback,
+  feedbackOpen,
+  onSubmitRecommendationFeedback,
+  onCloseRecommendationFeedback,
   session,
   onOpenUserCenter,
 }) {
@@ -94,7 +98,7 @@ export function Dashboard({
             </button>
             <button
               type="button"
-              onClick={onRequestAiRecommendation}
+              onClick={onOpenRecommendationFeedback}
               disabled={aiRecommendationLoading}
               className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
             >
@@ -102,6 +106,15 @@ export function Dashboard({
               {aiRecommendationLoading ? "正在换" : "换一组"}
             </button>
           </div>
+
+          {feedbackOpen && (
+            <RecommendationFeedbackPanel
+              loading={aiRecommendationLoading}
+              onSubmit={onSubmitRecommendationFeedback}
+              onSkip={() => onSubmitRecommendationFeedback(null)}
+              onClose={onCloseRecommendationFeedback}
+            />
+          )}
         </Card>
       </section>
 
@@ -139,6 +152,59 @@ export function Dashboard({
             />
         </div>
       </section>
+    </div>
+  );
+}
+
+const feedbackReasons = [
+  { id: "too_hard", label: "太麻烦" },
+  { id: "not_craving", label: "不想吃这个" },
+  { id: "missing_ingredients", label: "家里没材料" },
+  { id: "lighter", label: "想清淡点" },
+  { id: "more_meat", label: "想吃肉" },
+  { id: "less_meat", label: "想少吃肉" },
+];
+
+function RecommendationFeedbackPanel({ loading, onSubmit, onSkip, onClose }) {
+  return (
+    <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-black">这组哪里不合适？</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
+            选一个原因，食间下次会避开类似情况。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:text-ink"
+          aria-label="关闭换一组原因"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {feedbackReasons.map((reason) => (
+          <button
+            key={reason.id}
+            type="button"
+            onClick={() => onSubmit(reason)}
+            disabled={loading}
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {reason.label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onSkip}
+        disabled={loading}
+        className="mt-3 min-h-11 w-full rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        先直接换一组
+      </button>
     </div>
   );
 }
