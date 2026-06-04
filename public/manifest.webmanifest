@@ -1,7 +1,7 @@
 {
-  "name": "食间",
-  "short_name": "食间",
-  "description": "帮家里少纠结一顿饭。",
+  "name": "呼米 Humi",
+  "short_name": "呼米",
+  "description": "呼米 Humi，帮家里少纠结一顿饭。",
   "start_url": "/family-menu/",
   "scope": "/family-menu/",
   "display": "standalone",
@@ -11,9 +11,21 @@
   "categories": ["food", "health", "lifestyle", "productivity"],
   "icons": [
     {
-      "src": "/family-menu/icons/familyos-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/family-menu/icons/humi-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/family-menu/icons/humi-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/family-menu/icons/humi-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

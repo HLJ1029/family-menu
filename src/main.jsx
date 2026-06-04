@@ -510,7 +510,7 @@ function App() {
   async function requestAiExplanation() {
     if (!session?.user) {
       setAiExplanation(displayedRecommendation.reason);
-      setAiExplanationStatus("这组先按当前菜单说明；登录后，食间会慢慢记住家里的口味。");
+      setAiExplanationStatus("这组先按当前菜单说明；登录后，呼米会慢慢记住家里的口味。");
       return;
     }
 
@@ -536,7 +536,7 @@ function App() {
 
     if (!session?.user) {
       setAiRecommendation(null);
-      setAiRecommendationStatus("已经先给你安排好一组。登录后，食间会参考家庭画像和库存来调整。");
+      setAiRecommendationStatus("已经先给你安排好一组。登录后，呼米会参考家庭画像和库存来调整。");
       return;
     }
 
@@ -719,25 +719,25 @@ function App() {
 
   async function shareTodayMenu() {
     const text = [
-      "食间今晚菜单",
+      "呼米今晚菜单",
       "",
       ...todayRecipes.map((recipe) => `- ${recipe.name} x${recipe.menuQuantity ?? 1}`),
       "",
       `待买食材：${visibleGroceryItems.length} 项`,
     ].join("\n");
-    await shareText({ title: "食间今晚菜单", text, success: "今晚菜单已复制" });
+    await shareText({ title: "呼米今晚菜单", text, success: "今晚菜单已复制" });
   }
 
   async function shareWeekPlan() {
     const text = [
-      "食间一周计划",
+      "呼米一周计划",
       "",
       ...Object.entries(weekPlan).map(([day, recipeIds]) => {
         const names = recipeIds.map((recipeId) => getRecipe(recipeId)?.name).filter(Boolean);
         return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
       }),
     ].join("\n");
-    await shareText({ title: "食间一周计划", text, success: "一周计划已复制" });
+    await shareText({ title: "呼米一周计划", text, success: "一周计划已复制" });
   }
 
   async function shareInventorySummary() {
@@ -745,7 +745,7 @@ function App() {
     const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
     const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
     const text = [
-      "食间家中库存",
+      "呼米家中库存",
       "",
       `全部库存：${pantryItems.length} 项`,
       `临期：${expiringItems.length} 项`,
@@ -755,7 +755,7 @@ function App() {
       formatInventoryShareSection("已过期", expiredItems),
       formatInventoryShareSection("家里现有", freshItems),
     ].join("\n");
-    await shareText({ title: "食间家中库存", text, success: "库存摘要已复制" });
+    await shareText({ title: "呼米家中库存", text, success: "库存摘要已复制" });
   }
 
   async function shareText({ title, text, success }) {
@@ -815,9 +815,9 @@ function App() {
       setAuthStatus(
         mode === "signup"
           ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
-          : "已登录食间。",
+          : "已登录呼米。",
       );
-      showNotice(mode === "signup" ? "账号已创建" : "已登录食间");
+      showNotice(mode === "signup" ? "账号已创建" : "已登录呼米");
     } catch (error) {
       setAuthStatus(error.message);
     } finally {

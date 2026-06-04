@@ -10,7 +10,7 @@ export function Sidebar({ activeView, onChange }) {
           <ChefHat size={22} />
         </div>
         <div>
-          <p className="text-2xl font-black tracking-tight">食间</p>
+          <p className="text-2xl font-black tracking-tight">呼米</p>
           <p className="-mt-0.5 text-xs font-black text-ink/45">让每一顿饭都有安排</p>
         </div>
       </div>
@@ -55,7 +55,7 @@ export function AccountAvatar({ session, onClick, compact = false }) {
       className={`grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label={email ? "打开我的家" : "登录并保存我的食间"}
+      aria-label={email ? "打开我的家" : "登录并保存我的呼米"}
     >
       {email ? initial : <UserRound size={19} />}
     </button>
@@ -64,14 +64,14 @@ export function AccountAvatar({ session, onClick, compact = false }) {
 
 export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter }) {
   const activeItem = navItems.find((item) => item.id === activeView);
-  const title = activeItem?.label ?? "食间";
+  const title = activeItem?.label ?? "呼米";
 
   return (
     <header className="mb-5 flex flex-col gap-4 lg:mb-7 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <span className="h-2 w-2 rounded-full bg-acid" />
-          食间
+          呼米
         </div>
         <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
           {title}

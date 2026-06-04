@@ -67,7 +67,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
             <Database size={22} />
           </div>
           <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            现在可以先用食间安排晚饭。下一步准备小程序入口，让家里人更容易打开。
+            现在可以先用呼米安排晚饭。下一步准备小程序入口，让家里人更容易打开。
           </p>
         </Card>
 
@@ -135,7 +135,7 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="eyebrow">家庭画像</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">让食间更懂你家</h3>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">让呼米更懂你家</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
             先选几个常用习惯，推荐时会压缩成一份简短画像，少传废话，也更贴近你家。
           </p>
@@ -311,7 +311,7 @@ function formatProfileSummary(profile = {}) {
     listSummary("避开", [...(profile.dislikes ?? []), ...(profile.allergies ?? [])]),
     shoppingLabel(profile.shoppingTolerance),
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join("；") : "还没填写画像，食间会先按通用家庭晚饭来安排。";
+  return parts.length > 0 ? parts.join("；") : "还没填写画像，呼米会先按通用家庭晚饭来安排。";
 }
 
 function listSummary(label, values = []) {

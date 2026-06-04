@@ -1,10 +1,11 @@
-const CACHE_NAME = "familyos-shell-v1";
+const CACHE_NAME = "humi-shell-v1";
 const BASE_PATH = "/family-menu/";
 const APP_SHELL = [
   BASE_PATH,
   `${BASE_PATH}offline.html`,
   `${BASE_PATH}manifest.webmanifest`,
-  `${BASE_PATH}icons/familyos-icon.svg`,
+  `${BASE_PATH}icons/humi-icon-192.png`,
+  `${BASE_PATH}icons/humi-icon-512.png`,
 ];
 
 self.addEventListener("install", (event) => {

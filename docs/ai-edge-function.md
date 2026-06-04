@@ -1,6 +1,6 @@
 # DeepSeek AI Edge Functions
 
-FamilyOS 里所有 AI 能力都不在前端直接调用 DeepSeek。前端只把推荐上下文或规则 fallback 发给 Supabase Edge Function，由 Edge Function 使用 `DEEPSEEK_API_KEY` 调用 DeepSeek Chat Completions API。
+呼米 Humi 里所有 AI 能力都不在前端直接调用 DeepSeek。前端只把推荐上下文或本地兜底结果发给 Supabase Edge Function，由 Edge Function 使用 `DEEPSEEK_API_KEY` 调用 DeepSeek Chat Completions API。
 
 ## Functions
 

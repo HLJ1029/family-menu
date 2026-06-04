@@ -39,7 +39,7 @@ export function TodayMenu({
             今晚菜单还是空的。
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            回到首页点“帮我安排晚饭”，食间会先给你凑好一组。
+            回到首页点“帮我安排晚饭”，呼米会先给你凑好一组。
           </p>
         </div>
         <QuickAddRecipes

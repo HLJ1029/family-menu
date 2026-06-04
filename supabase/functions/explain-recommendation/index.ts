@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
           {
             role: "system",
             content:
-              "你是 FamilyOS 的家庭饮食解释助手。你只解释规则推荐结果，不重新决定菜单。输出中文，简短、具体、可执行。",
+              "你是呼米 Humi 的家庭饮食解释助手。你只解释推荐结果，不重新决定菜单。输出中文，简短、具体、可执行。",
           },
           {
             role: "user",

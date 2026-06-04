@@ -7,7 +7,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
     <main className="min-h-screen bg-canvas px-4 py-5 text-ink">
       <section className="mx-auto grid min-h-[calc(100vh-40px)] max-w-xl content-center gap-5">
         <div className="rounded-[32px] bg-ink p-6 text-white shadow-lift">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">食间</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">呼米</p>
           <h1 className="mt-4 text-5xl font-black tracking-[-0.05em]">
             今晚吃什么？
           </h1>

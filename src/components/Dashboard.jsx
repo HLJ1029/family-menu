@@ -34,12 +34,12 @@ export function Dashboard({
         <div className="absolute right-8 top-7 hidden md:block">
           <DoodleArrow />
         </div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">食间</p>
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">呼米</p>
         <h2 className="mt-4 max-w-2xl text-5xl font-black tracking-[-0.05em] md:text-7xl">
           今晚吃什么？
         </h2>
         <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
-          不用从头想。食间先给你安排一组能落地的晚饭。
+          不用从头想。呼米先给你安排一组能落地的晚饭。
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
           <button
@@ -172,7 +172,7 @@ function RecommendationFeedbackPanel({ loading, onSubmit, onSkip, onClose }) {
         <div>
           <p className="text-sm font-black">这组哪里不合适？</p>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-            选一个原因，食间下次会避开类似情况。
+            选一个原因，呼米下次会避开类似情况。
           </p>
         </div>
         <button
