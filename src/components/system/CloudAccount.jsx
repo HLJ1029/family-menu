@@ -43,7 +43,7 @@ export function CloudAccount({
     }
 
     setAuthStatus("登录链接已发送，请检查邮箱。");
-    showNotice("呼米登录链接已发送");
+    showNotice("Humi 登录链接已发送");
   }
 
   return (
@@ -56,7 +56,7 @@ export function CloudAccount({
           <p className="eyebrow">我的家</p>
           <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">保存家里的吃饭习惯</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            登录后，呼米会记住菜单、清单、库存和家人口味。也可以先直接体验。
+            登录后，Humi 会记住菜单、清单、库存和家人口味。也可以先直接体验。
           </p>
         </div>
       </div>

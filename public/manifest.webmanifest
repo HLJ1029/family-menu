@@ -1,7 +1,7 @@
 {
-  "name": "呼米 Humi",
-  "short_name": "呼米",
-  "description": "呼米 Humi，帮家里少纠结一顿饭。",
+  "name": "Humi",
+  "short_name": "Humi",
+  "description": "Humi，让每顿饭都有安排。",
   "start_url": "/family-menu/",
   "scope": "/family-menu/",
   "display": "standalone",

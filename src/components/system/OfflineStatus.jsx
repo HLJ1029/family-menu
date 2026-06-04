@@ -8,7 +8,7 @@ export function OfflineStatus({ online }) {
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
         <WifiOff size={17} />
       </span>
-      当前离线，呼米会先保留页面；重新联网后继续保存菜单和清单。
+      当前离线，Humi 会先保留页面；重新联网后继续保存菜单和清单。
     </div>
   );
 }

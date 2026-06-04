@@ -63,7 +63,7 @@ export function PwaLaunchPanel({ compact = false }) {
       <div className="mt-4 grid gap-2">
         <LaunchCheck label="手机地址" value={productionUrl} />
         <LaunchCheck label="主屏幕安装" value="Safari 分享按钮 -> 添加到主屏幕" />
-        <LaunchCheck label="离线可打开" value="断网后也能先打开呼米页面" />
+        <LaunchCheck label="离线可打开" value="断网后也能先打开 Humi 页面" />
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -74,7 +74,7 @@ export function PwaLaunchPanel({ compact = false }) {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
           >
             <Smartphone size={16} />
-            安装呼米
+            安装 Humi
           </button>
         ) : (
           <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-4 text-sm font-black text-ink/58">
