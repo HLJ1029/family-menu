@@ -886,6 +886,10 @@ function App() {
   }
 
   async function openPosterPreview({ type, title, filename, text, createBlob, fallbackSuccess, refreshLabel }) {
+    setPosterPreview((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return { blob: null, url: "", type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
+    });
     setPosterLoading(true);
     try {
       const blob = await createBlob();
@@ -897,6 +901,10 @@ function App() {
       trackProductEvent(appEvents.share, { type, method: "poster_preview" });
       showNotice("海报已生成");
     } catch {
+      setPosterPreview((current) => {
+        if (current?.url) URL.revokeObjectURL(current.url);
+        return null;
+      });
       await shareText({ type, title, text, success: fallbackSuccess });
     } finally {
       setPosterLoading(false);
@@ -913,6 +921,10 @@ function App() {
   async function regeneratePosterPreview() {
     if (!posterPreview) return;
     setPosterLoading(true);
+    setPosterPreview((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return current ? { ...current, blob: null, url: "" } : null;
+    });
     try {
       const blob = await posterPreview.createBlob();
       const url = URL.createObjectURL(blob);
