@@ -12,25 +12,14 @@ const COLORS = {
 };
 
 const checklistStyles = ["fresh", "market", "receipt"];
+const HUMI_ICON_URL = "/family-menu/icons/humi-icon-512.png";
 
 export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
-  return createPosterBlob((ctx) => {
-    drawPosterBase(ctx, {
-      eyebrow: "TONIGHT MENU",
-      title: "今晚菜单",
-      subtitle: recipes.length > 0 ? "晚饭已经安排好。" : "今晚还没安排菜单。",
-    });
-    drawMenuAutoLayout(ctx, {
-      items: recipes.map((recipe) => ({
-        title: recipe.name,
-        meta: recipe.menuQuantity > 1 ? `${recipe.menuQuantity} 份` : "今晚吃",
-        note: recipe.description,
-      })),
-      emptyText: "回到首页点「帮我安排晚饭」",
-      top: 350,
-      bottom: 1140,
-    });
-    drawFooterBar(ctx, `${recipes.length} 道菜`, groceryCount > 0 ? `${groceryCount} 项待买` : "清单已轻松");
+  return createPosterBlob(async (ctx) => {
+    const icon = await loadImageSafe(HUMI_ICON_URL);
+    const heroRecipe = recipes[0];
+    const heroImage = await loadImageSafe(heroRecipe?.image?.url);
+    drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage });
   });
 }
 
@@ -81,18 +70,238 @@ export function downloadPoster(blob, filename) {
   downloadBlob(blob, filename);
 }
 
-function createPosterBlob(draw) {
+async function createPosterBlob(draw) {
   const canvas = document.createElement("canvas");
   canvas.width = POSTER_WIDTH;
   canvas.height = POSTER_HEIGHT;
   const ctx = canvas.getContext("2d");
-  draw(ctx);
+  await draw(ctx);
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error("Poster export failed"));
     }, "image/png");
   });
+}
+
+function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
+  const heroRecipe = recipes[0];
+  drawPaperBackground(ctx);
+
+  if (icon) {
+    drawRoundedImage(ctx, icon, 64, 58, 58, 58, 17, { fit: "cover" });
+  } else {
+    drawMiniLogo(ctx, 64, 58);
+  }
+  drawText(ctx, "HUMI", 140, 99, { size: 28, weight: 950, maxWidth: 160 });
+  drawText(ctx, "Tonight", 906, 96, { size: 22, weight: 850, color: COLORS.muted, maxWidth: 120 });
+
+  if (!heroRecipe) {
+    drawEmptyTonightPoster(ctx);
+    return;
+  }
+
+  const heroBox = { x: 78, y: 184, width: 924, height: 712, radius: 38 };
+  ctx.save();
+  ctx.shadowColor = "rgba(17, 17, 17, 0.12)";
+  ctx.shadowBlur = 58;
+  ctx.shadowOffsetY = 28;
+  ctx.fillStyle = COLORS.white;
+  roundRect(ctx, heroBox.x, heroBox.y, heroBox.width, heroBox.height, heroBox.radius, true);
+  ctx.restore();
+
+  if (heroImage) {
+    const horizontalDish = isHorizontalDish(heroRecipe);
+    drawRoundedImage(ctx, heroImage, heroBox.x, heroBox.y, heroBox.width, heroBox.height, heroBox.radius, {
+      fit: horizontalDish ? "contain" : "cover",
+      background: "#F7F3EA",
+      padding: horizontalDish ? 26 : 0,
+    });
+  } else {
+    drawDishPlaceholder(ctx, heroRecipe.name, heroBox);
+  }
+
+  drawQuestionBlock(ctx, 78, 945);
+  const dishSize = heroRecipe.name.length >= 6 ? 94 : 112;
+  drawText(ctx, heroRecipe.name, 78, 1100, {
+    size: dishSize,
+    weight: 950,
+    lineHeight: dishSize + 8,
+    maxWidth: 900,
+    maxLines: 2,
+  });
+
+  const secondRecipe = recipes[1];
+  const metadata = buildTonightMetadata(heroRecipe, secondRecipe, groceryCount);
+  drawText(ctx, metadata, 82, 1190, {
+    size: 29,
+    weight: 900,
+    color: COLORS.muted,
+    maxWidth: 820,
+    maxLines: 1,
+  });
+
+  drawText(ctx, "晚饭已经有着落。", 82, 1326, {
+    size: 22,
+    weight: 850,
+    color: COLORS.muted,
+    maxWidth: 420,
+  });
+  drawText(ctx, "HUMI", 884, 1328, {
+    size: 32,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: 140,
+  });
+}
+
+function drawPaperBackground(ctx) {
+  ctx.fillStyle = COLORS.canvas;
+  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
+  const glow = ctx.createRadialGradient(910, 180, 20, 910, 180, 260);
+  glow.addColorStop(0, "rgba(212, 235, 90, 0.35)");
+  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
+
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = "rgba(17, 17, 17, 0.035)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= POSTER_WIDTH; x += 42) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, POSTER_HEIGHT);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= POSTER_HEIGHT; y += 42) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(POSTER_WIDTH, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMiniLogo(ctx, x, y) {
+  ctx.fillStyle = COLORS.ink;
+  roundRect(ctx, x, y, 58, 58, 17, true);
+  drawText(ctx, "H", x + 16, y + 41, { size: 34, weight: 950, color: COLORS.acid });
+}
+
+function drawEmptyTonightPoster(ctx) {
+  drawEmptyBlock(ctx, "回到首页点「帮我安排晚饭」", 360);
+  drawQuestionBlock(ctx, 78, 945);
+  drawText(ctx, "今晚还没安排", 78, 1100, {
+    size: 100,
+    weight: 950,
+    lineHeight: 110,
+    maxWidth: 900,
+  });
+  drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, maxWidth: 140 });
+}
+
+function drawQuestionBlock(ctx, x, y) {
+  ctx.fillStyle = COLORS.acid;
+  roundRect(ctx, x + 4, y - 20, 320, 26, 13, true);
+  drawText(ctx, "今晚吃什么？", x, y, {
+    size: 76,
+    weight: 950,
+    lineHeight: 82,
+    maxWidth: 600,
+  });
+}
+
+function drawDishPlaceholder(ctx, title, box) {
+  ctx.fillStyle = "#F7F3EA";
+  roundRect(ctx, box.x, box.y, box.width, box.height, box.radius, true);
+  drawCircle(ctx, box.x + box.width / 2, box.y + box.height / 2 - 30, 130, "rgba(212, 235, 90, 0.28)");
+  drawText(ctx, title, box.x + 90, box.y + box.height / 2 + 70, {
+    size: 54,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: box.width - 180,
+    maxLines: 2,
+  });
+}
+
+function buildTonightMetadata(recipe, secondRecipe, groceryCount) {
+  const parts = [`${recipe.timeMinutes} 分钟搞定`];
+  if (recipe.tags?.[0]) parts.push(recipe.tags[0]);
+  if (secondRecipe) parts.push(`再配 ${secondRecipe.name}`);
+  else if (groceryCount > 0) parts.push(`${groceryCount} 项待买`);
+  return parts.join("  ·  ");
+}
+
+function isHorizontalDish(recipe) {
+  return ["steamed-sea-bass", "braised-crucian-carp", "braised-wuchang-fish"].includes(recipe?.id);
+}
+
+function loadImageSafe(src) {
+  if (!src) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
+function drawRoundedImage(ctx, image, x, y, width, height, radius, options = {}) {
+  const fit = options.fit ?? "cover";
+  const padding = options.padding ?? 0;
+  if (options.background) {
+    ctx.fillStyle = options.background;
+    roundRect(ctx, x, y, width, height, radius, true);
+  }
+
+  ctx.save();
+  roundedClip(ctx, x, y, width, height, radius);
+  const target = calculateImageFit({
+    imageWidth: image.naturalWidth || image.width,
+    imageHeight: image.naturalHeight || image.height,
+    x: x + padding,
+    y: y + padding,
+    width: width - padding * 2,
+    height: height - padding * 2,
+    fit,
+  });
+  ctx.drawImage(image, target.x, target.y, target.width, target.height);
+  ctx.restore();
+}
+
+function calculateImageFit({ imageWidth, imageHeight, x, y, width, height, fit }) {
+  const imageRatio = imageWidth / imageHeight;
+  const boxRatio = width / height;
+  const scale =
+    fit === "contain"
+      ? imageRatio > boxRatio
+        ? width / imageWidth
+        : height / imageHeight
+      : imageRatio > boxRatio
+        ? height / imageHeight
+        : width / imageWidth;
+  const targetWidth = imageWidth * scale;
+  const targetHeight = imageHeight * scale;
+  return {
+    x: x + (width - targetWidth) / 2,
+    y: y + (height - targetHeight) / 2,
+    width: targetWidth,
+    height: targetHeight,
+  };
+}
+
+function roundedClip(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+  ctx.clip();
 }
 
 function drawPosterBase(ctx, { eyebrow, title, subtitle, style }) {

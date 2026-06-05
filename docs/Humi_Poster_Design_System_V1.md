@@ -187,6 +187,38 @@ Tone:
 - Immediate
 - Food cover
 
+#### Tonight Template A: Clean Editorial Card
+
+This is the first production-ready Tonight template direction.
+
+Chosen from the 10-recipe stress test because it is more stable and closer to Humi's current taste than the full-bleed magazine variants.
+
+Structure:
+
+- Warm paper background.
+- Small official Humi app icon in the upper-left.
+- Quiet `HUMI` signature near the icon.
+- One large rounded dish image area in the upper half.
+- `今晚吃什么？` below the image with a brand-green marker underline.
+- Large dish name below the question.
+- Minimal time/taste metadata.
+- Bottom emotional copy and small `HUMI` signature.
+
+Rules:
+
+- Use Humi's existing recipe image.
+- Do not generate a new dish image.
+- Use `cover` image crop by default.
+- Use a safer horizontal crop rule for wide dishes such as whole fish.
+- Keep the image clear; do not overuse fog or heavy gradient.
+- Keep metadata small. The dish image and dish name should do most of the work.
+
+Known constraints:
+
+- Long dish names may reduce title size.
+- Horizontal dishes need a crop fallback.
+- If a dish image is low quality, use the same template with conservative crop rather than creating a one-off design.
+
 ### Weekly
 
 Core message:
