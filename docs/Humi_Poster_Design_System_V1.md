@@ -276,22 +276,73 @@ Rules:
 Core message:
 
 ```text
-今晚买这些。
+买完这些，晚饭就稳了。
 ```
 
 Recommended structure:
 
 - Checklist 70%
 - Decoration 30%
-- Show 8-12 items max.
 - Use grocery-friendly names, not exact recipe accounting.
-- Extra items collapse into `还有 X 项`.
+- Separate ingredients and seasonings.
+- Show up to 5 ingredients and 3 seasonings in the default poster.
+- Extra items collapse into a soft line like `还有 X 样，路过再顺手拿。`.
 
 Tone:
 
 - MUJI memo
 - Fridge note
 - Light grocery ritual
+
+#### Shopping Poster A: MUJI Memo
+
+This is the default production template for shopping posters.
+
+It should feel like a family grocery memo, not a purchase report.
+
+Structure:
+
+- Warm paper background.
+- Small official Humi app icon in the upper-left.
+- Large headline: `买完这些 晚饭就稳了`.
+- Brand-green marker under the title, positioned as support rather than covering the text.
+- A white memo card with ingredients on the left and seasonings on the right.
+- No exact spoon/count accounting in the visual hierarchy.
+- Bottom emotional copy and `HUMI` signature.
+
+Rules:
+
+- Use this template for daily sharing by default.
+- Keep the list short enough to be readable on a phone.
+- Ingredient names should feel like a grocery checklist.
+- Seasonings should be visually lighter than main ingredients.
+- Do not show recipe-by-recipe grouping inside the poster.
+
+#### Shopping Poster B: Fridge Note Theme
+
+This is a secondary theme template for higher-energy sharing moments.
+
+Use it for:
+
+- Weekend shopping
+- Hotpot night
+- Holiday grocery runs
+- Party or family gathering prep
+
+Structure:
+
+- Black background with Humi green glow.
+- Large headline: `菜买好 饭就快了`.
+- One tilted paper note with a short checklist.
+- Green tape as a physical note cue.
+- Bottom emotional copy and `HUMI` signature.
+
+Rules:
+
+- Do not use this as the default daily poster.
+- Keep the list even shorter than the MUJI memo.
+- Use it when the sharing moment needs more personality.
+- It should be memorable, but not become the whole Shopping visual system.
 
 ## Future Poster Types
 

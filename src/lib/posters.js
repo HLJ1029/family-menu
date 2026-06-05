@@ -1,5 +1,3 @@
-import { formatRawAmount } from "./grocery";
-
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
 const COLORS = {
@@ -11,7 +9,7 @@ const COLORS = {
   line: "rgba(17, 17, 17, 0.12)",
 };
 
-const checklistStyles = ["fresh", "market", "receipt"];
+const shoppingPosterStyles = ["default", "default", "default", "default", "theme"];
 const HUMI_ICON_URL = "/family-menu/icons/humi-icon-512.png";
 
 export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
@@ -48,16 +46,15 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
 }
 
 export async function createGroceryPoster({ items = [], customItems = [] }) {
-  const style = checklistStyles[Math.floor(Math.random() * checklistStyles.length)];
-  return createPosterBlob((ctx) => {
-    drawPosterBase(ctx, {
-      eyebrow: "SHOPPING LIST",
-      title: "购物清单",
-      subtitle: "照着买，今晚就稳了。",
-      style,
-    });
-    drawChecklist(ctx, { items, customItems, style });
-    drawFooterBar(ctx, `${items.length + customItems.length} 项`, "买完一项，心里轻一点");
+  const style = shoppingPosterStyles[Math.floor(Math.random() * shoppingPosterStyles.length)];
+  return createPosterBlob(async (ctx) => {
+    const icon = await loadImageSafe(HUMI_ICON_URL);
+    const groups = buildShoppingPosterGroups(items, customItems);
+    if (style === "theme") {
+      drawShoppingThemePoster(ctx, { icon, groups });
+      return;
+    }
+    drawShoppingDefaultPoster(ctx, { icon, groups });
   });
 }
 
@@ -192,6 +189,20 @@ function drawMiniLogo(ctx, x, y) {
   ctx.fillStyle = COLORS.ink;
   roundRect(ctx, x, y, 58, 58, 17, true);
   drawText(ctx, "H", x + 16, y + 41, { size: 34, weight: 950, color: COLORS.acid });
+}
+
+function drawPosterHeader(ctx, { icon, dark = false }) {
+  if (icon) {
+    drawRoundedImage(ctx, icon, 64, 58, 58, 58, 17, { fit: "cover" });
+  } else {
+    drawMiniLogo(ctx, 64, 58);
+  }
+  drawText(ctx, "HUMI", 140, 99, {
+    size: 28,
+    weight: 950,
+    color: dark ? COLORS.white : COLORS.ink,
+    maxWidth: 160,
+  });
 }
 
 function drawEmptyTonightPoster(ctx) {
@@ -613,79 +624,219 @@ function drawWeekLayout(ctx, plannedDays) {
   });
 }
 
-function drawChecklist(ctx, { items, customItems, style }) {
-  const allItems = [
-    ...items.slice(0, 14).map((item) => ({
-      name: item.name,
-      amount: formatPosterAmount(item),
-      tag: item.type === "seasoning" || item.pantryItem ? "调料" : "食材",
-    })),
-    ...customItems.slice(0, 4).map((item) => ({ name: item.name, amount: "顺手买", tag: "其他" })),
-  ].slice(0, 18);
+function buildShoppingPosterGroups(items, customItems) {
+  const regularItems = items.map((item) => ({
+    name: item.name,
+    type: item.type === "seasoning" || item.pantryItem ? "seasoning" : "ingredient",
+  }));
+  const manualItems = customItems.map((item) => ({ name: item.name, type: "ingredient" }));
+  const allItems = [...regularItems, ...manualItems].filter((item) => item.name);
+  const ingredients = allItems.filter((item) => item.type !== "seasoning");
+  const seasonings = allItems.filter((item) => item.type === "seasoning");
+  return {
+    ingredients,
+    seasonings,
+    totalCount: allItems.length,
+  };
+}
 
-  if (allItems.length === 0) {
-    drawEmptyBlock(ctx, "清单还是空的，先安排一顿饭。", 540);
+function drawShoppingDefaultPoster(ctx, { icon, groups }) {
+  drawPaperBackground(ctx);
+  drawPosterHeader(ctx, { icon, dark: false });
+
+  drawText(ctx, "买完这些", 86, 324, { size: 134, weight: 950, lineHeight: 136, maxWidth: 900 });
+  drawText(ctx, "晚饭就稳了", 86, 456, { size: 134, weight: 950, lineHeight: 136, maxWidth: 900 });
+  drawMarker(ctx, 90, 486, 470, 36);
+  drawText(ctx, "照着买，回家直接开饭。", 90, 562, {
+    size: 40,
+    weight: 850,
+    color: COLORS.muted,
+    maxWidth: 760,
+  });
+
+  if (groups.totalCount === 0) {
+    drawEmptyBlock(ctx, "清单还是空的，先安排一顿饭。", 650);
+    drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, maxWidth: 140 });
     return;
   }
 
-  if (style === "market") {
-    drawChecklistMarket(ctx, allItems);
-  } else if (style === "receipt") {
-    drawChecklistReceipt(ctx, allItems);
-  } else {
-    drawChecklistFresh(ctx, allItems);
+  const visibleIngredients = groups.ingredients.slice(0, 5);
+  const visibleSeasonings = groups.seasonings.slice(0, 3);
+  const hiddenCount = Math.max(0, groups.totalCount - visibleIngredients.length - visibleSeasonings.length);
+
+  drawShoppingMemoCard(ctx, {
+    x: 86,
+    y: 650,
+    width: 920,
+    height: 560,
+    ingredients: visibleIngredients,
+    seasonings: visibleSeasonings,
+  });
+  drawText(ctx, formatShoppingHiddenCopy(hiddenCount), 90, 1274, {
+    size: 32,
+    weight: 850,
+    color: COLORS.muted,
+    maxWidth: 680,
+  });
+  drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, maxWidth: 140 });
+}
+
+function drawShoppingMemoCard(ctx, { x, y, width, height, ingredients, seasonings }) {
+  ctx.save();
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.rotate((-0.6 * Math.PI) / 180);
+  ctx.shadowColor = "rgba(17, 17, 17, 0.1)";
+  ctx.shadowBlur = 48;
+  ctx.shadowOffsetY = 24;
+  ctx.fillStyle = COLORS.white;
+  roundRect(ctx, -width / 2, -height / 2, width, height, 56, true);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.rotate((-0.6 * Math.PI) / 180);
+  const left = -width / 2 + 64;
+  const top = -height / 2 + 62;
+  drawShoppingTag(ctx, left, top, "菜篮子便签");
+  drawText(ctx, "食材", left, top + 112, { size: 28, weight: 950, color: COLORS.muted, maxWidth: 160 });
+  drawShoppingRows(ctx, ingredients, left, top + 166, { size: 50, rowGap: 72, boxSize: 42 });
+
+  ctx.strokeStyle = "rgba(17, 17, 17, 0.1)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(155, -height / 2 + 150);
+  ctx.lineTo(155, height / 2 - 70);
+  ctx.stroke();
+
+  drawText(ctx, "调料", 205, top + 112, { size: 28, weight: 950, color: COLORS.muted, maxWidth: 160 });
+  drawShoppingRows(ctx, seasonings, 205, top + 166, {
+    size: 38,
+    rowGap: 62,
+    boxSize: 34,
+    accentBoxes: true,
+    maxWidth: 210,
+  });
+  ctx.restore();
+}
+
+function drawShoppingThemePoster(ctx, { icon, groups }) {
+  drawDarkShoppingBackground(ctx);
+  drawPosterHeader(ctx, { icon, dark: true });
+  drawText(ctx, "菜买好", 86, 324, { size: 126, weight: 950, lineHeight: 128, color: COLORS.white, maxWidth: 900 });
+  drawText(ctx, "饭就快了", 86, 448, { size: 126, weight: 950, lineHeight: 128, color: COLORS.white, maxWidth: 900 });
+  drawMarker(ctx, 90, 476, 570, 40);
+  drawText(ctx, "周末这一趟，把晚饭的底气带回家。", 90, 558, {
+    size: 38,
+    weight: 850,
+    color: "rgba(245, 244, 241, 0.64)",
+    maxWidth: 820,
+  });
+
+  if (groups.totalCount === 0) {
+    drawEmptyShoppingSticky(ctx, "清单还是空的，先安排一顿饭。");
+    drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.white, maxWidth: 140 });
+    return;
   }
-}
 
-function drawChecklistFresh(ctx, items) {
-  items.forEach((item, index) => {
-    const y = 520 + index * 58;
-    drawCheckBox(ctx, 84, y + 10, index);
-    drawText(ctx, item.name, 138, y + 39, { size: 32, weight: 900, maxWidth: 470 });
-    drawText(ctx, item.amount, 750, y + 38, { size: 24, weight: 850, color: COLORS.muted, maxWidth: 230 });
+  const visibleItems = [...groups.ingredients, ...groups.seasonings].slice(0, 5);
+  drawShoppingTape(ctx, 420, 610, -4);
+  drawShoppingSticky(ctx, { items: visibleItems });
+  drawText(ctx, "适合周末、火锅、节日前采购。", 90, 1280, {
+    size: 34,
+    weight: 850,
+    color: "rgba(245, 244, 241, 0.68)",
+    maxWidth: 660,
   });
+  drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.white, maxWidth: 140 });
 }
 
-function drawChecklistMarket(ctx, items) {
-  items.forEach((item, index) => {
-    const col = index % 2;
-    const row = Math.floor(index / 2);
-    const x = 70 + col * 480;
-    const y = 520 + row * 128;
-    ctx.fillStyle = COLORS.white;
-    roundRect(ctx, x, y, 450, 102, 30, true);
-    drawCheckBox(ctx, x + 24, y + 32, index);
-    drawText(ctx, item.name, x + 76, y + 54, { size: 30, weight: 950, maxWidth: 270, maxLines: 1 });
-    drawText(ctx, item.amount, x + 76, y + 82, { size: 20, weight: 800, color: COLORS.muted, maxWidth: 290 });
-  });
+function drawDarkShoppingBackground(ctx) {
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
+  const glow = ctx.createRadialGradient(870, 150, 20, 870, 150, 300);
+  glow.addColorStop(0, "rgba(212, 235, 90, 0.96)");
+  glow.addColorStop(0.58, "rgba(212, 235, 90, 0.9)");
+  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 }
 
-function drawChecklistReceipt(ctx, items) {
-  drawText(ctx, "BUY LIST", 96, 505, { size: 28, weight: 950, color: COLORS.muted });
+function drawEmptyShoppingSticky(ctx, text) {
+  drawShoppingTape(ctx, 420, 610, -4);
+  ctx.save();
+  ctx.translate(540, 915);
+  ctx.rotate((1.1 * Math.PI) / 180);
+  ctx.fillStyle = COLORS.canvas;
+  roundRect(ctx, -440, -270, 880, 540, 54, true);
+  drawText(ctx, text, -340, 20, { size: 48, weight: 950, lineHeight: 62, maxWidth: 680 });
+  ctx.restore();
+}
+
+function drawShoppingSticky(ctx, { items }) {
+  ctx.save();
+  ctx.translate(540, 915);
+  ctx.rotate((1.1 * Math.PI) / 180);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+  ctx.shadowBlur = 70;
+  ctx.shadowOffsetY = 30;
+  ctx.fillStyle = COLORS.canvas;
+  roundRect(ctx, -440, -270, 880, 540, 54, true);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(540, 915);
+  ctx.rotate((1.1 * Math.PI) / 180);
+  drawText(ctx, "周末采购", -350, -190, { size: 30, weight: 950, color: COLORS.muted, maxWidth: 220 });
+  drawShoppingRows(ctx, items, -350, -108, { size: 50, rowGap: 76, boxSize: 42, maxWidth: 520 });
+  ctx.restore();
+}
+
+function drawShoppingTape(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x + 126, y + 30);
+  ctx.rotate((angle * Math.PI) / 180);
+  ctx.fillStyle = COLORS.acid;
+  roundRect(ctx, -126, -30, 252, 60, 30, true);
+  ctx.restore();
+}
+
+function drawShoppingTag(ctx, x, y, text) {
+  ctx.fillStyle = COLORS.acid;
+  roundRect(ctx, x, y, 190, 56, 28, true);
+  drawText(ctx, text, x + 26, y + 37, { size: 25, weight: 950, color: COLORS.ink, maxWidth: 160 });
+}
+
+function drawShoppingRows(ctx, items, x, y, options = {}) {
+  const { size = 42, rowGap = 66, boxSize = 38, accentBoxes = false, maxWidth = 420 } = options;
+  if (items.length === 0) {
+    drawText(ctx, "家里先看一眼", x, y, { size: Math.min(size, 34), weight: 900, color: COLORS.muted, maxWidth });
+    return;
+  }
   items.forEach((item, index) => {
-    const y = 566 + index * 46;
-    drawText(ctx, `${String(index + 1).padStart(2, "0")}. ${item.name}`, 96, y, {
-      size: 28,
-      weight: 900,
-      maxWidth: 560,
+    const rowY = y + index * rowGap;
+    drawShoppingBox(ctx, x, rowY - boxSize + 6, boxSize, accentBoxes);
+    drawText(ctx, item.name, x + boxSize + 24, rowY, {
+      size,
+      weight: 950,
+      color: COLORS.ink,
+      maxWidth,
+      maxLines: 1,
     });
-    drawText(ctx, item.amount, 780, y, { size: 22, weight: 800, color: COLORS.muted, maxWidth: 190 });
   });
 }
 
-function drawCheckBox(ctx, x, y, index) {
-  ctx.fillStyle = index % 3 === 0 ? COLORS.acid : COLORS.white;
-  roundRect(ctx, x, y, 34, 34, 10, true);
+function formatShoppingHiddenCopy(hiddenCount) {
+  if (hiddenCount <= 0) return "买完这一趟，晚饭轻松一点。";
+  if (hiddenCount > 12) return "还有一些，路过再顺手拿。";
+  return `还有 ${hiddenCount} 样，路过再顺手拿。`;
+}
+
+function drawShoppingBox(ctx, x, y, size, accent = false) {
+  ctx.fillStyle = accent ? COLORS.acid : COLORS.white;
+  roundRect(ctx, x, y, size, size, Math.max(8, size * 0.28), true);
   ctx.strokeStyle = COLORS.ink;
   ctx.lineWidth = 3;
-  roundRect(ctx, x, y, 34, 34, 10, false);
-}
-
-function drawFooterBar(ctx, left, right) {
-  ctx.fillStyle = COLORS.ink;
-  roundRect(ctx, 70, 1260, 940, 104, 36, true);
-  drawText(ctx, left, 110, 1322, { size: 34, weight: 950, color: COLORS.acid, maxWidth: 330 });
-  drawText(ctx, right, 490, 1321, { size: 27, weight: 850, color: COLORS.white, maxWidth: 460 });
+  roundRect(ctx, x, y, size, size, Math.max(8, size * 0.28), false);
 }
 
 function drawEmptyBlock(ctx, text, y) {
@@ -749,13 +900,6 @@ function wrapText(ctx, text, maxWidth, maxLines) {
   const last = clipped[maxLines - 1];
   clipped[maxLines - 1] = `${last.slice(0, Math.max(1, last.length - 1))}…`;
   return clipped;
-}
-
-function formatPosterAmount(item) {
-  if (item.type === "seasoning" || item.pantryItem) return "家里确认";
-  if (typeof item.amount !== "number") return item.amount;
-  if (["个", "颗", "根", "只", "块", "片"].includes(item.unit)) return `${item.amount}${item.unit}左右`;
-  return `约 ${formatRawAmount(item)}`;
 }
 
 function downloadBlob(blob, filename) {
