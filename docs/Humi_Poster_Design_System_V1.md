@@ -241,6 +241,31 @@ Tone:
 - Family rhythm
 - Magazine spread
 
+#### Weekly Template A: Magazine Collage
+
+This is the first production direction for weekly menu posters.
+
+It should feel like a weekly family food cover, not a schedule table.
+
+Structure:
+
+- Warm paper background.
+- Small official Humi app icon in the upper-left.
+- Large headline: `这一周 心里有数`.
+- Three light data points: `7天`, dish count, and extra dish count if needed.
+- Editorial collage using up to 6 real Humi dish images.
+- Short dish names under or near the collage.
+- Bottom emotional copy and `HUMI` signature.
+
+Rules:
+
+- Never render a Monday-to-Sunday table.
+- Never show all dishes when the week is dense.
+- Use up to 6 dish images.
+- Collapse the rest into `还有 X 道慢慢吃`.
+- Keep the collage stable with mixed dish image shapes.
+- The poster should read as a lifestyle magazine page, not a planner export.
+
 ### Shopping
 
 Core message:

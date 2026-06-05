@@ -29,16 +29,21 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
     day,
     recipes: (weekPlan[day] ?? []).map((recipeId) => getRecipe(recipeId)).filter(Boolean),
   }));
-  const dishCount = plannedDays.reduce((total, day) => total + day.recipes.length, 0);
+  const weekRecipes = plannedDays.flatMap((day) => day.recipes.map((recipe) => ({ ...recipe, plannedDay: day.day })));
+  const dishCount = weekRecipes.length;
 
-  return createPosterBlob((ctx) => {
-    drawPosterBase(ctx, {
-      eyebrow: "WEEK MENU",
-      title: "本周菜单",
-      subtitle: dishCount > 0 ? "这一周，心里有数。" : "这周还没安排菜单。",
+  return createPosterBlob(async (ctx) => {
+    const icon = await loadImageSafe(HUMI_ICON_URL);
+    const featuredRecipes = weekRecipes.slice(0, 6);
+    const featuredImages = await Promise.all(featuredRecipes.map((recipe) => loadImageSafe(recipe.image?.url)));
+    drawWeeklyTemplateA(ctx, {
+      icon,
+      plannedDays,
+      recipes: weekRecipes,
+      featuredRecipes,
+      featuredImages,
+      dishCount,
     });
-    drawWeekLayout(ctx, plannedDays);
-    drawFooterBar(ctx, `${dishCount} 道菜`, "Humi 帮家里把饭安排明白");
   });
 }
 
@@ -202,14 +207,22 @@ function drawEmptyTonightPoster(ctx) {
 }
 
 function drawQuestionBlock(ctx, x, y) {
-  ctx.fillStyle = COLORS.acid;
-  roundRect(ctx, x + 4, y - 20, 320, 26, 13, true);
+  drawMarker(ctx, x + 4, y - 20, 320, 26);
   drawText(ctx, "今晚吃什么？", x, y, {
     size: 76,
     weight: 950,
     lineHeight: 82,
     maxWidth: 600,
   });
+}
+
+function drawMarker(ctx, x, y, width, height) {
+  ctx.save();
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.rotate((-1.2 * Math.PI) / 180);
+  ctx.fillStyle = COLORS.acid;
+  roundRect(ctx, -width / 2, -height / 2, width, height, height / 2, true);
+  ctx.restore();
 }
 
 function drawDishPlaceholder(ctx, title, box) {
@@ -235,6 +248,131 @@ function buildTonightMetadata(recipe, secondRecipe, groceryCount) {
 
 function isHorizontalDish(recipe) {
   return ["steamed-sea-bass", "braised-crucian-carp", "braised-wuchang-fish"].includes(recipe?.id);
+}
+
+function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImages, dishCount }) {
+  drawPaperBackground(ctx);
+
+  if (icon) {
+    drawRoundedImage(ctx, icon, 64, 58, 58, 58, 17, { fit: "cover" });
+  } else {
+    drawMiniLogo(ctx, 64, 58);
+  }
+  drawText(ctx, "HUMI", 140, 99, { size: 28, weight: 950, maxWidth: 160 });
+  drawText(ctx, "Week Menu", 840, 96, { size: 22, weight: 850, color: COLORS.muted, maxWidth: 180 });
+
+  if (dishCount === 0) {
+    drawText(ctx, "这一周", 74, 250, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
+    drawText(ctx, "还没安排", 74, 362, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
+    drawMarker(ctx, 80, 386, 360, 28);
+    drawEmptyBlock(ctx, "回到首页，把晚饭先安排起来。", 560);
+    drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, maxWidth: 140 });
+    return;
+  }
+
+  drawText(ctx, "这一周", 74, 244, { size: 104, weight: 950, lineHeight: 110, maxWidth: 880 });
+  drawText(ctx, "心里有数", 74, 350, { size: 104, weight: 950, lineHeight: 110, maxWidth: 880 });
+  drawMarker(ctx, 78, 374, 420, 30);
+  drawText(ctx, "不用每天临时想，家里的饭先有个方向。", 78, 438, {
+    size: 29,
+    weight: 850,
+    color: COLORS.muted,
+    maxWidth: 760,
+  });
+
+  drawWeeklyStats(ctx, { dishCount, extraCount: Math.max(0, recipes.length - featuredRecipes.length) });
+  drawWeeklyCollage(ctx, { featuredRecipes, featuredImages });
+
+  const names = featuredRecipes.map((recipe) => recipe.name).join("  /  ");
+  drawText(ctx, names, 82, 1252, {
+    size: 25,
+    weight: 900,
+    color: COLORS.muted,
+    maxWidth: 900,
+    maxLines: 2,
+    lineHeight: 34,
+  });
+  drawText(ctx, "这一周，晚饭慢慢吃。", 82, 1326, {
+    size: 22,
+    weight: 850,
+    color: COLORS.muted,
+    maxWidth: 460,
+  });
+  drawText(ctx, "HUMI", 884, 1328, {
+    size: 32,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: 140,
+  });
+}
+
+function drawWeeklyStats(ctx, { dishCount, extraCount }) {
+  const stats = [
+    { label: "7 天", value: "本周" },
+    { label: `${dishCount} 道`, value: "已安排" },
+    { label: extraCount > 0 ? `还有 ${extraCount} 道` : "刚刚好", value: "慢慢吃" },
+  ];
+
+  stats.forEach((item, index) => {
+    const x = 78 + index * 304;
+    ctx.fillStyle = index === 1 ? COLORS.acid : COLORS.white;
+    roundRect(ctx, x, 498, 270, 112, 30, true);
+    ctx.strokeStyle = COLORS.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, 498, 270, 112, 30, false);
+    drawText(ctx, item.label, x + 26, 552, { size: 38, weight: 950, maxWidth: 210 });
+    drawText(ctx, item.value, x + 28, 584, { size: 21, weight: 850, color: COLORS.muted, maxWidth: 210 });
+  });
+}
+
+function drawWeeklyCollage(ctx, { featuredRecipes, featuredImages }) {
+  const slots = [
+    { x: 78, y: 672, width: 400, height: 320, radius: 36 },
+    { x: 512, y: 636, width: 490, height: 382, radius: 40 },
+    { x: 78, y: 1028, width: 282, height: 178, radius: 28 },
+    { x: 388, y: 1044, width: 282, height: 178, radius: 28 },
+    { x: 700, y: 1040, width: 302, height: 178, radius: 28 },
+    { x: 748, y: 842, width: 254, height: 164, radius: 28 },
+  ];
+
+  featuredRecipes.forEach((recipe, index) => {
+    const slot = slots[index];
+    if (!slot) return;
+    const image = featuredImages[index];
+    drawWeeklyDishCard(ctx, { recipe, image, slot, index });
+  });
+}
+
+function drawWeeklyDishCard(ctx, { recipe, image, slot, index }) {
+  ctx.save();
+  ctx.shadowColor = "rgba(17, 17, 17, 0.12)";
+  ctx.shadowBlur = index < 2 ? 54 : 32;
+  ctx.shadowOffsetY = index < 2 ? 24 : 14;
+  ctx.fillStyle = COLORS.white;
+  roundRect(ctx, slot.x, slot.y, slot.width, slot.height, slot.radius, true);
+  ctx.restore();
+
+  if (image) {
+    const horizontalDish = isHorizontalDish(recipe);
+    drawRoundedImage(ctx, image, slot.x, slot.y, slot.width, slot.height, slot.radius, {
+      fit: horizontalDish ? "contain" : "cover",
+      background: "#F7F3EA",
+      padding: horizontalDish ? 16 : 0,
+    });
+  } else {
+    drawDishPlaceholder(ctx, recipe.name, slot);
+  }
+
+  const labelWidth = Math.min(slot.width - 34, Math.max(120, recipe.name.length * 28 + 34));
+  ctx.fillStyle = index === 1 ? COLORS.acid : "rgba(255,255,255,0.9)";
+  roundRect(ctx, slot.x + 16, slot.y + slot.height - 56, labelWidth, 40, 20, true);
+  drawText(ctx, recipe.name, slot.x + 32, slot.y + slot.height - 29, {
+    size: 22,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: labelWidth - 32,
+    maxLines: 1,
+  });
 }
 
 function loadImageSafe(src) {
