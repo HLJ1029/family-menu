@@ -76,7 +76,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                 className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink"
               >
                 <Share2 size={15} />
-                分享周计划
+                生成周菜单海报
               </button>
             </div>
           </div>

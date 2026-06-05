@@ -1,0 +1,417 @@
+import { formatRawAmount } from "./grocery";
+
+const POSTER_WIDTH = 1080;
+const POSTER_HEIGHT = 1440;
+const COLORS = {
+  acid: "#D4EB5A",
+  ink: "#111111",
+  canvas: "#F5F4F1",
+  white: "#FFFFFF",
+  muted: "rgba(17, 17, 17, 0.54)",
+  line: "rgba(17, 17, 17, 0.12)",
+};
+
+const checklistStyles = ["fresh", "market", "receipt"];
+
+export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
+  return createPosterBlob((ctx) => {
+    drawPosterBase(ctx, {
+      eyebrow: "TONIGHT MENU",
+      title: "今晚菜单",
+      subtitle: recipes.length > 0 ? "晚饭已经安排好。" : "今晚还没安排菜单。",
+    });
+    drawMenuAutoLayout(ctx, {
+      items: recipes.map((recipe) => ({
+        title: recipe.name,
+        meta: recipe.menuQuantity > 1 ? `${recipe.menuQuantity} 份` : "今晚吃",
+        note: recipe.description,
+      })),
+      emptyText: "回到首页点「帮我安排晚饭」",
+      top: 350,
+      bottom: 1140,
+    });
+    drawFooterBar(ctx, `${recipes.length} 道菜`, groceryCount > 0 ? `${groceryCount} 项待买` : "清单已轻松");
+  });
+}
+
+export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
+  const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const plannedDays = days.map((day) => ({
+    day,
+    recipes: (weekPlan[day] ?? []).map((recipeId) => getRecipe(recipeId)).filter(Boolean),
+  }));
+  const dishCount = plannedDays.reduce((total, day) => total + day.recipes.length, 0);
+
+  return createPosterBlob((ctx) => {
+    drawPosterBase(ctx, {
+      eyebrow: "WEEK MENU",
+      title: "本周菜单",
+      subtitle: dishCount > 0 ? "这一周，心里有数。" : "这周还没安排菜单。",
+    });
+    drawWeekLayout(ctx, plannedDays);
+    drawFooterBar(ctx, `${dishCount} 道菜`, "Humi 帮家里把饭安排明白");
+  });
+}
+
+export async function createGroceryPoster({ items = [], customItems = [] }) {
+  const style = checklistStyles[Math.floor(Math.random() * checklistStyles.length)];
+  return createPosterBlob((ctx) => {
+    drawPosterBase(ctx, {
+      eyebrow: "SHOPPING LIST",
+      title: "购物清单",
+      subtitle: "照着买，今晚就稳了。",
+      style,
+    });
+    drawChecklist(ctx, { items, customItems, style });
+    drawFooterBar(ctx, `${items.length + customItems.length} 项`, "买完一项，心里轻一点");
+  });
+}
+
+export async function sharePoster({ blob, title, filename, text }) {
+  const file = new File([blob], filename, { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+    await navigator.share({ title, text, files: [file] });
+    return "shared";
+  }
+  downloadBlob(blob, filename);
+  return "downloaded";
+}
+
+function createPosterBlob(draw) {
+  const canvas = document.createElement("canvas");
+  canvas.width = POSTER_WIDTH;
+  canvas.height = POSTER_HEIGHT;
+  const ctx = canvas.getContext("2d");
+  draw(ctx);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Poster export failed"));
+    }, "image/png");
+  });
+}
+
+function drawPosterBase(ctx, { eyebrow, title, subtitle, style }) {
+  ctx.fillStyle = COLORS.canvas;
+  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
+
+  if (style === "market") {
+    drawCircle(ctx, 935, 170, 170, COLORS.acid);
+    drawCircle(ctx, 90, 1180, 230, "rgba(212, 235, 90, 0.38)");
+  } else if (style === "receipt") {
+    ctx.fillStyle = COLORS.white;
+    roundRect(ctx, 66, 250, 948, 980, 46, true);
+  } else {
+    drawCircle(ctx, 920, 250, 260, "rgba(212, 235, 90, 0.5)");
+  }
+
+  drawLogo(ctx, 70, 70);
+  drawPill(ctx, 70, 210, eyebrow);
+  drawText(ctx, title, 70, 300, {
+    size: 92,
+    weight: 900,
+    lineHeight: 104,
+    maxWidth: 820,
+  });
+  drawText(ctx, subtitle, 74, 420, {
+    size: 34,
+    weight: 800,
+    color: COLORS.muted,
+    lineHeight: 48,
+    maxWidth: 720,
+  });
+}
+
+function drawLogo(ctx, x, y) {
+  ctx.fillStyle = COLORS.ink;
+  roundRect(ctx, x, y, 98, 98, 28, true);
+  ctx.fillStyle = COLORS.acid;
+  drawText(ctx, "H", x + 27, y + 68, { size: 58, weight: 950, color: COLORS.acid });
+  drawText(ctx, "HUMI", x + 124, y + 65, { size: 42, weight: 950, color: COLORS.ink });
+}
+
+function drawMenuAutoLayout(ctx, { items, emptyText, top, bottom }) {
+  const visibleItems = items.slice(0, 8);
+  if (visibleItems.length === 0) {
+    drawEmptyBlock(ctx, emptyText, top);
+    return;
+  }
+
+  if (visibleItems.length <= 2) {
+    drawHeroLayout(ctx, visibleItems, top, bottom);
+    return;
+  }
+  if (visibleItems.length <= 4) {
+    drawStandardLayout(ctx, visibleItems, top);
+    return;
+  }
+  drawGridLayout(ctx, visibleItems, top);
+}
+
+function drawHeroLayout(ctx, items, top, bottom) {
+  const cardHeight = items.length === 1 ? bottom - top : 360;
+  items.forEach((item, index) => {
+    const y = top + index * (cardHeight + 34);
+    drawMenuCard(ctx, item, 70, y, 940, cardHeight, {
+      titleSize: items.length === 1 ? 86 : 68,
+      large: true,
+      index,
+    });
+  });
+}
+
+function drawStandardLayout(ctx, items, top) {
+  items.forEach((item, index) => {
+    drawMenuCard(ctx, item, 70, top + index * 190, 940, 164, {
+      titleSize: 54,
+      index,
+    });
+  });
+}
+
+function drawGridLayout(ctx, items, top) {
+  items.forEach((item, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    drawMenuCard(ctx, item, 70 + col * 480, top + row * 212, 450, 186, {
+      titleSize: 40,
+      index,
+    });
+  });
+}
+
+function drawMenuCard(ctx, item, x, y, width, height, { titleSize, large = false, index = 0 }) {
+  ctx.fillStyle = index % 2 === 0 ? COLORS.white : COLORS.acid;
+  roundRect(ctx, x, y, width, height, 42, true);
+
+  ctx.strokeStyle = COLORS.line;
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, width, height, 42, false);
+
+  const badge = item.meta || "今晚吃";
+  drawPill(ctx, x + 34, y + 32, badge, {
+    background: index % 2 === 0 ? COLORS.acid : COLORS.white,
+    color: COLORS.ink,
+  });
+  drawText(ctx, item.title, x + 34, y + (large ? 150 : 108), {
+    size: titleSize,
+    weight: 950,
+    lineHeight: titleSize + 10,
+    maxWidth: width - 68,
+  });
+  if (item.note) {
+    drawText(ctx, item.note, x + 36, y + height - (large ? 120 : 52), {
+      size: large ? 30 : 24,
+      weight: 800,
+      color: COLORS.muted,
+      lineHeight: large ? 42 : 34,
+      maxWidth: width - 72,
+      maxLines: large ? 2 : 1,
+    });
+  }
+}
+
+function drawWeekLayout(ctx, plannedDays) {
+  const startY = 510;
+  plannedDays.forEach((day, index) => {
+    const y = startY + index * 106;
+    const hasRecipes = day.recipes.length > 0;
+    ctx.fillStyle = hasRecipes ? COLORS.white : "rgba(255, 255, 255, 0.52)";
+    roundRect(ctx, 70, y, 940, 82, 28, true);
+    ctx.fillStyle = index === new Date().getDay() - 1 ? COLORS.acid : COLORS.ink;
+    roundRect(ctx, 94, y + 17, 96, 48, 24, true);
+    drawText(ctx, day.day, 115, y + 50, {
+      size: 24,
+      weight: 950,
+      color: index === new Date().getDay() - 1 ? COLORS.ink : COLORS.white,
+    });
+    const names = day.recipes.map((recipe) => recipe.name).join("  /  ") || "还没安排";
+    drawText(ctx, names, 220, y + 52, {
+      size: 31,
+      weight: 900,
+      color: hasRecipes ? COLORS.ink : COLORS.muted,
+      maxWidth: 720,
+      maxLines: 1,
+    });
+  });
+}
+
+function drawChecklist(ctx, { items, customItems, style }) {
+  const allItems = [
+    ...items.slice(0, 14).map((item) => ({
+      name: item.name,
+      amount: formatPosterAmount(item),
+      tag: item.type === "seasoning" || item.pantryItem ? "调料" : "食材",
+    })),
+    ...customItems.slice(0, 4).map((item) => ({ name: item.name, amount: "顺手买", tag: "其他" })),
+  ].slice(0, 18);
+
+  if (allItems.length === 0) {
+    drawEmptyBlock(ctx, "清单还是空的，先安排一顿饭。", 540);
+    return;
+  }
+
+  if (style === "market") {
+    drawChecklistMarket(ctx, allItems);
+  } else if (style === "receipt") {
+    drawChecklistReceipt(ctx, allItems);
+  } else {
+    drawChecklistFresh(ctx, allItems);
+  }
+}
+
+function drawChecklistFresh(ctx, items) {
+  items.forEach((item, index) => {
+    const y = 520 + index * 58;
+    drawCheckBox(ctx, 84, y + 10, index);
+    drawText(ctx, item.name, 138, y + 39, { size: 32, weight: 900, maxWidth: 470 });
+    drawText(ctx, item.amount, 750, y + 38, { size: 24, weight: 850, color: COLORS.muted, maxWidth: 230 });
+  });
+}
+
+function drawChecklistMarket(ctx, items) {
+  items.forEach((item, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const x = 70 + col * 480;
+    const y = 520 + row * 128;
+    ctx.fillStyle = COLORS.white;
+    roundRect(ctx, x, y, 450, 102, 30, true);
+    drawCheckBox(ctx, x + 24, y + 32, index);
+    drawText(ctx, item.name, x + 76, y + 54, { size: 30, weight: 950, maxWidth: 270, maxLines: 1 });
+    drawText(ctx, item.amount, x + 76, y + 82, { size: 20, weight: 800, color: COLORS.muted, maxWidth: 290 });
+  });
+}
+
+function drawChecklistReceipt(ctx, items) {
+  drawText(ctx, "BUY LIST", 96, 505, { size: 28, weight: 950, color: COLORS.muted });
+  items.forEach((item, index) => {
+    const y = 566 + index * 46;
+    drawText(ctx, `${String(index + 1).padStart(2, "0")}. ${item.name}`, 96, y, {
+      size: 28,
+      weight: 900,
+      maxWidth: 560,
+    });
+    drawText(ctx, item.amount, 780, y, { size: 22, weight: 800, color: COLORS.muted, maxWidth: 190 });
+  });
+}
+
+function drawCheckBox(ctx, x, y, index) {
+  ctx.fillStyle = index % 3 === 0 ? COLORS.acid : COLORS.white;
+  roundRect(ctx, x, y, 34, 34, 10, true);
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, 34, 34, 10, false);
+}
+
+function drawFooterBar(ctx, left, right) {
+  ctx.fillStyle = COLORS.ink;
+  roundRect(ctx, 70, 1260, 940, 104, 36, true);
+  drawText(ctx, left, 110, 1322, { size: 34, weight: 950, color: COLORS.acid, maxWidth: 330 });
+  drawText(ctx, right, 490, 1321, { size: 27, weight: 850, color: COLORS.white, maxWidth: 460 });
+}
+
+function drawEmptyBlock(ctx, text, y) {
+  ctx.fillStyle = COLORS.white;
+  roundRect(ctx, 70, y, 940, 360, 44, true);
+  drawText(ctx, text, 130, y + 175, {
+    size: 48,
+    weight: 950,
+    lineHeight: 62,
+    maxWidth: 760,
+  });
+}
+
+function drawPill(ctx, x, y, text, options = {}) {
+  ctx.font = font(24, 950);
+  const width = Math.min(ctx.measureText(text).width + 48, 560);
+  ctx.fillStyle = options.background ?? COLORS.ink;
+  roundRect(ctx, x, y, width, 48, 24, true);
+  drawText(ctx, text, x + 24, y + 32, {
+    size: 24,
+    weight: 950,
+    color: options.color ?? COLORS.white,
+    maxWidth: width - 48,
+  });
+}
+
+function drawText(ctx, text, x, y, options = {}) {
+  const {
+    size = 28,
+    weight = 800,
+    color = COLORS.ink,
+    lineHeight = size * 1.25,
+    maxWidth = POSTER_WIDTH - x - 70,
+    maxLines = 3,
+  } = options;
+  ctx.fillStyle = color;
+  ctx.font = font(size, weight);
+  ctx.textBaseline = "alphabetic";
+  const lines = wrapText(ctx, String(text), maxWidth, maxLines);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, y + index * lineHeight);
+  });
+}
+
+function wrapText(ctx, text, maxWidth, maxLines) {
+  const chars = [...text];
+  const lines = [];
+  let line = "";
+  chars.forEach((char) => {
+    const nextLine = line + char;
+    if (ctx.measureText(nextLine).width <= maxWidth || line.length === 0) {
+      line = nextLine;
+      return;
+    }
+    lines.push(line);
+    line = char;
+  });
+  if (line) lines.push(line);
+  if (lines.length <= maxLines) return lines;
+  const clipped = lines.slice(0, maxLines);
+  const last = clipped[maxLines - 1];
+  clipped[maxLines - 1] = `${last.slice(0, Math.max(1, last.length - 1))}…`;
+  return clipped;
+}
+
+function formatPosterAmount(item) {
+  if (item.type === "seasoning" || item.pantryItem) return "家里确认";
+  if (typeof item.amount !== "number") return item.amount;
+  if (["个", "颗", "根", "只", "块", "片"].includes(item.unit)) return `${item.amount}${item.unit}左右`;
+  return `约 ${formatRawAmount(item)}`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function drawCircle(ctx, x, y, radius, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  else ctx.stroke();
+}
+
+function font(size, weight) {
+  return `${weight} ${size}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+}

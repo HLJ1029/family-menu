@@ -95,7 +95,7 @@ export function TodayMenu({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <Share2 size={18} />
-                分享菜单
+                生成海报
               </button>
             </div>
           </div>

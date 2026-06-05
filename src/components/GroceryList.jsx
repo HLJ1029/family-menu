@@ -375,7 +375,7 @@ function ShoppingChecklist({
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
       >
         <Share2 size={17} />
-        分享 / 复制清单
+        生成清单海报
       </button>
     </Card>
   );

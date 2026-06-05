@@ -23,6 +23,12 @@ import {
 } from "./lib/grocery";
 import { getExpiryState } from "./lib/pantry";
 import {
+  createGroceryPoster,
+  createTodayMenuPoster,
+  createWeekMenuPoster,
+  sharePoster,
+} from "./lib/posters";
+import {
   createDefaultWeekPlan,
   createInitialMealCalendar,
   getRecipe,
@@ -785,7 +791,14 @@ function App() {
 
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
-    await shareText({ type: "grocery_list", title: "Humi 食材清单", text, success: "食材清单已复制" });
+    await sharePosterWithFallback({
+      type: "grocery_list",
+      title: "Humi 购物清单",
+      filename: "humi-shopping-list.png",
+      text,
+      createBlob: () => createGroceryPoster({ items: visibleGroceryItems, customItems }),
+      fallbackSuccess: "食材清单已复制",
+    });
   }
 
   async function shareTodayMenu() {
@@ -796,7 +809,14 @@ function App() {
       "",
       `待买食材：${visibleGroceryItems.length} 项`,
     ].join("\n");
-    await shareText({ type: "today_menu", title: "Humi 今晚菜单", text, success: "今晚菜单已复制" });
+    await sharePosterWithFallback({
+      type: "today_menu",
+      title: "Humi 今晚菜单",
+      filename: "humi-tonight-menu.png",
+      text,
+      createBlob: () => createTodayMenuPoster({ recipes: todayRecipes, groceryCount: visibleGroceryItems.length }),
+      fallbackSuccess: "今晚菜单已复制",
+    });
   }
 
   async function shareWeekPlan() {
@@ -808,7 +828,14 @@ function App() {
         return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
       }),
     ].join("\n");
-    await shareText({ type: "week_plan", title: "Humi 一周计划", text, success: "一周计划已复制" });
+    await sharePosterWithFallback({
+      type: "week_plan",
+      title: "Humi 本周菜单",
+      filename: "humi-week-menu.png",
+      text,
+      createBlob: () => createWeekMenuPoster({ weekPlan, getRecipe }),
+      fallbackSuccess: "一周计划已复制",
+    });
   }
 
   async function shareInventorySummary() {
@@ -842,6 +869,17 @@ function App() {
       showNotice(success);
     } catch {
       showNotice("分享失败，可稍后重试");
+    }
+  }
+
+  async function sharePosterWithFallback({ type, title, filename, text, createBlob, fallbackSuccess }) {
+    try {
+      const blob = await createBlob();
+      const method = await sharePoster({ blob, title, filename, text });
+      trackProductEvent(appEvents.share, { type, method: method === "shared" ? "poster_native" : "poster_download" });
+      showNotice(method === "shared" ? "海报已打开分享面板" : "海报已保存到下载");
+    } catch {
+      await shareText({ type, title, text, success: fallbackSuccess });
     }
   }
 
