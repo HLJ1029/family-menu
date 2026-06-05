@@ -34,7 +34,7 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
 
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
-    const featuredRecipes = weekRecipes.slice(0, 6);
+    const featuredRecipes = weekRecipes.slice(0, 4);
     const featuredImages = await Promise.all(featuredRecipes.map((recipe) => loadImageSafe(recipe.image?.url)));
     drawWeeklyTemplateA(ctx, {
       icon,
@@ -259,7 +259,6 @@ function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImag
     drawMiniLogo(ctx, 64, 58);
   }
   drawText(ctx, "HUMI", 140, 99, { size: 28, weight: 950, maxWidth: 160 });
-  drawText(ctx, "Week Menu", 840, 96, { size: 22, weight: 850, color: COLORS.muted, maxWidth: 180 });
 
   if (dishCount === 0) {
     drawText(ctx, "这一周", 74, 250, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
@@ -270,33 +269,37 @@ function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImag
     return;
   }
 
-  drawText(ctx, "这一周", 74, 244, { size: 104, weight: 950, lineHeight: 110, maxWidth: 880 });
-  drawText(ctx, "心里有数", 74, 350, { size: 104, weight: 950, lineHeight: 110, maxWidth: 880 });
-  drawMarker(ctx, 78, 374, 420, 30);
-  drawText(ctx, "不用每天临时想，家里的饭先有个方向。", 78, 438, {
-    size: 29,
+  drawText(ctx, "这一周", 72, 292, { size: 118, weight: 950, lineHeight: 116, maxWidth: 900 });
+  drawText(ctx, "心里有数", 72, 406, { size: 118, weight: 950, lineHeight: 116, maxWidth: 900 });
+  drawMarker(ctx, 80, 384, 492, 34);
+  drawText(ctx, "晚饭先安排好，日子就松一点。", 76, 488, {
+    size: 31,
     weight: 850,
     color: COLORS.muted,
     maxWidth: 760,
   });
 
-  drawWeeklyStats(ctx, { dishCount, extraCount: Math.max(0, recipes.length - featuredRecipes.length) });
-  drawWeeklyCollage(ctx, { featuredRecipes, featuredImages });
+  drawWeeklyCountLine(ctx, { dishCount });
+  drawWeeklyCandidateCollage(ctx, { featuredRecipes, featuredImages });
 
-  const names = featuredRecipes.map((recipe) => recipe.name).join("  /  ");
-  drawText(ctx, names, 82, 1252, {
-    size: 25,
-    weight: 900,
-    color: COLORS.muted,
-    maxWidth: 900,
-    maxLines: 2,
-    lineHeight: 34,
+  const extraCount = Math.max(0, recipes.length - featuredRecipes.length);
+  drawText(ctx, `还有 ${extraCount} 道`, 78, 1260, {
+    size: 34,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: 270,
   });
-  drawText(ctx, "这一周，晚饭慢慢吃。", 82, 1326, {
+  drawText(ctx, "慢慢吃", 250, 1260, {
+    size: 34,
+    weight: 950,
+    color: COLORS.muted,
+    maxWidth: 180,
+  });
+  drawText(ctx, "把晚饭安排好，生活会轻松很多。", 78, 1326, {
     size: 22,
     weight: 850,
     color: COLORS.muted,
-    maxWidth: 460,
+    maxWidth: 560,
   });
   drawText(ctx, "HUMI", 884, 1328, {
     size: 32,
@@ -306,73 +309,96 @@ function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImag
   });
 }
 
-function drawWeeklyStats(ctx, { dishCount, extraCount }) {
-  const stats = [
-    { label: "7 天", value: "本周" },
-    { label: `${dishCount} 道`, value: "已安排" },
-    { label: extraCount > 0 ? `还有 ${extraCount} 道` : "刚刚好", value: "慢慢吃" },
-  ];
-
-  stats.forEach((item, index) => {
-    const x = 78 + index * 304;
-    ctx.fillStyle = index === 1 ? COLORS.acid : COLORS.white;
-    roundRect(ctx, x, 498, 270, 112, 30, true);
-    ctx.strokeStyle = COLORS.line;
-    ctx.lineWidth = 2;
-    roundRect(ctx, x, 498, 270, 112, 30, false);
-    drawText(ctx, item.label, x + 26, 552, { size: 38, weight: 950, maxWidth: 210 });
-    drawText(ctx, item.value, x + 28, 584, { size: 21, weight: 850, color: COLORS.muted, maxWidth: 210 });
+function drawWeeklyCountLine(ctx, { dishCount }) {
+  drawText(ctx, String(dishCount), 72, 568, {
+    size: 64,
+    weight: 950,
+    color: COLORS.ink,
+    maxWidth: 160,
+  });
+  drawText(ctx, "道菜 · 7 天晚饭", 154, 568, {
+    size: 26,
+    weight: 900,
+    color: COLORS.muted,
+    maxWidth: 360,
   });
 }
 
-function drawWeeklyCollage(ctx, { featuredRecipes, featuredImages }) {
+function drawWeeklyCandidateCollage(ctx, { featuredRecipes, featuredImages }) {
   const slots = [
-    { x: 78, y: 672, width: 400, height: 320, radius: 36 },
-    { x: 512, y: 636, width: 490, height: 382, radius: 40 },
-    { x: 78, y: 1028, width: 282, height: 178, radius: 28 },
-    { x: 388, y: 1044, width: 282, height: 178, radius: 28 },
-    { x: 700, y: 1040, width: 302, height: 178, radius: 28 },
-    { x: 748, y: 842, width: 254, height: 164, radius: 28 },
+    { x: 48, y: 570, width: 660, height: 520, radius: 50, angle: -2.1, label: false },
+    { x: 726, y: 720, width: 296, height: 238, radius: 34, angle: 2.2, label: true },
+    { x: 126, y: 978, width: 286, height: 214, radius: 32, angle: 2, label: true },
+    { x: 576, y: 1026, width: 354, height: 270, radius: 38, angle: -1.3, label: true },
   ];
 
+  drawWeeklyTape(ctx, 124, 570, -8);
+  drawWeeklyTape(ctx, 800, 706, 9);
+  drawWeeklyTape(ctx, 250, 984, -6);
   featuredRecipes.forEach((recipe, index) => {
     const slot = slots[index];
     if (!slot) return;
     const image = featuredImages[index];
-    drawWeeklyDishCard(ctx, { recipe, image, slot, index });
+    drawWeeklyCandidatePhoto(ctx, { recipe, image, slot });
   });
 }
 
-function drawWeeklyDishCard(ctx, { recipe, image, slot, index }) {
+function drawWeeklyTape(ctx, x, y, angle) {
   ctx.save();
+  ctx.translate(x + 69, y + 17);
+  ctx.rotate((angle * Math.PI) / 180);
+  ctx.fillStyle = "rgba(212, 235, 90, 0.78)";
+  ctx.shadowColor = "rgba(17, 17, 17, 0.08)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+  roundRect(ctx, -69, -17, 138, 34, 17, true);
+  ctx.restore();
+}
+
+function drawWeeklyCandidatePhoto(ctx, { recipe, image, slot }) {
+  ctx.save();
+  ctx.translate(slot.x + slot.width / 2, slot.y + slot.height / 2);
+  ctx.rotate((slot.angle * Math.PI) / 180);
   ctx.shadowColor = "rgba(17, 17, 17, 0.12)";
-  ctx.shadowBlur = index < 2 ? 54 : 32;
-  ctx.shadowOffsetY = index < 2 ? 24 : 14;
+  ctx.shadowBlur = slot.label ? 44 : 72;
+  ctx.shadowOffsetY = slot.label ? 18 : 28;
   ctx.fillStyle = COLORS.white;
-  roundRect(ctx, slot.x, slot.y, slot.width, slot.height, slot.radius, true);
+  roundRect(ctx, -slot.width / 2, -slot.height / 2, slot.width, slot.height, slot.radius, true);
   ctx.restore();
 
+  ctx.save();
+  ctx.translate(slot.x + slot.width / 2, slot.y + slot.height / 2);
+  ctx.rotate((slot.angle * Math.PI) / 180);
   if (image) {
     const horizontalDish = isHorizontalDish(recipe);
-    drawRoundedImage(ctx, image, slot.x, slot.y, slot.width, slot.height, slot.radius, {
+    drawRoundedImage(ctx, image, -slot.width / 2, -slot.height / 2, slot.width, slot.height, slot.radius, {
       fit: horizontalDish ? "contain" : "cover",
       background: "#F7F3EA",
       padding: horizontalDish ? 16 : 0,
     });
   } else {
-    drawDishPlaceholder(ctx, recipe.name, slot);
+    drawDishPlaceholder(ctx, recipe.name, {
+      x: -slot.width / 2,
+      y: -slot.height / 2,
+      width: slot.width,
+      height: slot.height,
+      radius: slot.radius,
+    });
   }
 
-  const labelWidth = Math.min(slot.width - 34, Math.max(120, recipe.name.length * 28 + 34));
-  ctx.fillStyle = index === 1 ? COLORS.acid : "rgba(255,255,255,0.9)";
-  roundRect(ctx, slot.x + 16, slot.y + slot.height - 56, labelWidth, 40, 20, true);
-  drawText(ctx, recipe.name, slot.x + 32, slot.y + slot.height - 29, {
-    size: 22,
-    weight: 950,
-    color: COLORS.ink,
-    maxWidth: labelWidth - 32,
-    maxLines: 1,
-  });
+  if (slot.label) {
+    const labelWidth = Math.min(slot.width - 36, Math.max(128, recipe.name.length * 28 + 36));
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    roundRect(ctx, -slot.width / 2 + 18, slot.height / 2 - 58, labelWidth, 40, 20, true);
+    drawText(ctx, recipe.name, -slot.width / 2 + 36, slot.height / 2 - 31, {
+      size: 22,
+      weight: 950,
+      color: COLORS.ink,
+      maxWidth: labelWidth - 36,
+      maxLines: 1,
+    });
+  }
+  ctx.restore();
 }
 
 function loadImageSafe(src) {
