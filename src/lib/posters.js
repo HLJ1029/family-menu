@@ -73,8 +73,12 @@ export async function sharePoster({ blob, title, filename, text }) {
     await navigator.share({ title, text, files: [file] });
     return "shared";
   }
-  downloadBlob(blob, filename);
+  downloadPoster(blob, filename);
   return "downloaded";
+}
+
+export function downloadPoster(blob, filename) {
+  downloadBlob(blob, filename);
 }
 
 function createPosterBlob(draw) {

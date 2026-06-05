@@ -6,6 +6,7 @@ import { GroceryList } from "./components/GroceryList";
 import { InventoryPage } from "./components/InventoryPage";
 import { Library } from "./components/Library";
 import { Planner } from "./components/Planner";
+import { PosterPreview } from "./components/PosterPreview";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
@@ -26,6 +27,7 @@ import {
   createGroceryPoster,
   createTodayMenuPoster,
   createWeekMenuPoster,
+  downloadPoster,
   sharePoster,
 } from "./lib/posters";
 import {
@@ -141,6 +143,14 @@ function App() {
   const [aiRecommendation, setAiRecommendation] = useState(null);
   const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；登录后会参考家庭画像、库存和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+  const [posterPreview, setPosterPreview] = useState(null);
+  const [posterLoading, setPosterLoading] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (posterPreview?.url) URL.revokeObjectURL(posterPreview.url);
+    };
+  }, [posterPreview?.url]);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -791,13 +801,14 @@ function App() {
 
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
-    await sharePosterWithFallback({
+    await openPosterPreview({
       type: "grocery_list",
       title: "Humi 购物清单",
       filename: "humi-shopping-list.png",
       text,
       createBlob: () => createGroceryPoster({ items: visibleGroceryItems, customItems }),
       fallbackSuccess: "食材清单已复制",
+      refreshLabel: "换一种样式",
     });
   }
 
@@ -809,13 +820,14 @@ function App() {
       "",
       `待买食材：${visibleGroceryItems.length} 项`,
     ].join("\n");
-    await sharePosterWithFallback({
+    await openPosterPreview({
       type: "today_menu",
       title: "Humi 今晚菜单",
       filename: "humi-tonight-menu.png",
       text,
       createBlob: () => createTodayMenuPoster({ recipes: todayRecipes, groceryCount: visibleGroceryItems.length }),
       fallbackSuccess: "今晚菜单已复制",
+      refreshLabel: "重新生成海报",
     });
   }
 
@@ -828,13 +840,14 @@ function App() {
         return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
       }),
     ].join("\n");
-    await sharePosterWithFallback({
+    await openPosterPreview({
       type: "week_plan",
       title: "Humi 本周菜单",
       filename: "humi-week-menu.png",
       text,
       createBlob: () => createWeekMenuPoster({ weekPlan, getRecipe }),
       fallbackSuccess: "一周计划已复制",
+      refreshLabel: "重新生成海报",
     });
   }
 
@@ -872,14 +885,80 @@ function App() {
     }
   }
 
-  async function sharePosterWithFallback({ type, title, filename, text, createBlob, fallbackSuccess }) {
+  async function openPosterPreview({ type, title, filename, text, createBlob, fallbackSuccess, refreshLabel }) {
+    setPosterLoading(true);
     try {
       const blob = await createBlob();
-      const method = await sharePoster({ blob, title, filename, text });
-      trackProductEvent(appEvents.share, { type, method: method === "shared" ? "poster_native" : "poster_download" });
-      showNotice(method === "shared" ? "海报已打开分享面板" : "海报已保存到下载");
+      const url = URL.createObjectURL(blob);
+      setPosterPreview((current) => {
+        if (current?.url) URL.revokeObjectURL(current.url);
+        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
+      });
+      trackProductEvent(appEvents.share, { type, method: "poster_preview" });
+      showNotice("海报已生成");
     } catch {
       await shareText({ type, title, text, success: fallbackSuccess });
+    } finally {
+      setPosterLoading(false);
+    }
+  }
+
+  function closePosterPreview() {
+    setPosterPreview((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  }
+
+  async function regeneratePosterPreview() {
+    if (!posterPreview) return;
+    setPosterLoading(true);
+    try {
+      const blob = await posterPreview.createBlob();
+      const url = URL.createObjectURL(blob);
+      setPosterPreview((current) => {
+        if (current?.url) URL.revokeObjectURL(current.url);
+        return current ? { ...current, blob, url } : null;
+      });
+      showNotice("换好一版海报了");
+    } catch {
+      showNotice("海报生成失败，可稍后重试");
+    } finally {
+      setPosterLoading(false);
+    }
+  }
+
+  function savePosterPreview() {
+    if (!posterPreview) return;
+    downloadPoster(posterPreview.blob, posterPreview.filename);
+    trackProductEvent(appEvents.share, { type: posterPreview.type, method: "poster_save" });
+    showNotice("海报已保存到下载");
+  }
+
+  async function sharePosterPreview() {
+    if (!posterPreview) return;
+    setPosterLoading(true);
+    try {
+      const method = await sharePoster({
+        blob: posterPreview.blob,
+        title: posterPreview.title,
+        filename: posterPreview.filename,
+        text: posterPreview.text,
+      });
+      trackProductEvent(appEvents.share, {
+        type: posterPreview.type,
+        method: method === "shared" ? "poster_native" : "poster_download",
+      });
+      showNotice(method === "shared" ? "海报已打开分享面板" : "海报已保存到下载");
+    } catch {
+      await shareText({
+        type: posterPreview.type,
+        title: posterPreview.title,
+        text: posterPreview.text,
+        success: posterPreview.fallbackSuccess,
+      });
+    } finally {
+      setPosterLoading(false);
     }
   }
 
@@ -1493,6 +1572,14 @@ function App() {
           {notice}
         </div>
       )}
+      <PosterPreview
+        poster={posterPreview}
+        loading={posterLoading}
+        onClose={closePosterPreview}
+        onSave={savePosterPreview}
+        onShare={sharePosterPreview}
+        onRegenerate={regeneratePosterPreview}
+      />
       <RecipeDetailDrawer
         recipe={selectedRecipe}
         cookingStep={cookingStep}

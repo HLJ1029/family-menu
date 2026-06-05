@@ -93,6 +93,10 @@ img {
     animation: toast-enter 320ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  .poster-preview-enter {
+    animation: poster-preview-enter 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   .motion-card {
     transition:
       transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -359,6 +363,17 @@ img {
   100% {
     opacity: 1;
     transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes poster-preview-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.975);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
