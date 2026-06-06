@@ -101,6 +101,18 @@ docs/miniprogram-mvp-plan.md
 docs/Humi_微信小程序上线计划_V1.md
 ```
 
+视觉资产生成入口：
+
+```text
+docs/Humi_Visual_Asset_Generation_Guide_V1.md
+```
+
+海报设计系统：
+
+```text
+docs/Humi_Poster_Design_System_V1.md
+```
+
 小程序 WebView 壳：
 
 ```text
