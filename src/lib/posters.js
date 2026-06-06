@@ -61,8 +61,12 @@ export async function createGroceryPoster({ items = [], customItems = [] }) {
 export async function sharePoster({ blob, title, filename, text }) {
   const file = new File([blob], filename, { type: "image/png" });
   if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-    await navigator.share({ title, text, files: [file] });
-    return "shared";
+    try {
+      await navigator.share({ title, text, files: [file] });
+      return "shared";
+    } catch (error) {
+      if (error?.name === "AbortError") return "cancelled";
+    }
   }
   downloadPoster(blob, filename);
   return "downloaded";

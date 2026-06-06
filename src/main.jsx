@@ -957,6 +957,7 @@ function App() {
         filename: posterPreview.filename,
         text: posterPreview.text,
       });
+      if (method === "cancelled") return;
       trackProductEvent(appEvents.share, {
         type: posterPreview.type,
         method: method === "shared" ? "poster_native" : "poster_download",
