@@ -121,6 +121,14 @@ miniprogram/
 
 ## 开发流程
 
+全局 AI 团队章程、任务队列和角色权限统一维护在私有总部仓库：
+
+```text
+/Users/honglijie/AI-HQ
+```
+
+本仓库的 `CLAUDE.md` 只保存 Humi 项目特有的副工程约束。
+
 每个小阶段完成后：
 
 ```bash
