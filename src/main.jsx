@@ -1203,8 +1203,8 @@ function App() {
         amount: item.amount,
         expiresOn: item.expiresOn,
       })),
-      familyPreferences: familyMembers.map((member) => ({
-        member: member.email,
+      familyPreferences: familyMembers.map((member, index) => ({
+        member: `家庭成员${index + 1}`,
         preference: member.preference,
       })),
       familyProfile,
