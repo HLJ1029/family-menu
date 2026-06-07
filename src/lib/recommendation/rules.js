@@ -9,9 +9,11 @@ export function buildTodayRecommendation({
   groceryItems = [],
   todayRecipes = [],
   familyMembers = [],
+  excludedRecipeIds = [],
 }) {
   const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers);
+  const excludedIds = new Set(excludedRecipeIds);
   Object.values(weekPlan)
     .flat()
     .slice(-8)
@@ -19,7 +21,11 @@ export function buildTodayRecommendation({
   todayRecipes.forEach((recipe) => recentRecipeIds.add(recipe.id));
 
   const scored = recipes
-    .filter((recipe) => !todayRecipes.some((item) => item.id === recipe.id))
+    .filter(
+      (recipe) =>
+        !excludedIds.has(recipe.id) &&
+        !todayRecipes.some((item) => item.id === recipe.id),
+    )
     .map((recipe) => {
       const ingredientNames = recipe.ingredients.map((item) => normalize(item.name));
       const usablePantryMatches = ingredientNames.filter((name) => pantryState.usableNames.has(name)).length;

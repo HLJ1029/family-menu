@@ -587,30 +587,49 @@ function App() {
 
   async function requestAiRecommendation(feedbackReason = null) {
     setRecommendationFeedbackOpen(false);
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const alternateRuleRecommendation = buildTodayRecommendation({
+      pantryItems,
+      weekPlan,
+      groceryItems: visibleGroceryItems,
+      todayRecipes,
+      familyMembers,
+      excludedRecipeIds: currentRecipeIds,
+    });
     trackProductEvent(appEvents.recommendationRequest, {
       hasFeedback: Boolean(feedbackReason),
-      currentRecipeIds: displayedRecommendation.recipes.map((recipe) => recipe.id),
+      currentRecipeIds,
     });
     if (feedbackReason) {
       recordRecommendationFeedback(feedbackReason);
     }
 
     if (!session?.user) {
-      setAiRecommendation(null);
-      setAiRecommendationStatus("已经先给你安排好一组。登录后，Humi 会参考家庭画像和库存来调整。");
+      setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
+      setAiRecommendationStatus("已经换成另一组；登录后，Humi 还会参考家庭画像和库存。");
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
         reason: "guest",
-        recipeIds: todayRecommendation.recipes.map((recipe) => recipe.id),
+        recipeIds: alternateRuleRecommendation.recipes.map((recipe) => recipe.id),
       });
+      showNotice("已经换成另一组");
       return;
     }
 
     setAiRecommendationLoading(true);
     setAiRecommendationStatus("正在重新给你想一组晚饭...");
     try {
-      const result = await recommendMeals(buildAiRecommendationContext({ todayRecommendation }));
-      const nextRecommendation = hydrateAiRecommendation({ result, fallback: todayRecommendation });
+      const result = await recommendMeals(
+        buildAiRecommendationContext({
+          fallbackRecommendation: alternateRuleRecommendation,
+          currentRecipeIds,
+          feedbackReason,
+        }),
+      );
+      const nextRecommendation = hydrateAiRecommendation({
+        result,
+        fallback: alternateRuleRecommendation,
+      });
       setAiRecommendation(nextRecommendation);
       setAiExplanation(result.reason ?? nextRecommendation.reason);
       setAiRecommendationStatus("给你重新想好了一组。");
@@ -622,14 +641,15 @@ function App() {
       });
       showNotice("晚饭推荐已更新");
     } catch (error) {
-      setAiRecommendation(null);
-      setAiRecommendationStatus(`${formatAiError(error)} 先按家里现有情况推荐。`);
+      setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
+      setAiRecommendationStatus(`${formatAiError(error)} 已先换成另一组。`);
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
         reason: "fallback",
         error: error.message,
-        recipeIds: todayRecommendation.recipes.map((recipe) => recipe.id),
+        recipeIds: alternateRuleRecommendation.recipes.map((recipe) => recipe.id),
       });
+      showNotice("已经换成另一组");
     } finally {
       setAiRecommendationLoading(false);
     }
@@ -1152,7 +1172,11 @@ function App() {
     }
   }
 
-  function buildAiRecommendationContext({ todayRecommendation }) {
+  function buildAiRecommendationContext({
+    fallbackRecommendation,
+    currentRecipeIds = [],
+    feedbackReason = null,
+  }) {
     const recentRecipeIds = [
       ...new Set([
         ...Object.values(weekPlan).flat(),
@@ -1161,17 +1185,19 @@ function App() {
     ].slice(-12);
 
     return {
-      candidates: recipes.map((recipe) => ({
-        id: recipe.id,
-        name: recipe.name,
-        categories: recipe.categories,
-        tags: recipe.tags,
-        timeMinutes: recipe.timeMinutes,
-        difficulty: recipe.difficulty,
-        ingredients: recipe.ingredients.map((item) => item.name),
-        seasonings: recipe.seasonings.map((item) => item.name),
-        nutrition: nutritionFor(recipe),
-      })),
+      candidates: recipes
+        .filter((recipe) => !currentRecipeIds.includes(recipe.id))
+        .map((recipe) => ({
+          id: recipe.id,
+          name: recipe.name,
+          categories: recipe.categories,
+          tags: recipe.tags,
+          timeMinutes: recipe.timeMinutes,
+          difficulty: recipe.difficulty,
+          ingredients: recipe.ingredients.map((item) => item.name),
+          seasonings: recipe.seasonings.map((item) => item.name),
+          nutrition: nutritionFor(recipe),
+        })),
       pantryItems: pantryItems.map((item) => ({
         name: item.name,
         amount: item.amount,
@@ -1184,11 +1210,21 @@ function App() {
       familyProfile,
       compactFamilyPrompt: buildCompactFamilyPrompt(familyProfile),
       recentRecipeIds,
-      currentMissingItems: todayRecommendation.missingItems.map((item) => item.name),
-      recentFeedback: recommendationFeedback.slice(0, 6).map((item) => ({
-        reason: item.reasonLabel,
-        recipeIds: item.recipeIds,
-      })),
+      currentMissingItems: fallbackRecommendation.missingItems.map((item) => item.name),
+      recentFeedback: [
+        ...(feedbackReason
+          ? [{
+              reason: feedbackReason.label,
+              reasonId: feedbackReason.id,
+              recipeIds: currentRecipeIds,
+            }]
+          : []),
+        ...recommendationFeedback.slice(0, 5).map((item) => ({
+          reason: item.reasonLabel,
+          reasonId: item.reasonId,
+          recipeIds: item.recipeIds,
+        })),
+      ],
       acceptanceRules: [
         "只推荐候选菜谱里的菜，不能创造新菜。",
         "优先使用快到期或家里已有的主食材。",
@@ -1197,10 +1233,11 @@ function App() {
         "主食材缺口尽量不超过 3 项；调料和常备项不要当作主要缺口。",
         "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
         "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
+        "本轮候选已排除用户刚看到的菜，不能重复上一组。",
       ],
       ruleFallback: {
-        recipeIds: todayRecommendation.recipes.map((recipe) => recipe.id),
-        reason: todayRecommendation.reason,
+        recipeIds: fallbackRecommendation.recipes.map((recipe) => recipe.id),
+        reason: fallbackRecommendation.reason,
       },
     };
   }

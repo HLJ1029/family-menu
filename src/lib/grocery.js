@@ -39,7 +39,12 @@ export function buildShoppingListFromEntries(entries) {
       const item = scaleItem(rawItem, entry.quantity);
       const key = buildGroceryItemKey(item);
       const current = merged.get(key);
-      if (current && typeof current.amount === "number" && typeof item.amount === "number") {
+      const isPantryCheck = item.type === "seasoning" || item.pantryItem;
+      if (current && isPantryCheck) {
+        current.amount = "适量";
+        current.unit = "";
+        current.pantryItem = current.pantryItem || Boolean(item.pantryItem);
+      } else if (current && typeof current.amount === "number" && typeof item.amount === "number") {
         current.amount += item.amount;
       } else if (current) {
         current.amount = "适量";
@@ -82,5 +87,9 @@ function scaleItem(item, multiplier = 1) {
 }
 
 function buildGroceryItemKey(item) {
-  return `${item.type}:${item.name}:${item.unit}:${typeof item.amount}`;
+  const normalizedName = String(item.name).trim().toLowerCase();
+  if (item.type === "seasoning" || item.pantryItem) {
+    return `pantry:${normalizedName}`;
+  }
+  return `${item.type}:${normalizedName}:${item.unit}:${typeof item.amount}`;
 }
