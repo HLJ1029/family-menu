@@ -175,6 +175,10 @@ H5 通过查询参数识别来源：
 - `docs/miniprogram-review-materials.md`
 - `docs/privacy-data-inventory.md`
 
+微信登录和手机号绑定技术方案见：
+
+- `docs/wechat-auth-implementation-plan.md`
+
 ## 6. 域名备案完成后的工作
 
 ### 需要用户在平台完成
