@@ -42,15 +42,15 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
 ## 小程序壳检查
 
 - 微信开发者工具已安装并正在运行。
+- 微信开发者工具 CLI 服务端口已开启：`http://127.0.0.1:49552`。
+- `cli islogin` 通过，当前开发者工具已登录。
+- `cli open --project miniprogram` 通过。
+- `cli preview --project miniprogram` 通过，测试 AppID 下生成预览包成功，包体约 `1.2 KB`。
 - `miniprogram/utils/config.js` 当前配置：
   - 开发者工具：`http://127.0.0.1:5173/family-menu/?channel=wechat-miniprogram`
   - 真机/正式：`https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram`
 - `miniprogram/project.config.json` 当前仍是测试 AppID：`wx3acc29804cbb265f`。
 - `urlCheck` 当前仍为 `false`，只适合本地调试，不适合正式提交审核。
-- 微信开发者工具 CLI 服务端口当前未开启，CLI 无法完成自动预览/上传检查。需要在开发者工具内打开：
-  - 设置
-  - 安全设置
-  - 服务端口
 
 ## 当前阻塞项
 
@@ -75,5 +75,4 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
 - 放置微信业务域名校验文件到正式域名要求路径。
 - 补齐隐私政策和用户协议里的运营者与联系邮箱。
 - 在 Supabase 后台确认正式域名 redirect URLs。
-- 在微信开发者工具开启服务端口后，执行 CLI 预览/上传前检查。
 - 用真机微信完成 WebView 全链路验收。
