@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Plus, Search, Share2, Wand2, X } from "lucide-react";
+import { CalendarDays, Plus, Search, Share2, ShoppingBasket, Wand2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -67,9 +67,17 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                       : "border-line bg-canvas text-ink/58 hover:border-ink/20 hover:text-ink"
                   }`}
                 >
-                  {day}加菜
+                  给{day}加菜
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => onViewChange("grocery")}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <ShoppingBasket size={15} className="text-acid" />
+                查看清单
+              </button>
               <button
                 type="button"
                 onClick={onShare}
@@ -211,7 +219,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   ))
                 ) : (
                   <div className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/45">
-                    未安排。点击左侧“添加菜品”开始计划，也可以拖一道菜到这里。
+                    还没安排。点“添加菜品”挑一道菜；桌面端也可以把菜拖到这里。
                   </div>
                 )}
               </div>

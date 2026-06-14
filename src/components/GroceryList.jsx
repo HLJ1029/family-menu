@@ -263,7 +263,7 @@ function ShoppingChecklist({
             这里是买菜时看的清单；每道菜的精确用量放在下面核对。
           </p>
         </div>
-        <span className="rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
+        <span key={checkedItemCount} className="grocery-count-pop rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
           已完成 {checkedItemCount} / {totalItemCount}
         </span>
       </div>
@@ -506,7 +506,10 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
 
 function GroceryItem({ item, checked, onToggle, onRemove }) {
   return (
-    <div className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+    <div
+      className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20"
+      data-checked={Boolean(checked)}
+    >
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
@@ -535,7 +538,10 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
 
 function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIcon: ActionIcon = PackageCheck }) {
   return (
-    <div className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+    <div
+      className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20"
+      data-checked={Boolean(checked)}
+    >
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">

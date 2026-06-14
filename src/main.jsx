@@ -93,6 +93,7 @@ registerServiceWorker();
 
 function App() {
   const appOpenTrackedRef = useRef(false);
+  const flowMotionTimerRef = useRef(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
@@ -160,6 +161,8 @@ function App() {
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
+  const [entryMotion, setEntryMotion] = useState(false);
+  const [flowMotion, setFlowMotion] = useState(null);
   const signedIn = Boolean(session?.user || humiSession?.user);
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
 
@@ -1601,18 +1604,32 @@ function App() {
     showNotice(`已切换到${getPlanningMode(modeId).label}`);
   }
 
+  function navigateTo(nextView) {
+    setFlowMotion(getFlowMotion(activeView, nextView));
+    setActiveView(nextView);
+    window.clearTimeout(flowMotionTimerRef.current);
+    flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
+  }
+
   function continueAsGuest() {
-    setOnboardingComplete(true);
-    setActiveView("dashboard");
-    showNotice("先从今晚吃什么开始");
+    setEntryMotion(true);
+    window.setTimeout(() => {
+      setOnboardingComplete(true);
+      setActiveView("dashboard");
+      showNotice("先从今晚吃什么开始");
+    }, 760);
+    window.setTimeout(() => setEntryMotion(false), 1360);
   }
 
   if (!signedIn && !onboardingComplete) {
     return (
-      <AuthLanding
-        authProps={authProps}
-        onContinueGuest={continueAsGuest}
-      />
+      <>
+        <AuthLanding
+          authProps={authProps}
+          onContinueGuest={continueAsGuest}
+        />
+        {entryMotion && <EntryTableMotion />}
+      </>
     );
   }
 
@@ -1631,7 +1648,7 @@ function App() {
       <DoodleWash />
       <OfflineStatus online={online} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
-        <Sidebar activeView={activeView} onChange={setActiveView} />
+        <Sidebar activeView={activeView} onChange={navigateTo} />
         <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
           {activeView !== "dashboard" && (
             <Topbar
@@ -1639,10 +1656,10 @@ function App() {
               query={query}
               setQuery={setQuery}
               session={displaySession}
-              onOpenUserCenter={() => setActiveView("user")}
+              onOpenUserCenter={() => navigateTo("user")}
             />
           )}
-          <div key={activeView} className="view-enter">
+          <div key={activeView} className={`view-enter ${flowMotion ? `flow-motion-${flowMotion}` : ""}`}>
             {activeView === "dashboard" && (
               <Dashboard
                 todayRecipes={todayRecipes}
@@ -1650,7 +1667,7 @@ function App() {
                 recommendation={displayedRecommendation}
                 aiRecommendationStatus={aiRecommendationStatus}
                 aiRecommendationLoading={aiRecommendationLoading}
-                onViewChange={setActiveView}
+                onViewChange={navigateTo}
                 onOpenRecipe={openRecipe}
                 onAddRecommended={addRecommendedToday}
                 onRequestAiRecommendation={requestAiRecommendation}
@@ -1659,7 +1676,7 @@ function App() {
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
                 session={displaySession}
-                onOpenUserCenter={() => setActiveView("user")}
+                onOpenUserCenter={() => navigateTo("user")}
                 familyProfile={familyProfile}
                 groceryItemCount={visibleGroceryItems.length}
                 onSelectPlanningMode={selectPlanningMode}
@@ -1689,7 +1706,7 @@ function App() {
                 onAssign={assignPlan}
                 onRemove={removePlanRecipe}
                 onShare={shareWeekPlan}
-                onViewChange={setActiveView}
+                onViewChange={navigateTo}
                 onGenerateWeek={planRecommendedWeek}
                 cloudSync={{
                   family,
@@ -1698,7 +1715,7 @@ function App() {
                   status: cloudSyncStatus,
                   onMigrate: migrateMenusToCloud,
                   onRefresh: refreshCloudMenus,
-                  onOpenUserCenter: () => setActiveView("user"),
+                  onOpenUserCenter: () => navigateTo("user"),
                 }}
               />
             )}
@@ -1709,7 +1726,7 @@ function App() {
                 onAddToday={addToday}
                 onUpdateQuantity={updateTodayQuantity}
                 onOpenRecipe={openRecipe}
-                onViewChange={setActiveView}
+                onViewChange={navigateTo}
                 onShare={shareTodayMenu}
                 mealLog={todayMealLog}
                 onSetDinnerSource={setDinnerSource}
@@ -1721,7 +1738,7 @@ function App() {
                   status: cloudSyncStatus,
                   onMigrate: migrateMenusToCloud,
                   onRefresh: refreshCloudMenus,
-                  onOpenUserCenter: () => setActiveView("user"),
+                  onOpenUserCenter: () => navigateTo("user"),
                 }}
               />
             )}
@@ -1768,9 +1785,9 @@ function App() {
                   onMigrate: migrateGroceryToCloud,
                   onRefresh: refreshCloudGrocery,
                 }}
-                onOpenUserCenter={() => setActiveView("user")}
-                onOpenInventory={() => setActiveView("inventory")}
-                onOpenStats={() => setActiveView("stats")}
+                onOpenUserCenter={() => navigateTo("user")}
+                onOpenInventory={() => navigateTo("inventory")}
+                onOpenStats={() => navigateTo("stats")}
               />
             )}
             {activeView === "inventory" && (
@@ -1794,7 +1811,7 @@ function App() {
                   onMigrate: migrateGroceryToCloud,
                   onRefresh: refreshCloudGrocery,
                 }}
-                onOpenUserCenter={() => setActiveView("user")}
+                onOpenUserCenter={() => navigateTo("user")}
                 mealLogs={mealLogs}
                 mealCalendar={mealCalendar}
                 familyProfile={familyProfile}
@@ -1813,7 +1830,7 @@ function App() {
                 familyProfile={familyProfile}
                 nutritionGoals={nutritionGoals}
                 pantryItems={pantryItems}
-                onViewChange={setActiveView}
+                onViewChange={navigateTo}
               />
             )}
             {activeView === "user" && (
@@ -1829,13 +1846,14 @@ function App() {
                 mealLogs={mealLogs}
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
-                onViewChange={setActiveView}
+                onViewChange={navigateTo}
               />
             )}
           </div>
         </main>
       </div>
-      <MobileTabbar activeView={activeView} onChange={setActiveView} />
+      <MobileTabbar activeView={activeView} onChange={navigateTo} />
+      {entryMotion && <EntryTableMotion />}
       {notice && (
         <div className="toast-enter fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
           {notice}
@@ -1864,6 +1882,32 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function EntryTableMotion() {
+  return (
+    <div className="entry-table-motion fixed inset-0 z-[90] grid place-items-center bg-ink text-white">
+      <div className="entry-table-motion__glow" />
+      <div className="entry-table-motion__plate">
+        <span className="entry-table-motion__dish entry-table-motion__dish--one" />
+        <span className="entry-table-motion__dish entry-table-motion__dish--two" />
+        <span className="entry-table-motion__dish entry-table-motion__dish--three" />
+      </div>
+      <div className="relative z-10 mt-48 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.28em] text-acid">HUMI</p>
+        <p className="mt-3 text-2xl font-black tracking-[-0.04em]">正在为今晚摆桌</p>
+      </div>
+    </div>
+  );
+}
+
+function getFlowMotion(currentView, nextView) {
+  if (currentView === nextView) return null;
+  if (currentView === "dashboard" && nextView === "today") return "dish-to-menu";
+  if ((currentView === "planner" || currentView === "today") && nextView === "grocery") return "ingredients";
+  if (currentView === "grocery" && (nextView === "inventory" || nextView === "user")) return "pantry";
+  if (nextView === "user" || nextView === "stats") return "portrait";
+  return "soft";
 }
 
 function getRecommendationItems(recommendation) {

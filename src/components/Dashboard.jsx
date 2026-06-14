@@ -8,6 +8,7 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
+import { useState } from "react";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { photoFor } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
@@ -43,6 +44,7 @@ export function Dashboard({
   onSetDinnerSource,
   onSetDinnerConfirmation,
 }) {
+  const [arranging, setArranging] = useState(false);
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
   const recommendedItems = getRecommendationItems(recommendation);
@@ -59,8 +61,9 @@ export function Dashboard({
     .slice(0, 3);
 
   function arrangeTonight() {
+    setArranging(true);
     onAddRecommended();
-    window.setTimeout(() => onViewChange("today"), 260);
+    window.setTimeout(() => onViewChange("today"), 520);
   }
 
   return (
@@ -83,6 +86,19 @@ export function Dashboard({
         <div className="absolute right-5 top-5 z-10">
           <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
         </div>
+        {arranging && (
+          <div className="arrange-flight-layer pointer-events-none absolute inset-0 z-20">
+            {recommendedItems.slice(0, 4).map(({ recipe }, index) => (
+              <span
+                key={recipe.id}
+                className="arrange-flight-chip"
+                style={{ "--flight-index": index }}
+              >
+                <img src={photoFor(recipe, { variant: "thumb" })} alt="" />
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="absolute inset-x-0 bottom-0 z-10 p-5 md:p-8">
           <div className="max-w-4xl">
