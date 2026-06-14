@@ -1,4 +1,4 @@
-const HUMI_WEB_URL = "https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram";
+const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram";
 const HUMI_DEVTOOLS_URL = "http://127.0.0.1:5173/family-menu/?channel=wechat-miniprogram";
 
 function getHumiH5Url() {
