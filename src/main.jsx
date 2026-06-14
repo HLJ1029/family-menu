@@ -24,6 +24,7 @@ import {
   formatRawAmount,
   formatShareText,
 } from "./lib/grocery";
+import { getDefaultNutritionGoals } from "./lib/insights";
 import { getExpiryState } from "./lib/pantry";
 import {
   createGroceryPoster,
@@ -39,8 +40,9 @@ import {
   nutritionFor,
   recipes,
 } from "./lib/recipes";
-import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
+import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
@@ -101,6 +103,7 @@ function App() {
     "family-menu:meal-calendar",
     createInitialMealCalendar,
   );
+  const [mealLogs, setMealLogs] = useLocalStorageState("family-menu:meal-logs:v1", {});
   const [checkedItems, setCheckedItems] = useLocalStorageState("family-menu:checked-items", {});
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
   const [newCustomItem, setNewCustomItem] = useState("");
@@ -121,6 +124,7 @@ function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authStatus, setAuthStatus] = useState("");
   const [session, setSession] = useState(null);
+  const [humiSession, setHumiSession] = useState(() => readHumiSession());
   const [family, setFamily] = useState(null);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
@@ -139,6 +143,10 @@ function App() {
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
+  const [nutritionGoals, setNutritionGoals] = useLocalStorageState(
+    "humi:nutrition-goals:v1",
+    () => getDefaultNutritionGoals(defaultFamilyProfile),
+  );
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -152,6 +160,17 @@ function App() {
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
+  const signedIn = Boolean(session?.user || humiSession?.user);
+  const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
+
+  useEffect(() => {
+    const nextHumiSession = consumeHumiSessionFromUrl();
+    if (!nextHumiSession) return;
+    setHumiSession(nextHumiSession);
+    setOnboardingComplete(true);
+    setAuthStatus("已通过微信登录 Humi。");
+    showNotice("已登录 Humi");
+  }, [setOnboardingComplete]);
 
   useEffect(() => {
     return () => {
@@ -415,6 +434,8 @@ function App() {
       return recipe ? { ...recipe, menuQuantity: item.quantity } : null;
     })
     .filter(Boolean);
+  const todayDateKey = formatDateKey(new Date());
+  const todayMealLog = mealLogs[todayDateKey] ?? {};
   const plannedEntries = Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
     recipeIds.map((recipeId) => ({ day, recipeId, quantity: 1 })),
   );
@@ -509,20 +530,21 @@ function App() {
     setCookingStep(0);
   }
 
-  function addToday(recipeId) {
+  function addToday(recipeId, quantity = 1) {
     const recipe = getRecipe(recipeId);
     const currentDay = getCurrentPlanDay();
     const todayKey = formatDateKey(new Date());
     const alreadyInCurrentPlan = (weekPlan[currentDay] ?? []).includes(recipeId);
     const alreadyInTodayPlan = (mealCalendar[todayKey] ?? []).includes(recipeId);
+    const safeQuantity = Math.max(1, Number.parseInt(quantity, 10) || 1);
     setTodayMenu((current) => {
       const existing = current.find((item) => item.recipeId === recipeId);
       if (existing) {
         return current.map((item) =>
-          item.recipeId === recipeId ? { ...item, quantity: item.quantity + 1 } : item,
+          item.recipeId === recipeId ? { ...item, quantity: item.quantity + safeQuantity } : item,
         );
       }
-      return [...current, { recipeId, quantity: 1 }];
+      return [...current, { recipeId, quantity: safeQuantity }];
     });
     if (!alreadyInCurrentPlan) {
       setWeekPlan((current) => {
@@ -545,22 +567,59 @@ function App() {
   }
 
   function addRecommendedToday() {
-    const recommendedIds = displayedRecommendation.recipes
-      .map((recipe) => recipe.id)
-      .filter((recipeId) => !todayMenu.some((item) => item.recipeId === recipeId));
+    const recommendedItems = getRecommendationItems(displayedRecommendation)
+      .filter((item) => !todayMenu.some((menuItem) => menuItem.recipeId === item.recipe.id));
 
-    if (recommendedIds.length === 0) {
+    if (recommendedItems.length === 0) {
       showNotice("这组菜已经在今晚菜单里");
       return;
     }
 
-    recommendedIds.forEach(addToday);
+    recommendedItems.forEach((item) => addToday(item.recipe.id, item.quantity));
     trackProductEvent(appEvents.recommendationAccepted, {
-      recipeIds: recommendedIds,
+      recipeIds: recommendedItems.map((item) => item.recipe.id),
+      quantities: recommendedItems.map((item) => ({
+        recipeId: item.recipe.id,
+        quantity: item.quantity,
+      })),
       source: displayedRecommendation.source ?? "rule",
       missingCount: displayedRecommendation.missingItems.length,
+      familySize: displayedRecommendation.familySize ?? familyProfile.familySize,
     });
-    showNotice(`已加入 ${recommendedIds.length} 道推荐菜`);
+    showNotice(`已加入 ${recommendedItems.length} 道推荐菜`);
+  }
+
+  function updateTodayMealLog(patch) {
+    const updatedAt = new Date().toISOString();
+    setMealLogs((current) => ({
+      ...current,
+      [todayDateKey]: {
+        ...(current[todayDateKey] ?? {}),
+        ...patch,
+        updatedAt,
+      },
+    }));
+  }
+
+  function setDinnerSource(source) {
+    updateTodayMealLog({ source });
+    const labels = {
+      home: "今天在家做饭",
+      delivery: "今天点外卖",
+      outside: "今天外面吃",
+      skip: "今天先不记录",
+    };
+    showNotice(labels[source] ?? "晚餐来源已记录");
+  }
+
+  function setDinnerConfirmation(confirmation) {
+    updateTodayMealLog({ confirmation });
+    const labels = {
+      all: "已确认今晚吃了",
+      partial: "已记录吃了一部分",
+      missed: "已记录今晚没做",
+    };
+    showNotice(labels[confirmation] ?? "晚餐确认已记录");
   }
 
   function planRecommendedWeek() {
@@ -1114,6 +1173,8 @@ function App() {
     try {
       await signOut();
       setSession(null);
+      clearHumiSession();
+      setHumiSession(null);
       setFamily(null);
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
@@ -1278,7 +1339,8 @@ function App() {
         "只推荐候选菜谱里的菜，不能创造新菜。",
         "优先使用快到期或家里已有的主食材。",
         "避开近期已经安排过的菜。",
-        "晚饭组合建议 1-2 道，总耗时尽量控制在 45 分钟内。",
+        "晚饭组合必须按家庭人数落地：1人建议1-2道，2人建议2道，3-4人建议2-3道，5人以上建议3-4道。",
+        "如果菜品数量少于家庭人数需要，可用份量补足，但推荐理由要说明份量安排。",
         "主食材缺口尽量不超过 3 项；调料和常备项不要当作主要缺口。",
         "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
         "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
@@ -1287,6 +1349,10 @@ function App() {
       ],
       ruleFallback: {
         recipeIds: fallbackRecommendation.recipes.map((recipe) => recipe.id),
+        items: getRecommendationItems(fallbackRecommendation).map((item) => ({
+          recipeId: item.recipe.id,
+          quantity: item.quantity,
+        })),
         reason: fallbackRecommendation.reason,
       },
     };
@@ -1298,9 +1364,16 @@ function App() {
       .filter(Boolean);
 
     if (selectedRecipes.length === 0) return fallback;
+    const filledRecipes = [...selectedRecipes];
+    for (const fallbackItem of getRecommendationItems(fallback)) {
+      if (filledRecipes.length >= (fallback.targetDishCount ?? fallback.recipes.length)) break;
+      if (!filledRecipes.some((recipe) => recipe.id === fallbackItem.recipe.id)) {
+        filledRecipes.push(fallbackItem.recipe);
+      }
+    }
 
     const selectedIngredientNames = new Set(
-      selectedRecipes.flatMap((recipe) => recipe.ingredients.map((item) => normalizeName(item.name))),
+      filledRecipes.flatMap((recipe) => recipe.ingredients.map((item) => normalizeName(item.name))),
     );
     const usablePantryNames = new Set(
       pantryItems
@@ -1312,7 +1385,8 @@ function App() {
         .filter((item) => getExpiryState(item.expiresOn) === "soon")
         .map((item) => normalizeName(item.name)),
     );
-    const missingItems = selectedRecipes
+    const recommendationItems = buildRecommendationItems(filledRecipes, familyProfile.familySize);
+    const missingItems = filledRecipes
       .flatMap((recipe) => recipe.ingredients)
       .filter((item) => item.required !== false && !usablePantryNames.has(normalizeName(item.name)))
       .filter((item, index, items) => items.findIndex((candidate) => normalizeName(candidate.name) === normalizeName(item.name)) === index)
@@ -1323,8 +1397,10 @@ function App() {
 
     return {
       ...fallback,
-      recipes: selectedRecipes,
-      title: selectedRecipes.map((recipe) => recipe.name).join(" + "),
+      recipes: filledRecipes,
+      items: recommendationItems,
+      familySize: Number.parseInt(familyProfile.familySize, 10) || fallback.familySize,
+      title: filledRecipes.map((recipe) => recipe.name).join(" + "),
       reason: result.reason,
       inventoryHits,
       expiringHits,
@@ -1332,8 +1408,14 @@ function App() {
       explanation: result.explanation ?? fallback.explanation,
       source: "deepseek",
       nutrition: {
-        caloriesKcal: selectedRecipes.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0),
-        proteinG: selectedRecipes.reduce((total, recipe) => total + nutritionFor(recipe).proteinG, 0),
+        caloriesKcal: recommendationItems.reduce(
+          (total, item) => total + nutritionFor(item.recipe).caloriesKcal * item.quantity,
+          0,
+        ),
+        proteinG: recommendationItems.reduce(
+          (total, item) => total + nutritionFor(item.recipe).proteinG * item.quantity,
+          0,
+        ),
       },
     };
   }
@@ -1483,6 +1565,9 @@ function App() {
       planningMode: getPlanningMode(nextProfile.planningMode).id,
     };
     setFamilyProfile(normalizedProfile);
+    setNutritionGoals((current) => (
+      current?.modeId === normalizedProfile.planningMode ? current : getDefaultNutritionGoals(normalizedProfile)
+    ));
     if (session?.user && getProfileCompletedCount(normalizedProfile) >= 4) {
       setProfileOnboardingComplete(true);
     }
@@ -1499,6 +1584,7 @@ function App() {
       planningMode: getPlanningMode(nextProfile.planningMode).id,
     };
     setFamilyProfile(normalizedProfile);
+    setNutritionGoals(getDefaultNutritionGoals(normalizedProfile));
     if (!options.stayOnboarding) {
       setProfileOnboardingComplete(true);
       setActiveView("dashboard");
@@ -1509,6 +1595,7 @@ function App() {
   function selectPlanningMode(modeId) {
     const nextProfile = withPlanningModeDefaults(familyProfile, modeId);
     setFamilyProfile(nextProfile);
+    setNutritionGoals(getDefaultNutritionGoals(nextProfile));
     setAiRecommendation(null);
     setAiRecommendationStatus(`${getPlanningMode(modeId).label}模式已切换，推荐会按这个场景来。`);
     showNotice(`已切换到${getPlanningMode(modeId).label}`);
@@ -1520,7 +1607,7 @@ function App() {
     showNotice("先从今晚吃什么开始");
   }
 
-  if (!session?.user && !onboardingComplete) {
+  if (!signedIn && !onboardingComplete) {
     return (
       <AuthLanding
         authProps={authProps}
@@ -1529,7 +1616,7 @@ function App() {
     );
   }
 
-  if (session?.user && !profileOnboardingComplete) {
+  if (signedIn && !profileOnboardingComplete) {
     return (
       <ProfileOnboarding
         profile={familyProfile}
@@ -1551,7 +1638,7 @@ function App() {
               activeView={activeView}
               query={query}
               setQuery={setQuery}
-              session={session}
+              session={displaySession}
               onOpenUserCenter={() => setActiveView("user")}
             />
           )}
@@ -1571,11 +1658,15 @@ function App() {
                 feedbackOpen={recommendationFeedbackOpen}
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
-                session={session}
+                session={displaySession}
                 onOpenUserCenter={() => setActiveView("user")}
                 familyProfile={familyProfile}
+                groceryItemCount={visibleGroceryItems.length}
                 onSelectPlanningMode={selectPlanningMode}
                 onPlanRecommendedWeek={planRecommendedWeek}
+                mealLog={todayMealLog}
+                onSetDinnerSource={setDinnerSource}
+                onSetDinnerConfirmation={setDinnerConfirmation}
               />
             )}
             {activeView === "library" && (
@@ -1620,6 +1711,9 @@ function App() {
                 onOpenRecipe={openRecipe}
                 onViewChange={setActiveView}
                 onShare={shareTodayMenu}
+                mealLog={todayMealLog}
+                onSetDinnerSource={setDinnerSource}
+                onSetDinnerConfirmation={setDinnerConfirmation}
                 cloudSync={{
                   family,
                   enabled: cloudMenuEnabled,
@@ -1701,6 +1795,11 @@ function App() {
                   onRefresh: refreshCloudGrocery,
                 }}
                 onOpenUserCenter={() => setActiveView("user")}
+                mealLogs={mealLogs}
+                mealCalendar={mealCalendar}
+                familyProfile={familyProfile}
+                nutritionGoals={nutritionGoals}
+                weekPlan={weekPlan}
               />
             )}
             {activeView === "stats" && (
@@ -1710,6 +1809,10 @@ function App() {
                 groceryItems={visibleGroceryItems}
                 weekPlan={weekPlan}
                 mealCalendar={mealCalendar}
+                mealLogs={mealLogs}
+                familyProfile={familyProfile}
+                nutritionGoals={nutritionGoals}
+                pantryItems={pantryItems}
                 onViewChange={setActiveView}
               />
             )}
@@ -1718,10 +1821,15 @@ function App() {
                 authProps={authProps}
                 cloudMenuProps={cloudMenuProps}
                 preferenceProps={preferenceProps}
-                session={session}
+                session={displaySession}
+                humiSession={humiSession}
                 family={family}
                 familyProfile={familyProfile}
                 setFamilyProfile={saveFamilyProfile}
+                mealLogs={mealLogs}
+                nutritionGoals={nutritionGoals}
+                setNutritionGoals={setNutritionGoals}
+                onViewChange={setActiveView}
               />
             )}
           </div>
@@ -1756,6 +1864,23 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function getRecommendationItems(recommendation) {
+  if (Array.isArray(recommendation?.items) && recommendation.items.length > 0) {
+    return recommendation.items
+      .map((item) => {
+        const recipe = item.recipe ?? getRecipe(item.recipeId);
+        if (!recipe) return null;
+        return {
+          recipe,
+          quantity: Math.max(1, Number.parseInt(item.quantity, 10) || 1),
+          targetServings: item.targetServings,
+        };
+      })
+      .filter(Boolean);
+  }
+  return (recommendation?.recipes ?? []).map((recipe) => ({ recipe, quantity: 1, targetServings: recipe.servings }));
 }
 
 function orderPlanDaysFrom(startDay) {

@@ -2,216 +2,603 @@
   {
     "id": "tomato-egg",
     "name": "西红柿炒鸡蛋",
-    "image": "/assets/dishes/tomato-egg.png"
+    "image": "/assets/dishes/tomato-egg.png",
+    "webp": "/assets/dishes/webp/tomato-egg.webp",
+    "thumb": "/assets/dishes/thumbs/tomato-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/tomato-egg.jpg",
+    "bytes": {
+      "png": 2529857,
+      "webp": 84434,
+      "thumbWebp": 26722,
+      "thumbJpg": 77151
+    }
   },
   {
     "id": "potato-shreds",
     "name": "青椒土豆丝",
-    "image": "/assets/dishes/potato-shreds.png"
+    "image": "/assets/dishes/potato-shreds.png",
+    "webp": "/assets/dishes/webp/potato-shreds.webp",
+    "thumb": "/assets/dishes/thumbs/potato-shreds.webp",
+    "legacyThumb": "/assets/dishes/thumbs/potato-shreds.jpg",
+    "bytes": {
+      "png": 2722365,
+      "webp": 87564,
+      "thumbWebp": 25084,
+      "thumbJpg": 75787
+    }
   },
   {
     "id": "seaweed-egg-soup",
     "name": "紫菜蛋花汤",
-    "image": "/assets/dishes/seaweed-egg-soup.png"
+    "image": "/assets/dishes/seaweed-egg-soup.png",
+    "webp": "/assets/dishes/webp/seaweed-egg-soup.webp",
+    "thumb": "/assets/dishes/thumbs/seaweed-egg-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/seaweed-egg-soup.jpg",
+    "bytes": {
+      "png": 2610620,
+      "webp": 81018,
+      "thumbWebp": 24818,
+      "thumbJpg": 71164
+    }
   },
   {
     "id": "garlic-broccoli",
     "name": "蒜蓉西兰花",
-    "image": "/assets/dishes/garlic-broccoli.png"
+    "image": "/assets/dishes/garlic-broccoli.png",
+    "webp": "/assets/dishes/webp/garlic-broccoli.webp",
+    "thumb": "/assets/dishes/thumbs/garlic-broccoli.webp",
+    "legacyThumb": "/assets/dishes/thumbs/garlic-broccoli.jpg",
+    "bytes": {
+      "png": 2735074,
+      "webp": 108536,
+      "thumbWebp": 31934,
+      "thumbJpg": 80676
+    }
   },
   {
     "id": "cola-wings",
     "name": "可乐鸡翅",
-    "image": "/assets/dishes/cola-wings.png"
+    "image": "/assets/dishes/cola-wings.png",
+    "webp": "/assets/dishes/webp/cola-wings.webp",
+    "thumb": "/assets/dishes/thumbs/cola-wings.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cola-wings.jpg",
+    "bytes": {
+      "png": 2766706,
+      "webp": 108870,
+      "thumbWebp": 31954,
+      "thumbJpg": 84859
+    }
   },
   {
     "id": "mapo-tofu",
     "name": "麻婆豆腐",
-    "image": "/assets/dishes/mapo-tofu.png"
+    "image": "/assets/dishes/mapo-tofu.png",
+    "webp": "/assets/dishes/webp/mapo-tofu.webp",
+    "thumb": "/assets/dishes/thumbs/mapo-tofu.webp",
+    "legacyThumb": "/assets/dishes/thumbs/mapo-tofu.jpg",
+    "bytes": {
+      "png": 2777495,
+      "webp": 121086,
+      "thumbWebp": 35754,
+      "thumbJpg": 91238
+    }
   },
   {
     "id": "cucumber-egg",
     "name": "黄瓜炒鸡蛋",
-    "image": "/assets/dishes/cucumber-egg.png"
+    "image": "/assets/dishes/cucumber-egg.png",
+    "webp": "/assets/dishes/webp/cucumber-egg.webp",
+    "thumb": "/assets/dishes/thumbs/cucumber-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cucumber-egg.jpg",
+    "bytes": {
+      "png": 2691134,
+      "webp": 84818,
+      "thumbWebp": 23720,
+      "thumbJpg": 71292
+    }
   },
   {
     "id": "wintermelon-rib-soup",
     "name": "冬瓜排骨汤",
-    "image": "/assets/dishes/wintermelon-rib-soup.png"
+    "image": "/assets/dishes/wintermelon-rib-soup.png",
+    "webp": "/assets/dishes/webp/wintermelon-rib-soup.webp",
+    "thumb": "/assets/dishes/thumbs/wintermelon-rib-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/wintermelon-rib-soup.jpg",
+    "bytes": {
+      "png": 2553727,
+      "webp": 61824,
+      "thumbWebp": 17438,
+      "thumbJpg": 60373
+    }
   },
   {
     "id": "egg-fried-rice",
     "name": "蛋炒饭",
-    "image": "/assets/dishes/egg-fried-rice.png"
+    "image": "/assets/dishes/egg-fried-rice.png",
+    "webp": "/assets/dishes/webp/egg-fried-rice.webp",
+    "thumb": "/assets/dishes/thumbs/egg-fried-rice.webp",
+    "legacyThumb": "/assets/dishes/thumbs/egg-fried-rice.jpg",
+    "bytes": {
+      "png": 2629335,
+      "webp": 80756,
+      "thumbWebp": 24342,
+      "thumbJpg": 72029
+    }
   },
   {
     "id": "braised-eggplant",
     "name": "红烧茄子",
-    "image": "/assets/dishes/braised-eggplant.png"
+    "image": "/assets/dishes/braised-eggplant.png",
+    "webp": "/assets/dishes/webp/braised-eggplant.webp",
+    "thumb": "/assets/dishes/thumbs/braised-eggplant.webp",
+    "legacyThumb": "/assets/dishes/thumbs/braised-eggplant.jpg",
+    "bytes": {
+      "png": 2875067,
+      "webp": 100588,
+      "thumbWebp": 28386,
+      "thumbJpg": 75520
+    }
   },
   {
     "id": "braised-pork-belly",
     "name": "红烧肉",
-    "image": "/assets/dishes/braised-pork-belly.png"
+    "image": "/assets/dishes/braised-pork-belly.png",
+    "webp": "/assets/dishes/webp/braised-pork-belly.webp",
+    "thumb": "/assets/dishes/thumbs/braised-pork-belly.webp",
+    "legacyThumb": "/assets/dishes/thumbs/braised-pork-belly.jpg",
+    "bytes": {
+      "png": 2771550,
+      "webp": 95216,
+      "thumbWebp": 27002,
+      "thumbJpg": 74389
+    }
   },
   {
     "id": "yu-shiang-pork",
     "name": "鱼香肉丝",
-    "image": "/assets/dishes/yu-shiang-pork.png"
+    "image": "/assets/dishes/yu-shiang-pork.png",
+    "webp": "/assets/dishes/webp/yu-shiang-pork.webp",
+    "thumb": "/assets/dishes/thumbs/yu-shiang-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/yu-shiang-pork.jpg",
+    "bytes": {
+      "png": 2706047,
+      "webp": 92538,
+      "thumbWebp": 26592,
+      "thumbJpg": 74036
+    }
   },
   {
     "id": "kung-pao-chicken",
     "name": "宫保鸡丁",
-    "image": "/assets/dishes/kung-pao-chicken.png"
+    "image": "/assets/dishes/kung-pao-chicken.png",
+    "webp": "/assets/dishes/webp/kung-pao-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/kung-pao-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/kung-pao-chicken.jpg",
+    "bytes": {
+      "png": 2891006,
+      "webp": 105746,
+      "thumbWebp": 30516,
+      "thumbJpg": 81508
+    }
   },
   {
     "id": "hot-sour-potato-shreds",
     "name": "酸辣土豆丝",
-    "image": "/assets/dishes/hot-sour-potato-shreds.png"
+    "image": "/assets/dishes/hot-sour-potato-shreds.png",
+    "webp": "/assets/dishes/webp/hot-sour-potato-shreds.webp",
+    "thumb": "/assets/dishes/thumbs/hot-sour-potato-shreds.webp",
+    "legacyThumb": "/assets/dishes/thumbs/hot-sour-potato-shreds.jpg",
+    "bytes": {
+      "png": 2684072,
+      "webp": 71746,
+      "thumbWebp": 19352,
+      "thumbJpg": 63580
+    }
   },
   {
     "id": "home-style-tofu",
     "name": "家常豆腐",
-    "image": "/assets/dishes/home-style-tofu.png"
+    "image": "/assets/dishes/home-style-tofu.png",
+    "webp": "/assets/dishes/webp/home-style-tofu.webp",
+    "thumb": "/assets/dishes/thumbs/home-style-tofu.webp",
+    "legacyThumb": "/assets/dishes/thumbs/home-style-tofu.jpg",
+    "bytes": {
+      "png": 2826632,
+      "webp": 99254,
+      "thumbWebp": 27424,
+      "thumbJpg": 75907
+    }
   },
   {
     "id": "sweet-sour-pork",
     "name": "糖醋里脊",
-    "image": "/assets/dishes/sweet-sour-pork.png"
+    "image": "/assets/dishes/sweet-sour-pork.png",
+    "webp": "/assets/dishes/webp/sweet-sour-pork.webp",
+    "thumb": "/assets/dishes/thumbs/sweet-sour-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/sweet-sour-pork.jpg",
+    "bytes": {
+      "png": 2791548,
+      "webp": 83550,
+      "thumbWebp": 23408,
+      "thumbJpg": 69241
+    }
   },
   {
     "id": "boiled-fish",
     "name": "水煮鱼",
-    "image": "/assets/dishes/boiled-fish.png"
+    "image": "/assets/dishes/boiled-fish.png",
+    "webp": "/assets/dishes/webp/boiled-fish.webp",
+    "thumb": "/assets/dishes/thumbs/boiled-fish.webp",
+    "legacyThumb": "/assets/dishes/thumbs/boiled-fish.jpg",
+    "bytes": {
+      "png": 2825168,
+      "webp": 101978,
+      "thumbWebp": 29660,
+      "thumbJpg": 78976
+    }
   },
   {
     "id": "braised-crucian-carp",
     "name": "红烧鲫鱼",
-    "image": "/assets/dishes/braised-crucian-carp.png"
+    "image": "/assets/dishes/braised-crucian-carp.png",
+    "webp": "/assets/dishes/webp/braised-crucian-carp.webp",
+    "thumb": "/assets/dishes/thumbs/braised-crucian-carp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/braised-crucian-carp.jpg",
+    "bytes": {
+      "png": 3135545,
+      "webp": 70192,
+      "thumbWebp": 19190,
+      "thumbJpg": 46076
+    }
   },
   {
     "id": "shiitake-steamed-chicken",
     "name": "香菇滑鸡",
-    "image": "/assets/dishes/shiitake-steamed-chicken.png"
+    "image": "/assets/dishes/shiitake-steamed-chicken.png",
+    "webp": "/assets/dishes/webp/shiitake-steamed-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/shiitake-steamed-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/shiitake-steamed-chicken.jpg",
+    "bytes": {
+      "png": 2799147,
+      "webp": 82618,
+      "thumbWebp": 23168,
+      "thumbJpg": 68511
+    }
   },
   {
     "id": "greens-shiitake",
     "name": "青菜烧香菇",
-    "image": "/assets/dishes/greens-shiitake.png"
+    "image": "/assets/dishes/greens-shiitake.png",
+    "webp": "/assets/dishes/webp/greens-shiitake.webp",
+    "thumb": "/assets/dishes/thumbs/greens-shiitake.webp",
+    "legacyThumb": "/assets/dishes/thumbs/greens-shiitake.jpg",
+    "bytes": {
+      "png": 2750577,
+      "webp": 84756,
+      "thumbWebp": 24348,
+      "thumbJpg": 70621
+    }
   },
   {
     "id": "sweet-sour-lotus-root",
     "name": "糖醋藕丁",
-    "image": "/assets/dishes/sweet-sour-lotus-root.png"
+    "image": "/assets/dishes/sweet-sour-lotus-root.png",
+    "webp": "/assets/dishes/webp/sweet-sour-lotus-root.webp",
+    "thumb": "/assets/dishes/thumbs/sweet-sour-lotus-root.webp",
+    "legacyThumb": "/assets/dishes/thumbs/sweet-sour-lotus-root.jpg",
+    "bytes": {
+      "png": 2804791,
+      "webp": 86958,
+      "thumbWebp": 23374,
+      "thumbJpg": 70117
+    }
   },
   {
     "id": "spicy-chicken-feet",
     "name": "香辣烧鸡爪",
-    "image": "/assets/dishes/spicy-chicken-feet.png"
+    "image": "/assets/dishes/spicy-chicken-feet.png",
+    "webp": "/assets/dishes/webp/spicy-chicken-feet.webp",
+    "thumb": "/assets/dishes/thumbs/spicy-chicken-feet.webp",
+    "legacyThumb": "/assets/dishes/thumbs/spicy-chicken-feet.jpg",
+    "bytes": {
+      "png": 2893094,
+      "webp": 108680,
+      "thumbWebp": 30376,
+      "thumbJpg": 79885
+    }
   },
   {
     "id": "braised-wuchang-fish",
     "name": "红烧武昌鱼",
-    "image": "/assets/dishes/braised-wuchang-fish.png"
+    "image": "/assets/dishes/braised-wuchang-fish.png",
+    "webp": "/assets/dishes/webp/braised-wuchang-fish.webp",
+    "thumb": "/assets/dishes/thumbs/braised-wuchang-fish.webp",
+    "legacyThumb": "/assets/dishes/thumbs/braised-wuchang-fish.jpg",
+    "bytes": {
+      "png": 2797039,
+      "webp": 80140,
+      "thumbWebp": 21820,
+      "thumbJpg": 56952
+    }
   },
   {
     "id": "yam-rib-soup",
     "name": "山药排骨汤",
-    "image": "/assets/dishes/yam-rib-soup.png"
+    "image": "/assets/dishes/yam-rib-soup.png",
+    "webp": "/assets/dishes/webp/yam-rib-soup.webp",
+    "thumb": "/assets/dishes/thumbs/yam-rib-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/yam-rib-soup.jpg",
+    "bytes": {
+      "png": 2668332,
+      "webp": 63978,
+      "thumbWebp": 17100,
+      "thumbJpg": 58975
+    }
   },
   {
     "id": "preserved-egg-pork-congee",
     "name": "皮蛋瘦肉粥",
-    "image": "/assets/dishes/preserved-egg-pork-congee.png"
+    "image": "/assets/dishes/preserved-egg-pork-congee.png",
+    "webp": "/assets/dishes/webp/preserved-egg-pork-congee.webp",
+    "thumb": "/assets/dishes/thumbs/preserved-egg-pork-congee.webp",
+    "legacyThumb": "/assets/dishes/thumbs/preserved-egg-pork-congee.jpg",
+    "bytes": {
+      "png": 2839565,
+      "webp": 81456,
+      "thumbWebp": 20590,
+      "thumbJpg": 65255
+    }
   },
   {
     "id": "garlic-sprout-pork",
     "name": "蒜苔炒肉",
-    "image": "/assets/dishes/garlic-sprout-pork.png"
+    "image": "/assets/dishes/garlic-sprout-pork.png",
+    "webp": "/assets/dishes/webp/garlic-sprout-pork.webp",
+    "thumb": "/assets/dishes/thumbs/garlic-sprout-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/garlic-sprout-pork.jpg",
+    "bytes": {
+      "png": 2804190,
+      "webp": 88946,
+      "thumbWebp": 25580,
+      "thumbJpg": 71694
+    }
   },
   {
     "id": "jing-sauce-pork",
     "name": "京酱肉丝",
-    "image": "/assets/dishes/jing-sauce-pork.png"
+    "image": "/assets/dishes/jing-sauce-pork.png",
+    "webp": "/assets/dishes/webp/jing-sauce-pork.webp",
+    "thumb": "/assets/dishes/thumbs/jing-sauce-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/jing-sauce-pork.jpg",
+    "bytes": {
+      "png": 2771144,
+      "webp": 94264,
+      "thumbWebp": 26002,
+      "thumbJpg": 70332
+    }
   },
   {
     "id": "vinegar-cabbage",
     "name": "醋溜白菜",
-    "image": "/assets/dishes/vinegar-cabbage.png"
+    "image": "/assets/dishes/vinegar-cabbage.png",
+    "webp": "/assets/dishes/webp/vinegar-cabbage.webp",
+    "thumb": "/assets/dishes/thumbs/vinegar-cabbage.webp",
+    "legacyThumb": "/assets/dishes/thumbs/vinegar-cabbage.jpg",
+    "bytes": {
+      "png": 2777643,
+      "webp": 82506,
+      "thumbWebp": 22620,
+      "thumbJpg": 67247
+    }
   },
   {
     "id": "steamed-sea-bass",
     "name": "清蒸鲈鱼",
-    "image": "/assets/dishes/steamed-sea-bass.png"
+    "image": "/assets/dishes/steamed-sea-bass.png",
+    "webp": "/assets/dishes/webp/steamed-sea-bass.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-sea-bass.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-sea-bass.jpg",
+    "bytes": {
+      "png": 3035107,
+      "webp": 65808,
+      "thumbWebp": 18450,
+      "thumbJpg": 45716
+    }
   },
   {
     "id": "twice-cooked-pork",
     "name": "回锅肉",
-    "image": "/assets/dishes/twice-cooked-pork.png"
+    "image": "/assets/dishes/twice-cooked-pork.png",
+    "webp": "/assets/dishes/webp/twice-cooked-pork.webp",
+    "thumb": "/assets/dishes/thumbs/twice-cooked-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/twice-cooked-pork.jpg",
+    "bytes": {
+      "png": 2883359,
+      "webp": 98906,
+      "thumbWebp": 25884,
+      "thumbJpg": 72438
+    }
   },
   {
     "id": "di-san-xian",
     "name": "地三鲜",
-    "image": "/assets/dishes/di-san-xian.png"
+    "image": "/assets/dishes/di-san-xian.png",
+    "webp": "/assets/dishes/webp/di-san-xian.webp",
+    "thumb": "/assets/dishes/thumbs/di-san-xian.webp",
+    "legacyThumb": "/assets/dishes/thumbs/di-san-xian.jpg",
+    "bytes": {
+      "png": 2794744,
+      "webp": 90492,
+      "thumbWebp": 24686,
+      "thumbJpg": 70934
+    }
   },
   {
     "id": "dry-fried-green-beans",
     "name": "干煸四季豆",
-    "image": "/assets/dishes/dry-fried-green-beans.png"
+    "image": "/assets/dishes/dry-fried-green-beans.png",
+    "webp": "/assets/dishes/webp/dry-fried-green-beans.webp",
+    "thumb": "/assets/dishes/thumbs/dry-fried-green-beans.webp",
+    "legacyThumb": "/assets/dishes/thumbs/dry-fried-green-beans.jpg",
+    "bytes": {
+      "png": 2880008,
+      "webp": 107072,
+      "thumbWebp": 29602,
+      "thumbJpg": 77045
+    }
   },
   {
     "id": "sauerkraut-fish",
     "name": "酸菜鱼",
-    "image": "/assets/dishes/sauerkraut-fish.png"
+    "image": "/assets/dishes/sauerkraut-fish.png",
+    "webp": "/assets/dishes/webp/sauerkraut-fish.webp",
+    "thumb": "/assets/dishes/thumbs/sauerkraut-fish.webp",
+    "legacyThumb": "/assets/dishes/thumbs/sauerkraut-fish.jpg",
+    "bytes": {
+      "png": 2899406,
+      "webp": 108618,
+      "thumbWebp": 31088,
+      "thumbJpg": 82033
+    }
   },
   {
     "id": "potato-beef",
     "name": "土豆烧牛肉",
-    "image": "/assets/dishes/potato-beef.png"
+    "image": "/assets/dishes/potato-beef.png",
+    "webp": "/assets/dishes/webp/potato-beef.webp",
+    "thumb": "/assets/dishes/thumbs/potato-beef.webp",
+    "legacyThumb": "/assets/dishes/thumbs/potato-beef.jpg",
+    "bytes": {
+      "png": 2829329,
+      "webp": 98918,
+      "thumbWebp": 26590,
+      "thumbJpg": 75608
+    }
   },
   {
     "id": "green-pepper-pork",
     "name": "青椒肉丝",
-    "image": "/assets/dishes/green-pepper-pork.png"
+    "image": "/assets/dishes/green-pepper-pork.png",
+    "webp": "/assets/dishes/webp/green-pepper-pork.webp",
+    "thumb": "/assets/dishes/thumbs/green-pepper-pork.webp",
+    "legacyThumb": "/assets/dishes/thumbs/green-pepper-pork.jpg",
+    "bytes": {
+      "png": 2761320,
+      "webp": 87076,
+      "thumbWebp": 25402,
+      "thumbJpg": 72918
+    }
   },
   {
     "id": "chive-egg",
     "name": "韭菜炒蛋",
-    "image": "/assets/dishes/chive-egg.png"
+    "image": "/assets/dishes/chive-egg.png",
+    "webp": "/assets/dishes/webp/chive-egg.webp",
+    "thumb": "/assets/dishes/thumbs/chive-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/chive-egg.jpg",
+    "bytes": {
+      "png": 2696296,
+      "webp": 88858,
+      "thumbWebp": 25990,
+      "thumbJpg": 73301
+    }
   },
   {
     "id": "scallion-lamb",
     "name": "葱爆羊肉",
-    "image": "/assets/dishes/scallion-lamb.png"
+    "image": "/assets/dishes/scallion-lamb.png",
+    "webp": "/assets/dishes/webp/scallion-lamb.webp",
+    "thumb": "/assets/dishes/thumbs/scallion-lamb.webp",
+    "legacyThumb": "/assets/dishes/thumbs/scallion-lamb.jpg",
+    "bytes": {
+      "png": 2791109,
+      "webp": 86086,
+      "thumbWebp": 24224,
+      "thumbJpg": 71390
+    }
   },
   {
     "id": "salt-pepper-shrimp",
     "name": "椒盐虾",
-    "image": "/assets/dishes/salt-pepper-shrimp.png"
+    "image": "/assets/dishes/salt-pepper-shrimp.png",
+    "webp": "/assets/dishes/webp/salt-pepper-shrimp.webp",
+    "thumb": "/assets/dishes/thumbs/salt-pepper-shrimp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/salt-pepper-shrimp.jpg",
+    "bytes": {
+      "png": 2802808,
+      "webp": 104798,
+      "thumbWebp": 28382,
+      "thumbJpg": 76609
+    }
   },
   {
     "id": "tomato-beef-brisket",
     "name": "番茄牛腩",
-    "image": "/assets/dishes/tomato-beef-brisket.png"
+    "image": "/assets/dishes/tomato-beef-brisket.png",
+    "webp": "/assets/dishes/webp/tomato-beef-brisket.webp",
+    "thumb": "/assets/dishes/thumbs/tomato-beef-brisket.webp",
+    "legacyThumb": "/assets/dishes/thumbs/tomato-beef-brisket.jpg",
+    "bytes": {
+      "png": 2757214,
+      "webp": 88220,
+      "thumbWebp": 23096,
+      "thumbJpg": 69823
+    }
   },
   {
     "id": "wood-ear-yam",
     "name": "木耳炒山药",
-    "image": "/assets/dishes/wood-ear-yam.png"
+    "image": "/assets/dishes/wood-ear-yam.png",
+    "webp": "/assets/dishes/webp/wood-ear-yam.webp",
+    "thumb": "/assets/dishes/thumbs/wood-ear-yam.webp",
+    "legacyThumb": "/assets/dishes/thumbs/wood-ear-yam.jpg",
+    "bytes": {
+      "png": 2626999,
+      "webp": 69688,
+      "thumbWebp": 20758,
+      "thumbJpg": 64853
+    }
   },
   {
     "id": "dry-pot-cauliflower",
     "name": "干锅花菜",
-    "image": "/assets/dishes/dry-pot-cauliflower.png"
+    "image": "/assets/dishes/dry-pot-cauliflower.png",
+    "webp": "/assets/dishes/webp/dry-pot-cauliflower.webp",
+    "thumb": "/assets/dishes/thumbs/dry-pot-cauliflower.webp",
+    "legacyThumb": "/assets/dishes/thumbs/dry-pot-cauliflower.jpg",
+    "bytes": {
+      "png": 2863610,
+      "webp": 102640,
+      "thumbWebp": 28110,
+      "thumbJpg": 76549
+    }
   },
   {
     "id": "loofah-shrimp",
     "name": "丝瓜炒虾仁",
-    "image": "/assets/dishes/loofah-shrimp.png"
+    "image": "/assets/dishes/loofah-shrimp.png",
+    "webp": "/assets/dishes/webp/loofah-shrimp.webp",
+    "thumb": "/assets/dishes/thumbs/loofah-shrimp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/loofah-shrimp.jpg",
+    "bytes": {
+      "png": 2590271,
+      "webp": 64312,
+      "thumbWebp": 17328,
+      "thumbJpg": 61594
+    }
   },
   {
     "id": "minced-pork-steamed-egg",
     "name": "肉末蒸蛋",
-    "image": "/assets/dishes/minced-pork-steamed-egg.png"
+    "image": "/assets/dishes/minced-pork-steamed-egg.png",
+    "webp": "/assets/dishes/webp/minced-pork-steamed-egg.webp",
+    "thumb": "/assets/dishes/thumbs/minced-pork-steamed-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/minced-pork-steamed-egg.jpg",
+    "bytes": {
+      "png": 2697873,
+      "webp": 74682,
+      "thumbWebp": 21322,
+      "thumbJpg": 65080
+    }
   }
 ]

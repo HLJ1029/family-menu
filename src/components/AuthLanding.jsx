@@ -1,5 +1,6 @@
 import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
+import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { photoFor, recipes } from "../lib/recipes";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { CloudAccount } from "./system/CloudAccount";
@@ -58,9 +59,18 @@ export function AuthLanding({ authProps, onContinueGuest }) {
 
 function MobileAuthChoices({ onContinueGuest }) {
   const [status, setStatus] = useState("");
+  const isWechatMiniProgram = isWechatMiniProgramWebView();
 
-  function showComingSoon(method) {
-    setStatus(`${method}正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。`);
+  function handleWechatLogin() {
+    if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
+      setStatus("正在唤起微信登录。若当前版本尚未接通服务，可以先体验 Humi。");
+      return;
+    }
+    setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
+  }
+
+  function showPhoneReserved() {
+    setStatus("手机号绑定会用于换设备找回，本轮先不强制。现在可以先体验 Humi。");
   }
 
   return (
@@ -68,7 +78,7 @@ function MobileAuthChoices({ onContinueGuest }) {
       <div className="grid gap-3">
         <button
           type="button"
-          onClick={() => showComingSoon("微信登录")}
+          onClick={handleWechatLogin}
           className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
         >
           <MessageCircle size={19} className="text-acid" />
@@ -76,7 +86,7 @@ function MobileAuthChoices({ onContinueGuest }) {
         </button>
         <button
           type="button"
-          onClick={() => showComingSoon("手机号登录")}
+          onClick={showPhoneReserved}
           className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
         >
           <span className="inline-flex items-center gap-2">
@@ -94,7 +104,7 @@ function MobileAuthChoices({ onContinueGuest }) {
       </div>
 
       <div className="px-5 text-center text-xs font-bold leading-5 text-ink/36">
-        {status || "微信和手机号登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。"}
+        {status || "可以先体验 Humi。登录后，菜单、画像和清单会跟着账号保存。"}
       </div>
     </div>
   );

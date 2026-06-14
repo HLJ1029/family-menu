@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Check, Cloud, Database, Heart, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, PackageCheck, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
@@ -7,8 +8,31 @@ import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 
-export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session, family, familyProfile, setFamilyProfile }) {
+export function UserCenter({
+  authProps,
+  cloudMenuProps,
+  preferenceProps,
+  session,
+  humiSession,
+  family,
+  familyProfile,
+  setFamilyProfile,
+  mealLogs = {},
+  nutritionGoals,
+  setNutritionGoals,
+  onViewChange,
+}) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const sourceSummary = Object.values(mealLogs).reduce(
+    (summary, log) => {
+      if (log?.source === "home") summary.home += 1;
+      if (log?.source === "delivery") summary.delivery += 1;
+      if (log?.source === "outside") summary.outside += 1;
+      if (log?.confirmation === "all") summary.confirmed += 1;
+      return summary;
+    },
+    { home: 0, delivery: 0, outside: 0, confirmed: 0 },
+  );
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
@@ -29,6 +53,35 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
           profile={familyProfile}
           setProfile={setFamilyProfile}
         />
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">饮食画像</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">真实吃了什么，从这里看</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                只有确认“全部吃了”的晚餐才进入营养分析；外卖和外食只记录来源。
+              </p>
+            </div>
+            <span className="rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
+              已确认 {sourceSummary.confirmed} 次
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
+            <StatusRow label="点外卖" value={`${sourceSummary.delivery} 次`} />
+            <StatusRow label="外面吃" value={`${sourceSummary.outside} 次`} />
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
+            <UtilityButton icon={PackageCheck} label="库存管理" onClick={() => onViewChange("inventory")} />
+            <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
+          </div>
+        </section>
+        <NutritionGoalsPanel
+          profile={familyProfile}
+          goals={nutritionGoals}
+          setGoals={setNutritionGoals}
+        />
         <CloudSyncPanel {...cloudMenuProps} />
         <FamilyPreferencesPanel {...preferenceProps} />
       </div>
@@ -43,7 +96,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
             <UserRound size={22} />
           </div>
           <div className="mt-5 grid gap-3">
-            <StatusRow label="登录" value={session?.user?.email ?? "未登录"} />
+            <StatusRow label="登录" value={getIdentityLabel({ session, humiSession })} />
             <StatusRow label="我的家" value={family?.name ?? "未创建"} />
             <StatusRow
               label="保存方式"
@@ -71,15 +124,15 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
               <Cloud size={20} />
             </span>
             <div>
-              <p className="font-black">微信登录准备中</p>
+              <p className="font-black">{humiSession ? "已通过微信登录" : "微信登录"}</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-                当前先不放不可用按钮。等小程序和正式域名准备好，再接微信登录。
+                {humiSession ? "菜单、画像和清单会优先跟随 Humi 账号。" : "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"}
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <a
-              href="/family-menu/privacy.html"
+              href="/privacy.html"
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58 transition hover:text-ink"
@@ -87,7 +140,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
               隐私政策
             </a>
             <a
-              href="/family-menu/terms.html"
+              href="/terms.html"
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58 transition hover:text-ink"
@@ -264,6 +317,125 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
   );
 }
 
+function NutritionGoalsPanel({ profile, goals, setGoals }) {
+  const normalizedGoals = normalizeNutritionGoals(profile, goals);
+  const [draft, setDraft] = useState(normalizedGoals);
+  const [status, setStatus] = useState("");
+
+  function updateNumber(key, value) {
+    setDraft((current) => ({ ...current, [key]: Number(value) }));
+  }
+
+  function resetToModeDefaults() {
+    const defaults = getDefaultNutritionGoals(profile);
+    setDraft(defaults);
+    setGoals(defaults);
+    setStatus("已恢复当前规划模式的默认目标。");
+  }
+
+  function saveGoals() {
+    const nextGoals = {
+      ...draft,
+      caloriesKcalMax: Number(draft.caloriesKcalMax),
+      proteinGMin: Number(draft.proteinGMin),
+      fatGMax: Number(draft.fatGMax),
+      carbsGMax: Number(draft.carbsGMax),
+      vegetableRatioMin: Number(draft.vegetableRatioMin),
+      proteinRatioMin: Number(draft.proteinRatioMin),
+      quickRatioMin: Number(draft.quickRatioMin),
+      homeCookRatioMin: Number(draft.homeCookRatioMin),
+    };
+    setGoals(nextGoals);
+    setStatus("营养目标已保存在本机。");
+  }
+
+  return (
+    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">营养目标</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">每顿晚餐参考目标</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            这里只管理晚餐估算目标，不代表全天摄入，也不替代专业营养建议。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={resetToModeDefaults}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink"
+        >
+          使用模式默认
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <GoalInput label="热量上限" value={draft.caloriesKcalMax} unit="kcal" min={300} max={900} step={10} onChange={(value) => updateNumber("caloriesKcalMax", value)} />
+        <GoalInput label="蛋白质下限" value={draft.proteinGMin} unit="g" min={8} max={50} step={1} onChange={(value) => updateNumber("proteinGMin", value)} />
+        <GoalInput label="脂肪上限" value={draft.fatGMax} unit="g" min={8} max={45} step={1} onChange={(value) => updateNumber("fatGMax", value)} />
+        <GoalInput label="碳水上限" value={draft.carbsGMax} unit="g" min={30} max={120} step={1} onChange={(value) => updateNumber("carbsGMax", value)} />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <RatioInput label="蔬菜比例" value={draft.vegetableRatioMin} onChange={(value) => updateNumber("vegetableRatioMin", value)} />
+        <RatioInput label="蛋白类比例" value={draft.proteinRatioMin} onChange={(value) => updateNumber("proteinRatioMin", value)} />
+        <RatioInput label="省时菜比例" value={draft.quickRatioMin} onChange={(value) => updateNumber("quickRatioMin", value)} />
+        <RatioInput label="在家做比例" value={draft.homeCookRatioMin} onChange={(value) => updateNumber("homeCookRatioMin", value)} />
+      </div>
+
+      {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
+
+      <button
+        type="button"
+        onClick={saveGoals}
+        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+      >
+        <Check size={17} className="text-acid" />
+        保存营养目标
+      </button>
+    </section>
+  );
+}
+
+function GoalInput({ label, value, unit, min, max, step, onChange }) {
+  return (
+    <label className="rounded-[20px] bg-canvas p-4">
+      <span className="flex items-center justify-between gap-3 text-sm font-black">
+        <span>{label}</span>
+        <span className="text-ink/48">{Math.round(value)}{unit}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-3 w-full accent-black"
+      />
+    </label>
+  );
+}
+
+function RatioInput({ label, value, onChange }) {
+  return (
+    <label className="rounded-[20px] bg-canvas p-4">
+      <span className="flex items-center justify-between gap-3 text-sm font-black">
+        <span>{label}</span>
+        <span className="text-ink/48">{Math.round(value * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min={0.1}
+        max={0.8}
+        step={0.05}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-3 w-full accent-black"
+      />
+    </label>
+  );
+}
+
 function ProfileStep({ icon: Icon, title, children }) {
   return (
     <div className="rounded-[22px] border border-line bg-canvas p-4">
@@ -315,11 +487,30 @@ function getSyncModeLabel({ family, cloudMenuProps }) {
   return "待保存";
 }
 
+function getIdentityLabel({ session, humiSession }) {
+  if (humiSession?.user) return humiSession.user.displayName ?? "微信用户";
+  if (session?.user?.email) return session.user.email;
+  return "未登录";
+}
+
 function StatusRow({ label, value }) {
   return (
     <div className="rounded-[18px] bg-canvas p-4">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{label}</p>
       <p className="mt-1 break-all text-sm font-black">{value}</p>
     </div>
+  );
+}
+
+function UtilityButton({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-canvas px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-acid hover:text-ink"
+    >
+      <Icon size={17} />
+      {label}
+    </button>
   );
 }

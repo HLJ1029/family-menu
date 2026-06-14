@@ -1,4 +1,5 @@
-import { Cloud, PackageCheck, Plus, RefreshCw, Share2, UploadCloud } from "lucide-react";
+import { AlertTriangle, ChefHat, Cloud, PackageCheck, Plus, RefreshCw, Share2, UploadCloud } from "lucide-react";
+import { buildMealInsights } from "../lib/insights";
 import { formatPantryCount, getExpiryState } from "../lib/pantry";
 import { Card } from "./ui/Card";
 import { PantryChip } from "./ui/PantryChip";
@@ -17,10 +18,23 @@ export function InventoryPage({
   onShare,
   cloudSync,
   onOpenUserCenter,
+  mealLogs,
+  mealCalendar,
+  familyProfile,
+  nutritionGoals,
+  weekPlan,
 }) {
   const expiredItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired");
   const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
   const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
+  const insights = buildMealInsights({
+    mealLogs,
+    mealCalendar,
+    pantryItems,
+    familyProfile,
+    nutritionGoals,
+    weekPlan,
+  });
 
   function submitPantryItem(event) {
     event.preventDefault();
@@ -49,6 +63,52 @@ export function InventoryPage({
           <InventoryMetric label="快到期" value={`${pantryExpirySummary.expiringCount ?? 0} 项`} />
           <InventoryMetric label="已过期" value={`${pantryExpirySummary.expiredCount ?? 0} 项`} />
         </div>
+
+        <Card>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="eyebrow">库存预测</p>
+              <h3 className="card-title">优先吃掉</h3>
+            </div>
+            <AlertTriangle size={22} />
+          </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-2">
+              {insights.pantryPriorityItems.length > 0 ? (
+                insights.pantryPriorityItems.slice(0, 5).map((item) => (
+                  <PriorityItem key={item.key} item={item} />
+                ))
+              ) : (
+                <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/48">
+                  还没有库存记录。先记一笔鸡蛋、青菜或牛奶，Humi 就能帮你排序。
+                </p>
+              )}
+            </div>
+            <div className="rounded-[22px] bg-canvas p-4">
+              <div className="flex items-center gap-2">
+                <ChefHat size={18} />
+                <p className="font-black">可搭配菜谱</p>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {insights.inventoryRecipeMatches.length > 0 ? (
+                  insights.inventoryRecipeMatches.slice(0, 3).map((match) => (
+                    <div key={match.recipe.id} className="rounded-[18px] bg-white p-3">
+                      <p className="text-sm font-black">{match.recipe.name}</p>
+                      <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
+                        可用上 {match.matched.slice(0, 3).join("、")}
+                        {match.planned ? " · 已在本周计划" : ""}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm font-bold leading-6 text-ink/48">
+                    暂时没有和菜谱匹配的库存。补充库存名称后会自动出现建议。
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
 
         <InventoryGroup
           title="先吃掉"
@@ -127,6 +187,34 @@ function InventoryMetric({ label, value }) {
     <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
       <p className="text-3xl font-black tracking-[-0.04em]">{value}</p>
       <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-ink/38">{label}</p>
+    </div>
+  );
+}
+
+function PriorityItem({ item }) {
+  const tone =
+    item.state === "expired"
+      ? "border-ink bg-ink text-white"
+      : item.state === "soon"
+        ? "border-acid bg-acid text-ink"
+        : "border-line bg-canvas text-ink";
+  return (
+    <div className={`rounded-[20px] border p-4 ${tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black">{item.name}</p>
+          <p className={`mt-1 text-xs font-bold leading-5 ${item.state === "expired" ? "text-white/60" : "text-ink/48"}`}>
+            {item.note}
+          </p>
+        </div>
+        {item.amount && (
+          <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+            item.state === "expired" ? "bg-white/12 text-white/78" : "bg-white text-ink/58"
+          }`}>
+            {item.amount}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

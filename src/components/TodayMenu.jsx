@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Minus, Plus, Search, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor, photoFor, recipes } from "../lib/recipes";
+import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 
@@ -13,6 +14,9 @@ export function TodayMenu({
   onViewChange,
   cloudSync,
   onShare,
+  mealLog,
+  onSetDinnerSource,
+  onSetDinnerConfirmation,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
@@ -46,6 +50,12 @@ export function TodayMenu({
           todayRecipes={todayRecipes}
           onAddToday={onAddToday}
           onOpenRecipe={onOpenRecipe}
+        />
+        <DinnerLogPanel
+          mealLog={mealLog}
+          onSetDinnerSource={onSetDinnerSource}
+          onSetDinnerConfirmation={onSetDinnerConfirmation}
+          showConfirmation={false}
         />
         <CloudInlineStatus
           {...cloudSync}
@@ -115,6 +125,13 @@ export function TodayMenu({
           pendingLabel="今晚菜单待保存"
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
+        />
+
+        <DinnerLogPanel
+          mealLog={mealLog}
+          onSetDinnerSource={onSetDinnerSource}
+          onSetDinnerConfirmation={onSetDinnerConfirmation}
+          showConfirmation
         />
 
         <div className="grid gap-4">

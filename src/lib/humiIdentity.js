@@ -1,0 +1,71 @@
+const HUMI_SESSION_KEY = "humi:identity-session:v1";
+
+export function readHumiSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(HUMI_SESSION_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveHumiSession(session) {
+  if (typeof window === "undefined" || !session) return null;
+  const normalized = normalizeHumiSession(session);
+  window.localStorage.setItem(HUMI_SESSION_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
+export function clearHumiSession() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(HUMI_SESSION_KEY);
+}
+
+export function consumeHumiSessionFromUrl() {
+  if (typeof window === "undefined") return null;
+  const url = new URL(window.location.href);
+  const encoded = url.searchParams.get("humiSession");
+  if (!encoded) return null;
+
+  try {
+    const session = JSON.parse(decodeURIComponent(encoded));
+    const normalized = saveHumiSession(session);
+    url.searchParams.delete("humiSession");
+    url.searchParams.delete("humiLogin");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    return normalized;
+  } catch {
+    url.searchParams.delete("humiSession");
+    url.searchParams.delete("humiLogin");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    return null;
+  }
+}
+
+export function requestWechatLoginFromMiniProgram() {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.postMessage) return false;
+  miniProgram.postMessage({
+    data: {
+      type: "humi:wechat-login",
+      requestedAt: Date.now(),
+    },
+  });
+  return true;
+}
+
+function normalizeHumiSession(session) {
+  const user = session.user ?? {};
+  return {
+    accessToken: session.accessToken ?? session.token ?? "",
+    refreshToken: session.refreshToken ?? "",
+    expiresAt: session.expiresAt ?? null,
+    user: {
+      id: user.id ?? session.userId ?? "",
+      displayName: user.displayName ?? "微信用户",
+      provider: user.provider ?? "wechat",
+    },
+  };
+}

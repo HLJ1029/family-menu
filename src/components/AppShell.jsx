@@ -47,7 +47,8 @@ export function Sidebar({ activeView, onChange }) {
 
 export function AccountAvatar({ session, onClick, compact = false }) {
   const email = session?.user?.email;
-  const initial = email ? email.slice(0, 1).toUpperCase() : "";
+  const displayName = session?.user?.displayName;
+  const initial = email ? email.slice(0, 1).toUpperCase() : displayName ? displayName.slice(0, 1) : "";
   const isWechatMiniProgram = isWechatMiniProgramWebView();
 
   return (
@@ -57,9 +58,9 @@ export function AccountAvatar({ session, onClick, compact = false }) {
       className={`motion-card grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label={email || isWechatMiniProgram ? "打开我的家" : "登录并保存我的 Humi"}
+      aria-label={email || displayName || isWechatMiniProgram ? "打开我的家" : "登录并保存我的 Humi"}
     >
-      {email ? initial : <UserRound size={19} />}
+      {initial ? initial : <UserRound size={19} />}
     </button>
   );
 }
@@ -98,7 +99,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter 
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 z-30 grid grid-cols-3 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {

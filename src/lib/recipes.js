@@ -2,6 +2,9 @@ import recipes from "../../data/recipes.json";
 
 export { recipes };
 
+const APP_BASE_PATH = import.meta.env.BASE_URL || "/";
+const LEGACY_GITHUB_PAGES_BASE = "/family-menu/";
+
 export function createDefaultWeekPlan() {
   return {
     周一: [],
@@ -48,20 +51,42 @@ function escapeSvgText(value) {
 
 export function photoFor(recipe, options = {}) {
   if (recipe?.image?.status !== "needs-photo" && recipe?.image?.url) {
+    const normalizedUrl = localAssetUrlFor(recipe.image.url);
     if (options.variant === "thumb") {
-      return thumbnailUrlFor(recipe.image.url);
+      return optimizedDishUrlFor(normalizedUrl, "thumb");
     }
-    return recipe.image.url;
+    return optimizedDishUrlFor(normalizedUrl, "hero");
   }
   return placeholderPhotoFor(recipe);
 }
 
-function thumbnailUrlFor(url) {
+export function originalPhotoFor(recipe) {
+  if (recipe?.image?.status !== "needs-photo" && recipe?.image?.url) {
+    return localAssetUrlFor(recipe.image.url);
+  }
+  return placeholderPhotoFor(recipe);
+}
+
+function localAssetUrlFor(url) {
+  if (!url.startsWith(LEGACY_GITHUB_PAGES_BASE)) return url;
+  return withAppBase(url.slice(LEGACY_GITHUB_PAGES_BASE.length));
+}
+
+function withAppBase(relativePath) {
+  const base = APP_BASE_PATH.endsWith("/") ? APP_BASE_PATH : `${APP_BASE_PATH}/`;
+  return `${base}${relativePath.replace(/^\/+/, "")}`;
+}
+
+function optimizedDishUrlFor(url, variant) {
   if (!url.includes("/assets/dishes/") || !url.endsWith(".png")) {
     return url;
   }
 
-  return url.replace("/assets/dishes/", "/assets/dishes/thumbs/").replace(/\.png$/, ".jpg");
+  if (variant === "thumb") {
+    return url.replace("/assets/dishes/", "/assets/dishes/thumbs/").replace(/\.png$/, ".webp");
+  }
+
+  return url.replace("/assets/dishes/", "/assets/dishes/webp/").replace(/\.png$/, ".webp");
 }
 
 export function nutritionFor(recipe) {

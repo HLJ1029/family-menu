@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, CalendarDays, ClipboardList, Plus, Search, Share2, Wand2, X } from "lucide-react";
+import { CalendarDays, Plus, Search, Share2, Wand2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -47,15 +47,13 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
 
   return (
     <section className="grid gap-5">
-      <PlanSubnav onViewChange={onViewChange} onGenerateWeek={onGenerateWeek} />
-
       <Card>
         <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="eyebrow">Weekly planning</p>
-            <h3 className="card-title">快速安排</h3>
+            <p className="eyebrow">本周计划</p>
+            <h3 className="card-title">一周晚饭排在这里</h3>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              今天是{currentDay}。今晚选好的菜会顺手放进今天计划；你也可以在下面单独安排每一天。
+              今天是{currentDay}。每一天只处理菜单安排；营养、库存和今晚菜单都从对应流程进入。
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {days.map((day) => (
@@ -78,13 +76,29 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                 className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink"
               >
                 <Share2 size={15} />
-                生成周菜单海报
+                周菜单海报
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewChange("calendar")}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink"
+              >
+                <CalendarDays size={15} />
+                日历视图
+              </button>
+              <button
+                type="button"
+                onClick={onGenerateWeek}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-acid px-4 py-2 text-sm font-black text-ink transition hover:-translate-y-0.5"
+              >
+                <Wand2 size={15} />
+                生成本周计划
               </button>
             </div>
           </div>
 
           <div className="rounded-[22px] border border-line bg-canvas p-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">Quick add</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">添加菜品</p>
             <div className="mt-3 grid gap-3">
               <label className="grid gap-2">
                 <span className="text-xs font-black text-ink/42">菜品</span>
@@ -118,7 +132,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   className="flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
                 >
                   <Plus size={16} className="text-acid" />
-                  添加
+                  加入这天
                 </button>
               </div>
             </div>
@@ -280,52 +294,5 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
         </div>
       )}
     </section>
-  );
-}
-
-function PlanSubnav({ onViewChange, onGenerateWeek }) {
-  return (
-    <Card>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="eyebrow">Plan workspace</p>
-          <h3 className="card-title">菜单计划工作台</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            本周计划是主线；今晚、营养和日历作为独立页面从这里进入。
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onGenerateWeek}
-          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-        >
-          <Wand2 size={17} />
-          生成本周计划
-        </button>
-      </div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-4">
-        <SubnavButton active icon={CalendarDays} label="本周" onClick={() => onViewChange("planner")} />
-        <SubnavButton icon={ClipboardList} label="今晚" onClick={() => onViewChange("today")} />
-        <SubnavButton icon={BarChart3} label="营养" onClick={() => onViewChange("stats")} />
-        <SubnavButton icon={CalendarDays} label="日历" onClick={() => onViewChange("calendar")} />
-      </div>
-    </Card>
-  );
-}
-
-function SubnavButton({ active = false, icon: Icon, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black transition ${
-        active
-          ? "border-ink bg-ink text-white"
-          : "border-line bg-canvas text-ink/58 hover:border-ink/20 hover:text-ink"
-      }`}
-    >
-      <Icon size={17} className={active ? "text-acid" : ""} />
-      {label}
-    </button>
   );
 }

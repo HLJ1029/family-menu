@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
-import { formatPantryCount } from "../lib/pantry";
 import { Card } from "./ui/Card";
-import { PantryChip } from "./ui/PantryChip";
 
 export function GroceryList({
   items,
@@ -37,6 +35,8 @@ export function GroceryList({
   onOpenStats,
 }) {
   const totalItemCount = items.length + customItems.length;
+  const checklistItems = [...items, ...customItems];
+  const checkedItemCount = checklistItems.filter((item) => checkedItems[item.key]).length;
   const pantryCandidateCount = items.filter((item) => item.pantryItem).length;
   const daySections = useMemo(() => buildDaySections(groups), [groups]);
   const shoppingSections = useMemo(() => buildShoppingSections(items), [items]);
@@ -58,6 +58,7 @@ export function GroceryList({
           customItems={customItems}
           totalItemCount={totalItemCount}
           checkedItems={checkedItems}
+          checkedItemCount={checkedItemCount}
           onToggleItem={toggle}
           onRemoveItem={onExcludeItem}
           onRemoveCustomItem={onRemoveCustomItem}
@@ -170,62 +171,11 @@ export function GroceryList({
           </button>
         </div>
         <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Pantry</p>
-              <p className="mt-1 text-sm font-black">厨房库存</p>
-            </div>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/52">
-              {formatPantryCount(pantryItems.length, pantryExpirySummary)}
-            </span>
-          </div>
-          <form
-            className="mt-3 grid gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onAddPantryItem({
-                name: newPantryItem,
-                amount: newPantryAmount,
-                expiresOn: newPantryExpiresOn,
-              });
-            }}
-          >
-            <input
-              value={newPantryItem}
-              onChange={(event) => setNewPantryItem(event.target.value)}
-              className="min-w-0 flex-1 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
-              placeholder="例如：盐、鸡蛋、葱"
-            />
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <input
-                value={newPantryAmount}
-                onChange={(event) => setNewPantryAmount(event.target.value)}
-                className="min-w-0 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
-                placeholder="数量"
-              />
-              <input
-                value={newPantryExpiresOn}
-                onChange={(event) => setNewPantryExpiresOn(event.target.value)}
-                type="date"
-                aria-label="到期日"
-                className="min-w-0 rounded-full border border-line bg-white px-3 py-2 text-xs font-bold outline-none focus:border-ink/30"
-              />
-              <button type="submit" className="rounded-full bg-ink px-3 text-xs font-black text-white">
-              加入
-              </button>
-            </div>
-          </form>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {pantryItems.length > 0 ? (
-              pantryItems.map((item) => (
-                <PantryChip key={item.key} item={item} onRemove={() => onRemovePantryItem(item.key)} />
-              ))
-            ) : (
-              <p className="text-xs font-bold leading-5 text-ink/45">
-                加入库存后，同名材料会自动从待买清单移出。
-              </p>
-            )}
-          </div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">库存</p>
+          <p className="mt-1 text-sm font-black">库存维护放在独立页面</p>
+          <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
+            当前有 {pantryItems.length} 个库存项；需要新增、删除或看临期时再进入库存页。
+          </p>
         </div>
         {excludedItems.length > 0 && (
           <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
@@ -289,13 +239,15 @@ function ShoppingChecklist({
   sections,
   customItems,
   totalItemCount,
+  checkedItemCount,
   checkedItems,
   onToggleItem,
   onRemoveItem,
   onRemoveCustomItem,
   onShare,
 }) {
-  const [openSections, setOpenSections] = useState({ ingredients: false, seasonings: false, custom: false });
+  const [openSections, setOpenSections] = useState({ ingredients: true, seasonings: false, custom: true });
+  const progress = totalItemCount > 0 ? Math.round((checkedItemCount / totalItemCount) * 100) : 0;
 
   function toggleSection(key) {
     setOpenSections((current) => ({ ...current, [key]: !current[key] }));
@@ -312,8 +264,14 @@ function ShoppingChecklist({
           </p>
         </div>
         <span className="rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
-          {totalItemCount} 项
+          已完成 {checkedItemCount} / {totalItemCount}
         </span>
+      </div>
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-canvas">
+        <div
+          className="grocery-progress-fill h-full rounded-full bg-acid"
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
       <div className="mt-5 grid gap-4">
@@ -353,17 +311,15 @@ function ShoppingChecklist({
             onToggle={() => toggleSection("custom")}
           >
             {customItems.map((item) => (
-              <div key={item.key} className="flex items-center gap-3 rounded-[18px] bg-white p-3">
-                <span className="flex-1 font-black">{item.name}</span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveCustomItem(item.key)}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-canvas text-ink/55 transition hover:text-ink"
-                  aria-label={`删除 ${item.name}`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              <ShoppingItem
+                key={item.key}
+                item={{ ...item, amount: item.amount ?? "自定义" }}
+                checked={checkedItems[item.key]}
+                onToggle={() => onToggleItem(item.key)}
+                onRemove={() => onRemoveCustomItem(item.key)}
+                removeLabel={`删除 ${item.name}`}
+                actionIcon={Trash2}
+              />
             ))}
           </CollapsibleChecklistSection>
         )}
@@ -550,7 +506,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
 
 function GroceryItem({ item, checked, onToggle, onRemove }) {
   return (
-    <div className="flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+    <div className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
@@ -577,9 +533,9 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
   );
 }
 
-function ShoppingItem({ item, checked, onToggle, onRemove }) {
+function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIcon: ActionIcon = PackageCheck }) {
   return (
-    <div className="flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
+    <div className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20">
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
@@ -603,9 +559,9 @@ function ShoppingItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`${item.name} 加入厨房库存`}
+        aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
       >
-        <PackageCheck size={15} />
+        <ActionIcon size={15} />
       </button>
     </div>
   );

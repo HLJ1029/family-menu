@@ -70,13 +70,16 @@ export function buildTodayRecommendation({
     .sort((a, b) => b.score - a.score);
 
   const fallbackRecipes = recipes.filter((recipe) => !matchesSignals(recipe, familyPreference.allergies));
+  const familySize = normalizeFamilySize(familyProfile.familySize);
+  const targetDishCount = getTargetDishCount(familySize);
   const primary = scored[0]?.recipe ?? fallbackRecipes[0] ?? recipes[0];
-  const partner =
-    scored.find(({ recipe }) => recipe.id !== primary.id && pairsWell(primary, recipe))?.recipe ??
-    scored.find(({ recipe }) => recipe.id !== primary.id)?.recipe ??
-    fallbackRecipes.find((recipe) => recipe.id !== primary.id) ??
-    recipes[1];
-  const selected = [primary, partner].filter(Boolean);
+  const selected = selectDinnerSet({
+    primary,
+    scored,
+    fallbackRecipes,
+    targetDishCount,
+  });
+  const recommendationItems = buildRecommendationItems(selected, familySize);
   const selectedIds = new Set(selected.map((recipe) => recipe.id));
   const selectedMissing = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
@@ -91,12 +94,21 @@ export function buildTodayRecommendation({
   const preferenceHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
     .reduce((total, item) => total + item.preferenceScore.hits, 0);
-  const calories = selected.reduce((total, recipe) => total + nutritionFor(recipe).caloriesKcal, 0);
-  const protein = selected.reduce((total, recipe) => total + nutritionFor(recipe).proteinG, 0);
+  const calories = recommendationItems.reduce(
+    (total, item) => total + nutritionFor(item.recipe).caloriesKcal * item.quantity,
+    0,
+  );
+  const protein = recommendationItems.reduce(
+    (total, item) => total + nutritionFor(item.recipe).proteinG * item.quantity,
+    0,
+  );
   const matchedPantryItems = collectMatchedPantryItems(selected, pantryState);
 
   return {
     recipes: selected,
+    items: recommendationItems,
+    familySize,
+    targetDishCount,
     title: selected.map((recipe) => recipe.name).join(" + "),
     reason: buildReason({
       selected,
@@ -120,6 +132,83 @@ export function buildTodayRecommendation({
       proteinG: protein,
     },
   };
+}
+
+export function buildRecommendationItems(selectedRecipes = [], familySize = 2) {
+  const normalizedFamilySize = normalizeFamilySize(familySize);
+  const items = selectedRecipes.map((recipe) => ({ recipe, quantity: 1 }));
+  if (items.length === 0) return items;
+
+  const targetCoverage = Math.max(normalizedFamilySize, Math.ceil(normalizedFamilySize * 1.35));
+  const getCoverage = () =>
+    items.reduce((total, item) => total + (Number(item.recipe.servings) || 1) * item.quantity, 0);
+
+  const boostOrder = [...items].sort((a, b) => {
+    const aScore = quantityPriorityScore(a.recipe);
+    const bScore = quantityPriorityScore(b.recipe);
+    return bScore - aScore;
+  });
+
+  let boostIndex = 0;
+  while (getCoverage() < targetCoverage && boostIndex < boostOrder.length * 2) {
+    const item = boostOrder[boostIndex % boostOrder.length];
+    if (item.quantity < 3) item.quantity += 1;
+    boostIndex += 1;
+  }
+
+  return items.map((item) => ({
+    ...item,
+    targetServings: (Number(item.recipe.servings) || 1) * item.quantity,
+  }));
+}
+
+function selectDinnerSet({ primary, scored, fallbackRecipes, targetDishCount }) {
+  const selected = [];
+  const selectedIds = new Set();
+  const addRecipe = (recipe) => {
+    if (!recipe || selectedIds.has(recipe.id)) return false;
+    selected.push(recipe);
+    selectedIds.add(recipe.id);
+    return true;
+  };
+
+  addRecipe(primary);
+
+  const scoredRecipes = scored.map(({ recipe }) => recipe);
+  const candidates = [...scoredRecipes, ...fallbackRecipes, ...recipes];
+  while (selected.length < targetDishCount) {
+    const next =
+      candidates.find((recipe) => !selectedIds.has(recipe.id) && pairsWellWithSet(selected, recipe)) ??
+      candidates.find((recipe) => !selectedIds.has(recipe.id));
+    if (!next) break;
+    addRecipe(next);
+  }
+
+  return selected;
+}
+
+function getTargetDishCount(familySize) {
+  if (familySize <= 1) return 1;
+  if (familySize === 2) return 2;
+  if (familySize <= 4) return 3;
+  return 4;
+}
+
+function normalizeFamilySize(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 2;
+  return Math.min(8, Math.max(1, parsed));
+}
+
+function quantityPriorityScore(recipe) {
+  const categories = new Set(recipe.categories);
+  const nutrition = nutritionFor(recipe);
+  let score = nutrition.proteinG >= 15 ? 12 : 0;
+  if (categories.has("肉类") || categories.has("海鲜") || categories.has("豆制品") || categories.has("蛋类")) score += 14;
+  if (categories.has("主食") || categories.has("粥")) score += 10;
+  if (categories.has("素菜") || categories.has("清爽")) score += 4;
+  if (categories.has("汤")) score -= 4;
+  return score;
 }
 
 function collectMatchedPantryItems(selected, pantryState) {
@@ -271,6 +360,23 @@ function pairsWell(primary, candidate) {
     return candidate.categories.some((category) => ["肉类", "蛋类", "豆制品", "海鲜"].includes(category));
   }
   return candidate.timeMinutes <= 30;
+}
+
+function pairsWellWithSet(selected, candidate) {
+  if (selected.length === 0) return true;
+  const selectedCategories = new Set(selected.flatMap((recipe) => recipe.categories));
+  const candidateCategories = new Set(candidate.categories);
+
+  if (!selectedCategories.has("素菜") && candidateCategories.has("素菜")) return true;
+  if (!selectedCategories.has("清爽") && candidateCategories.has("清爽")) return true;
+  if (!selectedCategories.has("汤") && candidateCategories.has("汤")) return true;
+  if (
+    ![...selectedCategories].some((category) => ["肉类", "海鲜", "豆制品", "蛋类"].includes(category)) &&
+    [...candidateCategories].some((category) => ["肉类", "海鲜", "豆制品", "蛋类"].includes(category))
+  ) {
+    return true;
+  }
+  return selected.some((recipe) => pairsWell(recipe, candidate));
 }
 
 function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits }) {
