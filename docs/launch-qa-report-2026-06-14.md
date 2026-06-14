@@ -4,7 +4,7 @@
 
 ## 结论
 
-H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式小程序提交审核仍被平台资料阻塞：正式域名、正式 AppID、微信业务域名校验文件、运营主体和联系邮箱尚未填入项目配置与协议页面。
+H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式域名已确认为 `www.humi-home.com`，但当前 HTTP/HTTPS 尚未正常响应。正式小程序提交审核仍被平台资料阻塞：正式 AppID、微信业务域名校验文件、运营主体和联系邮箱尚未填入项目配置与协议页面。
 
 ## 已完成检查
 
@@ -17,6 +17,11 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
   - `https://hlj1029.github.io/family-menu/terms.html`
 - GitHub Pages 最近一次 `Deploy GitHub Pages` workflow 成功。
 - 线上构建产物与本地构建产物一致：`index-BFwEm2dO.js`、`index-D14Mc-wM.css`。
+- 正式目标域名：`https://www.humi-home.com/`。
+- 当前域名连通性：
+  - `https://www.humi-home.com/`：TLS 握手失败，暂不可用。
+  - `https://www.humi-home.com/family-menu/`：TLS 握手失败，暂不可用。
+  - `http://www.humi-home.com/`：空响应，暂不可用。
 
 ## H5 页面验收
 
@@ -54,9 +59,9 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
 
 ## 当前阻塞项
 
-- 缺正式 H5 域名。
 - 缺正式小程序 AppID。
 - 缺微信业务域名校验文件。
+- 正式域名 `www.humi-home.com` 的 HTTPS 尚未可访问。
 - 微信公众平台尚未确认 WebView 业务域名配置。
 - `public/privacy.html` 仍有占位：
   - 运营者：`[正式提交前填写]`
@@ -69,7 +74,7 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
 
 ## 待平台资料到位后执行
 
-- 将 `HUMI_WEB_URL` 替换为正式 HTTPS 域名。
+- 待 `www.humi-home.com` HTTPS 可访问后，将 `HUMI_WEB_URL` 替换为正式 HTTPS 域名。
 - 将 `project.config.json` 替换为正式小程序 AppID。
 - 正式审核前恢复 `urlCheck: true`。
 - 放置微信业务域名校验文件到正式域名要求路径。
