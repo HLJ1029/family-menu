@@ -1,11 +1,12 @@
-import { BarChart3, CalendarDays, ClipboardList, PackageCheck, ShoppingBasket, Sparkles, Utensils, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardList, Sparkles, Utensils } from "lucide-react";
+import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
+import { photoFor } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
 import { Card } from "./ui/Card";
-import { DoodleArrow } from "./ui/Doodles";
-import { MiniMeal } from "./ui/MiniMeal";
 
 export function Dashboard({
   todayRecipes,
+  weekPlan,
   recommendation,
   aiRecommendationStatus,
   aiRecommendationLoading,
@@ -13,222 +14,186 @@ export function Dashboard({
   onOpenRecipe,
   onAddRecommended,
   onRequestAiRecommendation,
-  onOpenRecommendationFeedback,
-  feedbackOpen,
-  onSubmitRecommendationFeedback,
-  onCloseRecommendationFeedback,
   session,
   onOpenUserCenter,
+  familyProfile,
+  onPlanRecommendedWeek,
 }) {
-  const missingSummary = recommendation.missingItems.length > 0
-    ? recommendation.missingItems.map((item) => item.name).join("、")
-    : "主食材基本够了";
+  const profileReady = getProfileCompletedCount(familyProfile) >= 4;
+  const weekDishCount = Object.values(weekPlan ?? {}).reduce((total, recipeIds) => total + recipeIds.length, 0);
   const dinnerReady = todayRecipes.length > 0;
+  const heroRecipe = todayRecipes[0] ?? recommendation.recipes[0];
+  const nextAction = getNextAction({
+    profileReady,
+    weekDishCount,
+    dinnerReady,
+    onOpenUserCenter,
+    onPlanRecommendedWeek,
+    onAddRecommended,
+    onViewChange,
+  });
+  const NextActionIcon = nextAction.icon;
 
   return (
     <div className="grid gap-5">
-      <section className="trend-hero relative overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
+      <section className="relative min-h-[520px] overflow-hidden rounded-[32px] bg-ink text-white shadow-lift">
+        {heroRecipe && (
+          <img
+            src={photoFor(heroRecipe)}
+            alt=""
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/54 to-ink/12" />
+        <div className="absolute left-5 top-5 z-10">
+          <p className="text-sm font-black uppercase tracking-[0.28em] text-acid">HUMI</p>
+        </div>
         <div className="absolute right-5 top-5 z-10">
           <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
         </div>
-        <div className="absolute right-8 top-7 hidden md:block">
-          <DoodleArrow />
-        </div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Humi</p>
-        <h2 className="mt-4 max-w-2xl text-5xl font-black tracking-[-0.05em] md:text-7xl">
-          今晚吃什么？
-        </h2>
-        <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
-          不用从头想。Humi 先给你安排一组能落地的晚饭。
-        </p>
-        <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today</p>
+          <h2 className="mt-3 max-w-2xl text-5xl font-black tracking-[-0.05em] md:text-7xl">
+            {dinnerReady ? "今晚已经安排好。" : "先把今天安排好。"}
+          </h2>
+          <p className="mt-4 max-w-lg text-sm font-bold leading-7 text-white/72">
+            {formatProfileSummary(familyProfile)}
+          </p>
           <button
             type="button"
-            onClick={onRequestAiRecommendation}
-            disabled={aiRecommendationLoading}
-            className="trend-button inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-6 text-base font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-55"
+            onClick={nextAction.onClick}
+            disabled={nextAction.disabled}
+            className="mt-7 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-7 text-base font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            <Sparkles size={19} />
-            {aiRecommendationLoading ? "正在想" : "帮我安排晚饭"}
+            <NextActionIcon size={19} />
+            {nextAction.label}
           </button>
-          {dinnerReady && (
-            <button
-              type="button"
-              onClick={() => onViewChange("today")}
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
-            >
-              看今晚菜单
-            </button>
-          )}
+          <p className="mt-4 max-w-xl text-xs font-bold leading-5 text-white/54">{nextAction.hint}</p>
         </div>
-        <p className="mt-4 max-w-xl text-xs font-bold leading-5 text-white/42">{aiRecommendationStatus}</p>
       </section>
 
-      <section>
-        <Card>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="eyebrow">今晚推荐</p>
-              <h3 className="card-title">{recommendation.title}</h3>
-            </div>
-            <span className="inline-flex w-fit rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
-              {recommendation.recipes.reduce((total, recipe) => total + recipe.timeMinutes, 0)} 分钟内
-            </span>
-          </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <StatusCard
+          icon={CalendarDays}
+          title="本周计划"
+          value={weekDishCount > 0 ? `${weekDishCount} 道菜` : "未生成"}
+          text={weekDishCount > 0 ? "已经有一周菜单框架，可以继续微调。" : "先生成一份本周计划，再确认清单。"}
+          onClick={() => onViewChange("planner")}
+        />
+        <StatusCard
+          icon={Utensils}
+          title="今晚菜单"
+          value={dinnerReady ? `${todayRecipes.length} 道菜` : "未安排"}
+          text={dinnerReady ? todayRecipes.map((recipe) => recipe.name).join("、") : "从计划或推荐里安排今晚。"}
+          onClick={() => onViewChange("today")}
+        />
+        <StatusCard
+          icon={ClipboardList}
+          title="采购清单"
+          value={weekDishCount > 0 || dinnerReady ? "可查看" : "待生成"}
+          text="菜单确定后，清单会跟着汇总。"
+          onClick={() => onViewChange("grocery")}
+        />
+      </section>
 
-          <div className="trend-stagger mt-5 grid gap-3 md:grid-cols-2">
+      {!dinnerReady && recommendation.recipes.length > 0 && (
+        <Card>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="eyebrow">今晚建议</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.03em]">{recommendation.title}</h3>
+              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-ink/52">
+                {recommendation.reason}
+              </p>
+              <p className="mt-2 text-xs font-bold leading-5 text-ink/38">{aiRecommendationStatus}</p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={onAddRecommended}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <CheckCircle2 size={17} className="text-acid" />
+                安排今晚
+              </button>
+              <button
+                type="button"
+                onClick={() => onRequestAiRecommendation(null)}
+                disabled={aiRecommendationLoading}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/58 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Sparkles size={16} />
+                {aiRecommendationLoading ? "正在换" : "换一组"}
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
             {recommendation.recipes.map((recipe) => (
-              <MiniMeal key={recipe.id} recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
+              <button
+                key={recipe.id}
+                type="button"
+                onClick={() => onOpenRecipe(recipe.id)}
+                className="rounded-full border border-line bg-canvas px-4 py-2 text-xs font-black text-ink/58 transition hover:text-ink"
+              >
+                {recipe.name}
+              </button>
             ))}
           </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <SimpleNote title="为什么这组" text={recommendation.reason} />
-            <SimpleNote title="还差这些" text={missingSummary} />
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
-            <button
-              type="button"
-              onClick={onAddRecommended}
-              className="trend-button inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1"
-            >
-              <Utensils size={19} className="text-acid" />
-              就吃这组
-            </button>
-            <button
-              type="button"
-              onClick={onOpenRecommendationFeedback}
-              disabled={aiRecommendationLoading}
-              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink/62 transition hover:-translate-y-1 hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <Sparkles size={17} />
-              {aiRecommendationLoading ? "正在换" : "换一组"}
-            </button>
-          </div>
-
-          {feedbackOpen && (
-            <RecommendationFeedbackPanel
-              loading={aiRecommendationLoading}
-              onSubmit={onSubmitRecommendationFeedback}
-              onSkip={() => onSubmitRecommendationFeedback(null)}
-              onClose={onCloseRecommendationFeedback}
-            />
-          )}
         </Card>
-      </section>
-
-      <section>
-        <div className="trend-stagger grid grid-cols-3 gap-3 rounded-[26px] border border-line bg-white p-3 shadow-card sm:grid-cols-6">
-            <QuickAppIcon
-              icon={ClipboardList}
-              title="今晚"
-              onClick={() => onViewChange("today")}
-            />
-            <QuickAppIcon
-              icon={CalendarDays}
-              title="本周"
-              onClick={() => onViewChange("planner")}
-            />
-            <QuickAppIcon
-              icon={ShoppingBasket}
-              title="清单"
-              onClick={() => onViewChange("grocery")}
-            />
-            <QuickAppIcon
-              icon={PackageCheck}
-              title="库存"
-              onClick={() => onViewChange("inventory")}
-            />
-            <QuickAppIcon
-              icon={BarChart3}
-              title="营养"
-              onClick={() => onViewChange("stats")}
-            />
-            <QuickAppIcon
-              icon={CalendarDays}
-              title="月历"
-              onClick={() => onViewChange("calendar")}
-            />
-        </div>
-      </section>
+      )}
     </div>
   );
 }
 
-const feedbackReasons = [
-  { id: "too_hard", label: "太麻烦" },
-  { id: "not_craving", label: "不想吃这个" },
-  { id: "missing_ingredients", label: "家里没材料" },
-  { id: "lighter", label: "想清淡点" },
-  { id: "more_meat", label: "想吃肉" },
-  { id: "less_meat", label: "想少吃肉" },
-];
-
-function RecommendationFeedbackPanel({ loading, onSubmit, onSkip, onClose }) {
-  return (
-    <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-black">这组哪里不合适？</p>
-          <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-            选一个原因，Humi 下次会避开类似情况。
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:text-ink"
-          aria-label="关闭换一组原因"
-        >
-          <X size={16} />
-        </button>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {feedbackReasons.map((reason) => (
-          <button
-            key={reason.id}
-            type="button"
-            onClick={() => onSubmit(reason)}
-            disabled={loading}
-            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {reason.label}
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={onSkip}
-        disabled={loading}
-        className="mt-3 min-h-11 w-full rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
-      >
-        先直接换一组
-      </button>
-    </div>
-  );
+function getNextAction({ profileReady, weekDishCount, dinnerReady, onOpenUserCenter, onPlanRecommendedWeek, onAddRecommended, onViewChange }) {
+  if (!profileReady) {
+    return {
+      label: "完善饮食偏好",
+      hint: "先告诉 Humi 你家的饮食目标和忌口。",
+      icon: Sparkles,
+      onClick: onOpenUserCenter,
+    };
+  }
+  if (weekDishCount === 0) {
+    return {
+      label: "生成本周计划",
+      hint: "先得到一周菜单，再进入清单确认。",
+      icon: CalendarDays,
+      onClick: onPlanRecommendedWeek,
+    };
+  }
+  if (!dinnerReady) {
+    return {
+      label: "安排今晚",
+      hint: "把当前建议放进今晚菜单，清单会自动更新。",
+      icon: Utensils,
+      onClick: onAddRecommended,
+    };
+  }
+  return {
+    label: "查看今晚菜单",
+    hint: "今晚菜单已经有内容，可以看做法或调整份数。",
+    icon: CheckCircle2,
+    onClick: () => onViewChange("today"),
+  };
 }
 
-function SimpleNote({ title, text }) {
-  return (
-    <div className="rounded-[20px] bg-canvas p-4">
-      <p className="text-xs font-black text-ink/38">{title}</p>
-      <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{text}</p>
-    </div>
-  );
-}
-
-function QuickAppIcon({ icon: Icon, title, onClick }) {
+function StatusCard({ icon: Icon, title, value, text, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="motion-card grid min-h-[82px] place-items-center rounded-[20px] bg-canvas px-2 py-3 text-center transition hover:-translate-y-1 hover:bg-acid"
+      className="rounded-[26px] border border-line bg-white p-5 text-left shadow-card transition hover:-translate-y-1 hover:border-ink/20"
     >
-      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-ink shadow-card">
-        <Icon size={19} />
+      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-acid">
+        <Icon size={20} />
       </span>
-      <p className="mt-2 text-xs font-black text-ink/62">{title}</p>
+      <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-ink/35">{title}</p>
+      <p className="mt-2 text-2xl font-black tracking-[-0.03em]">{value}</p>
+      <p className="mt-2 text-sm font-bold leading-6 text-ink/50">{text}</p>
     </button>
   );
 }

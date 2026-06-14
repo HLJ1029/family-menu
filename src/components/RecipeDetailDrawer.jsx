@@ -59,12 +59,7 @@ export function RecipeDetailDrawer({
       />
       <aside className="absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-canvas shadow-lift md:w-[560px] md:rounded-l-[32px]">
         <div className="relative h-56 shrink-0 overflow-hidden md:h-64">
-          <img
-            src={photoFor(recipe)}
-            alt={recipe.name}
-            decoding="async"
-            className="h-full w-full object-cover"
-          />
+          <ProgressiveRecipePhoto recipe={recipe} />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/72 via-ink/10 to-transparent" />
           <button
             type="button"
@@ -271,6 +266,43 @@ export function RecipeDetailDrawer({
         </div>
       </aside>
     </div>
+  );
+}
+
+function ProgressiveRecipePhoto({ recipe }) {
+  const previewSrc = photoFor(recipe, { variant: "thumb" });
+  const fullSrc = photoFor(recipe);
+  const [loadedSrc, setLoadedSrc] = useState(previewSrc);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setLoadedSrc(previewSrc);
+
+    if (fullSrc === previewSrc) return undefined;
+
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (isCurrent) setLoadedSrc(fullSrc);
+    };
+    image.src = fullSrc;
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [fullSrc, previewSrc]);
+
+  return (
+    <img
+      key={loadedSrc}
+      src={loadedSrc}
+      alt={recipe.name}
+      loading="eager"
+      decoding="async"
+      fetchPriority="high"
+      sizes="(min-width: 768px) 560px, 100vw"
+      className="h-full w-full bg-canvas object-cover transition-opacity duration-300"
+    />
   );
 }
 

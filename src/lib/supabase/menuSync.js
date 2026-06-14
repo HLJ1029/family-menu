@@ -1,14 +1,17 @@
 import { getSupabase } from "./client";
+import { getWeekKey } from "../date";
 
 const TODAY_SLOT = "today";
 const WEEK_PREFIX = "week:";
 
 export async function loadMenuSync(familyId) {
   const supabase = await getSupabase();
+  const currentWeekKey = getWeekKey();
   const { data, error } = await supabase
     .from("meal_plans")
     .select("meal_slot, recipe_id, quantity")
     .eq("family_id", familyId)
+    .eq("plan_date", currentWeekKey)
     .in("meal_slot", [TODAY_SLOT, ...weekSlots()]);
 
   if (error) throw error;
@@ -20,13 +23,15 @@ export async function loadMenuSync(familyId) {
 
 export async function saveTodayMenu(familyId, todayMenu) {
   const supabase = await getSupabase();
+  const currentWeekKey = getWeekKey();
   await replaceSlotRows({
     supabase,
     familyId,
+    planDate: currentWeekKey,
     slots: [TODAY_SLOT],
     rows: todayMenu.map((item) => ({
       family_id: familyId,
-      plan_date: todayDate(),
+      plan_date: currentWeekKey,
       meal_slot: TODAY_SLOT,
       recipe_id: item.recipeId,
       quantity: item.quantity,
@@ -36,10 +41,11 @@ export async function saveTodayMenu(familyId, todayMenu) {
 
 export async function saveWeekPlan(familyId, weekPlan) {
   const supabase = await getSupabase();
+  const currentWeekKey = getWeekKey();
   const rows = Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
     recipeIds.map((recipeId) => ({
       family_id: familyId,
-      plan_date: todayDate(),
+      plan_date: currentWeekKey,
       meal_slot: `${WEEK_PREFIX}${day}`,
       recipe_id: recipeId,
       quantity: 1,
@@ -49,6 +55,7 @@ export async function saveWeekPlan(familyId, weekPlan) {
   await replaceSlotRows({
     supabase,
     familyId,
+    planDate: currentWeekKey,
     slots: weekSlots(),
     rows,
   });
@@ -89,11 +96,12 @@ function rowsToWeekPlan(rows) {
   return plan;
 }
 
-async function replaceSlotRows({ supabase, familyId, slots, rows }) {
+async function replaceSlotRows({ supabase, familyId, planDate, slots, rows }) {
   const { error: deleteError } = await supabase
     .from("meal_plans")
     .delete()
     .eq("family_id", familyId)
+    .eq("plan_date", planDate)
     .in("meal_slot", slots);
 
   if (deleteError) throw deleteError;
@@ -105,8 +113,4 @@ async function replaceSlotRows({ supabase, familyId, slots, rows }) {
 
 function weekSlots() {
   return ["周一", "周二", "周三", "周四", "周五", "周六", "周日"].map((day) => `${WEEK_PREFIX}${day}`);
-}
-
-function todayDate() {
-  return new Date().toISOString().slice(0, 10);
 }

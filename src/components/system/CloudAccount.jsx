@@ -17,6 +17,8 @@ export function CloudAccount({
   onCreateFamily,
   onSignOut,
   showNotice,
+  hideAuthEntry = false,
+  compactTitle = false,
 }) {
   async function requestMagicLink(event) {
     event.preventDefault();
@@ -48,24 +50,26 @@ export function CloudAccount({
 
   return (
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
-          <Cloud size={20} />
-        </span>
-        <div>
-          <p className="eyebrow">我的家</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">保存家里的吃饭习惯</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            登录后，Humi 会记住菜单、清单、库存和家人口味。也可以先直接体验。
-          </p>
+      {!compactTitle && (
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
+            <Cloud size={20} />
+          </span>
+          <div>
+            <p className="eyebrow">我的家</p>
+            <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">保存家里的吃饭习惯</h3>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+              登录后，Humi 会记住菜单、清单、库存和家人口味。也可以先直接体验。
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {session?.user ? (
         <div className="mt-5 grid gap-3">
           <div className="rounded-[22px] bg-canvas p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">已登录</p>
-            <p className="mt-1 text-sm font-black">{session.user.email}</p>
+            <p className="mt-1 text-sm font-black">已登录 Humi</p>
           </div>
           {family ? (
             <div className="rounded-[22px] border border-line bg-canvas p-4">
@@ -108,6 +112,14 @@ export function CloudAccount({
             <LogOut size={16} />
             退出账号
           </button>
+        </div>
+      ) : hideAuthEntry ? (
+        <div className="mt-5 rounded-[22px] bg-canvas p-4">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">游客体验</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/58">
+            现在可以直接安排晚饭、保存今晚菜单和食材清单。小程序正式验证前会接入微信登录，
+            这里先不放账号入口。
+          </p>
         </div>
       ) : (
         <div className="mt-5 grid gap-3">
@@ -160,7 +172,7 @@ export function CloudAccount({
           </form>
           <form className="grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={requestMagicLink}>
             <p className="text-xs font-bold leading-5 text-ink/45 sm:col-span-2">
-              也可以用邮箱链接登录；如果发送太频繁，先用密码登录。
+              也可以用开发登录链接；如果发送太频繁，先用密码登录。
             </p>
             <button
               type="submit"
@@ -168,7 +180,7 @@ export function CloudAccount({
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
             >
               <Link size={16} />
-              发一封登录邮件
+              发送开发登录链接
             </button>
           </form>
         </div>
@@ -178,6 +190,8 @@ export function CloudAccount({
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ink" />
         {cloudLoading
           ? "正在保存状态..."
+          : hideAuthEntry && !session?.user
+          ? "当前先保存在本机。"
           : isSupabaseConfigured
           ? authStatus || "登录后可以把家里的菜单和清单保存起来。"
           : authStatus || "当前会先保存在本机。"}

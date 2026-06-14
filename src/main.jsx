@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
@@ -7,6 +8,7 @@ import { InventoryPage } from "./components/InventoryPage";
 import { Library } from "./components/Library";
 import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
+import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
@@ -15,7 +17,7 @@ import { UserCenter } from "./components/UserCenter";
 import { OfflineStatus } from "./components/system/OfflineStatus";
 import { DoodleWash } from "./components/ui/Doodles";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
-import { formatDateKey, formatDateLabel, getCurrentPlanDay } from "./lib/date";
+import { addDays, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, parseDateKey } from "./lib/date";
 import {
   buildRecipeGroceryGroups,
   buildShoppingListFromEntries,
@@ -38,6 +40,7 @@ import {
   recipes,
 } from "./lib/recipes";
 import { buildTodayRecommendation } from "./lib/recommendation/rules";
+import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
@@ -74,6 +77,7 @@ import "./styles.css";
 
 const weekPlanDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const defaultFamilyProfile = {
+  planningMode: "daily_family",
   familySize: 2,
   hasChildren: false,
   tastePreferences: [],
@@ -92,6 +96,7 @@ function App() {
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
   const [weekPlan, setWeekPlan] = useLocalStorageState("family-menu:week-plan", createDefaultWeekPlan);
+  const [activeWeekKey, setActiveWeekKey] = useLocalStorageState("family-menu:active-week-key", null);
   const [mealCalendar, setMealCalendar] = useLocalStorageState(
     "family-menu:meal-calendar",
     createInitialMealCalendar,
@@ -129,6 +134,8 @@ function App() {
   });
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
+  const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
+  const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
   const [preferenceDraft, setPreferenceDraft] = useState({});
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
@@ -162,6 +169,32 @@ function App() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    const currentWeekKey = getWeekKey();
+    if (activeWeekKey === currentWeekKey) return;
+    const currentWeekEndKey = formatDateKey(addDays(parseDateKey(currentWeekKey), 6));
+    setTodayMenu([]);
+    setWeekPlan(createDefaultWeekPlan());
+    setCheckedItems({});
+    setCustomItems([]);
+    setExcludedGroceryKeys([]);
+    setMealCalendar((current) =>
+      Object.fromEntries(
+        Object.entries(current ?? {}).filter(([dateKey]) => dateKey < currentWeekKey || dateKey > currentWeekEndKey),
+      ),
+    );
+    setActiveWeekKey(currentWeekKey);
+  }, [
+    activeWeekKey,
+    setActiveWeekKey,
+    setCheckedItems,
+    setCustomItems,
+    setExcludedGroceryKeys,
+    setMealCalendar,
+    setTodayMenu,
+    setWeekPlan,
+  ]);
 
   useEffect(() => {
     if (appOpenTrackedRef.current) return;
@@ -303,6 +336,7 @@ function App() {
         if (!active) return;
         setSession(currentSession);
         if (currentSession?.user) {
+          setOnboardingComplete(true);
           setCloudLoading(true);
           const currentFamily = await loadPrimaryFamily(currentSession.user);
           if (active) setFamily(currentFamily);
@@ -317,6 +351,7 @@ function App() {
         setSession(nextSession);
         setFamily(null);
         if (!nextSession?.user) return;
+        setOnboardingComplete(true);
         setCloudLoading(true);
         try {
           const currentFamily = await loadPrimaryFamily(nextSession.user);
@@ -436,8 +471,9 @@ function App() {
         groceryItems: visibleGroceryItems,
         todayRecipes,
         familyMembers,
+        familyProfile,
       }),
-    [familyMembers, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
+    [familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
   );
 
   useEffect(() => {
@@ -528,33 +564,43 @@ function App() {
   }
 
   function planRecommendedWeek() {
-    const recommendedIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
     const currentDay = getCurrentPlanDay();
     const orderedDays = orderPlanDaysFrom(currentDay);
     const existingIds = new Set(Object.values(weekPlan).flat());
     const nextWeekPlan = { ...weekPlan };
+    const addedRecipeIds = [];
     let addedCount = 0;
 
-    recommendedIds.forEach((recipeId) => {
-      if (existingIds.has(recipeId)) return;
-      const targetDay =
-        orderedDays.find((day) => (nextWeekPlan[day] ?? []).length < 2) ??
-        orderedDays.find((day) => (nextWeekPlan[day] ?? []).length < 3) ??
-        currentDay;
-      nextWeekPlan[targetDay] = [...(nextWeekPlan[targetDay] ?? []), recipeId];
-      existingIds.add(recipeId);
-      addedCount += 1;
+    orderedDays.forEach((day) => {
+      while ((nextWeekPlan[day] ?? []).length < 2) {
+        const recommendation = buildTodayRecommendation({
+          pantryItems,
+          weekPlan: nextWeekPlan,
+          groceryItems: visibleGroceryItems,
+          todayRecipes: [],
+          familyMembers,
+          familyProfile,
+          excludedRecipeIds: [...existingIds],
+        });
+        const recipeId = recommendation.recipes.find((recipe) => !existingIds.has(recipe.id))?.id;
+        if (!recipeId) break;
+        nextWeekPlan[day] = [...(nextWeekPlan[day] ?? []), recipeId];
+        existingIds.add(recipeId);
+        addedRecipeIds.push(recipeId);
+        addedCount += 1;
+      }
     });
 
     if (addedCount > 0) setWeekPlan(nextWeekPlan);
     if (addedCount > 0) {
       trackProductEvent(appEvents.weekPlanAdd, {
-        recipeIds: recommendedIds,
+        recipeIds: addedRecipeIds,
         addedCount,
-        source: "recommendation",
+        source: "weekly_profile_generation",
+        planningMode: familyProfile.planningMode,
       });
     }
-    showNotice(addedCount > 0 ? `已安排 ${addedCount} 道推荐菜到本周计划` : "推荐菜已在本周计划中");
+    showNotice(addedCount > 0 ? `已安排 ${addedCount} 道菜到本周计划` : "本周计划已经排好了");
   }
 
   function completeRecommendedGrocery() {
@@ -594,6 +640,7 @@ function App() {
       groceryItems: visibleGroceryItems,
       todayRecipes,
       familyMembers,
+      familyProfile,
       excludedRecipeIds: currentRecipeIds,
     });
     trackProductEvent(appEvents.recommendationRequest, {
@@ -1047,6 +1094,7 @@ function App() {
           ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
           : "已登录 Humi。",
       );
+      setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
         userId: nextSession?.user?.id,
@@ -1208,6 +1256,7 @@ function App() {
         preference: member.preference,
       })),
       familyProfile,
+      planningMode: getPlanningMode(familyProfile.planningMode),
       compactFamilyPrompt: buildCompactFamilyPrompt(familyProfile),
       recentRecipeIds,
       currentMissingItems: fallbackRecommendation.missingItems.map((item) => item.name),
@@ -1233,6 +1282,7 @@ function App() {
         "主食材缺口尽量不超过 3 项；调料和常备项不要当作主要缺口。",
         "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
         "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
+        `当前使用场景是${getPlanningMode(familyProfile.planningMode).label}，需要按该场景调整推荐理由和搭配重点。`,
         "本轮候选已排除用户刚看到的菜，不能重复上一组。",
       ],
       ruleFallback: {
@@ -1427,11 +1477,66 @@ function App() {
   };
 
   function saveFamilyProfile(nextProfile) {
-    setFamilyProfile(nextProfile);
+    const normalizedProfile = {
+      ...defaultFamilyProfile,
+      ...nextProfile,
+      planningMode: getPlanningMode(nextProfile.planningMode).id,
+    };
+    setFamilyProfile(normalizedProfile);
+    if (session?.user && getProfileCompletedCount(normalizedProfile) >= 4) {
+      setProfileOnboardingComplete(true);
+    }
     trackProductEvent(appEvents.profileSaved, {
       type: "family_profile",
-      completedCount: getFamilyProfileCompletedCount(nextProfile),
+      completedCount: getProfileCompletedCount(normalizedProfile),
     });
+  }
+
+  function completeProfileOnboarding(nextProfile, options = {}) {
+    const normalizedProfile = {
+      ...defaultFamilyProfile,
+      ...nextProfile,
+      planningMode: getPlanningMode(nextProfile.planningMode).id,
+    };
+    setFamilyProfile(normalizedProfile);
+    if (!options.stayOnboarding) {
+      setProfileOnboardingComplete(true);
+      setActiveView("dashboard");
+      showNotice("画像已保存，开始安排菜单");
+    }
+  }
+
+  function selectPlanningMode(modeId) {
+    const nextProfile = withPlanningModeDefaults(familyProfile, modeId);
+    setFamilyProfile(nextProfile);
+    setAiRecommendation(null);
+    setAiRecommendationStatus(`${getPlanningMode(modeId).label}模式已切换，推荐会按这个场景来。`);
+    showNotice(`已切换到${getPlanningMode(modeId).label}`);
+  }
+
+  function continueAsGuest() {
+    setOnboardingComplete(true);
+    setActiveView("dashboard");
+    showNotice("先从今晚吃什么开始");
+  }
+
+  if (!session?.user && !onboardingComplete) {
+    return (
+      <AuthLanding
+        authProps={authProps}
+        onContinueGuest={continueAsGuest}
+      />
+    );
+  }
+
+  if (session?.user && !profileOnboardingComplete) {
+    return (
+      <ProfileOnboarding
+        profile={familyProfile}
+        onComplete={completeProfileOnboarding}
+        onSignOut={handleSignOut}
+      />
+    );
   }
 
   return (
@@ -1454,6 +1559,7 @@ function App() {
             {activeView === "dashboard" && (
               <Dashboard
                 todayRecipes={todayRecipes}
+                weekPlan={weekPlan}
                 recommendation={displayedRecommendation}
                 aiRecommendationStatus={aiRecommendationStatus}
                 aiRecommendationLoading={aiRecommendationLoading}
@@ -1467,6 +1573,9 @@ function App() {
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
                 session={session}
                 onOpenUserCenter={() => setActiveView("user")}
+                familyProfile={familyProfile}
+                onSelectPlanningMode={selectPlanningMode}
+                onPlanRecommendedWeek={planRecommendedWeek}
               />
             )}
             {activeView === "library" && (
@@ -1489,6 +1598,8 @@ function App() {
                 onAssign={assignPlan}
                 onRemove={removePlanRecipe}
                 onShare={shareWeekPlan}
+                onViewChange={setActiveView}
+                onGenerateWeek={planRecommendedWeek}
                 cloudSync={{
                   family,
                   enabled: cloudMenuEnabled,
@@ -1652,16 +1763,6 @@ function orderPlanDaysFrom(startDay) {
   return [...weekPlanDays.slice(startIndex), ...weekPlanDays.slice(0, startIndex)];
 }
 
-function getFamilyProfileCompletedCount(profile = {}) {
-  return [
-    profile.familySize,
-    profile.tastePreferences?.length,
-    profile.goals?.length,
-    profile.dislikes?.length || profile.allergies?.length,
-    profile.shoppingTolerance,
-  ].filter(Boolean).length;
-}
-
 function formatAiError(error) {
   const message = error?.message ?? "今晚建议暂时没想好。";
   if (message.includes("DEEPSEEK_API_KEY")) {
@@ -1689,29 +1790,5 @@ function formatInventoryShareSection(title, items) {
   if (items.length === 0) return `${title}\n- 无`;
   return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 到期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
-
-function buildCompactFamilyPrompt(profile = {}) {
-  const parts = [
-    `${profile.familySize ?? 2}人吃饭`,
-    profile.hasChildren ? "有孩子一起吃" : "",
-    listPart("口味", profile.tastePreferences),
-    listPart("目标", profile.goals),
-    listPart("不喜欢", profile.dislikes),
-    listPart("不能吃", profile.allergies),
-    shoppingToleranceLabel(profile.shoppingTolerance),
-  ].filter(Boolean);
-  return parts.join("；");
-}
-
-function listPart(label, values = []) {
-  return Array.isArray(values) && values.length > 0 ? `${label}:${values.join("、")}` : "";
-}
-
-function shoppingToleranceLabel(value) {
-  if (value === "low") return "少买菜，优先用库存";
-  if (value === "high") return "愿意专门买菜";
-  return "可买2-3样主食材";
-}
-
 
 createRoot(document.getElementById("root")).render(<App />);

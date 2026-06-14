@@ -21,10 +21,38 @@ async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-function buildPrompt(recipe) {
+function buildPrompt(recipe, variant = "original") {
   const ingredients = Array.isArray(recipe.ingredients)
     ? recipe.ingredients.join("、")
     : String(recipe.ingredients || "");
+
+  if (variant === "new") {
+    return `生成一张 Humi 菜品库素材图，不是海报，不是卡片。
+
+菜名：${recipe.name}
+主要食材：${ingredients}
+口味：${recipe.taste || ""}
+
+画风：
+水彩手绘美食插画，线条自然，食物有温度和烟火气，
+颜色可以比普通水彩更浓一点，酱汁有轻微光泽，但不要真实摄影感。
+
+构图：
+- 单盘菜，完整餐盘必须全部出现在画面内
+- 45度轻俯视或接近俯视视角
+- 菜品主体居中，占画面 62%-72%
+- 四周保留稳定奶白留白（背景色 #F5F4F1）
+
+背景：
+纯奶白纸张背景，颜色接近 #F5F4F1
+
+禁止：
+不要文字，不要菜名，不要 logo，不要水印，不要边框
+不要圆角卡片，不要投影/阴影，不要桌布，不要餐具装饰
+不要额外排版层，不要裁切盘子，不要过近特写
+不要生成海报、不要生成卡片 UI、不要生成真实摄影感
+`.trim();
+  }
 
   return `
 生成一张单道中式家常菜插画，用于 Family Menu App 的菜品卡片。
@@ -55,8 +83,10 @@ async function downloadImage(url, outputPath) {
   await fs.writeFile(outputPath, Buffer.from(arrayBuffer));
 }
 
-async function generateImage(recipe, index, total) {
-  const outputPath = path.join(OUTPUT_DIR, recipe.filename);
+async function generateImage(recipe, index, total, variant = "original") {
+  const outputSubDir = variant === "new" ? "preview-new" : "preview-compare";
+  const outputDir = path.join(ROOT, "public", "assets", "dishes", outputSubDir);
+  const outputPath = path.join(outputDir, recipe.filename.replace(".png", `-${variant}.png`));
 
   try {
     await fs.access(outputPath);

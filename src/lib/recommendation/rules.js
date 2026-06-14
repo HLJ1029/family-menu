@@ -1,4 +1,5 @@
 import { nutritionFor, recipes } from "../recipes";
+import { getPlanningMode } from "../profile";
 
 const recentRecipeIds = new Set();
 const dislikedSignals = ["鸡爪", "肥肠"];
@@ -9,10 +10,12 @@ export function buildTodayRecommendation({
   groceryItems = [],
   todayRecipes = [],
   familyMembers = [],
+  familyProfile = {},
   excludedRecipeIds = [],
 }) {
   const pantryState = buildPantryState(pantryItems);
-  const familyPreference = collectFamilyPreference(familyMembers);
+  const familyPreference = collectFamilyPreference(familyMembers, familyProfile);
+  const planningMode = getPlanningMode(familyProfile.planningMode);
   const excludedIds = new Set(excludedRecipeIds);
   Object.values(weekPlan)
     .flat()
@@ -24,7 +27,8 @@ export function buildTodayRecommendation({
     .filter(
       (recipe) =>
         !excludedIds.has(recipe.id) &&
-        !todayRecipes.some((item) => item.id === recipe.id),
+        !todayRecipes.some((item) => item.id === recipe.id) &&
+        !matchesSignals(recipe, familyPreference.allergies),
     )
     .map((recipe) => {
       const ingredientNames = recipe.ingredients.map((item) => normalize(item.name));
@@ -42,11 +46,13 @@ export function buildTodayRecommendation({
       const repeatedPenalty = recentRecipeIds.has(recipe.id) ? 22 : 0;
       const dislikedPenalty = dislikedSignals.some((signal) => recipe.name.includes(signal)) ? 16 : 0;
       const preferenceScore = scorePreference(recipe, familyPreference);
+      const modeScore = scorePlanningMode(recipe, planningMode.id);
       const score =
         quickBonus +
         balanceBonus +
         pantryBonus +
         nutritionBonus +
+        modeScore +
         preferenceScore.bonus -
         repeatedPenalty -
         dislikedPenalty -
@@ -63,10 +69,12 @@ export function buildTodayRecommendation({
     })
     .sort((a, b) => b.score - a.score);
 
-  const primary = scored[0]?.recipe ?? recipes[0];
+  const fallbackRecipes = recipes.filter((recipe) => !matchesSignals(recipe, familyPreference.allergies));
+  const primary = scored[0]?.recipe ?? fallbackRecipes[0] ?? recipes[0];
   const partner =
     scored.find(({ recipe }) => recipe.id !== primary.id && pairsWell(primary, recipe))?.recipe ??
     scored.find(({ recipe }) => recipe.id !== primary.id)?.recipe ??
+    fallbackRecipes.find((recipe) => recipe.id !== primary.id) ??
     recipes[1];
   const selected = [primary, partner].filter(Boolean);
   const selectedIds = new Set(selected.map((recipe) => recipe.id));
@@ -157,8 +165,8 @@ function buildPantryState(pantryItems) {
   );
 }
 
-function collectFamilyPreference(members) {
-  return members.reduce(
+function collectFamilyPreference(members, familyProfile = {}) {
+  const memberPreference = members.reduce(
     (summary, member) => {
       const preference = member.preference ?? {};
       return {
@@ -170,18 +178,16 @@ function collectFamilyPreference(members) {
     },
     { likes: [], dislikes: [], allergies: [], goals: [] },
   );
+  return {
+    likes: [...memberPreference.likes, ...(familyProfile.tastePreferences ?? [])].map(normalize),
+    dislikes: [...memberPreference.dislikes, ...(familyProfile.dislikes ?? [])].map(normalize),
+    allergies: [...memberPreference.allergies, ...(familyProfile.allergies ?? [])].map(normalize),
+    goals: [...memberPreference.goals, ...(familyProfile.goals ?? [])].map(normalize),
+  };
 }
 
 function scorePreference(recipe, familyPreference) {
-  const haystack = [
-    recipe.name,
-    recipe.description,
-    ...recipe.categories,
-    ...recipe.tags,
-    ...recipe.ingredients.map((item) => item.name),
-  ]
-    .map(normalize)
-    .join(" ");
+  const haystack = buildRecipeHaystack(recipe);
   const nutrition = nutritionFor(recipe);
   const likeHits = familyPreference.likes.filter((signal) => signal && haystack.includes(signal)).length;
   const dislikeHits = familyPreference.dislikes.filter((signal) => signal && haystack.includes(signal)).length;
@@ -201,11 +207,59 @@ function scorePreference(recipe, familyPreference) {
   };
 }
 
+function matchesSignals(recipe, signals = []) {
+  const haystack = buildRecipeHaystack(recipe);
+  return signals.some((signal) => signal && haystack.includes(signal));
+}
+
+function buildRecipeHaystack(recipe) {
+  return [
+    recipe.name,
+    recipe.description,
+    ...recipe.categories,
+    ...recipe.tags,
+    ...recipe.ingredients.map((item) => item.name),
+  ]
+    .map(normalize)
+    .join(" ");
+}
+
 function balancedCategoryScore(recipe) {
   if (recipe.categories.some((category) => ["蔬菜", "素菜", "清爽"].includes(category))) return 16;
   if (recipe.categories.some((category) => ["肉类", "海鲜", "豆制品", "蛋类"].includes(category))) return 12;
   if (recipe.categories.some((category) => ["汤", "粥"].includes(category))) return 8;
   return 4;
+}
+
+function scorePlanningMode(recipe, modeId) {
+  const haystack = [
+    recipe.name,
+    recipe.description,
+    ...recipe.categories,
+    ...recipe.tags,
+    ...recipe.ingredients.map((item) => item.name),
+  ]
+    .map(normalize)
+    .join(" ");
+  const nutrition = nutritionFor(recipe);
+
+  if (modeId === "fat_loss") {
+    return (nutrition.fatG <= 12 ? 14 : 0) +
+      (nutrition.proteinG >= 15 ? 10 : 0) +
+      (recipe.categories.some((category) => ["蔬菜", "素菜", "清爽", "汤"].includes(category)) ? 10 : 0) -
+      (haystack.includes("油炸") || haystack.includes("甜") ? 18 : 0);
+  }
+  if (modeId === "fitness") {
+    return (nutrition.proteinG >= 20 ? 18 : nutrition.proteinG >= 15 ? 12 : 0) +
+      (recipe.timeMinutes <= 35 ? 6 : 0) +
+      (haystack.includes("鸡胸") || haystack.includes("牛肉") || haystack.includes("虾") || haystack.includes("豆腐") ? 8 : 0);
+  }
+  if (modeId === "baby_food") {
+    return (recipe.timeMinutes <= 35 ? 6 : 0) +
+      (haystack.includes("粥") || haystack.includes("蒸") || haystack.includes("汤") || haystack.includes("软") ? 16 : 0) -
+      (haystack.includes("辣") || haystack.includes("油炸") || haystack.includes("坚果") || haystack.includes("蜂蜜") ? 40 : 0);
+  }
+  return recipe.timeMinutes <= 35 ? 8 : 0;
 }
 
 function pairsWell(primary, candidate) {

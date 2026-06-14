@@ -6,6 +6,18 @@ export function getCurrentPlanDay() {
   return dayMap[dayIndex] ?? "周一";
 }
 
+export function getWeekStartDate(date = new Date()) {
+  const nextDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayIndex = nextDate.getDay();
+  const mondayOffset = dayIndex === 0 ? -6 : 1 - dayIndex;
+  nextDate.setDate(nextDate.getDate() + mondayOffset);
+  return nextDate;
+}
+
+export function getWeekKey(date = new Date()) {
+  return formatDateKey(getWeekStartDate(date));
+}
+
 export function addDays(date, offset) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + offset);

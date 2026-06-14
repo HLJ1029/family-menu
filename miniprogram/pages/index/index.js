@@ -1,8 +1,14 @@
-const { HUMI_H5_URL } = require("../../utils/config");
+const { getHumiH5Url } = require("../../utils/config");
 
 Page({
   data: {
-    url: HUMI_H5_URL
+    url: ""
+  },
+
+  onLoad() {
+    this.setData({
+      url: getHumiH5Url()
+    });
   },
 
   handleLoad() {},

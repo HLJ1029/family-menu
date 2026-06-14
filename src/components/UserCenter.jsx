@@ -1,19 +1,15 @@
 import { useMemo, useState } from "react";
-import { Check, Cloud, Database, Heart, ShieldAlert, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { Check, Cloud, Database, Heart, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
-import { PwaLaunchPanel } from "./system/PwaLaunchPanel";
 import { Card } from "./ui/Card";
-
-const profileOptions = {
-  tastePreferences: ["家常", "清淡", "微辣", "下饭", "汤汤水水", "少油", "重口味", "新鲜感"],
-  goals: ["省时", "少买菜", "高蛋白", "多吃蔬菜", "控油", "控热量", "孩子爱吃", "适合带饭"],
-  dislikes: ["肥肠", "鸡爪", "太辣", "油炸", "海鲜", "香菜", "内脏", "甜口"],
-  allergies: ["花生", "海鲜", "乳糖", "坚果", "鸡蛋", "豆制品"],
-};
+import { isWechatMiniProgramWebView } from "../lib/runtime";
 
 export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session, family, familyProfile, setFamilyProfile }) {
+  const isWechatMiniProgram = isWechatMiniProgramWebView();
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
@@ -27,7 +23,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
           </p>
         </section>
 
-        <CloudAccount {...authProps} />
+        <CloudAccount {...authProps} hideAuthEntry={isWechatMiniProgram} />
         <FamilyProfilePanel
           session={session}
           profile={familyProfile}
@@ -38,8 +34,6 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
       </div>
 
       <aside className="grid content-start gap-5">
-        <PwaLaunchPanel compact />
-
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -53,7 +47,7 @@ export function UserCenter({ authProps, cloudMenuProps, preferenceProps, session
             <StatusRow label="我的家" value={family?.name ?? "未创建"} />
             <StatusRow
               label="保存方式"
-              value={getSyncModeLabel({ family, cloudMenuProps })}
+              value={isWechatMiniProgram && !family ? "本机游客模式" : getSyncModeLabel({ family, cloudMenuProps })}
             />
           </div>
         </Card>
@@ -152,6 +146,28 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
       )}
 
       <div className="mt-5 grid gap-4">
+        <ProfileStep icon={Sparkles} title="这次主要想规划什么">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {planningModes.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setDraft((current) => withPlanningModeDefaults(current, mode.id))}
+                className={`rounded-[20px] border p-4 text-left transition ${
+                  draft.planningMode === mode.id
+                    ? "border-ink bg-ink text-white"
+                    : "border-line bg-white text-ink/58 hover:text-ink"
+                }`}
+              >
+                <p className="text-sm font-black">{mode.label}</p>
+                <p className={`mt-1 text-xs font-bold leading-5 ${draft.planningMode === mode.id ? "text-white/58" : "text-ink/40"}`}>
+                  {mode.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </ProfileStep>
+
         <ProfileStep icon={Users} title="家里几个人吃饭">
           <div className="grid grid-cols-4 gap-2">
             {[1, 2, 3, 4].map((size) => (
@@ -290,38 +306,6 @@ function ChoiceButton({ active, label, note, onClick }) {
       {note && <span className={`ml-1 text-xs ${active ? "text-white/58" : "text-ink/38"}`}>{note}</span>}
     </button>
   );
-}
-
-function getProfileCompletedCount(profile = {}) {
-  return [
-    profile.familySize,
-    profile.tastePreferences?.length,
-    profile.goals?.length,
-    profile.dislikes?.length || profile.allergies?.length,
-    profile.shoppingTolerance,
-  ].filter(Boolean).length;
-}
-
-function formatProfileSummary(profile = {}) {
-  const parts = [
-    `${profile.familySize ?? 2}人吃饭`,
-    profile.hasChildren ? "有孩子一起吃" : "",
-    listSummary("偏好", profile.tastePreferences),
-    listSummary("目标", profile.goals),
-    listSummary("避开", [...(profile.dislikes ?? []), ...(profile.allergies ?? [])]),
-    shoppingLabel(profile.shoppingTolerance),
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join("；") : "还没填写画像，Humi 会先按通用家庭晚饭来安排。";
-}
-
-function listSummary(label, values = []) {
-  return values.length > 0 ? `${label} ${values.slice(0, 4).join("、")}` : "";
-}
-
-function shoppingLabel(value) {
-  if (value === "low") return "尽量少买菜";
-  if (value === "high") return "愿意为好吃专门买";
-  return "可以买2-3样主食材";
 }
 
 function getSyncModeLabel({ family, cloudMenuProps }) {

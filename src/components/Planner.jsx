@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Share2, X } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, Plus, Search, Share2, Wand2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -8,7 +8,7 @@ import { MiniMeal } from "./ui/MiniMeal";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync, onShare }) {
+export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync, onShare, onViewChange, onGenerateWeek }) {
   const [selectedDay, setSelectedDay] = useState(days[0]);
   const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0]?.id ?? "");
   const [pickerDay, setPickerDay] = useState(null);
@@ -47,6 +47,8 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
 
   return (
     <section className="grid gap-5">
+      <PlanSubnav onViewChange={onViewChange} onGenerateWeek={onGenerateWeek} />
+
       <Card>
         <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
@@ -278,5 +280,52 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
         </div>
       )}
     </section>
+  );
+}
+
+function PlanSubnav({ onViewChange, onGenerateWeek }) {
+  return (
+    <Card>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="eyebrow">Plan workspace</p>
+          <h3 className="card-title">菜单计划工作台</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            本周计划是主线；今晚、营养和日历作为独立页面从这里进入。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onGenerateWeek}
+          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+        >
+          <Wand2 size={17} />
+          生成本周计划
+        </button>
+      </div>
+      <div className="mt-5 grid gap-2 sm:grid-cols-4">
+        <SubnavButton active icon={CalendarDays} label="本周" onClick={() => onViewChange("planner")} />
+        <SubnavButton icon={ClipboardList} label="今晚" onClick={() => onViewChange("today")} />
+        <SubnavButton icon={BarChart3} label="营养" onClick={() => onViewChange("stats")} />
+        <SubnavButton icon={CalendarDays} label="日历" onClick={() => onViewChange("calendar")} />
+      </div>
+    </Card>
+  );
+}
+
+function SubnavButton({ active = false, icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black transition ${
+        active
+          ? "border-ink bg-ink text-white"
+          : "border-line bg-canvas text-ink/58 hover:border-ink/20 hover:text-ink"
+      }`}
+    >
+      <Icon size={17} className={active ? "text-acid" : ""} />
+      {label}
+    </button>
   );
 }

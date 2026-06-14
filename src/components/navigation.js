@@ -1,26 +1,32 @@
 import {
-  BarChart3,
   CalendarDays,
   ChefHat,
-  ClipboardList,
   Home,
-  PackageCheck,
   ShoppingBasket,
   UserRound,
 } from "lucide-react";
 
 export const navItems = [
   { id: "dashboard", label: "首页", icon: Home },
-  { id: "library", label: "自己挑", icon: ChefHat },
-  { id: "today", label: "今晚菜单", icon: ClipboardList },
-  { id: "planner", label: "一周计划", icon: CalendarDays },
-  { id: "calendar", label: "日历", icon: CalendarDays },
-  { id: "grocery", label: "食材清单", icon: ShoppingBasket },
-  { id: "inventory", label: "家中库存", icon: PackageCheck },
-  { id: "stats", label: "统计", icon: BarChart3 },
+  { id: "planner", label: "计划", icon: CalendarDays },
+  { id: "grocery", label: "清单", icon: ShoppingBasket },
+  { id: "library", label: "菜谱", icon: ChefHat },
   { id: "user", label: "我的家", icon: UserRound },
 ];
 
-export const mobileNavItems = navItems.filter((item) =>
-  ["dashboard", "library", "planner", "grocery"].includes(item.id),
-);
+export const auxiliaryNavItems = [
+  { id: "today", label: "今晚菜单", icon: CalendarDays },
+  { id: "calendar", label: "日历", icon: CalendarDays },
+  { id: "inventory", label: "家中库存", icon: ShoppingBasket },
+  { id: "stats", label: "营养视图", icon: CalendarDays },
+];
+
+export function getNavItem(id) {
+  return [...navItems, ...auxiliaryNavItems].find((item) => item.id === id);
+}
+
+export const mobileNavItems = [
+  navItems.find((item) => item.id === "dashboard"),
+  navItems.find((item) => item.id === "planner"),
+  navItems.find((item) => item.id === "grocery"),
+].filter(Boolean);
