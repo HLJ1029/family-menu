@@ -543,11 +543,15 @@ function App() {
     setTodayMenu((current) => {
       const existing = current.find((item) => item.recipeId === recipeId);
       if (existing) {
-        return current.map((item) =>
+        const nextMenu = current.map((item) =>
           item.recipeId === recipeId ? { ...item, quantity: item.quantity + safeQuantity } : item,
         );
+        syncHomeMealLogWithMenu(nextMenu, { defaultSelectedRecipeId: recipeId });
+        return nextMenu;
       }
-      return [...current, { recipeId, quantity: safeQuantity }];
+      const nextMenu = [...current, { recipeId, quantity: safeQuantity }];
+      syncHomeMealLogWithMenu(nextMenu, { defaultSelectedRecipeId: recipeId });
+      return nextMenu;
     });
     if (!alreadyInCurrentPlan) {
       setWeekPlan((current) => {
@@ -605,7 +609,15 @@ function App() {
   }
 
   function setDinnerSource(source) {
-    updateTodayMealLog({ source });
+    if (source === "home") {
+      updateTodayMealLog({
+        source,
+        confirmation: todayMenu.length > 0 ? "all" : undefined,
+        consumedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+      });
+    } else {
+      updateTodayMealLog({ source, confirmation: undefined, consumedEntries: [] });
+    }
     const labels = {
       home: "今天在家做饭",
       delivery: "今天点外卖",
@@ -616,13 +628,73 @@ function App() {
   }
 
   function setDinnerConfirmation(confirmation) {
-    updateTodayMealLog({ confirmation });
+    updateTodayMealLog({
+      confirmation,
+      consumedEntries: confirmation === "all"
+        ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
+        : todayMealLog.consumedEntries ?? [],
+    });
     const labels = {
       all: "已确认今晚吃了",
       partial: "已记录吃了一部分",
       missed: "已记录今晚没做",
     };
     showNotice(labels[confirmation] ?? "晚餐确认已记录");
+  }
+
+  function toggleConsumedRecipe(recipeId) {
+    const currentEntries = todayMealLog.consumedEntries ?? todayMenu.map((item) => ({
+      recipeId: item.recipeId,
+      quantity: item.quantity,
+    }));
+    const exists = currentEntries.some((entry) => entry.recipeId === recipeId);
+    const nextEntries = exists
+      ? currentEntries.filter((entry) => entry.recipeId !== recipeId)
+      : [
+          ...currentEntries,
+          todayMenu.find((item) => item.recipeId === recipeId) ?? { recipeId, quantity: 1 },
+        ];
+    updateTodayMealLog({
+      consumedEntries: nextEntries,
+      confirmation: nextEntries.length === todayMenu.length ? "all" : nextEntries.length > 0 ? "partial" : "missed",
+    });
+  }
+
+  function syncHomeMealLogWithMenu(nextMenu, { defaultSelectedRecipeId } = {}) {
+    setMealLogs((current) => {
+      const currentLog = current[todayDateKey];
+      if (currentLog?.source !== "home") return current;
+
+      const nextMenuById = new Map(nextMenu.map((item) => [item.recipeId, item]));
+      const existingEntries = currentLog.consumedEntries ?? todayMenu.map((item) => ({
+        recipeId: item.recipeId,
+        quantity: item.quantity,
+      }));
+      const existingSelectedIds = new Set(existingEntries.map((entry) => entry.recipeId));
+      if (defaultSelectedRecipeId) existingSelectedIds.add(defaultSelectedRecipeId);
+
+      const consumedEntries = nextMenu
+        .filter((item) => existingSelectedIds.has(item.recipeId) || currentLog.confirmation === "all")
+        .map((item) => ({
+          recipeId: item.recipeId,
+          quantity: nextMenuById.get(item.recipeId)?.quantity ?? item.quantity,
+        }));
+      const confirmation = consumedEntries.length === nextMenu.length
+        ? "all"
+        : consumedEntries.length > 0
+          ? "partial"
+          : "missed";
+
+      return {
+        ...current,
+        [todayDateKey]: {
+          ...currentLog,
+          consumedEntries,
+          confirmation,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    });
   }
 
   function planRecommendedWeek() {
@@ -785,13 +857,17 @@ function App() {
 
   function updateTodayQuantity(recipeId, delta) {
     setTodayMenu((current) =>
-      current
+      {
+        const nextMenu = current
         .map((item) =>
           item.recipeId === recipeId
             ? { ...item, quantity: Math.max(0, item.quantity + delta) }
             : item,
         )
-        .filter((item) => item.quantity > 0),
+          .filter((item) => item.quantity > 0);
+        syncHomeMealLogWithMenu(nextMenu);
+        return nextMenu;
+      }
     );
   }
 
@@ -1684,6 +1760,7 @@ function App() {
                 mealLog={todayMealLog}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
+                onToggleConsumedRecipe={toggleConsumedRecipe}
               />
             )}
             {activeView === "library" && (
@@ -1731,6 +1808,7 @@ function App() {
                 mealLog={todayMealLog}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
+                onToggleConsumedRecipe={toggleConsumedRecipe}
                 cloudSync={{
                   family,
                   enabled: cloudMenuEnabled,

@@ -96,13 +96,16 @@ export function buildMealInsights({
   const monthKey = formatMonthKey(currentDate);
   const goals = normalizeNutritionGoals(familyProfile, nutritionGoals);
   const monthLogs = Object.entries(mealLogs).filter(([dateKey]) => dateKey.startsWith(monthKey));
-  const confirmedMeals = Object.entries(mealCalendar ?? {})
+  const confirmedMeals = Object.entries(mealLogs ?? {})
     .filter(([dateKey]) => dateKey.startsWith(monthKey))
-    .filter(([dateKey]) => mealLogs[dateKey]?.confirmation === "all")
-    .map(([dateKey, recipeIds]) => ({
+    .filter(([, log]) => log?.confirmation === "all")
+    .map(([dateKey, log]) => ({
       dateKey,
-      source: mealLogs[dateKey]?.source,
-      recipes: recipeIds.map((recipeId) => getRecipe(recipeId)).filter(Boolean),
+      source: log?.source,
+      recipes: buildConsumedRecipes({
+        consumedEntries: log?.consumedEntries,
+        recipeIds: mealCalendar?.[dateKey],
+      }),
     }))
     .filter((meal) => meal.recipes.length > 0);
   const confirmedRecipes = confirmedMeals.flatMap((meal) => meal.recipes);
@@ -150,6 +153,19 @@ function sumNutrition(recipeList) {
     },
     { caloriesKcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
   );
+}
+
+function buildConsumedRecipes({ consumedEntries, recipeIds }) {
+  if (Array.isArray(consumedEntries) && consumedEntries.length > 0) {
+    return consumedEntries.flatMap((entry) => {
+      const recipe = getRecipe(entry.recipeId);
+      if (!recipe) return [];
+      const quantity = Math.max(1, Number.parseInt(entry.quantity, 10) || 1);
+      return Array.from({ length: quantity }, () => recipe);
+    });
+  }
+
+  return (recipeIds ?? []).map((recipeId) => getRecipe(recipeId)).filter(Boolean);
 }
 
 function averageNutrition(totals, count) {

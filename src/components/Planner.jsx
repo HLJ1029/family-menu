@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Plus, Search, Share2, ShoppingBasket, Wand2, X } from "lucide-react";
+import { CalendarDays, Plus, Search, Share2, ShoppingBasket, Utensils, Wand2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
 import { getRecipe, photoFor, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -9,16 +9,16 @@ import { MiniMeal } from "./ui/MiniMeal";
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
 export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync, onShare, onViewChange, onGenerateWeek }) {
-  const [selectedDay, setSelectedDay] = useState(days[0]);
+  const currentDay = getCurrentPlanDay();
+  const [selectedDay, setSelectedDay] = useState(currentDay);
   const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0]?.id ?? "");
   const [pickerDay, setPickerDay] = useState(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const selectedRecipe = getRecipe(selectedRecipeId);
-  const currentDay = getCurrentPlanDay();
   const pickerRecipes = recipes.filter((recipe) => {
     const keyword = pickerQuery.trim().toLowerCase();
     if (!keyword) return true;
-    return [recipe.name, recipe.description, ...recipe.categories, ...recipe.tags]
+    return [recipe.name, recipe.description, ...recipe.categories, ...(recipe.tags ?? [])]
       .join(" ")
       .toLowerCase()
       .includes(keyword);
@@ -51,11 +51,19 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
         <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <p className="eyebrow">本周计划</p>
-            <h3 className="card-title">一周晚饭排在这里</h3>
+            <h3 className="card-title">先把今晚安排好</h3>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              今天是{currentDay}。每一天只处理菜单安排；营养、库存和今晚菜单都从对应流程进入。
+              今天是{currentDay}。Humi 会把今晚菜单自动沉淀到这里；需要时再补后面几天。
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onViewChange("today")}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-acid px-4 py-2 text-sm font-black text-ink transition hover:-translate-y-0.5"
+              >
+                <Utensils size={15} />
+                回到今晚菜单
+              </button>
               {days.map((day) => (
                 <button
                   key={day}
@@ -97,10 +105,10 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
               <button
                 type="button"
                 onClick={onGenerateWeek}
-                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-acid px-4 py-2 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink"
               >
                 <Wand2 size={15} />
-                生成本周计划
+                需要时生成后几天
               </button>
             </div>
           </div>
@@ -219,7 +227,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   ))
                 ) : (
                   <div className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/45">
-                    还没安排。点“添加菜品”挑一道菜；桌面端也可以把菜拖到这里。
+                    还没安排。点“添加菜品”挑一道菜。
                   </div>
                 )}
               </div>

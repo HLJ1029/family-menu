@@ -1,3 +1,5 @@
+import { photoFor } from "./recipes";
+
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
 const COLORS = {
@@ -10,13 +12,13 @@ const COLORS = {
 };
 
 const shoppingPosterStyles = ["default", "default", "default", "default", "theme"];
-const HUMI_ICON_URL = "/family-menu/icons/humi-icon-512.png";
+const HUMI_ICON_URL = "/icons/humi-icon-512.png";
 
 export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
     const heroRecipe = recipes[0];
-    const heroImage = await loadImageSafe(heroRecipe?.image?.url);
+    const heroImage = await loadImageSafe(heroRecipe ? photoFor(heroRecipe) : "");
     drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage });
   });
 }
@@ -33,7 +35,7 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
     const featuredRecipes = weekRecipes.slice(0, 4);
-    const featuredImages = await Promise.all(featuredRecipes.map((recipe) => loadImageSafe(recipe.image?.url)));
+    const featuredImages = await Promise.all(featuredRecipes.map((recipe) => loadImageSafe(photoFor(recipe))));
     drawWeeklyTemplateA(ctx, {
       icon,
       plannedDays,
@@ -423,8 +425,13 @@ function loadImageSafe(src) {
     image.decoding = "async";
     image.onload = () => resolve(image);
     image.onerror = () => resolve(null);
-    image.src = src;
+    image.src = normalizePosterAssetUrl(src);
   });
+}
+
+function normalizePosterAssetUrl(src) {
+  if (!src.startsWith("/family-menu/")) return src;
+  return `/${src.slice("/family-menu/".length)}`;
 }
 
 function drawRoundedImage(ctx, image, x, y, width, height, radius, options = {}) {

@@ -23,6 +23,7 @@ export function UserCenter({
   onViewChange,
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const [activeSettings, setActiveSettings] = useState(null);
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
@@ -48,11 +49,6 @@ export function UserCenter({
         </section>
 
         <CloudAccount {...authProps} hideAuthEntry={isWechatMiniProgram} />
-        <FamilyProfilePanel
-          session={session}
-          profile={familyProfile}
-          setProfile={setFamilyProfile}
-        />
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -77,13 +73,43 @@ export function UserCenter({
             <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
           </div>
         </section>
-        <NutritionGoalsPanel
-          profile={familyProfile}
-          goals={nutritionGoals}
-          setGoals={setNutritionGoals}
-        />
+
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">设置</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">需要改时再进入</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                家庭画像和营养目标会自动保存。我的家默认展示结果，不把表单一直摊开。
+              </p>
+            </div>
+            <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/45">
+              {formatProfileSummary(familyProfile)}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UtilityButton icon={UserRound} label="修改家庭画像" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+            <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
+            <UtilityButton icon={Users} label="家人口味" onClick={() => setActiveSettings(activeSettings === "preferences" ? null : "preferences")} />
+          </div>
+        </section>
+
+        {activeSettings === "profile" && (
+          <FamilyProfilePanel
+            session={session}
+            profile={familyProfile}
+            setProfile={setFamilyProfile}
+          />
+        )}
+        {activeSettings === "goals" && (
+          <NutritionGoalsPanel
+            profile={familyProfile}
+            goals={nutritionGoals}
+            setGoals={setNutritionGoals}
+          />
+        )}
         <CloudSyncPanel {...cloudMenuProps} />
-        <FamilyPreferencesPanel {...preferenceProps} />
+        {activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
       </div>
 
       <aside className="grid content-start gap-5">

@@ -43,6 +43,7 @@ export function Dashboard({
   mealLog,
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onToggleConsumedRecipe,
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -217,6 +218,8 @@ export function Dashboard({
         mealLog={mealLog}
         onSetDinnerSource={onSetDinnerSource}
         onSetDinnerConfirmation={onSetDinnerConfirmation}
+        onToggleConsumedRecipe={onToggleConsumedRecipe}
+        todayRecipes={todayRecipes}
         showConfirmation={dinnerReady}
         dinnerReady={dinnerReady}
         onViewChange={onViewChange}
@@ -271,6 +274,8 @@ export function DinnerLogPanel({
   mealLog,
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onToggleConsumedRecipe,
+  todayRecipes = [],
   showConfirmation,
   dinnerReady = false,
   onViewChange,
@@ -323,6 +328,38 @@ export function DinnerLogPanel({
           </div>
         )}
       </div>
+      {mealLog?.source === "home" && todayRecipes.length > 0 && (
+        <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+          <p className="text-xs font-black text-ink/38">今天吃过的菜</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {todayRecipes.map((recipe) => {
+              const selectedEntries = mealLog?.consumedEntries ?? todayRecipes.map((item) => ({
+                recipeId: item.id,
+                quantity: item.menuQuantity ?? 1,
+              }));
+              const checked = selectedEntries.some((entry) => entry.recipeId === recipe.id);
+              return (
+                <button
+                  key={recipe.id}
+                  type="button"
+                  onClick={() => onToggleConsumedRecipe?.(recipe.id)}
+                  className={`flex min-h-11 items-center justify-between gap-3 rounded-full border px-4 text-left text-sm font-black transition ${
+                    checked ? "border-ink bg-ink text-white" : "border-line bg-white text-ink/58"
+                  }`}
+                >
+                  <span className="truncate">{recipe.name}</span>
+                  <span className={checked ? "text-acid" : "text-ink/35"}>
+                    {checked ? "已计入" : "不计入"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs font-bold leading-5 text-ink/42">
+            营养统计只使用这里勾选的菜品和份量，主食加入今晚菜单后也会一起计算。
+          </p>
+        </div>
+      )}
       {sourceResult && (
         <div className="dinner-result-enter mt-4 rounded-[22px] border border-line bg-canvas p-4">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">结果</p>

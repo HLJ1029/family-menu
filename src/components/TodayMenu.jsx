@@ -17,6 +17,7 @@ export function TodayMenu({
   mealLog,
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onToggleConsumedRecipe,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
@@ -55,6 +56,8 @@ export function TodayMenu({
           mealLog={mealLog}
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onToggleConsumedRecipe={onToggleConsumedRecipe}
+          todayRecipes={todayRecipes}
           showConfirmation={false}
           dinnerReady={false}
           onViewChange={onViewChange}
@@ -81,7 +84,7 @@ export function TodayMenu({
                 今晚安排完成。
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。下一步先确认采购清单。
+                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。还可以继续加菜或加主食。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -107,7 +110,7 @@ export function TodayMenu({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <Plus size={18} />
-                调整菜单
+                加菜 / 加主食
               </button>
               <button
                 type="button"
@@ -141,6 +144,8 @@ export function TodayMenu({
           mealLog={mealLog}
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onToggleConsumedRecipe={onToggleConsumedRecipe}
+          todayRecipes={todayRecipes}
           showConfirmation
           dinnerReady
           onViewChange={onViewChange}
@@ -252,17 +257,31 @@ export function TodayMenu({
 
 function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
   const [keyword, setKeyword] = useState("");
+  const [activePreset, setActivePreset] = useState("all");
   const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
+  const hasStaple = useMemo(
+    () => todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食")),
+    [todayRecipes],
+  );
+  const stapleRecipes = useMemo(
+    () => recipes
+      .filter((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"))
+      .slice(0, 4),
+    [],
+  );
   const visibleRecipes = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
     return recipes
       .filter((recipe) => {
+        if (activePreset === "staple" && !recipe.categories.includes("主食") && !recipe.tags?.includes("主食")) return false;
+        if (activePreset === "quick" && recipe.timeMinutes > 25) return false;
+        if (activePreset === "protein" && !recipe.categories.some((category) => ["肉类", "鱼虾", "蛋类"].includes(category))) return false;
         if (!normalizedKeyword) return true;
         return [
           recipe.name,
           recipe.description,
           ...recipe.categories,
-          ...recipe.tags,
+          ...(recipe.tags ?? []),
           ...recipe.ingredients.map((item) => item.name),
         ]
           .join(" ")
@@ -270,7 +289,7 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
           .includes(normalizedKeyword);
       })
       .slice(0, 12);
-  }, [keyword]);
+  }, [activePreset, keyword]);
 
   return (
     <section className="rounded-[28px] border border-line bg-white p-4 shadow-card md:p-5">
@@ -288,6 +307,59 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
             placeholder="搜索菜名、食材"
           />
         </div>
+      </div>
+
+      {!hasStaple && stapleRecipes.length > 0 && (
+        <div className="mt-4 rounded-[22px] border border-line bg-canvas p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">Staple</p>
+              <p className="mt-1 text-sm font-black">补一个主食，营养统计会一起计入</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActivePreset("staple")}
+              className="shrink-0 rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
+            >
+              看主食
+            </button>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {stapleRecipes.map((recipe) => (
+              <button
+                key={recipe.id}
+                type="button"
+                onClick={() => onAddToday(recipe.id)}
+                className="flex min-h-12 items-center justify-between gap-3 rounded-[18px] bg-white px-3 text-left text-sm font-black transition hover:-translate-y-0.5"
+              >
+                <span className="truncate">{recipe.name}</span>
+                <span className="rounded-full bg-acid px-2.5 py-1 text-xs text-ink">加入</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          ["all", "全部"],
+          ["staple", "主食"],
+          ["quick", "25分钟内"],
+          ["protein", "蛋白类"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActivePreset(id)}
+            className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+              activePreset === id
+                ? "border-ink bg-ink text-white"
+                : "border-line bg-canvas text-ink/54 hover:border-ink/20 hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
