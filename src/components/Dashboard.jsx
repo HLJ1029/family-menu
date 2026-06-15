@@ -307,7 +307,10 @@ export function DinnerLogPanel({
                 key={source.id}
                 active={mealLog?.source === source.id}
                 label={source.label}
-                onClick={() => onSetDinnerSource(source.id)}
+                onClick={() => {
+                  onSetDinnerSource(source.id);
+                  if (source.id === "home") window.setTimeout(() => onViewChange?.("today"), 160);
+                }}
               />
             ))}
           </div>

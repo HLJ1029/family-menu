@@ -94,6 +94,8 @@ registerServiceWorker();
 function App() {
   const appOpenTrackedRef = useRef(false);
   const flowMotionTimerRef = useRef(null);
+  const viewHistoryRef = useRef(["dashboard"]);
+  const swipeStartRef = useRef(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
@@ -1680,11 +1682,50 @@ function App() {
     showNotice(`已切换到${getPlanningMode(modeId).label}`);
   }
 
-  function navigateTo(nextView) {
+  function navigateTo(nextView, options = {}) {
+    if (!nextView || nextView === activeView) return;
+    if (options.replace) {
+      viewHistoryRef.current = [...viewHistoryRef.current.slice(0, -1), nextView];
+    } else {
+      viewHistoryRef.current = [...viewHistoryRef.current, nextView].slice(-12);
+    }
     setFlowMotion(getFlowMotion(activeView, nextView));
     setActiveView(nextView);
     window.clearTimeout(flowMotionTimerRef.current);
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
+  }
+
+  function goBack() {
+    const history = viewHistoryRef.current;
+    const previousView = history.length > 1 ? history[history.length - 2] : "dashboard";
+    viewHistoryRef.current = history.length > 1 ? history.slice(0, -1) : ["dashboard"];
+    if (previousView === activeView) return;
+    setFlowMotion(getFlowMotion(activeView, previousView));
+    setActiveView(previousView);
+    window.clearTimeout(flowMotionTimerRef.current);
+    flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
+  }
+
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch || touch.clientX > 36) return;
+    swipeStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+    };
+  }
+
+  function handleTouchEnd(event) {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    const touch = event.changedTouches?.[0];
+    if (!start || !touch || activeView === "dashboard") return;
+    const dx = touch.clientX - start.x;
+    const dy = Math.abs(touch.clientY - start.y);
+    if (dx > 72 && dy < 70 && Date.now() - start.time < 800) {
+      goBack();
+    }
   }
 
   function continueAsGuest() {
@@ -1725,7 +1766,11 @@ function App() {
       <OfflineStatus online={online} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
         <Sidebar activeView={activeView} onChange={navigateTo} />
-        <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main
+          className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {activeView !== "dashboard" && (
             <Topbar
               activeView={activeView}
@@ -1733,6 +1778,7 @@ function App() {
               setQuery={setQuery}
               session={displaySession}
               onOpenUserCenter={() => navigateTo("user")}
+              onBack={goBack}
             />
           )}
           <div key={activeView} className={`view-enter ${flowMotion ? `flow-motion-${flowMotion}` : ""}`}>

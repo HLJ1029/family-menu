@@ -1,4 +1,4 @@
-import { ChefHat, Search, UserRound } from "lucide-react";
+import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { getNavItem, mobileNavItems, navItems } from "./navigation";
 import { DoodlePot } from "./ui/Doodles";
@@ -65,7 +65,7 @@ export function AccountAvatar({ session, onClick, compact = false }) {
   );
 }
 
-export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter }) {
+export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter, onBack }) {
   const activeItem = getNavItem(activeView);
   const title = activeItem?.label ?? "Humi";
 
@@ -73,6 +73,14 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter 
     <header className="mb-5 flex flex-col gap-4 lg:mb-7 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
+            aria-label="返回上一页"
+          >
+            <ArrowLeft size={17} />
+          </button>
           <span className="h-2 w-2 rounded-full bg-acid" />
           Humi
         </div>

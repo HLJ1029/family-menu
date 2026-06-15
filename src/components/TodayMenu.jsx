@@ -19,7 +19,7 @@ export function TodayMenu({
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
 }) {
-  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [showAddPanel, setShowAddPanel] = useState(true);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -110,7 +110,7 @@ export function TodayMenu({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <Plus size={18} />
-                加菜 / 加主食
+                {showAddPanel ? "收起加菜" : "加菜 / 加主食"}
               </button>
               <button
                 type="button"
