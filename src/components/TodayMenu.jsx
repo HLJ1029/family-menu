@@ -56,6 +56,8 @@ export function TodayMenu({
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
           showConfirmation={false}
+          dinnerReady={false}
+          onViewChange={onViewChange}
         />
         <CloudInlineStatus
           {...cloudSync}
@@ -76,28 +78,36 @@ export function TodayMenu({
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚准备做 {todayRecipes.length} 道菜。
+                今晚安排完成。
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-                调整份数后，买菜清单会跟着变。做饭时点菜卡，就能看步骤。
+                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。下一步先确认采购清单。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setShowAddPanel((current) => !current)}
+                onClick={() => onViewChange("grocery")}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
-                <Plus size={18} />
-                添加菜品
+                <ShoppingBasket size={18} />
+                查看采购清单
               </button>
               <button
                 type="button"
-                onClick={() => onViewChange("grocery")}
+                onClick={() => onOpenRecipe(todayRecipes[0]?.id)}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
-                <ShoppingBasket size={18} />
-                看看还要买什么
+                <Utensils size={18} />
+                开始做饭
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddPanel((current) => !current)}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <Plus size={18} />
+                调整菜单
               </button>
               <button
                 type="button"
@@ -132,6 +142,8 @@ export function TodayMenu({
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
           showConfirmation
+          dinnerReady
+          onViewChange={onViewChange}
         />
 
         <div className="grid gap-4">

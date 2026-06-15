@@ -1886,16 +1886,27 @@ function normalizeName(value) {
 
 function EntryTableMotion() {
   return (
-    <div className="entry-table-motion fixed inset-0 z-[90] grid place-items-center bg-ink text-white">
+    <div className="entry-table-motion fixed inset-0 z-[90] overflow-hidden bg-ink text-white">
       <div className="entry-table-motion__glow" />
+      <div className="entry-decision-copy">
+        <p className="entry-decision-line entry-decision-line--one">今天吃什么？</p>
+        <div className="entry-decision-options">
+          <span>炒菜</span>
+          <span>面条</span>
+          <span>外卖</span>
+          <span>火锅</span>
+        </div>
+        <p className="entry-decision-line entry-decision-line--two">不用纠结</p>
+        <p className="entry-decision-line entry-decision-line--three">Humi 帮你安排</p>
+      </div>
       <div className="entry-table-motion__plate">
         <span className="entry-table-motion__dish entry-table-motion__dish--one" />
         <span className="entry-table-motion__dish entry-table-motion__dish--two" />
-        <span className="entry-table-motion__dish entry-table-motion__dish--three" />
       </div>
-      <div className="relative z-10 mt-48 text-center">
+      <div className="entry-final-copy">
         <p className="text-xs font-black uppercase tracking-[0.28em] text-acid">HUMI</p>
-        <p className="mt-3 text-2xl font-black tracking-[-0.04em]">正在为今晚摆桌</p>
+        <p className="mt-3 text-2xl font-black tracking-[-0.04em]">今晚安排好了</p>
+        <p className="mt-2 text-sm font-bold text-white/54">肉末蒸蛋 · 青椒豆腐</p>
       </div>
     </div>
   );

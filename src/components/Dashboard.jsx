@@ -45,6 +45,7 @@ export function Dashboard({
   onSetDinnerConfirmation,
 }) {
   const [arranging, setArranging] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
   const recommendedItems = getRecommendationItems(recommendation);
@@ -53,7 +54,8 @@ export function Dashboard({
     ? todayRecipes.map((recipe) => ({ recipe, quantity: recipe.menuQuantity ?? 1 }))
     : recommendedItems;
   const heroRecipe = dinnerReady ? todayRecipes[0] : recommendedRecipes[0];
-  const totalMinutes = recommendedRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
+  const activeRecipes = dinnerReady ? todayRecipes : recommendedRecipes;
+  const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
   const weekDishCount = Object.values(weekPlan ?? {}).reduce((total, recipeIds) => total + recipeIds.length, 0);
   const recentPlan = Object.entries(weekPlan ?? {})
@@ -65,6 +67,9 @@ export function Dashboard({
     onAddRecommended();
     window.setTimeout(() => onViewChange("today"), 520);
   }
+
+  const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
+  const coreSummary = `预计 ${totalMinutes || 25} 分钟 · 需购买 ${purchaseCount} 项食材`;
 
   return (
     <div className="grid gap-5">
@@ -104,12 +109,10 @@ export function Dashboard({
           <div className="max-w-4xl">
             <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">今晚吃什么</p>
             <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
-              {dinnerReady ? "今晚已经安排好。" : recommendation.title}
+              {dinnerReady ? "今晚安排好了。" : recommendation.title}
             </h1>
             <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-white/72">
-              {dinnerReady
-                ? `今晚菜单已有 ${todayRecipes.length} 道菜，清单会自动汇总还缺什么。`
-                : `${recommendation.reason || formatProfileSummary(familyProfile)} 已按 ${recommendation.familySize ?? familyProfile.familySize ?? 2} 口人安排。`}
+              {coreSummary}
             </p>
           </div>
 
@@ -138,42 +141,6 @@ export function Dashboard({
             ))}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <StatusPill icon={Clock3} label="预计" value={dinnerReady ? "已安排" : `${totalMinutes || 25} 分钟`} />
-            <StatusPill
-              icon={ShoppingBasket}
-              label="待买"
-              value={dinnerReady ? `${groceryItemCount} 项` : `${recommendation.missingItems.length} 项`}
-            />
-            {!dinnerReady && (
-              <StatusPill icon={Utensils} label="份量" value={`${recommendedRecipes.length} 道 / ${totalRecommendationPortions} 份`} />
-            )}
-            <StatusPill icon={CalendarDays} label="本周" value={`${weekDishCount} 道菜`} />
-          </div>
-          {!dinnerReady && recommendation.missingItems.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {recommendation.missingItems.slice(0, 5).map((item) => (
-                <span
-                  key={item.name}
-                  className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70"
-                >
-                  缺 {item.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {!profileReady && (
-            <button
-              type="button"
-              onClick={onOpenUserCenter}
-              className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
-            >
-              <Sparkles size={17} className="text-acid" />
-              先设置饮食偏好
-            </button>
-          )}
-
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
@@ -197,9 +164,52 @@ export function Dashboard({
               {dinnerReady ? "查看清单" : "换一组"}
             </button>
           </div>
-          <p className="mt-3 max-w-xl text-xs font-bold leading-5 text-white/54">
-            {aiRecommendationStatus}
-          </p>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((current) => !current)}
+            className="mt-4 text-xs font-black text-white/58 underline decoration-white/20 underline-offset-4 transition hover:text-white"
+          >
+            {detailsOpen ? "收起安排依据" : "展开安排依据"}
+          </button>
+          {detailsOpen && (
+            <div className="tonight-detail-panel mt-4 rounded-[24px] border border-white/14 bg-white/10 p-4 backdrop-blur-xl">
+              <div className="flex flex-wrap gap-2">
+                <StatusPill icon={Clock3} label="预计" value={`${totalMinutes || 25} 分钟`} />
+                <StatusPill icon={ShoppingBasket} label="待买" value={`${purchaseCount} 项`} />
+                {!dinnerReady && (
+                  <StatusPill icon={Utensils} label="份量" value={`${recommendedRecipes.length} 道 / ${totalRecommendationPortions} 份`} />
+                )}
+                <StatusPill icon={CalendarDays} label="本周" value={`${weekDishCount} 道菜`} />
+              </div>
+              {!dinnerReady && recommendation.missingItems.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {recommendation.missingItems.slice(0, 5).map((item) => (
+                    <span
+                      key={item.name}
+                      className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70"
+                    >
+                      缺 {item.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 max-w-2xl text-xs font-bold leading-5 text-white/58">
+                {dinnerReady
+                  ? "今晚菜单已同步进本周计划，采购清单会自动汇总。"
+                  : `${recommendation.reason || formatProfileSummary(familyProfile)} ${aiRecommendationStatus}`}
+              </p>
+              {!profileReady && (
+                <button
+                  type="button"
+                  onClick={onOpenUserCenter}
+                  className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-xs font-black text-white transition hover:-translate-y-0.5"
+                >
+                  <Sparkles size={15} className="text-acid" />
+                  设置饮食偏好
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -208,6 +218,8 @@ export function Dashboard({
         onSetDinnerSource={onSetDinnerSource}
         onSetDinnerConfirmation={onSetDinnerConfirmation}
         showConfirmation={dinnerReady}
+        dinnerReady={dinnerReady}
+        onViewChange={onViewChange}
       />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
@@ -255,7 +267,15 @@ export function Dashboard({
   );
 }
 
-export function DinnerLogPanel({ mealLog, onSetDinnerSource, onSetDinnerConfirmation, showConfirmation }) {
+export function DinnerLogPanel({
+  mealLog,
+  onSetDinnerSource,
+  onSetDinnerConfirmation,
+  showConfirmation,
+  dinnerReady = false,
+  onViewChange,
+}) {
+  const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady);
   return (
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -303,8 +323,71 @@ export function DinnerLogPanel({ mealLog, onSetDinnerSource, onSetDinnerConfirma
           </div>
         )}
       </div>
+      {sourceResult && (
+        <div className="dinner-result-enter mt-4 rounded-[22px] border border-line bg-canvas p-4">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">结果</p>
+          <h3 className="mt-2 text-xl font-black tracking-[-0.03em]">{sourceResult.title}</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{sourceResult.text}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {sourceResult.actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => onViewChange?.(action.view)}
+                className={action.primary
+                  ? "inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
+                  : "inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
+}
+
+function getDinnerSourceResult(source, dinnerReady) {
+  if (source === "home") {
+    return {
+      title: dinnerReady ? "今晚安排完成" : "已记录在家做",
+      text: dinnerReady
+        ? "菜单已同步到本周计划，采购清单已经自动汇总。"
+        : "先回首页安排今晚菜单，再继续生成采购清单。",
+      actions: dinnerReady
+        ? [
+            { label: "查看采购清单", view: "grocery", primary: true },
+            { label: "开始做饭", view: "today" },
+          ]
+        : [{ label: "返回首页", view: "dashboard", primary: true }],
+    };
+  }
+  if (source === "delivery") {
+    return {
+      title: "今晚记为外卖",
+      text: "已同步饮食记录。它会进入饮食画像，但不会计入营养目标完成率。",
+      actions: [
+        { label: "返回首页", view: "dashboard", primary: true },
+        { label: "查看饮食画像", view: "stats" },
+      ],
+    };
+  }
+  if (source === "outside") {
+    return {
+      title: "今晚记为外食",
+      text: "已同步饮食记录。Humi 会保留这次来源，让本周画像更真实。",
+      actions: [{ label: "返回首页", view: "dashboard", primary: true }],
+    };
+  }
+  if (source === "skip") {
+    return {
+      title: "今天先不记录",
+      text: "今晚不会进入饮食画像，也不会影响后续推荐统计。",
+      actions: [{ label: "返回首页", view: "dashboard", primary: true }],
+    };
+  }
+  return null;
 }
 
 function StatusPill({ icon: Icon, label, value }) {
