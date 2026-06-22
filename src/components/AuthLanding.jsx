@@ -1,10 +1,11 @@
 import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
-import { photoFor, recipes } from "../lib/recipes";
-import { isWechatMiniProgramWebView } from "../lib/runtime";
+import { recipes } from "../lib/recipes";
+import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
 import { CloudAccount } from "./system/CloudAccount";
+import { DishImage } from "./ui/DishImage";
 
 export function AuthLanding({ authProps, onContinueGuest }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -37,11 +38,12 @@ export function AuthLanding({ authProps, onContinueGuest }) {
             <div className="relative mx-auto grid aspect-square w-full max-w-[360px] place-items-center">
               <div className="absolute inset-8 rounded-full bg-acid/35 blur-3xl" />
               <div className="absolute inset-1 rounded-full bg-apricot/12 blur-2xl" />
-              <img
-                src={photoFor(featuredRecipe)}
+              <DishImage
+                recipe={featuredRecipe}
+                variant="hero"
                 alt=""
                 loading="eager"
-                decoding="async"
+                fetchPriority="high"
                 className="relative h-[82%] w-[82%] rounded-full bg-white object-cover shadow-[0_30px_90px_rgba(17,17,17,0.12)]"
               />
               <div className="absolute bottom-5 left-5 rounded-[22px] border border-line bg-white/88 px-4 py-3 text-left shadow-card backdrop-blur-xl">
@@ -62,6 +64,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
 function MobileAuthChoices({ onContinueGuest }) {
   const [status, setStatus] = useState("");
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const wechatLoginEnabled = isWechatLoginEnabled();
 
   function handleWechatLogin() {
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
@@ -77,36 +80,46 @@ function MobileAuthChoices({ onContinueGuest }) {
 
   return (
     <div className="grid gap-4 pb-2">
-      <div className="grid gap-3">
-        <button
-          type="button"
-          onClick={handleWechatLogin}
-          className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
-        >
-          <MessageCircle size={19} className="text-acid" />
-          微信登录
-        </button>
-        <button
-          type="button"
-          onClick={showPhoneReserved}
-          className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Phone size={14} />
-            手机号登录
-          </span>
-        </button>
+      {wechatLoginEnabled ? (
+        <div className="grid gap-3">
+          <button
+            type="button"
+            onClick={handleWechatLogin}
+            className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
+          >
+            <MessageCircle size={19} className="text-acid" />
+            微信登录
+          </button>
+          <button
+            type="button"
+            onClick={showPhoneReserved}
+            className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Phone size={14} />
+              手机号登录
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onContinueGuest}
+            className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+          >
+            先体验 Humi
+          </button>
+        </div>
+      ) : (
         <button
           type="button"
           onClick={onContinueGuest}
-          className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+          className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
         >
           先体验 Humi
         </button>
-      </div>
+      )}
 
       <div className="px-5 text-center text-xs font-bold leading-5 text-ink/36">
-        {status || "可以先体验 Humi。登录后，菜单、画像和清单会跟着账号保存。"}
+        {status || (wechatLoginEnabled ? "可以先体验 Humi。登录后，菜单、画像和清单会跟着账号保存。" : "首发先不要求登录。菜单、计划和清单会保存在当前设备。")}
       </div>
     </div>
   );

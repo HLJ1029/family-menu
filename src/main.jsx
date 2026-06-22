@@ -10,6 +10,7 @@ import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
+import { RecommendationsPage } from "./components/RecommendationsPage";
 import { IcpFooter, Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
@@ -38,6 +39,7 @@ import {
   createInitialMealCalendar,
   getRecipe,
   nutritionFor,
+  photoCandidatesFor,
   recipes,
 } from "./lib/recipes";
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
@@ -45,6 +47,7 @@ import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, wi
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
+import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
 import { recommendMeals } from "./lib/supabase/aiRecommendation";
 import {
@@ -167,6 +170,7 @@ function App() {
   const [flowMotion, setFlowMotion] = useState(null);
   const signedIn = Boolean(session?.user || humiSession?.user);
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
+  const todayDateKey = formatDateKey(new Date());
 
   useEffect(() => {
     const nextHumiSession = consumeHumiSessionFromUrl();
@@ -223,6 +227,15 @@ function App() {
   useEffect(() => {
     if (appOpenTrackedRef.current) return;
     appOpenTrackedRef.current = true;
+    trackValidationEvent(validationEvents.homeViewed, {
+      path: window.location.pathname,
+      source: getLaunchChannel(),
+      online,
+    });
+    trackValidationEvent(validationEvents.day2Returned, {
+      hasMealHistory: Object.keys(mealLogs ?? {}).some((dateKey) => dateKey !== todayDateKey),
+      todayDateKey,
+    });
     void trackAppEvent({
       eventName: appEvents.appOpen,
       payload: {
@@ -231,7 +244,7 @@ function App() {
         online,
       },
     });
-  }, [online]);
+  }, [mealLogs, online, todayDateKey]);
 
   useEffect(() => {
     if (!family?.id || !cloudMenuEnabled) return;
@@ -439,7 +452,6 @@ function App() {
       return recipe ? { ...recipe, menuQuantity: item.quantity } : null;
     })
     .filter(Boolean);
-  const todayDateKey = formatDateKey(new Date());
   const todayMealLog = mealLogs[todayDateKey] ?? {};
   const plannedEntries = Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
     recipeIds.map((recipeId) => ({ day, recipeId, quantity: 1 })),
@@ -510,6 +522,54 @@ function App() {
   }, [todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
+  useEffect(() => {
+    if (activeView !== "dashboard" || todayMenu.length > 0) return;
+    trackValidationEvent(validationEvents.recommendationSeen, {
+      title: displayedRecommendation.title,
+      recipeIds: displayedRecommendation.recipes.map((recipe) => recipe.id),
+      familySize: displayedRecommendation.familySize,
+      targetDishCount: displayedRecommendation.targetDishCount,
+      missingCount: displayedRecommendation.missingItems.length,
+      source: displayedRecommendation.source ?? "rule",
+    });
+  }, [activeView, displayedRecommendation, todayMenu.length]);
+
+  useEffect(() => {
+    if (activeView !== "grocery") return;
+    trackValidationEvent(validationEvents.groceryViewed, {
+      itemCount: visibleGroceryItems.length,
+      checkedCount: Object.values(checkedItems ?? {}).filter(Boolean).length,
+    });
+  }, [activeView, checkedItems, visibleGroceryItems.length]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const startedAt = window.performance?.timeOrigin ?? Date.now();
+    const timer = window.setTimeout(() => {
+      const paintEntries = window.performance?.getEntriesByType?.("paint") ?? [];
+      const fcp = paintEntries.find((entry) => entry.name === "first-contentful-paint")?.startTime;
+      const firstActionAvailable = Date.now() - startedAt;
+      trackValidationEvent(validationEvents.performanceMeasured, {
+        firstContentfulPaintMs: fcp ? Math.round(fcp) : null,
+        firstActionAvailableMs: Math.round(firstActionAvailable),
+        activeView,
+        hasRecommendation: displayedRecommendation.recipes.length > 0,
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    displayedRecommendation.recipes.slice(0, 4).forEach((recipe) => {
+      ["hero", "thumb"].forEach((variant) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = photoCandidatesFor(recipe, { variant })[0];
+      });
+    });
+  }, [displayedRecommendation]);
+
   function showNotice(message) {
     setNotice(message);
     window.clearTimeout(showNotice.timer);
@@ -517,12 +577,29 @@ function App() {
   }
 
   function trackProductEvent(eventName, payload = {}) {
+    trackValidationEvent(eventName, payload);
     void trackAppEvent({
       eventName,
       userId: session?.user?.id,
       familyId: family?.id,
       payload,
     });
+  }
+
+  function exportLocalValidationData(format = "json") {
+    const data = exportValidationData({ mealLogs, familyProfile, recommendationFeedback });
+    const isCsv = format === "csv";
+    const content = isCsv ? validationEventsToCsv(data.events) : JSON.stringify(data, null, 2);
+    const blob = new Blob([content], { type: isCsv ? "text/csv;charset=utf-8" : "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `humi-validation-${todayDateKey}.${isCsv ? "csv" : "json"}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showNotice(`验证数据 ${isCsv ? "CSV" : "JSON"} 已导出`);
   }
 
   function openRecipe(recipeId) {
@@ -626,6 +703,12 @@ function App() {
       outside: "今天外面吃",
       skip: "今天先不记录",
     };
+    trackValidationEvent(validationEvents.dinnerSourceSelected, {
+      source,
+      hasTodayMenu: todayMenu.length > 0,
+      recipeIds: todayMenu.map((item) => item.recipeId),
+      dateKey: todayDateKey,
+    });
     showNotice(labels[source] ?? "晚餐来源已记录");
   }
 
@@ -641,6 +724,11 @@ function App() {
       partial: "已记录吃了一部分",
       missed: "已记录今晚没做",
     };
+    trackValidationEvent(validationEvents.mealConfirmed, {
+      confirmation,
+      consumedCount: confirmation === "all" ? todayMenu.length : todayMealLog.consumedEntries?.length ?? 0,
+      dateKey: todayDateKey,
+    });
     showNotice(labels[confirmation] ?? "晚餐确认已记录");
   }
 
@@ -783,6 +871,11 @@ function App() {
       hasFeedback: Boolean(feedbackReason),
       currentRecipeIds,
     });
+    trackValidationEvent(validationEvents.recommendationRefreshed, {
+      hasFeedback: Boolean(feedbackReason),
+      currentRecipeIds,
+      reasonId: feedbackReason?.id,
+    });
     if (feedbackReason) {
       recordRecommendationFeedback(feedbackReason);
     }
@@ -844,6 +937,16 @@ function App() {
       reasonId: reason.id,
       reasonLabel: reason.label,
       recipeIds: currentRecipeIds,
+    });
+    trackValidationEvent(validationEvents.recommendationRejected, {
+      recipeIds: currentRecipeIds,
+      title: displayedRecommendation.title,
+    });
+    trackValidationEvent(validationEvents.recommendationRejectedReason, {
+      reasonId: reason.id,
+      reasonLabel: reason.label,
+      recipeIds: currentRecipeIds,
+      title: displayedRecommendation.title,
     });
     setRecommendationFeedback((current) => [
       {
@@ -1106,6 +1209,7 @@ function App() {
         return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
       });
       trackProductEvent(appEvents.share, { type, method: "poster_preview" });
+      trackValidationEvent(validationEvents.posterGenerated, { type, title });
       showNotice("海报已生成");
     } catch {
       setPosterPreview((current) => {
@@ -1151,12 +1255,14 @@ function App() {
     if (!posterPreview) return;
     downloadPoster(posterPreview.blob, posterPreview.filename);
     trackProductEvent(appEvents.share, { type: posterPreview.type, method: "poster_save" });
+    trackValidationEvent(validationEvents.posterSavedAttempted, { type: posterPreview.type });
     showNotice("海报已保存到下载");
   }
 
   async function sharePosterPreview() {
     if (!posterPreview) return;
     setPosterLoading(true);
+    trackValidationEvent(validationEvents.posterSharedIntent, { type: posterPreview.type });
     try {
       const method = await sharePoster({
         blob: posterPreview.blob,
@@ -1691,6 +1797,7 @@ function App() {
     }
     setFlowMotion(getFlowMotion(activeView, nextView));
     setActiveView(nextView);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
     window.clearTimeout(flowMotionTimerRef.current);
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
   }
@@ -1720,10 +1827,15 @@ function App() {
     const start = swipeStartRef.current;
     swipeStartRef.current = null;
     const touch = event.changedTouches?.[0];
-    if (!start || !touch || activeView === "dashboard") return;
+    if (!start || !touch) return;
     const dx = touch.clientX - start.x;
     const dy = Math.abs(touch.clientY - start.y);
     if (dx > 72 && dy < 70 && Date.now() - start.time < 800) {
+      if (selectedRecipeId) {
+        closeRecipe();
+        return;
+      }
+      if (activeView === "dashboard") return;
       goBack();
     }
   }
@@ -1733,6 +1845,8 @@ function App() {
     window.setTimeout(() => {
       setOnboardingComplete(true);
       setActiveView("dashboard");
+      viewHistoryRef.current = ["dashboard"];
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
       showNotice("先从今晚吃什么开始");
     }, 760);
     window.setTimeout(() => setEntryMotion(false), 1360);
@@ -1804,6 +1918,7 @@ function App() {
                 onSelectPlanningMode={selectPlanningMode}
                 onPlanRecommendedWeek={planRecommendedWeek}
                 mealLog={todayMealLog}
+                mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
@@ -1820,6 +1935,20 @@ function App() {
                 menuQuantities={todayMenu}
                 onOpenRecipe={openRecipe}
                 onDragStart={setDraggedRecipeId}
+              />
+            )}
+            {activeView === "recommendations" && (
+              <RecommendationsPage
+                recommendation={displayedRecommendation}
+                aiRecommendationLoading={aiRecommendationLoading}
+                onRefresh={() => requestAiRecommendation()}
+                onAccept={() => {
+                  addRecommendedToday();
+                  navigateTo("today");
+                }}
+                onReject={(reason) => requestAiRecommendation(reason)}
+                onOpenRecipe={openRecipe}
+                onViewChange={navigateTo}
               />
             )}
             {activeView === "planner" && (
@@ -1852,6 +1981,7 @@ function App() {
                 onViewChange={navigateTo}
                 onShare={shareTodayMenu}
                 mealLog={todayMealLog}
+                mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
@@ -1901,6 +2031,7 @@ function App() {
                 onShare={shareGroceryList}
                 checkedItems={checkedItems}
                 setCheckedItems={setCheckedItems}
+                onGroceryItemChecked={({ key, checked }) => trackValidationEvent(validationEvents.groceryItemChecked, { key, checked })}
                 cloudSync={{
                   family,
                   enabled: cloudGroceryEnabled,
@@ -1970,6 +2101,8 @@ function App() {
                 mealLogs={mealLogs}
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
+                recommendationFeedback={recommendationFeedback}
+                onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
               />
             )}
@@ -2007,6 +2140,19 @@ function App() {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function validationEventsToCsv(events = []) {
+  const headers = ["createdAt", "eventName", "sessionId", "payload"];
+  const rows = events.map((event) => [
+    event.createdAt,
+    event.eventName,
+    event.sessionId,
+    JSON.stringify(event.payload ?? {}),
+  ]);
+  return [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll("\"", "\"\"")}"`).join(","))
+    .join("\n");
 }
 
 function EntryTableMotion() {
