@@ -9,6 +9,7 @@ out/
 .env.*.local
 supabase/.temp/
 miniprogram/project.private.config.json
+.humi-api-data.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
