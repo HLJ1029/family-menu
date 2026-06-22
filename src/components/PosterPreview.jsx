@@ -1,12 +1,36 @@
+import { useEffect } from "react";
 import { Download, RefreshCw, Share2, X } from "lucide-react";
 
 export function PosterPreview({ poster, loading, onClose, onSave, onShare, onRegenerate }) {
+  useEffect(() => {
+    if (!poster) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, poster]);
+
   if (!poster) return null;
   const ready = Boolean(poster.url);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/56 px-3 pb-3 pt-10 backdrop-blur-sm md:items-center md:p-6">
-      <section className="poster-preview-enter flex max-h-[94vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-t-[32px] bg-canvas shadow-lift md:grid md:max-h-[88vh] md:grid-cols-[minmax(320px,520px)_1fr] md:rounded-[34px]">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/56 px-3 pb-3 pt-10 backdrop-blur-sm md:items-center md:p-6"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed right-4 top-[calc(1rem+env(safe-area-inset-top))] z-[55] grid h-11 w-11 place-items-center rounded-full bg-white text-ink shadow-lift transition hover:bg-ink hover:text-white"
+        aria-label="关闭海报预览"
+      >
+        <X size={20} />
+      </button>
+      <section
+        className="poster-preview-enter flex max-h-[94vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-t-[32px] bg-canvas shadow-lift md:grid md:max-h-[88vh] md:grid-cols-[minmax(320px,520px)_1fr] md:rounded-[34px]"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="min-h-0 overflow-auto bg-ink p-4 md:p-6">
           <div className="mx-auto max-w-[390px] overflow-hidden rounded-[28px] bg-white shadow-lift">
             {ready ? (

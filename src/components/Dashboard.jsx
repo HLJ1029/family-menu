@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
-import { photoFor } from "../lib/recipes";
+import { recipes } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
+import { DishImage } from "./ui/DishImage";
+import { HumiMonster } from "./ui/HumiMonster";
 
 const dinnerSources = [
   { id: "home", label: "在家做" },
@@ -36,11 +38,16 @@ export function Dashboard({
   onOpenRecipe,
   onAddRecommended,
   onRequestAiRecommendation,
+  onOpenRecommendationFeedback,
+  feedbackOpen,
+  onSubmitRecommendationFeedback,
+  onCloseRecommendationFeedback,
   session,
   onOpenUserCenter,
   familyProfile,
   groceryItemCount = 0,
   mealLog,
+  mealLogs,
   onSetDinnerSource,
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
@@ -56,6 +63,7 @@ export function Dashboard({
     : recommendedItems;
   const heroRecipe = dinnerReady ? todayRecipes[0] : recommendedRecipes[0];
   const activeRecipes = dinnerReady ? todayRecipes : recommendedRecipes;
+  const hasStaple = activeRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
   const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
   const weekDishCount = Object.values(weekPlan ?? {}).reduce((total, recipeIds) => total + recipeIds.length, 0);
@@ -70,17 +78,18 @@ export function Dashboard({
   }
 
   const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
-  const coreSummary = `预计 ${totalMinutes || 25} 分钟 · 需购买 ${purchaseCount} 项食材`;
+  const coreSummary = `适合 ${recommendation.familySize ?? familyProfile.familySize ?? 2} 人 · ${activeRecipes.length} 道 · 预计 ${totalMinutes || 25} 分钟 · 需购买 ${purchaseCount} 项`;
+  const decisionSummary = hasStaple ? "已有主食" : "建议补主食";
 
   return (
-    <div className="grid gap-5">
-      <section className="relative min-h-[min(720px,calc(100vh-2rem))] overflow-hidden rounded-[32px] bg-ink text-white shadow-lift">
+    <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
+      <section className="relative min-h-[620px] min-w-0 overflow-hidden rounded-[32px] bg-ink text-white shadow-lift md:min-h-[700px]">
         {heroRecipe && (
-          <img
-            src={photoFor(heroRecipe)}
+          <DishImage
+            recipe={heroRecipe}
+            variant="hero"
             alt=""
             loading="eager"
-            decoding="async"
             fetchPriority="high"
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -100,7 +109,7 @@ export function Dashboard({
                 className="arrange-flight-chip"
                 style={{ "--flight-index": index }}
               >
-                <img src={photoFor(recipe, { variant: "thumb" })} alt="" />
+                <DishImage recipe={recipe} variant="thumb" alt="" />
               </span>
             ))}
           </div>
@@ -115,6 +124,21 @@ export function Dashboard({
             <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-white/72">
               {coreSummary}
             </p>
+            <div className="mt-4 flex max-w-xl items-center gap-3 rounded-[22px] border border-white/14 bg-white/10 p-3 backdrop-blur-xl">
+              <HumiMonster
+                mood={aiRecommendationLoading ? "thinking" : dinnerReady ? "success" : "happy"}
+                accessory={dinnerReady ? "basket" : "menu"}
+                size="sm"
+                className="shrink-0"
+              />
+              <p className="text-xs font-bold leading-5 text-white/70">
+                {aiRecommendationLoading
+                  ? "我正在重新端一组更合适的晚饭。"
+                  : dinnerReady
+                    ? "菜单已落位，清单也会跟着更新。"
+                    : "我先端来这组，菜品还是主角，我只负责少纠结一点。"}
+              </p>
+            </div>
           </div>
 
           <div className="tonight-card-swap mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3" key={recommendation.title}>
@@ -125,8 +149,9 @@ export function Dashboard({
                 onClick={() => onOpenRecipe(recipe.id)}
                 className="grid grid-cols-[76px_1fr] gap-3 rounded-[24px] border border-white/14 bg-white/12 p-3 text-left backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/16"
               >
-                <img
-                  src={photoFor(recipe, { variant: "thumb" })}
+                <DishImage
+                  recipe={recipe}
+                  variant="thumb"
                   alt=""
                   className="h-20 w-20 rounded-[18px] object-cover"
                 />
@@ -135,6 +160,7 @@ export function Dashboard({
                   <span className="mt-2 flex flex-wrap gap-2 text-xs font-black text-white/70">
                     <span className="rounded-full bg-white/12 px-2.5 py-1">{recipe.timeMinutes} min</span>
                     <span className="rounded-full bg-white/12 px-2.5 py-1">{recipe.categories[0]}</span>
+                    {recipe.categories.includes("主食") && <span className="rounded-full bg-acid px-2.5 py-1 text-ink">主食</span>}
                     {quantity > 1 && <span className="portion-pop rounded-full bg-acid px-2.5 py-1 text-ink">x{quantity} 份</span>}
                   </span>
                 </span>
@@ -142,20 +168,20 @@ export function Dashboard({
             ))}
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
-              className="tonight-arrange-button inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-7 text-base font-black text-ink transition hover:-translate-y-1"
+              className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-acid px-5 text-base font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
             >
               {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
-              {dinnerReady ? "查看今晚菜单" : "安排今晚"}
+              {dinnerReady ? "查看今晚菜单" : "今晚就做"}
             </button>
             <button
               type="button"
               onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
               disabled={!dinnerReady && aiRecommendationLoading}
-              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-7 text-base font-black text-white transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
             >
               {dinnerReady ? (
                 <ShoppingBasket size={18} />
@@ -164,7 +190,45 @@ export function Dashboard({
               )}
               {dinnerReady ? "查看清单" : "换一组"}
             </button>
+            {!dinnerReady && (
+              <button
+                type="button"
+                onClick={onOpenRecommendationFeedback}
+                className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white transition hover:-translate-y-1 sm:px-7 sm:text-base"
+              >
+                不想吃
+              </button>
+            )}
           </div>
+          {!dinnerReady && feedbackOpen && (
+            <div className="mt-4 rounded-[24px] border border-white/14 bg-white/10 p-4 backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-white/38">Feedback</p>
+                  <p className="mt-1 text-sm font-black text-white">这组为什么不适合今晚？</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onCloseRecommendationFeedback}
+                  className="rounded-full border border-white/14 px-3 py-1.5 text-xs font-black text-white/60"
+                >
+                  关闭
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {recommendationRejectReasons.map((reason) => (
+                  <button
+                    key={reason.id}
+                    type="button"
+                    onClick={() => onSubmitRecommendationFeedback(reason)}
+                    className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink transition hover:-translate-y-0.5"
+                  >
+                    {reason.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setDetailsOpen((current) => !current)}
@@ -184,6 +248,12 @@ export function Dashboard({
               </div>
               {!dinnerReady && recommendation.missingItems.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
+                    适合 {recommendation.familySize ?? familyProfile.familySize ?? 2} 人
+                  </span>
+                  <span className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
+                    {decisionSummary}
+                  </span>
                   {recommendation.missingItems.slice(0, 5).map((item) => (
                     <span
                       key={item.name}
@@ -216,6 +286,7 @@ export function Dashboard({
 
       <DinnerLogPanel
         mealLog={mealLog}
+        mealLogs={mealLogs}
         onSetDinnerSource={onSetDinnerSource}
         onSetDinnerConfirmation={onSetDinnerConfirmation}
         onToggleConsumedRecipe={onToggleConsumedRecipe}
@@ -224,6 +295,60 @@ export function Dashboard({
         dinnerReady={dinnerReady}
         onViewChange={onViewChange}
       />
+
+      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">推荐</p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">不只这一组</h2>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+              进入推荐页继续换一组、标记不想吃，Humi 会记录真实家庭反馈。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onViewChange("recommendations")}
+            className="shrink-0 rounded-full bg-ink px-4 py-3 text-xs font-black text-white"
+          >
+            更多推荐
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">看图挑菜</p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">像刷菜单一样找灵感</h2>
+          </div>
+            <button
+              type="button"
+              onClick={() => onViewChange("recommendations")}
+              className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-black text-white"
+            >
+            更多推荐
+          </button>
+        </div>
+        <div className="-mx-5 mt-4 flex gap-3 overflow-x-auto px-5 pb-1">
+          {recipes.slice(0, 8).map((recipe) => (
+            <button
+              key={recipe.id}
+              type="button"
+              onClick={() => onOpenRecipe(recipe.id)}
+              className="group relative h-56 w-40 shrink-0 overflow-hidden rounded-[24px] bg-canvas text-left shadow-card"
+            >
+              <DishImage recipe={recipe} variant="thumb" alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <span className="absolute inset-0 bg-gradient-to-t from-ink/76 via-ink/10 to-transparent" />
+              <span className="absolute bottom-3 left-3 right-3 text-white">
+                <span className="block text-base font-black leading-tight">{recipe.name}</span>
+                <span className="mt-2 inline-flex rounded-full bg-white/18 px-2 py-1 text-[11px] font-black backdrop-blur">
+                  {recipe.timeMinutes} min
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
         <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
@@ -270,8 +395,17 @@ export function Dashboard({
   );
 }
 
+const recommendationRejectReasons = [
+  { id: "too_much_work", label: "太麻烦" },
+  { id: "family_dislikes", label: "家里没人吃" },
+  { id: "hard_to_buy", label: "买不到食材" },
+  { id: "wrong_taste", label: "太清淡/太重口" },
+  { id: "not_dinner", label: "不像晚饭" },
+];
+
 export function DinnerLogPanel({
   mealLog,
+  mealLogs = {},
   onSetDinnerSource,
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
@@ -280,7 +414,8 @@ export function DinnerLogPanel({
   dinnerReady = false,
   onViewChange,
 }) {
-  const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady);
+  const sourceStats = buildSourceStats(mealLogs);
+  const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady, sourceStats);
   return (
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -388,12 +523,12 @@ export function DinnerLogPanel({
   );
 }
 
-function getDinnerSourceResult(source, dinnerReady) {
+function getDinnerSourceResult(source, dinnerReady, sourceStats) {
   if (source === "home") {
     return {
       title: dinnerReady ? "今晚安排完成" : "已记录在家做",
       text: dinnerReady
-        ? "菜单已同步到本周计划，采购清单已经自动汇总。"
+        ? `已同步营养统计。本周在家做 ${sourceStats.home} 次，采购清单已经自动汇总。`
         : "先回首页安排今晚菜单，再继续生成采购清单。",
       actions: dinnerReady
         ? [
@@ -405,8 +540,8 @@ function getDinnerSourceResult(source, dinnerReady) {
   }
   if (source === "delivery") {
     return {
-      title: "今晚记为外卖",
-      text: "已同步饮食记录。它会进入饮食画像，但不会计入营养目标完成率。",
+      title: `今晚记为外卖 · 本周第 ${sourceStats.delivery} 次`,
+      text: `${sourceStats.awayStreak >= 2 ? `连续 ${sourceStats.awayStreak} 天在外吃/点外卖。` : "已同步饮食画像。"} 明天建议安排一组清淡在家做菜单，比如番茄鸡蛋类 + 一道绿叶菜。`,
       actions: [
         { label: "返回首页", view: "dashboard", primary: true },
         { label: "查看饮食画像", view: "stats" },
@@ -415,9 +550,12 @@ function getDinnerSourceResult(source, dinnerReady) {
   }
   if (source === "outside") {
     return {
-      title: "今晚记为外食",
-      text: "已同步饮食记录。Humi 会保留这次来源，让本周画像更真实。",
-      actions: [{ label: "返回首页", view: "dashboard", primary: true }],
+      title: `今晚记为外食 · 本周第 ${sourceStats.outside} 次`,
+      text: "饮食画像已更新。明天回来打开 Humi，可以直接继续安排一组省时晚饭。",
+      actions: [
+        { label: "返回首页", view: "dashboard", primary: true },
+        { label: "查看饮食画像", view: "stats" },
+      ],
     };
   }
   if (source === "skip") {
@@ -428,6 +566,27 @@ function getDinnerSourceResult(source, dinnerReady) {
     };
   }
   return null;
+}
+
+function buildSourceStats(mealLogs) {
+  const logs = Object.entries(mealLogs ?? {})
+    .sort(([a], [b]) => a.localeCompare(b));
+  const latestSeven = logs.slice(-7).map(([, log]) => log);
+  const summary = latestSeven.reduce(
+    (current, log) => {
+      if (log?.source === "home") current.home += 1;
+      if (log?.source === "delivery") current.delivery += 1;
+      if (log?.source === "outside") current.outside += 1;
+      return current;
+    },
+    { home: 0, delivery: 0, outside: 0, awayStreak: 0 },
+  );
+  for (let index = latestSeven.length - 1; index >= 0; index -= 1) {
+    const source = latestSeven[index]?.source;
+    if (source === "delivery" || source === "outside") summary.awayStreak += 1;
+    else if (source) break;
+  }
+  return summary;
 }
 
 function StatusPill({ icon: Icon, label, value }) {

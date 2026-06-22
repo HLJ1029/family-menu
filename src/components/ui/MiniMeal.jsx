@@ -1,4 +1,4 @@
-import { photoFor } from "../../lib/recipes";
+import { DishImage } from "./DishImage";
 
 export function MiniMeal({ recipe, dark = false, onClick }) {
   const Wrapper = onClick ? "button" : "div";
@@ -10,11 +10,10 @@ export function MiniMeal({ recipe, dark = false, onClick }) {
         dark ? "bg-white/10 text-white" : "border border-line bg-canvas text-ink"
       } ${onClick ? "hover:-translate-y-0.5 hover:bg-white/15" : ""}`}
     >
-      <img
-        src={photoFor(recipe, { variant: "thumb" })}
+      <DishImage
+        recipe={recipe}
+        variant="thumb"
         alt=""
-        loading="lazy"
-        decoding="async"
         className="h-16 w-16 rounded-[18px] object-cover transition duration-300"
       />
       <div className="min-w-0">

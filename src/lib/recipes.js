@@ -50,14 +50,21 @@ function escapeSvgText(value) {
 }
 
 export function photoFor(recipe, options = {}) {
-  if (recipe?.image?.status !== "needs-photo" && recipe?.image?.url) {
-    const normalizedUrl = localAssetUrlFor(recipe.image.url);
-    if (options.variant === "thumb") {
-      return optimizedDishUrlFor(normalizedUrl, "thumb");
-    }
-    return optimizedDishUrlFor(normalizedUrl, "hero");
-  }
-  return placeholderPhotoFor(recipe);
+  return photoCandidatesFor(recipe, options)[0];
+}
+
+export function photoCandidatesFor(recipe, options = {}) {
+  const placeholder = placeholderPhotoFor(recipe);
+  if (recipe?.image?.status === "needs-photo" || !recipe?.image?.url) return [placeholder];
+
+  const normalizedUrl = localAssetUrlFor(recipe.image.url);
+  const heroUrl = optimizedDishUrlFor(normalizedUrl, "hero");
+  const thumbUrl = optimizedDishUrlFor(normalizedUrl, "thumb");
+  const candidates = options.variant === "thumb"
+    ? [thumbUrl, heroUrl, normalizedUrl, placeholder]
+    : [heroUrl, normalizedUrl, thumbUrl, placeholder];
+
+  return [...new Set(candidates.filter(Boolean))];
 }
 
 export function originalPhotoFor(recipe) {

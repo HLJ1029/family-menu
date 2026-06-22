@@ -7,6 +7,8 @@ export const appEvents = {
   recommendationRequest: "recommendation_request",
   recommendationShown: "recommendation_shown",
   recommendationFeedback: "recommendation_feedback",
+  recommendationRejected: "recommendation_rejected",
+  recommendationRejectedReason: "recommendation_rejected_reason",
   recommendationAccepted: "recommendation_accepted",
   weekPlanAdd: "week_plan_add",
   share: "share",

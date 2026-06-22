@@ -1,5 +1,5 @@
 import { Minus, Plus } from "lucide-react";
-import { photoFor } from "../lib/recipes";
+import { DishImage } from "./ui/DishImage";
 
 export function Library({
   categories,
@@ -68,11 +68,11 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
       className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
     >
       <div className="relative aspect-square overflow-hidden bg-canvas sm:aspect-[4/5]">
-        <img
-          src={photoFor(recipe, { variant: "thumb" })}
+        <DishImage
+          recipe={recipe}
+          variant="thumb"
           alt={recipe.name}
           loading="lazy"
-          decoding="async"
           sizes="(min-width: 1024px) 33vw, 50vw"
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />

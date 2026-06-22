@@ -9,8 +9,9 @@ import {
   getCalendarMonthDates,
   parseDateKey,
 } from "../lib/date";
-import { getRecipe, nutritionFor, photoFor, recipes } from "../lib/recipes";
+import { getRecipe, nutritionFor, recipes } from "../lib/recipes";
 import { Card } from "./ui/Card";
+import { DishImage } from "./ui/DishImage";
 import { MiniMeal } from "./ui/MiniMeal";
 
 export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
@@ -293,11 +294,10 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                       disabled={alreadyAdded}
                       className="flex items-center gap-3 rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      <img
-                        src={photoFor(recipe, { variant: "thumb" })}
+                      <DishImage
+                        recipe={recipe}
+                        variant="thumb"
                         alt=""
-                        loading="lazy"
-                        decoding="async"
                         className="h-16 w-16 rounded-2xl object-cover"
                       />
                       <span className="min-w-0 flex-1">

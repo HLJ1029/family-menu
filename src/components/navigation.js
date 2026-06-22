@@ -3,6 +3,7 @@ import {
   ChefHat,
   Home,
   ShoppingBasket,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ export const navItems = [
 ];
 
 export const auxiliaryNavItems = [
+  { id: "recommendations", label: "推荐", icon: Sparkles },
   { id: "library", label: "菜谱库", icon: ChefHat },
   { id: "today", label: "今晚菜单", icon: CalendarDays },
   { id: "calendar", label: "日历", icon: CalendarDays },

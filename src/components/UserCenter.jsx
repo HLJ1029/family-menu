@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { BarChart3, Check, ChefHat, Cloud, Database, Heart, PackageCheck, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
+import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
-import { isWechatMiniProgramWebView } from "../lib/runtime";
+import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 
 export function UserCenter({
   authProps,
@@ -20,9 +21,12 @@ export function UserCenter({
   mealLogs = {},
   nutritionGoals,
   setNutritionGoals,
+  recommendationFeedback = [],
+  onExportValidationData,
   onViewChange,
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const wechatLoginEnabled = isWechatLoginEnabled();
   const [activeSettings, setActiveSettings] = useState(null);
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
@@ -34,6 +38,10 @@ export function UserCenter({
     },
     { home: 0, delivery: 0, outside: 0, confirmed: 0 },
   );
+  const validationSummary = buildValidationSummary(readValidationEvents());
+  const topReasons = validationSummary.topRejectedReasons.length > 0
+    ? validationSummary.topRejectedReasons
+    : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
@@ -66,6 +74,49 @@ export function UserCenter({
             <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
             <StatusRow label="点外卖" value={`${sourceSummary.delivery} 次`} />
             <StatusRow label="外面吃" value={`${sourceSummary.outside} 次`} />
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <StatusRow label="推荐接受率" value={`${validationSummary.recommendationAcceptanceRate}%`} />
+            <StatusRow label="拒绝原因采集" value={`${validationSummary.rejectedReasonCaptureRate}%`} />
+            <StatusRow label="清单查看" value={`${validationSummary.groceryViewed} 次`} />
+          </div>
+          <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">真实测试</p>
+            <h4 className="mt-2 text-lg font-black">常见不想吃原因</h4>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topReasons.length > 0 ? (
+                topReasons.map((reason) => (
+                  <span key={reason.label} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/60">
+                    {reason.label} · {reason.value}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm font-bold text-ink/45">还没有拒绝原因，真实家庭测试时会自动记录。</span>
+              )}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onExportValidationData?.("json")}
+                className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
+              >
+                导出 JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => onExportValidationData?.("csv")}
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"
+              >
+                导出 CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewChange("dashboard")}
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"
+              >
+                继续安排今晚
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
@@ -150,9 +201,13 @@ export function UserCenter({
               <Cloud size={20} />
             </span>
             <div>
-              <p className="font-black">{humiSession ? "已通过微信登录" : "微信登录"}</p>
+              <p className="font-black">{humiSession ? "已通过微信登录" : wechatLoginEnabled ? "微信登录" : "游客模式"}</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
-                {humiSession ? "菜单、画像和清单会优先跟随 Humi 账号。" : "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"}
+                {humiSession
+                  ? "菜单、画像和清单会优先跟随 Humi 账号。"
+                  : wechatLoginEnabled
+                  ? "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"
+                  : "首发先不要求登录；核心菜单、计划和清单保存在当前设备。"}
               </p>
             </div>
           </div>

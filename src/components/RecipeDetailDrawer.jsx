@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Minus, Plus, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Minus, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { formatRawAmount } from "../lib/grocery";
-import { nutritionFor, photoFor } from "../lib/recipes";
+import { nutritionFor } from "../lib/recipes";
+import { DishImage } from "./ui/DishImage";
 
 export function RecipeDetailDrawer({
   recipe,
@@ -13,6 +14,7 @@ export function RecipeDetailDrawer({
   onUpdateTodayQuantity,
 }) {
   const [targetServings, setTargetServings] = useState(recipe?.servings ?? 2);
+  const swipeStartRef = useRef(null);
 
   useEffect(() => {
     if (recipe) {
@@ -49,8 +51,24 @@ export function RecipeDetailDrawer({
     setTargetServings((current) => Math.min(12, Math.max(1, current + delta)));
   }
 
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch || touch.clientX > 44) return;
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+  }
+
+  function handleTouchEnd(event) {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    const touch = event.changedTouches?.[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = Math.abs(touch.clientY - start.y);
+    if (dx > 72 && dy < 70 && Date.now() - start.time < 800) onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <button
         type="button"
         className="absolute inset-0 bg-ink/38 backdrop-blur-sm"
@@ -126,6 +144,103 @@ export function RecipeDetailDrawer({
           <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
+                <p className="eyebrow">Cooking mode</p>
+                <h3 className="card-title">跟做步骤</h3>
+              </div>
+              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+                {cookingStep + 1}/{recipe.steps.length}
+              </span>
+            </div>
+
+            <div className="rounded-[24px] bg-ink p-5 text-white">
+              <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/14">
+                <div
+                  className="h-full rounded-full bg-acid transition-all duration-300"
+                  style={{ width: `${((cookingStep + 1) / recipe.steps.length) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+                Step {String(cookingStep + 1).padStart(2, "0")}
+              </p>
+              <p className="mt-3 text-2xl font-black leading-snug tracking-[-0.03em]">
+                {currentStep}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={isFirstStep}
+                  onClick={previousStep}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/8 text-sm font-black text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ArrowLeft size={17} />
+                  上一步
+                </button>
+                <button
+                  type="button"
+                  disabled={isLastStep}
+                  onClick={nextStep}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid text-sm font-black text-ink transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  下一步
+                  <ArrowRight size={17} />
+                </button>
+              </div>
+            </div>
+
+            <ol className="mt-4 grid gap-2">
+              {recipe.steps.map((step, index) => (
+                <li key={step}>
+                  <button
+                    type="button"
+                    onClick={() => setCookingStep(index)}
+                    className={`grid w-full grid-cols-[34px_1fr] gap-3 rounded-[18px] border p-3 text-left transition ${
+                      index === cookingStep
+                        ? "border-ink bg-canvas"
+                        : "border-line bg-white hover:border-ink/18"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
+                        index === cookingStep ? "bg-ink text-acid" : "bg-canvas text-ink/45"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-bold leading-6 text-ink/72">{step}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <details className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
+            <summary className="cursor-pointer list-none">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Nutrition</p>
+                  <h3 className="card-title">营养参考</h3>
+                </div>
+                <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/52">
+                  {nutrition.caloriesKcal} kcal / 人
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-bold leading-5 text-ink/45">
+                家庭菜单估算，展开后查看蛋白质、脂肪、碳水等。
+              </p>
+            </summary>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <NutritionStat label="热量" value={`${nutrition.caloriesKcal} kcal`} />
+              <NutritionStat label="蛋白质" value={`${nutrition.proteinG} g`} />
+              <NutritionStat label="脂肪" value={`${nutrition.fatG} g`} />
+              <NutritionStat label="碳水" value={`${nutrition.carbsG} g`} />
+              <NutritionStat label="膳食纤维" value={`${nutrition.fiberG} g`} />
+              <NutritionStat label="钠" value={`${nutrition.sodiumMg} mg`} />
+            </div>
+          </details>
+
+          <section className="mt-5 hidden rounded-[26px] border border-line bg-white p-5 shadow-card">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
                 <p className="eyebrow">Nutrition</p>
                 <h3 className="card-title">每人份营养</h3>
               </div>
@@ -143,7 +258,7 @@ export function RecipeDetailDrawer({
             </div>
           </section>
 
-          <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
+          <section className="mt-5 hidden rounded-[26px] border border-line bg-white p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="eyebrow">Cooking mode</p>
@@ -252,6 +367,14 @@ export function RecipeDetailDrawer({
               >
                 <Plus size={18} />
               </button>
+              <button
+                type="button"
+                onClick={() => onUpdateTodayQuantity(recipe.id, -todayEntry.quantity)}
+                className="col-span-3 flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-canvas text-sm font-black text-ink/60"
+              >
+                <Trash2 size={16} />
+                从今晚菜单移除
+              </button>
             </div>
           ) : (
             <button
@@ -270,37 +393,13 @@ export function RecipeDetailDrawer({
 }
 
 function ProgressiveRecipePhoto({ recipe }) {
-  const previewSrc = photoFor(recipe, { variant: "thumb" });
-  const fullSrc = photoFor(recipe);
-  const [loadedSrc, setLoadedSrc] = useState(previewSrc);
-
-  useEffect(() => {
-    let isCurrent = true;
-    setLoadedSrc(previewSrc);
-
-    if (fullSrc === previewSrc) return undefined;
-
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => {
-      if (isCurrent) setLoadedSrc(fullSrc);
-    };
-    image.src = fullSrc;
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [fullSrc, previewSrc]);
-
   return (
-    <img
-      key={loadedSrc}
-      src={loadedSrc}
+    <DishImage
+      recipe={recipe}
+      variant="hero"
       alt={recipe.name}
       loading="eager"
-      decoding="async"
       fetchPriority="high"
-      sizes="(min-width: 768px) 560px, 100vw"
       className="h-full w-full bg-canvas object-cover transition-opacity duration-300"
     />
   );

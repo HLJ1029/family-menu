@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, Search, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
-import { nutritionFor, photoFor, recipes } from "../lib/recipes";
+import { nutritionFor, recipes } from "../lib/recipes";
 import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
+import { DishImage } from "./ui/DishImage";
+import { HumiMonster } from "./ui/HumiMonster";
 
 export function TodayMenu({
   todayRecipes,
@@ -15,11 +17,15 @@ export function TodayMenu({
   cloudSync,
   onShare,
   mealLog,
+  mealLogs,
   onSetDinnerSource,
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(true);
+  const [quickAddPreset, setQuickAddPreset] = useState("all");
+  const addPanelRef = useRef(null);
+  const logPanelRef = useRef(null);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -34,18 +40,39 @@ export function TodayMenu({
     },
     { caloriesKcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
   );
+  const hasStaple = todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
+
+  function showAddPreset(preset) {
+    setShowAddPanel(true);
+    setQuickAddPreset(preset ?? "all");
+    window.setTimeout(() => {
+      addPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+  }
+
+  function scrollToLog() {
+    logPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
         <div className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today menu</p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            今晚菜单还是空的。
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            回到首页点“帮我安排晚饭”，Humi 会先给你凑好一组。
-          </p>
+          <div className="grid gap-5 md:grid-cols-[1fr_150px] md:items-end">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today menu</p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+                今晚菜单还是空的。
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+                回到首页点“帮我安排晚饭”，Humi 会先给你凑好一组。
+              </p>
+            </div>
+            <div className="rounded-[26px] border border-white/14 bg-white/10 p-4 text-center backdrop-blur-xl">
+              <HumiMonster mood="hungry" accessory="spatula" size="lg" className="mx-auto" />
+              <p className="mt-2 text-xs font-black text-white/70">我还没开始端菜</p>
+            </div>
+          </div>
         </div>
         <QuickAddRecipes
           todayRecipes={todayRecipes}
@@ -54,6 +81,7 @@ export function TodayMenu({
         />
         <DinnerLogPanel
           mealLog={mealLog}
+          mealLogs={mealLogs}
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
           onToggleConsumedRecipe={onToggleConsumedRecipe}
@@ -106,11 +134,27 @@ export function TodayMenu({
               </button>
               <button
                 type="button"
-                onClick={() => setShowAddPanel((current) => !current)}
+                onClick={() => showAddPreset("all")}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <Plus size={18} />
-                {showAddPanel ? "收起加菜" : "加菜 / 加主食"}
+                加一道菜
+              </button>
+              <button
+                type="button"
+                onClick={() => showAddPreset("staple")}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <Plus size={18} />
+                加主食
+              </button>
+              <button
+                type="button"
+                onClick={scrollToLog}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+              >
+                <Utensils size={18} />
+                记录这顿
               </button>
               <button
                 type="button"
@@ -126,6 +170,8 @@ export function TodayMenu({
 
         {showAddPanel && (
           <QuickAddRecipes
+            ref={addPanelRef}
+            forcedPreset={quickAddPreset}
             todayRecipes={todayRecipes}
             onAddToday={onAddToday}
             onOpenRecipe={onOpenRecipe}
@@ -140,16 +186,19 @@ export function TodayMenu({
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
         />
 
-        <DinnerLogPanel
-          mealLog={mealLog}
-          onSetDinnerSource={onSetDinnerSource}
-          onSetDinnerConfirmation={onSetDinnerConfirmation}
-          onToggleConsumedRecipe={onToggleConsumedRecipe}
-          todayRecipes={todayRecipes}
-          showConfirmation
-          dinnerReady
-          onViewChange={onViewChange}
-        />
+        <div ref={logPanelRef}>
+          <DinnerLogPanel
+            mealLog={mealLog}
+            mealLogs={mealLogs}
+            onSetDinnerSource={onSetDinnerSource}
+            onSetDinnerConfirmation={onSetDinnerConfirmation}
+            onToggleConsumedRecipe={onToggleConsumedRecipe}
+            todayRecipes={todayRecipes}
+            showConfirmation
+            dinnerReady
+            onViewChange={onViewChange}
+          />
+        </div>
 
         <div className="grid gap-4">
           {todayRecipes.map((recipe) => (
@@ -163,11 +212,11 @@ export function TodayMenu({
                 className="overflow-hidden rounded-[22px] bg-canvas"
                 aria-label={`查看 ${recipe.name} 菜谱`}
               >
-                <img
-                  src={photoFor(recipe, { variant: "thumb" })}
+                <DishImage
+                  recipe={recipe}
+                  variant="thumb"
                   alt=""
                   loading="lazy"
-                  decoding="async"
                   className="aspect-[4/3] h-full w-full object-cover"
                 />
               </button>
@@ -235,6 +284,7 @@ export function TodayMenu({
             <SummaryTile label="份数" value={`${totalDishes} 份`} />
             <SummaryTile label="待买" value={`${groceryItems.length} 项`} />
             <SummaryTile label="热量" value={`${Math.round(nutrition.caloriesKcal)} kcal`} />
+            <SummaryTile label="主食" value={hasStaple ? "已包含" : "还没有"} />
           </div>
         </Card>
 
@@ -255,7 +305,7 @@ export function TodayMenu({
   );
 }
 
-function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
+const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe, forcedPreset }, ref) {
   const [keyword, setKeyword] = useState("");
   const [activePreset, setActivePreset] = useState("all");
   const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
@@ -291,8 +341,15 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
       .slice(0, 12);
   }, [activePreset, keyword]);
 
+  useEffect(() => {
+    if (forcedPreset) setActivePreset(forcedPreset);
+  }, [forcedPreset]);
+
   return (
-    <section className="rounded-[28px] border border-line bg-white p-4 shadow-card md:p-5">
+    <section
+      ref={ref}
+      className="scroll-mt-24 rounded-[28px] border border-line bg-white p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] shadow-card md:p-5 md:pb-5"
+    >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="eyebrow">Add dishes</p>
@@ -376,11 +433,11 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
                 className="overflow-hidden rounded-[16px] bg-white"
                 aria-label={`查看 ${recipe.name} 菜谱`}
               >
-                <img
-                  src={photoFor(recipe, { variant: "thumb" })}
+                <DishImage
+                  recipe={recipe}
+                  variant="thumb"
                   alt=""
                   loading="lazy"
-                  decoding="async"
                   className="h-20 w-full object-cover"
                 />
               </button>
@@ -408,7 +465,7 @@ function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe }) {
       </div>
     </section>
   );
-}
+});
 
 function SummaryTile({ label, value }) {
   return (

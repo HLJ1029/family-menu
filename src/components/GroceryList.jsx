@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
+import { MonsterEmptyState } from "./ui/HumiMonster";
 
 export function GroceryList({
   items,
@@ -33,6 +34,7 @@ export function GroceryList({
   onOpenUserCenter,
   onOpenInventory,
   onOpenStats,
+  onGroceryItemChecked,
 }) {
   const totalItemCount = items.length + customItems.length;
   const checklistItems = [...items, ...customItems];
@@ -43,7 +45,11 @@ export function GroceryList({
   const [openSections, setOpenSections] = useState({});
 
   function toggle(key) {
-    setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
+    setCheckedItems((current) => {
+      const checked = !current[key];
+      onGroceryItemChecked?.({ key, checked });
+      return { ...current, [key]: checked };
+    });
   }
 
   function toggleSection(key) {
@@ -92,11 +98,12 @@ export function GroceryList({
           </Card>
         ) : (
           <Card>
-            <p className="eyebrow">Empty list</p>
-            <h3 className="card-title">暂无可购买食材</h3>
-            <p className="mt-3 text-sm font-bold leading-6 text-ink/55">
-              可以先回首页安排晚饭，或去“自己挑”临时加一道菜。
-            </p>
+            <MonsterEmptyState
+              mood="hungry"
+              accessory="basket"
+              title="购物篮还空着"
+              text="先回首页安排晚饭，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
+            />
           </Card>
         )}
 
@@ -297,9 +304,12 @@ function ShoppingChecklist({
             </CollapsibleChecklistSection>
           ))
         ) : (
-          <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold text-ink/50">
-            暂无待买食材。先回首页安排晚饭，或在一周计划里加菜。
-          </div>
+          <MonsterEmptyState
+            mood="hungry"
+            accessory="basket"
+            title="清单还空着"
+            text="先安排一顿饭，我就能把食材按买菜习惯分好类。"
+          />
         )}
 
         {customItems.length > 0 && (

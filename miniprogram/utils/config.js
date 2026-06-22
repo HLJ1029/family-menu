@@ -6,11 +6,8 @@ const HUMI_WECHAT_LOGIN_ENABLED = true;
 
 function isDevtools() {
   try {
-    const accountInfo = wx.getAccountInfoSync ? wx.getAccountInfoSync() : null;
-    const envVersion = accountInfo?.miniProgram?.envVersion;
     const deviceInfo = wx.getDeviceInfo ? wx.getDeviceInfo() : {};
-    return envVersion === "develop"
-      || deviceInfo.platform === "devtools";
+    return deviceInfo.platform === "devtools";
   } catch (error) {
     console.warn("Unable to detect mini program environment", error);
     return false;

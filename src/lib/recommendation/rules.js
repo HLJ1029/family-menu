@@ -188,8 +188,7 @@ function selectDinnerSet({ primary, scored, fallbackRecipes, targetDishCount }) 
 }
 
 function getTargetDishCount(familySize) {
-  if (familySize <= 1) return 1;
-  if (familySize === 2) return 2;
+  if (familySize <= 2) return 2;
   if (familySize <= 4) return 3;
   return 4;
 }

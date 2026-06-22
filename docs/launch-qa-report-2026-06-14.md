@@ -4,24 +4,22 @@
 
 ## 结论
 
-H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式域名已确认为 `www.humi-home.com`，但当前 HTTP/HTTPS 尚未正常响应。正式小程序提交审核仍被平台资料阻塞：正式 AppID、微信业务域名校验文件、运营主体和联系邮箱尚未填入项目配置与协议页面。
+H5 当前构建、核心页面结构、GitHub Pages 部署通道和正式域名均可用。正式小程序提交审核仍被平台资料阻塞：正式 AppID、微信业务域名校验文件、API 域名后端、运营主体和联系邮箱尚未完整闭环。
 
 ## 已完成检查
 
 - `npm run build` 通过。
 - `npm run validate:data` 通过，当前 43 条菜谱、43 个唯一 ID。
 - `git diff --check` 通过。
-- GitHub Pages 当前线上地址可访问：
-  - `https://hlj1029.github.io/family-menu/`
-  - `https://hlj1029.github.io/family-menu/privacy.html`
-  - `https://hlj1029.github.io/family-menu/terms.html`
+- GitHub Pages 自定义域名当前线上地址可访问：
+  - `https://www.humi-home.com/`
+  - `https://www.humi-home.com/privacy.html`
+  - `https://www.humi-home.com/terms.html`
 - GitHub Pages 最近一次 `Deploy GitHub Pages` workflow 成功。
-- 线上构建产物与本地构建产物一致：`index-BFwEm2dO.js`、`index-D14Mc-wM.css`。
 - 正式目标域名：`https://www.humi-home.com/`。
 - 当前域名连通性：
-  - `https://www.humi-home.com/`：TLS 握手失败，暂不可用。
-  - `https://www.humi-home.com/family-menu/`：TLS 握手失败，暂不可用。
-  - `http://www.humi-home.com/`：空响应，暂不可用。
+  - `https://www.humi-home.com/`：HTTP 200。
+  - 静态 JS/CSS 资源：HTTP 200。
 
 ## H5 页面验收
 
@@ -53,31 +51,37 @@ H5 当前构建、核心页面结构和 GitHub Pages 部署通道可用。正式
 - `cli preview --project miniprogram` 通过，测试 AppID 下生成预览包成功，包体约 `1.2 KB`。
 - `miniprogram/utils/config.js` 当前配置：
   - 开发者工具：`http://127.0.0.1:5173/family-menu/?channel=wechat-miniprogram`
-  - 真机/正式：`https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram`
+  - 真机/正式：`https://www.humi-home.com/?channel=wechat-miniprogram`
+  - Humi API：`https://api.humi-home.com`
 - `miniprogram/project.config.json` 当前仍是测试 AppID：`wx3acc29804cbb265f`。
-- `urlCheck` 当前仍为 `false`，只适合本地调试，不适合正式提交审核。
+- `urlCheck` 当前仍为 `false`，用于测试 AppID 和本机预览；正式 AppID 到位后按 `docs/miniprogram-release-config-example.md` 切换为 `true`。
 
 ## 当前阻塞项
 
 - 缺正式小程序 AppID。
 - 缺微信业务域名校验文件。
-- 正式域名 `www.humi-home.com` 的 HTTPS 尚未可访问。
 - 微信公众平台尚未确认 WebView 业务域名配置。
+- 微信登录是真实上线前必做项；`api.humi-home.com` 后端和 request 合法域名仍是提交审核前阻塞项。
 - `public/privacy.html` 仍有占位：
-  - 运营者：`[正式提交前填写]`
-  - 联系邮箱：`[正式提交前填写]`
+  - 运营者：正式提交前填写。
+  - 联系邮箱：正式提交前填写。
 - `public/terms.html` 仍有占位：
-  - 运营者：`[正式提交前填写]`
-  - 联系邮箱：`[正式提交前填写]`
-- Supabase Auth redirect URLs 尚未按正式域名确认。
+  - 运营者：正式提交前填写。
+  - 联系邮箱：正式提交前填写。
+- 自有微信身份层尚未部署；微信登录正式链路仍需部署和真机验证。
 - 本机 Docker 未运行，无法执行本地 Supabase 容器状态检查。
+- 已新增 `npm run release:check` 和 `npm run release:check:online`，用于在提交审核前自动拦截上述仓库内可检查的阻塞项。
 
 ## 待平台资料到位后执行
 
-- 待 `www.humi-home.com` HTTPS 可访问后，将 `HUMI_WEB_URL` 替换为正式 HTTPS 域名。
-- 将 `project.config.json` 替换为正式小程序 AppID。
-- 正式审核前恢复 `urlCheck: true`。
+- 将 `project.config.json` 替换为正式小程序 AppID，并按发布模板恢复 `urlCheck: true`。
 - 放置微信业务域名校验文件到正式域名要求路径。
 - 补齐隐私政策和用户协议里的运营者与联系邮箱。
-- 在 Supabase 后台确认正式域名 redirect URLs。
+- 部署 `api.humi-home.com`，完成微信 `code2Session` 登录接口并配置 request 合法域名。
 - 用真机微信完成 WebView 全链路验收。
+- 全部完成后执行：
+  - `npm run validate:data`
+  - `npm run build`
+  - `npm run validate:api`
+  - `npm run release:check`
+  - `npm run release:check:online`

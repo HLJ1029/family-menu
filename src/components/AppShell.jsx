@@ -88,7 +88,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
   const title = activeItem?.label ?? "Humi";
 
   return (
-    <header className="mb-5 flex flex-col gap-4 lg:mb-7 lg:flex-row lg:items-center lg:justify-between">
+    <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] bg-canvas/88 pb-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:bg-transparent lg:pb-0 lg:pt-0 lg:backdrop-blur-none">
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <button

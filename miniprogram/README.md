@@ -16,11 +16,12 @@
 /Applications/wechatwebdevtools.app
 ```
 
-本机调试阶段已关闭合法域名校验。正式上传审核前，需要把正式 AppID 和业务域名配置好，再恢复合法域名校验。
+当前 `project.config.json` 仍服务测试 AppID 和本机预览，保留 `urlCheck: false`。正式 AppID 到位后，参考 `docs/miniprogram-release-config-example.md` 切换为 `urlCheck: true`。
 
 ## 正式上线前必须确认
 
-- `HUMI_H5_URL` 换成已备案、可配置业务域名的 HTTPS 地址。
+- `HUMI_WEB_URL` 使用已备案、可配置业务域名的 HTTPS 地址。
+- `HUMI_API_BASE_URL` 对应的 API 域名已配置为 request 合法域名。
 - 微信后台已配置 WebView 业务域名。
 - 微信业务域名校验文件已放到 H5 站点根目录或 `.well-known/`。
 - 隐私政策和用户协议可从 H5 域名直接访问。
@@ -29,10 +30,18 @@
 当前地址策略：
 
 - 微信开发者工具：`http://127.0.0.1:5173/family-menu/?channel=wechat-miniprogram`
-- 真机、预览、正式包：`https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram`
+- 微信开发者工具 API：`http://127.0.0.1:8787`
+- 真机、预览、正式包：`https://www.humi-home.com/?channel=wechat-miniprogram`
+- 真机、预览、正式 API：`https://api.humi-home.com`
 
 正式默认地址：
 
 ```text
-https://hlj1029.github.io/family-menu/?channel=wechat-miniprogram
+https://www.humi-home.com/?channel=wechat-miniprogram
+```
+
+微信登录是真实上线前必做项。联调微信登录骨架时，启动本地 API：
+
+```bash
+HUMI_WECHAT_MOCK=1 npm run api:dev
 ```

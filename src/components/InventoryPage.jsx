@@ -2,6 +2,7 @@ import { AlertTriangle, ChefHat, Cloud, PackageCheck, Plus, RefreshCw, Share2, U
 import { buildMealInsights } from "../lib/insights";
 import { formatPantryCount, getExpiryState } from "../lib/pantry";
 import { Card } from "./ui/Card";
+import { MonsterEmptyState } from "./ui/HumiMonster";
 import { PantryChip } from "./ui/PantryChip";
 
 export function InventoryPage({
@@ -79,9 +80,12 @@ export function InventoryPage({
                   <PriorityItem key={item.key} item={item} />
                 ))
               ) : (
-                <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/48">
-                  还没有库存记录。先记一笔鸡蛋、青菜或牛奶，Humi 就能帮你排序。
-                </p>
+                <MonsterEmptyState
+                  mood="thinking"
+                  accessory="fridge"
+                  title="冰箱还没记录"
+                  text="先记一笔鸡蛋、青菜或牛奶，我就能帮你排优先级。"
+                />
               )}
             </div>
             <div className="rounded-[22px] bg-canvas p-4">
@@ -101,9 +105,12 @@ export function InventoryPage({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm font-bold leading-6 text-ink/48">
-                    暂时没有和菜谱匹配的库存。补充库存名称后会自动出现建议。
-                  </p>
+                  <MonsterEmptyState
+                    mood="default"
+                    accessory="spatula"
+                    title="还没配上菜"
+                    text="补充库存名称后，我会自动找能用上的菜谱。"
+                  />
                 )}
               </div>
             </div>
@@ -237,7 +244,13 @@ function InventoryGroup({ title, emptyText, items, onRemove }) {
             <PantryChip key={item.key} item={item} onRemove={() => onRemove(item.key)} />
           ))
         ) : (
-          <p className="text-sm font-bold leading-6 text-ink/48">{emptyText}</p>
+          <MonsterEmptyState
+            mood={title === "已过期" ? "success" : "default"}
+            accessory="fridge"
+            title={emptyText}
+            text={title === "家里现有" ? "加几样常备食材，推荐和清单会更准。" : "这里会在需要处理时自动提醒。"}
+            className="w-full"
+          />
         )}
       </div>
     </Card>

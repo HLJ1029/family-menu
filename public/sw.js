@@ -1,5 +1,5 @@
 const CACHE_NAME = "humi-shell-v1";
-const IMAGE_CACHE_NAME = "humi-dish-images-v1";
+const IMAGE_CACHE_NAME = "humi-dish-images-v2";
 const BASE_PATH = new URL(self.registration.scope).pathname;
 const APP_SHELL = [
   BASE_PATH,
@@ -25,6 +25,7 @@ self.addEventListener("install", (event) => {
       .then((cache) => cache.addAll(APP_SHELL))
       .then(() => caches.open(IMAGE_CACHE_NAME))
       .then((cache) => cache.addAll(CRITICAL_DISH_IMAGES))
+      .then(() => cacheDishManifestImages())
       .then(() => self.skipWaiting()),
   );
 });
@@ -83,4 +84,19 @@ function cacheFirst(request, cacheName) {
       return response;
     });
   });
+}
+
+async function cacheDishManifestImages() {
+  try {
+    const response = await fetch(`${BASE_PATH}assets/dishes/manifest.json`, { cache: "no-cache" });
+    if (!response.ok) return;
+    const manifest = await response.json();
+    const urls = manifest.flatMap((item) => [item.webp, item.thumb])
+      .filter(Boolean)
+      .map((url) => `${BASE_PATH}${url.replace(/^\/+/, "")}`);
+    const cache = await caches.open(IMAGE_CACHE_NAME);
+    await Promise.allSettled(urls.map((url) => cache.add(url)));
+  } catch {
+    // App shell should still install if image warmup fails.
+  }
 }

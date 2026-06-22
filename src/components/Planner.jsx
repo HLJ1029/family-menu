@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { CalendarDays, Plus, Search, Share2, ShoppingBasket, Utensils, Wand2, X } from "lucide-react";
 import { getCurrentPlanDay } from "../lib/date";
-import { getRecipe, photoFor, recipes } from "../lib/recipes";
+import { getRecipe, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
+import { DishImage } from "./ui/DishImage";
+import { MonsterEmptyState } from "./ui/HumiMonster";
 import { MiniMeal } from "./ui/MiniMeal";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -154,11 +156,10 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
             </div>
             {selectedRecipe && (
               <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-white p-2">
-                <img
-                  src={photoFor(selectedRecipe, { variant: "thumb" })}
+                <DishImage
+                  recipe={selectedRecipe}
+                  variant="thumb"
                   alt=""
-                  loading="lazy"
-                  decoding="async"
                   className="h-12 w-12 rounded-2xl object-cover"
                 />
                 <div>
@@ -226,9 +227,13 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/45">
-                    还没安排。点“添加菜品”挑一道菜。
-                  </div>
+                  <MonsterEmptyState
+                    mood="thinking"
+                    accessory="menu"
+                    title="这天还空着"
+                    text="点“添加菜品”，我会把它记进本周计划。"
+                    className="md:col-span-2"
+                  />
                 )}
               </div>
             </div>
@@ -283,11 +288,10 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                       disabled={alreadyAdded}
                       className="flex items-center gap-3 rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      <img
-                        src={photoFor(recipe, { variant: "thumb" })}
+                      <DishImage
+                        recipe={recipe}
+                        variant="thumb"
                         alt=""
-                        loading="lazy"
-                        decoding="async"
                         className="h-16 w-16 rounded-2xl object-cover"
                       />
                       <span className="min-w-0 flex-1">

@@ -8,3 +8,7 @@ export function isWechatMiniProgramWebView() {
   if (typeof window === "undefined") return false;
   return getLaunchChannel() === "wechat-miniprogram";
 }
+
+export function isWechatLoginEnabled() {
+  return import.meta.env?.VITE_HUMI_WECHAT_LOGIN_ENABLED === "1";
+}
