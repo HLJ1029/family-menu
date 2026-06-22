@@ -7,7 +7,7 @@
 1. 打开微信开发者工具。
 2. 选择“导入项目”。
 3. 项目目录选择：`/Users/honglijie/vibe coding/family-menu/miniprogram`。
-4. AppID 先用测试号或填写正式小程序 AppID。
+4. AppID 使用 Humi 正式小程序 AppID。
 5. 预览前确认 `utils/config.js` 里的 H5 地址。
 
 本机已安装微信开发者工具：
@@ -16,7 +16,7 @@
 /Applications/wechatwebdevtools.app
 ```
 
-当前 `project.config.json` 仍服务测试 AppID 和本机预览，保留 `urlCheck: false`。正式 AppID 到位后，参考 `docs/miniprogram-release-config-example.md` 切换为 `urlCheck: true`。
+当前 `project.config.json` 使用正式 AppID，并已开启 `urlCheck: true`。本机调试时请同时启动 H5 和 API 开发服务。
 
 ## 正式上线前必须确认
 
@@ -29,7 +29,7 @@
 
 当前地址策略：
 
-- 微信开发者工具：`http://127.0.0.1:5173/family-menu/?channel=wechat-miniprogram`
+- 微信开发者工具：`http://localhost:5173/?channel=wechat-miniprogram`
 - 微信开发者工具 API：`http://127.0.0.1:8787`
 - 真机、预览、正式包：`https://www.humi-home.com/?channel=wechat-miniprogram`
 - 真机、预览、正式 API：`https://api.humi-home.com`
