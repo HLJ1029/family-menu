@@ -1,5 +1,5 @@
 const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram";
-const HUMI_DEVTOOLS_URL = "http://localhost:5173/family-menu/?channel=wechat-miniprogram";
+const HUMI_DEVTOOLS_URL = "http://localhost:5173/?channel=wechat-miniprogram";
 const HUMI_API_BASE_URL = "https://api.humi-home.com";
 const HUMI_DEVTOOLS_API_BASE_URL = "http://127.0.0.1:8787";
 const HUMI_WECHAT_LOGIN_ENABLED = true;
