@@ -10,7 +10,7 @@ import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
-import { Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
+import { IcpFooter, Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
 import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
 import { UserCenter } from "./components/UserCenter";
@@ -1976,6 +1976,7 @@ function App() {
           </div>
         </main>
       </div>
+      <IcpFooter />
       <MobileTabbar activeView={activeView} onChange={navigateTo} />
       {entryMotion && <EntryTableMotion />}
       {notice && (

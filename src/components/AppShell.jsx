@@ -3,6 +3,24 @@ import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { getNavItem, mobileNavItems, navItems } from "./navigation";
 import { DoodlePot } from "./ui/Doodles";
 
+export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
+export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
+
+export function IcpFooter({ compact = false }) {
+  return (
+    <footer className={`mx-auto w-full max-w-[1480px] px-4 text-center text-xs font-bold text-ink/42 md:px-6 ${compact ? "pb-5 pt-2" : "pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-8 lg:pb-8"}`}>
+      <a
+        href={ICP_RECORD_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="transition hover:text-ink"
+      >
+        {ICP_RECORD_NUMBER}
+      </a>
+    </footer>
+  );
+}
+
 export function Sidebar({ activeView, onChange }) {
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-48px)] w-72 shrink-0 flex-col rounded-[28px] border border-line/80 bg-white/78 p-5 shadow-card backdrop-blur-xl lg:flex">

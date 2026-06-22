@@ -3,6 +3,7 @@ import { useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { photoFor, recipes } from "../lib/recipes";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
+import { IcpFooter } from "./AppShell";
 import { CloudAccount } from "./system/CloudAccount";
 
 export function AuthLanding({ authProps, onContinueGuest }) {
@@ -15,7 +16,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
 
   return (
     <main className="min-h-screen overflow-hidden bg-canvas px-6 py-8 text-ink">
-      <section className="mx-auto grid min-h-[calc(100vh-64px)] max-w-md content-between gap-8">
+      <section className="mx-auto grid min-h-[calc(100vh-112px)] max-w-md content-between gap-8">
         <div className="pt-8 text-center">
           <p className="text-5xl font-black uppercase tracking-[0.02em] text-ink">HUMI</p>
           <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">今晚吃什么</p>
@@ -53,6 +54,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
           </>
         )}
       </section>
+      <IcpFooter compact />
     </main>
   );
 }
