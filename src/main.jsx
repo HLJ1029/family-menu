@@ -2157,7 +2157,7 @@ function validationEventsToCsv(events = []) {
 
 function EntryTableMotion() {
   return (
-    <div className="entry-table-motion fixed inset-0 z-[90] overflow-hidden bg-ink text-white">
+    <div className="entry-table-motion fixed inset-0 z-[90] overflow-hidden bg-white text-ink">
       <div className="entry-table-motion__glow" />
       <div className="entry-decision-copy">
         <p className="entry-decision-line entry-decision-line--one">今天吃什么？</p>
@@ -2175,9 +2175,9 @@ function EntryTableMotion() {
         <span className="entry-table-motion__dish entry-table-motion__dish--two" />
       </div>
       <div className="entry-final-copy">
-        <p className="text-xs font-black uppercase tracking-[0.28em] text-acid">HUMI</p>
+        <p className="text-xs font-black uppercase tracking-[0.28em] text-ink">HUMI</p>
         <p className="mt-3 text-2xl font-black tracking-[-0.04em]">今晚安排好了</p>
-        <p className="mt-2 text-sm font-bold text-white/54">肉末蒸蛋 · 青椒豆腐</p>
+        <p className="mt-2 text-sm font-bold text-ink/54">肉末蒸蛋 · 青椒豆腐</p>
       </div>
     </div>
   );

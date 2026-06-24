@@ -13,8 +13,8 @@ export function DoodleWash() {
 export function DoodleArrow() {
   return (
     <svg width="92" height="64" viewBox="0 0 92 64" fill="none" aria-hidden="true">
-      <path d="M9 51c20-30 47-42 72-36" stroke="#D9F06B" strokeWidth="3" strokeLinecap="round" />
-      <path d="M69 7l13 8-12 9" stroke="#D9F06B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 51c20-30 47-42 72-36" stroke="#111111" strokeWidth="3" strokeLinecap="round" />
+      <path d="M69 7l13 8-12 9" stroke="#111111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

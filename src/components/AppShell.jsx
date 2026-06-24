@@ -25,7 +25,7 @@ export function Sidebar({ activeView, onChange }) {
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-48px)] w-72 shrink-0 flex-col rounded-[28px] border border-line/80 bg-white/78 p-5 shadow-card backdrop-blur-xl lg:flex">
       <div className="mb-8 flex items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-acid">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-white">
           <ChefHat size={22} />
         </div>
         <div>
@@ -46,7 +46,7 @@ export function Sidebar({ activeView, onChange }) {
                 active ? "nav-tab-active bg-ink text-white" : "text-ink/62 hover:bg-ink/[0.04] hover:text-ink"
               }`}
             >
-              <Icon size={19} className={active ? "text-acid" : "text-ink/48 group-hover:text-ink"} />
+              <Icon size={19} className={active ? "text-white" : "text-ink/48 group-hover:text-ink"} />
               {item.label}
             </button>
           );
@@ -99,7 +99,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
           >
             <ArrowLeft size={17} />
           </button>
-          <span className="h-2 w-2 rounded-full bg-acid" />
+          <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
         <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
@@ -140,8 +140,8 @@ export function MobileTabbar({ activeView, onChange }) {
               active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"
             }`}
           >
-            {active && <span className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-acid" />}
-            <Icon size={18} className={active ? "text-acid" : ""} />
+            {active && <span className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-ink" />}
+            <Icon size={18} className={active ? "text-white" : ""} />
             {item.label}
           </button>
         );

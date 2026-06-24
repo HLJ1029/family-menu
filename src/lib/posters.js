@@ -3,7 +3,7 @@ import { photoFor } from "./recipes";
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
 const COLORS = {
-  acid: "#D4EB5A",
+  acid: "#111111",
   ink: "#111111",
   canvas: "#F5F4F1",
   white: "#FFFFFF",

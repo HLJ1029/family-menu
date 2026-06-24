@@ -66,7 +66,7 @@ export function FamilyPreferencesPanel({
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <MailPlus size={17} />
           加入我的家
@@ -90,7 +90,7 @@ export function FamilyPreferencesPanel({
                   disabled={loading}
                   className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  <Save size={14} className="text-acid" />
+                  <Save size={14} className="text-white" />
                   保存偏好
                 </button>
               </div>

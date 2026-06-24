@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
-import { MonsterEmptyState } from "./ui/HumiMonster";
+import { HumiEmptyState } from "./ui/HumiBrandIllustration";
 
 export function GroceryList({
   items,
@@ -98,9 +98,8 @@ export function GroceryList({
           </Card>
         ) : (
           <Card>
-            <MonsterEmptyState
-              mood="hungry"
-              accessory="basket"
+            <HumiEmptyState
+              variant="shopping"
               title="购物篮还空着"
               text="先回首页安排晚饭，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
             />
@@ -209,7 +208,7 @@ export function GroceryList({
                   <button
                     type="button"
                     onClick={() => onRestoreItem(item)}
-                    className="rounded-full bg-acid px-3 py-2 text-xs font-black text-ink"
+                    className="rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
                   >
                     恢复
                   </button>
@@ -270,13 +269,13 @@ function ShoppingChecklist({
             这里是买菜时看的清单；每道菜的精确用量放在下面核对。
           </p>
         </div>
-        <span key={checkedItemCount} className="grocery-count-pop rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
+        <span key={checkedItemCount} className="grocery-count-pop rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
           已完成 {checkedItemCount} / {totalItemCount}
         </span>
       </div>
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-canvas">
         <div
-          className="grocery-progress-fill h-full rounded-full bg-acid"
+          className="grocery-progress-fill h-full rounded-full bg-ink"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -304,9 +303,8 @@ function ShoppingChecklist({
             </CollapsibleChecklistSection>
           ))
         ) : (
-          <MonsterEmptyState
-            mood="hungry"
-            accessory="basket"
+          <HumiEmptyState
+            variant="shopping"
             title="清单还空着"
             text="先安排一顿饭，我就能把食材按买菜习惯分好类。"
           />
@@ -338,7 +336,7 @@ function ShoppingChecklist({
       <button
         type="button"
         onClick={onShare}
-        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
+        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
         <Share2 size={17} />
         生成清单海报
@@ -471,7 +469,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
           <p className="mt-2 line-clamp-1 text-sm font-bold text-ink/48">{recipeNames}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+          <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
             {section.itemCount} 项
           </span>
           <span className={`grid h-10 w-10 place-items-center rounded-full bg-canvas transition ${open ? "rotate-180" : ""}`}>
@@ -522,7 +520,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
     >
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
           {checked && <Check size={15} className="check-pop" />}
         </span>
         <span className="min-w-0 flex-1 font-black">
@@ -537,7 +535,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
       <button
         type="button"
         onClick={onRemove}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-ink"
         aria-label={`${item.name} 加入厨房库存`}
       >
         <PackageCheck size={15} />
@@ -554,7 +552,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
     >
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-acid">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
           {checked && <Check size={15} className="check-pop" />}
         </span>
         <span className="min-w-0 flex-1">
@@ -574,7 +572,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
       <button
         type="button"
         onClick={onRemove}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-ink"
         aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
       >
         <ActionIcon size={15} />

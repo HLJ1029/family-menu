@@ -2,6 +2,8 @@
 
 日期：2026-06-14
 
+> 2026-06-24 状态同步：本报告保留为 2026-06-14 的历史 QA 记录。当前正式 AppID 已替换为 `wx4040b89f3b363416`，`urlCheck` 已恢复为 `true`，`https://api.humi-home.com/health` 已返回 HTTP 200，`npm run release:check` 与 `npm run release:check:online` 均通过。当前新的 UI 升级批次仍在未提交工作区中，且因缺少 `src/components/ui/HumiBrandIllustration.jsx` 导致 `npm run build` 失败，不能作为可发布候选。
+
 ## 结论
 
 H5 当前构建、核心页面结构、GitHub Pages 部署通道和正式域名均可用。正式小程序提交审核仍被平台资料阻塞：正式 AppID、微信业务域名校验文件、API 域名后端、运营主体和联系邮箱尚未完整闭环。

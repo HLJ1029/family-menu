@@ -5,7 +5,7 @@ import { getRecipe, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { MonsterEmptyState } from "./ui/HumiMonster";
+import { HumiEmptyState } from "./ui/HumiBrandIllustration";
 import { MiniMeal } from "./ui/MiniMeal";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -61,7 +61,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
               <button
                 type="button"
                 onClick={() => onViewChange("today")}
-                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-acid px-4 py-2 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <Utensils size={15} />
                 回到今晚菜单
@@ -85,7 +85,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                 onClick={() => onViewChange("grocery")}
                 className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
-                <ShoppingBasket size={15} className="text-acid" />
+                <ShoppingBasket size={15} className="text-white" />
                 查看清单
               </button>
               <button
@@ -149,7 +149,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   onClick={addSelectedRecipe}
                   className="flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
                 >
-                  <Plus size={16} className="text-acid" />
+                  <Plus size={16} className="text-white" />
                   加入这天
                 </button>
               </div>
@@ -196,7 +196,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/38">{day}</p>
                   {day === currentDay && (
-                    <span className="rounded-full bg-acid px-2 py-1 text-[10px] font-black">今天</span>
+                    <span className="rounded-full bg-ink px-2 py-1 text-[10px] font-black">今天</span>
                   )}
                 </div>
                 <p className="mt-2 text-xs font-bold text-ink/42">
@@ -207,7 +207,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                   onClick={() => openPicker(day)}
                   className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-3 text-xs font-black text-white transition hover:-translate-y-0.5"
                 >
-                  <Plus size={14} className="text-acid" />
+                  <Plus size={14} className="text-white" />
                   添加菜品
                 </button>
               </div>
@@ -227,11 +227,10 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                     </div>
                   ))
                 ) : (
-                  <MonsterEmptyState
-                    mood="thinking"
-                    accessory="menu"
+                  <HumiEmptyState
+                    variant="empty"
                     title="这天还空着"
-                    text="点“添加菜品”，我会把它记进本周计划。"
+                    text="点“添加菜品”，把适合这一天的晚饭放进计划。"
                     className="md:col-span-2"
                   />
                 )}
@@ -301,7 +300,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
                         </span>
                       </span>
                       <span className={`rounded-full px-3 py-2 text-xs font-black ${
-                        alreadyAdded ? "bg-canvas text-ink/45" : "bg-acid text-ink"
+                        alreadyAdded ? "bg-canvas text-ink/45" : "bg-ink text-white"
                       }`}>
                         {alreadyAdded ? "已添加" : "加入"}
                       </span>

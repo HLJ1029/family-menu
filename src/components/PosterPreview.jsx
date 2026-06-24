@@ -44,7 +44,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
                 <div className="grid justify-items-center gap-5 text-center">
                   <div className="relative h-20 w-20">
                     <div className="absolute inset-0 rounded-full border-[10px] border-ink/10" />
-                    <div className="absolute inset-0 animate-spin rounded-full border-[10px] border-transparent border-t-acid" />
+                    <div className="absolute inset-0 animate-spin rounded-full border-[10px] border-transparent border-t-ink" />
                   </div>
                   <div>
                     <p className="text-2xl font-black tracking-[-0.04em] text-ink">正在生成海报</p>
@@ -86,7 +86,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               type="button"
               onClick={onShare}
               disabled={loading || !ready}
-              className="trend-button flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-55"
+              className="trend-button flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-55"
             >
               <Share2 size={18} />
               分享海报
@@ -97,7 +97,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               disabled={loading || !ready}
               className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
             >
-              <Download size={18} className="text-acid" />
+              <Download size={18} className="text-white" />
               保存 PNG
             </button>
             <button

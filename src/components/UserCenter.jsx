@@ -47,7 +47,7 @@ export function UserCenter({
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
         <section className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">我的家</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-white">我的家</p>
           <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
             把家里的吃饭习惯存下来。
           </h2>
@@ -66,7 +66,7 @@ export function UserCenter({
                 只有确认“全部吃了”的晚餐才进入营养分析；外卖和外食只记录来源。
               </p>
             </div>
-            <span className="rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
+            <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
               已确认 {sourceSummary.confirmed} 次
             </span>
           </div>
@@ -197,7 +197,7 @@ export function UserCenter({
 
         <Card>
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-acid">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-white">
               <Cloud size={20} />
             </span>
             <div>
@@ -268,7 +268,7 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
             先选几个常用习惯，推荐时会压缩成一份简短画像，少传废话，也更贴近你家。
           </p>
         </div>
-        <span className="rounded-full bg-acid px-3 py-1 text-xs font-black text-ink">
+        <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
           {completedCount}/5 已完成
         </span>
       </div>
@@ -391,7 +391,7 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
         onClick={saveProfile}
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
-        <Check size={17} className="text-acid" />
+        <Check size={17} className="text-white" />
         保存家庭画像
       </button>
     </section>
@@ -470,7 +470,7 @@ function NutritionGoalsPanel({ profile, goals, setGoals }) {
         onClick={saveGoals}
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
-        <Check size={17} className="text-acid" />
+        <Check size={17} className="text-white" />
         保存营养目标
       </button>
     </section>
@@ -588,7 +588,7 @@ function UtilityButton({ icon: Icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-canvas px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-acid hover:text-ink"
+      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-canvas px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-ink hover:text-ink"
     >
       <Icon size={17} />
       {label}

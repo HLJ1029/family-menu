@@ -52,7 +52,7 @@ export function CloudAccount({
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       {!compactTitle && (
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-white">
             <Cloud size={20} />
           </span>
           <div>
@@ -96,7 +96,7 @@ export function CloudAccount({
               <button
                 type="submit"
                 disabled={cloudLoading}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={17} />
                 创建我的家
@@ -164,7 +164,7 @@ export function CloudAccount({
                 type="button"
                 onClick={() => onPasswordAuth("signup")}
                 disabled={cloudLoading}
-                className="min-h-12 rounded-full bg-acid px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-12 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 注册账号
               </button>

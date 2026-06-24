@@ -4,10 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: "#FAFAF7",
+        canvas: "#FFFFFF",
         ink: "#111111",
-        acid: "#D9F06B",
-        apricot: "#FFB86A",
+        acid: "#111111",
+        apricot: "#D8C1A4",
         line: "#E8E8E1",
       },
       boxShadow: {

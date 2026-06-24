@@ -37,7 +37,7 @@ export function CloudInlineStatus({
             type="button"
             onClick={onMigrate}
             disabled={loading}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
           >
             <UploadCloud size={16} />
             {migrateLabel}

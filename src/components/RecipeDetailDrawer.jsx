@@ -37,6 +37,7 @@ export function RecipeDetailDrawer({
   const isFirstStep = cookingStep === 0;
   const isLastStep = cookingStep === recipe.steps.length - 1;
   const currentStep = recipe.steps[cookingStep];
+  const currentGuidance = getCookingGuidance(currentStep, cookingStep, recipe.steps.length);
   const nutrition = nutritionFor(recipe);
 
   function previousStep() {
@@ -88,7 +89,7 @@ export function RecipeDetailDrawer({
             <X size={20} />
           </button>
           <div className="absolute bottom-5 left-5 right-5 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-acid">Recipe detail</p>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-white">Recipe detail</p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">{recipe.name}</h2>
             <p className="mt-2 hidden text-sm leading-6 text-white/72 sm:block">{recipe.description}</p>
           </div>
@@ -127,7 +128,7 @@ export function RecipeDetailDrawer({
                   type="button"
                   onClick={() => updateServings(1)}
                   disabled={targetServings >= 12}
-                  className="grid h-11 place-items-center rounded-full bg-acid transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="grid h-11 place-items-center rounded-full bg-ink transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45"
                   aria-label="增加人数"
                 >
                   <Plus size={17} />
@@ -147,7 +148,7 @@ export function RecipeDetailDrawer({
                 <p className="eyebrow">Cooking mode</p>
                 <h3 className="card-title">跟做步骤</h3>
               </div>
-              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
                 {cookingStep + 1}/{recipe.steps.length}
               </span>
             </div>
@@ -155,16 +156,21 @@ export function RecipeDetailDrawer({
             <div className="rounded-[24px] bg-ink p-5 text-white">
               <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/14">
                 <div
-                  className="h-full rounded-full bg-acid transition-all duration-300"
+                  className="h-full rounded-full bg-ink transition-all duration-300"
                   style={{ width: `${((cookingStep + 1) / recipe.steps.length) * 100}%` }}
                 />
               </div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white">
                 Step {String(cookingStep + 1).padStart(2, "0")}
               </p>
               <p className="mt-3 text-2xl font-black leading-snug tracking-[-0.03em]">
                 {currentStep}
               </p>
+              <div className="mt-5 grid gap-2 sm:grid-cols-3">
+                <CookingCue label="火候" value={currentGuidance.heat} />
+                <CookingCue label="时间" value={currentGuidance.time} />
+                <CookingCue label="看点" value={currentGuidance.signal} />
+              </div>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -179,7 +185,7 @@ export function RecipeDetailDrawer({
                   type="button"
                   disabled={isLastStep}
                   onClick={nextStep}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid text-sm font-black text-ink transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink text-sm font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   下一步
                   <ArrowRight size={17} />
@@ -201,12 +207,15 @@ export function RecipeDetailDrawer({
                   >
                     <span
                       className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
-                        index === cookingStep ? "bg-ink text-acid" : "bg-canvas text-ink/45"
+                        index === cookingStep ? "bg-ink text-white" : "bg-canvas text-ink/45"
                       }`}
                     >
                       {index + 1}
                     </span>
                     <span className="text-sm font-bold leading-6 text-ink/72">{step}</span>
+                    <span className="col-start-2 -mt-1 text-xs font-bold leading-5 text-ink/42">
+                      {formatStepHint(step, index, recipe.steps.length)}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -264,7 +273,7 @@ export function RecipeDetailDrawer({
                 <p className="eyebrow">Cooking mode</p>
                 <h3 className="card-title">跟做步骤</h3>
               </div>
-              <span className="rounded-full bg-acid px-3 py-1 text-xs font-black">
+              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
                 {cookingStep + 1}/{recipe.steps.length}
               </span>
             </div>
@@ -272,11 +281,11 @@ export function RecipeDetailDrawer({
             <div className="rounded-[24px] bg-ink p-5 text-white">
               <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/14">
                 <div
-                  className="h-full rounded-full bg-acid transition-all duration-300"
+                  className="h-full rounded-full bg-ink transition-all duration-300"
                   style={{ width: `${((cookingStep + 1) / recipe.steps.length) * 100}%` }}
                 />
               </div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white">
                 Step {String(cookingStep + 1).padStart(2, "0")}
               </p>
               <p className="mt-3 text-2xl font-black leading-snug tracking-[-0.03em]">
@@ -296,7 +305,7 @@ export function RecipeDetailDrawer({
                   type="button"
                   disabled={isLastStep}
                   onClick={nextStep}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid text-sm font-black text-ink transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink text-sm font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   下一步
                   <ArrowRight size={17} />
@@ -318,7 +327,7 @@ export function RecipeDetailDrawer({
                   >
                     <span
                       className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
-                        index === cookingStep ? "bg-ink text-acid" : "bg-canvas text-ink/45"
+                        index === cookingStep ? "bg-ink text-white" : "bg-canvas text-ink/45"
                       }`}
                     >
                       {index + 1}
@@ -333,7 +342,7 @@ export function RecipeDetailDrawer({
           {recipe.tips && (
             <section className="mt-5 rounded-[24px] border border-line bg-white p-5 shadow-card">
               <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-acid">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-ink">
                   <Sparkles size={18} />
                 </div>
                 <div>
@@ -362,7 +371,7 @@ export function RecipeDetailDrawer({
               <button
                 type="button"
                 onClick={() => onUpdateTodayQuantity(recipe.id, 1)}
-                className="grid h-12 place-items-center rounded-full bg-acid"
+                className="grid h-12 place-items-center rounded-full bg-ink"
                 aria-label="增加份数"
               >
                 <Plus size={18} />
@@ -382,7 +391,7 @@ export function RecipeDetailDrawer({
               onClick={() => onAddToday(recipe.id)}
               className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5"
             >
-              <Plus size={18} className="text-acid" />
+              <Plus size={18} className="text-white" />
               加入今晚菜单
             </button>
           )}
@@ -440,6 +449,55 @@ function IngredientPanel({ title, items }) {
       </ul>
     </div>
   );
+}
+
+function CookingCue({ label, value }) {
+  return (
+    <div className="rounded-[18px] border border-white/12 bg-white/8 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/38">{label}</p>
+      <p className="mt-1 text-sm font-black leading-5 text-white/86">{value}</p>
+    </div>
+  );
+}
+
+function formatStepHint(step, index, total) {
+  const guidance = getCookingGuidance(step, index, total);
+  return `${guidance.heat} · ${guidance.time} · ${guidance.signal}`;
+}
+
+function getCookingGuidance(step, index, total) {
+  const text = step ?? "";
+  if (/切|洗|备|腌|调|拌|处理|准备/.test(text)) {
+    return { heat: "不开火", time: "3-8 分钟", signal: "食材分好、调料放手边" };
+  }
+  if (/焯|汆/.test(text)) {
+    return { heat: "大火沸水", time: "30 秒-2 分钟", signal: "变色或断生后捞出" };
+  }
+  if (/煮|炖|焖/.test(text)) {
+    return { heat: /大火/.test(text) ? "大火转中小火" : "中小火", time: inferTime(text, "6-12 分钟"), signal: "汤汁变浓、食材熟透" };
+  }
+  if (/煎|烙/.test(text)) {
+    return { heat: "中火", time: inferTime(text, "每面 2-3 分钟"), signal: "表面金黄再翻面" };
+  }
+  if (/炒|爆|翻炒/.test(text)) {
+    return { heat: /大火|爆/.test(text) ? "大火快炒" : "中大火", time: inferTime(text, "2-5 分钟"), signal: "香味出来、食材断生" };
+  }
+  if (/收汁|勾芡/.test(text)) {
+    return { heat: "中大火", time: inferTime(text, "1-3 分钟"), signal: "汤汁能挂在食材上" };
+  }
+  if (/出锅|装盘|撒|淋/.test(text) || index === total - 1) {
+    return { heat: "关火", time: "30 秒内", signal: "尝味后装盘" };
+  }
+  return { heat: index === 0 ? "不开火" : "中火", time: inferTime(text, "2-4 分钟"), signal: "边做边观察颜色和香味" };
+}
+
+function inferTime(text, fallback) {
+  const match = text.match(/(\d+)\s*(?:-|~|到)?\s*(\d+)?\s*(分钟|分|秒)/);
+  if (!match) return fallback;
+  const start = match[1];
+  const end = match[2];
+  const unit = match[3].startsWith("秒") ? "秒" : "分钟";
+  return end ? `${start}-${end} ${unit}` : `${start} ${unit}`;
 }
 
 function NutritionStat({ label, value }) {

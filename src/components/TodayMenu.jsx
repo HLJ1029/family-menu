@@ -5,7 +5,7 @@ import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiMonster } from "./ui/HumiMonster";
+import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 export function TodayMenu({
   todayRecipes,
@@ -57,20 +57,20 @@ export function TodayMenu({
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
-        <div className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
+        <div className="rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
           <div className="grid gap-5 md:grid-cols-[1fr_150px] md:items-end">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today menu</p>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
               <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
                 今晚菜单还是空的。
               </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
                 回到首页点“帮我安排晚饭”，Humi 会先给你凑好一组。
               </p>
             </div>
-            <div className="rounded-[26px] border border-white/14 bg-white/10 p-4 text-center backdrop-blur-xl">
-              <HumiMonster mood="hungry" accessory="spatula" size="lg" className="mx-auto" />
-              <p className="mt-2 text-xs font-black text-white/70">我还没开始端菜</p>
+            <div className="rounded-[26px] border border-line bg-canvas p-4 text-center">
+              <HumiBrandIllustration variant="empty" size="lg" className="mx-auto" title="空菜单生活场景" />
+              <p className="mt-2 text-xs font-black text-ink/56">还没有安排晚饭</p>
             </div>
           </div>
         </div>
@@ -104,14 +104,14 @@ export function TodayMenu({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
-        <div className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Today menu</p>
+        <div className="rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
                 今晚安排完成。
               </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
                 {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。还可以继续加菜或加主食。
               </p>
             </div>
@@ -119,7 +119,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <ShoppingBasket size={18} />
                 查看采购清单
@@ -127,7 +127,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={() => onOpenRecipe(todayRecipes[0]?.id)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Utensils size={18} />
                 开始做饭
@@ -135,7 +135,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={() => showAddPreset("all")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Plus size={18} />
                 加一道菜
@@ -143,7 +143,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={() => showAddPreset("staple")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Plus size={18} />
                 加主食
@@ -151,7 +151,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={scrollToLog}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Utensils size={18} />
                 记录这顿
@@ -159,7 +159,7 @@ export function TodayMenu({
               <button
                 type="button"
                 onClick={onShare}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Share2 size={18} />
                 生成海报
@@ -243,7 +243,7 @@ export function TodayMenu({
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(recipe.id, 1)}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-ink text-white transition hover:scale-105"
                       aria-label={`增加 ${recipe.name}`}
                     >
                       <Plus size={17} />
@@ -257,7 +257,7 @@ export function TodayMenu({
                     onClick={() => onOpenRecipe(recipe.id)}
                     className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
                   >
-                    <Utensils size={16} className="text-acid" />
+                    <Utensils size={16} className="text-white" />
                     查看做法
                   </button>
                   <button
@@ -390,7 +390,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
                 className="flex min-h-12 items-center justify-between gap-3 rounded-[18px] bg-white px-3 text-left text-sm font-black transition hover:-translate-y-0.5"
               >
                 <span className="truncate">{recipe.name}</span>
-                <span className="rounded-full bg-acid px-2.5 py-1 text-xs text-ink">加入</span>
+                <span className="rounded-full bg-ink px-2.5 py-1 text-xs text-white">加入</span>
               </button>
             ))}
           </div>
@@ -455,7 +455,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
                       : "bg-ink text-white hover:-translate-y-0.5"
                   }`}
                 >
-                  <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-acid"} />
+                  <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-white"} />
                   {inTodayMenu ? "再加一份" : "加入今晚"}
                 </button>
               </div>

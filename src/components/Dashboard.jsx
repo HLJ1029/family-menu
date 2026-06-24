@@ -13,7 +13,7 @@ import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { recipes } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
 import { DishImage } from "./ui/DishImage";
-import { HumiMonster } from "./ui/HumiMonster";
+import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 const dinnerSources = [
   { id: "home", label: "在家做" },
@@ -83,20 +83,9 @@ export function Dashboard({
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
-      <section className="relative min-h-[620px] min-w-0 overflow-hidden rounded-[32px] bg-ink text-white shadow-lift md:min-h-[700px]">
-        {heroRecipe && (
-          <DishImage
-            recipe={heroRecipe}
-            variant="hero"
-            alt=""
-            loading="eager"
-            fetchPriority="high"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/18" />
+      <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 pb-28 text-ink shadow-card md:p-8">
         <div className="absolute left-5 top-5 z-10">
-          <p className="text-sm font-black uppercase tracking-[0.28em] text-acid">HUMI</p>
+          <p className="text-sm font-black uppercase tracking-[0.16em] text-ink">HUMI</p>
         </div>
         <div className="absolute right-5 top-5 z-10">
           <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
@@ -115,64 +104,58 @@ export function Dashboard({
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 z-10 p-5 md:p-8">
-          <div className="max-w-4xl">
-            <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">今晚吃什么</p>
-            <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
+        <div className="relative z-10 pt-16">
+          <div className="grid gap-4 md:grid-cols-[1fr_180px] md:items-end">
+            <div>
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/42">今晚吃什么</p>
+            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-0.04em] sm:text-5xl md:text-7xl">
               {dinnerReady ? "今晚安排好了。" : recommendation.title}
             </h1>
-            <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-white/72">
+            <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {coreSummary}
             </p>
-            <div className="mt-4 flex max-w-xl items-center gap-3 rounded-[22px] border border-white/14 bg-white/10 p-3 backdrop-blur-xl">
-              <HumiMonster
-                mood={aiRecommendationLoading ? "thinking" : dinnerReady ? "success" : "happy"}
-                accessory={dinnerReady ? "basket" : "menu"}
-                size="sm"
+            <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-ink/58">
+              {aiRecommendationLoading
+                ? "正在重新核对库存、时间和家人口味。"
+                : dinnerReady
+                  ? "菜单已落位，买菜清单会跟着更新。"
+                  : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
+            </p>
+            </div>
+            <div className="hidden justify-self-end md:block">
+              <HumiBrandIllustration
+                variant={dinnerReady ? "shopping" : "kitchen"}
+                size="xl"
                 className="shrink-0"
+                title="今晚菜单生活场景"
               />
-              <p className="text-xs font-bold leading-5 text-white/70">
-                {aiRecommendationLoading
-                  ? "我正在重新端一组更合适的晚饭。"
-                  : dinnerReady
-                    ? "菜单已落位，清单也会跟着更新。"
-                    : "我先端来这组，菜品还是主角，我只负责少纠结一点。"}
-              </p>
             </div>
           </div>
 
-          <div className="tonight-card-swap mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3" key={recommendation.title}>
+          <div className="tonight-card-swap mt-6 grid gap-4 md:mt-8 md:grid-cols-2" key={recommendation.title}>
             {visibleDinnerItems.map(({ recipe, quantity }) => (
               <button
                 key={recipe.id}
                 type="button"
                 onClick={() => onOpenRecipe(recipe.id)}
-                className="grid grid-cols-[76px_1fr] gap-3 rounded-[24px] border border-white/14 bg-white/12 p-3 text-left backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/16"
+                className="rounded-[28px] border border-line bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-ink md:p-6"
               >
-                <DishImage
-                  recipe={recipe}
-                  variant="thumb"
-                  alt=""
-                  className="h-20 w-20 rounded-[18px] object-cover"
-                />
-                <span className="min-w-0 py-1">
-                  <span className="block truncate text-lg font-black">{recipe.name}</span>
-                  <span className="mt-2 flex flex-wrap gap-2 text-xs font-black text-white/70">
-                    <span className="rounded-full bg-white/12 px-2.5 py-1">{recipe.timeMinutes} min</span>
-                    <span className="rounded-full bg-white/12 px-2.5 py-1">{recipe.categories[0]}</span>
-                    {recipe.categories.includes("主食") && <span className="rounded-full bg-acid px-2.5 py-1 text-ink">主食</span>}
-                    {quantity > 1 && <span className="portion-pop rounded-full bg-acid px-2.5 py-1 text-ink">x{quantity} 份</span>}
+                <span className="block text-2xl font-black tracking-[-0.03em]">{recipe.name}</span>
+                <span className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/52">
+                    <span>{recipe.timeMinutes} min</span>
+                    <span>{recipe.categories[0]}</span>
+                    {recipe.categories.includes("主食") && <span>主食</span>}
+                    {quantity > 1 && <span className="portion-pop">x{quantity} 份</span>}
                   </span>
-                </span>
               </button>
             ))}
           </div>
 
-          <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+          <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
-              className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-acid px-5 text-base font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
+              className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
             >
               {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
               {dinnerReady ? "查看今晚菜单" : "今晚就做"}
@@ -181,7 +164,7 @@ export function Dashboard({
               type="button"
               onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
               disabled={!dinnerReady && aiRecommendationLoading}
-              className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
+              className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
             >
               {dinnerReady ? (
                 <ShoppingBasket size={18} />
@@ -194,23 +177,23 @@ export function Dashboard({
               <button
                 type="button"
                 onClick={onOpenRecommendationFeedback}
-                className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white transition hover:-translate-y-1 sm:px-7 sm:text-base"
+                className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:px-7 sm:text-base"
               >
                 不想吃
               </button>
             )}
           </div>
           {!dinnerReady && feedbackOpen && (
-            <div className="mt-4 rounded-[24px] border border-white/14 bg-white/10 p-4 backdrop-blur-xl">
+            <div className="mt-4 rounded-[24px] border border-line bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-white/38">Feedback</p>
-                  <p className="mt-1 text-sm font-black text-white">这组为什么不适合今晚？</p>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">Feedback</p>
+                  <p className="mt-1 text-sm font-black text-ink">这组为什么不适合今晚？</p>
                 </div>
                 <button
                   type="button"
                   onClick={onCloseRecommendationFeedback}
-                  className="rounded-full border border-white/14 px-3 py-1.5 text-xs font-black text-white/60"
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-black text-ink/60"
                 >
                   关闭
                 </button>
@@ -232,12 +215,12 @@ export function Dashboard({
           <button
             type="button"
             onClick={() => setDetailsOpen((current) => !current)}
-            className="mt-4 text-xs font-black text-white/58 underline decoration-white/20 underline-offset-4 transition hover:text-white"
+            className="mt-5 text-xs font-black text-ink/58 underline decoration-ink/20 underline-offset-4 transition hover:text-ink"
           >
             {detailsOpen ? "收起安排依据" : "展开安排依据"}
           </button>
           {detailsOpen && (
-            <div className="tonight-detail-panel mt-4 rounded-[24px] border border-white/14 bg-white/10 p-4 backdrop-blur-xl">
+            <div className="tonight-detail-panel mt-4 rounded-[24px] border border-line bg-white p-4">
               <div className="flex flex-wrap gap-2">
                 <StatusPill icon={Clock3} label="预计" value={`${totalMinutes || 25} 分钟`} />
                 <StatusPill icon={ShoppingBasket} label="待买" value={`${purchaseCount} 项`} />
@@ -248,23 +231,23 @@ export function Dashboard({
               </div>
               {!dinnerReady && recommendation.missingItems.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
+                  <span className="rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-black text-ink/70">
                     适合 {recommendation.familySize ?? familyProfile.familySize ?? 2} 人
                   </span>
-                  <span className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
+                  <span className="rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-black text-ink/70">
                     {decisionSummary}
                   </span>
                   {recommendation.missingItems.slice(0, 5).map((item) => (
                     <span
                       key={item.name}
-                      className="rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-xs font-black text-white/70"
+                      className="rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-black text-ink/70"
                     >
                       缺 {item.name}
                     </span>
                   ))}
                 </div>
               )}
-              <p className="mt-3 max-w-2xl text-xs font-bold leading-5 text-white/58">
+              <p className="mt-3 max-w-2xl text-xs font-bold leading-5 text-ink/58">
                 {dinnerReady
                   ? "今晚菜单已同步进本周计划，采购清单会自动汇总。"
                   : `${recommendation.reason || formatProfileSummary(familyProfile)} ${aiRecommendationStatus}`}
@@ -273,9 +256,9 @@ export function Dashboard({
                 <button
                   type="button"
                   onClick={onOpenUserCenter}
-                  className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-xs font-black text-white transition hover:-translate-y-0.5"
+                  className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-xs font-black text-ink transition hover:-translate-y-0.5"
                 >
-                  <Sparkles size={15} className="text-acid" />
+                  <Sparkles size={15} className="text-white" />
                   设置饮食偏好
                 </button>
               )}
@@ -362,7 +345,7 @@ export function Dashboard({
               onClick={() => onViewChange("planner")}
               className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white transition hover:-translate-y-0.5"
             >
-              <CalendarDays size={15} className="text-acid" />
+              <CalendarDays size={15} className="text-white" />
               本周计划
             </button>
           </div>
@@ -427,7 +410,7 @@ export function DinnerLogPanel({
           </p>
         </div>
         {mealLog?.confirmation === "all" && (
-          <span className="inline-flex items-center gap-2 rounded-full bg-acid px-4 py-2 text-xs font-black text-ink">
+          <span className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-black text-white">
             <CheckCircle2 size={15} />
             已计入饮食画像
           </span>
@@ -486,7 +469,7 @@ export function DinnerLogPanel({
                   }`}
                 >
                   <span className="truncate">{recipe.name}</span>
-                  <span className={checked ? "text-acid" : "text-ink/35"}>
+                  <span className={checked ? "text-white" : "text-ink/35"}>
                     {checked ? "已计入" : "不计入"}
                   </span>
                 </button>
@@ -591,8 +574,8 @@ function buildSourceStats(mealLogs) {
 
 function StatusPill({ icon: Icon, label, value }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 py-2 text-xs font-black text-white/76 backdrop-blur">
-      <Icon size={14} className="text-acid" />
+    <span className="inline-flex items-center gap-2 rounded-full border border-line bg-canvas px-4 py-2 text-xs font-black text-ink/76">
+      <Icon size={14} className="text-ink" />
       {label} · {value}
     </span>
   );
@@ -617,7 +600,7 @@ function QuickLink({ icon: Icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-12 items-center gap-3 rounded-[18px] bg-canvas px-4 text-left text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-acid hover:text-ink"
+      className="flex min-h-12 items-center gap-3 rounded-[18px] bg-canvas px-4 text-left text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-ink hover:text-ink"
     >
       <Icon size={18} />
       {label}

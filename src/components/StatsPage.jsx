@@ -41,7 +41,7 @@ export function StatsPage({
           <div className="absolute right-8 top-8 hidden md:block">
             <DoodleArrow />
           </div>
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Nutrition goals</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Nutrition goals</p>
           <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
             {insights.goals.label}
           </h2>
@@ -143,7 +143,7 @@ export function StatsPage({
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-canvas">
                     <div
-                      className="h-full rounded-full bg-acid"
+                      className="h-full rounded-full bg-ink"
                       style={{ width: `${(item.count / maxCategoryCount) * 100}%` }}
                     />
                   </div>
@@ -187,7 +187,7 @@ function TargetRow({ item, compact = false }) {
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
         <div
-          className={`h-full rounded-full ${item.ok ? "bg-acid" : "bg-ink"}`}
+          className={`h-full rounded-full ${item.ok ? "bg-ink" : "bg-ink"}`}
           style={{ width: `${Math.min(item.percent, 1) * 100}%` }}
         />
       </div>
@@ -210,7 +210,7 @@ function ActionButton({ icon: Icon, title, text, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-acid"
+      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-ink"
     >
       <Icon size={20} />
       <p className="mt-3 font-black">{title}</p>

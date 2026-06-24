@@ -82,7 +82,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
             <button
               type="button"
               onClick={() => changeMonth(-1)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-ink"
               aria-label="上个月"
             >
               <ArrowLeft size={16} />
@@ -96,14 +96,14 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }, 80);
               }}
-              className="rounded-full bg-acid px-4 py-2 text-xs font-black"
+              className="rounded-full bg-ink px-4 py-2 text-xs font-black"
             >
               今天
             </button>
             <button
               type="button"
               onClick={() => changeMonth(1)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-ink"
               aria-label="下个月"
             >
               <ArrowRight size={16} />
@@ -138,7 +138,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
               >
                 <div className="absolute left-2 top-2 flex items-center gap-1.5">
                   <span className="text-sm font-black sm:text-base">{date.getDate()}</span>
-                  {isToday && <span className="h-1.5 w-1.5 rounded-full bg-acid" aria-label="今天" />}
+                  {isToday && <span className="h-1.5 w-1.5 rounded-full bg-ink" aria-label="今天" />}
                 </div>
                 <NutritionRings summary={summary} selected={isSelected} size="xs" />
                 <span className={`absolute bottom-2 rounded-full px-2 py-1 text-[10px] font-black ${
@@ -161,7 +161,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
             <div className="grid gap-6 bg-ink p-5 text-white md:grid-cols-[124px_1fr_auto] md:items-center md:p-6">
               <NutritionRings summary={selectedSummary} selected size="lg" />
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-acid">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-white">
                   Daily page · {selectedIsPast ? "History" : "Planning"}
                 </p>
                 <h3 className="mt-2 text-3xl font-black tracking-[-0.04em]">
@@ -179,7 +179,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                 <button
                   type="button"
                   onClick={openPicker}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
                 >
                   <Plus size={17} />
                   添加菜品
@@ -222,7 +222,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                 <button
                   type="button"
                   onClick={openPicker}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/10 bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:bg-acid md:hidden"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/10 bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:bg-ink md:hidden"
                 >
                   <Plus size={17} />
                   为这一天添加菜品
@@ -307,7 +307,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                         </span>
                       </span>
                       <span className={`rounded-full px-3 py-2 text-xs font-black ${
-                        alreadyAdded ? "bg-canvas text-ink/45" : "bg-acid text-ink"
+                        alreadyAdded ? "bg-canvas text-ink/45" : "bg-ink text-white"
                       }`}>
                         {alreadyAdded ? "已添加" : "加入"}
                       </span>
@@ -348,7 +348,7 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           progress={summary.vegetableProgress}
           radius={vegRadius}
           stroke={stroke}
-          color="#D9F06B"
+          color="#111111"
           trackColor={selected ? "rgba(217,240,107,0.16)" : "rgba(217,240,107,0.28)"}
           center={dimension / 2}
           delayClass="fitness-ring-delay-1"

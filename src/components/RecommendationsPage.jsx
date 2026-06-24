@@ -1,6 +1,6 @@
 import { CheckCircle2, RefreshCw, ShoppingBasket, Utensils } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
-import { HumiMonster, MonsterBuddy } from "./ui/HumiMonster";
+import { HumiBrandCallout, HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 const rejectReasons = [
   { id: "too_much_work", label: "太麻烦" },
@@ -25,21 +25,21 @@ export function RecommendationsPage({
 
   return (
     <section className="grid min-w-0 grid-cols-1 gap-5">
-      <section className="overflow-hidden rounded-[32px] bg-ink text-white shadow-lift">
+      <section className="overflow-hidden rounded-[32px] border border-line bg-white text-ink shadow-card">
         <div className="grid gap-6 p-6 md:grid-cols-[1fr_180px] md:items-end md:p-8">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Humi 推荐</p>
+            <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Humi 推荐</p>
             <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-6xl">
               今晚先看这组。
             </h2>
-            <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-white/62">
+            <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-ink/58">
               适合 {recommendation.familySize ?? 2} 人 · {items.length} 道 · 预计 {totalMinutes || 25} 分钟 · {hasStaple ? "已有主食" : "建议补主食"}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
               <button
                 type="button"
                 onClick={onAccept}
-                className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-acid px-5 text-base font-black text-ink sm:col-span-1"
+                className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white sm:col-span-1"
               >
                 <Utensils size={19} />
                 今晚就做
@@ -48,7 +48,7 @@ export function RecommendationsPage({
                 type="button"
                 onClick={onRefresh}
                 disabled={aiRecommendationLoading}
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white disabled:opacity-60"
+                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-60"
               >
                 <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
                 换一组
@@ -56,20 +56,25 @@ export function RecommendationsPage({
               <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/16 bg-white/10 px-4 text-sm font-black text-white"
+                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <ShoppingBasket size={18} />
                 看清单
               </button>
             </div>
           </div>
-          <div className="rounded-[28px] border border-white/14 bg-white/10 p-4 text-center backdrop-blur-xl">
-            <HumiMonster mood={aiRecommendationLoading ? "thinking" : "happy"} accessory="spatula" size="xl" className="mx-auto" />
-            <p className="mt-2 text-sm font-black text-white">
-              {aiRecommendationLoading ? "正在换菜" : "我端来了"}
+          <div className="rounded-[28px] border border-line bg-canvas p-4 text-center">
+            <HumiBrandIllustration
+              variant={aiRecommendationLoading ? "pantry" : "recommendation"}
+              size="xl"
+              className="mx-auto"
+              title="推荐生活场景"
+            />
+            <p className="mt-2 text-sm font-black text-ink">
+              {aiRecommendationLoading ? "重新核对中" : "先用家里已有"}
             </p>
-            <p className="mt-1 text-xs font-bold leading-5 text-white/58">
-              主视觉仍然看真实菜品，我只解释这组为什么适合。
+            <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+              推荐先看库存、再看今晚时间，真实菜品仍然是主视觉。
             </p>
           </div>
         </div>
@@ -97,11 +102,10 @@ export function RecommendationsPage({
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
         <p className="eyebrow">为什么推荐</p>
         <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">安排依据</h3>
-        <MonsterBuddy
-          mood={hasStaple ? "success" : "thinking"}
-          accessory="menu"
+        <HumiBrandCallout
+          variant={hasStaple ? "shopping" : "pantry"}
           title={hasStaple ? "主食已经带上了" : "这组可能还要补主食"}
-          text="这里放推荐理由，后续可以换成怪物气泡解释。"
+          text="推荐依据会优先解释家里已有、需要补买和做饭时长。"
           className="mt-4"
           compact
         />

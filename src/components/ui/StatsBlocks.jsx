@@ -14,7 +14,7 @@ export function MetricCard({ icon: Icon, label, value, note, action, onClick }) 
           <h3 className="mt-3 text-3xl font-black tracking-[-0.04em]">{value}</h3>
           <p className="mt-2 text-sm leading-6 text-ink/52">{note}</p>
         </div>
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-acid">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink">
           <Icon size={20} />
         </div>
       </div>

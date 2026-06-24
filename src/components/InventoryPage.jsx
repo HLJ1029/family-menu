@@ -2,7 +2,7 @@ import { AlertTriangle, ChefHat, Cloud, PackageCheck, Plus, RefreshCw, Share2, U
 import { buildMealInsights } from "../lib/insights";
 import { formatPantryCount, getExpiryState } from "../lib/pantry";
 import { Card } from "./ui/Card";
-import { MonsterEmptyState } from "./ui/HumiMonster";
+import { HumiBrandIllustration, HumiEmptyState } from "./ui/HumiBrandIllustration";
 import { PantryChip } from "./ui/PantryChip";
 
 export function InventoryPage({
@@ -49,14 +49,22 @@ export function InventoryPage({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
       <div className="grid gap-5">
-        <section className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">Pantry</p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            家里有什么，先看一眼。
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            买菜前先看看家里现有的，快到期的也别忘了吃掉。
-          </p>
+        <section className="overflow-hidden rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
+          <div className="grid gap-5 md:grid-cols-[1fr_170px] md:items-end">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Pantry</p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+                家里有什么，先看一眼。
+              </h2>
+              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
+                买菜前先看看家里现有的，快到期的也别忘了吃掉。推荐会先围绕这些库存来安排。
+              </p>
+            </div>
+            <div className="rounded-[28px] border border-line bg-canvas p-4 text-center">
+              <HumiBrandIllustration variant="pantry" size="xl" className="mx-auto" title="冰箱库存生活场景" />
+              <p className="mt-2 text-xs font-black text-ink/56">先录库存，再排晚饭</p>
+            </div>
+          </div>
         </section>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -80,11 +88,10 @@ export function InventoryPage({
                   <PriorityItem key={item.key} item={item} />
                 ))
               ) : (
-                <MonsterEmptyState
-                  mood="thinking"
-                  accessory="fridge"
+                <HumiEmptyState
+                  variant="pantry"
                   title="冰箱还没记录"
-                  text="先记一笔鸡蛋、青菜或牛奶，我就能帮你排优先级。"
+                  text="先记一笔鸡蛋、青菜或牛奶，推荐会先围绕家里已有来排。"
                 />
               )}
             </div>
@@ -105,11 +112,10 @@ export function InventoryPage({
                     </div>
                   ))
                 ) : (
-                  <MonsterEmptyState
-                    mood="default"
-                    accessory="spatula"
+                  <HumiEmptyState
+                    variant="cooking"
                     title="还没配上菜"
-                    text="补充库存名称后，我会自动找能用上的菜谱。"
+                    text="补充库存名称后，这里会自动找能用上的菜谱。"
                   />
                 )}
               </div>
@@ -203,7 +209,7 @@ function PriorityItem({ item }) {
     item.state === "expired"
       ? "border-ink bg-ink text-white"
       : item.state === "soon"
-        ? "border-acid bg-acid text-ink"
+        ? "border-ink bg-ink text-white"
         : "border-line bg-canvas text-ink";
   return (
     <div className={`rounded-[20px] border p-4 ${tone}`}>
@@ -244,9 +250,8 @@ function InventoryGroup({ title, emptyText, items, onRemove }) {
             <PantryChip key={item.key} item={item} onRemove={() => onRemove(item.key)} />
           ))
         ) : (
-          <MonsterEmptyState
-            mood={title === "已过期" ? "success" : "default"}
-            accessory="fridge"
+          <HumiEmptyState
+            variant={title === "家里现有" ? "pantry" : "empty"}
             title={emptyText}
             text={title === "家里现有" ? "加几样常备食材，推荐和清单会更准。" : "这里会在需要处理时自动提醒。"}
             className="w-full"
@@ -288,7 +293,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
         onClick={onShare}
         className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
-        <Share2 size={16} className="text-acid" />
+        <Share2 size={16} className="text-white" />
         分享库存摘要
       </button>
       {family ? (
@@ -297,7 +302,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
             type="button"
             onClick={cloudSync.onMigrate}
             disabled={loading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-acid px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"
           >
             <UploadCloud size={16} />
             {enabled ? "重新保存本机库存" : "保存库存"}

@@ -68,7 +68,7 @@ function SyncCard({
   return (
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-acid">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-white">
           <Icon size={20} />
         </span>
         <div className="min-w-0 flex-1">
@@ -83,7 +83,7 @@ function SyncCard({
           type="button"
           onClick={onPrimary}
           disabled={loading}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-acid px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           <UploadCloud size={17} />
           {primaryLabel}

@@ -139,7 +139,7 @@ function RecipeQuantityControl({ recipe, quantity, onAdd, onUpdateQuantity }) {
         <button
           type="button"
           onClick={() => onUpdateQuantity(recipe.id, 1)}
-          className="grid h-8 w-8 place-items-center rounded-full bg-acid text-ink transition hover:scale-105"
+          className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white transition hover:scale-105"
           aria-label={`增加 ${recipe.name}`}
         >
           <Plus size={15} />
@@ -155,7 +155,7 @@ function RecipeQuantityControl({ recipe, quantity, onAdd, onUpdateQuantity }) {
         event.stopPropagation();
         onAdd(recipe.id);
       }}
-      className="quantity-morph absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-acid text-ink shadow-card transition hover:scale-105"
+      className="quantity-morph absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-ink text-white shadow-card transition hover:scale-105"
       aria-label={`加入 ${recipe.name}`}
     >
       <Plus size={19} />

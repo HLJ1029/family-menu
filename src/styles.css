@@ -4,7 +4,7 @@
 
 :root {
   color: #111111;
-  background: #fafaf7;
+  background: #ffffff;
   font-synthesis: none;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
@@ -20,10 +20,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   padding-bottom: env(safe-area-inset-bottom);
-  background:
-    linear-gradient(180deg, rgba(250, 250, 247, 0.96), #fafaf7 360px),
-    radial-gradient(circle at 15% 8%, rgba(217, 240, 107, 0.24), transparent 25%),
-    radial-gradient(circle at 88% 12%, rgba(255, 184, 106, 0.18), transparent 26%);
+  background: #ffffff;
   overscroll-behavior-y: none;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
@@ -56,12 +53,12 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgba(217, 240, 107, 0.85);
+  outline: 3px solid rgba(17, 17, 17, 0.28);
   outline-offset: 3px;
 }
 
 img {
-  background: #eeeeea;
+  background: transparent;
 }
 
 @layer components {
@@ -111,9 +108,10 @@ img {
     animation: poster-preview-enter 360ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .humi-monster-bob {
-    animation: humi-monster-bob 4.8s ease-in-out infinite;
-    transform-origin: 50% 70%;
+  .humi-line-illustration path,
+  .humi-line-illustration rect {
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .motion-card {
@@ -143,8 +141,8 @@ img {
     inset: -40%;
     z-index: -1;
     background:
-      radial-gradient(circle at 28% 30%, rgba(217, 240, 107, 0.42), transparent 18%),
-      radial-gradient(circle at 76% 18%, rgba(255, 184, 106, 0.32), transparent 16%),
+      radial-gradient(circle at 28% 30%, rgba(17, 17, 17, 0.06), transparent 18%),
+      radial-gradient(circle at 76% 18%, rgba(216, 193, 164, 0.28), transparent 16%),
       radial-gradient(circle at 70% 78%, rgba(255, 255, 255, 0.16), transparent 20%);
     animation: trend-aurora 8s ease-in-out infinite alternate;
   }
@@ -152,7 +150,7 @@ img {
   .trend-button {
     position: relative;
     overflow: hidden;
-    box-shadow: 0 18px 38px rgba(217, 240, 107, 0.24);
+    box-shadow: 0 18px 38px rgba(17, 17, 17, 0.16);
   }
 
   .trend-button::after {
@@ -329,8 +327,8 @@ img {
     height: min(78vw, 420px);
     border-radius: 999px;
     background:
-      radial-gradient(circle at 50% 50%, rgba(217, 240, 107, 0.42), transparent 34%),
-      radial-gradient(circle at 64% 36%, rgba(255, 184, 106, 0.24), transparent 42%);
+      radial-gradient(circle at 50% 50%, rgba(17, 17, 17, 0.14), transparent 34%),
+      radial-gradient(circle at 64% 36%, rgba(216, 193, 164, 0.24), transparent 42%);
     filter: blur(20px);
     transform: translate(-50%, -50%);
     animation: entry-glow 1180ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -344,11 +342,11 @@ img {
     width: min(54vw, 280px);
     height: min(54vw, 280px);
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(17, 17, 17, 0.12);
     background:
-      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), transparent 36%),
-      rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 0 0 22px rgba(255, 255, 255, 0.04), 0 30px 100px rgba(0, 0, 0, 0.28);
+      radial-gradient(circle at 50% 50%, rgba(17, 17, 17, 0.06), transparent 36%),
+      rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 0 0 22px rgba(17, 17, 17, 0.03), 0 30px 100px rgba(0, 0, 0, 0.12);
     animation: entry-plate 920ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both;
   }
 
@@ -357,7 +355,7 @@ img {
     width: 72px;
     height: 72px;
     border-radius: 28px;
-    background: #d9f06b;
+    background: #111111;
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
     animation: entry-dish-place 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
@@ -365,7 +363,7 @@ img {
   .entry-table-motion__dish--one {
     left: 24px;
     top: 70px;
-    background: #d9f06b;
+    background: #111111;
     --dish-x: -70px;
     --dish-y: -18px;
   }
@@ -435,12 +433,12 @@ img {
 
   .entry-decision-options span {
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(17, 17, 17, 0.14);
+    background: rgba(17, 17, 17, 0.04);
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 900;
-    color: rgba(255, 255, 255, 0.72);
+    color: rgba(17, 17, 17, 0.62);
   }
 }
 
@@ -553,14 +551,14 @@ img {
 @keyframes fitness-ring-draw {
   0% {
     stroke-dashoffset: var(--ring-circumference);
-    filter: drop-shadow(0 0 0 rgba(217, 240, 107, 0));
+    filter: drop-shadow(0 0 0 rgba(17, 17, 17, 0));
   }
   72% {
-    filter: drop-shadow(0 0 8px rgba(217, 240, 107, 0.28));
+    filter: drop-shadow(0 0 8px rgba(17, 17, 17, 0.16));
   }
   100% {
     stroke-dashoffset: var(--ring-offset);
-    filter: drop-shadow(0 0 0 rgba(217, 240, 107, 0));
+    filter: drop-shadow(0 0 0 rgba(17, 17, 17, 0));
   }
 }
 
@@ -871,16 +869,6 @@ img {
   100% {
     opacity: 0;
     transform: translateY(-8px);
-  }
-}
-
-@keyframes humi-monster-bob {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-1deg);
-  }
-  50% {
-    transform: translateY(-4px) rotate(1deg);
   }
 }
 

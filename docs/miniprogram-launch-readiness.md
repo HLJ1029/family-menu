@@ -1,6 +1,6 @@
 # Humi 微信小程序迁移与首发清单 V2
 
-更新日期：2026-06-07
+更新日期：2026-06-24
 
 本文档是 Humi 小程序首发的执行基线。其他路线图只保留方向，具体范围、阻塞项和验收结果以本文为准。
 
@@ -194,7 +194,7 @@ H5 通过查询参数识别来源：
 /Users/honglijie/vibe coding/family-menu/miniprogram
 ```
 
-开发调试已增加 `miniprogram/project.private.config.json` 关闭本机合法域名校验；当前测试 AppID 仍保留 `urlCheck: false` 以便预览，提交审核前需要切回正式 AppID 并按发布模板恢复正式域名校验。
+开发调试已增加 `miniprogram/project.private.config.json` 关闭本机合法域名校验；正式配置已切换为 Humi 小程序 AppID，并在 `miniprogram/project.config.json` 恢复 `urlCheck: true`。
 
 2026-06-14 验证记录：
 
@@ -209,19 +209,30 @@ H5 通过查询参数识别来源：
 - 小程序正式 WebView 地址已切换为 `https://www.humi-home.com/?channel=wechat-miniprogram`。
 - 小程序壳已启用微信登录桥接骨架：启动时静默尝试 `wx.login`，成功后将 Humi session 传入 H5；失败则保持游客模式。
 
+2026-06-24 状态同步：
+
+- `miniprogram/project.config.json` 当前使用正式 AppID：`wx4040b89f3b363416`。
+- `miniprogram/project.config.json` 当前 `urlCheck: true`。
+- `miniprogram/utils/config.js` 当前正式 API 地址为 `https://api.humi-home.com`。
+- `https://api.humi-home.com/health` 返回 HTTP 200，响应为 `{"ok":true,"service":"humi-api"}`。
+- `https://www.humi-home.com/` 返回 HTTP 200。
+- `npm run release:check` 通过。
+- `npm run release:check:online` 通过。
+- 当前 UI 升级仍在未提交工作区中，且因缺少 `src/components/ui/HumiBrandIllustration.jsx` 导致 `npm run build` 失败；不要把该 UI 批次视为可发布候选。
+
 ## 6. 域名备案完成后的工作
 
 ### 需要用户在平台完成
 
 - [x] 确认域名实名认证和备案通过。
 - [x] 开通 HTTPS。
-- [ ] 在微信公众平台创建或进入 Humi 小程序。
+- [x] 在微信公众平台创建或进入 Humi 小程序。
 - [ ] 确认后台实际可选的服务类目。
 - [ ] 下载业务域名校验文件。
 - [ ] 配置 WebView 业务域名。
 - [ ] 按后台要求配置服务器域名。
 - [ ] 填写隐私保护指引。
-- [ ] 提供正式 AppID。
+- [x] 提供正式 AppID。
 
 当前已确认正式域名：
 
@@ -235,10 +246,10 @@ www.humi-home.com
 
 - [ ] 将校验文件放到正式域名要求的路径。
 - [ ] 将 `HUMI_H5_URL` 换成正式地址。
-- [ ] 将 `project.config.json` 的测试 AppID 替换为正式 AppID。
+- [x] 将 `project.config.json` 的测试 AppID 替换为正式 AppID。
 - [ ] 更新 Supabase Auth redirect URLs。
 - [ ] 更新隐私政策、用户协议和站内返回链接。
-- [ ] 部署正式 H5。
+- [x] 部署正式 H5。
 - [ ] 在微信开发者工具和真机完成全链路验收。
 - [ ] 修复审核阻塞问题。
 - [ ] build、commit、push，并生成候选版本。
@@ -331,8 +342,8 @@ www.humi-home.com
 - [ ] 埋点能收到小程序渠道事件。
 - [ ] 已准备审核备注和演示步骤。
 - [ ] 已准备可回滚的上一版 H5。
-- [ ] `npm run release:check` 通过。
-- [ ] `npm run release:check:online` 在可访问公网和正式域名的环境中通过。
+- [x] `npm run release:check` 通过。
+- [x] `npm run release:check:online` 在可访问公网和正式域名的环境中通过。
 
 ## 10. 后续原生化顺序
 

@@ -1,6 +1,6 @@
 import { Check, ShieldAlert, SlidersHorizontal, Sparkles, Users } from "lucide-react";
 import { formatProfileSummary, getPlanningMode, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
-import { HumiMonster, MonsterBuddy } from "./ui/HumiMonster";
+import { HumiBrandCallout, HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
   const draft = {
@@ -37,46 +37,39 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
     });
   }
 
-  const buddyMood = draft.allergies.length > 0 || draft.dislikes.length > 0
-    ? "thinking"
-    : draft.hasChildren
-      ? "happy"
-      : draft.goals.length > 0
-        ? "success"
-        : "default";
   const buddyText = draft.hasChildren
-    ? "我会把孩子爱吃和大人省心一起算进去。"
+    ? "孩子爱吃和大人省心会一起进入推荐条件。"
     : draft.goals.length > 0
       ? `先按“${draft.goals[0]}”来安排，后面还能随时改。`
-      : "选几项偏好，我就能少问几句。";
+      : "选几项偏好，推荐会更接近日常真实口味。";
 
   return (
     <main className="min-h-screen bg-canvas px-4 py-5 text-ink">
       <div className="mx-auto grid min-h-[calc(100vh-2.5rem)] w-full max-w-[960px] content-center gap-5">
-        <section className="overflow-hidden rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
+        <section className="overflow-hidden rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
           <div className="grid gap-6 md:grid-cols-[1fr_170px] md:items-end">
             <div className="flex items-start justify-between gap-4 md:block">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.24em] text-acid">HUMI</p>
+                <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">HUMI</p>
                 <h1 className="mt-5 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
                   先告诉 Humi 怎么为你安排菜单。
                 </h1>
-                <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/64">
+                <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
                   这一步只影响推荐口味和菜单方向。之后可以在“我的”里随时改。
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onSignOut}
-                className="shrink-0 rounded-full border border-white/14 px-4 py-2 text-xs font-black text-white/58 transition hover:text-white md:mt-6"
+                className="shrink-0 rounded-full border border-ink/16 px-4 py-2 text-xs font-black text-ink/58 transition hover:border-ink/28 hover:text-ink md:mt-6"
               >
                 退出
               </button>
             </div>
-            <div className="rounded-[28px] border border-white/14 bg-white/10 p-4 backdrop-blur-xl">
-              <HumiMonster mood={buddyMood} accessory="menu" size="xl" className="mx-auto" />
-              <p className="mt-2 text-center text-sm font-black text-white">晚饭小帮手待命</p>
-              <p className="mt-1 text-center text-xs font-bold leading-5 text-white/58">{buddyText}</p>
+            <div className="rounded-[28px] border border-line bg-canvas p-4">
+              <HumiBrandIllustration variant="profile" size="xl" className="mx-auto" title="家庭画像生活场景" />
+              <p className="mt-2 text-center text-sm font-black text-ink">家庭菜单画像</p>
+              <p className="mt-1 text-center text-xs font-bold leading-5 text-ink/52">{buddyText}</p>
             </div>
           </div>
         </section>
@@ -163,9 +156,8 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
             <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatProfileSummary(draft)}</p>
           </div>
 
-          <MonsterBuddy
-            mood={buddyMood}
-            accessory={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "fridge" : "spatula"}
+          <HumiBrandCallout
+            variant={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "pantry" : "kitchen"}
             title={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "我会避开这些" : "画像快好了"}
             text={buddyText}
             className="mt-4"
@@ -175,7 +167,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
           <button
             type="button"
             onClick={finish}
-            className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-acid px-5 text-base font-black text-ink transition hover:-translate-y-0.5"
+            className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
           >
             <Check size={18} />
             开始使用 Humi
@@ -190,7 +182,7 @@ function ProfileBlock({ icon: Icon, title, children }) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-ink text-acid">
+        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-ink text-white">
           <Icon size={17} />
         </span>
         <p className="font-black">{title}</p>
@@ -221,7 +213,7 @@ function ChoiceButton({ active, label, onClick }) {
       type="button"
       onClick={onClick}
       className={`rounded-full border px-4 py-2 text-sm font-black transition ${
-        active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink/58 hover:text-ink"
+        active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink/58 hover:border-ink/20 hover:text-ink"
       }`}
     >
       {label}

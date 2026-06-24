@@ -2,6 +2,12 @@
 
 默认域名：`https://api.humi-home.com`
 
+当前生产状态（2026-06-24）：
+
+- `https://api.humi-home.com/health` 已返回 HTTP 200。
+- 健康检查响应：`{"ok":true,"service":"humi-api"}`。
+- `npm run release:check:online` 已通过。
+
 本地启动：
 
 ```bash

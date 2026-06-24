@@ -36,7 +36,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
         ) : (
           <>
             <div className="relative mx-auto grid aspect-square w-full max-w-[360px] place-items-center">
-              <div className="absolute inset-8 rounded-full bg-acid/35 blur-3xl" />
+              <div className="absolute inset-8 rounded-full bg-ink/35 blur-3xl" />
               <div className="absolute inset-1 rounded-full bg-apricot/12 blur-2xl" />
               <DishImage
                 recipe={featuredRecipe}
@@ -87,7 +87,7 @@ function MobileAuthChoices({ onContinueGuest }) {
             onClick={handleWechatLogin}
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
-            <MessageCircle size={19} className="text-acid" />
+            <MessageCircle size={19} className="text-white" />
             微信登录
           </button>
           <button
