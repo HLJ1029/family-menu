@@ -16,7 +16,7 @@
 /Applications/wechatwebdevtools.app
 ```
 
-当前 `project.config.json` 使用正式 AppID，并已开启 `urlCheck: true`。本机调试时请同时启动 H5 和 API 开发服务。
+当前 `project.config.json` 使用正式 AppID，并已开启 `urlCheck: true`。默认预览、真机、上传都访问正式 HTTPS 地址；如需本地联调，再临时把 `utils/config.js` 改为本机 H5/API 地址。
 
 ## 正式上线前必须确认
 
@@ -29,8 +29,8 @@
 
 当前地址策略：
 
-- 微信开发者工具：`http://localhost:5173/?channel=wechat-miniprogram`
-- 微信开发者工具 API：`http://127.0.0.1:8787`
+- 微信开发者工具：`https://www.humi-home.com/?channel=wechat-miniprogram`
+- 微信开发者工具 API：`https://api.humi-home.com`
 - 真机、预览、正式包：`https://www.humi-home.com/?channel=wechat-miniprogram`
 - 真机、预览、正式 API：`https://api.humi-home.com`
 
