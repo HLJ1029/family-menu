@@ -4346,5 +4346,409 @@
       "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
     ],
     "difficultyLevel": "easy"
+  },
+  {
+    "id": "steamed-white-rice",
+    "name": "白米饭",
+    "categories": [
+      "主食",
+      "基础主食"
+    ],
+    "tags": [
+      "30分钟",
+      "基础",
+      "配菜"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "rice",
+    "description": "最基础的晚饭主食，适合搭配大多数家常菜。",
+    "ingredients": [
+      {
+        "name": "大米",
+        "amount": 1,
+        "unit": "杯",
+        "required": true
+      },
+      {
+        "name": "清水",
+        "amount": 1.2,
+        "unit": "杯",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "大米淘洗 2-3 次，沥去多余水分。",
+      "按米水约 1:1.2 加水，浸泡 10 分钟口感更稳。",
+      "电饭煲选择煮饭模式，完成后焖 5 分钟。",
+      "用饭勺翻松，再搭配今晚菜一起上桌。"
+    ],
+    "tips": "新米可以少一点水，陈米可以多加一小勺水。",
+    "image": {
+      "status": "needs-photo",
+      "url": "",
+      "alt": "白米饭菜品图",
+      "sourceName": "Humi placeholder",
+      "sourceUrl": "",
+      "license": "Generated for this project",
+      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 5,
+      "fatG": 1,
+      "carbsG": 58,
+      "fiberG": 1,
+      "sodiumMg": 5,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "基础主食按家庭常用电饭煲做法整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "mixed-grain-rice",
+    "name": "杂粮饭",
+    "categories": [
+      "主食",
+      "基础主食"
+    ],
+    "tags": [
+      "40分钟",
+      "粗粮",
+      "配菜"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 40,
+    "accent": "rice",
+    "description": "比白米饭更有饱腹感，适合控糖或想吃粗粮的晚餐。",
+    "ingredients": [
+      {
+        "name": "大米",
+        "amount": 0.8,
+        "unit": "杯",
+        "required": true
+      },
+      {
+        "name": "杂粮米",
+        "amount": 0.3,
+        "unit": "杯",
+        "required": true
+      },
+      {
+        "name": "清水",
+        "amount": 1.5,
+        "unit": "杯",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "杂粮米提前浸泡 20 分钟，口感会更软。",
+      "加入大米一起淘洗，沥去多余水分。",
+      "按米水约 1:1.35 加水，用电饭煲煮熟。",
+      "煮好后焖 8 分钟，再翻松盛出。"
+    ],
+    "tips": "如果有孩子一起吃，杂粮比例可以先从三成开始。",
+    "image": {
+      "status": "needs-photo",
+      "url": "",
+      "alt": "杂粮饭菜品图",
+      "sourceName": "Humi placeholder",
+      "sourceUrl": "",
+      "license": "Generated for this project",
+      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 275,
+      "proteinG": 6,
+      "fatG": 2,
+      "carbsG": 58,
+      "fiberG": 4,
+      "sodiumMg": 8,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "基础主食按家庭常用电饭煲做法整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "plain-noodle-soup",
+    "name": "清汤挂面",
+    "categories": [
+      "主食",
+      "省时菜"
+    ],
+    "tags": [
+      "10分钟",
+      "基础",
+      "夜宵"
+    ],
+    "servings": 1,
+    "difficulty": "简单",
+    "timeMinutes": 10,
+    "accent": "noodle",
+    "description": "没时间做饭时的基础主食，可以加蛋和青菜变完整一餐。",
+    "ingredients": [
+      {
+        "name": "挂面",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "青菜",
+        "amount": 1,
+        "unit": "把",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 1,
+        "unit": "勺",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "锅中烧水，水开后下挂面。",
+      "中火煮 4-5 分钟，期间用筷子拨散。",
+      "加入青菜烫软，可顺手打入一个鸡蛋。",
+      "碗中加生抽、盐和香油，冲入面汤后盛面。"
+    ],
+    "tips": "如果搭配重口味菜，汤底可以只放少量盐。",
+    "image": {
+      "status": "needs-photo",
+      "url": "",
+      "alt": "清汤挂面菜品图",
+      "sourceName": "Humi placeholder",
+      "sourceUrl": "",
+      "license": "Generated for this project",
+      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约1人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 12,
+      "fatG": 7,
+      "carbsG": 62,
+      "fiberG": 3,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "基础主食按家庭常见快手做法整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "steamed-sweet-potato",
+    "name": "蒸红薯",
+    "categories": [
+      "主食",
+      "基础主食"
+    ],
+    "tags": [
+      "25分钟",
+      "粗粮",
+      "省心"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "sweet-potato",
+    "description": "不用看火的粗粮主食，适合搭配肉菜或清淡晚餐。",
+    "ingredients": [
+      {
+        "name": "红薯",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "清水",
+        "amount": 500,
+        "unit": "毫升",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "红薯洗净，较大的从中间切开。",
+      "蒸锅加水烧开，把红薯放入蒸屉。",
+      "中火蒸 20-25 分钟，筷子能轻松扎透即可。",
+      "取出稍微放凉，搭配今晚菜一起吃。"
+    ],
+    "tips": "红薯大小差异大，蒸到能扎透比固定时间更可靠。",
+    "image": {
+      "status": "needs-photo",
+      "url": "",
+      "alt": "蒸红薯菜品图",
+      "sourceName": "Humi placeholder",
+      "sourceUrl": "",
+      "license": "Generated for this project",
+      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 180,
+      "proteinG": 3,
+      "fatG": 0,
+      "carbsG": 42,
+      "fiberG": 5,
+      "sodiumMg": 60,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "基础主食按家庭常见蒸制做法整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "plain-rice-porridge",
+    "name": "白米粥",
+    "categories": [
+      "主食",
+      "基础主食"
+    ],
+    "tags": [
+      "35分钟",
+      "清淡",
+      "早餐晚餐"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 35,
+    "accent": "porridge",
+    "description": "清淡好搭的基础粥，适合搭配小菜或胃口轻的时候。",
+    "ingredients": [
+      {
+        "name": "大米",
+        "amount": 0.5,
+        "unit": "杯",
+        "required": true
+      },
+      {
+        "name": "清水",
+        "amount": 4,
+        "unit": "杯",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": "少许",
+        "unit": "",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "大米淘洗干净，加入清水浸泡 10 分钟。",
+      "大火煮开后转小火，保持微微翻滚。",
+      "煮 25-30 分钟，中途搅拌几次防止糊底。",
+      "煮到米粒开花后关火，可按口味加少许盐。"
+    ],
+    "tips": "想更绵密可以多焖 10 分钟再盛。",
+    "image": {
+      "status": "needs-photo",
+      "url": "",
+      "alt": "白米粥菜品图",
+      "sourceName": "Humi placeholder",
+      "sourceUrl": "",
+      "license": "Generated for this project",
+      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 145,
+      "proteinG": 3,
+      "fatG": 0,
+      "carbsG": 32,
+      "fiberG": 1,
+      "sodiumMg": 60,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "基础主食按家庭常见煮粥做法整理。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   }
 ]

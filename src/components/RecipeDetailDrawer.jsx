@@ -129,7 +129,7 @@ export function RecipeDetailDrawer({
                   type="button"
                   onClick={() => updateServings(1)}
                   disabled={targetServings >= 12}
-                  className="grid h-11 place-items-center rounded-full bg-ink transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="grid h-11 place-items-center rounded-full bg-ink text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-45"
                   aria-label="增加人数"
                 >
                   <Plus size={17} />
@@ -163,7 +163,7 @@ export function RecipeDetailDrawer({
             <div className="rounded-[24px] bg-ink p-5 text-white">
               <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/14">
                 <div
-                  className="h-full rounded-full bg-ink transition-all duration-300"
+                  className="h-full rounded-full bg-white transition-all duration-300"
                   style={{ width: `${((cookingStep + 1) / recipe.steps.length) * 100}%` }}
                 />
               </div>
@@ -192,7 +192,7 @@ export function RecipeDetailDrawer({
                   type="button"
                   disabled={isLastStep}
                   onClick={nextStep}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink text-sm font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-black text-ink transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   下一步
                   <ArrowRight size={17} />

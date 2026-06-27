@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, PackageCheck, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
@@ -29,6 +29,7 @@ export function UserCenter({
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
   const signedIn = Boolean(session?.user || humiSession);
+  const signOutLabel = humiSession ? "退出并重新验证微信登录" : "退出账号";
   const [activeSettings, setActiveSettings] = useState(null);
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
@@ -71,7 +72,12 @@ export function UserCenter({
           />
         </section>
 
-        <CloudAccount {...authProps} hideAuthEntry={isWechatMiniProgram} />
+        <CloudAccount
+          {...authProps}
+          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+          family={family}
+          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+        />
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
           <HumiPeek
             variant="menu-rejected"
@@ -194,6 +200,17 @@ export function UserCenter({
               value={isWechatMiniProgram && !family ? "本机游客模式" : getSyncModeLabel({ family, cloudMenuProps, signedIn })}
             />
           </div>
+          {signedIn && authProps?.onSignOut && (
+            <button
+              type="button"
+              onClick={authProps.onSignOut}
+              disabled={authProps.cloudLoading}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <LogOut size={16} />
+              {signOutLabel}
+            </button>
+          )}
         </Card>
 
         <Card>

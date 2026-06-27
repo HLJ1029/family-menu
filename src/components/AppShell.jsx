@@ -97,7 +97,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
   const title = activeItem?.label ?? "Humi";
 
   return (
-    <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] bg-canvas/88 pb-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:bg-transparent lg:pb-0 lg:pt-0 lg:backdrop-blur-none">
+    <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <button
@@ -134,7 +134,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {

@@ -45,7 +45,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
-import { isHumiApiSession, loadHumiState, saveHumiState } from "./lib/humiApi";
+import { isHumiApiSession, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -1572,17 +1572,29 @@ function App() {
   async function handleSignOut() {
     setCloudLoading(true);
     try {
-      await signOut();
+      if (isHumiApiSession(humiSession)) {
+        await logoutHumiSession(humiSession);
+      }
+      if (session?.user) {
+        await signOut();
+      }
       setSession(null);
       clearHumiSession();
       setHumiSession(null);
+      humiStateLoadedRef.current = false;
+      humiStateHydratingRef.current = false;
       setFamily(null);
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
       setPreferenceDraft({});
       setInviteEmail("");
-      setAuthStatus("已退出登录，本地模式仍可继续使用。");
+      setOnboardingComplete(false);
+      setProfileOnboardingComplete(false);
+      viewHistoryRef.current = ["dashboard"];
+      setActiveView("dashboard");
+      setAuthStatus("已退出登录，可以重新验证微信登录。");
+      showNotice("已退出登录");
     } catch (error) {
       setAuthStatus(error.message);
     } finally {

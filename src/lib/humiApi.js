@@ -18,6 +18,14 @@ export async function saveHumiState(session, state) {
   return data.state ?? null;
 }
 
+export async function logoutHumiSession(session) {
+  if (!session?.accessToken) return;
+  await humiApiRequest("/auth/logout", {
+    method: "POST",
+    session,
+  });
+}
+
 async function humiApiRequest(path, { method = "GET", session, body } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const response = await fetch(`${getHumiApiBaseUrl()}${path}`, {
