@@ -1,5 +1,6 @@
 import { Minus, Plus } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
+import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 export function Library({
   categories,
@@ -17,13 +18,26 @@ export function Library({
   return (
     <section>
       <div className="mb-4 rounded-[24px] border border-line bg-white p-4 shadow-card sm:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">自己挑</p>
-        <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-4xl">
-          想换一道，就从这里挑。
-        </h2>
-        <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-          首页先安排；这里留给加菜、换口味、临时补一道。
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">自己挑</p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-4xl">
+              想换一道，就从这里挑。
+            </h2>
+          </div>
+          <HumiBrandIllustration
+            variant="dinner-decision-hero"
+            size="md"
+            className="mr-3 shrink-0"
+            contextKey="library-hero"
+            title="挑一张晚饭卡"
+          />
+        </div>
+        <div>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            首页先安排；这里留给加菜、换口味、临时补一道。
+          </p>
+        </div>
       </div>
 
       <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">

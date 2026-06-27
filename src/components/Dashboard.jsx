@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   CheckCircle2,
-  ChefHat,
   Clock3,
   RefreshCw,
   ShoppingBasket,
@@ -10,7 +9,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
-import { recipes } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
 import { DishImage } from "./ui/DishImage";
 import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
@@ -66,11 +64,6 @@ export function Dashboard({
   const hasStaple = activeRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
   const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
-  const weekDishCount = Object.values(weekPlan ?? {}).reduce((total, recipeIds) => total + recipeIds.length, 0);
-  const recentPlan = Object.entries(weekPlan ?? {})
-    .filter(([, recipeIds]) => recipeIds.length > 0)
-    .slice(0, 3);
-
   function arrangeTonight() {
     setArranging(true);
     onAddRecommended();
@@ -122,12 +115,13 @@ export function Dashboard({
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
             </p>
             </div>
-            <div className="hidden justify-self-end md:block">
+            <div className="justify-self-center md:justify-self-end">
               <HumiBrandIllustration
-                variant={dinnerReady ? "shopping" : "kitchen"}
-                size="xl"
+                variant={dinnerReady ? "dinner-ready" : aiRecommendationLoading ? "recommendation-loading" : "dashboard-recommendation"}
+                size="2xl"
                 className="shrink-0"
                 title="今晚菜单生活场景"
+                contextKey={dinnerReady ? "dashboard-dinner-ready" : "dashboard-dinner-decision"}
               />
             </div>
           </div>
@@ -227,7 +221,6 @@ export function Dashboard({
                 {!dinnerReady && (
                   <StatusPill icon={Utensils} label="份量" value={`${recommendedRecipes.length} 道 / ${totalRecommendationPortions} 份`} />
                 )}
-                <StatusPill icon={CalendarDays} label="本周" value={`${weekDishCount} 道菜`} />
               </div>
               {!dinnerReady && recommendation.missingItems.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -278,102 +271,6 @@ export function Dashboard({
         dinnerReady={dinnerReady}
         onViewChange={onViewChange}
       />
-
-      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="eyebrow">推荐</p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">不只这一组</h2>
-            <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-              进入推荐页继续换一组、标记不想吃，Humi 会记录真实家庭反馈。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onViewChange("recommendations")}
-            className="shrink-0 rounded-full bg-ink px-4 py-3 text-xs font-black text-white"
-          >
-            更多推荐
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="eyebrow">看图挑菜</p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">像刷菜单一样找灵感</h2>
-          </div>
-            <button
-              type="button"
-              onClick={() => onViewChange("recommendations")}
-              className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-black text-white"
-            >
-            更多推荐
-          </button>
-        </div>
-        <div className="-mx-5 mt-4 flex gap-3 overflow-x-auto px-5 pb-1">
-          {recipes.slice(0, 8).map((recipe) => (
-            <button
-              key={recipe.id}
-              type="button"
-              onClick={() => onOpenRecipe(recipe.id)}
-              className="group relative h-56 w-40 shrink-0 overflow-hidden rounded-[24px] bg-canvas text-left shadow-card"
-            >
-              <DishImage recipe={recipe} variant="thumb" alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-              <span className="absolute inset-0 bg-gradient-to-t from-ink/76 via-ink/10 to-transparent" />
-              <span className="absolute bottom-3 left-3 right-3 text-white">
-                <span className="block text-base font-black leading-tight">{recipe.name}</span>
-                <span className="mt-2 inline-flex rounded-full bg-white/18 px-2 py-1 text-[11px] font-black backdrop-blur">
-                  {recipe.timeMinutes} min
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">最近安排</p>
-              <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">今晚之后，顺手看本周</h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => onViewChange("planner")}
-              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white transition hover:-translate-y-0.5"
-            >
-              <CalendarDays size={15} className="text-white" />
-              本周计划
-            </button>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {recentPlan.length > 0 ? (
-              recentPlan.map(([day, recipeIds]) => (
-                <div key={day} className="rounded-[22px] bg-canvas p-4">
-                  <p className="text-xs font-black text-ink/38">{day}</p>
-                  <p className="mt-2 text-lg font-black">{recipeIds.length} 道菜</p>
-                </div>
-              ))
-            ) : (
-              <p className="rounded-[22px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52 sm:col-span-3">
-                先安排今晚，Humi 会把今天同步进本周计划。
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <p className="eyebrow">本周进度</p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">计划、清单、自己挑</h2>
-          <div className="mt-4 grid gap-2">
-            <QuickLink icon={ShoppingBasket} label={`清单已汇总 ${groceryItemCount} 项`} onClick={() => onViewChange("grocery")} />
-            <QuickLink icon={ChefHat} label="自己挑一道换口味" onClick={() => onViewChange("library")} />
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { getNavItem, mobileNavItems, navItems } from "./navigation";
-import { DoodlePot } from "./ui/Doodles";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
 export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
@@ -52,13 +52,22 @@ export function Sidebar({ activeView, onChange }) {
           );
         })}
       </nav>
-      <div className="mt-auto rounded-[24px] border border-line bg-canvas p-4">
-        <DoodlePot />
+      <button
+        type="button"
+        onClick={() => onChange("user")}
+        className="relative mt-auto overflow-hidden rounded-[24px] border border-line bg-canvas p-4 pr-20 text-left transition hover:-translate-y-0.5 hover:border-ink/20"
+      >
+        <HumiPeek
+          variant="cooking"
+          size="md"
+          className="absolute -bottom-3 -right-3 opacity-95"
+          contextKey="sidebar-cooking-peek"
+        />
         <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
           从今晚吃什么，到买菜清单和家里库存，都帮你顺一顺。
         </p>
-      </div>
+      </button>
     </aside>
   );
 }
@@ -125,7 +134,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 z-30 grid grid-cols-4 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white/92 p-2 shadow-lift backdrop-blur-xl transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {

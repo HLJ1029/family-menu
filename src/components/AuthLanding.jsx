@@ -6,6 +6,7 @@ import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime
 import { IcpFooter } from "./AppShell";
 import { CloudAccount } from "./system/CloudAccount";
 import { DishImage } from "./ui/DishImage";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function AuthLanding({ authProps, onContinueGuest }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -26,9 +27,9 @@ export function AuthLanding({ authProps, onContinueGuest }) {
         {showDevEmailAuth ? (
           <div className="grid gap-3 rounded-[28px] border border-white/10 bg-white p-4 text-ink shadow-lift">
             <div className="rounded-[22px] bg-canvas p-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Dev auth</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Account</p>
               <p className="mt-1 text-sm font-bold leading-6 text-ink/56">
-                开发测试入口：仅用于验证云端同步和家庭空间。
+                账号入口：用于保存云端同步和家庭空间。
               </p>
             </div>
             <CloudAccount {...authProps} compactTitle />
@@ -50,6 +51,12 @@ export function AuthLanding({ authProps, onContinueGuest }) {
                 <p className="text-sm font-black text-ink">先安排今晚</p>
                 <p className="mt-1 text-xs font-bold text-ink/42">Humi</p>
               </div>
+              <HumiPeek
+                variant="dinner-decision-hero"
+                size="lg"
+                className="absolute -right-4 bottom-2"
+                contextKey="auth-landing-peek"
+              />
             </div>
 
             <MobileAuthChoices onContinueGuest={onContinueGuest} />
@@ -119,7 +126,7 @@ function MobileAuthChoices({ onContinueGuest }) {
       )}
 
       <div className="px-5 text-center text-xs font-bold leading-5 text-ink/36">
-        {status || (wechatLoginEnabled ? "可以先体验 Humi。登录后，菜单、画像和清单会跟着账号保存。" : "首发先不要求登录。菜单、计划和清单会保存在当前设备。")}
+        {status || (wechatLoginEnabled ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。" : "首发先不要求登录。菜单、计划和清单会保存在当前设备。")}
       </div>
     </div>
   );

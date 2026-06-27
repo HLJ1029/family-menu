@@ -1,5 +1,6 @@
 import { Cloud, KeyRound, Link, LogOut, Mail, Plus, ShieldCheck } from "lucide-react";
 import { getSupabase, isSupabaseConfigured } from "../../lib/supabase/client";
+import { HumiPeek } from "../ui/HumiBrandIllustration";
 
 export function CloudAccount({
   authEmail,
@@ -20,6 +21,8 @@ export function CloudAccount({
   hideAuthEntry = false,
   compactTitle = false,
 }) {
+  const signedIn = Boolean(session?.user);
+
   async function requestMagicLink(event) {
     event.preventDefault();
     const email = authEmail.trim();
@@ -49,9 +52,17 @@ export function CloudAccount({
   }
 
   return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       {!compactTitle && (
-        <div className="flex items-start gap-3">
+        <HumiPeek
+          variant={family ? "family-taste-talk" : "profile"}
+          size="sm"
+          className="absolute right-4 top-4 opacity-85"
+          contextKey="cloud-account-peek"
+        />
+      )}
+      {!compactTitle && (
+        <div className="flex items-start gap-3 pr-16">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-white">
             <Cloud size={20} />
           </span>
@@ -59,20 +70,30 @@ export function CloudAccount({
             <p className="eyebrow">我的家</p>
             <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">保存家里的吃饭习惯</h3>
             <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-              登录后，Humi 会记住菜单、清单、库存和家人口味。也可以先直接体验。
+              {signedIn
+                ? family
+                  ? "Humi 会把菜单、清单、库存和家人口味保存在这个家里。"
+                  : "已经登录。创建我的家后，菜单、清单、库存和口味会一起保存。"
+                : "创建我的家后，Humi 会记住菜单、清单、库存和家人口味。也可以先直接体验。"}
             </p>
           </div>
         </div>
       )}
 
-      {session?.user ? (
+      {signedIn ? (
         <div className="mt-5 grid gap-3">
           <div className="rounded-[22px] bg-canvas p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">已登录</p>
             <p className="mt-1 text-sm font-black">已登录 Humi</p>
           </div>
           {family ? (
-            <div className="rounded-[22px] border border-line bg-canvas p-4">
+            <div className="relative overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
+              <HumiPeek
+                variant="family-taste-talk"
+                size="sm"
+                className="absolute -bottom-2 right-3 opacity-90"
+                contextKey="cloud-account-family-card"
+              />
               <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
@@ -172,7 +193,7 @@ export function CloudAccount({
           </form>
           <form className="grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={requestMagicLink}>
             <p className="text-xs font-bold leading-5 text-ink/45 sm:col-span-2">
-              也可以用开发登录链接；如果发送太频繁，先用密码登录。
+              也可以用邮箱登录链接；如果发送太频繁，先用密码登录。
             </p>
             <button
               type="submit"
@@ -180,7 +201,7 @@ export function CloudAccount({
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
             >
               <Link size={16} />
-              发送开发登录链接
+              发送邮箱登录链接
             </button>
           </form>
         </div>
@@ -190,10 +211,14 @@ export function CloudAccount({
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ink" />
         {cloudLoading
           ? "正在保存状态..."
-          : hideAuthEntry && !session?.user
+          : signedIn
+          ? family
+            ? "已连接我的家。"
+            : "创建我的家后，就能把这台设备上的菜单和清单保存起来。"
+          : hideAuthEntry
           ? "当前先保存在本机。"
           : isSupabaseConfigured
-          ? authStatus || "登录后可以把家里的菜单和清单保存起来。"
+          ? authStatus || "创建我的家后，可以把家里的菜单和清单保存起来。"
           : authStatus || "当前会先保存在本机。"}
       </div>
     </section>

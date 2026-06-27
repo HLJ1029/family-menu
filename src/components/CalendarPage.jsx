@@ -12,6 +12,7 @@ import {
 import { getRecipe, nutritionFor, recipes } from "../lib/recipes";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
+import { HumiIllustrationPanel } from "./ui/HumiBrandIllustration";
 import { MiniMeal } from "./ui/MiniMeal";
 
 export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
@@ -70,15 +71,16 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   return (
     <section className="grid gap-5">
       <Card>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="mb-5 grid gap-4 md:grid-cols-[1fr_200px] md:items-center">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
             <p className="eyebrow">Meal calendar</p>
             <h3 className="card-title">{formatMonthTitle(visibleMonthKey)}</h3>
             <p className="mt-2 text-sm font-bold text-ink/48">
               点击某一天，会在月历下方展开当天饮食子页面。
             </p>
-          </div>
-          <div className="flex items-center gap-2">
+            </div>
+            <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => changeMonth(-1)}
@@ -108,7 +110,14 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
             >
               <ArrowRight size={16} />
             </button>
+            </div>
           </div>
+          <HumiIllustrationPanel
+            variant="weekly"
+            title="日历里看节奏"
+            size="md"
+            contextKey="calendar-hero"
+          />
         </div>
 
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">

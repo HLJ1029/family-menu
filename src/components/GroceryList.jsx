@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
-import { HumiEmptyState } from "./ui/HumiBrandIllustration";
+import { HumiEmptyState, HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function GroceryList({
   items,
@@ -44,10 +44,12 @@ export function GroceryList({
   const shoppingSections = useMemo(() => buildShoppingSections(items), [items]);
   const [openSections, setOpenSections] = useState({});
 
-  function toggle(key) {
+  function toggle(itemOrKey) {
+    const key = typeof itemOrKey === "string" ? itemOrKey : itemOrKey?.key;
+    if (!key) return;
     setCheckedItems((current) => {
       const checked = !current[key];
-      onGroceryItemChecked?.({ key, checked });
+      onGroceryItemChecked?.({ key, checked, item: typeof itemOrKey === "object" ? itemOrKey : undefined });
       return { ...current, [key]: checked };
     });
   }
@@ -99,9 +101,10 @@ export function GroceryList({
         ) : (
           <Card>
             <HumiEmptyState
-              variant="shopping"
+              variant="grocery-memo"
               title="购物篮还空着"
               text="先回首页安排晚饭，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
+              contextKey="grocery-day-empty"
             />
           </Card>
         )}
@@ -136,7 +139,13 @@ export function GroceryList({
 
       <Card>
         <GroceryCloudStatus cloudSync={cloudSync} onOpenUserCenter={onOpenUserCenter} />
-        <div className="mt-5 rounded-[22px] border border-line bg-canvas p-4">
+        <div className="relative mt-5 overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
+          <HumiPeek
+            variant="grocery-done"
+            size="md"
+            className="absolute -bottom-4 -right-3 opacity-90"
+            contextKey="grocery-pantry-peek"
+          />
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
               <PackageCheck size={19} />
@@ -269,8 +278,8 @@ function ShoppingChecklist({
             这里是买菜时看的清单；每道菜的精确用量放在下面核对。
           </p>
         </div>
-        <span key={checkedItemCount} className="grocery-count-pop rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
-          已完成 {checkedItemCount} / {totalItemCount}
+        <span key={checkedItemCount} className="grocery-count-pop min-w-[118px] shrink-0 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-center text-xs font-black leading-none text-white">
+          已完成 {checkedItemCount}/{totalItemCount}
         </span>
       </div>
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-canvas">
@@ -296,7 +305,7 @@ function ShoppingChecklist({
                   key={item.key}
                   item={item}
                   checked={checkedItems[item.key]}
-                  onToggle={() => onToggleItem(item.key)}
+                  onToggle={() => onToggleItem(item)}
                   onRemove={() => onRemoveItem(item)}
                 />
               ))}
@@ -304,9 +313,10 @@ function ShoppingChecklist({
           ))
         ) : (
           <HumiEmptyState
-            variant="shopping"
+            variant={checkedItemCount > 0 ? "grocery-done" : "grocery-empty"}
             title="清单还空着"
             text="先安排一顿饭，我就能把食材按买菜习惯分好类。"
+            contextKey="grocery-checklist-empty"
           />
         )}
 
@@ -323,7 +333,7 @@ function ShoppingChecklist({
                 key={item.key}
                 item={{ ...item, amount: item.amount ?? "自定义" }}
                 checked={checkedItems[item.key]}
-                onToggle={() => onToggleItem(item.key)}
+                onToggle={() => onToggleItem(item)}
                 onRemove={() => onRemoveCustomItem(item.key)}
                 removeLabel={`删除 ${item.name}`}
                 actionIcon={Trash2}
@@ -374,9 +384,16 @@ function CollapsibleChecklistSection({ title, note, count, open, onToggle, child
 
 function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
   const family = cloudSync?.family;
+  const signedIn = Boolean(cloudSync?.signedIn);
   const enabled = Boolean(cloudSync?.enabled);
   const loading = Boolean(cloudSync?.loading);
-  const status = cloudSync?.status ?? "食材清单会先保存在本机。";
+  const status = loading
+    ? "正在保存食材清单..."
+    : family
+    ? cloudSync?.status ?? "食材清单会保存在我的家。"
+    : signedIn
+    ? "创建我的家后，这份清单就能保存起来。"
+    : "食材清单会先保存在本机。";
 
   return (
     <div className="mb-5 rounded-[22px] border border-line bg-canvas p-4">
@@ -387,10 +404,10 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
         <div className="min-w-0 flex-1">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Save</p>
           <p className="mt-1 text-sm font-black">
-            {enabled ? "已保存到我的家" : family ? "清单待保存" : "先保存在本机"}
+            {enabled ? "已保存到我的家" : family ? "清单待保存" : signedIn ? "还没创建我的家" : "先保存在本机"}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            {loading ? "正在保存食材清单..." : status}
+            {status}
           </p>
         </div>
       </div>
@@ -422,7 +439,7 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
           onClick={onOpenUserCenter}
           className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
         >
-          去我的家登录
+          {signedIn ? "创建我的家" : "去我的家"}
         </button>
       )}
     </div>
@@ -499,7 +516,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
                     key={item.key}
                     item={item}
                     checked={checkedItems[item.key]}
-                    onToggle={() => onToggleItem(item.key)}
+                    onToggle={() => onToggleItem(item)}
                     onRemove={() => onRemoveItem(item)}
                   />
                 ))}
@@ -535,7 +552,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
       <button
         type="button"
         onClick={onRemove}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-ink"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
         aria-label={`${item.name} 加入厨房库存`}
       >
         <PackageCheck size={15} />
@@ -572,7 +589,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
       <button
         type="button"
         onClick={onRemove}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-ink"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
         aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
       >
         <ActionIcon size={15} />

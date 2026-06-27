@@ -381,7 +381,7 @@ function pairsWellWithSet(selected, candidate) {
 function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits }) {
   const quickCount = selected.filter((recipe) => recipe.timeMinutes <= 25).length;
   if (expiringHits > 0) {
-    return `优先消耗 ${expiringHits} 项临期库存，同时避开已过期食材，适合今天减少浪费。`;
+    return `优先消耗 ${expiringHits} 项临期库存，日期已过的先留给你确认，适合今天减少浪费。`;
   }
   if (preferenceHits > 0) {
     return `已参考家人口味和饮食目标，尽量避开忌口，也照顾到 ${preferenceHits} 个口味信号。`;

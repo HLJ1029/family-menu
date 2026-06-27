@@ -16,7 +16,7 @@ import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
 import { UserCenter } from "./components/UserCenter";
 import { OfflineStatus } from "./components/system/OfflineStatus";
-import { DoodleWash } from "./components/ui/Doodles";
+import { HumiPeek } from "./components/ui/HumiBrandIllustration";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { addDays, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, parseDateKey } from "./lib/date";
 import {
@@ -124,7 +124,7 @@ function App() {
   const [draggedRecipeId, setDraggedRecipeId] = useState(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [cookingStep, setCookingStep] = useState(0);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(null);
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -159,10 +159,10 @@ function App() {
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
   const [aiExplanation, setAiExplanation] = useState("");
-  const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
+  const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；登录后会参考家庭画像、库存和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
@@ -178,6 +178,8 @@ function App() {
     setHumiSession(nextHumiSession);
     setOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
+    setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
+    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
     showNotice("已登录 Humi");
   }, [setOnboardingComplete]);
 
@@ -473,13 +475,9 @@ function App() {
     [pantryItems],
   );
   const pantryExpirySummary = useMemo(() => {
-    const expiringItems = pantryItems.filter((item) => {
-      const state = getExpiryState(item.expiresOn);
-      return state === "expired" || state === "soon";
-    });
     return {
-      expiringCount: expiringItems.length,
-      expiredCount: expiringItems.filter((item) => getExpiryState(item.expiresOn) === "expired").length,
+      expiringCount: pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon").length,
+      expiredCount: pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired").length,
     };
   }, [pantryItems]);
   const isGroceryItemOwned = (item) => excludedGrocerySet.has(item.hiddenKey) || pantryNameSet.has(normalizeName(item.name));
@@ -516,10 +514,18 @@ function App() {
 
   useEffect(() => {
     setAiExplanation("");
-    setAiExplanationStatus("先给你一组搭配理由；想记住家里的习惯，再去我的家登录。");
+    setAiExplanationStatus(
+      signedIn
+        ? "先给你一组搭配理由；Humi 会继续参考家里的习惯。"
+        : "先给你一组搭配理由；Humi 会慢慢记住家里的习惯。",
+    );
     setAiRecommendation(null);
-    setAiRecommendationStatus("先按家里现有情况给你安排；登录后会参考家庭画像、库存和口味。");
-  }, [todayRecommendation.title]);
+    setAiRecommendationStatus(
+      signedIn
+        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、库存和口味。"
+        : "先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。",
+    );
+  }, [signedIn, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
   useEffect(() => {
@@ -570,10 +576,10 @@ function App() {
     });
   }, [displayedRecommendation]);
 
-  function showNotice(message) {
-    setNotice(message);
+  function showNotice(message, options = {}) {
+    setNotice({ message, illustration: options.illustration ?? null });
     window.clearTimeout(showNotice.timer);
-    showNotice.timer = window.setTimeout(() => setNotice(""), 1800);
+    showNotice.timer = window.setTimeout(() => setNotice(null), 1800);
   }
 
   function trackProductEvent(eventName, payload = {}) {
@@ -599,7 +605,7 @@ function App() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    showNotice(`验证数据 ${isCsv ? "CSV" : "JSON"} 已导出`);
+    showNotice("反馈记录已保存到本机");
   }
 
   function openRecipe(recipeId) {
@@ -646,10 +652,14 @@ function App() {
       }));
     }
     if (!alreadyInCurrentPlan || !alreadyInTodayPlan) {
-      showNotice(`${recipe?.name ?? "菜品"} 已安排到今晚和${currentDay}`);
+      showNotice(`${recipe?.name ?? "菜品"} 已安排到今晚和${currentDay}`, {
+        illustration: "menu-accepted",
+      });
       return;
     }
-    showNotice(`${recipe?.name ?? "菜品"} 已放进今晚菜单`);
+    showNotice(`${recipe?.name ?? "菜品"} 已放进今晚菜单`, {
+      illustration: "menu-accepted",
+    });
   }
 
   function addRecommendedToday() {
@@ -672,7 +682,9 @@ function App() {
       missingCount: displayedRecommendation.missingItems.length,
       familySize: displayedRecommendation.familySize ?? familyProfile.familySize,
     });
-    showNotice(`已加入 ${recommendedItems.length} 道推荐菜`);
+    showNotice(`已加入 ${recommendedItems.length} 道推荐菜`, {
+      illustration: "menu-accepted",
+    });
   }
 
   function updateTodayMealLog(patch) {
@@ -754,6 +766,10 @@ function App() {
     setMealLogs((current) => {
       const currentLog = current[todayDateKey];
       if (currentLog?.source !== "home") return current;
+      if (nextMenu.length === 0) {
+        const { [todayDateKey]: removedLog, ...rest } = current;
+        return rest;
+      }
 
       const nextMenuById = new Map(nextMenu.map((item) => [item.recipeId, item]));
       const existingEntries = currentLog.consumedEntries ?? todayMenu.map((item) => ({
@@ -837,7 +853,9 @@ function App() {
   async function requestAiExplanation() {
     if (!session?.user) {
       setAiExplanation(displayedRecommendation.reason);
-      setAiExplanationStatus("这组先按当前菜单说明；登录后，Humi 会慢慢记住家里的口味。");
+      setAiExplanationStatus(
+        signedIn ? "这组先按当前菜单说明，Humi 会继续参考家里的口味。" : "这组先按当前菜单说明，Humi 会慢慢记住家里的口味。",
+      );
       return;
     }
 
@@ -882,7 +900,9 @@ function App() {
 
     if (!session?.user) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
-      setAiRecommendationStatus("已经换成另一组；登录后，Humi 还会参考家庭画像和库存。");
+      setAiRecommendationStatus(
+        signedIn ? "已经换成另一组；Humi 会继续参考家庭画像和库存。" : "已经换成另一组；之后会继续参考家庭画像和库存。",
+      );
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
         reason: "guest",
@@ -961,19 +981,66 @@ function App() {
   }
 
   function updateTodayQuantity(recipeId, delta) {
-    setTodayMenu((current) =>
-      {
-        const nextMenu = current
-        .map((item) =>
-          item.recipeId === recipeId
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item,
-        )
-          .filter((item) => item.quantity > 0);
-        syncHomeMealLogWithMenu(nextMenu);
-        return nextMenu;
-      }
-    );
+    const nextMenu = todayMenu
+      .map((item) =>
+        item.recipeId === recipeId
+          ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+          : item,
+      )
+      .filter((item) => item.quantity > 0);
+    const removedFromMenu = todayMenu.some((item) => item.recipeId === recipeId) &&
+      !nextMenu.some((item) => item.recipeId === recipeId);
+
+    setTodayMenu(nextMenu);
+    syncHomeMealLogWithMenu(nextMenu);
+
+    if (removedFromMenu) {
+      const todayKey = formatDateKey(new Date());
+      const currentDay = getCurrentPlanDay();
+      setMealCalendar((calendar) => ({
+        ...calendar,
+        [todayKey]: (calendar[todayKey] ?? []).filter((id) => id !== recipeId),
+      }));
+      setWeekPlan((plan) => ({
+        ...plan,
+        [currentDay]: (plan[currentDay] ?? []).filter((id) => id !== recipeId),
+      }));
+    }
+
+    if (nextMenu.length === 0) {
+      setAiRecommendation(null);
+      setAiRecommendationStatus(
+        signedIn
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
+      );
+    }
+  }
+
+  function removeFromTodayEverywhere(recipeId) {
+    const nextMenu = todayMenu.filter((item) => item.recipeId !== recipeId);
+    const todayKey = formatDateKey(new Date());
+    const currentDay = getCurrentPlanDay();
+
+    setTodayMenu(nextMenu);
+    syncHomeMealLogWithMenu(nextMenu);
+    setMealCalendar((calendar) => ({
+      ...calendar,
+      [todayKey]: (calendar[todayKey] ?? []).filter((id) => id !== recipeId),
+    }));
+    setWeekPlan((plan) => ({
+      ...plan,
+      [currentDay]: (plan[currentDay] ?? []).filter((id) => id !== recipeId),
+    }));
+
+    if (nextMenu.length === 0) {
+      setAiRecommendation(null);
+      setAiRecommendationStatus(
+        signedIn
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
+      );
+    }
   }
 
   function assignPlan(day, recipeId) {
@@ -995,6 +1062,11 @@ function App() {
   }
 
   function removePlanRecipe(day, recipeId) {
+    if (day === getCurrentPlanDay()) {
+      removeFromTodayEverywhere(recipeId);
+      showNotice("已从今晚安排移除");
+      return;
+    }
     setWeekPlan((current) => ({
       ...current,
       [day]: (current[day] ?? []).filter((id) => id !== recipeId),
@@ -1015,6 +1087,11 @@ function App() {
   }
 
   function removeDatePlan(dateKey, recipeId) {
+    if (dateKey === formatDateKey(new Date())) {
+      removeFromTodayEverywhere(recipeId);
+      showNotice("已从今晚安排移除");
+      return;
+    }
     setMealCalendar((current) => ({
       ...current,
       [dateKey]: (current[dateKey] ?? []).filter((id) => id !== recipeId),
@@ -1046,7 +1123,7 @@ function App() {
         {
           key: `pantry:${Date.now()}`,
           name: trimmed,
-          amount: amount.trim() || undefined,
+          amount: amount?.trim() || undefined,
           expiresOn: expiresOn || undefined,
         },
       ];
@@ -1055,6 +1132,26 @@ function App() {
     setNewPantryAmount("");
     setNewPantryExpiresOn("");
     showNotice(`${trimmed} 已加入厨房库存`);
+  }
+
+  function addGroceryItemToPantry(item, source = "清单完成") {
+    if (!item?.name) return false;
+    const normalized = normalizeName(item.name);
+    if (pantryNameSet.has(normalized)) return false;
+    setPantryItems((current) => {
+      if (current.some((pantryItem) => normalizeName(pantryItem.name) === normalized)) return current;
+      return [
+        ...current,
+        {
+          key: `pantry:${Date.now()}:${item.key ?? normalized}`,
+          name: item.name,
+          amount: formatRawAmount(item),
+          source,
+        },
+      ];
+    });
+    showNotice(`${item.name} 已加入家中已有`);
+    return true;
   }
 
   function removePantryItem(key) {
@@ -1066,19 +1163,7 @@ function App() {
     if (!key) return;
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
     if (typeof itemOrKey === "object" && itemOrKey?.name) {
-      const normalized = normalizeName(itemOrKey.name);
-      setPantryItems((current) => {
-        if (current.some((item) => normalizeName(item.name) === normalized)) return current;
-        return [
-          ...current,
-          {
-            key: `pantry:${Date.now()}`,
-            name: itemOrKey.name,
-            amount: formatRawAmount(itemOrKey),
-          },
-        ];
-      });
-      showNotice(`${itemOrKey.name} 已加入厨房库存`);
+      addGroceryItemToPantry(itemOrKey, "清单移入家中已有");
     }
   }
 
@@ -1103,7 +1188,12 @@ function App() {
       const currentNames = new Set(current.map((item) => normalizeName(item.name)));
       const additions = pantryItemsToAdd
         .filter((item) => !currentNames.has(normalizeName(item.name)))
-        .map((item, index) => ({ key: `pantry:${Date.now()}:${index}`, name: item.name, amount: formatRawAmount(item) }));
+        .map((item, index) => ({
+          key: `pantry:${Date.now()}:${index}`,
+          name: item.name,
+          amount: formatRawAmount(item),
+          source: "常备项确认",
+        }));
       return [...current, ...additions];
     });
     showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
@@ -1170,10 +1260,10 @@ function App() {
       "",
       `全部库存：${pantryItems.length} 项`,
       `临期：${expiringItems.length} 项`,
-      `已过期：${expiredItems.length} 项`,
+      `日期已过：${expiredItems.length} 项`,
       "",
       formatInventoryShareSection("临期优先处理", expiringItems),
-      formatInventoryShareSection("已过期", expiredItems),
+      formatInventoryShareSection("日期已过", expiredItems),
       formatInventoryShareSection("家里现有", freshItems),
     ].join("\n");
     await shareText({ type: "inventory", title: "Humi 家中库存", text, success: "库存摘要已复制" });
@@ -1340,6 +1430,8 @@ function App() {
           ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
           : "已登录 Humi。",
       );
+      setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
+      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
       setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
@@ -1719,6 +1811,7 @@ function App() {
 
   const cloudMenuProps = {
     family,
+    signedIn,
     cloudMenuEnabled,
     cloudMenuLoading,
     cloudSyncStatus,
@@ -1876,7 +1969,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <DoodleWash />
       <OfflineStatus online={online} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
         <Sidebar activeView={activeView} onChange={navigateTo} />
@@ -1962,6 +2054,7 @@ function App() {
                 onGenerateWeek={planRecommendedWeek}
                 cloudSync={{
                   family,
+                  signedIn,
                   enabled: cloudMenuEnabled,
                   loading: cloudMenuLoading,
                   status: cloudSyncStatus,
@@ -1987,6 +2080,7 @@ function App() {
                 onToggleConsumedRecipe={toggleConsumedRecipe}
                 cloudSync={{
                   family,
+                  signedIn,
                   enabled: cloudMenuEnabled,
                   loading: cloudMenuLoading,
                   status: cloudSyncStatus,
@@ -2031,9 +2125,13 @@ function App() {
                 onShare={shareGroceryList}
                 checkedItems={checkedItems}
                 setCheckedItems={setCheckedItems}
-                onGroceryItemChecked={({ key, checked }) => trackValidationEvent(validationEvents.groceryItemChecked, { key, checked })}
+                onGroceryItemChecked={({ key, checked, item }) => {
+                  trackValidationEvent(validationEvents.groceryItemChecked, { key, checked });
+                  if (checked) addGroceryItemToPantry(item);
+                }}
                 cloudSync={{
                   family,
+                  signedIn,
                   enabled: cloudGroceryEnabled,
                   loading: cloudGroceryLoading,
                   status: cloudGroceryStatus,
@@ -2060,6 +2158,7 @@ function App() {
                 onShare={shareInventorySummary}
                 cloudSync={{
                   family,
+                  signedIn,
                   enabled: cloudGroceryEnabled,
                   loading: cloudGroceryLoading,
                   status: cloudGroceryStatus,
@@ -2113,8 +2212,19 @@ function App() {
       <MobileTabbar activeView={activeView} onChange={navigateTo} />
       {entryMotion && <EntryTableMotion />}
       {notice && (
-        <div className="toast-enter fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-black text-white shadow-lift">
-          {notice}
+        <div className="toast-enter fixed left-1/2 top-5 z-[70] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-full bg-ink py-2 pl-2 pr-5 text-sm font-black text-white shadow-lift">
+          {notice.illustration && (
+            <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white">
+              <HumiPeek
+                variant={notice.illustration}
+                size="sm"
+                className="scale-95"
+                contextKey={`notice-${notice.illustration}`}
+                preferGender="f"
+              />
+            </span>
+          )}
+          <span className="whitespace-nowrap">{notice.message}</span>
         </div>
       )}
       <PosterPreview
@@ -2239,7 +2349,7 @@ function formatAiError(error) {
 
 function formatInventoryShareSection(title, items) {
   if (items.length === 0) return `${title}\n- 无`;
-  return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 到期 ${item.expiresOn}` : ""}`).join("\n")}`;
+  return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 提醒日期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
 
 createRoot(document.getElementById("root")).render(<App />);

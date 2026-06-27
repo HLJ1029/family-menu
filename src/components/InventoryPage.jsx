@@ -1,8 +1,9 @@
+import { forwardRef, useRef } from "react";
 import { AlertTriangle, ChefHat, Cloud, PackageCheck, Plus, RefreshCw, Share2, UploadCloud } from "lucide-react";
 import { buildMealInsights } from "../lib/insights";
 import { formatPantryCount, getExpiryState } from "../lib/pantry";
 import { Card } from "./ui/Card";
-import { HumiBrandIllustration, HumiEmptyState } from "./ui/HumiBrandIllustration";
+import { HumiBrandIllustration, HumiEmptyState, HumiPeek } from "./ui/HumiBrandIllustration";
 import { PantryChip } from "./ui/PantryChip";
 
 export function InventoryPage({
@@ -25,6 +26,11 @@ export function InventoryPage({
   nutritionGoals,
   weekPlan,
 }) {
+  const priorityRef = useRef(null);
+  const expiringRef = useRef(null);
+  const datePassedRef = useRef(null);
+  const freshRef = useRef(null);
+  const quickPantryItems = ["鸡蛋", "牛奶", "番茄", "青菜", "豆腐", "猪肉末", "米饭", "葱姜蒜"];
   const expiredItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired");
   const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
   const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
@@ -46,6 +52,14 @@ export function InventoryPage({
     });
   }
 
+  function scrollToSection(ref) {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function addQuickPantryItem(name) {
+    onAddPantryItem({ name, amount: "", expiresOn: "" });
+  }
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
       <div className="grid gap-5">
@@ -57,23 +71,44 @@ export function InventoryPage({
                 家里有什么，先看一眼。
               </h2>
               <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                买菜前先看看家里现有的，快到期的也别忘了吃掉。推荐会先围绕这些库存来安排。
+                买菜前先看看家里现有的，快到期的也别忘了优先处理。日期只是提醒，不判断食材能不能吃。
               </p>
             </div>
             <div className="rounded-[28px] border border-line bg-canvas p-4 text-center">
-              <HumiBrandIllustration variant="pantry" size="xl" className="mx-auto" title="冰箱库存生活场景" />
+              <HumiBrandIllustration
+                variant="pantry"
+                size="xl"
+                className="mx-auto"
+                title="冰箱库存生活场景"
+                contextKey="inventory-hero"
+              />
               <p className="mt-2 text-xs font-black text-ink/56">先录库存，再排晚饭</p>
             </div>
           </div>
         </section>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <InventoryMetric label="家里现有" value={`${pantryItems.length} 项`} />
-          <InventoryMetric label="快到期" value={`${pantryExpirySummary.expiringCount ?? 0} 项`} />
-          <InventoryMetric label="已过期" value={`${pantryExpirySummary.expiredCount ?? 0} 项`} />
+          <InventoryMetric
+            label="家里现有"
+            value={`${pantryItems.length} 项`}
+            hint="查看库存明细"
+            onClick={() => scrollToSection(freshRef)}
+          />
+          <InventoryMetric
+            label="临期提醒"
+            value={`${pantryExpirySummary.expiringCount ?? 0} 项`}
+            hint="查看优先处理"
+            onClick={() => scrollToSection(expiringRef)}
+          />
+          <InventoryMetric
+            label="日期已过"
+            value={`${pantryExpirySummary.expiredCount ?? 0} 项`}
+            hint="按实际状态确认"
+            onClick={() => scrollToSection(datePassedRef)}
+          />
         </div>
 
-        <Card>
+        <Card ref={priorityRef}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="eyebrow">库存预测</p>
@@ -89,9 +124,10 @@ export function InventoryPage({
                 ))
               ) : (
                 <HumiEmptyState
-                  variant="pantry"
+                  variant="fridge-empty"
                   title="冰箱还没记录"
                   text="先记一笔鸡蛋、青菜或牛奶，推荐会先围绕家里已有来排。"
+                  contextKey="inventory-priority-empty"
                 />
               )}
             </div>
@@ -113,9 +149,10 @@ export function InventoryPage({
                   ))
                 ) : (
                   <HumiEmptyState
-                    variant="cooking"
+                    variant="ingredient-input"
                     title="还没配上菜"
                     text="补充库存名称后，这里会自动找能用上的菜谱。"
+                    contextKey="inventory-recipe-empty"
                   />
                 )}
               </div>
@@ -124,18 +161,21 @@ export function InventoryPage({
         </Card>
 
         <InventoryGroup
-          title="先吃掉"
+          ref={expiringRef}
+          title="临期提醒"
           emptyText="暂时没有快到期的。"
           items={expiringItems}
           onRemove={onRemovePantryItem}
         />
         <InventoryGroup
-          title="已过期"
-          emptyText="暂无已过期库存。"
+          ref={datePassedRef}
+          title="日期已过"
+          emptyText="暂无日期已过的库存。"
           items={expiredItems}
           onRemove={onRemovePantryItem}
         />
         <InventoryGroup
+          ref={freshRef}
           title="家里现有"
           emptyText="还没记录家里有什么。"
           items={freshItems}
@@ -144,13 +184,34 @@ export function InventoryPage({
       </div>
 
       <aside className="grid content-start gap-5">
-        <Card>
+        <Card className="relative overflow-hidden">
+          <HumiPeek
+            variant="ingredient-input"
+            size="md"
+            className="absolute -right-4 -top-2 opacity-90"
+            contextKey="inventory-add-peek"
+          />
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="eyebrow">Add item</p>
-              <h3 className="card-title">记一笔库存</h3>
+              <h3 className="card-title">快速记库存</h3>
             </div>
             <Plus size={22} />
+          </div>
+          <p className="mt-3 text-xs font-bold leading-5 text-ink/48">
+            只填名字就能加入推荐依据；数量和提醒日期都可以以后再补。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickPantryItems.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => addQuickPantryItem(item)}
+                className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/62 transition hover:border-ink/30 hover:text-ink"
+              >
+                {item}
+              </button>
+            ))}
           </div>
           <form className="mt-5 grid gap-3" onSubmit={submitPantryItem}>
             <input
@@ -166,13 +227,18 @@ export function InventoryPage({
                 className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
                 placeholder="数量，例如：6 个"
               />
+              <label className="grid gap-1">
+                <span className="px-2 text-[11px] font-black uppercase tracking-[0.16em] text-ink/32">
+                  可选提醒日期
+                </span>
               <input
                 value={newPantryExpiresOn}
                 onChange={(event) => setNewPantryExpiresOn(event.target.value)}
                 type="date"
-                aria-label="到期日"
+                aria-label="提醒日期"
                 className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
               />
+              </label>
             </div>
             <button
               type="submit"
@@ -195,12 +261,17 @@ export function InventoryPage({
   );
 }
 
-function InventoryMetric({ label, value }) {
+function InventoryMetric({ label, value, hint, onClick }) {
   return (
-    <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-[24px] border border-line bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-ink/24"
+    >
       <p className="text-3xl font-black tracking-[-0.04em]">{value}</p>
       <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-ink/38">{label}</p>
-    </div>
+      {hint && <p className="mt-3 text-xs font-bold text-ink/42">{hint}</p>}
+    </button>
   );
 }
 
@@ -232,9 +303,9 @@ function PriorityItem({ item }) {
   );
 }
 
-function InventoryGroup({ title, emptyText, items, onRemove }) {
+const InventoryGroup = forwardRef(function InventoryGroup({ title, emptyText, items, onRemove }, ref) {
   return (
-    <Card>
+    <Card ref={ref}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Pantry</p>
@@ -260,12 +331,20 @@ function InventoryGroup({ title, emptyText, items, onRemove }) {
       </div>
     </Card>
   );
-}
+});
 
 function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantryExpirySummary, onShare }) {
   const family = cloudSync?.family;
+  const signedIn = Boolean(cloudSync?.signedIn);
   const enabled = Boolean(cloudSync?.enabled);
   const loading = Boolean(cloudSync?.loading);
+  const status = loading
+    ? "正在保存库存..."
+    : family
+    ? cloudSync?.status ?? "库存会保存在我的家。"
+    : signedIn
+    ? "创建我的家后，库存会和清单一起保存。"
+    : "库存会先保存在本机。";
   return (
     <Card>
       <div className="flex items-start gap-3">
@@ -275,10 +354,10 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
         <div>
           <p className="eyebrow">Save</p>
           <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
-            {enabled ? "已保存到我的家" : family ? "库存待保存" : "先保存在本机"}
+            {enabled ? "已保存到我的家" : family ? "库存待保存" : signedIn ? "还没创建我的家" : "先保存在本机"}
           </h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            {loading ? "正在保存库存..." : cloudSync?.status ?? "库存会先保存在本机。"}
+            {status}
           </p>
         </div>
       </div>
@@ -323,7 +402,7 @@ function InventoryCloudStatus({ cloudSync, onOpenUserCenter, pantryItems, pantry
           onClick={onOpenUserCenter}
           className="mt-4 min-h-11 w-full rounded-full bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
         >
-          去我的家登录
+          {signedIn ? "创建我的家" : "去我的家"}
         </button>
       )}
     </Card>

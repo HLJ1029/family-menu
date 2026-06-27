@@ -67,7 +67,13 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
               </button>
             </div>
             <div className="rounded-[28px] border border-line bg-canvas p-4">
-              <HumiBrandIllustration variant="profile" size="xl" className="mx-auto" title="家庭画像生活场景" />
+              <HumiBrandIllustration
+                variant="profile-preferences"
+                size="xl"
+                className="mx-auto"
+                title="家庭画像生活场景"
+                contextKey="profile-onboarding-hero"
+              />
               <p className="mt-2 text-center text-sm font-black text-ink">家庭菜单画像</p>
               <p className="mt-1 text-center text-xs font-bold leading-5 text-ink/52">{buddyText}</p>
             </div>
@@ -157,11 +163,12 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
           </div>
 
           <HumiBrandCallout
-            variant={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "pantry" : "kitchen"}
+            variant={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "profile-preferences" : "weekly"}
             title={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "我会避开这些" : "画像快好了"}
             text={buddyText}
             className="mt-4"
             compact
+            contextKey={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "profile-avoid-callout" : "profile-ready-callout"}
           />
 
           <button

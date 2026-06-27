@@ -7,6 +7,7 @@ import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
+import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 
 export function UserCenter({
@@ -27,6 +28,7 @@ export function UserCenter({
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
+  const signedIn = Boolean(session?.user || humiSession);
   const [activeSettings, setActiveSettings] = useState(null);
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
@@ -46,18 +48,37 @@ export function UserCenter({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
-        <section className="rounded-[32px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-white">我的家</p>
-          <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            把家里的吃饭习惯存下来。
-          </h2>
-          <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
-            先体验也可以。想让菜单、清单和口味一直跟着你，再登录保存。
-          </p>
+        <section className="grid gap-5 rounded-[32px] bg-ink p-6 text-white shadow-lift md:grid-cols-[1fr_210px] md:items-center md:p-8">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.24em] text-white">我的家</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+              {signedIn ? "让 Humi 记住你家的饭。" : "把家里的吃饭习惯存下来。"}
+            </h2>
+            <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
+              {signedIn
+                ? family
+                  ? "菜单、清单、库存和口味会围绕这个家持续更新。"
+                  : "已经登录。创建我的家后，菜单、清单、库存和口味就会一起保存。"
+                : "先体验也可以。想让菜单、清单和口味一直跟着你，再登录保存。"}
+            </p>
+          </div>
+          <HumiIllustrationPanel
+            variant="profile"
+            title="家庭画像"
+            size="lg"
+            tone="dark"
+            contextKey="user-center-hero"
+          />
         </section>
 
         <CloudAccount {...authProps} hideAuthEntry={isWechatMiniProgram} />
-        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
+          <HumiPeek
+            variant="menu-rejected"
+            size="sm"
+            className="absolute right-4 top-12 opacity-85"
+            contextKey="user-center-feedback-peek"
+          />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">饮食画像</p>
@@ -66,7 +87,7 @@ export function UserCenter({
                 只有确认“全部吃了”的晚餐才进入营养分析；外卖和外食只记录来源。
               </p>
             </div>
-            <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
+            <span className="min-w-[92px] shrink-0 whitespace-nowrap rounded-full bg-ink px-3 py-2 text-center text-xs font-black leading-none text-white">
               已确认 {sourceSummary.confirmed} 次
             </span>
           </div>
@@ -81,7 +102,7 @@ export function UserCenter({
             <StatusRow label="清单查看" value={`${validationSummary.groceryViewed} 次`} />
           </div>
           <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">真实测试</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">晚饭反馈</p>
             <h4 className="mt-2 text-lg font-black">常见不想吃原因</h4>
             <div className="mt-3 flex flex-wrap gap-2">
               {topReasons.length > 0 ? (
@@ -91,28 +112,14 @@ export function UserCenter({
                   </span>
                 ))
               ) : (
-                <span className="text-sm font-bold text-ink/45">还没有拒绝原因，真实家庭测试时会自动记录。</span>
+                <span className="text-sm font-bold text-ink/45">你标记“不想吃”后，这里会慢慢整理原因。</span>
               )}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => onExportValidationData?.("json")}
-                className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
-              >
-                导出 JSON
-              </button>
-              <button
-                type="button"
-                onClick={() => onExportValidationData?.("csv")}
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"
-              >
-                导出 CSV
-              </button>
-              <button
-                type="button"
                 onClick={() => onViewChange("dashboard")}
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"
+                className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
               >
                 继续安排今晚
               </button>
@@ -148,6 +155,7 @@ export function UserCenter({
         {activeSettings === "profile" && (
           <FamilyProfilePanel
             session={session}
+            signedIn={signedIn}
             profile={familyProfile}
             setProfile={setFamilyProfile}
           />
@@ -164,7 +172,13 @@ export function UserCenter({
       </div>
 
       <aside className="grid content-start gap-5">
-        <Card>
+        <Card className="relative overflow-hidden pr-24">
+          <HumiPeek
+            variant={family ? "profile" : "family-taste-talk"}
+            size="sm"
+            className="absolute right-4 top-4 opacity-85"
+            contextKey="user-status-card-peek"
+          />
           <div className="flex items-center justify-between">
             <div>
               <p className="eyebrow">我的家</p>
@@ -174,10 +188,10 @@ export function UserCenter({
           </div>
           <div className="mt-5 grid gap-3">
             <StatusRow label="登录" value={getIdentityLabel({ session, humiSession })} />
-            <StatusRow label="我的家" value={family?.name ?? "未创建"} />
+            <StatusRow label="我的家" value={family?.name ?? (signedIn ? "待创建" : "未登录")} />
             <StatusRow
               label="保存方式"
-              value={isWechatMiniProgram && !family ? "本机游客模式" : getSyncModeLabel({ family, cloudMenuProps })}
+              value={isWechatMiniProgram && !family ? "本机游客模式" : getSyncModeLabel({ family, cloudMenuProps, signedIn })}
             />
           </div>
         </Card>
@@ -235,7 +249,7 @@ export function UserCenter({
   );
 }
 
-function FamilyProfilePanel({ session, profile, setProfile }) {
+function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
   const [draft, setDraft] = useState(profile);
   const [status, setStatus] = useState("");
   const completedCount = useMemo(() => getProfileCompletedCount(profile), [profile]);
@@ -273,9 +287,9 @@ function FamilyProfilePanel({ session, profile, setProfile }) {
         </span>
       </div>
 
-      {!session?.user && (
+      {!session?.user && !signedIn && (
         <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；登录后再把菜单、库存和画像一起保存到我的家。
+          可以先填写体验；创建我的家后，菜单、库存和画像会一起保存。
         </div>
       )}
 
@@ -561,11 +575,11 @@ function ChoiceButton({ active, label, note, onClick }) {
   );
 }
 
-function getSyncModeLabel({ family, cloudMenuProps }) {
-  if (!family) return "先保存在本机";
+function getSyncModeLabel({ family, cloudMenuProps, signedIn }) {
+  if (!family) return signedIn ? "创建我的家后保存" : "先保存在本机";
   if (cloudMenuProps?.cloudMenuEnabled && cloudMenuProps?.cloudGroceryEnabled) return "已保存到我的家";
   if (cloudMenuProps?.cloudMenuEnabled || cloudMenuProps?.cloudGroceryEnabled) return "部分已保存";
-  return "待保存";
+  return "保存到我的家";
 }
 
 function getIdentityLabel({ session, humiSession }) {

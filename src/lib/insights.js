@@ -341,10 +341,10 @@ function buildInventoryRecipeMatches({ pantryItems, pantryPriorityItems, weekPla
 }
 
 function buildPantryNote(item, state, daysUntilExpiry) {
-  if (state === "expired") return "已过期，先确认还能不能用";
-  if (state === "soon") return daysUntilExpiry === 0 ? "今天到期，优先处理" : `${daysUntilExpiry} 天内优先用掉`;
-  if (item.expiresOn) return `${daysUntilExpiry} 天后到期`;
-  return "未填到期日，可匹配菜谱但不参与临期排序";
+  if (state === "expired") return "日期已过，按实际状态确认";
+  if (state === "soon") return daysUntilExpiry === 0 ? "今天到提醒日，优先处理" : `${daysUntilExpiry} 天内优先用掉`;
+  if (item.expiresOn) return `${daysUntilExpiry} 天后到提醒日`;
+  return "未填提醒日期，可匹配菜谱但不参与临期排序";
 }
 
 function isVegetableRecipe(recipe) {

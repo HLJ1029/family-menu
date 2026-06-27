@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Minus, Plus, Sparkles, Trash2, X } from "lucide-
 import { formatRawAmount } from "../lib/grocery";
 import { nutritionFor } from "../lib/recipes";
 import { DishImage } from "./ui/DishImage";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function RecipeDetailDrawer({
   recipe,
@@ -142,7 +143,13 @@ export function RecipeDetailDrawer({
             <IngredientPanel title="调料" items={scaledSeasonings} />
           </section>
 
-          <section className="mt-5 rounded-[26px] border border-line bg-white p-5 shadow-card">
+          <section className="relative mt-5 overflow-hidden rounded-[26px] border border-line bg-white p-5 shadow-card">
+            <HumiPeek
+              variant={isLastStep ? "cooking-done" : "cooking-start"}
+              size="md"
+              className="absolute -right-4 top-3 opacity-90"
+              contextKey={`recipe-cooking-${isLastStep ? "done" : "step"}`}
+            />
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="eyebrow">Cooking mode</p>

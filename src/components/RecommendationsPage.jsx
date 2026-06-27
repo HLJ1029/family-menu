@@ -1,6 +1,6 @@
 import { CheckCircle2, RefreshCw, ShoppingBasket, Utensils } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandCallout, HumiBrandIllustration } from "./ui/HumiBrandIllustration";
+import { HumiBrandCallout, HumiBrandIllustration, HumiPeek } from "./ui/HumiBrandIllustration";
 
 const rejectReasons = [
   { id: "too_much_work", label: "太麻烦" },
@@ -65,10 +65,11 @@ export function RecommendationsPage({
           </div>
           <div className="rounded-[28px] border border-line bg-canvas p-4 text-center">
             <HumiBrandIllustration
-              variant={aiRecommendationLoading ? "pantry" : "recommendation"}
+              variant={aiRecommendationLoading ? "recommendation-loading" : "recommendation"}
               size="xl"
               className="mx-auto"
               title="推荐生活场景"
+              contextKey={aiRecommendationLoading ? "recommendation-loading" : "recommendation-hero"}
             />
             <p className="mt-2 text-sm font-black text-ink">
               {aiRecommendationLoading ? "重新核对中" : "先用家里已有"}
@@ -103,11 +104,12 @@ export function RecommendationsPage({
         <p className="eyebrow">为什么推荐</p>
         <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">安排依据</h3>
         <HumiBrandCallout
-          variant={hasStaple ? "shopping" : "pantry"}
+          variant={hasStaple ? "menu-accepted" : "fridge-priority"}
           title={hasStaple ? "主食已经带上了" : "这组可能还要补主食"}
           text="推荐依据会优先解释家里已有、需要补买和做饭时长。"
           className="mt-4"
           compact
+          contextKey={hasStaple ? "recommendation-staple" : "recommendation-missing"}
         />
         <p className="mt-3 text-sm font-bold leading-7 text-ink/56">
           {recommendation.reason}
@@ -123,7 +125,13 @@ export function RecommendationsPage({
         )}
       </section>
 
-      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-24 shadow-card">
+        <HumiPeek
+          variant="menu-rejected"
+          size="md"
+          className="absolute -right-4 bottom-2 opacity-90"
+          contextKey="recommendation-reject-peek"
+        />
         <p className="eyebrow">不合适就告诉 Humi</p>
         <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">这组为什么不想吃？</h3>
         <div className="mt-4 flex flex-wrap gap-2">

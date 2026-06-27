@@ -5,7 +5,7 @@ import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
+import { HumiBrandIllustration, HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function TodayMenu({
   todayRecipes,
@@ -69,7 +69,13 @@ export function TodayMenu({
               </p>
             </div>
             <div className="rounded-[26px] border border-line bg-canvas p-4 text-center">
-              <HumiBrandIllustration variant="empty" size="lg" className="mx-auto" title="空菜单生活场景" />
+              <HumiBrandIllustration
+                variant="dinner-decision"
+                size="lg"
+                className="mx-auto"
+                title="空菜单生活场景"
+                contextKey="today-empty-menu"
+              />
               <p className="mt-2 text-xs font-black text-ink/56">还没有安排晚饭</p>
             </div>
           </div>
@@ -104,7 +110,13 @@ export function TodayMenu({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
-        <div className="rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
+        <div className="relative overflow-hidden rounded-[32px] border border-line bg-white p-6 pr-24 text-ink shadow-card md:p-8 md:pr-36">
+          <HumiPeek
+            variant="dinner-ready"
+            size="lg"
+            className="absolute -bottom-6 -right-4 opacity-95"
+            contextKey="today-ready-peek"
+          />
           <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>

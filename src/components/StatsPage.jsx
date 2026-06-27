@@ -2,7 +2,7 @@ import { BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket, Sparkles,
 import { buildMealInsights } from "../lib/insights";
 import { getNutritionSummary, NutritionRings } from "./CalendarPage";
 import { Card } from "./ui/Card";
-import { DoodleArrow } from "./ui/Doodles";
+import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
 import { StatBlock } from "./ui/StatsBlocks";
 
 export function StatsPage({
@@ -38,8 +38,13 @@ export function StatsPage({
     <section className="grid gap-5">
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="relative overflow-hidden rounded-[30px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <div className="absolute right-8 top-8 hidden md:block">
-            <DoodleArrow />
+          <div className="absolute right-5 top-5 hidden md:block">
+            <HumiIllustrationPanel
+              variant="family-taste-talk"
+              size="md"
+              tone="dark"
+              contextKey="stats-hero"
+            />
           </div>
           <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Nutrition goals</p>
           <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
@@ -60,7 +65,13 @@ export function StatsPage({
           </div>
         </section>
 
-        <Card>
+        <Card className="relative overflow-hidden pr-24">
+          <HumiPeek
+            variant="profile"
+            size="md"
+            className="absolute -bottom-4 -right-4 opacity-90"
+            contextKey="stats-portrait-peek"
+          />
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="eyebrow">Goal progress</p>

@@ -1,0 +1,1195 @@
+{
+  "sourceZip": "/Users/honglijie/Downloads/export (7).zip",
+  "sourceZipSha256": "acd718c7283542d995a1f6a828927b5b0fcf7ae04a907960eeeea35c097612ad",
+  "generatedAt": "2026-06-27T00:00:00+08:00",
+  "count": 60,
+  "genderCounts": {
+    "u": 8,
+    "f": 28,
+    "m": 24
+  },
+  "actions": [
+    "cooking-finish-plate",
+    "cooking-read-step",
+    "cooking-step",
+    "cooking-timer-watch",
+    "dinner-card-compare",
+    "dinner-card-select",
+    "dinner-decision-standing",
+    "dinner-sit-down",
+    "dinner-table-set",
+    "family-taste-talk",
+    "fridge-almost-empty",
+    "fridge-almost-empty-v2",
+    "fridge-checking",
+    "fridge-priority-item",
+    "fridge-priority-item-v2",
+    "fridge-take-ingredient",
+    "fridge-take-ingredient-v2",
+    "grocery-bag-full",
+    "grocery-check-off",
+    "grocery-forget-item",
+    "grocery-memo",
+    "ingredient-basket-sort",
+    "ingredient-basket-sort-v2",
+    "ingredient-input",
+    "menu-accepted",
+    "menu-card-pin",
+    "menu-card-pin-v2",
+    "menu-cards-shuffle",
+    "menu-cards-shuffle-v2",
+    "menu-recommendation-thinking",
+    "not-tonight-move-away",
+    "not-tonight-move-away-v2",
+    "phone-scan-ingredient",
+    "phone-scan-ingredient-v2",
+    "poster-preview-hold",
+    "poster-sharing",
+    "profile-preference-set",
+    "share-to-family",
+    "weekly-family-rhythm",
+    "weekly-note-arrange"
+  ],
+  "assets": [
+    {
+      "id": "menu-recommendation-thinking-u-01",
+      "action": "menu-recommendation-thinking",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/menu-recommendation-thinking-u-01.webp",
+      "png": "/assets/brand/characters/png/menu-recommendation-thinking-u-01.png",
+      "sourceFile": "Humi Illustration - menu-recommendation-thinking.png",
+      "sourceSha256": "df7f0c0a6b95f76f81c68a81631e1bd2bf9b6e34bcabba0f718293c41506afb3",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 1
+    },
+    {
+      "id": "dinner-decision-standing-u-01",
+      "action": "dinner-decision-standing",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/dinner-decision-standing-u-01.webp",
+      "png": "/assets/brand/characters/png/dinner-decision-standing-u-01.png",
+      "sourceFile": "Humi Illustration Preview - dinner-decision-standing.png",
+      "sourceSha256": "f5c190646cd20a28fccd8169c1e54acc0489b8bb9dbb1f86a98c6f20f6fcbec4",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        623,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 2
+    },
+    {
+      "id": "ingredient-input-u-01",
+      "action": "ingredient-input",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/ingredient-input-u-01.webp",
+      "png": "/assets/brand/characters/png/ingredient-input-u-01.png",
+      "sourceFile": "Humi Illustration - ingredient-input.png",
+      "sourceSha256": "4d2a799cc4a619dd1f143bc71bc211f349f5eefa83ff6704ef8e365771d9309a",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        672
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 3
+    },
+    {
+      "id": "fridge-checking-u-01",
+      "action": "fridge-checking",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/fridge-checking-u-01.webp",
+      "png": "/assets/brand/characters/png/fridge-checking-u-01.png",
+      "sourceFile": "Humi Illustration - fridge-checking.png",
+      "sourceSha256": "6f828e946e4ae4fa794d1ef11229f4ebd4b2672d0a2a7f00e0e92be8e1630e35",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        748,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 4
+    },
+    {
+      "id": "menu-accepted-u-01",
+      "action": "menu-accepted",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/menu-accepted-u-01.webp",
+      "png": "/assets/brand/characters/png/menu-accepted-u-01.png",
+      "sourceFile": "Humi Illustration - menu-accepted.png",
+      "sourceSha256": "94a0e42cae29ea59beb91b068f88e25143350c3becdbb2c14f8983401bf25942",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        728,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 5
+    },
+    {
+      "id": "grocery-memo-u-01",
+      "action": "grocery-memo",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/grocery-memo-u-01.webp",
+      "png": "/assets/brand/characters/png/grocery-memo-u-01.png",
+      "sourceFile": "Humi Illustration - grocery-memo.png",
+      "sourceSha256": "86b89045d25712dd57a9c60d177ae8530b92be8a610156e880ca0a17de52364e",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        639
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 6
+    },
+    {
+      "id": "cooking-step-u-01",
+      "action": "cooking-step",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/cooking-step-u-01.webp",
+      "png": "/assets/brand/characters/png/cooking-step-u-01.png",
+      "sourceFile": "Humi Illustration - cooking-step.png",
+      "sourceSha256": "132ea25c116c8954bcfc7983db77f0f5fc4f00d4ae8ba83e7349aef846497fd4",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        622
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 7
+    },
+    {
+      "id": "poster-sharing-u-01",
+      "action": "poster-sharing",
+      "gender": "u",
+      "src": "/assets/brand/characters/webp/poster-sharing-u-01.webp",
+      "png": "/assets/brand/characters/png/poster-sharing-u-01.png",
+      "sourceFile": "Humi Illustration - poster-sharing.png",
+      "sourceSha256": "43363f30aa2fbba2ac1eeb177f84bbc177cd371a49d56cf82ff5b9218893c8cf",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        692
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 8
+    },
+    {
+      "id": "dinner-decision-standing-f-01",
+      "action": "dinner-decision-standing",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/dinner-decision-standing-f-01.webp",
+      "png": "/assets/brand/characters/png/dinner-decision-standing-f-01.png",
+      "sourceFile": "Humi Illustration Female - dinner-decision-standing.png",
+      "sourceSha256": "65b45421bb4de79f5062b7bfe388f5806a6f70d4144c46b32eaffef6770f0bcd",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "outputSize": [
+        525,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 9
+    },
+    {
+      "id": "fridge-checking-f-01",
+      "action": "fridge-checking",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/fridge-checking-f-01.webp",
+      "png": "/assets/brand/characters/png/fridge-checking-f-01.png",
+      "sourceFile": "Humi Illustration Female - fridge-checking.png",
+      "sourceSha256": "da5e1e2bdcbd22ccdad78b24ed959c24ea68bea54f0495ccfc164cfdee755ba2",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        758
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 10
+    },
+    {
+      "id": "ingredient-input-f-01",
+      "action": "ingredient-input",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/ingredient-input-f-01.webp",
+      "png": "/assets/brand/characters/png/ingredient-input-f-01.png",
+      "sourceFile": "Humi Illustration Female - ingredient-input.png",
+      "sourceSha256": "dfeb6bfc08b64be0a834ffb5b8162f4ad2033da1da88e3e78214e9825a6e4907",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        704
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 11
+    },
+    {
+      "id": "dinner-card-select-m-01",
+      "action": "dinner-card-select",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/dinner-card-select-m-01.webp",
+      "png": "/assets/brand/characters/png/dinner-card-select-m-01.png",
+      "sourceFile": "Humi Asset 02M - dinner-card-select.png",
+      "sourceSha256": "bf4050b27bf44294ee7f58c0eb2fb56797959caf50e17ae7a3e90b127cd147f9",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        753,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 12
+    },
+    {
+      "id": "dinner-table-set-m-01",
+      "action": "dinner-table-set",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/dinner-table-set-m-01.webp",
+      "png": "/assets/brand/characters/png/dinner-table-set-m-01.png",
+      "sourceFile": "Humi Asset 03M - dinner-table-set.png",
+      "sourceSha256": "0d316c496c4e506e2eec947e5f8c9f658f37833ce009867947df7954d8c6cf9b",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        687,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 13
+    },
+    {
+      "id": "menu-recommendation-thinking-f-01",
+      "action": "menu-recommendation-thinking",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/menu-recommendation-thinking-f-01.webp",
+      "png": "/assets/brand/characters/png/menu-recommendation-thinking-f-01.png",
+      "sourceFile": "Humi Illustration Female - menu-recommendation-thinking.png",
+      "sourceSha256": "a4736d7dc69cb44da60bc7a8edf1f3d216fed161c75d0238e15f871bb5d91315",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        751,
+        768
+      ],
+      "sourceKind": "p0-base",
+      "ordinal": 14
+    },
+    {
+      "id": "dinner-sit-down-m-01",
+      "action": "dinner-sit-down",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/dinner-sit-down-m-01.webp",
+      "png": "/assets/brand/characters/png/dinner-sit-down-m-01.png",
+      "sourceFile": "Humi Asset 04M - dinner-sit-down.png",
+      "sourceSha256": "e6b4766a32886f8592fe578966fc0b5106fca75af723430d39e9308d7c3a2eea",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        644
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 15
+    },
+    {
+      "id": "dinner-card-compare-m-01",
+      "action": "dinner-card-compare",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/dinner-card-compare-m-01.webp",
+      "png": "/assets/brand/characters/png/dinner-card-compare-m-01.png",
+      "sourceFile": "Humi Asset 01M - dinner-card-compare.png",
+      "sourceSha256": "6c8376991a1c41880594bdbce46d1c3754101fece6ffc26c439785dd4ed35525",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        752
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 16
+    },
+    {
+      "id": "fridge-almost-empty-m-01",
+      "action": "fridge-almost-empty",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/fridge-almost-empty-m-01.webp",
+      "png": "/assets/brand/characters/png/fridge-almost-empty-m-01.png",
+      "sourceFile": "Humi Asset 06M - fridge-almost-empty.png",
+      "sourceSha256": "9a7ae3c2c59b71669cd2cf82c82ddb83c6e64c06ef90aa892410f3f216dcb55f",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        767
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 17
+    },
+    {
+      "id": "fridge-priority-item-m-01",
+      "action": "fridge-priority-item",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/fridge-priority-item-m-01.webp",
+      "png": "/assets/brand/characters/png/fridge-priority-item-m-01.png",
+      "sourceFile": "Humi Asset 07M - fridge-priority-item.png",
+      "sourceSha256": "45b86fc3ad6944b4e5ebfb878f3614a66817629299472b669f85568bad9f8f77",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        387,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 18
+    },
+    {
+      "id": "fridge-take-ingredient-m-01",
+      "action": "fridge-take-ingredient",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/fridge-take-ingredient-m-01.webp",
+      "png": "/assets/brand/characters/png/fridge-take-ingredient-m-01.png",
+      "sourceFile": "Humi Asset 05M - fridge-take-ingredient.png",
+      "sourceSha256": "0afaf6f5d7b6338932df22ae49d3da30031c98a65e96ad6c64741c2ee1e1632e",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        604,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 19
+    },
+    {
+      "id": "ingredient-basket-sort-m-01",
+      "action": "ingredient-basket-sort",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/ingredient-basket-sort-m-01.webp",
+      "png": "/assets/brand/characters/png/ingredient-basket-sort-m-01.png",
+      "sourceFile": "Humi Asset 08M - ingredient-basket-sort.png",
+      "sourceSha256": "a9a402969d27cd38187696beeb6595c3817b8efc7a7a02fdfeefec4b2eac685c",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        633
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 20
+    },
+    {
+      "id": "phone-scan-ingredient-m-01",
+      "action": "phone-scan-ingredient",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/phone-scan-ingredient-m-01.webp",
+      "png": "/assets/brand/characters/png/phone-scan-ingredient-m-01.png",
+      "sourceFile": "Humi Asset 09M - phone-scan-ingredient.png",
+      "sourceSha256": "c4d397706ba0c53a62df1ad1598e98f17a54908a0b2fcde4bcdbe20f3e95ede4",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        732
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 21
+    },
+    {
+      "id": "not-tonight-move-away-m-01",
+      "action": "not-tonight-move-away",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/not-tonight-move-away-m-01.webp",
+      "png": "/assets/brand/characters/png/not-tonight-move-away-m-01.png",
+      "sourceFile": "Humi Asset 12M - not-tonight-move-away.png",
+      "sourceSha256": "672de9ba7dcae071f4e6005f2a8ef2414eae2c3ef7332476986f3b713ef012a5",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        601
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 22
+    },
+    {
+      "id": "menu-cards-shuffle-m-01",
+      "action": "menu-cards-shuffle",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/menu-cards-shuffle-m-01.webp",
+      "png": "/assets/brand/characters/png/menu-cards-shuffle-m-01.png",
+      "sourceFile": "Humi Asset 10M - menu-cards-shuffle.png",
+      "sourceSha256": "93bb060e6bbf0d3f03d8fcdeb7ccaa4f6ebb030e0631edc5ede8198c0b6664e2",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        747
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 23
+    },
+    {
+      "id": "menu-card-pin-m-01",
+      "action": "menu-card-pin",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/menu-card-pin-m-01.webp",
+      "png": "/assets/brand/characters/png/menu-card-pin-m-01.png",
+      "sourceFile": "Humi Asset 11M - menu-card-pin.png",
+      "sourceSha256": "99ef167ae965319d400a1a99f9b09bce0f4062adc37610c34f3450f1aea7e7d3",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        585,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 24
+    },
+    {
+      "id": "dinner-card-select-f-01",
+      "action": "dinner-card-select",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/dinner-card-select-f-01.webp",
+      "png": "/assets/brand/characters/png/dinner-card-select-f-01.png",
+      "sourceFile": "Humi Asset 02F - dinner-card-select.png",
+      "sourceSha256": "ba7da610780d5b188695009f11ec2b64507f1554bb7683620f13ae6fa2657263",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 25
+    },
+    {
+      "id": "dinner-card-compare-f-01",
+      "action": "dinner-card-compare",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/dinner-card-compare-f-01.webp",
+      "png": "/assets/brand/characters/png/dinner-card-compare-f-01.png",
+      "sourceFile": "Humi Asset 01F - dinner-card-compare.png",
+      "sourceSha256": "d39d40af403933349773046e98d85f48395c4d62509abf414d668c56002549cb",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        739
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 26
+    },
+    {
+      "id": "dinner-table-set-f-01",
+      "action": "dinner-table-set",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/dinner-table-set-f-01.webp",
+      "png": "/assets/brand/characters/png/dinner-table-set-f-01.png",
+      "sourceFile": "Humi Asset 03F - dinner-table-set.png",
+      "sourceSha256": "7e117566e26cc520fe75a6c00689bb4a74c7b0d49ab94e70f9d82cb24600b837",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        659
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 27
+    },
+    {
+      "id": "dinner-sit-down-f-01",
+      "action": "dinner-sit-down",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/dinner-sit-down-f-01.webp",
+      "png": "/assets/brand/characters/png/dinner-sit-down-f-01.png",
+      "sourceFile": "Humi Asset 04F - dinner-sit-down.png",
+      "sourceSha256": "cbf60b3d8aed450810926bf5f186da47f78c861aeb061add3c2083c6c7a3bf45",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        713
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 28
+    },
+    {
+      "id": "ingredient-basket-sort-v2-f-01",
+      "action": "ingredient-basket-sort-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/ingredient-basket-sort-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/ingredient-basket-sort-v2-f-01.png",
+      "sourceFile": "Humi Asset 08F - ingredient-basket-sort v2.png",
+      "sourceSha256": "3abc2a0451113992eb8e931acf58119bec91f4139dbee68a9e5369b83f89d54e",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        638
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 29
+    },
+    {
+      "id": "fridge-almost-empty-v2-f-01",
+      "action": "fridge-almost-empty-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/fridge-almost-empty-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/fridge-almost-empty-v2-f-01.png",
+      "sourceFile": "Humi Asset 06F - fridge-almost-empty v2.png",
+      "sourceSha256": "49827ee45355cfe1dcddd1e863a727f76e3f6fd8aa5a336fc2af59eb5ebd900d",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        695
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 30
+    },
+    {
+      "id": "fridge-priority-item-v2-f-01",
+      "action": "fridge-priority-item-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/fridge-priority-item-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/fridge-priority-item-v2-f-01.png",
+      "sourceFile": "Humi Asset 07F - fridge-priority-item v2.png",
+      "sourceSha256": "418a9b81cce61e15b957ebf6a13333ba2d14317b2c38d27c148c558a4f005256",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 31
+    },
+    {
+      "id": "menu-card-pin-v2-f-01",
+      "action": "menu-card-pin-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/menu-card-pin-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/menu-card-pin-v2-f-01.png",
+      "sourceFile": "Humi Asset 11F - menu-card-pin v2.png",
+      "sourceSha256": "8edd7cd7ab1809dafbf80c25e36f5364d321bc07c1695e3314f89223cd0a9abb",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        691
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 32
+    },
+    {
+      "id": "fridge-take-ingredient-v2-f-01",
+      "action": "fridge-take-ingredient-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/fridge-take-ingredient-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/fridge-take-ingredient-v2-f-01.png",
+      "sourceFile": "Humi Asset 05F - fridge-take-ingredient v2.png",
+      "sourceSha256": "0c11e05fc08ed8c33fdaca3ea3fb88b11b1c33a72998f47c0f7fa3f54da9a6db",
+      "sourceSize": [
+        1500,
+        1049
+      ],
+      "outputSize": [
+        768,
+        537
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 33
+    },
+    {
+      "id": "not-tonight-move-away-v2-f-01",
+      "action": "not-tonight-move-away-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/not-tonight-move-away-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/not-tonight-move-away-v2-f-01.png",
+      "sourceFile": "Humi Asset 12F - not-tonight-move-away v2.png",
+      "sourceSha256": "16d47d108d542fa7fa62bf5acc31cb9214661bffa6379c4cd4ccb24f413e8e1b",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        670
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 34
+    },
+    {
+      "id": "menu-cards-shuffle-v2-f-01",
+      "action": "menu-cards-shuffle-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/menu-cards-shuffle-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/menu-cards-shuffle-v2-f-01.png",
+      "sourceFile": "Humi Asset 10F - menu-cards-shuffle v2.png",
+      "sourceSha256": "ebaa0a7c89ff97868be5bf77cb0841caf66ed4598fcb2ca41fb4d0e9485b665e",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        570
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 35
+    },
+    {
+      "id": "phone-scan-ingredient-v2-f-01",
+      "action": "phone-scan-ingredient-v2",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/phone-scan-ingredient-v2-f-01.webp",
+      "png": "/assets/brand/characters/png/phone-scan-ingredient-v2-f-01.png",
+      "sourceFile": "Humi Asset 09F - phone-scan-ingredient v2.png",
+      "sourceSha256": "28b22581c6a3535141cab4d1ff1fdc7918d45e1a5b891806f851ba5458259da0",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        671
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 36
+    },
+    {
+      "id": "grocery-bag-full-m-01",
+      "action": "grocery-bag-full",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/grocery-bag-full-m-01.webp",
+      "png": "/assets/brand/characters/png/grocery-bag-full-m-01.png",
+      "sourceFile": "Humi Asset 16M - grocery-bag-full.png",
+      "sourceSha256": "e7cd65c5e960808838b2df5bfd2baeb1db81ac914e98148320cdded3e507fb89",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        570,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 37
+    },
+    {
+      "id": "weekly-family-rhythm-m-01",
+      "action": "weekly-family-rhythm",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/weekly-family-rhythm-m-01.webp",
+      "png": "/assets/brand/characters/png/weekly-family-rhythm-m-01.png",
+      "sourceFile": "Humi Asset 14M - weekly-family-rhythm.png",
+      "sourceSha256": "3c553bd3ecd40e4eabfe3bc8c71b3b0f1d9e89dd9f57db58a6a3e8039359945e",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        580,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 38
+    },
+    {
+      "id": "grocery-check-off-m-01",
+      "action": "grocery-check-off",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/grocery-check-off-m-01.webp",
+      "png": "/assets/brand/characters/png/grocery-check-off-m-01.png",
+      "sourceFile": "Humi Asset 15M - grocery-check-off.png",
+      "sourceSha256": "8f1196e917cfce5e449b1053eceecb9a23b0c348eb32af9cfe480ad2bc29f572",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        599
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 39
+    },
+    {
+      "id": "weekly-note-arrange-m-01",
+      "action": "weekly-note-arrange",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/weekly-note-arrange-m-01.webp",
+      "png": "/assets/brand/characters/png/weekly-note-arrange-m-01.png",
+      "sourceFile": "Humi Asset 13M - weekly-note-arrange.png",
+      "sourceSha256": "7a0dea52cd9943c68c677f6c58513b44370e96b5a5d544a3dc44bfe5d42ed517",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        768,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 40
+    },
+    {
+      "id": "cooking-finish-plate-m-01",
+      "action": "cooking-finish-plate",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/cooking-finish-plate-m-01.webp",
+      "png": "/assets/brand/characters/png/cooking-finish-plate-m-01.png",
+      "sourceFile": "Humi Asset 20M - cooking-finish-plate.png",
+      "sourceSha256": "5ea96210cc72b0d0b777b6931bec9dbd7b0b277059e3d89782d4da0a01fe952b",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        742,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 41
+    },
+    {
+      "id": "cooking-read-step-m-01",
+      "action": "cooking-read-step",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/cooking-read-step-m-01.webp",
+      "png": "/assets/brand/characters/png/cooking-read-step-m-01.png",
+      "sourceFile": "Humi Asset 18M - cooking-read-step.png",
+      "sourceSha256": "8ff95e9745581117fda5d609653367a7712b73a381180625bbfd51e0e375934d",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        764,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 42
+    },
+    {
+      "id": "grocery-forget-item-m-01",
+      "action": "grocery-forget-item",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/grocery-forget-item-m-01.webp",
+      "png": "/assets/brand/characters/png/grocery-forget-item-m-01.png",
+      "sourceFile": "Humi Asset 17M - grocery-forget-item.png",
+      "sourceSha256": "4fa6a1c3f20e409f8b524cb42fdb3190a086a9e91e174b3390bd646dccb237ba",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        621,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 43
+    },
+    {
+      "id": "cooking-timer-watch-m-01",
+      "action": "cooking-timer-watch",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/cooking-timer-watch-m-01.webp",
+      "png": "/assets/brand/characters/png/cooking-timer-watch-m-01.png",
+      "sourceFile": "Humi Asset 19M - cooking-timer-watch.png",
+      "sourceSha256": "037f6a362b0cdfe7e5fb110cab24c03b82c9398322709413f72a8b15df878352",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        611,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 44
+    },
+    {
+      "id": "profile-preference-set-m-01",
+      "action": "profile-preference-set",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/profile-preference-set-m-01.webp",
+      "png": "/assets/brand/characters/png/profile-preference-set-m-01.png",
+      "sourceFile": "Humi Asset 22M - profile-preference-set.png",
+      "sourceSha256": "0423f8949435594a6be04f8b7ff68de8073f93ca8c9fdc8dcba0f38e347d378e",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        569
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 45
+    },
+    {
+      "id": "poster-preview-hold-m-01",
+      "action": "poster-preview-hold",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/poster-preview-hold-m-01.webp",
+      "png": "/assets/brand/characters/png/poster-preview-hold-m-01.png",
+      "sourceFile": "Humi Asset 23M - poster-preview-hold.png",
+      "sourceSha256": "c0674d3f8dec792fd6943eaf0f53c26ab14b8825d7e337c80e4bec4d8ec820fe",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "outputSize": [
+        537,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 46
+    },
+    {
+      "id": "share-to-family-m-01",
+      "action": "share-to-family",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/share-to-family-m-01.webp",
+      "png": "/assets/brand/characters/png/share-to-family-m-01.png",
+      "sourceFile": "Humi Asset 24M - share-to-family.png",
+      "sourceSha256": "1637841910f7555f8d3d49891a9a0c1ff3a6fe1fbe03e58b56b5f394dd5d352d",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        654,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 47
+    },
+    {
+      "id": "family-taste-talk-m-01",
+      "action": "family-taste-talk",
+      "gender": "m",
+      "src": "/assets/brand/characters/webp/family-taste-talk-m-01.webp",
+      "png": "/assets/brand/characters/png/family-taste-talk-m-01.png",
+      "sourceFile": "Humi Asset 21M - family-taste-talk.png",
+      "sourceSha256": "497eec7a8c1679f3bcad1dd047162bbde1f7b1de98c50e67334d8dd1d2fcbd3d",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        483
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 48
+    },
+    {
+      "id": "weekly-note-arrange-f-01",
+      "action": "weekly-note-arrange",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/weekly-note-arrange-f-01.webp",
+      "png": "/assets/brand/characters/png/weekly-note-arrange-f-01.png",
+      "sourceFile": "Humi Asset 13F - weekly-note-arrange.png",
+      "sourceSha256": "f3741b7dd0327d81c7937ade4cbea9c3ce9cff9a172344b21a514a69347b5b06",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        558
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 49
+    },
+    {
+      "id": "grocery-bag-full-f-01",
+      "action": "grocery-bag-full",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/grocery-bag-full-f-01.webp",
+      "png": "/assets/brand/characters/png/grocery-bag-full-f-01.png",
+      "sourceFile": "Humi Asset 16F - grocery-bag-full.png",
+      "sourceSha256": "d1a6344ada5a3e4750ac6973b6ea34f933f5e815388255da79e9db0b5baaebe3",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "outputSize": [
+        517,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 50
+    },
+    {
+      "id": "weekly-family-rhythm-f-01",
+      "action": "weekly-family-rhythm",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/weekly-family-rhythm-f-01.webp",
+      "png": "/assets/brand/characters/png/weekly-family-rhythm-f-01.png",
+      "sourceFile": "Humi Asset 14F - weekly-family-rhythm.png",
+      "sourceSha256": "c4d83d57ee4cb8bb31593ae427f43471a2a3e000c23411da1d3673f77b3e32e3",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "outputSize": [
+        534,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 51
+    },
+    {
+      "id": "grocery-forget-item-f-01",
+      "action": "grocery-forget-item",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/grocery-forget-item-f-01.webp",
+      "png": "/assets/brand/characters/png/grocery-forget-item-f-01.png",
+      "sourceFile": "Humi Asset 17F - grocery-forget-item.png",
+      "sourceSha256": "a5001362aa815111c3c2023d8f1e9007d88dac067c245f07fbe4028da4ba1b70",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        720
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 52
+    },
+    {
+      "id": "grocery-check-off-f-01",
+      "action": "grocery-check-off",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/grocery-check-off-f-01.webp",
+      "png": "/assets/brand/characters/png/grocery-check-off-f-01.png",
+      "sourceFile": "Humi Asset 15F - grocery-check-off.png",
+      "sourceSha256": "8a9ded0507150fe9b67e6582a59b8ec8e876c6e04df84e79586b66ff0fd6647e",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "outputSize": [
+        724,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 53
+    },
+    {
+      "id": "cooking-finish-plate-f-01",
+      "action": "cooking-finish-plate",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/cooking-finish-plate-f-01.webp",
+      "png": "/assets/brand/characters/png/cooking-finish-plate-f-01.png",
+      "sourceFile": "Humi Asset 20F - cooking-finish-plate.png",
+      "sourceSha256": "e433fb18388d691723ce0b9516e369acd1ae71d7247f769a4eedc4eefd9fce2d",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        732,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 54
+    },
+    {
+      "id": "cooking-read-step-f-01",
+      "action": "cooking-read-step",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/cooking-read-step-f-01.webp",
+      "png": "/assets/brand/characters/png/cooking-read-step-f-01.png",
+      "sourceFile": "Humi Asset 18F - cooking-read-step.png",
+      "sourceSha256": "0271842e5a86090fdc1a4493631ec91e4b26379b600e851dfeeba45701b24ef0",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        512
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 55
+    },
+    {
+      "id": "cooking-timer-watch-f-01",
+      "action": "cooking-timer-watch",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/cooking-timer-watch-f-01.webp",
+      "png": "/assets/brand/characters/png/cooking-timer-watch-f-01.png",
+      "sourceFile": "Humi Asset 19F - cooking-timer-watch.png",
+      "sourceSha256": "05b986e2f762f8993262bf34ffdf8f20f7b48d857832eb1122a87b3013d0aa86",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        726,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 56
+    },
+    {
+      "id": "poster-preview-hold-f-01",
+      "action": "poster-preview-hold",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/poster-preview-hold-f-01.webp",
+      "png": "/assets/brand/characters/png/poster-preview-hold-f-01.png",
+      "sourceFile": "Humi Asset 23F - poster-preview-hold.png",
+      "sourceSha256": "fe66e309a25d1daf589640e64425a692694514dfc7f4a76f246c4c94ea086f78",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "outputSize": [
+        545,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 57
+    },
+    {
+      "id": "profile-preference-set-f-01",
+      "action": "profile-preference-set",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/profile-preference-set-f-01.webp",
+      "png": "/assets/brand/characters/png/profile-preference-set-f-01.png",
+      "sourceFile": "Humi Asset 22F - profile-preference-set.png",
+      "sourceSha256": "62849dc3c6e578622383de339bef2ddd04ed5787b43377fb6d735248b031bcf8",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        573
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 58
+    },
+    {
+      "id": "family-taste-talk-f-01",
+      "action": "family-taste-talk",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/family-taste-talk-f-01.webp",
+      "png": "/assets/brand/characters/png/family-taste-talk-f-01.png",
+      "sourceFile": "Humi Asset 21F - family-taste-talk.png",
+      "sourceSha256": "0a3b3f81c80fc9f24dec20ea09aa57d93babc4c0a0aee564ce59ca105016eb03",
+      "sourceSize": [
+        1536,
+        1024
+      ],
+      "outputSize": [
+        768,
+        517
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 59
+    },
+    {
+      "id": "share-to-family-f-01",
+      "action": "share-to-family",
+      "gender": "f",
+      "src": "/assets/brand/characters/webp/share-to-family-f-01.webp",
+      "png": "/assets/brand/characters/png/share-to-family-f-01.png",
+      "sourceFile": "Humi Asset 24F - share-to-family.png",
+      "sourceSha256": "40ff201f6a8cbaed733edb4c66c7e115e0e7567dc660a8367aa2ff0570253cd5",
+      "sourceSize": [
+        1122,
+        1402
+      ],
+      "outputSize": [
+        723,
+        768
+      ],
+      "sourceKind": "action-variant",
+      "ordinal": 60
+    }
+  ]
+}
