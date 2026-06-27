@@ -45,6 +45,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
+import { isHumiApiSession, loadHumiState, saveHumiState } from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -97,6 +98,8 @@ registerServiceWorker();
 function App() {
   const appOpenTrackedRef = useRef(false);
   const flowMotionTimerRef = useRef(null);
+  const humiStateLoadedRef = useRef(false);
+  const humiStateHydratingRef = useRef(false);
   const viewHistoryRef = useRef(["dashboard"]);
   const swipeStartRef = useRef(null);
   const [activeView, setActiveView] = useState("dashboard");
@@ -171,17 +174,131 @@ function App() {
   const signedIn = Boolean(session?.user || humiSession?.user);
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
   const todayDateKey = formatDateKey(new Date());
+  const humiStateSnapshot = useMemo(() => ({
+    todayMenu,
+    weekPlan,
+    mealCalendar,
+    mealLogs,
+    checkedItems,
+    customItems,
+    excludedGroceryKeys,
+    pantryItems,
+    familyProfile,
+    nutritionGoals,
+    recommendationFeedback,
+  }), [
+    checkedItems,
+    customItems,
+    excludedGroceryKeys,
+    familyProfile,
+    mealCalendar,
+    mealLogs,
+    nutritionGoals,
+    pantryItems,
+    recommendationFeedback,
+    todayMenu,
+    weekPlan,
+  ]);
 
   useEffect(() => {
     const nextHumiSession = consumeHumiSessionFromUrl();
     if (!nextHumiSession) return;
     setHumiSession(nextHumiSession);
     setOnboardingComplete(true);
+    setProfileOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
     setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
     setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
     showNotice("已登录 Humi");
-  }, [setOnboardingComplete]);
+  }, [setOnboardingComplete, setProfileOnboardingComplete]);
+
+  useEffect(() => {
+    if (!isHumiApiSession(humiSession) || humiStateLoadedRef.current) return;
+    let active = true;
+    humiStateLoadedRef.current = true;
+    humiStateHydratingRef.current = true;
+    setFamily(createHumiSessionFamily(humiSession));
+    setCloudMenuEnabled(true);
+    setCloudGroceryEnabled(true);
+    setCloudMenuLoading(true);
+    setCloudGroceryLoading(true);
+    setCloudSyncStatus("正在读取微信账号保存的菜单...");
+    setCloudGroceryStatus("正在读取微信账号保存的清单和库存...");
+
+    async function loadWechatState() {
+      try {
+        const state = await loadHumiState(humiSession);
+        if (!active) return;
+        if (state) {
+          setTodayMenu(Array.isArray(state.todayMenu) ? state.todayMenu : []);
+          setWeekPlan({ ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) });
+          setMealCalendar(state.mealCalendar ?? createInitialMealCalendar());
+          setMealLogs(state.mealLogs ?? {});
+          setCheckedItems(state.checkedItems ?? {});
+          setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
+          setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
+          setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
+          setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
+          setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
+          setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
+          setCloudSyncStatus("已读取微信账号保存的今晚菜单和一周计划。");
+          setCloudGroceryStatus("已读取微信账号保存的食材清单和家中库存。");
+        } else {
+          setCloudSyncStatus("微信账号保存已开启，今晚菜单会自动保存。");
+          setCloudGroceryStatus("微信账号保存已开启，清单和库存会自动保存。");
+        }
+      } catch (error) {
+        if (active) {
+          setCloudSyncStatus(error.message);
+          setCloudGroceryStatus(error.message);
+        }
+      } finally {
+        if (active) {
+          setCloudMenuLoading(false);
+          setCloudGroceryLoading(false);
+          window.setTimeout(() => {
+            humiStateHydratingRef.current = false;
+          }, 0);
+        }
+      }
+    }
+
+    loadWechatState();
+    return () => {
+      active = false;
+    };
+  }, [
+    humiSession,
+    setCheckedItems,
+    setCloudGroceryEnabled,
+    setCloudMenuEnabled,
+    setCustomItems,
+    setExcludedGroceryKeys,
+    setFamilyProfile,
+    setMealCalendar,
+    setMealLogs,
+    setNutritionGoals,
+    setPantryItems,
+    setRecommendationFeedback,
+    setTodayMenu,
+    setWeekPlan,
+  ]);
+
+  useEffect(() => {
+    if (!isHumiApiSession(humiSession) || !humiStateLoadedRef.current || humiStateHydratingRef.current) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await saveHumiState(humiSession, humiStateSnapshot);
+        setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
+        setCloudGroceryStatus("清单和家中库存已保存到微信账号。");
+      } catch (error) {
+        setCloudSyncStatus(error.message);
+        setCloudGroceryStatus(error.message);
+      }
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [humiSession, humiStateSnapshot]);
 
   useEffect(() => {
     return () => {
@@ -249,7 +366,7 @@ function App() {
   }, [mealLogs, online, todayDateKey]);
 
   useEffect(() => {
-    if (!family?.id || !cloudMenuEnabled) return;
+    if (!session?.user || !family?.id || !cloudMenuEnabled) return;
     let active = true;
 
     async function loadCloudMenus() {
@@ -272,10 +389,10 @@ function App() {
     return () => {
       active = false;
     };
-  }, [cloudMenuEnabled, family?.id, setTodayMenu, setWeekPlan]);
+  }, [cloudMenuEnabled, family?.id, session?.user, setTodayMenu, setWeekPlan]);
 
   useEffect(() => {
-    if (!family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
+    if (!session?.user || !family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
     const timer = window.setTimeout(async () => {
       try {
         await saveTodayMenu(family.id, todayMenu);
@@ -286,10 +403,10 @@ function App() {
     }, 450);
 
     return () => window.clearTimeout(timer);
-  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, todayMenu]);
+  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, session?.user, todayMenu]);
 
   useEffect(() => {
-    if (!family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
+    if (!session?.user || !family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
     const timer = window.setTimeout(async () => {
       try {
         await saveWeekPlan(family.id, weekPlan);
@@ -300,10 +417,10 @@ function App() {
     }, 650);
 
     return () => window.clearTimeout(timer);
-  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, weekPlan]);
+  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, session?.user, weekPlan]);
 
   useEffect(() => {
-    if (!family?.id || !cloudGroceryEnabled) return;
+    if (!session?.user || !family?.id || !cloudGroceryEnabled) return;
     let active = true;
 
     async function loadCloudGrocery() {
@@ -331,6 +448,7 @@ function App() {
   }, [
     cloudGroceryEnabled,
     family?.id,
+    session?.user,
     setCheckedItems,
     setCustomItems,
     setExcludedGroceryKeys,
@@ -338,7 +456,7 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (!family?.id || !cloudGroceryEnabled || cloudGroceryLoading) return;
+    if (!session?.user || !family?.id || !cloudGroceryEnabled || cloudGroceryLoading) return;
     const timer = window.setTimeout(async () => {
       try {
         await saveGrocerySync({
@@ -363,6 +481,7 @@ function App() {
     excludedGroceryKeys,
     family?.id,
     pantryItems,
+    session?.user,
   ]);
 
   useEffect(() => {
@@ -388,8 +507,11 @@ function App() {
 
       unsubscribe = await subscribeToAuthChanges(async (nextSession) => {
         setSession(nextSession);
+        if (!nextSession?.user) {
+          if (!readHumiSession()) setFamily(null);
+          return;
+        }
         setFamily(null);
-        if (!nextSession?.user) return;
         setOnboardingComplete(true);
         setCloudLoading(true);
         try {
@@ -411,7 +533,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!family?.id) {
+    if (!session?.user || !family?.id) {
       setFamilyMembers([]);
       setPreferenceDraft({});
       setInviteEmail("");
@@ -424,7 +546,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [family?.id]);
+  }, [family?.id, session?.user]);
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -1469,7 +1591,7 @@ function App() {
   }
 
   async function loadPreferencesForFamily({ active = () => true } = {}) {
-    if (!family?.id) return;
+    if (!session?.user || !family?.id) return;
 
     setPreferencesLoading(true);
     setPreferencesStatus("正在读取家庭成员偏好...");
@@ -1505,7 +1627,7 @@ function App() {
   }
 
   async function savePreference(memberId) {
-    if (!family?.id) {
+    if (!session?.user || !family?.id) {
       setPreferencesStatus("请先登录并创建家庭空间。");
       return;
     }
@@ -1530,7 +1652,7 @@ function App() {
   }
 
   async function inviteMember() {
-    if (!family?.id) {
+    if (!session?.user || !family?.id) {
       setPreferencesStatus("请先登录并创建家庭空间。");
       return;
     }
@@ -1718,6 +1840,12 @@ function App() {
   };
 
   async function migrateMenusToCloud() {
+    if (isHumiApiSession(humiSession)) {
+      setCloudMenuEnabled(true);
+      setCloudSyncStatus("微信账号保存已开启，菜单会自动同步。");
+      showNotice("菜单会保存到微信账号");
+      return;
+    }
     if (!family?.id) {
       setCloudSyncStatus("请先登录并创建家庭空间。");
       return;
@@ -1738,6 +1866,21 @@ function App() {
   }
 
   async function refreshCloudMenus() {
+    if (isHumiApiSession(humiSession)) {
+      try {
+        setCloudMenuLoading(true);
+        const state = await loadHumiState(humiSession);
+        setTodayMenu(Array.isArray(state?.todayMenu) ? state.todayMenu : []);
+        setWeekPlan({ ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) });
+        setCloudSyncStatus("已刷新微信账号保存的菜单。");
+        showNotice("微信账号菜单已刷新");
+      } catch (error) {
+        setCloudSyncStatus(error.message);
+      } finally {
+        setCloudMenuLoading(false);
+      }
+      return;
+    }
     if (!family?.id) {
       setCloudSyncStatus("请先登录并创建家庭空间。");
       return;
@@ -1760,6 +1903,12 @@ function App() {
   }
 
   async function migrateGroceryToCloud() {
+    if (isHumiApiSession(humiSession)) {
+      setCloudGroceryEnabled(true);
+      setCloudGroceryStatus("微信账号保存已开启，清单和库存会自动同步。");
+      showNotice("清单和库存会保存到微信账号");
+      return;
+    }
     if (!family?.id) {
       setCloudGroceryStatus("请先登录并创建家庭空间。");
       return;
@@ -1786,6 +1935,23 @@ function App() {
   }
 
   async function refreshCloudGrocery() {
+    if (isHumiApiSession(humiSession)) {
+      try {
+        setCloudGroceryLoading(true);
+        const state = await loadHumiState(humiSession);
+        setCustomItems(Array.isArray(state?.customItems) ? state.customItems : []);
+        setCheckedItems(state?.checkedItems ?? {});
+        setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
+        setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
+        setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
+        showNotice("微信账号清单已刷新");
+      } catch (error) {
+        setCloudGroceryStatus(error.message);
+      } finally {
+        setCloudGroceryLoading(false);
+      }
+      return;
+    }
     if (!family?.id) {
       setCloudGroceryStatus("请先登录并创建家庭空间。");
       return;
@@ -1848,7 +2014,7 @@ function App() {
     setNutritionGoals((current) => (
       current?.modeId === normalizedProfile.planningMode ? current : getDefaultNutritionGoals(normalizedProfile)
     ));
-    if (session?.user && getProfileCompletedCount(normalizedProfile) >= 4) {
+    if (signedIn && getProfileCompletedCount(normalizedProfile) >= 4) {
       setProfileOnboardingComplete(true);
     }
     trackProductEvent(appEvents.profileSaved, {
@@ -2350,6 +2516,16 @@ function formatAiError(error) {
 function formatInventoryShareSection(title, items) {
   if (items.length === 0) return `${title}\n- 无`;
   return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 提醒日期 ${item.expiresOn}` : ""}`).join("\n")}`;
+}
+
+function createHumiSessionFamily(humiSession) {
+  if (!humiSession?.user?.id) return null;
+  return {
+    id: `humi:${humiSession.user.id}`,
+    name: "我的家",
+    role: "owner",
+    provider: "wechat",
+  };
 }
 
 createRoot(document.getElementById("root")).render(<App />);

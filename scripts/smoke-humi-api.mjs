@@ -21,6 +21,7 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
   assert(me.user?.id === login.user.id, "me should return current user");
+  assert(me.family?.provider === "wechat", "me should return wechat family");
 
   const profile = await request(`${baseUrl}/profile`, {
     method: "POST",
@@ -38,6 +39,29 @@ try {
     },
   });
   assert(profile.profileCompleted >= 4, "profile should be saved");
+
+  const savedState = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      state: {
+        todayMenu: [{ recipeId: "tomato-egg", quantity: 2 }],
+        weekPlan: { 周一: ["tomato-egg"], 周二: [], 周三: [], 周四: [], 周五: [], 周六: [], 周日: [] },
+        checkedItems: { "ingredient:tomato": true },
+        pantryItems: [{ key: "pantry:tomato", name: "西红柿", amount: "3 个", source: "清单完成" }],
+        customItems: [{ key: "custom:milk", name: "牛奶", amount: "1 盒", source: "手动添加" }],
+        familyProfile: { familySize: 3, goals: ["省时"] },
+      },
+    },
+  });
+  assert(savedState.state?.todayMenu?.[0]?.quantity === 2, "state should save menu");
+  assert(savedState.state?.pantryItems?.[0]?.name === "西红柿", "state should save pantry");
+
+  const loadedState = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(loadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
+  assert(loadedState.state?.familyProfile?.familySize === 3, "state should load profile");
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",

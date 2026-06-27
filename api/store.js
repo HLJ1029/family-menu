@@ -7,6 +7,7 @@ const DEFAULT_DATA = {
   users: [],
   identities: [],
   profiles: {},
+  states: {},
   revokedTokens: [],
 };
 
@@ -82,6 +83,21 @@ export class HumiStore {
     };
     await this.save();
     return this.data.profiles[userId];
+  }
+
+  async getState(userId) {
+    await this.load();
+    return this.data.states[userId] ?? null;
+  }
+
+  async saveState(userId, state) {
+    await this.load();
+    this.data.states[userId] = {
+      ...state,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.save();
+    return this.data.states[userId];
   }
 
   async revokeToken(token) {

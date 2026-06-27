@@ -1,1 +1,15 @@
-<web-view src="{{url}}" bindmessage="handleMessage" binderror="handleError" bindload="handleLoad" />
+<web-view wx:if="{{url}}" src="{{url}}" bindmessage="handleMessage" binderror="handleError" bindload="handleLoad" />
+
+<view wx:else class="login-shell">
+  <view class="brand-mark">Humi</view>
+  <view class="login-card">
+    <view class="eyebrow">微信登录</view>
+    <view class="title">正在连接你的 Humi 账号</view>
+    <view class="body">
+      登录后，今晚菜单、购物清单和家中库存会跟着微信账号保存。
+    </view>
+    <view wx:if="{{loginPending}}" class="loading-dot"></view>
+    <button wx:else class="primary-button" bindtap="loginWithWechat">重新登录</button>
+    <view wx:if="{{loginError}}" class="error-text">{{loginError}}</view>
+  </view>
+</view>

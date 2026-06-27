@@ -65,6 +65,16 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/state") {
+        await handleGetState(request, response);
+        return;
+      }
+
+      if ((request.method === "PUT" || request.method === "POST") && url.pathname === "/state") {
+        await handleSaveState(request, response);
+        return;
+      }
+
       if (request.method === "POST" && url.pathname === "/profile") {
         await handleProfile(request, response);
         return;
@@ -120,7 +130,7 @@ async function handleMe(request, response) {
   sendJson(response, 200, {
     user: toPublicUser(user),
     profileCompleted: getProfileCompletedCount(profile),
-    family: null,
+    family: toHumiFamily(user),
   });
 }
 
@@ -133,6 +143,29 @@ async function handleProfile(request, response) {
   sendJson(response, 200, {
     profile,
     profileCompleted: getProfileCompletedCount(profile),
+  });
+}
+
+async function handleGetState(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const state = await store.getState(user.id);
+  sendJson(response, 200, {
+    state,
+    family: toHumiFamily(user),
+  });
+}
+
+async function handleSaveState(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body));
+  sendJson(response, 200, {
+    state,
+    family: toHumiFamily(user),
   });
 }
 
@@ -163,6 +196,15 @@ function toPublicUser(user) {
   };
 }
 
+function toHumiFamily(user) {
+  return {
+    id: `humi:${user.id}`,
+    name: "我的家",
+    role: "owner",
+    provider: "wechat",
+  };
+}
+
 function sanitizeProfile(profile = {}) {
   return {
     planningMode: stringValue(profile.planningMode),
@@ -174,6 +216,131 @@ function sanitizeProfile(profile = {}) {
     allergies: stringList(profile.allergies),
     shoppingTolerance: stringValue(profile.shoppingTolerance || "medium"),
   };
+}
+
+function sanitizeAppState(state = {}) {
+  return {
+    todayMenu: sanitizeMenuEntries(state.todayMenu),
+    weekPlan: sanitizeWeekPlan(state.weekPlan),
+    mealCalendar: sanitizeCalendar(state.mealCalendar),
+    mealLogs: sanitizeObjectMap(state.mealLogs, 120),
+    checkedItems: sanitizeBooleanMap(state.checkedItems, 400),
+    customItems: sanitizeList(state.customItems, sanitizeGroceryLikeItem, 200),
+    excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
+    pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
+    familyProfile: sanitizeProfile(state.familyProfile),
+    nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
+    recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
+  };
+}
+
+function sanitizeMenuEntries(value) {
+  return Array.isArray(value)
+    ? value
+      .map((item) => ({
+        recipeId: stringValue(item?.recipeId),
+        quantity: Math.max(1, Math.min(12, Number.parseInt(item?.quantity, 10) || 1)),
+      }))
+      .filter((item) => item.recipeId)
+      .slice(0, 40)
+    : [];
+}
+
+function sanitizeWeekPlan(value = {}) {
+  const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  return Object.fromEntries(
+    days.map((day) => [
+      day,
+      Array.isArray(value?.[day]) ? value[day].map(stringValue).filter(Boolean).slice(0, 20) : [],
+    ]),
+  );
+}
+
+function sanitizeCalendar(value = {}) {
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .filter(([key]) => /^\d{4}-\d{2}-\d{2}$/.test(key))
+      .slice(-120)
+      .map(([key, recipeIds]) => [
+        key,
+        Array.isArray(recipeIds) ? recipeIds.map(stringValue).filter(Boolean).slice(0, 20) : [],
+      ]),
+  );
+}
+
+function sanitizeBooleanMap(value = {}, limit = 200) {
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .slice(0, limit)
+      .map(([key, itemValue]) => [stringValue(key), Boolean(itemValue)])
+      .filter(([key]) => key),
+  );
+}
+
+function sanitizeObjectMap(value = {}, limit = 80) {
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .slice(0, limit)
+      .map(([key, itemValue]) => [stringValue(key), sanitizeJsonValue(itemValue, 4)])
+      .filter(([key]) => key),
+  );
+}
+
+function sanitizeList(value, sanitizer, limit) {
+  return Array.isArray(value) ? value.map(sanitizer).filter(Boolean).slice(0, limit) : [];
+}
+
+function sanitizeGroceryLikeItem(item = {}) {
+  const name = stringValue(item.name);
+  if (!name) return null;
+  return {
+    key: stringValue(item.key),
+    name,
+    amount: stringValue(item.amount),
+    source: stringValue(item.source),
+  };
+}
+
+function sanitizePantryItem(item = {}) {
+  const name = stringValue(item.name);
+  if (!name) return null;
+  return {
+    key: stringValue(item.key),
+    name,
+    amount: stringValue(item.amount),
+    expiresOn: dateValue(item.expiresOn),
+    source: stringValue(item.source),
+  };
+}
+
+function sanitizeFeedbackItem(item = {}) {
+  return {
+    id: stringValue(item.id),
+    reasonId: stringValue(item.reasonId),
+    reasonLabel: stringValue(item.reasonLabel),
+    recipeIds: stringList(item.recipeIds).slice(0, 12),
+    createdAt: stringValue(item.createdAt),
+  };
+}
+
+function sanitizeJsonValue(value, depth) {
+  if (depth <= 0) return null;
+  if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
+  if (Array.isArray(value)) return value.slice(0, 40).map((item) => sanitizeJsonValue(item, depth - 1));
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 40)
+        .map(([key, itemValue]) => [stringValue(key), sanitizeJsonValue(itemValue, depth - 1)])
+        .filter(([key]) => key),
+    );
+  }
+  return null;
+}
+
+function dateValue(value) {
+  const text = stringValue(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
 function getProfileCompletedCount(profile = {}) {
@@ -219,7 +386,7 @@ function applyCors(request, response) {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
   }
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 }
 

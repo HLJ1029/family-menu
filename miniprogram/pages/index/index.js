@@ -3,17 +3,16 @@ const { HUMI_WECHAT_LOGIN_ENABLED, getHumiApiBaseUrl, getHumiH5Url } = require("
 Page({
   data: {
     url: "",
-    loginPending: false
+    loginPending: false,
+    loginError: ""
   },
 
   onLoad() {
-    const url = getHumiH5Url();
-    this.setData({
-      url
-    });
     if (HUMI_WECHAT_LOGIN_ENABLED) {
-      this.loginWithWechat({ silent: true });
+      this.loginWithWechat({ initial: true });
+      return;
     }
+    this.setData({ url: getHumiH5Url() });
   },
 
   handleLoad() {},
@@ -32,14 +31,13 @@ Page({
 
   loginWithWechat(options = {}) {
     if (this.data.loginPending) return;
-    const silent = Boolean(options.silent);
-    this.setData({ loginPending: true });
+    const initial = Boolean(options.initial);
+    this.setData({ loginPending: true, loginError: "" });
 
     wx.login({
       success: ({ code }) => {
         if (!code) {
-          this.setData({ loginPending: false });
-          if (!silent) wx.showToast({ title: "登录失败，请先体验", icon: "none" });
+          this.setData({ loginPending: false, loginError: "微信登录失败，请重新尝试。" });
           return;
         }
 
@@ -50,15 +48,15 @@ Page({
           header: { "content-type": "application/json" },
           success: ({ statusCode, data }) => {
             if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
-              if (!silent) wx.showToast({ title: "登录服务准备中", icon: "none" });
+              this.setData({ loginError: "登录服务暂时不可用，请稍后重试。" });
               return;
             }
 
             this.setData({ url: appendSessionToUrl(getHumiH5Url(), data) });
-            if (!silent) wx.showToast({ title: "已登录 Humi", icon: "success" });
+            if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
-            if (!silent) wx.showToast({ title: "登录服务暂不可用", icon: "none" });
+            this.setData({ loginError: "网络连接失败，请检查网络后重试。" });
           },
           complete: () => {
             this.setData({ loginPending: false });
@@ -66,8 +64,7 @@ Page({
         });
       },
       fail: () => {
-        this.setData({ loginPending: false });
-        if (!silent) wx.showToast({ title: "微信登录失败", icon: "none" });
+        this.setData({ loginPending: false, loginError: "微信登录失败，请重新尝试。" });
       }
     });
   }

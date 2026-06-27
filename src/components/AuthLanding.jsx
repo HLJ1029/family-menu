@@ -75,7 +75,7 @@ function MobileAuthChoices({ onContinueGuest }) {
 
   function handleWechatLogin() {
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
-      setStatus("正在唤起微信登录。若当前版本尚未接通服务，可以先体验 Humi。");
+      setStatus("正在唤起微信登录。登录后菜单、清单和库存会保存到微信账号。");
       return;
     }
     setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
@@ -97,23 +97,27 @@ function MobileAuthChoices({ onContinueGuest }) {
             <MessageCircle size={19} className="text-white" />
             微信登录
           </button>
-          <button
-            type="button"
-            onClick={showPhoneReserved}
-            className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Phone size={14} />
-              手机号登录
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={onContinueGuest}
-            className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
-          >
-            先体验 Humi
-          </button>
+          {!isWechatMiniProgram && (
+            <>
+              <button
+                type="button"
+                onClick={showPhoneReserved}
+                className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Phone size={14} />
+                  手机号登录
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={onContinueGuest}
+                className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+              >
+                先体验 Humi
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <button
@@ -126,7 +130,13 @@ function MobileAuthChoices({ onContinueGuest }) {
       )}
 
       <div className="px-5 text-center text-xs font-bold leading-5 text-ink/36">
-        {status || (wechatLoginEnabled ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。" : "首发先不要求登录。菜单、计划和清单会保存在当前设备。")}
+        {status || (
+          isWechatMiniProgram
+            ? "微信登录后，菜单、画像、清单和库存会跟着账号保存。"
+            : wechatLoginEnabled
+              ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。"
+              : "首发先不要求登录。菜单、计划和清单会保存在当前设备。"
+        )}
       </div>
     </div>
   );

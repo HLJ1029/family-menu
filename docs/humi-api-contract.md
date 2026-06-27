@@ -64,7 +64,7 @@ npm run validate:api
 - 使用小程序 AppID 和 AppSecret 调微信 `code2Session`。
 - AppSecret 不得进入前端或小程序包。
 - 按 `openid` 创建或恢复 Humi 用户。
-- 登录失败返回非 2xx，前端会回到游客模式。
+- 登录失败返回非 2xx，小程序壳层会停留在登录重试页，不自动进入游客体验。
 - 当前仓库实现位于 `api/`，使用 Node HTTP 标准库和本地 JSON 文件存储。正式部署多实例前，需要替换为托管数据库或对象存储。
 
 ## 会话
@@ -73,6 +73,13 @@ npm run validate:api
 - `POST /auth/logout`：退出登录并失效当前会话。
 - `GET /me`：返回当前用户、画像完成状态和家庭空间摘要。
 - `POST /profile`：保存用户画像。
+
+## 微信账号状态
+
+- `GET /state`：读取当前微信用户保存的菜单、计划、清单、库存、画像和反馈。
+- `PUT /state`：保存当前微信用户的菜单、计划、清单、库存、画像和反馈。
+
+`/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。首发用于小程序审核闭环：用户通过微信登录后，今晚菜单、购物清单、家中库存和基础画像会保存到 Humi API，换设备或重新进入小程序可恢复。
 
 ## 发布前平台配置
 
