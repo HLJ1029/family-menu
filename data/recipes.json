@@ -4394,13 +4394,13 @@
     ],
     "tips": "新米可以少一点水，陈米可以多加一小勺水。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/steamed-white-rice.png",
       "alt": "白米饭菜品图",
-      "sourceName": "Humi placeholder",
-      "sourceUrl": "",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:Codex imagegen 2026-06-29",
       "license": "Generated for this project",
-      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+      "note": "基于 Humi Urban Family Kitchen 手绘水彩菜单风生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4476,13 +4476,13 @@
     ],
     "tips": "如果有孩子一起吃，杂粮比例可以先从三成开始。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/mixed-grain-rice.png",
       "alt": "杂粮饭菜品图",
-      "sourceName": "Humi placeholder",
-      "sourceUrl": "",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:Codex imagegen 2026-06-29",
       "license": "Generated for this project",
-      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+      "note": "基于 Humi Urban Family Kitchen 手绘水彩菜单风生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4570,13 +4570,13 @@
     ],
     "tips": "如果搭配重口味菜，汤底可以只放少量盐。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/plain-noodle-soup.png",
       "alt": "清汤挂面菜品图",
-      "sourceName": "Humi placeholder",
-      "sourceUrl": "",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:Codex imagegen 2026-06-29",
       "license": "Generated for this project",
-      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+      "note": "基于 Humi Urban Family Kitchen 手绘水彩菜单风生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4646,13 +4646,13 @@
     ],
     "tips": "红薯大小差异大，蒸到能扎透比固定时间更可靠。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/steamed-sweet-potato.png",
       "alt": "蒸红薯菜品图",
-      "sourceName": "Humi placeholder",
-      "sourceUrl": "",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:Codex imagegen 2026-06-29",
       "license": "Generated for this project",
-      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+      "note": "基于 Humi Urban Family Kitchen 手绘水彩菜单风生成。"
     },
     "nutrition": {
       "perServing": true,
@@ -4722,13 +4722,13 @@
     ],
     "tips": "想更绵密可以多焖 10 分钟再盛。",
     "image": {
-      "status": "needs-photo",
-      "url": "",
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/plain-rice-porridge.png",
       "alt": "白米粥菜品图",
-      "sourceName": "Humi placeholder",
-      "sourceUrl": "",
+      "sourceName": "OpenAI Images generated Family Menu dish asset",
+      "sourceUrl": "local-generation:Codex imagegen 2026-06-29",
       "license": "Generated for this project",
-      "note": "基础主食先使用占位图，后续补齐统一菜品图风格。"
+      "note": "基于 Humi Urban Family Kitchen 手绘水彩菜单风生成。"
     },
     "nutrition": {
       "perServing": true,

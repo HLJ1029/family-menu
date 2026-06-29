@@ -600,5 +600,75 @@
       "thumbWebp": 21322,
       "thumbJpg": 65080
     }
+  },
+  {
+    "id": "steamed-white-rice",
+    "name": "白米饭",
+    "image": "/assets/dishes/steamed-white-rice.png",
+    "webp": "/assets/dishes/webp/steamed-white-rice.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-white-rice.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-white-rice.jpg",
+    "bytes": {
+      "png": 1971846,
+      "webp": 28786,
+      "thumbWebp": 8602,
+      "thumbJpg": 42001
+    }
+  },
+  {
+    "id": "mixed-grain-rice",
+    "name": "杂粮饭",
+    "image": "/assets/dishes/mixed-grain-rice.png",
+    "webp": "/assets/dishes/webp/mixed-grain-rice.webp",
+    "thumb": "/assets/dishes/thumbs/mixed-grain-rice.webp",
+    "legacyThumb": "/assets/dishes/thumbs/mixed-grain-rice.jpg",
+    "bytes": {
+      "png": 2296758,
+      "webp": 67038,
+      "thumbWebp": 23892,
+      "thumbJpg": 68979
+    }
+  },
+  {
+    "id": "plain-noodle-soup",
+    "name": "清汤挂面",
+    "image": "/assets/dishes/plain-noodle-soup.png",
+    "webp": "/assets/dishes/webp/plain-noodle-soup.webp",
+    "thumb": "/assets/dishes/thumbs/plain-noodle-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/plain-noodle-soup.jpg",
+    "bytes": {
+      "png": 2309260,
+      "webp": 57080,
+      "thumbWebp": 18408,
+      "thumbJpg": 58431
+    }
+  },
+  {
+    "id": "steamed-sweet-potato",
+    "name": "蒸红薯",
+    "image": "/assets/dishes/steamed-sweet-potato.png",
+    "webp": "/assets/dishes/webp/steamed-sweet-potato.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-sweet-potato.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-sweet-potato.jpg",
+    "bytes": {
+      "png": 2477361,
+      "webp": 59222,
+      "thumbWebp": 15122,
+      "thumbJpg": 57115
+    }
+  },
+  {
+    "id": "plain-rice-porridge",
+    "name": "白米粥",
+    "image": "/assets/dishes/plain-rice-porridge.png",
+    "webp": "/assets/dishes/webp/plain-rice-porridge.webp",
+    "thumb": "/assets/dishes/thumbs/plain-rice-porridge.webp",
+    "legacyThumb": "/assets/dishes/thumbs/plain-rice-porridge.jpg",
+    "bytes": {
+      "png": 2259598,
+      "webp": 35282,
+      "thumbWebp": 9988,
+      "thumbJpg": 46238
+    }
   }
 ]
