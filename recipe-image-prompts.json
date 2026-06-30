@@ -644,20 +644,6 @@
     "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
   },
   {
-    "id": "zucchini-egg",
-    "filename": "zucchini-egg.png",
-    "name": "西葫芦炒蛋",
-    "category": "减脂期",
-    "ingredients": [
-      "西葫芦",
-      "鸡蛋",
-      "木耳",
-      "小葱"
-    ],
-    "taste": "清淡鲜嫩",
-    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
-  },
-  {
     "id": "celery-chicken-stir-fry",
     "filename": "celery-chicken-stir-fry.png",
     "name": "芹菜炒鸡丁",
@@ -992,5 +978,426 @@
     ],
     "taste": "菌香鲜咸",
     "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "okra-egg",
+    "filename": "okra-egg.png",
+    "name": "秋葵炒蛋",
+    "category": "家常菜",
+    "ingredients": [
+      "秋葵",
+      "鸡蛋",
+      "红椒",
+      "小葱"
+    ],
+    "taste": "清爽嫩滑",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "moo-shu-pork",
+    "filename": "moo-shu-pork.png",
+    "name": "木须肉",
+    "category": "家常菜",
+    "ingredients": [
+      "猪里脊",
+      "鸡蛋",
+      "木耳",
+      "黄瓜",
+      "胡萝卜"
+    ],
+    "taste": "咸鲜脆嫩",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "bitter-melon-egg",
+    "filename": "bitter-melon-egg.png",
+    "name": "苦瓜炒蛋",
+    "category": "家常菜",
+    "ingredients": [
+      "苦瓜",
+      "鸡蛋",
+      "蒜片"
+    ],
+    "taste": "微苦回甘",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "lettuce-stem-pork",
+    "filename": "lettuce-stem-pork.png",
+    "name": "莴笋炒肉片",
+    "category": "家常菜",
+    "ingredients": [
+      "莴笋",
+      "猪里脊",
+      "胡萝卜",
+      "蒜片"
+    ],
+    "taste": "清脆咸鲜",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "pineapple-sweet-sour-pork",
+    "filename": "pineapple-sweet-sour-pork.png",
+    "name": "菠萝咕咾肉",
+    "category": "家常菜",
+    "ingredients": [
+      "猪里脊",
+      "菠萝",
+      "彩椒",
+      "鸡蛋"
+    ],
+    "taste": "酸甜开胃",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "stir-fried-beef-cilantro",
+    "filename": "stir-fried-beef-cilantro.png",
+    "name": "香菜炒牛肉",
+    "category": "家常菜",
+    "ingredients": [
+      "牛肉片",
+      "香菜",
+      "洋葱",
+      "小米椒"
+    ],
+    "taste": "香菜浓郁",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "smoked-tofu-pork",
+    "filename": "smoked-tofu-pork.png",
+    "name": "香干炒肉",
+    "category": "家常菜",
+    "ingredients": [
+      "香干",
+      "猪里脊",
+      "青椒",
+      "蒜片"
+    ],
+    "taste": "豆香咸鲜",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "braised-chicken-potato",
+    "filename": "braised-chicken-potato.png",
+    "name": "土豆烧鸡块",
+    "category": "家常菜",
+    "ingredients": [
+      "鸡腿肉",
+      "土豆",
+      "胡萝卜",
+      "姜片"
+    ],
+    "taste": "酱香软糯",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "cumin-lamb",
+    "filename": "cumin-lamb.png",
+    "name": "孜然羊肉",
+    "category": "家常菜",
+    "ingredients": [
+      "羊肉片",
+      "洋葱",
+      "香菜",
+      "白芝麻"
+    ],
+    "taste": "孜然焦香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "baby-cabbage-soup",
+    "filename": "baby-cabbage-soup.png",
+    "name": "娃娃菜粉丝汤",
+    "category": "汤",
+    "ingredients": [
+      "娃娃菜",
+      "粉丝",
+      "嫩豆腐",
+      "虾皮"
+    ],
+    "taste": "清甜暖胃",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "stir-fried-youmai",
+    "filename": "stir-fried-youmai.png",
+    "name": "清炒油麦菜",
+    "category": "素菜",
+    "ingredients": [
+      "油麦菜",
+      "蒜末"
+    ],
+    "taste": "清香脆嫩",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "oyster-sauce-lettuce",
+    "filename": "oyster-sauce-lettuce.png",
+    "name": "蚝油生菜",
+    "category": "素菜",
+    "ingredients": [
+      "生菜",
+      "蒜末"
+    ],
+    "taste": "蚝香清甜",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "farmhouse-pork",
+    "filename": "farmhouse-pork.png",
+    "name": "农家小炒肉",
+    "category": "家常菜",
+    "ingredients": [
+      "五花肉",
+      "猪里脊",
+      "青椒",
+      "蒜片"
+    ],
+    "taste": "香辣下饭",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "hand-torn-cabbage",
+    "filename": "hand-torn-cabbage.png",
+    "name": "手撕包菜",
+    "category": "素菜",
+    "ingredients": [
+      "包菜",
+      "干辣椒",
+      "蒜片"
+    ],
+    "taste": "脆嫩微辣",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "celery-lily-bulb",
+    "filename": "celery-lily-bulb.png",
+    "name": "西芹百合",
+    "category": "素菜",
+    "ingredients": [
+      "西芹",
+      "鲜百合",
+      "胡萝卜"
+    ],
+    "taste": "清甜脆嫩",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "pan-fried-tofu",
+    "filename": "pan-fried-tofu.png",
+    "name": "香煎豆腐",
+    "category": "素菜",
+    "ingredients": [
+      "北豆腐",
+      "小葱",
+      "蒜末"
+    ],
+    "taste": "外香内嫩",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "poached-shrimp",
+    "filename": "poached-shrimp.png",
+    "name": "白灼虾",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "鲜虾",
+      "姜片",
+      "小葱"
+    ],
+    "taste": "原味鲜甜",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "garlic-vermicelli-shrimp",
+    "filename": "garlic-vermicelli-shrimp.png",
+    "name": "蒜蓉粉丝虾",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "鲜虾",
+      "粉丝",
+      "蒜末",
+      "小葱"
+    ],
+    "taste": "蒜香鲜美",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "lotus-pond-stir-fry",
+    "filename": "lotus-pond-stir-fry.png",
+    "name": "荷塘小炒",
+    "category": "素菜",
+    "ingredients": [
+      "莲藕",
+      "荷兰豆",
+      "木耳",
+      "胡萝卜"
+    ],
+    "taste": "清脆鲜甜",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "radish-beef-brisket-soup",
+    "filename": "radish-beef-brisket-soup.png",
+    "name": "萝卜牛腩汤",
+    "category": "汤",
+    "ingredients": [
+      "牛腩",
+      "白萝卜",
+      "姜片",
+      "小葱"
+    ],
+    "taste": "清甜肉香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "ginger-scallion-clams",
+    "filename": "ginger-scallion-clams.png",
+    "name": "姜葱炒花蛤",
+    "category": "鱼虾海鲜",
+    "ingredients": [
+      "花蛤",
+      "姜丝",
+      "小葱",
+      "红椒"
+    ],
+    "taste": "鲜香微辣",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "corn-rib-soup",
+    "filename": "corn-rib-soup.png",
+    "name": "玉米排骨汤",
+    "category": "汤",
+    "ingredients": [
+      "排骨",
+      "玉米",
+      "胡萝卜",
+      "姜片"
+    ],
+    "taste": "清甜肉香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "tomato-tofu-soup",
+    "filename": "tomato-tofu-soup.png",
+    "name": "番茄豆腐汤",
+    "category": "汤",
+    "ingredients": [
+      "番茄",
+      "嫩豆腐",
+      "金针菇",
+      "小葱"
+    ],
+    "taste": "酸甜豆香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "mushroom-chicken-soup",
+    "filename": "mushroom-chicken-soup.png",
+    "name": "菌菇鸡汤",
+    "category": "汤",
+    "ingredients": [
+      "鸡腿肉",
+      "蟹味菇",
+      "香菇",
+      "姜片"
+    ],
+    "taste": "菌香浓郁",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "scallion-oil-noodles",
+    "filename": "scallion-oil-noodles.png",
+    "name": "葱油拌面",
+    "category": "主食",
+    "ingredients": [
+      "细面",
+      "小葱"
+    ],
+    "taste": "葱香酱香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "scallion-noodle-soup",
+    "filename": "scallion-noodle-soup.png",
+    "name": "阳春面",
+    "category": "主食",
+    "ingredients": [
+      "挂面",
+      "小葱",
+      "青菜"
+    ],
+    "taste": "清汤葱香",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "shrimp-wonton-soup",
+    "filename": "shrimp-wonton-soup.png",
+    "name": "鲜虾馄饨汤",
+    "category": "主食",
+    "ingredients": [
+      "馄饨皮",
+      "虾仁",
+      "猪肉糜",
+      "紫菜"
+    ],
+    "taste": "鲜美暖胃",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "pumpkin-congee",
+    "filename": "pumpkin-congee.png",
+    "name": "南瓜小米粥",
+    "category": "主食",
+    "ingredients": [
+      "南瓜",
+      "小米",
+      "大米"
+    ],
+    "taste": "清甜绵软",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "shrimp-scrambled-egg",
+    "filename": "shrimp-scrambled-egg.png",
+    "name": "虾仁滑蛋",
+    "category": "家常菜",
+    "ingredients": [
+      "虾仁",
+      "鸡蛋",
+      "小葱"
+    ],
+    "taste": "鲜嫩滑口",
+    "image_style_note": "Lovart export (6) 菜品资产：Humi 统一手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "steamed-eggplant-garlic-yogurt",
+    "filename": "steamed-eggplant-garlic-yogurt.png",
+    "name": "蒜香酸奶蒸茄子",
+    "category": "减脂期",
+    "ingredients": [
+      "长茄子",
+      "低脂酸奶",
+      "蒜末",
+      "香菜"
+    ],
+    "taste": "蒜香酸爽",
+    "image_style_note": "Humi 统一手绘水彩菜单风本地补位图，避免与已有菜品重复"
+  },
+  {
+    "id": "zucchini-egg",
+    "filename": "zucchini-egg.png",
+    "name": "西葫芦炒蛋",
+    "category": "减脂期",
+    "ingredients": [
+      "西葫芦",
+      "鸡蛋",
+      "木耳",
+      "小葱"
+    ],
+    "taste": "清淡鲜嫩",
+    "image_style_note": "Lovart export (6) 替换图，覆盖当前重复菜品的本地生成图"
   }
 ]
