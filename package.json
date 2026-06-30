@@ -13,7 +13,7 @@
     "validate:characters": "node scripts/validate-character-illustrations.mjs",
     "validate:data": "node scripts/validate-recipes.mjs",
     "validate:images": "node scripts/validate-dish-assets.mjs",
-    "api:dev": "node api/server.js",
+    "api:dev": "node --env-file-if-exists=.env.local api/server.js",
     "validate:api": "HUMI_WECHAT_MOCK=1 HUMI_API_DATA_FILE=/tmp/humi-api-smoke.json node scripts/smoke-humi-api.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
     "release:check:online": "node scripts/check-launch-readiness.mjs --online"

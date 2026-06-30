@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber } from "./wechat.js";
+import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -17,6 +18,12 @@ const config = {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
+  deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+  deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+  // 方案 A：游客也放行 AI 推荐，但按 IP 限流，避免 DeepSeek 额度被公开接口刷
+  aiRateLimit: Number(process.env.HUMI_AI_RATE_LIMIT || 30),
+  aiRateWindowMs: Number(process.env.HUMI_AI_RATE_WINDOW_MS || 60000),
 };
 
 if (!config.sessionSecret) {
@@ -83,6 +90,16 @@ export function createHumiApiServer() {
 
       if (request.method === "POST" && url.pathname === "/profile") {
         await handleProfile(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/recommend") {
+        await handleRecommend(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/explain") {
+        await handleExplain(request, response);
         return;
       }
 
@@ -195,6 +212,55 @@ async function handleSaveState(request, response) {
     state,
     family: toHumiFamily(user),
   });
+}
+
+async function handleRecommend(request, response) {
+  enforceAiAccess(request);
+  if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
+  const body = await readJson(request);
+  const result = await generateMealRecommendation(body, {
+    apiKey: config.deepseekApiKey,
+    model: config.deepseekModel,
+    baseUrl: config.deepseekBaseUrl,
+  });
+  sendJson(response, 200, result);
+}
+
+async function handleExplain(request, response) {
+  enforceAiAccess(request);
+  if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
+  const body = await readJson(request);
+  const result = await generateRecommendationExplanation(body, {
+    apiKey: config.deepseekApiKey,
+    model: config.deepseekModel,
+    baseUrl: config.deepseekBaseUrl,
+  });
+  sendJson(response, 200, result);
+}
+
+// 方案 A：不强制登录（游客也能用 AI 推荐），仅按客户端 IP 限流保护 DeepSeek 额度。
+const aiRateBuckets = new Map();
+
+function enforceAiAccess(request) {
+  const ip = getClientIp(request);
+  const now = Date.now();
+  const bucket = aiRateBuckets.get(ip);
+  if (!bucket || now >= bucket.resetAt) {
+    aiRateBuckets.set(ip, { count: 1, resetAt: now + config.aiRateWindowMs });
+    return;
+  }
+  if (bucket.count >= config.aiRateLimit) {
+    throw httpError(429, "rate_limited", "请求过于频繁，请稍后再试。");
+  }
+  bucket.count += 1;
+}
+
+function getClientIp(request) {
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.length > 0) {
+    return forwarded.split(",")[0].trim();
+  }
+  return request.socket?.remoteAddress || "unknown";
 }
 
 async function requireAuth(request) {
