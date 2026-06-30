@@ -670,5 +670,425 @@
       "thumbWebp": 9988,
       "thumbJpg": 46238
     }
+  },
+  {
+    "id": "lemon-chicken-breast",
+    "name": "柠檬煎鸡胸",
+    "image": "/assets/dishes/lemon-chicken-breast.png",
+    "webp": "/assets/dishes/webp/lemon-chicken-breast.webp",
+    "thumb": "/assets/dishes/thumbs/lemon-chicken-breast.webp",
+    "legacyThumb": "/assets/dishes/thumbs/lemon-chicken-breast.jpg",
+    "bytes": {
+      "png": 115821,
+      "webp": 10470,
+      "thumbWebp": 4988,
+      "thumbJpg": 19255
+    }
+  },
+  {
+    "id": "shrimp-broccoli-egg",
+    "name": "虾仁西兰花炒蛋",
+    "image": "/assets/dishes/shrimp-broccoli-egg.png",
+    "webp": "/assets/dishes/webp/shrimp-broccoli-egg.webp",
+    "thumb": "/assets/dishes/thumbs/shrimp-broccoli-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/shrimp-broccoli-egg.jpg",
+    "bytes": {
+      "png": 126151,
+      "webp": 11094,
+      "thumbWebp": 5398,
+      "thumbJpg": 20448
+    }
+  },
+  {
+    "id": "tomato-tofu-shrimp-soup",
+    "name": "番茄豆腐虾仁汤",
+    "image": "/assets/dishes/tomato-tofu-shrimp-soup.png",
+    "webp": "/assets/dishes/webp/tomato-tofu-shrimp-soup.webp",
+    "thumb": "/assets/dishes/thumbs/tomato-tofu-shrimp-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/tomato-tofu-shrimp-soup.jpg",
+    "bytes": {
+      "png": 112042,
+      "webp": 9790,
+      "thumbWebp": 4666,
+      "thumbJpg": 18256
+    }
+  },
+  {
+    "id": "cucumber-shredded-chicken",
+    "name": "黄瓜拌鸡丝",
+    "image": "/assets/dishes/cucumber-shredded-chicken.png",
+    "webp": "/assets/dishes/webp/cucumber-shredded-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/cucumber-shredded-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cucumber-shredded-chicken.jpg",
+    "bytes": {
+      "png": 121634,
+      "webp": 10922,
+      "thumbWebp": 5340,
+      "thumbJpg": 20265
+    }
+  },
+  {
+    "id": "konjac-beef-stir-fry",
+    "name": "魔芋炒牛肉",
+    "image": "/assets/dishes/konjac-beef-stir-fry.png",
+    "webp": "/assets/dishes/webp/konjac-beef-stir-fry.webp",
+    "thumb": "/assets/dishes/thumbs/konjac-beef-stir-fry.webp",
+    "legacyThumb": "/assets/dishes/thumbs/konjac-beef-stir-fry.jpg",
+    "bytes": {
+      "png": 115172,
+      "webp": 10050,
+      "thumbWebp": 4712,
+      "thumbJpg": 18264
+    }
+  },
+  {
+    "id": "zucchini-egg",
+    "name": "西葫芦炒蛋",
+    "image": "/assets/dishes/zucchini-egg.png",
+    "webp": "/assets/dishes/webp/zucchini-egg.webp",
+    "thumb": "/assets/dishes/thumbs/zucchini-egg.webp",
+    "legacyThumb": "/assets/dishes/thumbs/zucchini-egg.jpg",
+    "bytes": {
+      "png": 126699,
+      "webp": 11976,
+      "thumbWebp": 5768,
+      "thumbJpg": 21017
+    }
+  },
+  {
+    "id": "celery-chicken-stir-fry",
+    "name": "芹菜炒鸡丁",
+    "image": "/assets/dishes/celery-chicken-stir-fry.png",
+    "webp": "/assets/dishes/webp/celery-chicken-stir-fry.webp",
+    "thumb": "/assets/dishes/thumbs/celery-chicken-stir-fry.webp",
+    "legacyThumb": "/assets/dishes/thumbs/celery-chicken-stir-fry.jpg",
+    "bytes": {
+      "png": 123031,
+      "webp": 10960,
+      "thumbWebp": 5252,
+      "thumbJpg": 19880
+    }
+  },
+  {
+    "id": "lettuce-chicken-wrap",
+    "name": "生菜鸡肉卷",
+    "image": "/assets/dishes/lettuce-chicken-wrap.png",
+    "webp": "/assets/dishes/webp/lettuce-chicken-wrap.webp",
+    "thumb": "/assets/dishes/thumbs/lettuce-chicken-wrap.webp",
+    "legacyThumb": "/assets/dishes/thumbs/lettuce-chicken-wrap.jpg",
+    "bytes": {
+      "png": 119482,
+      "webp": 10184,
+      "thumbWebp": 4828,
+      "thumbJpg": 18599
+    }
+  },
+  {
+    "id": "steamed-cod-mushroom",
+    "name": "香菇蒸鳕鱼",
+    "image": "/assets/dishes/steamed-cod-mushroom.png",
+    "webp": "/assets/dishes/webp/steamed-cod-mushroom.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-cod-mushroom.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-cod-mushroom.jpg",
+    "bytes": {
+      "png": 117699,
+      "webp": 10796,
+      "thumbWebp": 5098,
+      "thumbJpg": 19630
+    }
+  },
+  {
+    "id": "wintermelon-chicken-ball-soup",
+    "name": "冬瓜鸡肉丸汤",
+    "image": "/assets/dishes/wintermelon-chicken-ball-soup.png",
+    "webp": "/assets/dishes/webp/wintermelon-chicken-ball-soup.webp",
+    "thumb": "/assets/dishes/thumbs/wintermelon-chicken-ball-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/wintermelon-chicken-ball-soup.jpg",
+    "bytes": {
+      "png": 120249,
+      "webp": 10416,
+      "thumbWebp": 4946,
+      "thumbJpg": 19104
+    }
+  },
+  {
+    "id": "spinach-tofu-egg-drop-soup",
+    "name": "菠菜豆腐蛋花汤",
+    "image": "/assets/dishes/spinach-tofu-egg-drop-soup.png",
+    "webp": "/assets/dishes/webp/spinach-tofu-egg-drop-soup.webp",
+    "thumb": "/assets/dishes/thumbs/spinach-tofu-egg-drop-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/spinach-tofu-egg-drop-soup.jpg",
+    "bytes": {
+      "png": 113073,
+      "webp": 9922,
+      "thumbWebp": 4724,
+      "thumbJpg": 18208
+    }
+  },
+  {
+    "id": "cabbage-mushroom-chicken",
+    "name": "白菜蘑菇鸡片",
+    "image": "/assets/dishes/cabbage-mushroom-chicken.png",
+    "webp": "/assets/dishes/webp/cabbage-mushroom-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/cabbage-mushroom-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cabbage-mushroom-chicken.jpg",
+    "bytes": {
+      "png": 122442,
+      "webp": 11108,
+      "thumbWebp": 5366,
+      "thumbJpg": 19868
+    }
+  },
+  {
+    "id": "okra-shrimp",
+    "name": "秋葵炒虾仁",
+    "image": "/assets/dishes/okra-shrimp.png",
+    "webp": "/assets/dishes/webp/okra-shrimp.webp",
+    "thumb": "/assets/dishes/thumbs/okra-shrimp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/okra-shrimp.jpg",
+    "bytes": {
+      "png": 119902,
+      "webp": 10646,
+      "thumbWebp": 5138,
+      "thumbJpg": 19699
+    }
+  },
+  {
+    "id": "tofu-tuna-salad",
+    "name": "豆腐金枪鱼沙拉",
+    "image": "/assets/dishes/tofu-tuna-salad.png",
+    "webp": "/assets/dishes/webp/tofu-tuna-salad.webp",
+    "thumb": "/assets/dishes/thumbs/tofu-tuna-salad.webp",
+    "legacyThumb": "/assets/dishes/thumbs/tofu-tuna-salad.jpg",
+    "bytes": {
+      "png": 111671,
+      "webp": 9710,
+      "thumbWebp": 4646,
+      "thumbJpg": 18053
+    }
+  },
+  {
+    "id": "chicken-breast-buckwheat-noodles",
+    "name": "鸡胸荞麦面",
+    "image": "/assets/dishes/chicken-breast-buckwheat-noodles.png",
+    "webp": "/assets/dishes/webp/chicken-breast-buckwheat-noodles.webp",
+    "thumb": "/assets/dishes/thumbs/chicken-breast-buckwheat-noodles.webp",
+    "legacyThumb": "/assets/dishes/thumbs/chicken-breast-buckwheat-noodles.jpg",
+    "bytes": {
+      "png": 114654,
+      "webp": 9972,
+      "thumbWebp": 4690,
+      "thumbJpg": 18416
+    }
+  },
+  {
+    "id": "cauliflower-rice-shrimp-bowl",
+    "name": "花菜米虾仁碗",
+    "image": "/assets/dishes/cauliflower-rice-shrimp-bowl.png",
+    "webp": "/assets/dishes/webp/cauliflower-rice-shrimp-bowl.webp",
+    "thumb": "/assets/dishes/thumbs/cauliflower-rice-shrimp-bowl.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cauliflower-rice-shrimp-bowl.jpg",
+    "bytes": {
+      "png": 109770,
+      "webp": 9868,
+      "thumbWebp": 4612,
+      "thumbJpg": 18034
+    }
+  },
+  {
+    "id": "quinoa-chicken-vegetable-bowl",
+    "name": "藜麦鸡肉蔬菜碗",
+    "image": "/assets/dishes/quinoa-chicken-vegetable-bowl.png",
+    "webp": "/assets/dishes/webp/quinoa-chicken-vegetable-bowl.webp",
+    "thumb": "/assets/dishes/thumbs/quinoa-chicken-vegetable-bowl.webp",
+    "legacyThumb": "/assets/dishes/thumbs/quinoa-chicken-vegetable-bowl.jpg",
+    "bytes": {
+      "png": 117720,
+      "webp": 10632,
+      "thumbWebp": 5024,
+      "thumbJpg": 19077
+    }
+  },
+  {
+    "id": "egg-white-spinach-roll",
+    "name": "蛋白菠菜卷",
+    "image": "/assets/dishes/egg-white-spinach-roll.png",
+    "webp": "/assets/dishes/webp/egg-white-spinach-roll.webp",
+    "thumb": "/assets/dishes/thumbs/egg-white-spinach-roll.webp",
+    "legacyThumb": "/assets/dishes/thumbs/egg-white-spinach-roll.jpg",
+    "bytes": {
+      "png": 116299,
+      "webp": 9898,
+      "thumbWebp": 4696,
+      "thumbJpg": 18213
+    }
+  },
+  {
+    "id": "mushroom-egg-white-stir",
+    "name": "口蘑炒蛋白",
+    "image": "/assets/dishes/mushroom-egg-white-stir.png",
+    "webp": "/assets/dishes/webp/mushroom-egg-white-stir.webp",
+    "thumb": "/assets/dishes/thumbs/mushroom-egg-white-stir.webp",
+    "legacyThumb": "/assets/dishes/thumbs/mushroom-egg-white-stir.jpg",
+    "bytes": {
+      "png": 121816,
+      "webp": 11096,
+      "thumbWebp": 5258,
+      "thumbJpg": 20291
+    }
+  },
+  {
+    "id": "steamed-egg-tofu-shrimp",
+    "name": "虾仁豆腐蒸蛋",
+    "image": "/assets/dishes/steamed-egg-tofu-shrimp.png",
+    "webp": "/assets/dishes/webp/steamed-egg-tofu-shrimp.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-egg-tofu-shrimp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-egg-tofu-shrimp.jpg",
+    "bytes": {
+      "png": 118886,
+      "webp": 10868,
+      "thumbWebp": 5226,
+      "thumbJpg": 19623
+    }
+  },
+  {
+    "id": "garlic-lettuce-chicken",
+    "name": "蒜香生菜鸡片",
+    "image": "/assets/dishes/garlic-lettuce-chicken.png",
+    "webp": "/assets/dishes/webp/garlic-lettuce-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/garlic-lettuce-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/garlic-lettuce-chicken.jpg",
+    "bytes": {
+      "png": 108684,
+      "webp": 9480,
+      "thumbWebp": 4558,
+      "thumbJpg": 17775
+    }
+  },
+  {
+    "id": "tomato-beef-soup-light",
+    "name": "番茄牛肉清汤",
+    "image": "/assets/dishes/tomato-beef-soup-light.png",
+    "webp": "/assets/dishes/webp/tomato-beef-soup-light.webp",
+    "thumb": "/assets/dishes/thumbs/tomato-beef-soup-light.webp",
+    "legacyThumb": "/assets/dishes/thumbs/tomato-beef-soup-light.jpg",
+    "bytes": {
+      "png": 115823,
+      "webp": 10576,
+      "thumbWebp": 5104,
+      "thumbJpg": 19300
+    }
+  },
+  {
+    "id": "seaweed-tofu-fish-soup",
+    "name": "紫菜豆腐鱼片汤",
+    "image": "/assets/dishes/seaweed-tofu-fish-soup.png",
+    "webp": "/assets/dishes/webp/seaweed-tofu-fish-soup.webp",
+    "thumb": "/assets/dishes/thumbs/seaweed-tofu-fish-soup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/seaweed-tofu-fish-soup.jpg",
+    "bytes": {
+      "png": 115808,
+      "webp": 9772,
+      "thumbWebp": 4686,
+      "thumbJpg": 17765
+    }
+  },
+  {
+    "id": "cold-spinach-chicken",
+    "name": "菠菜拌鸡胸",
+    "image": "/assets/dishes/cold-spinach-chicken.png",
+    "webp": "/assets/dishes/webp/cold-spinach-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/cold-spinach-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/cold-spinach-chicken.jpg",
+    "bytes": {
+      "png": 116868,
+      "webp": 9930,
+      "thumbWebp": 4738,
+      "thumbJpg": 18476
+    }
+  },
+  {
+    "id": "broccoli-chicken-mushroom",
+    "name": "西兰花蘑菇鸡胸",
+    "image": "/assets/dishes/broccoli-chicken-mushroom.png",
+    "webp": "/assets/dishes/webp/broccoli-chicken-mushroom.webp",
+    "thumb": "/assets/dishes/thumbs/broccoli-chicken-mushroom.webp",
+    "legacyThumb": "/assets/dishes/thumbs/broccoli-chicken-mushroom.jpg",
+    "bytes": {
+      "png": 128568,
+      "webp": 12370,
+      "thumbWebp": 6020,
+      "thumbJpg": 22014
+    }
+  },
+  {
+    "id": "asparagus-shrimp",
+    "name": "芦笋炒虾仁",
+    "image": "/assets/dishes/asparagus-shrimp.png",
+    "webp": "/assets/dishes/webp/asparagus-shrimp.webp",
+    "thumb": "/assets/dishes/thumbs/asparagus-shrimp.webp",
+    "legacyThumb": "/assets/dishes/thumbs/asparagus-shrimp.jpg",
+    "bytes": {
+      "png": 121126,
+      "webp": 10992,
+      "thumbWebp": 5244,
+      "thumbJpg": 20181
+    }
+  },
+  {
+    "id": "steamed-pumpkin-chicken",
+    "name": "南瓜蒸鸡腿肉",
+    "image": "/assets/dishes/steamed-pumpkin-chicken.png",
+    "webp": "/assets/dishes/webp/steamed-pumpkin-chicken.webp",
+    "thumb": "/assets/dishes/thumbs/steamed-pumpkin-chicken.webp",
+    "legacyThumb": "/assets/dishes/thumbs/steamed-pumpkin-chicken.jpg",
+    "bytes": {
+      "png": 120091,
+      "webp": 10846,
+      "thumbWebp": 5130,
+      "thumbJpg": 19392
+    }
+  },
+  {
+    "id": "oat-egg-savory-porridge",
+    "name": "燕麦蛋花咸粥",
+    "image": "/assets/dishes/oat-egg-savory-porridge.png",
+    "webp": "/assets/dishes/webp/oat-egg-savory-porridge.webp",
+    "thumb": "/assets/dishes/thumbs/oat-egg-savory-porridge.webp",
+    "legacyThumb": "/assets/dishes/thumbs/oat-egg-savory-porridge.jpg",
+    "bytes": {
+      "png": 129218,
+      "webp": 12004,
+      "thumbWebp": 5702,
+      "thumbJpg": 21196
+    }
+  },
+  {
+    "id": "sweet-potato-chicken-salad",
+    "name": "红薯鸡胸温沙拉",
+    "image": "/assets/dishes/sweet-potato-chicken-salad.png",
+    "webp": "/assets/dishes/webp/sweet-potato-chicken-salad.webp",
+    "thumb": "/assets/dishes/thumbs/sweet-potato-chicken-salad.webp",
+    "legacyThumb": "/assets/dishes/thumbs/sweet-potato-chicken-salad.jpg",
+    "bytes": {
+      "png": 113171,
+      "webp": 10076,
+      "thumbWebp": 4824,
+      "thumbJpg": 18317
+    }
+  },
+  {
+    "id": "chicken-mushroom-lettuce-cup",
+    "name": "香菇鸡丁生菜杯",
+    "image": "/assets/dishes/chicken-mushroom-lettuce-cup.png",
+    "webp": "/assets/dishes/webp/chicken-mushroom-lettuce-cup.webp",
+    "thumb": "/assets/dishes/thumbs/chicken-mushroom-lettuce-cup.webp",
+    "legacyThumb": "/assets/dishes/thumbs/chicken-mushroom-lettuce-cup.jpg",
+    "bytes": {
+      "png": 114773,
+      "webp": 10026,
+      "thumbWebp": 4842,
+      "thumbJpg": 18587
+    }
   }
 ]

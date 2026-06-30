@@ -572,5 +572,425 @@
     ],
     "taste": "嫩滑咸鲜",
     "image_style_note": "第一版现代 Urban Family Kitchen 手绘水彩菜单风，适合 App 菜品卡片展示；米白纸感背景、干净留白、细墨线、水彩上色、不要在图片里写菜名文字"
+  },
+  {
+    "id": "lemon-chicken-breast",
+    "filename": "lemon-chicken-breast.png",
+    "name": "柠檬煎鸡胸",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "柠檬",
+      "生菜",
+      "圣女果"
+    ],
+    "taste": "清爽微酸",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "shrimp-broccoli-egg",
+    "filename": "shrimp-broccoli-egg.png",
+    "name": "虾仁西兰花炒蛋",
+    "category": "减脂期",
+    "ingredients": [
+      "虾仁",
+      "西兰花",
+      "鸡蛋",
+      "胡萝卜"
+    ],
+    "taste": "鲜香清爽",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "tomato-tofu-shrimp-soup",
+    "filename": "tomato-tofu-shrimp-soup.png",
+    "name": "番茄豆腐虾仁汤",
+    "category": "减脂期",
+    "ingredients": [
+      "番茄",
+      "北豆腐",
+      "虾仁",
+      "金针菇"
+    ],
+    "taste": "酸甜鲜美",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "cucumber-shredded-chicken",
+    "filename": "cucumber-shredded-chicken.png",
+    "name": "黄瓜拌鸡丝",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "黄瓜",
+      "胡萝卜",
+      "香菜"
+    ],
+    "taste": "清爽蒜香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "konjac-beef-stir-fry",
+    "filename": "konjac-beef-stir-fry.png",
+    "name": "魔芋炒牛肉",
+    "category": "减脂期",
+    "ingredients": [
+      "瘦牛肉",
+      "魔芋丝",
+      "青椒",
+      "洋葱"
+    ],
+    "taste": "黑椒咸鲜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "zucchini-egg",
+    "filename": "zucchini-egg.png",
+    "name": "西葫芦炒蛋",
+    "category": "减脂期",
+    "ingredients": [
+      "西葫芦",
+      "鸡蛋",
+      "木耳",
+      "小葱"
+    ],
+    "taste": "清淡鲜嫩",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "celery-chicken-stir-fry",
+    "filename": "celery-chicken-stir-fry.png",
+    "name": "芹菜炒鸡丁",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "芹菜",
+      "彩椒",
+      "姜丝"
+    ],
+    "taste": "芹香清爽",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "lettuce-chicken-wrap",
+    "filename": "lettuce-chicken-wrap.png",
+    "name": "生菜鸡肉卷",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "生菜",
+      "黄瓜",
+      "胡萝卜"
+    ],
+    "taste": "酸奶清爽",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "steamed-cod-mushroom",
+    "filename": "steamed-cod-mushroom.png",
+    "name": "香菇蒸鳕鱼",
+    "category": "减脂期",
+    "ingredients": [
+      "鳕鱼",
+      "鲜香菇",
+      "姜丝",
+      "小葱"
+    ],
+    "taste": "菌香鲜嫩",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "wintermelon-chicken-ball-soup",
+    "filename": "wintermelon-chicken-ball-soup.png",
+    "name": "冬瓜鸡肉丸汤",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉糜",
+      "冬瓜",
+      "蛋清",
+      "香菜"
+    ],
+    "taste": "清甜鲜香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "spinach-tofu-egg-drop-soup",
+    "filename": "spinach-tofu-egg-drop-soup.png",
+    "name": "菠菜豆腐蛋花汤",
+    "category": "减脂期",
+    "ingredients": [
+      "菠菜",
+      "嫩豆腐",
+      "鸡蛋",
+      "虾皮"
+    ],
+    "taste": "清淡豆香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "cabbage-mushroom-chicken",
+    "filename": "cabbage-mushroom-chicken.png",
+    "name": "白菜蘑菇鸡片",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "大白菜",
+      "口蘑",
+      "胡萝卜"
+    ],
+    "taste": "清鲜菌香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "okra-shrimp",
+    "filename": "okra-shrimp.png",
+    "name": "秋葵炒虾仁",
+    "category": "减脂期",
+    "ingredients": [
+      "秋葵",
+      "虾仁",
+      "蒜片",
+      "红椒"
+    ],
+    "taste": "鲜甜清脆",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "tofu-tuna-salad",
+    "filename": "tofu-tuna-salad.png",
+    "name": "豆腐金枪鱼沙拉",
+    "category": "减脂期",
+    "ingredients": [
+      "嫩豆腐",
+      "水浸金枪鱼",
+      "玉米粒",
+      "小番茄"
+    ],
+    "taste": "清爽咸鲜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "chicken-breast-buckwheat-noodles",
+    "filename": "chicken-breast-buckwheat-noodles.png",
+    "name": "鸡胸荞麦面",
+    "category": "减脂期",
+    "ingredients": [
+      "荞麦面",
+      "鸡胸肉",
+      "黄瓜",
+      "胡萝卜"
+    ],
+    "taste": "清爽微酸",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "cauliflower-rice-shrimp-bowl",
+    "filename": "cauliflower-rice-shrimp-bowl.png",
+    "name": "花菜米虾仁碗",
+    "category": "减脂期",
+    "ingredients": [
+      "花菜",
+      "虾仁",
+      "鸡蛋",
+      "豌豆粒"
+    ],
+    "taste": "鲜香轻盈",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "quinoa-chicken-vegetable-bowl",
+    "filename": "quinoa-chicken-vegetable-bowl.png",
+    "name": "藜麦鸡肉蔬菜碗",
+    "category": "减脂期",
+    "ingredients": [
+      "藜麦",
+      "鸡胸肉",
+      "西兰花",
+      "南瓜"
+    ],
+    "taste": "谷物清香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "egg-white-spinach-roll",
+    "filename": "egg-white-spinach-roll.png",
+    "name": "蛋白菠菜卷",
+    "category": "减脂期",
+    "ingredients": [
+      "蛋清",
+      "菠菜",
+      "胡萝卜",
+      "低脂奶酪碎"
+    ],
+    "taste": "清淡奶香",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "mushroom-egg-white-stir",
+    "filename": "mushroom-egg-white-stir.png",
+    "name": "口蘑炒蛋白",
+    "category": "减脂期",
+    "ingredients": [
+      "蛋清",
+      "口蘑",
+      "菠菜",
+      "小葱"
+    ],
+    "taste": "菌香嫩滑",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "steamed-egg-tofu-shrimp",
+    "filename": "steamed-egg-tofu-shrimp.png",
+    "name": "虾仁豆腐蒸蛋",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡蛋",
+      "嫩豆腐",
+      "虾仁",
+      "小葱"
+    ],
+    "taste": "鲜嫩滑口",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "garlic-lettuce-chicken",
+    "filename": "garlic-lettuce-chicken.png",
+    "name": "蒜香生菜鸡片",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "生菜",
+      "蒜末",
+      "红椒"
+    ],
+    "taste": "蒜香清脆",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "tomato-beef-soup-light",
+    "filename": "tomato-beef-soup-light.png",
+    "name": "番茄牛肉清汤",
+    "category": "减脂期",
+    "ingredients": [
+      "瘦牛肉片",
+      "番茄",
+      "娃娃菜",
+      "金针菇"
+    ],
+    "taste": "酸甜清鲜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "seaweed-tofu-fish-soup",
+    "filename": "seaweed-tofu-fish-soup.png",
+    "name": "紫菜豆腐鱼片汤",
+    "category": "减脂期",
+    "ingredients": [
+      "黑鱼片",
+      "嫩豆腐",
+      "紫菜",
+      "生菜"
+    ],
+    "taste": "海味鲜甜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "cold-spinach-chicken",
+    "filename": "cold-spinach-chicken.png",
+    "name": "菠菜拌鸡胸",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "菠菜",
+      "胡萝卜",
+      "熟芝麻"
+    ],
+    "taste": "蒜香微酸",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "broccoli-chicken-mushroom",
+    "filename": "broccoli-chicken-mushroom.png",
+    "name": "西兰花蘑菇鸡胸",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "西兰花",
+      "口蘑",
+      "蒜片"
+    ],
+    "taste": "菌香咸鲜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "asparagus-shrimp",
+    "filename": "asparagus-shrimp.png",
+    "name": "芦笋炒虾仁",
+    "category": "减脂期",
+    "ingredients": [
+      "芦笋",
+      "虾仁",
+      "蒜片",
+      "彩椒"
+    ],
+    "taste": "清甜脆嫩",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "steamed-pumpkin-chicken",
+    "filename": "steamed-pumpkin-chicken.png",
+    "name": "南瓜蒸鸡腿肉",
+    "category": "减脂期",
+    "ingredients": [
+      "去皮鸡腿肉",
+      "南瓜",
+      "香菇",
+      "姜丝"
+    ],
+    "taste": "南瓜清甜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "oat-egg-savory-porridge",
+    "filename": "oat-egg-savory-porridge.png",
+    "name": "燕麦蛋花咸粥",
+    "category": "减脂期",
+    "ingredients": [
+      "即食燕麦",
+      "鸡蛋",
+      "菠菜",
+      "玉米粒"
+    ],
+    "taste": "谷香咸鲜",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "sweet-potato-chicken-salad",
+    "filename": "sweet-potato-chicken-salad.png",
+    "name": "红薯鸡胸温沙拉",
+    "category": "减脂期",
+    "ingredients": [
+      "红薯",
+      "鸡胸肉",
+      "生菜",
+      "小番茄"
+    ],
+    "taste": "清甜酸奶",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
+  },
+  {
+    "id": "chicken-mushroom-lettuce-cup",
+    "filename": "chicken-mushroom-lettuce-cup.png",
+    "name": "香菇鸡丁生菜杯",
+    "category": "减脂期",
+    "ingredients": [
+      "鸡胸肉",
+      "鲜香菇",
+      "生菜",
+      "胡萝卜"
+    ],
+    "taste": "菌香鲜咸",
+    "image_style_note": "Humi 减脂期菜品库补充：现代 Urban Family Kitchen 手绘水彩菜单风；米白纸感背景、圆盘或浅碗俯视、干净留白、细墨线、水彩上色、突出高蛋白和清爽蔬菜，不要在图片里写菜名文字"
   }
 ]

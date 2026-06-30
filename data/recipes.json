@@ -4764,5 +4764,3179 @@
       "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
     ],
     "difficultyLevel": "easy"
+  },
+  {
+    "id": "lemon-chicken-breast",
+    "name": "柠檬煎鸡胸",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "lemon",
+    "description": "柠檬煎鸡胸是一道适合减脂期的轻负担餐品，突出鸡胸肉和生菜和圣女果，口味清爽微酸。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/lemon-chicken-breast.png",
+      "alt": "柠檬煎鸡胸现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "柠檬",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "圣女果",
+        "amount": 8,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "橄榄油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和生菜和圣女果：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "平底锅刷少量油，中小火放入鸡胸肉，每面煎到上色。",
+      "加入生菜和圣女果或少量清水，盖盖焖 1-2 分钟让中心熟透。",
+      "关火后挤入柠檬汁或补黑胡椒，切片装盘。"
+    ],
+    "tips": "柠檬煎鸡胸的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 265,
+      "proteinG": 36,
+      "fatG": 7,
+      "carbsG": 12,
+      "fiberG": 3,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "shrimp-broccoli-egg",
+    "name": "虾仁西兰花炒蛋",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "broccoli",
+    "description": "虾仁西兰花炒蛋是一道适合减脂期的轻负担餐品，突出虾仁和鸡蛋和西兰花，口味鲜香清爽。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/shrimp-broccoli-egg.png",
+      "alt": "虾仁西兰花炒蛋现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "西兰花",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 5,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备虾仁和鸡蛋和西兰花：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理虾仁和鸡蛋，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把虾仁和鸡蛋炒到变色或定型，必要时先盛出。",
+      "放入西兰花快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "虾仁西兰花炒蛋的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 248,
+      "proteinG": 29,
+      "fatG": 10,
+      "carbsG": 11,
+      "fiberG": 5,
+      "sodiumMg": 610,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "tomato-tofu-shrimp-soup",
+    "name": "番茄豆腐虾仁汤",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "tomato",
+    "description": "番茄豆腐虾仁汤是一道适合减脂期的轻负担餐品，突出番茄豆腐虾仁和金针菇，口味酸甜鲜美。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/tomato-tofu-shrimp-soup.png",
+      "alt": "番茄豆腐虾仁汤现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "番茄",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "北豆腐",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "金针菇",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "番茄酱",
+        "amount": 10,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备番茄豆腐虾仁和金针菇：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理番茄豆腐虾仁，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入番茄豆腐虾仁，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "番茄豆腐虾仁汤的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 205,
+      "proteinG": 24,
+      "fatG": 6,
+      "carbsG": 14,
+      "fiberG": 4,
+      "sodiumMg": 690,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "cucumber-shredded-chicken",
+    "name": "黄瓜拌鸡丝",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "cucumber",
+    "description": "黄瓜拌鸡丝是一道适合减脂期的轻负担餐品，突出鸡胸肉和黄瓜丝，口味清爽蒜香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cucumber-shredded-chicken.png",
+      "alt": "黄瓜拌鸡丝现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "香菜",
+        "amount": 1,
+        "unit": "小把",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香醋",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "芝麻油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和黄瓜丝：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将鸡胸肉煮熟或焯熟后放凉，顺纹撕开或切成细条。",
+      "把黄瓜丝切丝或切段，水分多的蔬菜先用厨房纸吸干。",
+      "调味料混合成汁，和全部食材充分拌匀，冷藏 10 分钟后再吃更入味。"
+    ],
+    "tips": "黄瓜拌鸡丝的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 230,
+      "proteinG": 34,
+      "fatG": 6,
+      "carbsG": 10,
+      "fiberG": 3,
+      "sodiumMg": 720,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "konjac-beef-stir-fry",
+    "name": "魔芋炒牛肉",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "beef",
+    "description": "魔芋炒牛肉是一道适合减脂期的轻负担餐品，突出瘦牛肉和魔芋丝和青椒，口味黑椒咸鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/konjac-beef-stir-fry.png",
+      "alt": "魔芋炒牛肉现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "瘦牛肉",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "魔芋丝",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "洋葱",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备瘦牛肉和魔芋丝和青椒：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理瘦牛肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把瘦牛肉炒到变色或定型，必要时先盛出。",
+      "放入魔芋丝和青椒快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "魔芋炒牛肉的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 240,
+      "proteinG": 27,
+      "fatG": 9,
+      "carbsG": 13,
+      "fiberG": 5,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "zucchini-egg",
+    "name": "西葫芦炒蛋",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "zucchini",
+    "description": "西葫芦炒蛋是一道适合减脂期的轻负担餐品，突出鸡蛋和西葫芦和木耳，口味清淡鲜嫩。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/zucchini-egg.png",
+      "alt": "西葫芦炒蛋现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "西葫芦",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "木耳",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡蛋和西葫芦和木耳：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡蛋，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把鸡蛋炒到变色或定型，必要时先盛出。",
+      "放入西葫芦和木耳快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "西葫芦炒蛋的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 190,
+      "proteinG": 13,
+      "fatG": 12,
+      "carbsG": 9,
+      "fiberG": 3,
+      "sodiumMg": 480,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "celery-chicken-stir-fry",
+    "name": "芹菜炒鸡丁",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "celery",
+    "description": "芹菜炒鸡丁是一道适合减脂期的轻负担餐品，突出鸡胸肉和芹菜和彩椒，口味芹香清爽。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/celery-chicken-stir-fry.png",
+      "alt": "芹菜炒鸡丁现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "芹菜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "彩椒",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "姜丝",
+        "amount": 5,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 5,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和芹菜和彩椒：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把鸡胸肉炒到变色或定型，必要时先盛出。",
+      "放入芹菜和彩椒快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "芹菜炒鸡丁的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 220,
+      "proteinG": 33,
+      "fatG": 6,
+      "carbsG": 9,
+      "fiberG": 4,
+      "sodiumMg": 590,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "lettuce-chicken-wrap",
+    "name": "生菜鸡肉卷",
+    "categories": [
+      "减脂期",
+      "轻食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "lettuce",
+    "description": "生菜鸡肉卷是一道适合减脂期的轻负担餐品，突出鸡胸肉和生菜和黄瓜，口味酸奶清爽。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/lettuce-chicken-wrap.png",
+      "alt": "生菜鸡肉卷现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 10,
+        "unit": "片",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "低脂酸奶",
+        "amount": 40,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "柠檬汁",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和生菜和黄瓜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将鸡胸肉煮熟、煎熟或炒熟，切成条或小丁，馅料尽量收干。",
+      "把生菜和黄瓜处理成适合包裹的大小，叶菜洗净后一定擦干。",
+      "用叶菜包入主料和配菜，淋少量调味汁，卷紧后直接食用。"
+    ],
+    "tips": "生菜鸡肉卷的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 32,
+      "fatG": 5,
+      "carbsG": 12,
+      "fiberG": 4,
+      "sodiumMg": 430,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "steamed-cod-mushroom",
+    "name": "香菇蒸鳕鱼",
+    "categories": [
+      "减脂期",
+      "蒸菜"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "fish",
+    "description": "香菇蒸鳕鱼是一道适合减脂期的轻负担餐品，突出鳕鱼和鲜香菇，口味菌香鲜嫩。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/steamed-cod-mushroom.png",
+      "alt": "香菇蒸鳕鱼现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鳕鱼",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鲜香菇",
+        "amount": 4,
+        "unit": "朵",
+        "required": true
+      },
+      {
+        "name": "姜丝",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "蒸鱼豉油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鳕鱼和鲜香菇：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鳕鱼，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "把鲜香菇铺在盘底，鳕鱼放在上面，尽量摊平不要堆太厚。",
+      "水开后上锅蒸 8-20 分钟，按食材厚度调整，蒸到主料刚熟。",
+      "取出后淋入剩余调味，静置 1 分钟让汤汁回渗，趁热食用。"
+    ],
+    "tips": "香菇蒸鳕鱼的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 198,
+      "proteinG": 31,
+      "fatG": 4,
+      "carbsG": 7,
+      "fiberG": 2,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "wintermelon-chicken-ball-soup",
+    "name": "冬瓜鸡肉丸汤",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "wintermelon",
+    "description": "冬瓜鸡肉丸汤是一道适合减脂期的轻负担餐品，突出鸡肉丸和冬瓜，口味清甜鲜香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/wintermelon-chicken-ball-soup.png",
+      "alt": "冬瓜鸡肉丸汤现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉糜",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "冬瓜",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蛋清",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "香菜",
+        "amount": 1,
+        "unit": "小把",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "姜末",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡肉丸和冬瓜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡肉丸，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入鸡肉丸，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "冬瓜鸡肉丸汤的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 215,
+      "proteinG": 32,
+      "fatG": 5,
+      "carbsG": 11,
+      "fiberG": 3,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "spinach-tofu-egg-drop-soup",
+    "name": "菠菜豆腐蛋花汤",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "spinach",
+    "description": "菠菜豆腐蛋花汤是一道适合减脂期的轻负担餐品，突出菠菜豆腐蛋花和虾皮，口味清淡豆香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/spinach-tofu-egg-drop-soup.png",
+      "alt": "菠菜豆腐蛋花汤现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "菠菜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "嫩豆腐",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "虾皮",
+        "amount": 5,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 2,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备菠菜豆腐蛋花和虾皮：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理菠菜豆腐蛋花，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入菠菜豆腐蛋花，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "菠菜豆腐蛋花汤的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 165,
+      "proteinG": 14,
+      "fatG": 8,
+      "carbsG": 9,
+      "fiberG": 3,
+      "sodiumMg": 610,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "cabbage-mushroom-chicken",
+    "name": "白菜蘑菇鸡片",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "cabbage",
+    "description": "白菜蘑菇鸡片是一道适合减脂期的轻负担餐品，突出鸡胸肉和白菜和口蘑，口味清鲜菌香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cabbage-mushroom-chicken.png",
+      "alt": "白菜蘑菇鸡片现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "大白菜",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "口蘑",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和白菜和口蘑：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把鸡胸肉炒到变色或定型，必要时先盛出。",
+      "放入白菜和口蘑快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "白菜蘑菇鸡片的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 225,
+      "proteinG": 34,
+      "fatG": 6,
+      "carbsG": 12,
+      "fiberG": 5,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "okra-shrimp",
+    "name": "秋葵炒虾仁",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "okra",
+    "description": "秋葵炒虾仁是一道适合减脂期的轻负担餐品，突出虾仁和秋葵，口味鲜甜清脆。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/okra-shrimp.png",
+      "alt": "秋葵炒虾仁现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "秋葵",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜片",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "红椒",
+        "amount": 30,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 5,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备虾仁和秋葵：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理虾仁，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把虾仁炒到变色或定型，必要时先盛出。",
+      "放入秋葵快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "秋葵炒虾仁的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 205,
+      "proteinG": 27,
+      "fatG": 6,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "tofu-tuna-salad",
+    "name": "豆腐金枪鱼沙拉",
+    "categories": [
+      "减脂期",
+      "轻食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "10分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 10,
+    "accent": "tofu",
+    "description": "豆腐金枪鱼沙拉是一道适合减脂期的轻负担餐品，突出嫩豆腐和金枪鱼和小番茄，口味清爽咸鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/tofu-tuna-salad.png",
+      "alt": "豆腐金枪鱼沙拉现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "嫩豆腐",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "水浸金枪鱼",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "玉米粒",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小番茄",
+        "amount": 8,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "柠檬汁",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "橄榄油",
+        "amount": 4,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备嫩豆腐和金枪鱼和小番茄：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理嫩豆腐和金枪鱼，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将嫩豆腐和金枪鱼煮熟或沥干，小番茄切成适口大小。",
+      "把酸奶、柠檬汁、胡椒等调味料混合成轻酱汁。",
+      "盘中先铺蔬菜，再放主料，吃前淋酱并轻轻翻拌。"
+    ],
+    "tips": "豆腐金枪鱼沙拉的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 235,
+      "proteinG": 25,
+      "fatG": 9,
+      "carbsG": 13,
+      "fiberG": 3,
+      "sodiumMg": 680,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "chicken-breast-buckwheat-noodles",
+    "name": "鸡胸荞麦面",
+    "categories": [
+      "减脂期",
+      "主食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "buckwheat",
+    "description": "鸡胸荞麦面是一道适合减脂期的轻负担餐品，突出鸡胸肉和荞麦面和黄瓜，口味清爽微酸。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/chicken-breast-buckwheat-noodles.png",
+      "alt": "鸡胸荞麦面现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "荞麦面",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡胸肉",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香醋",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "芝麻酱",
+        "amount": 10,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和荞麦面和黄瓜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "把鸡胸肉煮熟或煎熟后切丝，荞麦面和黄瓜切成细丝备用。",
+      "荞麦面煮熟后过凉，沥干水分，避免粘连。",
+      "调好酱汁后和面条、主料、蔬菜拌匀，按口味补少量醋或胡椒。"
+    ],
+    "tips": "鸡胸荞麦面的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 31,
+      "fatG": 9,
+      "carbsG": 42,
+      "fiberG": 6,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "cauliflower-rice-shrimp-bowl",
+    "name": "花菜米虾仁碗",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "cauliflower",
+    "description": "花菜米虾仁碗是一道适合减脂期的轻负担餐品，突出虾仁和鸡蛋和花菜米，口味鲜香轻盈。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cauliflower-rice-shrimp-bowl.png",
+      "alt": "花菜米虾仁碗现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "花菜",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "豌豆粒",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备虾仁和鸡蛋和花菜米：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理虾仁和鸡蛋，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把虾仁和鸡蛋炒到变色或定型，必要时先盛出。",
+      "放入花菜米快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "花菜米虾仁碗的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 245,
+      "proteinG": 28,
+      "fatG": 9,
+      "carbsG": 15,
+      "fiberG": 6,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "quinoa-chicken-vegetable-bowl",
+    "name": "藜麦鸡肉蔬菜碗",
+    "categories": [
+      "减脂期",
+      "主食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 35,
+    "accent": "quinoa",
+    "description": "藜麦鸡肉蔬菜碗是一道适合减脂期的轻负担餐品，突出鸡胸肉和藜麦和西兰花，口味谷物清香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/quinoa-chicken-vegetable-bowl.png",
+      "alt": "藜麦鸡肉蔬菜碗现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "藜麦",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡胸肉",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "西兰花",
+        "amount": 160,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "南瓜",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "橄榄油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "柠檬汁",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和藜麦和西兰花：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "先把谷物或主食部分煮熟打散，鸡胸肉单独煎熟或煮熟。",
+      "蔬菜焯水或蒸熟，保持颜色和口感。",
+      "按主食、蛋白、蔬菜的顺序装碗，淋入轻调味后拌食。"
+    ],
+    "tips": "藜麦鸡肉蔬菜碗的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 390,
+      "proteinG": 34,
+      "fatG": 10,
+      "carbsG": 42,
+      "fiberG": 7,
+      "sodiumMg": 540,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "egg-white-spinach-roll",
+    "name": "蛋白菠菜卷",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "egg",
+    "description": "蛋白菠菜卷是一道适合减脂期的轻负担餐品，突出蛋清和菠菜和胡萝卜，口味清淡奶香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/egg-white-spinach-roll.png",
+      "alt": "蛋白菠菜卷现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "蛋清",
+        "amount": 5,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "菠菜",
+        "amount": 160,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "低脂奶酪碎",
+        "amount": 20,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备蛋清和菠菜和胡萝卜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理蛋清，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "把蛋清打散或摊成薄片，菠菜和胡萝卜提前焯水并挤干。",
+      "不粘锅少油小火加热，放入主料形成薄皮或卷材。",
+      "铺入配菜后卷紧，再小火定型 1 分钟，切段装盘。"
+    ],
+    "tips": "蛋白菠菜卷的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 145,
+      "proteinG": 20,
+      "fatG": 4,
+      "carbsG": 8,
+      "fiberG": 3,
+      "sodiumMg": 430,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "mushroom-egg-white-stir",
+    "name": "口蘑炒蛋白",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "mushroom",
+    "description": "口蘑炒蛋白是一道适合减脂期的轻负担餐品，突出蛋清和口蘑和菠菜，口味菌香嫩滑。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/mushroom-egg-white-stir.png",
+      "alt": "口蘑炒蛋白现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "蛋清",
+        "amount": 5,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "口蘑",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "菠菜",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 4,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备蛋清和口蘑和菠菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理蛋清，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把蛋清炒到变色或定型，必要时先盛出。",
+      "放入口蘑和菠菜快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "口蘑炒蛋白的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 135,
+      "proteinG": 19,
+      "fatG": 4,
+      "carbsG": 7,
+      "fiberG": 3,
+      "sodiumMg": 420,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "steamed-egg-tofu-shrimp",
+    "name": "虾仁豆腐蒸蛋",
+    "categories": [
+      "减脂期",
+      "蒸菜"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "shrimp",
+    "description": "虾仁豆腐蒸蛋是一道适合减脂期的轻负担餐品，突出鸡蛋豆腐虾仁和小葱，口味鲜嫩滑口。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/steamed-egg-tofu-shrimp.png",
+      "alt": "虾仁豆腐蒸蛋现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "嫩豆腐",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 100,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "温水",
+        "amount": 180,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡蛋豆腐虾仁和小葱：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡蛋豆腐虾仁，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "把小葱铺在盘底，鸡蛋豆腐虾仁放在上面，尽量摊平不要堆太厚。",
+      "水开后上锅蒸 8-20 分钟，按食材厚度调整，蒸到主料刚熟。",
+      "取出后淋入剩余调味，静置 1 分钟让汤汁回渗，趁热食用。"
+    ],
+    "tips": "虾仁豆腐蒸蛋的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 22,
+      "fatG": 10,
+      "carbsG": 8,
+      "fiberG": 1,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "garlic-lettuce-chicken",
+    "name": "蒜香生菜鸡片",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "lettuce",
+    "description": "蒜香生菜鸡片是一道适合减脂期的轻负担餐品，突出鸡胸肉和生菜，口味蒜香清脆。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/garlic-lettuce-chicken.png",
+      "alt": "蒜香生菜鸡片现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 8,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "红椒",
+        "amount": 30,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "淀粉",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和生菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把鸡胸肉炒到变色或定型，必要时先盛出。",
+      "放入生菜快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "蒜香生菜鸡片的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 215,
+      "proteinG": 33,
+      "fatG": 6,
+      "carbsG": 8,
+      "fiberG": 3,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "tomato-beef-soup-light",
+    "name": "番茄牛肉清汤",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "tomato",
+    "description": "番茄牛肉清汤是一道适合减脂期的轻负担餐品，突出瘦牛肉片和番茄和娃娃菜，口味酸甜清鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/tomato-beef-soup-light.png",
+      "alt": "番茄牛肉清汤现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "瘦牛肉片",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "番茄",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "娃娃菜",
+        "amount": 180,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "金针菇",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "姜片",
+        "amount": 3,
+        "unit": "片",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备瘦牛肉片和番茄和娃娃菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理瘦牛肉片，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入瘦牛肉片，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "番茄牛肉清汤的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 235,
+      "proteinG": 28,
+      "fatG": 7,
+      "carbsG": 14,
+      "fiberG": 4,
+      "sodiumMg": 690,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "seaweed-tofu-fish-soup",
+    "name": "紫菜豆腐鱼片汤",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "seaweed",
+    "description": "紫菜豆腐鱼片汤是一道适合减脂期的轻负担餐品，突出黑鱼片和紫菜和豆腐，口味海味鲜甜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/seaweed-tofu-fish-soup.png",
+      "alt": "紫菜豆腐鱼片汤现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "黑鱼片",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "嫩豆腐",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "紫菜",
+        "amount": 5,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "生菜",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 5,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "姜丝",
+        "amount": 5,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备黑鱼片和紫菜和豆腐：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理黑鱼片，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入黑鱼片，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "紫菜豆腐鱼片汤的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 205,
+      "proteinG": 30,
+      "fatG": 5,
+      "carbsG": 8,
+      "fiberG": 2,
+      "sodiumMg": 640,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "cold-spinach-chicken",
+    "name": "菠菜拌鸡胸",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "spinach",
+    "description": "菠菜拌鸡胸是一道适合减脂期的轻负担餐品，突出鸡胸肉和菠菜，口味蒜香微酸。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cold-spinach-chicken.png",
+      "alt": "菠菜拌鸡胸现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "菠菜",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "熟芝麻",
+        "amount": 4,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香醋",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "芝麻油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和菠菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将鸡胸肉煮熟或焯熟后放凉，顺纹撕开或切成细条。",
+      "把菠菜切丝或切段，水分多的蔬菜先用厨房纸吸干。",
+      "调味料混合成汁，和全部食材充分拌匀，冷藏 10 分钟后再吃更入味。"
+    ],
+    "tips": "菠菜拌鸡胸的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 220,
+      "proteinG": 33,
+      "fatG": 6,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 690,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "broccoli-chicken-mushroom",
+    "name": "西兰花蘑菇鸡胸",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "broccoli",
+    "description": "西兰花蘑菇鸡胸是一道适合减脂期的轻负担餐品，突出鸡胸肉和西兰花和口蘑，口味菌香咸鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/broccoli-chicken-mushroom.png",
+      "alt": "西兰花蘑菇鸡胸现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "西兰花",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "口蘑",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "蒜片",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和西兰花和口蘑：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把鸡胸肉炒到变色或定型，必要时先盛出。",
+      "放入西兰花和口蘑快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "西兰花蘑菇鸡胸的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 245,
+      "proteinG": 36,
+      "fatG": 7,
+      "carbsG": 12,
+      "fiberG": 5,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "asparagus-shrimp",
+    "name": "芦笋炒虾仁",
+    "categories": [
+      "减脂期",
+      "高蛋白"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "asparagus",
+    "description": "芦笋炒虾仁是一道适合减脂期的轻负担餐品，突出虾仁和芦笋，口味清甜脆嫩。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/asparagus-shrimp.png",
+      "alt": "芦笋炒虾仁现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "芦笋",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜片",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "彩椒",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 5,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备虾仁和芦笋：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理虾仁，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "热锅少油，先把虾仁炒到变色或定型，必要时先盛出。",
+      "放入芦笋快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
+      "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。"
+    ],
+    "tips": "芦笋炒虾仁的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 200,
+      "proteinG": 27,
+      "fatG": 6,
+      "carbsG": 9,
+      "fiberG": 4,
+      "sodiumMg": 540,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "steamed-pumpkin-chicken",
+    "name": "南瓜蒸鸡腿肉",
+    "categories": [
+      "减脂期",
+      "蒸菜"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "35分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 35,
+    "accent": "pumpkin",
+    "description": "南瓜蒸鸡腿肉是一道适合减脂期的轻负担餐品，突出去皮鸡腿肉和南瓜和香菇，口味南瓜清甜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/steamed-pumpkin-chicken.png",
+      "alt": "南瓜蒸鸡腿肉现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "去皮鸡腿肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "南瓜",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "香菇",
+        "amount": 4,
+        "unit": "朵",
+        "required": false
+      },
+      {
+        "name": "姜丝",
+        "amount": 5,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备去皮鸡腿肉和南瓜和香菇：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理去皮鸡腿肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "把南瓜和香菇铺在盘底，去皮鸡腿肉放在上面，尽量摊平不要堆太厚。",
+      "水开后上锅蒸 8-20 分钟，按食材厚度调整，蒸到主料刚熟。",
+      "取出后淋入剩余调味，静置 1 分钟让汤汁回渗，趁热食用。"
+    ],
+    "tips": "南瓜蒸鸡腿肉的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 310,
+      "proteinG": 29,
+      "fatG": 10,
+      "carbsG": 25,
+      "fiberG": 4,
+      "sodiumMg": 690,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "oat-egg-savory-porridge",
+    "name": "燕麦蛋花咸粥",
+    "categories": [
+      "减脂期",
+      "汤"
+    ],
+    "tags": [
+      "低脂",
+      "轻负担",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "oat",
+    "description": "燕麦蛋花咸粥是一道适合减脂期的轻负担餐品，突出燕麦蛋花和菠菜和玉米，口味谷香咸鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/oat-egg-savory-porridge.png",
+      "alt": "燕麦蛋花咸粥现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "即食燕麦",
+        "amount": 70,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "菠菜",
+        "amount": 100,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "玉米粒",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备燕麦蛋花和菠菜和玉米：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理燕麦蛋花，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
+      "再放入燕麦蛋花，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
+      "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。"
+    ],
+    "tips": "燕麦蛋花咸粥的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 285,
+      "proteinG": 17,
+      "fatG": 10,
+      "carbsG": 33,
+      "fiberG": 6,
+      "sodiumMg": 480,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "sweet-potato-chicken-salad",
+    "name": "红薯鸡胸温沙拉",
+    "categories": [
+      "减脂期",
+      "轻食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "sweet-potato",
+    "description": "红薯鸡胸温沙拉是一道适合减脂期的轻负担餐品，突出鸡胸肉和红薯和生菜，口味清甜酸奶。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/sweet-potato-chicken-salad.png",
+      "alt": "红薯鸡胸温沙拉现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "红薯",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 120,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小番茄",
+        "amount": 8,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "低脂酸奶",
+        "amount": 40,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "柠檬汁",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和红薯和生菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将鸡胸肉煮熟或沥干，红薯和生菜切成适口大小。",
+      "把酸奶、柠檬汁、胡椒等调味料混合成轻酱汁。",
+      "盘中先铺蔬菜，再放主料，吃前淋酱并轻轻翻拌。"
+    ],
+    "tips": "红薯鸡胸温沙拉的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 350,
+      "proteinG": 33,
+      "fatG": 6,
+      "carbsG": 42,
+      "fiberG": 7,
+      "sodiumMg": 430,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "chicken-mushroom-lettuce-cup",
+    "name": "香菇鸡丁生菜杯",
+    "categories": [
+      "减脂期",
+      "轻食"
+    ],
+    "tags": [
+      "低脂",
+      "高蛋白",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "mushroom",
+    "description": "香菇鸡丁生菜杯是一道适合减脂期的轻负担餐品，突出鸡胸肉和香菇和生菜，口味菌香鲜咸。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/chicken-mushroom-lettuce-cup.png",
+      "alt": "香菇鸡丁生菜杯现代手绘水彩菜品图",
+      "sourceName": "Humi local generated dish asset",
+      "sourceUrl": "local-generation:recipe-image-prompts.json",
+      "license": "Generated for this project",
+      "note": "基于 recipe-image-prompts.json 的统一 Urban Family Kitchen 手绘水彩风格生成。"
+    },
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 240,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鲜香菇",
+        "amount": 6,
+        "unit": "朵",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 10,
+        "unit": "片",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "准备鸡胸肉和香菇和生菜：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
+      "用少量盐、胡椒或配方里的基础调味先处理鸡胸肉，静置 5-10 分钟，让底味进入但不过度腌制。",
+      "将鸡胸肉煮熟、煎熟或炒熟，切成条或小丁，馅料尽量收干。",
+      "把香菇和生菜处理成适合包裹的大小，叶菜洗净后一定擦干。",
+      "用叶菜包入主料和配菜，淋少量调味汁，卷紧后直接食用。"
+    ],
+    "tips": "香菇鸡丁生菜杯的关键是少油和不过度加热；如果做备餐，建议酱汁或酸味调味吃前再加。",
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 235,
+      "proteinG": 33,
+      "fatG": 7,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见减脂期家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   }
 ]
