@@ -4,7 +4,7 @@ page {
   color: #111111;
 }
 
-.login-shell {
+.phone-shell {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 72rpx 44rpx;
@@ -20,7 +20,7 @@ page {
   letter-spacing: 0.04em;
 }
 
-.login-card {
+.phone-card {
   padding: 48rpx 0 88rpx;
 }
 
@@ -75,25 +75,9 @@ page {
   opacity: 0.48;
 }
 
-.loading-dot {
-  width: 42rpx;
-  height: 42rpx;
-  margin-top: 60rpx;
-  border: 6rpx solid rgba(17, 17, 17, 0.12);
-  border-top-color: #111111;
-  border-radius: 999rpx;
-  animation: humi-spin 0.78s linear infinite;
-}
-
 .error-text {
   margin-top: 24rpx;
   color: rgba(17, 17, 17, 0.52);
   font-size: 24rpx;
   font-weight: 700;
-}
-
-@keyframes humi-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

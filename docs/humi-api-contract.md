@@ -74,6 +74,50 @@ npm run validate:api
 - `GET /me`：返回当前用户、画像完成状态和家庭空间摘要。
 - `POST /profile`：保存用户画像。
 
+## 微信手机号绑定
+
+`POST /auth/wechat/phone`
+
+请求头：
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+请求：
+
+```json
+{
+  "code": "button open-type=getPhoneNumber 返回的 code"
+}
+```
+
+响应：
+
+```json
+{
+  "accessToken": "Humi 会话 token",
+  "refreshToken": "刷新 token",
+  "expiresAt": 1790000000000,
+  "user": {
+    "id": "humi_user_id",
+    "displayName": "微信用户",
+    "provider": "wechat",
+    "phoneVerified": true,
+    "phoneMasked": "138****1234",
+    "phoneVerifiedAt": "2026-06-29T00:00:00.000Z"
+  }
+}
+```
+
+服务端要求：
+
+- 必须校验当前 Humi session；不得只凭手机号 code 绑定账号。
+- 使用服务端 AppSecret 获取微信接口 `access_token`，再调用微信手机号接口换取号码。
+- 前端和小程序包不得持有 AppSecret、微信接口 `access_token` 或手机号明文。
+- 数据层只保存脱敏手机号、绑定时间、国家码和基于服务端密钥的 HMAC 哈希；不保存手机号明文。
+- 用户拒绝手机号授权不影响核心菜单、清单、库存功能。
+
 ## 微信账号状态
 
 - `GET /state`：读取当前微信用户保存的菜单、计划、清单、库存、画像和反馈。
@@ -86,6 +130,7 @@ npm run validate:api
 - request 合法域名：`api.humi-home.com`
 - WebView 业务域名：`www.humi-home.com`
 - 微信后台隐私保护指引需声明微信身份标识用于账号登录和恢复。
+- 如启用手机号绑定，微信后台隐私保护指引需声明手机号用于账号绑定、登录验证、账号找回和家庭协作安全。
 
 ## 生产部署闸门
 

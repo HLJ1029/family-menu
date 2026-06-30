@@ -1,9 +1,10 @@
 import http from "node:http";
+import { createHmac } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
-import { exchangeWechatCode } from "./wechat.js";
+import { exchangeWechatCode, exchangeWechatPhoneNumber } from "./wechat.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -47,6 +48,11 @@ export function createHumiApiServer() {
 
       if (request.method === "POST" && url.pathname === "/auth/wechat/login") {
         await handleWechatLogin(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/auth/wechat/phone") {
+        await handleWechatPhone(request, response);
         return;
       }
 
@@ -107,6 +113,28 @@ async function handleWechatLogin(request, response) {
     unionid: wechatSession.unionid,
   });
   sendAuthSession(response, user);
+}
+
+async function handleWechatPhone(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  const phoneInfo = await exchangeWechatPhoneNumber({
+    code: body.code || body.phoneCode,
+    appId: config.wechatAppId,
+    appSecret: config.wechatAppSecret,
+    mock: config.wechatMock,
+  });
+  const countryCode = String(phoneInfo.countryCode || "86").replace(/\D/g, "") || "86";
+  const purePhoneNumber = String(phoneInfo.purePhoneNumber || phoneInfo.phoneNumber || "").replace(/\D/g, "");
+  const updatedUser = await store.bindPhoneNumber(user.id, {
+    ...phoneInfo,
+    countryCode,
+    purePhoneNumber,
+    phoneHash: createPhoneHash(countryCode, purePhoneNumber),
+  });
+  sendAuthSession(response, updatedUser);
 }
 
 async function handleSessionRefresh(request, response) {
@@ -193,6 +221,9 @@ function toPublicUser(user) {
     id: user.id,
     displayName: user.displayName || "微信用户",
     provider: user.provider || "wechat",
+    phoneVerified: Boolean(user.phoneVerifiedAt),
+    phoneMasked: user.phoneMasked || "",
+    phoneVerifiedAt: user.phoneVerifiedAt || null,
   };
 }
 
@@ -361,6 +392,10 @@ function stringList(value) {
 
 function stringValue(value) {
   return typeof value === "string" ? value.trim().slice(0, 80) : "";
+}
+
+function createPhoneHash(countryCode, phoneNumber) {
+  return createHmac("sha256", config.sessionSecret).update(`${countryCode}:${phoneNumber}`).digest("hex");
 }
 
 async function readJson(request) {

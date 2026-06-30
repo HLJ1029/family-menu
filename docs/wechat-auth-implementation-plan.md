@@ -151,12 +151,12 @@
 ```text
 button open-type="getPhoneNumber"
 → bindgetphonenumber 拿到手机号 code
-→ POST /auth/bind-phone
+→ POST /auth/wechat/phone
 ```
 
 ### 5.2 服务端
 
-`POST /auth/bind-phone`
+`POST /auth/wechat/phone`
 
 请求：
 
@@ -285,7 +285,7 @@ Humi Session
 首批建议：
 
 - `POST /auth/wechat-login`
-- `POST /auth/bind-phone`
+- `POST /auth/wechat/phone`
 - `POST /auth/logout`
 - `GET /auth/me`
 - `POST /auth/link-email`（可选，Web/PWA 迁移用）

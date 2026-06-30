@@ -1,0 +1,23 @@
+<view class="phone-shell">
+  <view class="brand-mark">Humi</view>
+  <view class="phone-card">
+    <view class="eyebrow">手机号绑定</view>
+    <view class="title">让账号更容易找回。</view>
+    <view class="body">
+      手机号只用于账号绑定、登录验证和找回，不会用于菜单推荐或营销。
+    </view>
+    <button
+      class="primary-button"
+      open-type="getPhoneNumber"
+      bindgetphonenumber="bindWechatPhone"
+      loading="{{pending}}"
+      disabled="{{pending}}"
+    >
+      授权绑定手机号
+    </button>
+    <button class="ghost-button" bindtap="cancelPhoneBind" disabled="{{pending}}">
+      暂不绑定
+    </button>
+    <view wx:if="{{error}}" class="error-text">{{error}}</view>
+  </view>
+</view>

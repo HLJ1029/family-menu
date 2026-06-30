@@ -1853,9 +1853,20 @@ function App() {
 
   async function migrateMenusToCloud() {
     if (isHumiApiSession(humiSession)) {
-      setCloudMenuEnabled(true);
-      setCloudSyncStatus("微信账号保存已开启，菜单会自动同步。");
-      showNotice("菜单会保存到微信账号");
+      setCloudMenuLoading(true);
+      setCloudSyncStatus("正在保存今晚菜单和一周计划...");
+      try {
+        await saveHumiState(humiSession, humiStateSnapshot);
+        setCloudMenuEnabled(true);
+        setCloudGroceryEnabled(true);
+        setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
+        setCloudGroceryStatus("清单和家中库存也会继续自动同步。");
+        showNotice("菜单已保存到微信账号");
+      } catch (error) {
+        setCloudSyncStatus(error.message);
+      } finally {
+        setCloudMenuLoading(false);
+      }
       return;
     }
     if (!family?.id) {
@@ -1916,9 +1927,20 @@ function App() {
 
   async function migrateGroceryToCloud() {
     if (isHumiApiSession(humiSession)) {
-      setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("微信账号保存已开启，清单和库存会自动同步。");
-      showNotice("清单和库存会保存到微信账号");
+      setCloudGroceryLoading(true);
+      setCloudGroceryStatus("正在保存食材清单和家中库存...");
+      try {
+        await saveHumiState(humiSession, humiStateSnapshot);
+        setCloudMenuEnabled(true);
+        setCloudGroceryEnabled(true);
+        setCloudSyncStatus("今晚菜单和一周计划也会继续自动同步。");
+        setCloudGroceryStatus("食材清单和家中库存已保存到微信账号。");
+        showNotice("清单和库存已保存到微信账号");
+      } catch (error) {
+        setCloudGroceryStatus(error.message);
+      } finally {
+        setCloudGroceryLoading(false);
+      }
       return;
     }
     if (!family?.id) {

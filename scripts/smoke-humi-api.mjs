@@ -23,6 +23,14 @@ try {
   assert(me.user?.id === login.user.id, "me should return current user");
   assert(me.family?.provider === "wechat", "me should return wechat family");
 
+  const phone = await request(`${baseUrl}/auth/wechat/phone`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { code: "phone-smoke" },
+  });
+  assert(phone.user?.phoneVerified === true, "phone should be verified");
+  assert(phone.user?.phoneMasked === "138****1234", "phone should be masked");
+
   const profile = await request(`${baseUrl}/profile`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
