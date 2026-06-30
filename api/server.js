@@ -253,6 +253,7 @@ function sanitizeAppState(state = {}) {
   return {
     todayMenu: sanitizeMenuEntries(state.todayMenu),
     weekPlan: sanitizeWeekPlan(state.weekPlan),
+    mealPlan: sanitizeMealPlan(state.mealPlan),
     mealCalendar: sanitizeCalendar(state.mealCalendar),
     mealLogs: sanitizeObjectMap(state.mealLogs, 120),
     checkedItems: sanitizeBooleanMap(state.checkedItems, 400),
@@ -295,6 +296,24 @@ function sanitizeCalendar(value = {}) {
       .map(([key, recipeIds]) => [
         key,
         Array.isArray(recipeIds) ? recipeIds.map(stringValue).filter(Boolean).slice(0, 20) : [],
+      ]),
+  );
+}
+
+function sanitizeMealPlan(value = {}) {
+  const mealSlots = ["breakfast", "lunch", "dinner"];
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .filter(([key]) => /^\d{4}-\d{2}-\d{2}$/.test(key))
+      .slice(-120)
+      .map(([key, dayMeals]) => [
+        key,
+        Object.fromEntries(
+          mealSlots.map((slotId) => [
+            slotId,
+            sanitizeMenuEntries(dayMeals?.[slotId]).slice(0, 16),
+          ]),
+        ),
       ]),
   );
 }

@@ -123,7 +123,21 @@ Authorization: Bearer <accessToken>
 - `GET /state`：读取当前微信用户保存的菜单、计划、清单、库存、画像和反馈。
 - `PUT /state`：保存当前微信用户的菜单、计划、清单、库存、画像和反馈。
 
-`/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。首发用于小程序审核闭环：用户通过微信登录后，今晚菜单、购物清单、家中库存和基础画像会保存到 Humi API，换设备或重新进入小程序可恢复。
+`/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。首发用于小程序审核闭环：用户通过微信登录后，今日菜单、一周三餐计划、购物清单、家中库存和基础画像会保存到 Humi API，换设备或重新进入小程序可恢复。
+
+状态字段兼容旧版 `todayMenu`、`weekPlan`、`mealCalendar`，新版新增 `mealPlan`：
+
+```json
+{
+  "mealPlan": {
+    "2026-06-30": {
+      "breakfast": [{ "recipeId": "plain-rice-porridge", "quantity": 1 }],
+      "lunch": [{ "recipeId": "egg-fried-rice", "quantity": 1 }],
+      "dinner": [{ "recipeId": "tomato-egg", "quantity": 1 }]
+    }
+  }
+}
+```
 
 ## 发布前平台配置
 

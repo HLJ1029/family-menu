@@ -18,7 +18,7 @@ import { UserCenter } from "./components/UserCenter";
 import { OfflineStatus } from "./components/system/OfflineStatus";
 import { HumiPeek } from "./components/ui/HumiBrandIllustration";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
-import { addDays, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, parseDateKey } from "./lib/date";
+import { addDays, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, getWeekStartDate, parseDateKey } from "./lib/date";
 import {
   buildRecipeGroceryGroups,
   buildShoppingListFromEntries,
@@ -27,6 +27,19 @@ import {
 } from "./lib/grocery";
 import { getDefaultNutritionGoals } from "./lib/insights";
 import { getExpiryState } from "./lib/pantry";
+import {
+  createMealPlanFromLegacy,
+  getDayMeals,
+  mealPlanEntriesForGroceries,
+  mealPlanToCalendar,
+  mealPlanToWeekPlan,
+  mealSlotIds,
+  mealSlots,
+  normalizeMealEntries,
+  normalizeMealPlan,
+  removeMealEntry,
+  upsertMealEntry,
+} from "./lib/mealPlan";
 import {
   createGroceryPoster,
   createTodayMenuPoster,
@@ -107,6 +120,7 @@ function App() {
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
   const [weekPlan, setWeekPlan] = useLocalStorageState("family-menu:week-plan", createDefaultWeekPlan);
+  const [mealPlan, setMealPlan] = useLocalStorageState("humi:meal-plan:v1", () => ({}));
   const [activeWeekKey, setActiveWeekKey] = useLocalStorageState("family-menu:active-week-key", null);
   const [mealCalendar, setMealCalendar] = useLocalStorageState(
     "family-menu:meal-calendar",
@@ -174,9 +188,21 @@ function App() {
   const signedIn = Boolean(session?.user || humiSession?.user);
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
   const todayDateKey = formatDateKey(new Date());
+  const weekDateKeys = useMemo(() => {
+    const weekStart = getWeekStartDate();
+    return Object.fromEntries(
+      weekPlanDays.map((day, index) => [day, formatDateKey(addDays(weekStart, index))]),
+    );
+  }, [activeWeekKey]);
+  const slotLabelsById = useMemo(
+    () => Object.fromEntries(mealSlots.map((slot) => [slot.id, slot.label])),
+    [],
+  );
+  const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
   const humiStateSnapshot = useMemo(() => ({
     todayMenu,
     weekPlan,
+    mealPlan,
     mealCalendar,
     mealLogs,
     checkedItems,
@@ -191,6 +217,7 @@ function App() {
     customItems,
     excludedGroceryKeys,
     familyProfile,
+    mealPlan,
     mealCalendar,
     mealLogs,
     nutritionGoals,
@@ -231,8 +258,22 @@ function App() {
         if (!active) return;
         if (state) {
           setTodayMenu(Array.isArray(state.todayMenu) ? state.todayMenu : []);
-          setWeekPlan({ ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) });
-          setMealCalendar(state.mealCalendar ?? createInitialMealCalendar());
+          const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
+          const loadedMealCalendar = state.mealCalendar ?? createInitialMealCalendar();
+          const loadedMealPlan = normalizeMealPlan(
+            state.mealPlan ?? createMealPlanFromLegacy({
+              mealCalendar: loadedMealCalendar,
+              weekPlan: loadedWeekPlan,
+              todayMenu: state.todayMenu,
+              todayDateKey,
+              currentDay: getCurrentPlanDay(),
+            }),
+          );
+          const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
+          setMealPlan(loadedMealPlan);
+          setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
+          setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
+          setMealCalendar(mealPlanToCalendar(loadedMealPlan));
           setMealLogs(state.mealLogs ?? {});
           setCheckedItems(state.checkedItems ?? {});
           setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
@@ -276,12 +317,15 @@ function App() {
     setExcludedGroceryKeys,
     setFamilyProfile,
     setMealCalendar,
+    setMealPlan,
     setMealLogs,
     setNutritionGoals,
     setPantryItems,
     setRecommendationFeedback,
     setTodayMenu,
     setWeekPlan,
+    todayDateKey,
+    weekDateKeys,
   ]);
 
   useEffect(() => {
@@ -299,6 +343,27 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [humiSession, humiStateSnapshot]);
+
+  useEffect(() => {
+    if (Object.keys(mealPlan ?? {}).length > 0) return;
+    const migratedPlan = createMealPlanFromLegacy({
+      mealCalendar,
+      weekPlan,
+      todayMenu,
+      todayDateKey,
+      currentDay: getCurrentPlanDay(),
+    });
+    if (Object.keys(migratedPlan).length === 0) return;
+    setMealPlan(migratedPlan);
+  }, [mealCalendar, mealPlan, setMealPlan, todayDateKey, todayMenu, weekPlan]);
+
+  useEffect(() => {
+    if (Object.keys(mealPlan ?? {}).length === 0) return;
+    const nextTodayMenu = getDayMeals(mealPlan, todayDateKey).dinner;
+    setTodayMenu(nextTodayMenu);
+    setMealCalendar(mealPlanToCalendar(mealPlan));
+    setWeekPlan(mealPlanToWeekPlan(mealPlan, weekDateKeys));
+  }, [mealPlan, setMealCalendar, setTodayMenu, setWeekPlan, todayDateKey, weekDateKeys]);
 
   useEffect(() => {
     return () => {
@@ -323,6 +388,11 @@ function App() {
     const currentWeekEndKey = formatDateKey(addDays(parseDateKey(currentWeekKey), 6));
     setTodayMenu([]);
     setWeekPlan(createDefaultWeekPlan());
+    setMealPlan((current) =>
+      Object.fromEntries(
+        Object.entries(current ?? {}).filter(([dateKey]) => dateKey < currentWeekKey || dateKey > currentWeekEndKey),
+      ),
+    );
     setCheckedItems({});
     setCustomItems([]);
     setExcludedGroceryKeys([]);
@@ -339,6 +409,7 @@ function App() {
     setCustomItems,
     setExcludedGroceryKeys,
     setMealCalendar,
+    setMealPlan,
     setTodayMenu,
     setWeekPlan,
   ]);
@@ -377,6 +448,12 @@ function App() {
         if (!active) return;
         setTodayMenu(cloudMenus.todayMenu);
         setWeekPlan(cloudMenus.weekPlan);
+        setMealPlan(createMealPlanFromLegacy({
+          weekPlan: cloudMenus.weekPlan,
+          todayMenu: cloudMenus.todayMenu,
+          todayDateKey,
+          currentDay: getCurrentPlanDay(),
+        }));
         setCloudSyncStatus("已读取我的家里保存的今晚菜单和一周计划。");
       } catch (error) {
         if (active) setCloudSyncStatus(error.message);
@@ -389,7 +466,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [cloudMenuEnabled, family?.id, session?.user, setTodayMenu, setWeekPlan]);
+  }, [cloudMenuEnabled, family?.id, session?.user, setMealPlan, setTodayMenu, setWeekPlan, todayDateKey]);
 
   useEffect(() => {
     if (!session?.user || !family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
@@ -577,15 +654,21 @@ function App() {
     })
     .filter(Boolean);
   const todayMealLog = mealLogs[todayDateKey] ?? {};
-  const plannedEntries = Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
-    recipeIds.map((recipeId) => ({ day, recipeId, quantity: 1 })),
-  );
+  const plannedEntries = mealPlanEntriesForGroceries(mealPlan, ({ dateKey, slotId }) => {
+    const day = Object.entries(weekDateKeys).find(([, key]) => key === dateKey)?.[0];
+    const dateLabel = day ?? formatDateLabel(dateKey);
+    return `${dateLabel}·${slotLabelsById[slotId] ?? "餐次"}`;
+  });
   const plannedRecipes = plannedEntries.map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
   const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
-  const recipeEntries = [
-    ...todayMenu.map((item) => ({ ...item, source: "今晚菜单" })),
-    ...plannedEntries.map((item) => ({ ...item, source: item.day })),
-  ];
+  const recipeEntries = plannedEntries.length > 0
+    ? plannedEntries
+    : [
+        ...todayMenu.map((item) => ({ ...item, source: "今晚菜单" })),
+        ...Object.entries(weekPlan).flatMap(([day, recipeIds]) =>
+          recipeIds.map((recipeId) => ({ day, recipeId, quantity: 1, source: day })),
+        ),
+      ];
   const groceryGroups = useMemo(() => buildRecipeGroceryGroups(recipeEntries), [recipeEntries]);
   const groceryItems = useMemo(
     () => buildShoppingListFromEntries(recipeEntries),
@@ -740,6 +823,43 @@ function App() {
     setCookingStep(0);
   }
 
+  function updateMealPlanSlot(dateKey, slotId, updater) {
+    setMealPlan((current) => {
+      const currentDayMeals = getDayMeals(current, dateKey);
+      const currentEntries = currentDayMeals[slotId] ?? [];
+      const nextEntries = normalizeMealEntries(updater(currentEntries));
+      return {
+        ...current,
+        [dateKey]: {
+          ...currentDayMeals,
+          [slotId]: nextEntries,
+        },
+      };
+    });
+  }
+
+  function assignMealRecipe(dateKey, slotId, recipeId, quantity = 1) {
+    const recipe = getRecipe(recipeId);
+    const slotLabel = slotLabelsById[slotId] ?? "餐次";
+    updateMealPlanSlot(dateKey, slotId, (entries) => upsertMealEntry(entries, recipeId, quantity));
+    trackProductEvent(appEvents.weekPlanAdd, {
+      recipeIds: [recipeId],
+      dateKey,
+      mealSlot: slotId,
+      source: "manual_meal_slot",
+    });
+    showNotice(`${recipe?.name ?? "菜品"} 已添加到${formatDateLabel(dateKey)}${slotLabel}`);
+  }
+
+  function removeMealRecipe(dateKey, slotId, recipeId) {
+    updateMealPlanSlot(dateKey, slotId, (entries) => removeMealEntry(entries, recipeId));
+    if (dateKey === todayDateKey && slotId === "dinner") {
+      const nextMenu = todayMenu.filter((item) => item.recipeId !== recipeId);
+      syncHomeMealLogWithMenu(nextMenu);
+    }
+    showNotice("已从计划中移除");
+  }
+
   function addToday(recipeId, quantity = 1) {
     const recipe = getRecipe(recipeId);
     const currentDay = getCurrentPlanDay();
@@ -747,6 +867,7 @@ function App() {
     const alreadyInCurrentPlan = (weekPlan[currentDay] ?? []).includes(recipeId);
     const alreadyInTodayPlan = (mealCalendar[todayKey] ?? []).includes(recipeId);
     const safeQuantity = Math.max(1, Number.parseInt(quantity, 10) || 1);
+    updateMealPlanSlot(todayKey, "dinner", (entries) => upsertMealEntry(entries, recipeId, quantity));
     setTodayMenu((current) => {
       const existing = current.find((item) => item.recipeId === recipeId);
       if (existing) {
@@ -1113,6 +1234,7 @@ function App() {
     const removedFromMenu = todayMenu.some((item) => item.recipeId === recipeId) &&
       !nextMenu.some((item) => item.recipeId === recipeId);
 
+    updateMealPlanSlot(todayDateKey, "dinner", () => nextMenu);
     setTodayMenu(nextMenu);
     syncHomeMealLogWithMenu(nextMenu);
 
@@ -1144,6 +1266,7 @@ function App() {
     const todayKey = formatDateKey(new Date());
     const currentDay = getCurrentPlanDay();
 
+    updateMealPlanSlot(todayKey, "dinner", (entries) => removeMealEntry(entries, recipeId));
     setTodayMenu(nextMenu);
     syncHomeMealLogWithMenu(nextMenu);
     setMealCalendar((calendar) => ({
@@ -1170,6 +1293,8 @@ function App() {
       showNotice(`已在${day}计划中`);
       return;
     }
+    const dateKey = weekDateKeys[day] ?? todayDateKey;
+    assignMealRecipe(dateKey, "dinner", recipeId);
     setWeekPlan((current) => {
       const currentDay = current[day] ?? [];
       if (currentDay.includes(recipeId)) return current;
@@ -1184,11 +1309,13 @@ function App() {
   }
 
   function removePlanRecipe(day, recipeId) {
+    const dateKey = weekDateKeys[day] ?? todayDateKey;
     if (day === getCurrentPlanDay()) {
-      removeFromTodayEverywhere(recipeId);
+      removeMealRecipe(dateKey, "dinner", recipeId);
       showNotice("已从今晚安排移除");
       return;
     }
+    removeMealRecipe(dateKey, "dinner", recipeId);
     setWeekPlan((current) => ({
       ...current,
       [day]: (current[day] ?? []).filter((id) => id !== recipeId),
@@ -1201,6 +1328,7 @@ function App() {
       showNotice(`${recipe?.name ?? "菜品"} 已在该日计划中`);
       return;
     }
+    assignMealRecipe(dateKey, "dinner", recipeId);
     setMealCalendar((current) => ({
       ...current,
       [dateKey]: [...(current[dateKey] ?? []), recipeId],
@@ -1210,10 +1338,11 @@ function App() {
 
   function removeDatePlan(dateKey, recipeId) {
     if (dateKey === formatDateKey(new Date())) {
-      removeFromTodayEverywhere(recipeId);
+      removeMealRecipe(dateKey, "dinner", recipeId);
       showNotice("已从今晚安排移除");
       return;
     }
+    removeMealRecipe(dateKey, "dinner", recipeId);
     setMealCalendar((current) => ({
       ...current,
       [dateKey]: (current[dateKey] ?? []).filter((id) => id !== recipeId),
@@ -1893,8 +2022,21 @@ function App() {
       try {
         setCloudMenuLoading(true);
         const state = await loadHumiState(humiSession);
-        setTodayMenu(Array.isArray(state?.todayMenu) ? state.todayMenu : []);
-        setWeekPlan({ ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) });
+        const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) };
+        const loadedMealPlan = normalizeMealPlan(
+          state?.mealPlan ?? createMealPlanFromLegacy({
+            mealCalendar: state?.mealCalendar,
+            weekPlan: loadedWeekPlan,
+            todayMenu: state?.todayMenu,
+            todayDateKey,
+            currentDay: getCurrentPlanDay(),
+          }),
+        );
+        setMealPlan(loadedMealPlan);
+        setTodayMenu(getDayMeals(loadedMealPlan, todayDateKey).dinner.length > 0
+          ? getDayMeals(loadedMealPlan, todayDateKey).dinner
+          : Array.isArray(state?.todayMenu) ? state.todayMenu : []);
+        setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
         setCloudSyncStatus("已刷新微信账号保存的菜单。");
         showNotice("微信账号菜单已刷新");
       } catch (error) {
@@ -1915,6 +2057,12 @@ function App() {
       const cloudMenus = await loadMenuSync(family.id);
       setTodayMenu(cloudMenus.todayMenu);
       setWeekPlan(cloudMenus.weekPlan);
+      setMealPlan(createMealPlanFromLegacy({
+        weekPlan: cloudMenus.weekPlan,
+        todayMenu: cloudMenus.todayMenu,
+        todayDateKey,
+        currentDay: getCurrentPlanDay(),
+      }));
       setCloudMenuEnabled(true);
       setCloudSyncStatus("已刷新我的家里保存的今晚菜单和一周计划。");
       showNotice("云端菜单已刷新");
@@ -2191,6 +2339,7 @@ function App() {
             {activeView === "dashboard" && (
               <Dashboard
                 todayRecipes={todayRecipes}
+                todayMeals={todayMeals}
                 weekPlan={weekPlan}
                 recommendation={displayedRecommendation}
                 aiRecommendationStatus={aiRecommendationStatus}
@@ -2246,9 +2395,13 @@ function App() {
             {activeView === "planner" && (
               <Planner
                 weekPlan={weekPlan}
+                mealPlan={mealPlan}
+                weekDateKeys={weekDateKeys}
                 draggedRecipeId={draggedRecipeId}
                 onAssign={assignPlan}
+                onAssignMeal={assignMealRecipe}
                 onRemove={removePlanRecipe}
+                onRemoveMeal={removeMealRecipe}
                 onShare={shareWeekPlan}
                 onViewChange={navigateTo}
                 onGenerateWeek={planRecommendedWeek}
@@ -2371,6 +2524,7 @@ function App() {
                 familyProfile={familyProfile}
                 nutritionGoals={nutritionGoals}
                 weekPlan={weekPlan}
+                mealPlan={mealPlan}
               />
             )}
             {activeView === "stats" && (
@@ -2380,6 +2534,7 @@ function App() {
                 groceryItems={visibleGroceryItems}
                 weekPlan={weekPlan}
                 mealCalendar={mealCalendar}
+                mealPlan={mealPlan}
                 mealLogs={mealLogs}
                 familyProfile={familyProfile}
                 nutritionGoals={nutritionGoals}
