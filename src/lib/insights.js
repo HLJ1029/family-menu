@@ -1,4 +1,5 @@
 import { getPlanningMode } from "./profile";
+import { mealPlanEntriesForGroceries } from "./mealPlan";
 import { getRecipe, nutritionFor, recipes } from "./recipes";
 
 const nutrientLabels = {
@@ -27,7 +28,7 @@ export function getDefaultNutritionGoals(profile = {}) {
     proteinRatioMin: 0.35,
     quickRatioMin: 0.35,
     homeCookRatioMin: 0.5,
-    label: "均衡家庭晚餐",
+    label: "均衡家庭三餐",
   };
 
   if (mode.id === "fat_loss") {
@@ -39,7 +40,7 @@ export function getDefaultNutritionGoals(profile = {}) {
       carbsGMax: 58,
       vegetableRatioMin: 0.45,
       homeCookRatioMin: 0.6,
-      label: "减脂晚餐",
+      label: "减脂三餐",
     };
   }
 
@@ -52,7 +53,7 @@ export function getDefaultNutritionGoals(profile = {}) {
       carbsGMax: 95,
       proteinRatioMin: 0.5,
       quickRatioMin: 0.3,
-      label: "健身增肌晚餐",
+      label: "健身增肌三餐",
     };
   }
 
@@ -91,6 +92,7 @@ export function buildMealInsights({
   todayRecipes = [],
   plannedRecipes = [],
   weekPlan = {},
+  mealPlan = {},
   currentDate = new Date(),
 } = {}) {
   const monthKey = formatMonthKey(currentDate);
@@ -109,7 +111,10 @@ export function buildMealInsights({
     }))
     .filter((meal) => meal.recipes.length > 0);
   const confirmedRecipes = confirmedMeals.flatMap((meal) => meal.recipes);
-  const fallbackRecipes = [...todayRecipes, ...plannedRecipes].filter(Boolean);
+  const mealPlanRecipes = mealPlanEntriesForGroceries(mealPlan)
+    .map((entry) => getRecipe(entry.recipeId))
+    .filter(Boolean);
+  const fallbackRecipes = [...todayRecipes, ...plannedRecipes, ...mealPlanRecipes].filter(Boolean);
   const hasConfirmedMeals = confirmedMeals.length > 0;
   const analysisRecipes = hasConfirmedMeals ? confirmedRecipes : fallbackRecipes;
   const nutritionTotals = sumNutrition(analysisRecipes);

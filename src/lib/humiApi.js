@@ -1,4 +1,5 @@
 const DEFAULT_HUMI_API_BASE_URL = "https://api.humi-home.com";
+const HUMI_API_TIMEOUT_MS = 12_000;
 
 export function isHumiApiSession(session) {
   return Boolean(session?.accessToken && session?.user?.provider === "wechat");
@@ -28,19 +29,32 @@ export async function logoutHumiSession(session) {
 
 async function humiApiRequest(path, { method = "GET", session, body } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
-  const response = await fetch(`${getHumiApiBaseUrl()}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.accessToken}`,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || "Humi 账号同步暂时不可用。");
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), HUMI_API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${getHumiApiBaseUrl()}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "Humi 账号同步暂时不可用。");
+    }
+    return data;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("同步连接超时，请检查网络后重试。");
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timer);
   }
-  return data;
 }
 
 function getHumiApiBaseUrl() {

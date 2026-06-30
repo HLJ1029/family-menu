@@ -4,7 +4,12 @@ Page({
   data: {
     url: "",
     loginPending: false,
-    loginError: ""
+    loginError: "",
+    phoneBindVisible: false,
+    phoneBindPending: false,
+    phoneBindError: "",
+    currentSession: null,
+    phoneSessionUpdatedAt: 0
   },
 
   onLoad() {
@@ -15,6 +20,20 @@ Page({
     this.setData({ url: getHumiH5Url() });
   },
 
+  onShow() {
+    const app = getApp();
+    const updatedAt = app.globalData?.humiPhoneSessionUpdatedAt || 0;
+    const session = app.globalData?.humiSession;
+    if (updatedAt && updatedAt !== this.data.phoneSessionUpdatedAt && session?.accessToken) {
+      this.setData({
+        currentSession: session,
+        phoneSessionUpdatedAt: updatedAt,
+        phoneBindVisible: false,
+        url: appendSessionToUrl(getHumiH5Url(), session)
+      });
+    }
+  },
+
   handleLoad() {},
 
   handleMessage(event) {
@@ -22,6 +41,13 @@ Page({
     const latestMessage = messages[messages.length - 1];
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
       this.loginWithWechat();
+    }
+    if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:phone-bind") {
+      if (!this.data.currentSession?.accessToken) {
+        this.loginWithWechat();
+        return;
+      }
+      this.setData({ phoneBindVisible: true, phoneBindError: "" });
     }
   },
 
@@ -49,10 +75,12 @@ Page({
           success: ({ statusCode, data }) => {
             if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
               this.setData({ loginError: "登录服务暂时不可用，请稍后重试。" });
-              return;
-            }
+          return;
+        }
 
-            this.setData({ url: appendSessionToUrl(getHumiH5Url(), data) });
+            const app = getApp();
+            app.globalData.humiSession = data;
+            this.setData({ currentSession: data, url: appendSessionToUrl(getHumiH5Url(), data) });
             if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
@@ -65,6 +93,58 @@ Page({
       },
       fail: () => {
         this.setData({ loginPending: false, loginError: "微信登录失败，请重新尝试。" });
+      }
+    });
+  },
+
+  cancelPhoneBind() {
+    this.setData({ phoneBindVisible: false, phoneBindPending: false, phoneBindError: "" });
+  },
+
+  bindWechatPhone(event) {
+    if (this.data.phoneBindPending) return;
+    const code = event.detail?.code;
+    if (!code) {
+      this.setData({ phoneBindError: "没有完成手机号授权，可以稍后在我的家重新绑定。" });
+      return;
+    }
+    const session = this.data.currentSession;
+    if (!session?.accessToken) {
+      this.setData({ phoneBindError: "微信登录状态已失效，请重新登录后再绑定。" });
+      return;
+    }
+
+    this.setData({ phoneBindPending: true, phoneBindError: "" });
+    wx.request({
+      url: `${getHumiApiBaseUrl()}/auth/wechat/phone`,
+      method: "POST",
+      data: { code },
+      header: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${session.accessToken}`
+      },
+      success: ({ statusCode, data }) => {
+        if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
+          this.setData({ phoneBindError: "手机号绑定暂时不可用，请稍后再试。" });
+          return;
+        }
+
+        const app = getApp();
+        app.globalData.humiSession = data;
+        app.globalData.humiPhoneSessionUpdatedAt = Date.now();
+        this.setData({
+          currentSession: data,
+          phoneSessionUpdatedAt: app.globalData.humiPhoneSessionUpdatedAt,
+          phoneBindVisible: false,
+          url: appendSessionToUrl(getHumiH5Url(), data)
+        });
+        wx.showToast({ title: "手机号已绑定", icon: "success" });
+      },
+      fail: () => {
+        this.setData({ phoneBindError: "网络连接失败，请检查网络后重试。" });
+      },
+      complete: () => {
+        this.setData({ phoneBindPending: false });
       }
     });
   }

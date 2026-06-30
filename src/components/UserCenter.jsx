@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
@@ -9,6 +9,7 @@ import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
+import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
 
 export function UserCenter({
   authProps,
@@ -31,6 +32,9 @@ export function UserCenter({
   const signedIn = Boolean(session?.user || humiSession);
   const signOutLabel = humiSession ? "退出并重新验证微信登录" : "退出账号";
   const [activeSettings, setActiveSettings] = useState(null);
+  const [phoneBindStatus, setPhoneBindStatus] = useState("");
+  const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
+  const phoneMasked = humiSession?.user?.phoneMasked;
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
@@ -45,6 +49,18 @@ export function UserCenter({
   const topReasons = validationSummary.topRejectedReasons.length > 0
     ? validationSummary.topRejectedReasons
     : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
+
+  function handleBindPhone() {
+    if (!isWechatMiniProgram || !humiSession) {
+      setPhoneBindStatus("手机号绑定只在微信小程序内通过用户主动授权完成。");
+      return;
+    }
+    if (requestPhoneBindFromMiniProgram()) {
+      setPhoneBindStatus("正在唤起微信手机号授权。拒绝授权也不影响继续使用 Humi。");
+      return;
+    }
+    setPhoneBindStatus("当前环境暂时无法唤起手机号授权，请在微信小程序内重试。");
+  }
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
@@ -194,6 +210,9 @@ export function UserCenter({
           </div>
           <div className="mt-5 grid gap-3">
             <StatusRow label="登录" value={getIdentityLabel({ session, humiSession })} />
+            {humiSession && (
+              <StatusRow label="手机号" value={phoneVerified ? phoneMasked || "已绑定" : "未绑定"} />
+            )}
             <StatusRow label="我的家" value={family?.name ?? (signedIn ? "待创建" : "未登录")} />
             <StatusRow
               label="保存方式"
@@ -210,6 +229,25 @@ export function UserCenter({
               <LogOut size={16} />
               {signOutLabel}
             </button>
+          )}
+          {isWechatMiniProgram && humiSession && !phoneVerified && (
+            <button
+              type="button"
+              onClick={handleBindPhone}
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+            >
+              <Phone size={16} />
+              绑定手机号
+            </button>
+          )}
+          {isWechatMiniProgram && humiSession && phoneVerified && (
+            <div className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-canvas px-4 text-sm font-black text-ink/62">
+              <Phone size={16} />
+              手机号已绑定
+            </div>
+          )}
+          {phoneBindStatus && (
+            <p className="mt-3 text-xs font-bold leading-5 text-ink/42">{phoneBindStatus}</p>
           )}
         </Card>
 

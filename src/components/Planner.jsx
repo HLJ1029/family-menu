@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarDays, Plus, Search, X } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
 import { getCurrentPlanDay } from "../lib/date";
+import { getDayMeals, mealSlots } from "../lib/mealPlan";
 import { getRecipe, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
@@ -22,17 +23,30 @@ function getWeekDates() {
   });
 }
 
-export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSync, onViewChange }) {
+export function Planner({
+  weekPlan,
+  mealPlan = {},
+  weekDateKeys = {},
+  draggedRecipeId,
+  onAssign,
+  onAssignMeal,
+  onRemove,
+  onRemoveMeal,
+  cloudSync,
+  onViewChange,
+}) {
   const currentDay = getCurrentPlanDay();
   const currentIndex = days.indexOf(currentDay);
   const weekDates = getWeekDates();
 
   const [selectedDay, setSelectedDay] = useState(currentDay);
-  const [pickerDay, setPickerDay] = useState(null);
+  const [pickerTarget, setPickerTarget] = useState(null);
   const [pickerQuery, setPickerQuery] = useState("");
 
   const selectedIndex = days.indexOf(selectedDay);
-  const selectedRecipes = (weekPlan[selectedDay] ?? []).map((id) => getRecipe(id)).filter(Boolean);
+  const selectedDateKey = weekDateKeys[selectedDay];
+  const selectedMeals = getDayMeals(mealPlan, selectedDateKey);
+  const selectedRecipeCount = mealSlots.reduce((total, slot) => total + (selectedMeals[slot.id]?.length ?? 0), 0);
 
   const pickerRecipes = recipes.filter((recipe) => {
     const keyword = pickerQuery.trim().toLowerCase();
@@ -43,19 +57,23 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
       .includes(keyword);
   });
 
-  function openPicker(day) {
-    setPickerDay(day);
+  function openPicker(day, slotId = "dinner") {
+    setPickerTarget({ day, slotId, dateKey: weekDateKeys[day] });
     setPickerQuery("");
   }
 
   function closePicker() {
-    setPickerDay(null);
+    setPickerTarget(null);
     setPickerQuery("");
   }
 
   function chooseRecipe(recipeId) {
-    if (!pickerDay) return;
-    onAssign(pickerDay, recipeId);
+    if (!pickerTarget) return;
+    if (pickerTarget.dateKey && onAssignMeal) {
+      onAssignMeal(pickerTarget.dateKey, pickerTarget.slotId, recipeId);
+    } else {
+      onAssign(pickerTarget.day, recipeId);
+    }
     closePicker();
   }
 
@@ -79,7 +97,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
         </div>
         <div>
           <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-ink/52">
-            每天留一点余地，晚饭、清单和库存会跟着同步。
+            每天留一点余地，早餐、午餐、晚餐都会进入清单和饮食画像。
           </p>
         </div>
       </div>
@@ -125,41 +143,68 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
           {selectedDay === currentDay ? `今天·${currentDay}` : selectedDay}
         </p>
         <h3 className="card-title">
-          {selectedRecipes.length > 0
-            ? `已安排 ${selectedRecipes.length} 道菜`
+          {selectedRecipeCount > 0
+            ? `已安排 ${selectedRecipeCount} 道`
             : "还没有安排"}
         </h3>
         <div className="mt-4 grid gap-2">
-          {selectedRecipes.map((recipe) => (
-            <div
-              key={recipe.id}
-              className="flex items-center gap-3 rounded-2xl border border-line bg-white p-2 pr-4"
-            >
-              <DishImage
-                recipe={recipe}
-                variant="thumb"
-                alt={recipe.name}
-                className="h-12 w-12 rounded-xl object-cover"
-              />
-              <span className="min-w-0 flex-1 text-sm font-black">{recipe.name}</span>
-              <button
-                type="button"
-                onClick={() => onRemove(selectedDay, recipe.id)}
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-canvas text-ink/50 transition hover:bg-ink/10 hover:text-ink"
-                aria-label={`移除 ${recipe.name}`}
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => openPicker(selectedDay)}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-ink/20 text-sm font-black text-ink/45 transition hover:border-ink/40 hover:text-ink"
-          >
-            <Plus size={14} />
-            添加菜品
-          </button>
+          {mealSlots.map((slot) => {
+            const entries = selectedMeals[slot.id] ?? [];
+            return (
+              <div key={slot.id} className="rounded-[22px] border border-line bg-canvas p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">{slot.label}</p>
+                  <button
+                    type="button"
+                    onClick={() => openPicker(selectedDay, slot.id)}
+                    className="inline-flex min-h-8 items-center gap-1 rounded-full bg-white px-3 text-xs font-black text-ink transition hover:bg-ink hover:text-white"
+                  >
+                    <Plus size={13} />
+                    添加
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {entries.length === 0 && (
+                    <p className="rounded-2xl bg-white p-3 text-sm font-bold text-ink/42">
+                      还没安排{slot.label}
+                    </p>
+                  )}
+                  {entries.map((entry) => {
+                    const recipe = getRecipe(entry.recipeId);
+                    if (!recipe) return null;
+                    return (
+                      <div
+                        key={`${slot.id}:${recipe.id}`}
+                        className="flex items-center gap-3 rounded-2xl border border-line bg-white p-2 pr-4"
+                      >
+                        <DishImage
+                          recipe={recipe}
+                          variant="thumb"
+                          alt={recipe.name}
+                          className="h-12 w-12 rounded-xl object-cover"
+                        />
+                        <span className="min-w-0 flex-1 text-sm font-black">
+                          {recipe.name}
+                          {entry.quantity > 1 && <span className="ml-2 text-xs text-ink/38">x{entry.quantity}</span>}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedDateKey && onRemoveMeal) onRemoveMeal(selectedDateKey, slot.id, recipe.id);
+                            else onRemove(selectedDay, recipe.id);
+                          }}
+                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-canvas text-ink/50 transition hover:bg-ink/10 hover:text-ink"
+                          aria-label={`移除 ${recipe.name}`}
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -186,7 +231,7 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
       </button>
 
       {/* Recipe picker modal */}
-      {pickerDay && (
+      {pickerTarget && (
         <div className="fixed inset-0 z-50">
           <button
             type="button"
@@ -198,9 +243,9 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
             <div className="border-b border-line bg-white/90 p-5 backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="eyebrow">{pickerDay}</p>
+                  <p className="eyebrow">{pickerTarget.day} · {mealSlots.find((slot) => slot.id === pickerTarget.slotId)?.label}</p>
                   <h3 className="card-title">添加菜品</h3>
-                  <p className="mt-2 text-sm font-bold text-ink/50">选择一道菜加入这一天的计划。</p>
+                  <p className="mt-2 text-sm font-bold text-ink/50">选择一道菜加入这顿饭。</p>
                 </div>
                 <button
                   type="button"
@@ -224,7 +269,9 @@ export function Planner({ weekPlan, draggedRecipeId, onAssign, onRemove, cloudSy
             <div className="max-h-[58vh] overflow-y-auto p-5">
               <div className="grid gap-3">
                 {pickerRecipes.map((recipe) => {
-                  const alreadyAdded = (weekPlan[pickerDay] ?? []).includes(recipe.id);
+                  const targetMeals = getDayMeals(mealPlan, pickerTarget.dateKey);
+                  const alreadyAdded = (targetMeals[pickerTarget.slotId] ?? []).some((entry) => entry.recipeId === recipe.id) ||
+                    (pickerTarget.slotId === "dinner" && (weekPlan[pickerTarget.day] ?? []).includes(recipe.id));
                   return (
                     <button
                       key={recipe.id}

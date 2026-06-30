@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
+import { mealSlots } from "../lib/mealPlan";
+import { getRecipe } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
 import { DishImage } from "./ui/DishImage";
 import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
@@ -28,6 +30,7 @@ const dinnerConfirmations = [
 
 export function Dashboard({
   todayRecipes,
+  todayMeals = {},
   weekPlan,
   recommendation,
   aiRecommendationStatus,
@@ -64,6 +67,14 @@ export function Dashboard({
   const hasStaple = activeRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
   const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
+  const todayMealSummaries = mealSlots.map((slot) => {
+    const recipes = (todayMeals[slot.id] ?? []).map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
+    return {
+      ...slot,
+      recipes,
+      count: recipes.length,
+    };
+  });
   function arrangeTonight() {
     setArranging(true);
     onAddRecommended();
@@ -114,6 +125,21 @@ export function Dashboard({
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
             </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-3">
+              {todayMealSummaries.map((slot) => (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => onViewChange(slot.id === "dinner" ? "today" : "planner")}
+                  className="rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/30"
+                >
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{slot.label}</span>
+                  <span className="mt-2 block truncate text-sm font-black">
+                    {slot.count > 0 ? slot.recipes.map((recipe) => recipe.name).join("、") : "待安排"}
+                  </span>
+                </button>
+              ))}
+            </div>
             </div>
             <div className="justify-self-center md:justify-self-end">
               <HumiBrandIllustration

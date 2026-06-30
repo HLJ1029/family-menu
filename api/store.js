@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -30,8 +30,18 @@ export class HumiStore {
   }
 
   async save() {
+    // 串行化写入：并发请求各自 mutate 后调用 save，依次落盘，避免互相覆盖/交错。
+    const run = () => this.flushToDisk();
+    this.saveQueue = (this.saveQueue ?? Promise.resolve()).then(run, run);
+    return this.saveQueue;
+  }
+
+  async flushToDisk() {
     await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, `${JSON.stringify(this.data, null, 2)}\n`);
+    // 原子写：先写临时文件再 rename，避免进程中断时留下半写的损坏文件。
+    const tmpPath = `${this.filePath}.${randomUUID()}.tmp`;
+    await writeFile(tmpPath, `${JSON.stringify(this.data, null, 2)}\n`);
+    await rename(tmpPath, this.filePath);
   }
 
   async findOrCreateWechatUser({ openid, unionid }) {
@@ -85,6 +95,23 @@ export class HumiStore {
     return this.data.profiles[userId];
   }
 
+  async bindPhoneNumber(userId, phoneInfo) {
+    await this.load();
+    const user = this.data.users.find((item) => item.id === userId);
+    if (!user) return null;
+
+    const purePhoneNumber = normalizePhone(phoneInfo.purePhoneNumber || phoneInfo.phoneNumber);
+    const countryCode = normalizeCountryCode(phoneInfo.countryCode);
+    const now = new Date().toISOString();
+    user.phoneCountryCode = countryCode;
+    user.phoneMasked = maskPhoneNumber(purePhoneNumber);
+    user.phoneHash = String(phoneInfo.phoneHash || "");
+    user.phoneVerifiedAt = now;
+    user.updatedAt = now;
+    await this.save();
+    return user;
+  }
+
   async getState(userId) {
     await this.load();
     return this.data.states[userId] ?? null;
@@ -110,4 +137,18 @@ export class HumiStore {
     await this.load();
     return this.data.revokedTokens.includes(token);
   }
+}
+
+function normalizePhone(value = "") {
+  return String(value).replace(/\D/g, "").slice(0, 24);
+}
+
+function normalizeCountryCode(value = "") {
+  const normalized = String(value || "86").replace(/\D/g, "").slice(0, 6);
+  return normalized || "86";
+}
+
+function maskPhoneNumber(phoneNumber) {
+  if (phoneNumber.length < 7) return phoneNumber ? `${phoneNumber.slice(0, 2)}****` : "";
+  return `${phoneNumber.slice(0, 3)}****${phoneNumber.slice(-4)}`;
 }

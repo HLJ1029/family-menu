@@ -1,7 +1,11 @@
 import { getSupabase, isSupabaseConfigured } from "./client";
 import { resolveFunctionError } from "./functionError";
+import { isHumiAiViaApiEnabled, recommendMealsViaApi } from "../aiViaHumiApi";
 
 export async function recommendMeals(context) {
+  if (isHumiAiViaApiEnabled) {
+    return recommendMealsViaApi(context);
+  }
   if (!isSupabaseConfigured) {
     throw new Error("Supabase is not configured.");
   }

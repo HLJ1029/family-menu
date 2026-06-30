@@ -56,6 +56,24 @@ export function requestWechatLoginFromMiniProgram() {
   return true;
 }
 
+export function requestPhoneBindFromMiniProgram() {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram) return false;
+  if (miniProgram.navigateTo) {
+    miniProgram.navigateTo({ url: "/pages/phone-bind/index" });
+    return true;
+  }
+  if (!miniProgram.postMessage) return false;
+  miniProgram.postMessage({
+    data: {
+      type: "humi:phone-bind",
+      requestedAt: Date.now(),
+    },
+  });
+  return true;
+}
+
 function normalizeHumiSession(session) {
   const user = session.user ?? {};
   return {
@@ -66,6 +84,9 @@ function normalizeHumiSession(session) {
       id: user.id ?? session.userId ?? "",
       displayName: user.displayName ?? "微信用户",
       provider: user.provider ?? "wechat",
+      phoneVerified: Boolean(user.phoneVerified),
+      phoneMasked: user.phoneMasked ?? "",
+      phoneVerifiedAt: user.phoneVerifiedAt ?? null,
     },
   };
 }

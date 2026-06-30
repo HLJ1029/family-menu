@@ -11,6 +11,7 @@ export function StatsPage({
   groceryItems,
   weekPlan,
   mealCalendar,
+  mealPlan,
   mealLogs = {},
   familyProfile,
   nutritionGoals,
@@ -26,6 +27,7 @@ export function StatsPage({
     todayRecipes,
     plannedRecipes,
     weekPlan,
+    mealPlan,
   });
   const averageTime =
     insights.analysisRecipes.length > 0
@@ -51,11 +53,11 @@ export function StatsPage({
             {insights.goals.label}
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            按每顿晚餐做目标管理；只把确认“全部吃了”的晚餐纳入营养目标。
+            按早餐、午餐、晚餐一起做目标管理；已确认的餐次优先纳入营养目标。
           </p>
           {!insights.hasConfirmedMeals && (
             <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
-              样本不足，当前先用今晚菜单和本周计划做弱参考
+              样本不足，当前先用今日菜单和本周三餐计划做弱参考
             </p>
           )}
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -116,7 +118,7 @@ export function StatsPage({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="eyebrow">Diet portrait</p>
-              <h3 className="card-title">本月晚餐画像</h3>
+              <h3 className="card-title">本月饮食画像</h3>
             </div>
             <ChefHat size={22} />
           </div>
@@ -162,7 +164,7 @@ export function StatsPage({
               ))
             ) : (
               <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/50">
-                暂无统计数据。先回首页安排晚饭，或在一周计划里安排菜品。
+                暂无统计数据。先回首页安排今日菜单，或在一周计划里补齐三餐。
               </p>
             )}
           </div>
