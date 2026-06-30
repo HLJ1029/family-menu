@@ -101,6 +101,24 @@ docs/miniprogram-mvp-plan.md
 docs/Humi_微信小程序上线计划_V1.md
 ```
 
+首发发布日 Runbook：
+
+```text
+docs/launch-day-runbook.md
+```
+
+首批反馈与 1.0.1 修复池：
+
+```text
+docs/launch-feedback-and-101-backlog.md
+```
+
+生产健康检查：
+
+```bash
+npm run monitor:prod
+```
+
 视觉资产生成指南：
 
 ```text

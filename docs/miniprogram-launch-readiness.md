@@ -177,6 +177,8 @@ H5 通过查询参数识别来源：
 
 - `docs/miniprogram-review-materials.md`
 - `docs/privacy-data-inventory.md`
+- `docs/launch-day-runbook.md`
+- `docs/launch-feedback-and-101-backlog.md`
 
 微信登录和手机号绑定技术方案见：
 
@@ -219,6 +221,13 @@ H5 通过查询参数识别来源：
 - `npm run release:check` 通过。
 - `npm run release:check:online` 通过。
 - 当前 UI 升级仍在未提交工作区中，且因缺少 `src/components/ui/HumiBrandIllustration.jsx` 导致 `npm run build` 失败；不要把该 UI 批次视为可发布候选。
+
+2026-06-30 状态同步：
+
+- 1.0.0 已作为首发候选提交微信审核。
+- 自建 API 已接入 DeepSeek 推荐，前端生产构建已启用 `VITE_HUMI_AI_VIA_API=1`。
+- 发布等待期补齐 `docs/launch-day-runbook.md`、`docs/launch-feedback-and-101-backlog.md` 和 `npm run monitor:prod` 生产健康检查入口。
+- 当前首发口径以 2026-06-30 审核候选为准，2026-06-24 的 UI 批次风险已由后续提交关闭。
 
 ## 6. 域名备案完成后的工作
 
