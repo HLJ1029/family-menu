@@ -1,4 +1,4 @@
-const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.1";
+const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.5";
 const HUMI_DEVTOOLS_URL = HUMI_WEB_URL;
 const HUMI_API_BASE_URL = "https://api.humi-home.com";
 const HUMI_DEVTOOLS_API_BASE_URL = HUMI_API_BASE_URL;
