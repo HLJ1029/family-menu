@@ -63,6 +63,8 @@ export function Dashboard({
   onRefreshCraveRequest,
   onGenerateFromCrave,
   onPickForMeal,
+  onRecordBreakfast,
+  onSetLunchSource,
   session,
   onOpenUserCenter,
   familyProfile,
@@ -96,13 +98,18 @@ export function Dashboard({
   const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
   const todayMealSummaries = mealSlots.map((slot) => {
-    const recipes = (todayMeals[slot.id] ?? []).map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
+    const entries = todayMeals[slot.id] ?? [];
+    const recipes = entries.map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
     return {
       ...slot,
+      entries,
       recipes,
       count: recipes.length,
     };
   });
+  const breakfastSummary = todayMealSummaries.find((slot) => slot.id === "breakfast");
+  const lunchSummary = todayMealSummaries.find((slot) => slot.id === "lunch");
+  const lunchLog = mealLog?.meals?.lunch ?? {};
   function arrangeTonight() {
     setArranging(true);
     onAddRecommended();
@@ -157,23 +164,14 @@ export function Dashboard({
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {todayMealSummaries.filter((slot) => slot.id !== "dinner").map((slot) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  onClick={() => onPickForMeal?.(slot.id)}
-                  className="rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/30"
-                >
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{slot.label}</span>
-                  <span className="mt-2 block truncate text-sm font-black">
-                    {slot.count > 0
-                      ? slot.recipes.map((recipe) => recipe.name).join("、")
-                      : slot.id === "breakfast" ? "点一下记早餐" : "在家做时再安排"}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <MealRhythmPanel
+              breakfastSummary={breakfastSummary}
+              lunchSummary={lunchSummary}
+              lunchLog={lunchLog}
+              onRecordBreakfast={onRecordBreakfast}
+              onSetLunchSource={onSetLunchSource}
+              onPickForMeal={onPickForMeal}
+            />
             </div>
             <div className="justify-self-center md:justify-self-end">
               <HumiBrandIllustration
@@ -443,6 +441,112 @@ function summarizeVotes(votes) {
   const counts = new Map();
   votes.forEach((vote) => counts.set(vote.feelingTag, (counts.get(vote.feelingTag) ?? 0) + 1));
   return [...counts.entries()].map(([tag, count]) => count > 1 ? `${tag} x${count}` : tag).join(" · ");
+}
+
+function MealRhythmPanel({
+  breakfastSummary,
+  lunchSummary,
+  lunchLog,
+  onRecordBreakfast,
+  onSetLunchSource,
+  onPickForMeal,
+}) {
+  const breakfastNames = breakfastSummary?.recipes?.map((recipe) => recipe.name).join("、");
+  const lunchNames = lunchSummary?.recipes?.map((recipe) => recipe.name).join("、");
+  const lunchSourceLabels = {
+    home: "在家吃",
+    delivery: "外卖",
+    outside: "外面吃",
+    skip: "不记录",
+  };
+  const lunchSource = lunchLog?.source;
+  return (
+    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <div className="rounded-[20px] border border-line bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">早餐</span>
+            <span className="mt-2 block truncate text-sm font-black">
+              {breakfastNames || "点一下记早餐"}
+            </span>
+          </div>
+          {breakfastSummary?.count > 0 && (
+            <span className="shrink-0 rounded-full bg-canvas px-2 py-1 text-[11px] font-black text-ink/45">已记</span>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onRecordBreakfast?.()}
+            className="min-h-9 rounded-full bg-ink px-3 text-xs font-black text-white"
+          >
+            {breakfastSummary?.count > 0 ? "再记一份" : "记早餐"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPickForMeal?.("breakfast")}
+            className="min-h-9 rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58"
+          >
+            换一个
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[20px] border border-line bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">午餐</span>
+            <span className="mt-2 block truncate text-sm font-black">
+              {lunchNames || lunchSourceLabels[lunchSource] || "今天怎么吃"}
+            </span>
+          </div>
+          {lunchSource && (
+            <span className="shrink-0 rounded-full bg-canvas px-2 py-1 text-[11px] font-black text-ink/45">
+              {lunchSourceLabels[lunchSource]}
+            </span>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onSetLunchSource?.("home")}
+            className={`min-h-9 rounded-full px-3 text-xs font-black ${
+              lunchSource === "home" ? "bg-ink text-white" : "border border-line bg-canvas text-ink/58"
+            }`}
+          >
+            在家做
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetLunchSource?.("delivery")}
+            className={`min-h-9 rounded-full px-3 text-xs font-black ${
+              lunchSource === "delivery" ? "bg-ink text-white" : "border border-line bg-canvas text-ink/58"
+            }`}
+          >
+            外卖
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetLunchSource?.("outside")}
+            className={`min-h-9 rounded-full px-3 text-xs font-black ${
+              lunchSource === "outside" ? "bg-ink text-white" : "border border-line bg-canvas text-ink/58"
+            }`}
+          >
+            外面吃
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetLunchSource?.("skip")}
+            className={`min-h-9 rounded-full px-3 text-xs font-black ${
+              lunchSource === "skip" ? "bg-ink text-white" : "border border-line bg-canvas text-ink/58"
+            }`}
+          >
+            不记录
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const recommendationRejectReasons = [

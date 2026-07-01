@@ -857,7 +857,7 @@ function App() {
     });
   }
 
-  function assignMealRecipe(dateKey, slotId, recipeId, quantity = 1) {
+  function assignMealRecipe(dateKey, slotId, recipeId, quantity = 1, { silent = false } = {}) {
     const recipe = getRecipe(recipeId);
     const slotLabel = slotLabelsById[slotId] ?? "餐次";
     updateMealPlanSlot(dateKey, slotId, (entries) => upsertMealEntry(entries, recipeId, quantity));
@@ -867,7 +867,7 @@ function App() {
       mealSlot: slotId,
       source: "manual_meal_slot",
     });
-    showNotice(`${recipe?.name ?? "菜品"} 已添加到${formatDateLabel(dateKey)}${slotLabel}`);
+    if (!silent) showNotice(`${recipe?.name ?? "菜品"} 已添加到${formatDateLabel(dateKey)}${slotLabel}`);
   }
 
   function removeMealRecipe(dateKey, slotId, recipeId) {
@@ -1152,15 +1152,30 @@ function App() {
   }
   function pickForMeal(slotId) {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
-    const preferredRecipe = recipes.find((recipe) => recipe.tags?.includes(slotLabel) || recipe.categories?.includes(slotLabel))
-      ?? recipes.find((recipe) => slotId === "breakfast" && (recipe.tags?.includes("早餐") || recipe.categories?.includes("早餐")))
-      ?? recipes.find((recipe) => slotId === "lunch" && (recipe.tags?.includes("午餐") || recipe.categories?.includes("午餐")))
-      ?? displayedRecommendation.recipes[0];
+    const currentRecipeIds = new Set((todayMeals[slotId] ?? []).map((entry) => entry.recipeId));
+    const preferredRecipe = getPreferredMealRecipe(slotId, currentRecipeIds);
     if (!preferredRecipe) {
       showNotice(`${slotLabel}先不用安排`);
       return;
     }
-    assignMealRecipe(todayDateKey, slotId, preferredRecipe.id);
+    if (slotId === "breakfast") {
+      updateMealPlanSlot(todayDateKey, "breakfast", () => [{ recipeId: preferredRecipe.id, quantity: 1 }]);
+      recordMealSlot("breakfast", {
+        source: "home",
+        consumedEntries: [{ recipeId: preferredRecipe.id, quantity: 1 }],
+        quickRecordedAt: new Date().toISOString(),
+      });
+      showNotice(`${preferredRecipe.name} 已换到早餐`);
+      return;
+    }
+    assignMealRecipe(todayDateKey, slotId, preferredRecipe.id, 1, { silent: slotId === "breakfast" || slotId === "lunch" });
+    if (slotId === "lunch") {
+      recordMealSlot("lunch", {
+        source: "home",
+        consumedEntries: getMealSlotEntriesAfterAdd("lunch", preferredRecipe.id),
+        quickRecordedAt: new Date().toISOString(),
+      });
+    }
     showNotice(`${preferredRecipe.name} 已记到${slotLabel}`);
   }
 
@@ -1174,6 +1189,108 @@ function App() {
         updatedAt,
       },
     }));
+  }
+
+  function recordMealSlot(slotId, patch) {
+    const updatedAt = new Date().toISOString();
+    setMealLogs((current) => {
+      const currentLog = current[todayDateKey] ?? {};
+      return {
+        ...current,
+        [todayDateKey]: {
+          ...currentLog,
+          meals: {
+            ...(currentLog.meals ?? {}),
+            [slotId]: {
+              ...(currentLog.meals?.[slotId] ?? {}),
+              ...patch,
+              updatedAt,
+            },
+          },
+          updatedAt,
+        },
+      };
+    });
+  }
+
+  function getPreferredMealRecipe(slotId, excludedRecipeIds = new Set()) {
+    const slotLabel = slotLabelsById[slotId] ?? "这一餐";
+    const isAvailable = (recipe) => recipe && !excludedRecipeIds.has(recipe.id);
+    return recipes.find((recipe) => isAvailable(recipe) && (recipe.tags?.includes(slotLabel) || recipe.categories?.includes(slotLabel)))
+      ?? recipes.find((recipe) => isAvailable(recipe) && slotId === "breakfast" && (recipe.tags?.includes("早餐") || recipe.categories?.includes("早餐")))
+      ?? recipes.find((recipe) => isAvailable(recipe) && slotId === "lunch" && (recipe.tags?.includes("午餐") || recipe.categories?.includes("午餐")))
+      ?? displayedRecommendation.recipes.find(isAvailable)
+      ?? displayedRecommendation.recipes[0];
+  }
+
+  function getMealSlotEntriesAfterAdd(slotId, recipeId) {
+    return upsertMealEntry(todayMeals[slotId] ?? [], recipeId, 1);
+  }
+
+  function recordBreakfast() {
+    const recipe = getPreferredMealRecipe("breakfast");
+    if (!recipe) {
+      showNotice("早餐先不用记录");
+      return;
+    }
+    assignMealRecipe(todayDateKey, "breakfast", recipe.id, 1, { silent: true });
+    const consumedEntries = getMealSlotEntriesAfterAdd("breakfast", recipe.id);
+    recordMealSlot("breakfast", {
+      source: "home",
+      consumedEntries,
+      quickRecordedAt: new Date().toISOString(),
+    });
+    trackValidationEvent(validationEvents.mealSourceSelected, {
+      mealSlot: "breakfast",
+      source: "home",
+      recipeIds: consumedEntries.map((item) => item.recipeId),
+      dateKey: todayDateKey,
+    });
+    showNotice(`${recipe.name} 已记到早餐`);
+  }
+
+  function setLunchSource(source) {
+    const now = new Date().toISOString();
+    if (source === "home") {
+      const recipe = getPreferredMealRecipe("lunch");
+      if (!recipe) {
+        showNotice("午餐先不用安排");
+        return;
+      }
+      assignMealRecipe(todayDateKey, "lunch", recipe.id, 1, { silent: true });
+      const consumedEntries = getMealSlotEntriesAfterAdd("lunch", recipe.id);
+      recordMealSlot("lunch", {
+        source,
+        consumedEntries,
+        quickRecordedAt: now,
+      });
+      trackValidationEvent(validationEvents.mealSourceSelected, {
+        mealSlot: "lunch",
+        source,
+        recipeIds: consumedEntries.map((item) => item.recipeId),
+        dateKey: todayDateKey,
+      });
+      showNotice(`${recipe.name} 已记到午餐，食材会汇入清单`);
+      return;
+    }
+    updateMealPlanSlot(todayDateKey, "lunch", () => []);
+    recordMealSlot("lunch", {
+      source,
+      consumedEntries: [],
+      quickRecordedAt: now,
+    });
+    trackValidationEvent(validationEvents.mealSourceSelected, {
+      mealSlot: "lunch",
+      source,
+      recipeIds: [],
+      dateKey: todayDateKey,
+    });
+    const labels = {
+      delivery: "午餐已记为外卖",
+      outside: "午餐已记为外面吃",
+      skip: "午餐今天先不记录",
+    };
+    showNotice(labels[source] ?? "午餐来源已记录");
   }
 
   function setDinnerSource(source) {
@@ -2732,6 +2849,8 @@ function App() {
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
                 onPickForMeal={pickForMeal}
+                onRecordBreakfast={recordBreakfast}
+                onSetLunchSource={setLunchSource}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("user")}
                 familyProfile={familyProfile}

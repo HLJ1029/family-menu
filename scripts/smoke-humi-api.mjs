@@ -55,6 +55,13 @@ try {
       state: {
         todayMenu: [{ recipeId: "tomato-egg", quantity: 2 }],
         weekPlan: { 周一: ["tomato-egg"], 周二: [], 周三: [], 周四: [], 周五: [], 周六: [], 周日: [] },
+        mealPlan: {
+          "2026-07-01": {
+            breakfast: [{ recipeId: "plain-rice-porridge", quantity: 1 }],
+            lunch: [{ recipeId: "tomato-egg", quantity: 1 }],
+            dinner: [{ recipeId: "tomato-egg", quantity: 2 }],
+          },
+        },
         mealLogs: {
           "2026-07-01": {
             source: "home",
@@ -62,6 +69,10 @@ try {
             consumedEntries: [],
             plannedEntries: [{ recipeId: "tomato-egg", quantity: 2 }],
             quickConfirmedAt: new Date().toISOString(),
+            meals: {
+              breakfast: { source: "home", consumedEntries: [{ recipeId: "plain-rice-porridge", quantity: 1 }] },
+              lunch: { source: "outside", consumedEntries: [] },
+            },
           },
         },
         checkedItems: { "ingredient:tomato": true },
@@ -101,6 +112,8 @@ try {
   assert(loadedState?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
   assert(loadedState?.familyProfile?.familySize === 3, "state should load profile");
   assert(loadedState?.mealLogs?.["2026-07-01"]?.confirmation === "changed", "state should load quick dinner confirmation");
+  assert(loadedState?.mealPlan?.["2026-07-01"]?.breakfast?.[0]?.recipeId === "plain-rice-porridge", "state should load breakfast meal plan");
+  assert(loadedState?.mealLogs?.["2026-07-01"]?.meals?.lunch?.source === "outside", "state should load lunch source log");
   assert(loadedState?.groceryClaims?.["ingredient:tomato"]?.status === "claimed", "state should load grocery claims");
   assert(loadedState?.wantToEatItems?.[0]?.recipeId === "mapo-tofu", "state should load want-to-eat pool");
   assert(
@@ -147,6 +160,8 @@ try {
   assert(memberLoadedState.family?.id === loadedStateEnvelope.family?.id, "joined member should read owner household");
   assert(memberLoadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined member should share household state");
   assert(memberLoadedState.state?.mealLogs?.["2026-07-01"]?.confirmation === "changed", "joined member should share dinner confirmation");
+  assert(memberLoadedState.state?.mealPlan?.["2026-07-01"]?.lunch?.[0]?.recipeId === "tomato-egg", "joined member should share lunch meal plan");
+  assert(memberLoadedState.state?.mealLogs?.["2026-07-01"]?.meals?.breakfast?.source === "home", "joined member should share breakfast log");
   assert(memberLoadedState.state?.groceryClaims?.["ingredient:tomato"]?.memberId === login.user.id, "joined member should share grocery claims");
   assert(memberLoadedState.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined member should share want-to-eat pool");
 
