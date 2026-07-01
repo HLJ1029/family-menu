@@ -134,10 +134,10 @@ export function createHumiApiServer() {
 
       sendJson(response, 404, { error: "not_found" });
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
+      const status = error.status || 500;
+      if (process.env.NODE_ENV !== "production" && status >= 500) {
         console.error(error);
       }
-      const status = error.status || 500;
       sendJson(response, status, {
         error: error.code || "internal_error",
         message: status >= 500 ? "Humi API 暂时不可用。" : error.message,
@@ -487,6 +487,7 @@ function sanitizeAppState(state = {}) {
     familyProfile: sanitizeProfile(state.familyProfile),
     wantToEatItems: sanitizeList(state.wantToEatItems, sanitizeWantToEatItem, 200),
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
+    recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
   };
 }
@@ -637,6 +638,14 @@ function sanitizeFeedbackItem(item = {}) {
     reasonLabel: stringValue(item.reasonLabel),
     recipeIds: stringList(item.recipeIds).slice(0, 12),
     createdAt: stringValue(item.createdAt),
+  };
+}
+
+function sanitizeRecommendationAccess(access = {}) {
+  return {
+    plan: access.plan === "plus" ? "plus" : "free",
+    preciseTrialRemaining: Math.max(0, Math.min(20, Number.parseInt(access.preciseTrialRemaining, 10) || 0)),
+    preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
   };
 }
 

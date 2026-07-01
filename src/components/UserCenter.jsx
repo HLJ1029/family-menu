@@ -31,6 +31,7 @@ export function UserCenter({
   nutritionGoals,
   setNutritionGoals,
   recommendationFeedback = [],
+  recommendationAccess,
   wantToEatItems = [],
   craveSignals = [],
   activeCraveRequest,
@@ -84,6 +85,8 @@ export function UserCenter({
   ].slice(0, 5);
   const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
   const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
+  const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
+  const precisePlanLabel = recommendationAccess?.plan === "plus" ? "Plus 家庭版" : "免费版";
   const familyReflections = buildFamilyReflections({
     mealLogs,
     craveSignals,
@@ -186,6 +189,31 @@ export function UserCenter({
                 还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的口味记录。
               </div>
             )}
+          </div>
+        </section>
+        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">推荐权益</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">基础免费，精准升级</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                感觉征集、清单、买菜认领和基础推荐都不限次数。精准推荐才会调用高成本 API，适合作为家庭付费点。
+              </p>
+            </div>
+            <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+              {precisePlanLabel}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <StatusRow label="基础推荐" value="无限" />
+            <StatusRow label="精准尝鲜" value={recommendationAccess?.plan === "plus" ? "不限" : `${preciseTrialRemaining} 次`} />
+            <StatusRow label="已用精准" value={`${Math.max(0, Number.parseInt(recommendationAccess?.preciseUsed, 10) || 0)} 次`} />
+          </div>
+          <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">收费边界</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
+              不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度口味协调和完整版画像回顾上。
+            </p>
           </div>
         </section>
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">

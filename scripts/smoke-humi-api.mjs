@@ -88,6 +88,7 @@ try {
         },
         pantryItems: [{ key: "pantry:tomato", name: "西红柿", amount: "3 个", source: "清单完成" }],
         customItems: [{ key: "custom:milk", name: "牛奶", amount: "1 盒", source: "手动添加" }],
+        recommendationAccess: { plan: "free", preciseTrialRemaining: 2, preciseUsed: 1 },
         wantToEatItems: [{
           id: "want:smoke",
           title: "麻婆豆腐",
@@ -115,6 +116,7 @@ try {
   assert(loadedState?.mealPlan?.["2026-07-01"]?.breakfast?.[0]?.recipeId === "plain-rice-porridge", "state should load breakfast meal plan");
   assert(loadedState?.mealLogs?.["2026-07-01"]?.meals?.lunch?.source === "outside", "state should load lunch source log");
   assert(loadedState?.groceryClaims?.["ingredient:tomato"]?.status === "claimed", "state should load grocery claims");
+  assert(loadedState?.recommendationAccess?.preciseTrialRemaining === 2, "state should load recommendation access");
   assert(loadedState?.wantToEatItems?.[0]?.recipeId === "mapo-tofu", "state should load want-to-eat pool");
   assert(
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
@@ -163,6 +165,7 @@ try {
   assert(memberLoadedState.state?.mealPlan?.["2026-07-01"]?.lunch?.[0]?.recipeId === "tomato-egg", "joined member should share lunch meal plan");
   assert(memberLoadedState.state?.mealLogs?.["2026-07-01"]?.meals?.breakfast?.source === "home", "joined member should share breakfast log");
   assert(memberLoadedState.state?.groceryClaims?.["ingredient:tomato"]?.memberId === login.user.id, "joined member should share grocery claims");
+  assert(memberLoadedState.state?.recommendationAccess?.preciseUsed === 1, "joined member should share recommendation access");
   assert(memberLoadedState.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined member should share want-to-eat pool");
 
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
@@ -180,6 +183,19 @@ try {
   });
   assert(basicRecommendation.source === "rule", "public recommendation should use basic rule path");
   assert(basicRecommendation.recipeIds?.[0] === "tomato-egg", "basic recommendation should return fallback ids");
+  try {
+    await request(`${baseUrl}/recommend`, {
+      method: "POST",
+      body: {
+        mode: "precise",
+        candidates: [{ id: "tomato-egg", name: "西红柿炒鸡蛋" }],
+        ruleFallback: { recipeIds: ["tomato-egg"], reason: "本地规则推荐。" },
+      },
+    });
+    throw new Error("public precise recommendation should require auth");
+  } catch (error) {
+    assert(String(error.message).startsWith("401 "), "public precise recommendation should return 401");
+  }
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",

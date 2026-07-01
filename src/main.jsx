@@ -106,6 +106,11 @@ const defaultFamilyProfile = {
   allergies: [],
   shoppingTolerance: "medium",
 };
+const defaultRecommendationAccess = {
+  plan: "free",
+  preciseTrialRemaining: 3,
+  preciseUsed: 0,
+};
 
 registerServiceWorker();
 
@@ -175,6 +180,7 @@ function App() {
   );
   const [wantToEatItems, setWantToEatItems] = useLocalStorageState("humi:want-to-eat:v1", []);
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
+  const [recommendationAccess, setRecommendationAccess] = useLocalStorageState("humi:recommendation-access:v1", defaultRecommendationAccess);
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
   const [cravePromptSignal, setCravePromptSignal] = useState(0);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
@@ -219,6 +225,7 @@ function App() {
     familyProfile,
     nutritionGoals,
     wantToEatItems,
+    recommendationAccess,
     recommendationFeedback,
     craveSignals,
   }), [
@@ -233,6 +240,7 @@ function App() {
     nutritionGoals,
     pantryItems,
     wantToEatItems,
+    recommendationAccess,
     recommendationFeedback,
     craveSignals,
     todayMenu,
@@ -297,6 +305,9 @@ function App() {
           setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
           setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
           setWantToEatItems(Array.isArray(state.wantToEatItems) ? state.wantToEatItems : []);
+          if (state.recommendationAccess) {
+            setRecommendationAccess(normalizeRecommendationAccess(state.recommendationAccess));
+          }
           setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
           setCloudSyncStatus("已读取微信账号保存的今晚菜单和一周计划。");
           setCloudGroceryStatus("已读取微信账号保存的食材清单和家中库存。");
@@ -338,6 +349,7 @@ function App() {
     setNutritionGoals,
     setPantryItems,
     setWantToEatItems,
+    setRecommendationAccess,
     setRecommendationFeedback,
     setGroceryClaims,
     setTodayMenu,
@@ -1520,8 +1532,9 @@ function App() {
     }
   }
 
-  async function requestAiRecommendation(feedbackReason = null) {
+  async function requestAiRecommendation(feedbackReason = null, mode = "basic") {
     setRecommendationFeedbackOpen(false);
+    const preciseMode = mode === "precise";
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
     const alternateRuleRecommendation = buildTodayRecommendation({
       pantryItems,
@@ -1535,38 +1548,53 @@ function App() {
     trackProductEvent(appEvents.recommendationRequest, {
       hasFeedback: Boolean(feedbackReason),
       currentRecipeIds,
+      mode: preciseMode ? "precise" : "basic",
     });
     trackValidationEvent(validationEvents.recommendationRefreshed, {
       hasFeedback: Boolean(feedbackReason),
       currentRecipeIds,
       reasonId: feedbackReason?.id,
+      mode: preciseMode ? "precise" : "basic",
     });
     if (feedbackReason) {
       recordRecommendationFeedback(feedbackReason);
     }
 
-    if (!session?.user) {
+    if (!preciseMode) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
-      setAiRecommendationStatus(
-        signedIn ? "已经换成另一组；Humi 会继续参考家庭画像和库存。" : "已经换成另一组；之后会继续参考家庭画像和库存。",
-      );
+      setAiRecommendationStatus("基础推荐已换一组；这条不消耗精准 API。");
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
-        reason: "guest",
+        reason: "basic",
         recipeIds: alternateRuleRecommendation.recipes.map((recipe) => recipe.id),
       });
       showNotice("已经换成另一组");
       return;
     }
 
+    if (!signedIn) {
+      setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
+      setAiRecommendationStatus("精准推荐需要先登录主厨账号；基础推荐仍可无限使用。");
+      showNotice("先登录后再体验精准推荐");
+      return;
+    }
+
+    if (!canUsePreciseRecommendation(recommendationAccess)) {
+      setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
+      setAiRecommendationStatus("精准尝鲜已用完；基础推荐仍可无限使用。");
+      showNotice("精准推荐已到升级节点");
+      return;
+    }
+
     setAiRecommendationLoading(true);
-    setAiRecommendationStatus("正在重新给你想一组晚饭...");
+    setAiRecommendationStatus("正在用精准推荐重新揉合你家的口味、库存和反馈...");
     try {
       const result = await recommendMeals(
         buildAiRecommendationContext({
           fallbackRecommendation: alternateRuleRecommendation,
           currentRecipeIds,
           feedbackReason,
+          mode: "precise",
         }),
       );
       const nextRecommendation = hydrateAiRecommendation({
@@ -1575,24 +1603,27 @@ function App() {
       });
       setAiRecommendation(nextRecommendation);
       setAiExplanation(result.reason ?? nextRecommendation.reason);
-      setAiRecommendationStatus("给你重新想好了一组。");
+      setAiRecommendationStatus("精准推荐已给你重新想好一组。");
       setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
+      setRecommendationAccess((current) => consumePreciseRecommendation(current));
       trackProductEvent(appEvents.recommendationShown, {
         source: nextRecommendation.source ?? "deepseek",
+        mode: "precise",
         recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
         missingCount: nextRecommendation.missingItems.length,
       });
       showNotice("晚饭推荐已更新");
     } catch (error) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
-      setAiRecommendationStatus(`${formatAiError(error)} 已先换成另一组。`);
+      setAiRecommendationStatus(`${formatAiError(error)} 已先换成基础推荐。`);
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
         reason: "fallback",
+        mode: "precise_fallback",
         error: error.message,
         recipeIds: alternateRuleRecommendation.recipes.map((recipe) => recipe.id),
       });
-      showNotice("已经换成另一组");
+      showNotice("精准推荐暂不可用，已用基础推荐");
     } finally {
       setAiRecommendationLoading(false);
     }
@@ -2286,6 +2317,7 @@ function App() {
     fallbackRecommendation,
     currentRecipeIds = [],
     feedbackReason = null,
+    mode = "basic",
   }) {
     const recentRecipeIds = [
       ...new Set([
@@ -2295,6 +2327,7 @@ function App() {
     ].slice(-12);
 
     return {
+      mode,
       candidates: recipes
         .filter((recipe) => !currentRecipeIds.includes(recipe.id))
         .map((recipe) => ({
@@ -2590,6 +2623,9 @@ function App() {
         setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
         setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
         setWantToEatItems(Array.isArray(state?.wantToEatItems) ? state.wantToEatItems : []);
+        if (state?.recommendationAccess) {
+          setRecommendationAccess(normalizeRecommendationAccess(state.recommendationAccess));
+        }
         setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
         showNotice("微信账号清单已刷新");
       } catch (error) {
@@ -2832,12 +2868,14 @@ function App() {
                 todayMeals={todayMeals}
                 weekPlan={weekPlan}
                 recommendation={displayedRecommendation}
+                recommendationAccess={normalizeRecommendationAccess(recommendationAccess)}
                 aiRecommendationStatus={aiRecommendationStatus}
                 aiRecommendationLoading={aiRecommendationLoading}
                 onViewChange={navigateTo}
                 onOpenRecipe={openRecipe}
                 onAddRecommended={addRecommendedToday}
                 onRequestAiRecommendation={requestAiRecommendation}
+                onRequestPreciseRecommendation={() => requestAiRecommendation(null, "precise")}
                 onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
                 feedbackOpen={recommendationFeedbackOpen}
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
@@ -3060,6 +3098,7 @@ function App() {
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
+                recommendationAccess={normalizeRecommendationAccess(recommendationAccess)}
                 wantToEatItems={wantToEatItems}
                 craveSignals={craveSignals}
                 activeCraveRequest={activeCraveRequest}
@@ -3161,6 +3200,33 @@ function getHouseholdActor({ humiSession, family, fallbackSession }) {
   return {
     memberId,
     memberName: familyMember?.nickname || humiSession?.user?.displayName || fallbackSession?.user?.displayName || "家人",
+  };
+}
+
+function normalizeRecommendationAccess(access = {}) {
+  return {
+    ...defaultRecommendationAccess,
+    ...access,
+    plan: access.plan === "plus" ? "plus" : "free",
+    preciseTrialRemaining: Math.max(0, Number.parseInt(access.preciseTrialRemaining, 10) || 0),
+    preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
+  };
+}
+
+function canUsePreciseRecommendation(access = {}) {
+  const normalized = normalizeRecommendationAccess(access);
+  return normalized.plan === "plus" || normalized.preciseTrialRemaining > 0;
+}
+
+function consumePreciseRecommendation(access = {}) {
+  const normalized = normalizeRecommendationAccess(access);
+  if (normalized.plan === "plus") {
+    return { ...normalized, preciseUsed: normalized.preciseUsed + 1 };
+  }
+  return {
+    ...normalized,
+    preciseTrialRemaining: Math.max(0, normalized.preciseTrialRemaining - 1),
+    preciseUsed: normalized.preciseUsed + 1,
   };
 }
 

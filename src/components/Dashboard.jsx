@@ -46,12 +46,14 @@ export function Dashboard({
   todayMeals = {},
   weekPlan,
   recommendation,
+  recommendationAccess,
   aiRecommendationStatus,
   aiRecommendationLoading,
   onViewChange,
   onOpenRecipe,
   onAddRecommended,
   onRequestAiRecommendation,
+  onRequestPreciseRecommendation,
   onOpenRecommendationFeedback,
   feedbackOpen,
   onSubmitRecommendationFeedback,
@@ -123,6 +125,8 @@ export function Dashboard({
   const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
   const coreSummary = `适合 ${recommendation.familySize ?? familyProfile.familySize ?? 2} 人 · ${activeRecipes.length} 道 · 预计 ${totalMinutes || 25} 分钟 · 需购买 ${purchaseCount} 项`;
   const decisionSummary = hasStaple ? "已有主食" : "建议补主食";
+  const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
+  const preciseEnabled = recommendationAccess?.plan === "plus" || preciseTrialRemaining > 0;
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
@@ -243,6 +247,21 @@ export function Dashboard({
                 不想吃
               </button>
             )}
+            {!dinnerReady && (
+              <button
+                type="button"
+                onClick={onRequestPreciseRecommendation}
+                disabled={aiRecommendationLoading || !preciseEnabled}
+                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
+              >
+                <Sparkles size={18} />
+                {recommendationAccess?.plan === "plus"
+                  ? "精准推荐"
+                  : preciseTrialRemaining > 0
+                    ? `精准推荐 · 余 ${preciseTrialRemaining}`
+                    : "精准推荐已用完"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setCraveOpen((current) => !current)}
@@ -252,6 +271,14 @@ export function Dashboard({
               问问大家想吃啥
             </button>
           </div>
+          {!dinnerReady && (
+            <div className="mt-4 rounded-[20px] border border-line bg-white p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">免费 / 精准</p>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
+                “换一组”永远走基础规则，不限次数；“精准推荐”才会调用高成本 API，参考家人口味、库存和反馈做更深揉合。
+              </p>
+            </div>
+          )}
           {craveOpen && (
             <div className="mt-5 rounded-[24px] border border-line bg-white p-4">
               {activeCraveRequest?.token ? (
