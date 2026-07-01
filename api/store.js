@@ -6,8 +6,10 @@ import { randomUUID } from "node:crypto";
 const DEFAULT_DATA = {
   users: [],
   identities: [],
+  households: [],
   profiles: {},
   states: {},
+  householdStates: {},
   craveRequests: [],
   revokedTokens: [],
 };
@@ -86,6 +88,85 @@ export class HumiStore {
     return this.data.profiles[userId] ?? null;
   }
 
+  async getHouseholdForUser(userId) {
+    await this.load();
+    return this.findHouseholdByMember(userId) ?? this.ensureHouseholdForUser(userId);
+  }
+
+  async ensureHouseholdForUser(userId, options = {}) {
+    await this.load();
+    const existing = this.findHouseholdByMember(userId);
+    if (existing) {
+      const member = existing.members.find((item) => item.memberId === userId);
+      const nextName = sanitizeText(options.memberName, "", 32);
+      if (member && nextName && member.nickname !== nextName) {
+        member.nickname = nextName;
+        member.updatedAt = new Date().toISOString();
+        existing.updatedAt = member.updatedAt;
+        await this.save();
+      }
+      return existing;
+    }
+
+    const user = this.data.users.find((item) => item.id === userId);
+    const now = new Date().toISOString();
+    const household = {
+      id: randomUUID(),
+      name: sanitizeText(options.householdName, "我的家", 32),
+      ownerId: userId,
+      members: [
+        {
+          memberId: userId,
+          nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "主厨",
+          role: "owner",
+          status: "formal",
+          joinedAt: now,
+          updatedAt: now,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.households.push(household);
+    if (this.data.states[userId] && !this.data.householdStates[household.id]) {
+      this.data.householdStates[household.id] = {
+        ...this.data.states[userId],
+        householdId: household.id,
+        migratedFromUserId: userId,
+        updatedAt: this.data.states[userId].updatedAt || now,
+      };
+    }
+    await this.save();
+    return household;
+  }
+
+  async addHouseholdMember(householdId, userId, options = {}) {
+    await this.load();
+    const household = this.data.households.find((item) => item.id === householdId);
+    if (!household) return this.ensureHouseholdForUser(userId, options);
+    const user = this.data.users.find((item) => item.id === userId);
+    const now = new Date().toISOString();
+    const existingMember = household.members.find((item) => item.memberId === userId);
+    if (existingMember) {
+      existingMember.status = "formal";
+      existingMember.role = existingMember.role || "member";
+      existingMember.nickname = sanitizeText(options.memberName, "", 32) || existingMember.nickname || user?.displayName || "家人";
+      existingMember.updatedAt = now;
+    } else {
+      household.members.push({
+        memberId: userId,
+        nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "家人",
+        role: "member",
+        status: "formal",
+        joinedAt: now,
+        updatedAt: now,
+      });
+    }
+    household.updatedAt = now;
+    await this.save();
+    return household;
+  }
+
   async saveProfile(userId, profile) {
     await this.load();
     this.data.profiles[userId] = {
@@ -115,17 +196,22 @@ export class HumiStore {
 
   async getState(userId) {
     await this.load();
-    return this.data.states[userId] ?? null;
+    const household = await this.ensureHouseholdForUser(userId);
+    return this.data.householdStates[household.id] ?? this.data.states[userId] ?? null;
   }
 
   async saveState(userId, state) {
     await this.load();
-    this.data.states[userId] = {
+    const household = await this.ensureHouseholdForUser(userId);
+    const nextState = {
       ...state,
+      householdId: household.id,
       updatedAt: new Date().toISOString(),
     };
+    this.data.householdStates[household.id] = nextState;
+    this.data.states[userId] = nextState;
     await this.save();
-    return this.data.states[userId];
+    return this.data.householdStates[household.id];
   }
 
   async revokeToken(token) {
@@ -139,16 +225,24 @@ export class HumiStore {
     return this.data.revokedTokens.includes(token);
   }
 
-  async createCraveRequest(payload = {}) {
+  async createCraveRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const now = new Date().toISOString();
     const token = randomUUID().replaceAll("-", "");
     const ownerSecret = randomUUID().replaceAll("-", "");
+    const household = ownerUserId
+      ? await this.ensureHouseholdForUser(ownerUserId, {
+        householdName: payload.householdName,
+        memberName: payload.initiatorName,
+      })
+      : null;
     const request = {
       id: randomUUID(),
       token,
       ownerSecret,
-      householdName: sanitizeText(payload.householdName, "我家", 32),
+      householdId: household?.id ?? null,
+      initiatorId: ownerUserId ?? null,
+      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
       mealType: sanitizeText(payload.mealType, "dinner", 24),
       status: "open",
@@ -215,6 +309,9 @@ export class HumiStore {
     vote.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || vote.memberName || "家人";
     vote.temporary = false;
     vote.claimedAt = now;
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: vote.memberName });
+    }
     request.updatedAt = now;
     await this.save();
     return request;
@@ -233,6 +330,13 @@ export class HumiStore {
     request.updatedAt = new Date().toISOString();
     await this.save();
     return request;
+  }
+
+  findHouseholdByMember(userId) {
+    return this.data.households.find((household) => (
+      Array.isArray(household.members)
+      && household.members.some((member) => member.memberId === userId && member.status === "formal")
+    )) ?? null;
   }
 }
 

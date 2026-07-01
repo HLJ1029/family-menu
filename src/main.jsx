@@ -260,8 +260,10 @@ function App() {
 
     async function loadWechatState() {
       try {
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiState(humiSession);
         if (!active) return;
+        const state = data.state;
+        if (data.family) setFamily(data.family);
         if (state) {
           setTodayMenu(Array.isArray(state.todayMenu) ? state.todayMenu : []);
           const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
@@ -945,7 +947,7 @@ function App() {
         initiatorName: displaySession?.user?.displayName || "主厨",
         mealType: "dinner",
         initialFeelingTag: safeFeeling,
-      });
+      }, isHumiApiSession(humiSession) ? humiSession : null);
       const request = data.request;
       if (request?.token) {
         postCraveShareToMiniProgram({
@@ -2183,7 +2185,9 @@ function App() {
     if (isHumiApiSession(humiSession)) {
       try {
         setCloudMenuLoading(true);
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiState(humiSession);
+        const state = data.state;
+        if (data.family) setFamily(data.family);
         const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) };
         const loadedMealPlan = normalizeMealPlan(
           state?.mealPlan ?? createMealPlanFromLegacy({
@@ -2282,7 +2286,9 @@ function App() {
     if (isHumiApiSession(humiSession)) {
       try {
         setCloudGroceryLoading(true);
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiState(humiSession);
+        const state = data.state;
+        if (data.family) setFamily(data.family);
         setCustomItems(Array.isArray(state?.customItems) ? state.customItems : []);
         setCheckedItems(state?.checkedItems ?? {});
         setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);

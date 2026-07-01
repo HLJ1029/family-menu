@@ -6,17 +6,15 @@ export function isHumiApiSession(session) {
 }
 
 export async function loadHumiState(session) {
-  const data = await humiApiRequest("/state", { session });
-  return data.state ?? null;
+  return humiApiRequest("/state", { session });
 }
 
 export async function saveHumiState(session, state) {
-  const data = await humiApiRequest("/state", {
+  return humiApiRequest("/state", {
     method: "PUT",
     session,
     body: { state },
   });
-  return data.state ?? null;
 }
 
 export async function logoutHumiSession(session) {
@@ -27,7 +25,14 @@ export async function logoutHumiSession(session) {
   });
 }
 
-export async function createCraveRequest(payload) {
+export async function createCraveRequest(payload, session = null) {
+  if (isHumiApiSession(session)) {
+    return humiApiRequest("/crave-requests", {
+      method: "POST",
+      session,
+      body: payload,
+    });
+  }
   return humiPublicRequest("/crave-requests", {
     method: "POST",
     body: payload,

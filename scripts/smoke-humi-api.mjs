@@ -48,7 +48,7 @@ try {
   });
   assert(profile.profileCompleted >= 4, "profile should be saved");
 
-  const savedState = await request(`${baseUrl}/state`, {
+  const savedStateEnvelope = await request(`${baseUrl}/state`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: {
@@ -62,20 +62,28 @@ try {
       },
     },
   });
-  assert(savedState.state?.todayMenu?.[0]?.quantity === 2, "state should save menu");
-  assert(savedState.state?.pantryItems?.[0]?.name === "西红柿", "state should save pantry");
+  const savedState = savedStateEnvelope.state;
+  assert(savedState?.todayMenu?.[0]?.quantity === 2, "state should save menu");
+  assert(savedState?.pantryItems?.[0]?.name === "西红柿", "state should save pantry");
 
-  const loadedState = await request(`${baseUrl}/state`, {
+  const loadedStateEnvelope = await request(`${baseUrl}/state`, {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
-  assert(loadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
-  assert(loadedState.state?.familyProfile?.familySize === 3, "state should load profile");
+  const loadedState = loadedStateEnvelope.state;
+  assert(loadedState?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
+  assert(loadedState?.familyProfile?.familySize === 3, "state should load profile");
+  assert(
+    loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
+    "owner household should include owner member",
+  );
 
   const crave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
     body: { householdName: "测试家", initiatorName: "主厨" },
   });
   assert(crave.request?.token, "crave request should return token");
+  assert(crave.request?.householdId === loadedStateEnvelope.family?.id, "crave request should attach owner household");
   await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
     method: "POST",
     body: {
@@ -85,13 +93,28 @@ try {
       temporary: true,
     },
   });
+  const memberLogin = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: "family-member-smoke" },
+  });
   const joinedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${login.accessToken}` },
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
     body: { participantKey: "participant-smoke" },
   });
   assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
-  assert(joinedCrave.request?.votes?.[0]?.memberId === login.user.id, "joined crave vote should attach user");
+  assert(joinedCrave.request?.votes?.[0]?.memberId === memberLogin.user.id, "joined crave vote should attach user");
+  assert(
+    joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
+      && joinedCrave.family?.members?.some((member) => member.memberId === memberLogin.user.id),
+    "joined family should include owner and member",
+  );
+
+  const memberLoadedState = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert(memberLoadedState.family?.id === loadedStateEnvelope.family?.id, "joined member should read owner household");
+  assert(memberLoadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined member should share household state");
 
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",

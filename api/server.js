@@ -201,10 +201,11 @@ async function handleMe(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const profile = await store.getProfile(user.id);
+  const household = await store.getHouseholdForUser(user.id);
   sendJson(response, 200, {
     user: toPublicUser(user),
     profileCompleted: getProfileCompletedCount(profile),
-    family: toHumiFamily(user),
+    family: toHumiFamily(household, user),
   });
 }
 
@@ -225,9 +226,10 @@ async function handleGetState(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const state = await store.getState(user.id);
+  const household = await store.getHouseholdForUser(user.id);
   sendJson(response, 200, {
     state,
-    family: toHumiFamily(user),
+    family: toHumiFamily(household, user),
   });
 }
 
@@ -237,9 +239,10 @@ async function handleSaveState(request, response) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body));
+  const household = await store.getHouseholdForUser(user.id);
   sendJson(response, 200, {
     state,
-    family: toHumiFamily(user),
+    family: toHumiFamily(household, user),
   });
 }
 
@@ -295,8 +298,9 @@ async function handleExplain(request, response) {
 }
 
 async function handleCreateCraveRequest(request, response) {
+  const auth = await getOptionalAuth(request);
   const body = await readJson(request);
-  const craveRequest = await store.createCraveRequest(body);
+  const craveRequest = await store.createCraveRequest(body, auth?.userId ?? null);
   sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
 }
 
@@ -324,7 +328,8 @@ async function handleJoinCraveRequest(request, response, token) {
       memberName: body.memberName || user.displayName,
     });
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest), family: toHumiFamily(user) });
+    const household = await store.getHouseholdForUser(user.id);
+    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest), family: toHumiFamily(household, user) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");
@@ -379,6 +384,7 @@ function toPublicCraveRequest(request) {
   return {
     id: request.id,
     token: request.token,
+    householdId: request.householdId,
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     mealType: request.mealType,
@@ -407,6 +413,14 @@ async function requireAuth(request) {
   return { userId: payload.sub, token };
 }
 
+async function getOptionalAuth(request) {
+  const token = getBearerToken(request);
+  if (!token) return null;
+  if (await store.isTokenRevoked(token)) return null;
+  const payload = verifySessionToken(token, config.sessionSecret);
+  return payload ? { userId: payload.sub, token } : null;
+}
+
 function sendAuthSession(response, user) {
   const session = createSessionToken({ userId: user.id, secret: config.sessionSecret });
   sendJson(response, 200, {
@@ -428,12 +442,20 @@ function toPublicUser(user) {
   };
 }
 
-function toHumiFamily(user) {
+function toHumiFamily(household, user) {
+  const member = household?.members?.find((item) => item.memberId === user.id);
   return {
-    id: `humi:${user.id}`,
-    name: "我的家",
-    role: "owner",
+    id: household?.id || `humi:${user.id}`,
+    name: household?.name || "我的家",
+    role: member?.role || (household?.ownerId === user.id ? "owner" : "member"),
     provider: "wechat",
+    members: (household?.members ?? []).map((item) => ({
+      memberId: item.memberId,
+      nickname: item.nickname,
+      role: item.role,
+      status: item.status,
+      joinedAt: item.joinedAt,
+    })),
   };
 }
 
