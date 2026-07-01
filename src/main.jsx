@@ -3105,6 +3105,7 @@ function App() {
                 onCopyCraveLink={copyCraveLink}
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
+                onStartCraveRequest={startCraveRequest}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onAskFamily={askFamilyFromHome}

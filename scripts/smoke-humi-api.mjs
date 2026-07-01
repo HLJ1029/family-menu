@@ -22,6 +22,9 @@ try {
   });
   assert(me.user?.id === login.user.id, "me should return current user");
   assert(me.family?.provider === "wechat", "me should return wechat family");
+  assert(me.family?.ownerId === login.user.id, "new family should expose owner id");
+  assert(me.family?.currentMemberId === login.user.id, "family should expose current member id");
+  assert(me.family?.role === "owner", "new family current user should be owner");
 
   const phone = await request(`${baseUrl}/auth/wechat/phone`, {
     method: "POST",
@@ -122,6 +125,12 @@ try {
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
     "owner household should include owner member",
   );
+  assert(
+    loadedStateEnvelope.family?.members?.some((member) => (
+      member.memberId === login.user.id && member.role === "owner" && member.status === "formal"
+    )),
+    "owner household member should expose owner role and formal status",
+  );
 
   const crave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
@@ -154,6 +163,14 @@ try {
     joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
       && joinedCrave.family?.members?.some((member) => member.memberId === memberLogin.user.id),
     "joined family should include owner and member",
+  );
+  assert(joinedCrave.family?.role === "member", "joined user should see member role");
+  assert(joinedCrave.family?.ownerId === login.user.id, "joined family should keep original owner");
+  assert(
+    joinedCrave.family?.members?.some((member) => (
+      member.memberId === memberLogin.user.id && member.role === "member" && member.status === "formal"
+    )),
+    "joined user should become formal household member",
   );
 
   const memberLoadedState = await request(`${baseUrl}/state`, {

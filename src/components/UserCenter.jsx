@@ -18,6 +18,8 @@ const quickWantRecipes = [
   { id: "wintermelon-rib-soup", name: "冬瓜排骨汤" },
 ];
 
+const feelingTags = ["清淡点", "辣一点", "喝点汤", "快手", "有肉", "随便都行"];
+
 export function UserCenter({
   authProps,
   cloudMenuProps,
@@ -38,6 +40,7 @@ export function UserCenter({
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
+  onStartCraveRequest,
   onExportValidationData,
   onViewChange,
   onAskFamily,
@@ -55,8 +58,13 @@ export function UserCenter({
   const [phoneBindStatus, setPhoneBindStatus] = useState("");
   const [wantTitle, setWantTitle] = useState("");
   const [wantNote, setWantNote] = useState("");
+  const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
+  const currentUserId = humiSession?.user?.id || session?.user?.id || "";
+  const currentFamilyMember = family?.members?.find((member) => member.memberId === currentUserId);
+  const familyRole = family?.role || currentFamilyMember?.role || (family?.members?.length ? "member" : "owner");
+  const familyMembers = family?.members ?? [];
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
@@ -113,6 +121,15 @@ export function UserCenter({
     setWantNote("");
   }
 
+  function startFamilyCrave() {
+    if (onStartCraveRequest) {
+      onStartCraveRequest(familyFeelingTag);
+      return;
+    }
+    if (onAskFamily) onAskFamily();
+    else onViewChange("dashboard");
+  }
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
@@ -145,6 +162,13 @@ export function UserCenter({
           family={family}
           hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
         />
+        <FamilyRolePanel
+          signedIn={signedIn}
+          family={family}
+          role={familyRole}
+          members={familyMembers}
+          currentUserId={currentUserId}
+        />
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -156,10 +180,7 @@ export function UserCenter({
             </div>
             <button
               type="button"
-              onClick={() => {
-                if (onAskFamily) onAskFamily();
-                else onViewChange("dashboard");
-              }}
+              onClick={startFamilyCrave}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
             >
               问问大家
@@ -171,6 +192,13 @@ export function UserCenter({
               onCopyCraveLink={onCopyCraveLink}
               onRefreshCraveRequest={onRefreshCraveRequest}
               onGenerateFromCrave={onGenerateFromCrave}
+            />
+          )}
+          {!activeCraveRequest?.token && (
+            <FamilyCraveStarter
+              selectedFeeling={familyFeelingTag}
+              onSelectFeeling={setFamilyFeelingTag}
+              onStart={startFamilyCrave}
             />
           )}
           <div className="mt-4 grid gap-3">
@@ -549,6 +577,120 @@ function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGe
         <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制/分享</button>
         <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
         <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">就这些出菜单</button>
+      </div>
+    </div>
+  );
+}
+
+function FamilyRolePanel({ signedIn, family, role, members, currentUserId }) {
+  const isOwner = role === "owner";
+  const roleLabel = isOwner ? "主厨" : "家人";
+  const memberCount = members.length || (family ? 1 : 0);
+
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">家庭身份</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+            {family ? `${family.name}里的${roleLabel}` : signedIn ? "先创建我的家" : "登录后再加入我的家"}
+          </h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            主厨负责发起征集、定菜单和保存画像；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+          {family ? `${memberCount} 人` : "未建立"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <PermissionCard
+          icon={ChefHat}
+          title="主厨能力"
+          active={isOwner || !family}
+          lines={["发起问问大家", "定今晚菜单", "维护家庭画像"]}
+        />
+        <PermissionCard
+          icon={Users}
+          title="家人能力"
+          active={!isOwner && Boolean(family)}
+          lines={["点一个感觉", "认领买菜项", "加入想吃池子"]}
+        />
+      </div>
+
+      {family && (
+        <div className="mt-4 grid gap-2">
+          {members.slice(0, 6).map((member) => (
+            <div key={member.memberId} className="flex items-center justify-between gap-3 rounded-[18px] border border-line bg-canvas p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-ink">
+                  {member.nickname || "家人"}{member.memberId === currentUserId ? " · 我" : ""}
+                </p>
+                <p className="mt-1 text-xs font-bold text-ink/42">
+                  {formatHouseholdRole(member.role)} · {formatHouseholdStatus(member.status)}
+                </p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${member.role === "owner" ? "bg-ink text-white" : "bg-white text-ink/52"}`}>
+                {formatHouseholdRole(member.role)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PermissionCard({ icon: Icon, title, active, lines }) {
+  return (
+    <div className={`rounded-[22px] border p-4 ${active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink"}`}>
+      <div className="flex items-center gap-2">
+        <Icon size={18} />
+        <p className="text-sm font-black">{title}</p>
+      </div>
+      <div className={`mt-3 grid gap-2 text-xs font-bold leading-5 ${active ? "text-white/70" : "text-ink/52"}`}>
+        {lines.map((line) => (
+          <div key={line} className="flex items-center gap-2">
+            <Check size={14} />
+            <span>{line}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FamilyCraveStarter({ selectedFeeling, onSelectFeeling, onStart }) {
+  return (
+    <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">发起征集</p>
+          <h4 className="mt-2 text-xl font-black tracking-[-0.03em]">不用离开我的家，直接问大家</h4>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            先替今晚选一个大概方向，生成后在小程序右上角分享卡片给家人。
+          </p>
+        </div>
+        <button type="button" onClick={onStart} className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white">
+          生成邀请卡片
+        </button>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {feelingTags.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => onSelectFeeling(tag)}
+            className={`min-h-11 rounded-full border px-3 text-sm font-black transition ${
+              selectedFeeling === tag
+                ? "border-ink bg-ink text-white"
+                : "border-line bg-white text-ink/58 hover:border-ink/30 hover:text-ink"
+            } ${tag === "随便都行" ? "col-span-2 sm:col-span-3" : ""}`}
+          >
+            {tag}
+          </button>
+        ))}
       </div>
     </div>
   );

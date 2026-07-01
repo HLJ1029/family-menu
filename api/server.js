@@ -447,6 +447,8 @@ function toHumiFamily(household, user) {
   return {
     id: household?.id || `humi:${user.id}`,
     name: household?.name || "我的家",
+    ownerId: household?.ownerId || user.id,
+    currentMemberId: member?.memberId || user.id,
     role: member?.role || (household?.ownerId === user.id ? "owner" : "member"),
     provider: "wechat",
     members: (household?.members ?? []).map((item) => ({
