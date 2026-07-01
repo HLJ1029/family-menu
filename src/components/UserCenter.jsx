@@ -24,6 +24,7 @@ export function UserCenter({
   nutritionGoals,
   setNutritionGoals,
   recommendationFeedback = [],
+  craveSignals = [],
   onExportValidationData,
   onViewChange,
 }) {
@@ -49,6 +50,18 @@ export function UserCenter({
   const topReasons = validationSummary.topRejectedReasons.length > 0
     ? validationSummary.topRejectedReasons
     : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
+  const familyActivity = [
+    ...craveSignals.slice(0, 4).map((item) => ({
+      id: item.id,
+      title: item.feelingTag === "随便都行" ? "有人说随便都行" : `有人想要：${item.feelingTag}`,
+      meta: "感觉征集",
+    })),
+    ...recommendationFeedback.slice(0, 2).map((item) => ({
+      id: item.id,
+      title: `不想吃：${item.reasonLabel}`,
+      meta: "晚饭反馈",
+    })),
+  ].slice(0, 5);
 
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
@@ -69,14 +82,14 @@ export function UserCenter({
           <div>
             <p className="text-sm font-black uppercase tracking-[0.24em] text-white">我的家</p>
             <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-              {signedIn ? "让 Humi 记住你家的饭。" : "把家里的吃饭习惯存下来。"}
+              {signedIn ? "一家人的饭，放在一起商量。" : "先把今晚这顿顺起来。"}
             </h2>
             <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
               {signedIn
                 ? family
-                  ? "菜单、清单、库存和口味会围绕这个家持续更新。"
-                  : "已经登录。创建我的家后，菜单、清单、库存和口味就会一起保存。"
-                : "先体验也可以。想让菜单、清单和口味一直跟着你，再登录保存。"}
+                  ? "这里会沉淀家人点过的感觉、买菜协作和真实吃饭反馈。"
+                  : "已经登录。创建我的家后，菜单、清单和家人反馈就会一起保存。"
+                : "感觉、清单和画像先存在本机；要让家人一起用，再登录保存。"}
             </p>
           </div>
           <HumiIllustrationPanel
@@ -94,6 +107,41 @@ export function UserCenter({
           family={family}
           hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
         />
+        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">家庭动态</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">最近大家怎么想吃</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+            >
+              问问大家
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {familyActivity.length > 0 ? (
+              familyActivity.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-ink">{item.title}</p>
+                    <p className="mt-1 text-xs font-bold text-ink/42">{item.meta}</p>
+                  </div>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-ink" />
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+                还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的口味记录。
+              </div>
+            )}
+          </div>
+        </section>
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
           <HumiPeek
             variant="menu-rejected"
@@ -104,7 +152,7 @@ export function UserCenter({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">饮食画像</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">真实吃了什么，从这里看</h3>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">吃饭画像慢慢反射</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
                 只有确认“全部吃了”的晚餐才进入营养分析；外卖和外食只记录来源。
               </p>
@@ -149,7 +197,7 @@ export function UserCenter({
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
-            <UtilityButton icon={PackageCheck} label="库存管理" onClick={() => onViewChange("inventory")} />
+            <UtilityButton icon={PackageCheck} label="家中已有" onClick={() => onViewChange("inventory")} />
             <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
           </div>
         </section>

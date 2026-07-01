@@ -1,4 +1,5 @@
-import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChefHat, Search, Sparkles, UserRound } from "lucide-react";
+import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { getNavItem, mobileNavItems, navItems } from "./navigation";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
@@ -22,6 +23,11 @@ export function IcpFooter({ compact = false }) {
 }
 
 export function Sidebar({ activeView, onChange }) {
+  const quickLinks = [
+    { id: "library", label: "自己挑", icon: Sparkles },
+    { id: "planner", label: "想连排几天", icon: CalendarDays },
+  ];
+
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-48px)] w-72 shrink-0 flex-col rounded-[28px] border border-line/80 bg-white/78 p-5 shadow-card backdrop-blur-xl lg:flex">
       <div className="mb-8 flex items-center gap-3">
@@ -52,6 +58,28 @@ export function Sidebar({ activeView, onChange }) {
           );
         })}
       </nav>
+      <div className="mt-6 border-t border-line pt-4">
+        <p className="mb-2 px-4 text-xs font-black uppercase tracking-[0.18em] text-ink/35">可选</p>
+        <div className="space-y-1">
+          {quickLinks.map((item) => {
+            const Icon = item.icon;
+            const active = item.id === activeView;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onChange(item.id)}
+                className={`flex w-full items-center gap-3 rounded-[18px] px-4 py-2.5 text-left text-sm font-bold transition ${
+                  active ? "bg-canvas text-ink" : "text-ink/48 hover:bg-ink/[0.04] hover:text-ink"
+                }`}
+              >
+                <Icon size={17} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => onChange("user")}
@@ -65,7 +93,7 @@ export function Sidebar({ activeView, onChange }) {
         />
         <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
-          从今晚吃什么，到买菜清单和家里库存，都帮你顺一顺。
+          从今晚吃啥，到买菜清单和家人反馈，都帮你顺一顺。
         </p>
       </button>
     </aside>
@@ -95,6 +123,7 @@ export function AccountAvatar({ session, onClick, compact = false }) {
 export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter, onBack }) {
   const activeItem = getNavItem(activeView);
   const title = activeItem?.label ?? "Humi";
+  const [searchOpen, setSearchOpen] = useState(Boolean(query));
 
   return (
     <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
@@ -116,15 +145,27 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
         </h1>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
-          <Search size={18} className="text-ink/38" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
-            placeholder="搜索菜名、食材、标签"
-          />
-        </div>
+        {searchOpen ? (
+          <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
+            <Search size={18} className="text-ink/38" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
+              placeholder="搜索菜名、食材、标签"
+              autoFocus
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="grid h-12 w-12 place-items-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
+            aria-label="展开搜索"
+          >
+            <Search size={18} />
+          </button>
+        )}
         <AccountAvatar session={session} onClick={onOpenUserCenter} />
       </div>
     </header>
@@ -134,7 +175,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
 export function MobileTabbar({ activeView, onChange }) {
   return (
     <nav
-      className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-3 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {

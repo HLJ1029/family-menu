@@ -2,6 +2,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  MessageCircleHeart,
   RefreshCw,
   ShoppingBasket,
   Sparkles,
@@ -28,6 +29,18 @@ const dinnerConfirmations = [
   { id: "missed", label: "没做" },
 ];
 
+const feelingTags = [
+  "随便都行",
+  "辣一点",
+  "清淡点",
+  "想喝汤",
+  "想吃肉",
+  "想吃素",
+  "不想动",
+  "想暖胃",
+  "开胃 / 酸",
+];
+
 export function Dashboard({
   todayRecipes,
   todayMeals = {},
@@ -43,6 +56,8 @@ export function Dashboard({
   feedbackOpen,
   onSubmitRecommendationFeedback,
   onCloseRecommendationFeedback,
+  onStartCraveRequest,
+  onPickForMeal,
   session,
   onOpenUserCenter,
   familyProfile,
@@ -55,6 +70,8 @@ export function Dashboard({
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [craveOpen, setCraveOpen] = useState(false);
+  const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
   const recommendedItems = getRecommendationItems(recommendation);
@@ -81,13 +98,18 @@ export function Dashboard({
     window.setTimeout(() => onViewChange("today"), 520);
   }
 
+  function submitFeeling() {
+    onStartCraveRequest?.(selectedFeeling);
+    setCraveOpen(false);
+  }
+
   const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
   const coreSummary = `适合 ${recommendation.familySize ?? familyProfile.familySize ?? 2} 人 · ${activeRecipes.length} 道 · 预计 ${totalMinutes || 25} 分钟 · 需购买 ${purchaseCount} 项`;
   const decisionSummary = hasStaple ? "已有主食" : "建议补主食";
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
-      <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 pb-28 text-ink shadow-card md:p-8">
+      <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
         <div className="absolute left-5 top-5 z-10">
           <p className="text-sm font-black uppercase tracking-[0.16em] text-ink">HUMI</p>
         </div>
@@ -112,8 +134,8 @@ export function Dashboard({
           <div className="grid gap-4 md:grid-cols-[1fr_180px] md:items-end">
             <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/42">今晚吃什么</p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-0.04em] sm:text-5xl md:text-7xl">
-              {dinnerReady ? "今晚安排好了。" : recommendation.title}
+            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-0.04em] sm:text-5xl md:text-6xl">
+              {dinnerReady ? todayRecipes.map((recipe) => recipe.name).join(" + ") : recommendation.title}
             </h1>
             <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {coreSummary}
@@ -125,17 +147,19 @@ export function Dashboard({
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
-              {todayMealSummaries.map((slot) => (
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              {todayMealSummaries.filter((slot) => slot.id !== "dinner").map((slot) => (
                 <button
                   key={slot.id}
                   type="button"
-                  onClick={() => onViewChange(slot.id === "dinner" ? "today" : "planner")}
+                  onClick={() => onPickForMeal?.(slot.id)}
                   className="rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/30"
                 >
                   <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{slot.label}</span>
                   <span className="mt-2 block truncate text-sm font-black">
-                    {slot.count > 0 ? slot.recipes.map((recipe) => recipe.name).join("、") : "待安排"}
+                    {slot.count > 0
+                      ? slot.recipes.map((recipe) => recipe.name).join("、")
+                      : slot.id === "breakfast" ? "点一下记早餐" : "在家做时再安排"}
                   </span>
                 </button>
               ))}
@@ -202,7 +226,53 @@ export function Dashboard({
                 不想吃
               </button>
             )}
+            {!dinnerReady && (
+              <button
+                type="button"
+                onClick={() => setCraveOpen((current) => !current)}
+                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+              >
+                <MessageCircleHeart size={18} />
+                问问大家想吃啥
+              </button>
+            )}
           </div>
+          {!dinnerReady && craveOpen && (
+            <div className="mt-5 rounded-[24px] border border-line bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">感觉征集</p>
+                  <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">先选一个感觉</h3>
+                  <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
+                    家人不用想菜名，点一个大概感觉就行。没人选时，Humi 也会自己做主。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={submitFeeling}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+                >
+                  就按这个出菜单
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {feelingTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setSelectedFeeling(tag)}
+                    className={`min-h-11 rounded-full border px-3 text-sm font-black transition ${
+                      selectedFeeling === tag
+                        ? "border-ink bg-ink text-white"
+                        : "border-line bg-white text-ink hover:border-ink/30"
+                    } ${tag === "随便都行" ? "col-span-2 sm:col-span-3" : ""}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {!dinnerReady && feedbackOpen && (
             <div className="mt-4 rounded-[24px] border border-line bg-white p-4">
               <div className="flex items-start justify-between gap-3">

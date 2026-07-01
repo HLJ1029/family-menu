@@ -171,6 +171,7 @@ function App() {
     () => getDefaultNutritionGoals(defaultFamilyProfile),
   );
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
+  const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
@@ -212,6 +213,7 @@ function App() {
     familyProfile,
     nutritionGoals,
     recommendationFeedback,
+    craveSignals,
   }), [
     checkedItems,
     customItems,
@@ -223,6 +225,7 @@ function App() {
     nutritionGoals,
     pantryItems,
     recommendationFeedback,
+    craveSignals,
     todayMenu,
     weekPlan,
   ]);
@@ -928,6 +931,62 @@ function App() {
     showNotice(`已加入 ${recommendedItems.length} 道推荐菜`, {
       illustration: "menu-accepted",
     });
+  }
+
+  function startCraveRequest(feelingTag) {
+    const safeFeeling = feelingTag || "随便都行";
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const alternateRuleRecommendation = buildTodayRecommendation({
+      pantryItems,
+      weekPlan,
+      groceryItems: visibleGroceryItems,
+      todayRecipes,
+      familyMembers,
+      familyProfile,
+      excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
+    });
+    const nextRecommendation = {
+      ...alternateRuleRecommendation,
+      source: "rule",
+      reason: safeFeeling === "随便都行"
+        ? `${alternateRuleRecommendation.reason} 家人说随便都行，先按忌口和家里习惯来。`
+        : `${alternateRuleRecommendation.reason} 这次会优先照顾“${safeFeeling}”这个感觉。`,
+    };
+    setCraveSignals((current) => [
+      {
+        id: `crave:${Date.now()}`,
+        feelingTag: safeFeeling,
+        createdAt: new Date().toISOString(),
+        recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+      },
+      ...current,
+    ].slice(0, 24));
+    setAiRecommendation(nextRecommendation);
+    setAiRecommendationStatus(
+      safeFeeling === "随便都行"
+        ? "收到“随便都行”。已按家庭忌口和省心程度重新给一组。"
+        : `收到“${safeFeeling}”。已先用本地规则揉合出一组。`,
+    );
+    trackProductEvent(appEvents.recommendationRequest, {
+      source: "crave_signal",
+      feelingTag: safeFeeling,
+      recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+    });
+    showNotice(safeFeeling === "随便都行" ? "那就 Humi 来做主" : `已按“${safeFeeling}”换一组`);
+  }
+
+  function pickForMeal(slotId) {
+    const slotLabel = slotLabelsById[slotId] ?? "这一餐";
+    const preferredRecipe = recipes.find((recipe) => recipe.tags?.includes(slotLabel) || recipe.categories?.includes(slotLabel))
+      ?? recipes.find((recipe) => slotId === "breakfast" && (recipe.tags?.includes("早餐") || recipe.categories?.includes("早餐")))
+      ?? recipes.find((recipe) => slotId === "lunch" && (recipe.tags?.includes("午餐") || recipe.categories?.includes("午餐")))
+      ?? displayedRecommendation.recipes[0];
+    if (!preferredRecipe) {
+      showNotice(`${slotLabel}先不用安排`);
+      return;
+    }
+    assignMealRecipe(todayDateKey, slotId, preferredRecipe.id);
+    showNotice(`${preferredRecipe.name} 已记到${slotLabel}`);
   }
 
   function updateTodayMealLog(patch) {
@@ -2352,6 +2411,8 @@ function App() {
                 feedbackOpen={recommendationFeedbackOpen}
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
+                onStartCraveRequest={startCraveRequest}
+                onPickForMeal={pickForMeal}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("user")}
                 familyProfile={familyProfile}
@@ -2556,6 +2617,7 @@ function App() {
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
+                craveSignals={craveSignals}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
               />

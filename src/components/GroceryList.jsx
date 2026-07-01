@@ -153,7 +153,7 @@ export function GroceryList({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-black">家中已有</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-                盐、油、酱油这类常备调料通常不用再买，可以一键移到恢复区。
+                勾选买回的食材会自动记到后台。盐、油、酱油这类常备项可以轻轻移出清单。
               </p>
             </div>
           </div>
@@ -174,7 +174,7 @@ export function GroceryList({
             className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
           >
             <PackageCheck size={17} />
-            看临期库存
+            看家中已有
           </button>
           <button
             type="button"
@@ -186,10 +186,10 @@ export function GroceryList({
           </button>
         </div>
         <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">库存</p>
-          <p className="mt-1 text-sm font-black">库存维护放在独立页面</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">后台记录</p>
+          <p className="mt-1 text-sm font-black">不用专门维护库存</p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            当前有 {pantryItems.length} 个库存项；需要新增、删除或看临期时再进入库存页。
+            当前后台记着 {pantryItems.length} 个家中已有项；不准也没关系，推荐只把它当加分项。
           </p>
         </div>
         {excludedItems.length > 0 && (
@@ -275,7 +275,7 @@ function ShoppingChecklist({
           <p className="eyebrow">买菜清单</p>
           <h3 className="card-title">去买这些就够了</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            这里是买菜时看的清单；每道菜的精确用量放在下面核对。
+            这里汇总已安排三餐要买的食材；买到后勾一下，Humi 会在后台记住。
           </p>
         </div>
         <span key={checkedItemCount} className="grocery-count-pop min-w-[118px] shrink-0 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-center text-xs font-black leading-none text-white">
