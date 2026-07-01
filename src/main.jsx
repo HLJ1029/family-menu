@@ -59,7 +59,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
-import { createCraveRequest, isHumiApiSession, loadCraveRequest, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
+import { closeCraveRequest, createCraveRequest, isHumiApiSession, loadCraveRequest, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -738,7 +738,7 @@ function App() {
     );
   }, [signedIn, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
-  const activeCraveRequest = craveSignals.find((item) => item.token) ?? null;
+  const activeCraveRequest = craveSignals.find((item) => item.token && item.status !== "closed") ?? null;
 
   useEffect(() => {
     if (activeView !== "dashboard" || todayMenu.length > 0) return;
@@ -1064,8 +1064,19 @@ function App() {
         ? `${nextRecommendation.reason} 已揉合 ${votes.length} 个家人回复。`
         : `${nextRecommendation.reason} 还没人回复，先让 Humi 做主。`,
     });
+    setCraveSignals((current) => current.map((item) => (
+      item.token === activeCraveRequest.token
+        ? { ...item, status: "closed", generatedAt: new Date().toISOString() }
+        : item
+    )));
+    if (activeCraveRequest.token && activeCraveRequest.ownerSecret) {
+      closeCraveRequest(activeCraveRequest.token, activeCraveRequest.ownerSecret).catch(() => {});
+    }
     setAiRecommendationStatus(votes.length > 0 ? "已按家人感觉揉合出一组。" : "还没人回复，已先按家庭画像出一组。");
     showNotice("已按这次征集出菜单");
+    if (activeView !== "dashboard") {
+      navigateTo("dashboard");
+    }
   }
   function pickForMeal(slotId) {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
@@ -2739,6 +2750,10 @@ function App() {
                 setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
                 craveSignals={craveSignals}
+                activeCraveRequest={activeCraveRequest}
+                onCopyCraveLink={copyCraveLink}
+                onRefreshCraveRequest={refreshCraveRequest}
+                onGenerateFromCrave={generateFromCraveRequest}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onAskFamily={askFamilyFromHome}

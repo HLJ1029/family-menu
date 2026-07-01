@@ -25,6 +25,10 @@ export function UserCenter({
   setNutritionGoals,
   recommendationFeedback = [],
   craveSignals = [],
+  activeCraveRequest,
+  onCopyCraveLink,
+  onRefreshCraveRequest,
+  onGenerateFromCrave,
   onExportValidationData,
   onViewChange,
   onAskFamily,
@@ -128,6 +132,14 @@ export function UserCenter({
               问问大家
             </button>
           </div>
+          {activeCraveRequest?.token && (
+            <FamilyCraveCard
+              request={activeCraveRequest}
+              onCopyCraveLink={onCopyCraveLink}
+              onRefreshCraveRequest={onRefreshCraveRequest}
+              onGenerateFromCrave={onGenerateFromCrave}
+            />
+          )}
           <div className="mt-4 grid gap-3">
             {familyActivity.length > 0 ? (
               familyActivity.map((item) => (
@@ -354,6 +366,54 @@ export function UserCenter({
       </aside>
     </section>
   );
+}
+
+function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGenerateFromCrave }) {
+  const votes = request.votes ?? [];
+  const summary = summarizeCraveVotes(votes);
+
+  return (
+    <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">正在征集</p>
+          <h4 className="mt-2 text-xl font-black tracking-[-0.03em]">今晚大家想吃什么</h4>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            {votes.length > 0 ? `已收到：${summary}` : "邀请卡片已经准备好。家人点完后回到这里刷新。"}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">已回 {votes.length}</span>
+      </div>
+
+      <div className="mt-3 grid gap-2">
+        {votes.length > 0 ? votes.slice(0, 4).map((vote) => (
+          <div key={vote.id} className="flex items-center justify-between gap-3 rounded-[18px] bg-white p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">{vote.memberName || "家人"} · {vote.feelingTag}</p>
+              {vote.note && <p className="mt-1 truncate text-xs font-bold text-ink/42">{vote.note}</p>}
+            </div>
+            <span className="h-2 w-2 shrink-0 rounded-full bg-ink" />
+          </div>
+        )) : (
+          <div className="rounded-[18px] bg-white p-3 text-sm font-bold leading-6 text-ink/52">
+            点“复制/分享”后，在小程序右上角转发给家人；没人回也可以直接让 Humi 出菜单。
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制/分享</button>
+        <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
+        <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">就这些出菜单</button>
+      </div>
+    </div>
+  );
+}
+
+function summarizeCraveVotes(votes) {
+  const counts = new Map();
+  votes.forEach((vote) => counts.set(vote.feelingTag || "随便都行", (counts.get(vote.feelingTag || "随便都行") ?? 0) + 1));
+  return [...counts.entries()].map(([tag, count]) => count > 1 ? `${tag} x${count}` : tag).join(" · ");
 }
 
 function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {

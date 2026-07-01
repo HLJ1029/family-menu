@@ -204,6 +204,15 @@ export function Dashboard({
             ))}
           </div>
 
+          {!dinnerReady && recommendation.source === "crave" && (
+            <div className="mt-5 rounded-[22px] border border-line bg-white p-4">
+              <p className="text-sm font-black text-ink">已揉合家人的感觉</p>
+              <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
+                这组可以继续换，也可以点“今晚就做”，Humi 会把菜放进今晚菜单并同步生成买菜清单。
+              </p>
+            </div>
+          )}
+
           <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
             <button
               type="button"
