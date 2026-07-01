@@ -87,17 +87,17 @@ export function CloudAccount({
             <p className="mt-1 text-sm font-black">已登录 Humi</p>
           </div>
           {family ? (
-            <div className="relative overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
+            <div className="relative overflow-hidden rounded-[22px] bg-canvas/70 p-4 pr-20">
               <HumiPeek
                 variant="family-taste-talk"
                 size="sm"
                 className="absolute -bottom-2 right-3 opacity-90"
                 contextKey="cloud-account-family-card"
               />
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">当前家庭空间</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-                以后菜单、库存、清单和家人口味都会保存在这里。
+                已连接。菜单、库存、清单和家人口味会自动保存在这里。
               </p>
             </div>
           ) : (

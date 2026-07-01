@@ -97,7 +97,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
   const title = activeItem?.label ?? "Humi";
 
   return (
-    <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
+    <header className="relative z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
       <div>
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
           <button
@@ -111,7 +111,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
           <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
-        <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
+        <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-[-0.04em] sm:text-5xl md:text-7xl">
           {title}
         </h1>
       </div>

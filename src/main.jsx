@@ -2160,6 +2160,7 @@ function App() {
   const cloudMenuProps = {
     family,
     signedIn,
+    autoSync: isHumiApiSession(humiSession),
     cloudMenuEnabled,
     cloudMenuLoading,
     cloudSyncStatus,
@@ -2408,6 +2409,7 @@ function App() {
                 cloudSync={{
                   family,
                   signedIn,
+                  autoSync: isHumiApiSession(humiSession),
                   enabled: cloudMenuEnabled,
                   loading: cloudMenuLoading,
                   status: cloudSyncStatus,
@@ -2434,6 +2436,7 @@ function App() {
                 cloudSync={{
                   family,
                   signedIn,
+                  autoSync: isHumiApiSession(humiSession),
                   enabled: cloudMenuEnabled,
                   loading: cloudMenuLoading,
                   status: cloudSyncStatus,
@@ -2485,6 +2488,7 @@ function App() {
                 cloudSync={{
                   family,
                   signedIn,
+                  autoSync: isHumiApiSession(humiSession),
                   enabled: cloudGroceryEnabled,
                   loading: cloudGroceryLoading,
                   status: cloudGroceryStatus,
@@ -2512,6 +2516,7 @@ function App() {
                 cloudSync={{
                   family,
                   signedIn,
+                  autoSync: isHumiApiSession(humiSession),
                   enabled: cloudGroceryEnabled,
                   loading: cloudGroceryLoading,
                   status: cloudGroceryStatus,
