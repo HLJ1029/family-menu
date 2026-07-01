@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, MessageCircleHeart } from "lucide-react";
 import { feelingTags } from "../lib/collaboration";
 import { loadCraveRequest, submitCraveVote } from "../lib/humiApi";
+import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
+import { isWechatMiniProgramWebView } from "../lib/runtime";
 
 const PARTICIPANT_KEY = "humi:crave-participant-key:v1";
 
@@ -53,6 +55,14 @@ export function CraveLanding({ token, onClose }) {
     } catch (error) {
       setStatus(error.message || "暂时没发出去，请稍后再试。");
     }
+  }
+
+  function joinHousehold() {
+    if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+      setStatus("正在帮你加入这个家。授权后就能回来看今晚最后定了什么。");
+      return;
+    }
+    onClose();
   }
 
   if (loading) {
@@ -110,11 +120,17 @@ export function CraveLanding({ token, onClose }) {
               <CheckCircle2 size={28} />
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到！</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {request.initiatorName || "主厨"}会看着安排。你可以直接关掉，也可以回到 Humi 看今晚最后定了什么。
+                {request.initiatorName || "主厨"}会看着安排。想看今晚最后定了什么，可以加入这个家。
               </p>
-              <button type="button" onClick={onClose} className="mt-5 rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
-                回到 Humi
-              </button>
+              {status && <p className="mt-3 text-sm font-bold leading-6 text-ink/52">{status}</p>}
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button type="button" onClick={joinHousehold} className="rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
+                  加入这个家看结果
+                </button>
+                <button type="button" onClick={onClose} className="rounded-full border border-line bg-white px-6 py-3 text-sm font-black text-ink">
+                  先不用
+                </button>
+              </div>
             </div>
           ) : (
             <form className="mt-6 grid gap-4" onSubmit={submitVote}>
