@@ -350,7 +350,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
           .toLowerCase()
           .includes(normalizedKeyword);
       })
-      .slice(0, 12);
+      .slice(0, 30);
   }, [activePreset, keyword]);
 
   useEffect(() => {
@@ -364,8 +364,11 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="eyebrow">Add dishes</p>
-          <h3 className="mt-1 text-2xl font-black">添加到今晚菜单</h3>
+          <p className="eyebrow">Pick dishes</p>
+          <h3 className="mt-1 text-2xl font-black">逛逛今晚还能加什么</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            家常菜、快手菜、汤菜都在这里，看到想吃的就顺手加进今晚。
+          </p>
         </div>
         <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4 md:w-72">
           <Search size={17} className="text-ink/38" />
@@ -431,37 +434,60 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
         ))}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:gap-5">
         {visibleRecipes.map((recipe) => {
           const inTodayMenu = todayRecipeIds.has(recipe.id);
           return (
             <article
               key={recipe.id}
-              className="grid grid-cols-[76px_1fr] gap-3 rounded-[20px] border border-line bg-canvas p-2"
+              className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
+              onClick={() => onOpenRecipe(recipe.id)}
             >
               <button
                 type="button"
                 onClick={() => onOpenRecipe(recipe.id)}
-                className="overflow-hidden rounded-[16px] bg-white"
+                className="block w-full text-left"
                 aria-label={`查看 ${recipe.name} 菜谱`}
               >
-                <DishImage
-                  recipe={recipe}
-                  variant="thumb"
-                  alt=""
-                  loading="lazy"
-                  className="h-20 w-full object-cover"
-                />
+                <div className="relative aspect-[4/5] overflow-hidden bg-canvas">
+                  <DishImage
+                    recipe={recipe}
+                    variant="thumb"
+                    alt={recipe.name}
+                    loading="lazy"
+                    sizes="(min-width: 1024px) 33vw, 50vw"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-ink/76 via-ink/20 to-transparent" />
+                  <div className="absolute left-3 top-3 rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-ink shadow-card backdrop-blur">
+                    {recipe.categories[0]}
+                  </div>
+                  <div className="absolute bottom-3 left-3 right-3 text-white">
+                    <h4 className="line-clamp-2 text-lg font-black leading-tight tracking-[-0.03em]">
+                      {recipe.name}
+                    </h4>
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-black text-white/84">
+                      <span className="rounded-full bg-white/18 px-2 py-1 backdrop-blur">
+                        {recipe.timeMinutes} min
+                      </span>
+                      <span className="rounded-full bg-white/18 px-2 py-1 backdrop-blur">
+                        {recipe.difficulty}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </button>
-              <div className="min-w-0 py-1 pr-1">
-                <p className="truncate text-base font-black">{recipe.name}</p>
-                <p className="mt-1 truncate text-xs font-bold text-ink/45">
-                  {recipe.categories[0]} · {recipe.timeMinutes} min
+              <div className="grid gap-3 p-3">
+                <p className="line-clamp-2 min-h-10 text-xs font-bold leading-5 text-ink/54">
+                  {recipe.description}
                 </p>
                 <button
                   type="button"
-                  onClick={() => onAddToday(recipe.id)}
-                  className={`mt-3 inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-full px-3 text-xs font-black transition ${
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAddToday(recipe.id);
+                  }}
+                  className={`inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-full px-3 text-sm font-black transition ${
                     inTodayMenu
                       ? "border border-line bg-white text-ink hover:border-ink/20"
                       : "bg-ink text-white hover:-translate-y-0.5"
