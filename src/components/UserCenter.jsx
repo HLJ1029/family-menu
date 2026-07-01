@@ -84,6 +84,12 @@ export function UserCenter({
   ].slice(0, 5);
   const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
   const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
+  const familyReflections = buildFamilyReflections({
+    mealLogs,
+    craveSignals,
+    wantToEatItems,
+    sourceSummary,
+  });
 
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
@@ -282,6 +288,15 @@ export function UserCenter({
             <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
             <StatusRow label="点外卖" value={`${sourceSummary.delivery} 次`} />
             <StatusRow label="外面吃" value={`${sourceSummary.outside} 次`} />
+          </div>
+          <div className="mt-4 grid gap-3">
+            {familyReflections.map((item) => (
+              <div key={item.title} className="rounded-[22px] border border-line bg-canvas p-4">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">{item.meta}</p>
+                <h4 className="mt-2 text-lg font-black tracking-[-0.02em]">{item.title}</h4>
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{item.text}</p>
+              </div>
+            ))}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <StatusRow label="推荐接受率" value={`${validationSummary.recommendationAcceptanceRate}%`} />
@@ -540,6 +555,84 @@ function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
       </div>
     </div>
   );
+}
+
+function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatItems = [], sourceSummary = {} }) {
+  const reflections = [];
+  const feelingCounts = craveSignals.reduce((summary, item) => {
+    const tag = item?.feelingTag;
+    if (!tag || tag === "随便都行") return summary;
+    summary[tag] = (summary[tag] ?? 0) + 1;
+    return summary;
+  }, {});
+  const topFeeling = Object.entries(feelingCounts).sort((a, b) => b[1] - a[1])[0];
+  if (topFeeling) {
+    reflections.push({
+      meta: "感觉趋势",
+      title: `最近更常有人想要「${topFeeling[0]}」`,
+      text: topFeeling[1] > 1
+        ? `已经出现 ${topFeeling[1]} 次。之后揉合菜单时，Humi 会优先把这个感觉当成软偏好。`
+        : "这条感觉已经记下来了，后面家人再点几次就会长成更稳定的口味线索。",
+    });
+  }
+
+  const mealSlotSummary = Object.values(mealLogs ?? {}).reduce(
+    (summary, log) => {
+      const breakfastSource = log?.meals?.breakfast?.source;
+      const lunchSource = log?.meals?.lunch?.source;
+      if (breakfastSource === "home") summary.breakfast += 1;
+      if (lunchSource === "home") summary.lunchHome += 1;
+      if (lunchSource === "delivery" || lunchSource === "outside") summary.lunchAway += 1;
+      return summary;
+    },
+    { breakfast: 0, lunchHome: 0, lunchAway: 0 },
+  );
+  if (mealSlotSummary.breakfast > 0) {
+    reflections.push({
+      meta: "早餐记录",
+      title: `早餐已经顺手记了 ${mealSlotSummary.breakfast} 次`,
+      text: "早餐不做复杂推荐，只保留轻量记录和清单信号，避免把早上变成另一套任务。",
+    });
+  }
+  if (mealSlotSummary.lunchHome + mealSlotSummary.lunchAway > 0) {
+    reflections.push({
+      meta: "午餐来源",
+      title: mealSlotSummary.lunchAway > mealSlotSummary.lunchHome ? "午餐最近更多在外解决" : "午餐也开始进入家庭节奏",
+      text: mealSlotSummary.lunchAway > mealSlotSummary.lunchHome
+        ? "这不会被当成断更；Humi 只记录来源，晚饭仍然是主决策。"
+        : "在家做的午餐会进清单，外卖和外食只进画像，不额外打扰。",
+    });
+  }
+
+  const openWantCount = wantToEatItems.filter((item) => item.status !== "done").length;
+  const doneWantCount = wantToEatItems.filter((item) => item.status === "done").length;
+  if (openWantCount > 0 || doneWantCount > 0) {
+    reflections.push({
+      meta: "想吃池子",
+      title: openWantCount > 0 ? `还有 ${openWantCount} 个想吃的等安排` : `已经安排过 ${doneWantCount} 个想吃的`,
+      text: "这些不是设置表，而是家人自然丢进来的口味线索，会慢慢喂给今晚推荐。",
+    });
+  }
+
+  if (sourceSummary.home > 0 && reflections.length < 3) {
+    reflections.push({
+      meta: "晚饭反馈",
+      title: `最近在家做了 ${sourceSummary.home} 次`,
+      text: sourceSummary.delivery + sourceSummary.outside > sourceSummary.home
+        ? "外卖和外食也被温和记下来了，后面会用来判断哪天更适合省事菜单。"
+        : "确认做了的晚饭会进入画像和营养回看，换了别的也不会扣分。",
+    });
+  }
+
+  if (reflections.length === 0) {
+    reflections.push({
+      meta: "画像刚开始",
+      title: "先用几次，Humi 会慢慢看见你家",
+      text: "感觉征集、早餐轻记、午餐来源和晚间确认都会成为画像材料，不需要额外填表。",
+    });
+  }
+
+  return reflections.slice(0, 3);
 }
 
 function summarizeCraveVotes(votes) {
