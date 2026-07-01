@@ -120,6 +120,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const craveJoinMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/join$/);
+      if (request.method === "POST" && craveJoinMatch) {
+        await handleJoinCraveRequest(request, response, craveJoinMatch[1]);
+        return;
+      }
+
       const craveCloseMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/close$/);
       if (request.method === "POST" && craveCloseMatch) {
         await handleCloseCraveRequest(request, response, craveCloseMatch[1]);
@@ -280,6 +286,29 @@ async function handleCraveVote(request, response, token) {
   sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
 }
 
+async function handleJoinCraveRequest(request, response, token) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const craveRequest = await store.claimCraveVote(token, user.id, {
+      participantKey: body.participantKey,
+      memberName: body.memberName || user.displayName,
+    });
+    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest), family: toHumiFamily(user) });
+  } catch (error) {
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");
+    }
+    if (error.code === "vote_not_found") {
+      throw httpError(404, "vote_not_found", "没有找到你刚才的投票，可以直接回 Humi 查看。");
+    }
+    throw error;
+  }
+}
+
 async function handleCloseCraveRequest(request, response, token) {
   const body = await readJson(request);
   try {
@@ -333,6 +362,8 @@ function toPublicCraveRequest(request) {
       feelingTag: vote.feelingTag,
       note: vote.note,
       temporary: vote.temporary,
+      memberId: vote.temporary ? undefined : vote.memberId,
+      claimedAt: vote.claimedAt,
       createdAt: vote.createdAt,
     })),
     createdAt: request.createdAt,

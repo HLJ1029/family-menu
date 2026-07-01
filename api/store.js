@@ -191,6 +191,35 @@ export class HumiStore {
     return request;
   }
 
+  async claimCraveVote(token, userId, claim = {}) {
+    await this.load();
+    const request = this.data.craveRequests.find((item) => item.token === token);
+    if (!request) return null;
+    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    if (!participantKey) {
+      const error = new Error("participantKey is required.");
+      error.code = "missing_participant_key";
+      throw error;
+    }
+
+    const vote = request.votes.find((item) => item.participantKey === participantKey);
+    if (!vote) {
+      const error = new Error("Temporary vote not found.");
+      error.code = "vote_not_found";
+      throw error;
+    }
+
+    const user = this.data.users.find((item) => item.id === userId);
+    const now = new Date().toISOString();
+    vote.memberId = userId;
+    vote.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || vote.memberName || "家人";
+    vote.temporary = false;
+    vote.claimedAt = now;
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
   async closeCraveRequest(token, ownerSecret) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);

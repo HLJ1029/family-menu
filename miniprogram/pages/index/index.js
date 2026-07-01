@@ -39,7 +39,7 @@ Page({
         currentSession: session,
         phoneSessionUpdatedAt: updatedAt,
         phoneBindVisible: false,
-        url: appendSessionToUrl(getHumiH5Url(), session)
+        url: appendSessionToUrl(this.buildH5Url(), session)
       });
     }
   },
@@ -101,7 +101,7 @@ Page({
 
             const app = getApp();
             app.globalData.humiSession = data;
-            this.setData({ currentSession: data, url: appendSessionToUrl(getHumiH5Url(), data) });
+            this.setData({ currentSession: data, url: appendSessionToUrl(this.buildH5Url(), data) });
             if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
@@ -157,7 +157,7 @@ Page({
           currentSession: data,
           phoneSessionUpdatedAt: app.globalData.humiPhoneSessionUpdatedAt,
           phoneBindVisible: false,
-          url: appendSessionToUrl(getHumiH5Url(), data)
+          url: appendSessionToUrl(this.buildH5Url(), data)
         });
         wx.showToast({ title: "手机号已绑定", icon: "success" });
       },
@@ -182,6 +182,14 @@ Page({
       title: "Humi 帮你安排今晚吃什么",
       path: "/pages/index/index"
     };
+  },
+
+  buildH5Url() {
+    const launchCraveToken = this.data.launchCraveToken;
+    if (launchCraveToken) {
+      return appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" });
+    }
+    return getHumiH5Url();
   }
 });
 

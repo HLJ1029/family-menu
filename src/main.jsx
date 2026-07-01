@@ -2469,6 +2469,7 @@ function App() {
     return (
       <CraveLanding
         token={craveLandingToken}
+        humiSession={humiSession}
         onClose={() => {
           clearCraveTokenFromUrl();
           setCraveLandingToken("");

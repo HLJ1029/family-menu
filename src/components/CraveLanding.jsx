@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Loader2, MessageCircleHeart } from "lucide-react";
 import { feelingTags } from "../lib/collaboration";
-import { loadCraveRequest, submitCraveVote } from "../lib/humiApi";
+import { isHumiApiSession, joinCraveRequest, loadCraveRequest, submitCraveVote } from "../lib/humiApi";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 
 const PARTICIPANT_KEY = "humi:crave-participant-key:v1";
+const PARTICIPANT_VOTES_KEY = "humi:crave-participant-votes:v1";
 
-export function CraveLanding({ token, onClose }) {
+export function CraveLanding({ token, humiSession, onClose }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -16,6 +17,7 @@ export function CraveLanding({ token, onClose }) {
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const participantKey = useMemo(() => getParticipantKey(), []);
+  const joinAttemptedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -39,6 +41,34 @@ export function CraveLanding({ token, onClose }) {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (!request || !isHumiApiSession(humiSession) || joinAttemptedRef.current) return;
+    if (!hasLocalVote(token, participantKey)) return;
+    joinAttemptedRef.current = true;
+    let active = true;
+    async function claimTemporaryVote() {
+      setStatus("正在把你刚才的选择加入这个家...");
+      try {
+        const data = await joinCraveRequest(token, humiSession, {
+          participantKey,
+          memberName: memberName.trim() || humiSession.user?.displayName || "家人",
+        });
+        if (!active) return;
+        setRequest(data.request);
+        setSubmitted(true);
+        markLocalVote(token, participantKey, { joined: true });
+        setStatus("已加入这个家，主厨能看到你刚才的选择。");
+      } catch (error) {
+        if (!active) return;
+        setStatus(error.message || "已登录，但这次选择暂时没合并成功。");
+      }
+    }
+    claimTemporaryVote();
+    return () => {
+      active = false;
+    };
+  }, [humiSession, memberName, participantKey, request, token]);
+
   async function submitVote(event) {
     event.preventDefault();
     setStatus("");
@@ -50,6 +80,7 @@ export function CraveLanding({ token, onClose }) {
         note,
         temporary: true,
       });
+      markLocalVote(token, participantKey, { joined: false });
       setRequest(data.request);
       setSubmitted(true);
     } catch (error) {
@@ -185,4 +216,30 @@ function getParticipantKey() {
   const next = `participant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
   window.localStorage.setItem(PARTICIPANT_KEY, next);
   return next;
+}
+
+function hasLocalVote(token, participantKey) {
+  if (typeof window === "undefined" || !token || !participantKey) return false;
+  try {
+    const votes = JSON.parse(window.localStorage.getItem(PARTICIPANT_VOTES_KEY) || "{}");
+    const vote = votes[token];
+    return vote?.participantKey === participantKey && vote.joined !== true;
+  } catch {
+    return false;
+  }
+}
+
+function markLocalVote(token, participantKey, patch = {}) {
+  if (typeof window === "undefined" || !token || !participantKey) return;
+  try {
+    const votes = JSON.parse(window.localStorage.getItem(PARTICIPANT_VOTES_KEY) || "{}");
+    votes[token] = {
+      participantKey,
+      updatedAt: new Date().toISOString(),
+      ...patch,
+    };
+    window.localStorage.setItem(PARTICIPANT_VOTES_KEY, JSON.stringify(votes));
+  } catch {
+    // Local markers only improve the join-after-vote flow; vote submission remains authoritative.
+  }
 }

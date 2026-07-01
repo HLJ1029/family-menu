@@ -71,6 +71,28 @@ try {
   assert(loadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
   assert(loadedState.state?.familyProfile?.familySize === 3, "state should load profile");
 
+  const crave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    body: { householdName: "测试家", initiatorName: "主厨" },
+  });
+  assert(crave.request?.token, "crave request should return token");
+  await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    body: {
+      participantKey: "participant-smoke",
+      memberName: "家人",
+      feelingTag: "辣一点",
+      temporary: true,
+    },
+  });
+  const joinedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { participantKey: "participant-smoke" },
+  });
+  assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
+  assert(joinedCrave.request?.votes?.[0]?.memberId === login.user.id, "joined crave vote should attach user");
+
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },

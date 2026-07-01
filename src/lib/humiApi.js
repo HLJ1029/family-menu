@@ -47,6 +47,15 @@ export async function submitCraveVote(token, vote) {
   });
 }
 
+export async function joinCraveRequest(token, session, payload) {
+  if (!token) throw new Error("征集链接不完整。");
+  return humiApiRequest(`/crave-requests/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
 export async function closeCraveRequest(token, ownerSecret) {
   if (!token) throw new Error("征集链接不完整。");
   return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/close`, {
