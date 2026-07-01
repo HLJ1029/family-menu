@@ -78,6 +78,21 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/households") {
+        await handleGetHouseholds(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/households") {
+        await handleCreateHousehold(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/households/active") {
+        await handleSetActiveHousehold(request, response);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/state") {
         await handleGetState(request, response);
         return;
@@ -202,10 +217,12 @@ async function handleMe(request, response) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const profile = await store.getProfile(user.id);
   const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 200, {
     user: toPublicUser(user),
     profileCompleted: getProfileCompletedCount(profile),
     family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
   });
 }
 
@@ -227,9 +244,11 @@ async function handleGetState(request, response) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const state = await store.getState(user.id);
   const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 200, {
     state,
     family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
   });
 }
 
@@ -240,10 +259,62 @@ async function handleSaveState(request, response) {
   const body = await readJson(request);
   const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body));
   const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 200, {
     state,
     family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
   });
+}
+
+async function handleGetHouseholds(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
+  sendJson(response, 200, {
+    family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
+  });
+}
+
+async function handleCreateHousehold(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  const household = await store.createHouseholdForUser(user.id, {
+    householdName: stringValue(body.householdName || body.name, 32) || "我的家",
+    memberName: stringValue(body.memberName, 32) || user.displayName,
+  });
+  const households = await store.getHouseholdsForUser(user.id);
+  sendJson(response, 201, {
+    family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
+  });
+}
+
+async function handleSetActiveHousehold(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const household = await store.setActiveHouseholdForUser(user.id, stringValue(body.householdId, 80));
+    const state = await store.getState(user.id);
+    const households = await store.getHouseholdsForUser(user.id);
+    sendJson(response, 200, {
+      state,
+      family: toHumiFamily(household, user),
+      households: toHumiFamilies(households, user),
+    });
+  } catch (error) {
+    if (error.code === "household_not_found") {
+      throw httpError(404, "household_not_found", "没有找到这个家，可能还没有加入。");
+    }
+    throw error;
+  }
 }
 
 async function handleRecommend(request, response) {
@@ -459,6 +530,10 @@ function toHumiFamily(household, user) {
       joinedAt: item.joinedAt,
     })),
   };
+}
+
+function toHumiFamilies(households = [], user) {
+  return households.map((household) => toHumiFamily(household, user));
 }
 
 function sanitizeProfile(profile = {}) {

@@ -17,6 +17,26 @@ export async function saveHumiState(session, state) {
   });
 }
 
+export async function loadHumiHouseholds(session) {
+  return humiApiRequest("/households", { session });
+}
+
+export async function createHumiHousehold(session, payload) {
+  return humiApiRequest("/households", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function switchHumiHousehold(session, householdId) {
+  return humiApiRequest("/households/active", {
+    method: "POST",
+    session,
+    body: { householdId },
+  });
+}
+
 export async function logoutHumiSession(session) {
   if (!session?.accessToken) return;
   await humiApiRequest("/auth/logout", {

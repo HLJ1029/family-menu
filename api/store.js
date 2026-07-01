@@ -7,6 +7,7 @@ const DEFAULT_DATA = {
   users: [],
   identities: [],
   households: [],
+  activeHouseholds: {},
   profiles: {},
   states: {},
   householdStates: {},
@@ -90,12 +91,48 @@ export class HumiStore {
 
   async getHouseholdForUser(userId) {
     await this.load();
-    return this.findHouseholdByMember(userId) ?? this.ensureHouseholdForUser(userId);
+    return this.findActiveHouseholdByMember(userId) ?? this.ensureHouseholdForUser(userId);
+  }
+
+  async getHouseholdsForUser(userId) {
+    await this.load();
+    return this.findHouseholdsByMember(userId);
+  }
+
+  async createHouseholdForUser(userId, options = {}) {
+    await this.load();
+    const hadHousehold = this.findHouseholdsByMember(userId).length > 0;
+    const household = this.buildHousehold(userId, options);
+    this.data.households.push(household);
+    this.data.activeHouseholds[userId] = household.id;
+    if (!hadHousehold && this.data.states[userId] && !this.data.householdStates[household.id]) {
+      this.data.householdStates[household.id] = {
+        ...this.data.states[userId],
+        householdId: household.id,
+        migratedFromUserId: userId,
+        updatedAt: this.data.states[userId].updatedAt || household.createdAt,
+      };
+    }
+    await this.save();
+    return household;
+  }
+
+  async setActiveHouseholdForUser(userId, householdId) {
+    await this.load();
+    const household = this.findHouseholdsByMember(userId).find((item) => item.id === householdId);
+    if (!household) {
+      const error = new Error("Household not found for user.");
+      error.code = "household_not_found";
+      throw error;
+    }
+    this.data.activeHouseholds[userId] = household.id;
+    await this.save();
+    return household;
   }
 
   async ensureHouseholdForUser(userId, options = {}) {
     await this.load();
-    const existing = this.findHouseholdByMember(userId);
+    const existing = this.findActiveHouseholdByMember(userId);
     if (existing) {
       const member = existing.members.find((item) => item.memberId === userId);
       const nextName = sanitizeText(options.memberName, "", 32);
@@ -108,9 +145,13 @@ export class HumiStore {
       return existing;
     }
 
+    return this.createHouseholdForUser(userId, options);
+  }
+
+  buildHousehold(userId, options = {}) {
     const user = this.data.users.find((item) => item.id === userId);
     const now = new Date().toISOString();
-    const household = {
+    return {
       id: randomUUID(),
       name: sanitizeText(options.householdName, "我的家", 32),
       ownerId: userId,
@@ -127,17 +168,6 @@ export class HumiStore {
       createdAt: now,
       updatedAt: now,
     };
-    this.data.households.push(household);
-    if (this.data.states[userId] && !this.data.householdStates[household.id]) {
-      this.data.householdStates[household.id] = {
-        ...this.data.states[userId],
-        householdId: household.id,
-        migratedFromUserId: userId,
-        updatedAt: this.data.states[userId].updatedAt || now,
-      };
-    }
-    await this.save();
-    return household;
   }
 
   async addHouseholdMember(householdId, userId, options = {}) {
@@ -163,6 +193,7 @@ export class HumiStore {
       });
     }
     household.updatedAt = now;
+    this.data.activeHouseholds[userId] = household.id;
     await this.save();
     return household;
   }
@@ -197,7 +228,7 @@ export class HumiStore {
   async getState(userId) {
     await this.load();
     const household = await this.ensureHouseholdForUser(userId);
-    return this.data.householdStates[household.id] ?? this.data.states[userId] ?? null;
+    return this.data.householdStates[household.id] ?? null;
   }
 
   async saveState(userId, state) {
@@ -333,10 +364,20 @@ export class HumiStore {
   }
 
   findHouseholdByMember(userId) {
-    return this.data.households.find((household) => (
+    return this.findHouseholdsByMember(userId)[0] ?? null;
+  }
+
+  findActiveHouseholdByMember(userId) {
+    const households = this.findHouseholdsByMember(userId);
+    const activeHouseholdId = this.data.activeHouseholds?.[userId];
+    return households.find((household) => household.id === activeHouseholdId) ?? households[0] ?? null;
+  }
+
+  findHouseholdsByMember(userId) {
+    return this.data.households.filter((household) => (
       Array.isArray(household.members)
       && household.members.some((member) => member.memberId === userId && member.status === "formal")
-    )) ?? null;
+    ));
   }
 }
 

@@ -27,6 +27,7 @@ export function UserCenter({
   session,
   humiSession,
   family,
+  households = [],
   familyProfile,
   setFamilyProfile,
   mealLogs = {},
@@ -41,6 +42,8 @@ export function UserCenter({
   onRefreshCraveRequest,
   onGenerateFromCrave,
   onStartCraveRequest,
+  onCreateHousehold,
+  onSwitchHousehold,
   onExportValidationData,
   onViewChange,
   onAskFamily,
@@ -59,6 +62,7 @@ export function UserCenter({
   const [wantTitle, setWantTitle] = useState("");
   const [wantNote, setWantNote] = useState("");
   const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
+  const [newHouseholdName, setNewHouseholdName] = useState("");
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
   const currentUserId = humiSession?.user?.id || session?.user?.id || "";
@@ -168,6 +172,18 @@ export function UserCenter({
           role={familyRole}
           members={familyMembers}
           currentUserId={currentUserId}
+        />
+        <HouseholdSwitcher
+          signedIn={signedIn}
+          family={family}
+          households={households}
+          newHouseholdName={newHouseholdName}
+          onNameChange={setNewHouseholdName}
+          onCreate={() => {
+            onCreateHousehold?.(newHouseholdName || "另一个家");
+            setNewHouseholdName("");
+          }}
+          onSwitch={onSwitchHousehold}
         />
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -636,6 +652,67 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HouseholdSwitcher({ signedIn, family, households, newHouseholdName, onNameChange, onCreate, onSwitch }) {
+  if (!signedIn) return null;
+  const visibleHouseholds = households.length > 0 ? households : family ? [family] : [];
+
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">多个家</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">当前用的是 {family?.name || "我的家"}</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            小家、父母家可以分开保存菜单、清单和画像。现在默认仍只用一个家，需要时再切换。
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
+          {visibleHouseholds.length || 1} 个家
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {visibleHouseholds.map((household) => {
+          const active = household.id === family?.id;
+          return (
+            <button
+              key={household.id}
+              type="button"
+              onClick={() => !active && onSwitch?.(household.id)}
+              className={`flex min-h-14 items-center justify-between gap-3 rounded-[18px] border px-4 text-left transition ${
+                active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink hover:border-ink/30"
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-black">{household.name || "我的家"}</span>
+                <span className={`mt-1 block text-xs font-bold ${active ? "text-white/62" : "text-ink/42"}`}>
+                  {formatHouseholdRole(household.role)} · {(household.members ?? []).length || 1} 人
+                </span>
+              </span>
+              {active ? <Check size={18} /> : <Users size={18} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {onCreate && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            value={newHouseholdName}
+            onChange={(event) => onNameChange?.(event.target.value)}
+            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="例如：爸妈家"
+          />
+          <button type="button" onClick={onCreate} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+            <Plus size={16} />
+            新建一个家
+          </button>
         </div>
       )}
     </section>
@@ -1148,6 +1225,14 @@ function getIdentityLabel({ session, humiSession }) {
   if (humiSession?.user) return humiSession.user.displayName ?? "微信用户";
   if (session?.user?.email) return session.user.email;
   return "未登录";
+}
+
+function formatHouseholdRole(role) {
+  return role === "owner" ? "主厨" : "家人";
+}
+
+function formatHouseholdStatus(status) {
+  return status === "formal" || status === "active" ? "已加入" : "临时参与";
 }
 
 function StatusRow({ label, value }) {

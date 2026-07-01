@@ -59,7 +59,17 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
-import { closeCraveRequest, createCraveRequest, isHumiApiSession, loadCraveRequest, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
+import {
+  closeCraveRequest,
+  createCraveRequest,
+  createHumiHousehold,
+  isHumiApiSession,
+  loadCraveRequest,
+  loadHumiState,
+  logoutHumiSession,
+  saveHumiState,
+  switchHumiHousehold,
+} from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -157,6 +167,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
   const [family, setFamily] = useState(null);
+  const [humiHouseholds, setHumiHouseholds] = useState([]);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("humi:cloud-menu-enabled", false, {
@@ -276,45 +287,12 @@ function App() {
       try {
         const data = await loadHumiState(humiSession);
         if (!active) return;
-        const state = data.state;
-        if (data.family) setFamily(data.family);
-        if (state) {
-          setTodayMenu(Array.isArray(state.todayMenu) ? state.todayMenu : []);
-          const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
-          const loadedMealCalendar = state.mealCalendar ?? createInitialMealCalendar();
-          const loadedMealPlan = normalizeMealPlan(
-            state.mealPlan ?? createMealPlanFromLegacy({
-              mealCalendar: loadedMealCalendar,
-              weekPlan: loadedWeekPlan,
-              todayMenu: state.todayMenu,
-              todayDateKey,
-              currentDay: getCurrentPlanDay(),
-            }),
-          );
-          const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
-          setMealPlan(loadedMealPlan);
-          setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
-          setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
-          setMealCalendar(mealPlanToCalendar(loadedMealPlan));
-          setMealLogs(state.mealLogs ?? {});
-          setCheckedItems(state.checkedItems ?? {});
-          setGroceryClaims(state.groceryClaims ?? {});
-          setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
-          setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
-          setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
-          setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
-          setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
-          setWantToEatItems(Array.isArray(state.wantToEatItems) ? state.wantToEatItems : []);
-          if (state.recommendationAccess) {
-            setRecommendationAccess(normalizeRecommendationAccess(state.recommendationAccess));
-          }
-          setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
-          setCloudSyncStatus("已读取微信账号保存的今晚菜单和一周计划。");
-          setCloudGroceryStatus("已读取微信账号保存的食材清单和家中库存。");
-        } else {
-          setCloudSyncStatus("微信账号保存已开启，今晚菜单会自动保存。");
-          setCloudGroceryStatus("微信账号保存已开启，清单和库存会自动保存。");
-        }
+        applyHumiStateEnvelope(data, {
+          loadedMenuStatus: "已读取微信账号保存的今晚菜单和一周计划。",
+          loadedGroceryStatus: "已读取微信账号保存的食材清单和家中库存。",
+          emptyMenuStatus: "微信账号保存已开启，今晚菜单会自动保存。",
+          emptyGroceryStatus: "微信账号保存已开启，清单和库存会自动保存。",
+        });
       } catch (error) {
         if (active) {
           setCloudSyncStatus(error.message);
@@ -2203,6 +2181,7 @@ function App() {
       humiStateLoadedRef.current = false;
       humiStateHydratingRef.current = false;
       setFamily(null);
+      setHumiHouseholds([]);
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
@@ -2472,6 +2451,54 @@ function App() {
     showNotice,
   };
 
+  function applyHumiStateEnvelope(data, {
+    loadedMenuStatus = "已读取当前家的菜单。",
+    loadedGroceryStatus = "已读取当前家的清单和库存。",
+    emptyMenuStatus = "当前家还没有保存菜单，之后会自动保存。",
+    emptyGroceryStatus = "当前家还没有保存清单和库存，之后会自动保存。",
+  } = {}) {
+    const state = data?.state;
+    if (data?.family) setFamily(data.family);
+    if (Array.isArray(data?.households)) setHumiHouseholds(data.households);
+    if (!state) {
+      setCloudSyncStatus(emptyMenuStatus);
+      setCloudGroceryStatus(emptyGroceryStatus);
+      return;
+    }
+
+    const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
+    const loadedMealCalendar = state.mealCalendar ?? createInitialMealCalendar();
+    const loadedMealPlan = normalizeMealPlan(
+      state.mealPlan ?? createMealPlanFromLegacy({
+        mealCalendar: loadedMealCalendar,
+        weekPlan: loadedWeekPlan,
+        todayMenu: state.todayMenu,
+        todayDateKey,
+        currentDay: getCurrentPlanDay(),
+      }),
+    );
+    const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
+    setMealPlan(loadedMealPlan);
+    setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
+    setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
+    setMealCalendar(mealPlanToCalendar(loadedMealPlan));
+    setMealLogs(state.mealLogs ?? {});
+    setCheckedItems(state.checkedItems ?? {});
+    setGroceryClaims(state.groceryClaims ?? {});
+    setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
+    setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
+    setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
+    setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
+    setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
+    setWantToEatItems(Array.isArray(state.wantToEatItems) ? state.wantToEatItems : []);
+    if (state.recommendationAccess) {
+      setRecommendationAccess(normalizeRecommendationAccess(state.recommendationAccess));
+    }
+    setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
+    setCloudSyncStatus(loadedMenuStatus);
+    setCloudGroceryStatus(loadedGroceryStatus);
+  }
+
   async function migrateMenusToCloud() {
     if (isHumiApiSession(humiSession)) {
       setCloudMenuLoading(true);
@@ -2514,24 +2541,12 @@ function App() {
       try {
         setCloudMenuLoading(true);
         const data = await loadHumiState(humiSession);
-        const state = data.state;
-        if (data.family) setFamily(data.family);
-        const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) };
-        const loadedMealPlan = normalizeMealPlan(
-          state?.mealPlan ?? createMealPlanFromLegacy({
-            mealCalendar: state?.mealCalendar,
-            weekPlan: loadedWeekPlan,
-            todayMenu: state?.todayMenu,
-            todayDateKey,
-            currentDay: getCurrentPlanDay(),
-          }),
-        );
-        setMealPlan(loadedMealPlan);
-        setTodayMenu(getDayMeals(loadedMealPlan, todayDateKey).dinner.length > 0
-          ? getDayMeals(loadedMealPlan, todayDateKey).dinner
-          : Array.isArray(state?.todayMenu) ? state.todayMenu : []);
-        setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
-        setCloudSyncStatus("已刷新微信账号保存的菜单。");
+        applyHumiStateEnvelope(data, {
+          loadedMenuStatus: "已刷新当前家保存的菜单。",
+          loadedGroceryStatus: "已刷新当前家保存的清单和库存。",
+          emptyMenuStatus: "当前家还没有保存菜单。",
+          emptyGroceryStatus: "当前家还没有保存清单和库存。",
+        });
         showNotice("微信账号菜单已刷新");
       } catch (error) {
         setCloudSyncStatus(error.message);
@@ -2564,6 +2579,53 @@ function App() {
       setCloudSyncStatus(error.message);
     } finally {
       setCloudMenuLoading(false);
+    }
+  }
+
+  async function createAnotherHumiHousehold(name) {
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("请先在小程序里登录 Humi");
+      return;
+    }
+    setCloudMenuLoading(true);
+    try {
+      const data = await createHumiHousehold(humiSession, {
+        householdName: name || "另一个家",
+        memberName: humiSession.user?.displayName || "主厨",
+      });
+      if (data.family) setFamily(data.family);
+      if (Array.isArray(data.households)) setHumiHouseholds(data.households);
+      setCloudSyncStatus("已创建并切换到新的家。");
+      setCloudGroceryStatus("这个家的菜单、清单和画像会单独保存。");
+      showNotice(`已创建 ${data.family?.name || "新的家"}`);
+    } catch (error) {
+      setCloudSyncStatus(error.message);
+      showNotice(error.message);
+    } finally {
+      setCloudMenuLoading(false);
+    }
+  }
+
+  async function switchActiveHumiHousehold(householdId) {
+    if (!isHumiApiSession(humiSession) || !householdId || householdId === family?.id) return;
+    setCloudMenuLoading(true);
+    setCloudGroceryLoading(true);
+    try {
+      const data = await switchHumiHousehold(humiSession, householdId);
+      applyHumiStateEnvelope(data, {
+        loadedMenuStatus: "已切换并读取当前家的菜单。",
+        loadedGroceryStatus: "已切换并读取当前家的清单和库存。",
+        emptyMenuStatus: "已切换到这个家。这里还没有保存菜单。",
+        emptyGroceryStatus: "已切换到这个家。这里还没有保存清单和库存。",
+      });
+      showNotice(`已切换到 ${data.family?.name || "这个家"}`);
+    } catch (error) {
+      setCloudSyncStatus(error.message);
+      setCloudGroceryStatus(error.message);
+      showNotice(error.message);
+    } finally {
+      setCloudMenuLoading(false);
+      setCloudGroceryLoading(false);
     }
   }
 
@@ -2615,18 +2677,12 @@ function App() {
       try {
         setCloudGroceryLoading(true);
         const data = await loadHumiState(humiSession);
-        const state = data.state;
-        if (data.family) setFamily(data.family);
-        setCustomItems(Array.isArray(state?.customItems) ? state.customItems : []);
-        setCheckedItems(state?.checkedItems ?? {});
-        setGroceryClaims(state?.groceryClaims ?? {});
-        setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
-        setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
-        setWantToEatItems(Array.isArray(state?.wantToEatItems) ? state.wantToEatItems : []);
-        if (state?.recommendationAccess) {
-          setRecommendationAccess(normalizeRecommendationAccess(state.recommendationAccess));
-        }
-        setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
+        applyHumiStateEnvelope(data, {
+          loadedMenuStatus: "已刷新当前家保存的菜单。",
+          loadedGroceryStatus: "已刷新当前家保存的清单和库存。",
+          emptyMenuStatus: "当前家还没有保存菜单。",
+          emptyGroceryStatus: "当前家还没有保存清单和库存。",
+        });
         showNotice("微信账号清单已刷新");
       } catch (error) {
         setCloudGroceryStatus(error.message);
@@ -3092,6 +3148,7 @@ function App() {
                 session={displaySession}
                 humiSession={humiSession}
                 family={family}
+                households={humiHouseholds}
                 familyProfile={familyProfile}
                 setFamilyProfile={saveFamilyProfile}
                 mealLogs={mealLogs}
@@ -3106,6 +3163,8 @@ function App() {
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
                 onStartCraveRequest={startCraveRequest}
+                onCreateHousehold={createAnotherHumiHousehold}
+                onSwitchHousehold={switchActiveHumiHousehold}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onAskFamily={askFamilyFromHome}

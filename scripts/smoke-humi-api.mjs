@@ -7,12 +7,13 @@ await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
 
 try {
   const baseUrl = `http://127.0.0.1:${port}`;
+  const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
 
   const login = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
-    body: { code: "smoke" },
+    body: { code: `smoke-${runId}` },
   });
   assert(login.accessToken, "login should return accessToken");
   assert(login.user?.provider === "wechat", "login should return wechat user");
@@ -131,6 +132,57 @@ try {
     )),
     "owner household member should expose owner role and formal status",
   );
+  assert(Array.isArray(loadedStateEnvelope.households), "state envelope should include households");
+  assert(loadedStateEnvelope.households?.length === 1, "new user should start with one active household");
+
+  const secondHousehold = await request(`${baseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "爸妈家", memberName: "主厨" },
+  });
+  assert(secondHousehold.households?.length === 2, "user should be able to create a second household");
+  assert(secondHousehold.family?.name === "爸妈家", "new household should become active");
+  assert(secondHousehold.family?.role === "owner", "new household should keep current user as owner");
+  const blankSecondHousehold = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(!blankSecondHousehold.state?.todayMenu?.length, "new second household should start without original menu");
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      state: {
+        todayMenu: [{ recipeId: "mapo-tofu", quantity: 1 }],
+        weekPlan: { 周一: ["mapo-tofu"], 周二: [], 周三: [], 周四: [], 周五: [], 周六: [], 周日: [] },
+        mealPlan: {
+          "2026-07-01": {
+            breakfast: [],
+            lunch: [],
+            dinner: [{ recipeId: "mapo-tofu", quantity: 1 }],
+          },
+        },
+        familyProfile: { familySize: 4, goals: ["照顾老人"] },
+      },
+    },
+  });
+  const switchedBack = await request(`${baseUrl}/households/active`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: loadedStateEnvelope.family.id },
+  });
+  assert(switchedBack.family?.id === loadedStateEnvelope.family.id, "should switch back to original household");
+  assert(switchedBack.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "original household should keep original state");
+  const switchedAgain = await request(`${baseUrl}/households/active`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: secondHousehold.family.id },
+  });
+  assert(switchedAgain.state?.todayMenu?.[0]?.recipeId === "mapo-tofu", "second household should keep separate state");
+  await request(`${baseUrl}/households/active`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: loadedStateEnvelope.family.id },
+  });
 
   const crave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
@@ -150,7 +202,7 @@ try {
   });
   const memberLogin = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
-    body: { code: "family-member-smoke" },
+    body: { code: `family-member-smoke-${runId}` },
   });
   const joinedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
     method: "POST",
