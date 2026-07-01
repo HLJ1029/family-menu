@@ -1,0 +1,47 @@
+import { createServer } from "vite";
+
+const vite = await createServer({
+  logLevel: "silent",
+  server: { middlewareMode: true },
+});
+
+const { buildTodayRecommendation } = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
+
+const scenarios = [
+  {
+    name: "海鲜忌口不应推荐鱼虾海鲜",
+    profile: { familySize: 2, dislikes: ["海鲜"], allergies: [] },
+    forbidden: ["海鲜", "鱼", "虾", "贝", "蟹"],
+  },
+  {
+    name: "鸡蛋过敏不应推荐鸡蛋菜",
+    profile: { familySize: 2, dislikes: [], allergies: ["鸡蛋"] },
+    forbidden: ["鸡蛋", "蛋类"],
+  },
+  {
+    name: "太辣不应推荐辣味菜",
+    profile: { familySize: 2, dislikes: ["太辣"], allergies: [] },
+    forbidden: ["辣"],
+  },
+];
+
+for (const scenario of scenarios) {
+  const recommendation = buildTodayRecommendation({ familyProfile: scenario.profile });
+  for (const recipe of recommendation.recipes) {
+    const haystack = [
+      recipe.name,
+      recipe.description,
+      ...recipe.categories,
+      ...recipe.tags,
+      ...recipe.ingredients.map((item) => item.name),
+    ].join(" ");
+    const forbiddenHit = scenario.forbidden.find((signal) => haystack.includes(signal));
+    if (forbiddenHit) {
+      throw new Error(`${scenario.name}: ${recipe.name} 命中了 ${forbiddenHit}`);
+    }
+  }
+}
+
+await vite.close();
+
+console.log("Recommendation hard constraints check passed.");

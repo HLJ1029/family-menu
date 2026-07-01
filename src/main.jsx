@@ -58,7 +58,7 @@ import {
   photoCandidatesFor,
   recipes,
 } from "./lib/recipes";
-import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
+import { buildRecommendationItems, buildTodayRecommendation, recipeViolatesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import {
@@ -2346,6 +2346,7 @@ function App() {
       mode,
       candidates: recipes
         .filter((recipe) => !currentRecipeIds.includes(recipe.id))
+        .filter((recipe) => !recipeViolatesHardAvoid(recipe, { familyMembers, familyProfile }))
         .map((recipe) => ({
           id: recipe.id,
           name: recipe.name,

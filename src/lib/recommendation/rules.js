@@ -1,5 +1,5 @@
-import { nutritionFor, recipes } from "../recipes";
-import { getPlanningMode } from "../profile";
+import { nutritionFor, recipes } from "../recipes.js";
+import { getPlanningMode } from "../profile.js";
 
 const recentRecipeIds = new Set();
 const dislikedSignals = ["鸡爪", "肥肠"];
@@ -15,6 +15,7 @@ export function buildTodayRecommendation({
 }) {
   const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers, familyProfile);
+  const hardAvoidSignals = buildHardAvoidSignals(familyPreference);
   const planningMode = getPlanningMode(familyProfile.planningMode);
   const excludedIds = new Set(excludedRecipeIds);
   Object.values(weekPlan)
@@ -28,7 +29,7 @@ export function buildTodayRecommendation({
       (recipe) =>
         !excludedIds.has(recipe.id) &&
         !todayRecipes.some((item) => item.id === recipe.id) &&
-        !matchesSignals(recipe, familyPreference.allergies),
+        !recipeViolatesHardAvoid(recipe, { hardAvoidSignals }),
     )
     .map((recipe) => {
       const ingredientNames = recipe.ingredients.map((item) => normalize(item.name));
@@ -69,7 +70,7 @@ export function buildTodayRecommendation({
     })
     .sort((a, b) => b.score - a.score);
 
-  const fallbackRecipes = recipes.filter((recipe) => !matchesSignals(recipe, familyPreference.allergies));
+  const fallbackRecipes = recipes.filter((recipe) => !recipeViolatesHardAvoid(recipe, { hardAvoidSignals }));
   const familySize = normalizeFamilySize(familyProfile.familySize);
   const targetDishCount = getTargetDishCount(familySize);
   const primary = scored[0]?.recipe ?? fallbackRecipes[0] ?? recipes[0];
@@ -77,6 +78,7 @@ export function buildTodayRecommendation({
     primary,
     scored,
     fallbackRecipes,
+    hardAvoidSignals,
     targetDishCount,
   });
   const recommendationItems = buildRecommendationItems(selected, familySize);
@@ -162,11 +164,20 @@ export function buildRecommendationItems(selectedRecipes = [], familySize = 2) {
   }));
 }
 
-function selectDinnerSet({ primary, scored, fallbackRecipes, targetDishCount }) {
+export function recipeViolatesHardAvoid(recipe, {
+  familyMembers = [],
+  familyProfile = {},
+  hardAvoidSignals = null,
+} = {}) {
+  const signals = hardAvoidSignals ?? buildHardAvoidSignals(collectFamilyPreference(familyMembers, familyProfile));
+  return matchesSignals(recipe, signals);
+}
+
+function selectDinnerSet({ primary, scored, fallbackRecipes, hardAvoidSignals, targetDishCount }) {
   const selected = [];
   const selectedIds = new Set();
   const addRecipe = (recipe) => {
-    if (!recipe || selectedIds.has(recipe.id)) return false;
+    if (!recipe || selectedIds.has(recipe.id) || recipeViolatesHardAvoid(recipe, { hardAvoidSignals })) return false;
     selected.push(recipe);
     selectedIds.add(recipe.id);
     return true;
@@ -175,7 +186,7 @@ function selectDinnerSet({ primary, scored, fallbackRecipes, targetDishCount }) 
   addRecipe(primary);
 
   const scoredRecipes = scored.map(({ recipe }) => recipe);
-  const candidates = [...scoredRecipes, ...fallbackRecipes, ...recipes];
+  const candidates = [...scoredRecipes, ...fallbackRecipes];
   while (selected.length < targetDishCount) {
     const next =
       candidates.find((recipe) => !selectedIds.has(recipe.id) && pairsWellWithSet(selected, recipe)) ??
@@ -293,6 +304,24 @@ function scorePreference(recipe, familyPreference) {
     penalty: dislikeHits * 40 + allergyHits * 120,
     hits: likeHits + (goalBonus > 0 ? 1 : 0),
   };
+}
+
+function buildHardAvoidSignals(familyPreference) {
+  return [
+    ...familyPreference.dislikes,
+    ...familyPreference.allergies,
+  ].flatMap(expandAvoidSignal).filter(Boolean);
+}
+
+function expandAvoidSignal(signal) {
+  const normalized = normalize(signal);
+  if (!normalized) return [];
+  const expanded = [normalized];
+  if (normalized.includes("太辣") || normalized.includes("不吃辣") || normalized.includes("少辣")) expanded.push("辣");
+  if (normalized.includes("海鲜")) expanded.push("鱼", "虾", "贝", "蟹");
+  if (normalized.includes("坚果")) expanded.push("花生", "核桃", "杏仁");
+  if (normalized.includes("乳糖")) expanded.push("牛奶", "奶酪", "奶");
+  return [...new Set(expanded)];
 }
 
 function matchesSignals(recipe, signals = []) {

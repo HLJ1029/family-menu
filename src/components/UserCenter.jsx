@@ -1036,7 +1036,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
         </ProfileStep>
 
         <ProfileStep icon={ShieldAlert} title="不想吃 / 不能吃">
-          <p className="mb-2 text-xs font-bold text-ink/42">不喜欢</p>
+          <p className="mb-2 text-xs font-bold text-ink/42">这些会作为硬约束避开</p>
           <TagChoices
             options={profileOptions.dislikes}
             values={draft.dislikes}

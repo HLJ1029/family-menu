@@ -37,11 +37,14 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
     });
   }
 
-  const buddyText = draft.hasChildren
+  const hasAvoidRules = draft.allergies.length > 0 || draft.dislikes.length > 0;
+  const buddyText = hasAvoidRules
+    ? "这些会作为硬约束避开，先保证家里人不能吃的别被推上桌。"
+    : draft.hasChildren
     ? "孩子爱吃和大人省心会一起进入推荐条件。"
     : draft.goals.length > 0
       ? `先按“${draft.goals[0]}”来安排，后面还能随时改。`
-      : "选几项偏好，推荐会更接近日常真实口味。";
+      : "先点不能吃的，其他口味 Humi 会从以后每顿饭里慢慢学。";
 
   return (
     <main className="min-h-screen bg-canvas px-4 py-5 text-ink">
@@ -55,7 +58,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
                   先告诉 Humi 怎么为你安排菜单。
                 </h1>
                 <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                  这一步只影响推荐口味和菜单方向。之后可以在“我的”里随时改。
+                  先点家里不能吃的，Humi 会把它当成硬约束避开。其他口味以后会从每顿饭里慢慢学。
                 </p>
               </div>
               <button
@@ -126,23 +129,8 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
               </label>
             </ProfileBlock>
 
-            <ProfileBlock icon={SlidersHorizontal} title="口味和目标">
-              <p className="mb-2 text-xs font-bold text-ink/42">平时喜欢</p>
-              <TagChoices
-                options={profileOptions.tastePreferences}
-                values={draft.tastePreferences}
-                onToggle={(value) => toggleListValue("tastePreferences", value)}
-              />
-              <p className="mb-2 mt-4 text-xs font-bold text-ink/42">这次更在意</p>
-              <TagChoices
-                options={profileOptions.goals}
-                values={draft.goals}
-                onToggle={(value) => toggleListValue("goals", value)}
-              />
-            </ProfileBlock>
-
             <ProfileBlock icon={ShieldAlert} title="不想吃 / 不能吃">
-              <p className="mb-2 text-xs font-bold text-ink/42">不喜欢</p>
+              <p className="mb-2 text-xs font-bold text-ink/42">这些会被 Humi 当成硬约束避开</p>
               <TagChoices
                 options={profileOptions.dislikes}
                 values={draft.dislikes}
@@ -155,6 +143,21 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
                 onToggle={(value) => toggleListValue("allergies", value)}
               />
             </ProfileBlock>
+
+            <ProfileBlock icon={SlidersHorizontal} title="口味和目标">
+              <p className="mb-2 text-xs font-bold text-ink/42">平时喜欢（可跳过）</p>
+              <TagChoices
+                options={profileOptions.tastePreferences}
+                values={draft.tastePreferences}
+                onToggle={(value) => toggleListValue("tastePreferences", value)}
+              />
+              <p className="mb-2 mt-4 text-xs font-bold text-ink/42">这次更在意</p>
+              <TagChoices
+                options={profileOptions.goals}
+                values={draft.goals}
+                onToggle={(value) => toggleListValue("goals", value)}
+              />
+            </ProfileBlock>
           </div>
 
           <div className="mt-5 rounded-[22px] bg-canvas p-4">
@@ -163,12 +166,12 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
           </div>
 
           <HumiBrandCallout
-            variant={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "profile-preferences" : "weekly"}
-            title={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "我会避开这些" : "画像快好了"}
+            variant={hasAvoidRules ? "profile-preferences" : "weekly"}
+            title={hasAvoidRules ? "我会避开这些" : "画像快好了"}
             text={buddyText}
             className="mt-4"
             compact
-            contextKey={draft.allergies.length > 0 || draft.dislikes.length > 0 ? "profile-avoid-callout" : "profile-ready-callout"}
+            contextKey={hasAvoidRules ? "profile-avoid-callout" : "profile-ready-callout"}
           />
 
           <button
