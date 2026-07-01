@@ -27,6 +27,7 @@ export function UserCenter({
   craveSignals = [],
   onExportValidationData,
   onViewChange,
+  onAskFamily,
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
@@ -118,7 +119,10 @@ export function UserCenter({
             </div>
             <button
               type="button"
-              onClick={() => onViewChange("dashboard")}
+              onClick={() => {
+                if (onAskFamily) onAskFamily();
+                else onViewChange("dashboard");
+              }}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
             >
               问问大家

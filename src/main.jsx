@@ -174,6 +174,7 @@ function App() {
   );
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
+  const [cravePromptSignal, setCravePromptSignal] = useState(0);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
@@ -2393,6 +2394,16 @@ function App() {
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
   }
 
+  function askFamilyFromHome() {
+    setCravePromptSignal(Date.now());
+    if (activeView !== "dashboard") {
+      navigateTo("dashboard");
+    } else {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "smooth" }));
+    }
+    showNotice("已打开感觉征集，先选一个感觉再生成邀请卡片");
+  }
+
   function goBack() {
     const history = viewHistoryRef.current;
     const previousView = history.length > 1 ? history[history.length - 2] : "dashboard";
@@ -2518,6 +2529,7 @@ function App() {
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
                 onStartCraveRequest={startCraveRequest}
                 activeCraveRequest={activeCraveRequest}
+                cravePromptSignal={cravePromptSignal}
                 onCopyCraveLink={copyCraveLink}
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
@@ -2729,6 +2741,7 @@ function App() {
                 craveSignals={craveSignals}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
+                onAskFamily={askFamilyFromHome}
               />
             )}
           </div>

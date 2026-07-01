@@ -8,7 +8,7 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
@@ -58,6 +58,7 @@ export function Dashboard({
   onCloseRecommendationFeedback,
   onStartCraveRequest,
   activeCraveRequest,
+  cravePromptSignal,
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
@@ -78,6 +79,11 @@ export function Dashboard({
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
+
+  useEffect(() => {
+    if (!cravePromptSignal) return;
+    setCraveOpen(true);
+  }, [cravePromptSignal]);
   const recommendedItems = getRecommendationItems(recommendation);
   const recommendedRecipes = recommendedItems.map((item) => item.recipe);
   const visibleDinnerItems = dinnerReady
@@ -229,18 +235,16 @@ export function Dashboard({
                 不想吃
               </button>
             )}
-            {!dinnerReady && (
-              <button
-                type="button"
-                onClick={() => setCraveOpen((current) => !current)}
-                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
-              >
-                <MessageCircleHeart size={18} />
-                问问大家想吃啥
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setCraveOpen((current) => !current)}
+              className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+            >
+              <MessageCircleHeart size={18} />
+              问问大家想吃啥
+            </button>
           </div>
-          {!dinnerReady && craveOpen && (
+          {craveOpen && (
             <div className="mt-5 rounded-[24px] border border-line bg-white p-4">
               {activeCraveRequest?.token ? (
                 <CraveRequestPanel
