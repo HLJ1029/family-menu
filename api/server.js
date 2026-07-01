@@ -270,7 +270,7 @@ function buildBasicRecommendation(payload = {}) {
   }
   const candidateIds = new Set(candidates.map((candidate) => stringValue(candidate.id)).filter(Boolean));
   const fallbackIds = Array.isArray(payload.ruleFallback?.recipeIds)
-    ? payload.ruleFallback.recipeIds.map(stringValue).filter((id) => candidateIds.has(id))
+    ? payload.ruleFallback.recipeIds.map((id) => stringValue(id)).filter((id) => candidateIds.has(id))
     : [];
   const recipeIds = [...new Set(fallbackIds.length > 0 ? fallbackIds : [...candidateIds])].slice(0, 2);
   return {
@@ -480,6 +480,7 @@ function sanitizeAppState(state = {}) {
     mealCalendar: sanitizeCalendar(state.mealCalendar),
     mealLogs: sanitizeObjectMap(state.mealLogs, 120),
     checkedItems: sanitizeBooleanMap(state.checkedItems, 400),
+    groceryClaims: sanitizeGroceryClaims(state.groceryClaims),
     customItems: sanitizeList(state.customItems, sanitizeGroceryLikeItem, 200),
     excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
     pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
@@ -506,7 +507,7 @@ function sanitizeWeekPlan(value = {}) {
   return Object.fromEntries(
     days.map((day) => [
       day,
-      Array.isArray(value?.[day]) ? value[day].map(stringValue).filter(Boolean).slice(0, 20) : [],
+      Array.isArray(value?.[day]) ? value[day].map((item) => stringValue(item)).filter(Boolean).slice(0, 20) : [],
     ]),
   );
 }
@@ -518,7 +519,7 @@ function sanitizeCalendar(value = {}) {
       .slice(-120)
       .map(([key, recipeIds]) => [
         key,
-        Array.isArray(recipeIds) ? recipeIds.map(stringValue).filter(Boolean).slice(0, 20) : [],
+        Array.isArray(recipeIds) ? recipeIds.map((item) => stringValue(item)).filter(Boolean).slice(0, 20) : [],
       ]),
   );
 }
@@ -572,6 +573,32 @@ function sanitizeGroceryLikeItem(item = {}) {
     amount: stringValue(item.amount),
     source: stringValue(item.source),
   };
+}
+
+function sanitizeGroceryClaims(value = {}) {
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .slice(0, 400)
+      .map(([key, claim]) => {
+        const itemKey = stringValue(key, 180);
+        const memberId = stringValue(claim?.memberId);
+        const itemName = stringValue(claim?.itemName, 80);
+        if (!itemKey || !memberId || !itemName) return null;
+        return [
+          itemKey,
+          {
+            itemKey,
+            itemName,
+            memberId,
+            memberName: stringValue(claim?.memberName) || "家人",
+            status: claim?.status === "done" ? "done" : "claimed",
+            claimedAt: stringValue(claim?.claimedAt),
+            completedAt: stringValue(claim?.completedAt),
+          },
+        ];
+      })
+      .filter(Boolean),
+  );
 }
 
 function sanitizePantryItem(item = {}) {
@@ -629,11 +656,11 @@ function getProfileCompletedCount(profile = {}) {
 }
 
 function stringList(value) {
-  return Array.isArray(value) ? value.map(stringValue).filter(Boolean).slice(0, 24) : [];
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean).slice(0, 24) : [];
 }
 
-function stringValue(value) {
-  return typeof value === "string" ? value.trim().slice(0, 80) : "";
+function stringValue(value, maxLength = 80) {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
 function createPhoneHash(countryCode, phoneNumber) {

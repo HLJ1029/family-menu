@@ -130,6 +130,7 @@ function App() {
   );
   const [mealLogs, setMealLogs] = useLocalStorageState("family-menu:meal-logs:v1", {});
   const [checkedItems, setCheckedItems] = useLocalStorageState("family-menu:checked-items", {});
+  const [groceryClaims, setGroceryClaims] = useLocalStorageState("humi:grocery-claims:v1", {});
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
   const [newCustomItem, setNewCustomItem] = useState("");
   const [pantryItems, setPantryItems] = useLocalStorageState("family-menu:pantry-items", []);
@@ -210,6 +211,7 @@ function App() {
     mealCalendar,
     mealLogs,
     checkedItems,
+    groceryClaims,
     customItems,
     excludedGroceryKeys,
     pantryItems,
@@ -219,6 +221,7 @@ function App() {
     craveSignals,
   }), [
     checkedItems,
+    groceryClaims,
     customItems,
     excludedGroceryKeys,
     familyProfile,
@@ -284,6 +287,7 @@ function App() {
           setMealCalendar(mealPlanToCalendar(loadedMealPlan));
           setMealLogs(state.mealLogs ?? {});
           setCheckedItems(state.checkedItems ?? {});
+          setGroceryClaims(state.groceryClaims ?? {});
           setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
           setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
           setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
@@ -330,6 +334,7 @@ function App() {
     setNutritionGoals,
     setPantryItems,
     setRecommendationFeedback,
+    setGroceryClaims,
     setTodayMenu,
     setWeekPlan,
     todayDateKey,
@@ -1614,6 +1619,61 @@ function App() {
     showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
   }
 
+  function toggleGroceryClaim(item) {
+    if (!item?.key) return;
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("登录后家人才能一起认领清单");
+      navigateTo("user");
+      return;
+    }
+    const actor = getGroceryClaimActor({ humiSession, family });
+    if (!actor?.memberId) {
+      showNotice("正在读取家庭成员身份，请稍后再试");
+      return;
+    }
+    const currentClaim = groceryClaims[item.key];
+    const now = new Date().toISOString();
+    if (!currentClaim) {
+      setGroceryClaims((current) => ({
+        ...current,
+        [item.key]: {
+          itemKey: item.key,
+          itemName: item.name,
+          memberId: actor.memberId,
+          memberName: actor.memberName,
+          status: "claimed",
+          claimedAt: now,
+        },
+      }));
+      showNotice(`${actor.memberName}认领了 ${item.name}`);
+      return;
+    }
+    if (currentClaim.memberId !== actor.memberId) {
+      showNotice(`${currentClaim.memberName || "家人"}已经在买 ${item.name}`);
+      return;
+    }
+    if (currentClaim.status !== "done") {
+      setGroceryClaims((current) => ({
+        ...current,
+        [item.key]: {
+          ...currentClaim,
+          status: "done",
+          completedAt: now,
+        },
+      }));
+      setCheckedItems((current) => ({ ...current, [item.key]: true }));
+      addGroceryItemToPantry(item, "家人买回");
+      showNotice(`${item.name} 已标记买到`);
+      return;
+    }
+    setGroceryClaims((current) => {
+      const next = { ...current };
+      delete next[item.key];
+      return next;
+    });
+    showNotice(`已取消 ${item.name} 的认领`);
+  }
+
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
     await openPosterPreview({
@@ -2291,6 +2351,7 @@ function App() {
         if (data.family) setFamily(data.family);
         setCustomItems(Array.isArray(state?.customItems) ? state.customItems : []);
         setCheckedItems(state?.checkedItems ?? {});
+        setGroceryClaims(state?.groceryClaims ?? {});
         setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
         setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
         setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
@@ -2677,7 +2738,10 @@ function App() {
                 excludedItems={excludedGroceryItems}
                 onShare={shareGroceryList}
                 checkedItems={checkedItems}
+                groceryClaims={groceryClaims}
                 setCheckedItems={setCheckedItems}
+                onToggleClaim={toggleGroceryClaim}
+                currentMemberId={humiSession?.user?.id}
                 onGroceryItemChecked={({ key, checked, item }) => {
                   trackValidationEvent(validationEvents.groceryItemChecked, { key, checked });
                   if (checked) addGroceryItemToPantry(item);
@@ -2833,6 +2897,16 @@ function postCraveShareToMiniProgram(payload) {
     },
   });
   return true;
+}
+
+function getGroceryClaimActor({ humiSession, family }) {
+  const memberId = humiSession?.user?.id || "";
+  if (!memberId) return null;
+  const familyMember = family?.members?.find((member) => member.memberId === memberId);
+  return {
+    memberId,
+    memberName: familyMember?.nickname || humiSession.user?.displayName || "家人",
+  };
 }
 
 function normalizeName(value) {

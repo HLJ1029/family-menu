@@ -56,6 +56,16 @@ try {
         todayMenu: [{ recipeId: "tomato-egg", quantity: 2 }],
         weekPlan: { 周一: ["tomato-egg"], 周二: [], 周三: [], 周四: [], 周五: [], 周六: [], 周日: [] },
         checkedItems: { "ingredient:tomato": true },
+        groceryClaims: {
+          "ingredient:tomato": {
+            itemKey: "ingredient:tomato",
+            itemName: "西红柿",
+            memberId: login.user.id,
+            memberName: "主厨",
+            status: "claimed",
+            claimedAt: new Date().toISOString(),
+          },
+        },
         pantryItems: [{ key: "pantry:tomato", name: "西红柿", amount: "3 个", source: "清单完成" }],
         customItems: [{ key: "custom:milk", name: "牛奶", amount: "1 盒", source: "手动添加" }],
         familyProfile: { familySize: 3, goals: ["省时"] },
@@ -72,6 +82,7 @@ try {
   const loadedState = loadedStateEnvelope.state;
   assert(loadedState?.todayMenu?.[0]?.recipeId === "tomato-egg", "state should load menu");
   assert(loadedState?.familyProfile?.familySize === 3, "state should load profile");
+  assert(loadedState?.groceryClaims?.["ingredient:tomato"]?.status === "claimed", "state should load grocery claims");
   assert(
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
     "owner household should include owner member",
@@ -115,6 +126,7 @@ try {
   });
   assert(memberLoadedState.family?.id === loadedStateEnvelope.family?.id, "joined member should read owner household");
   assert(memberLoadedState.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined member should share household state");
+  assert(memberLoadedState.state?.groceryClaims?.["ingredient:tomato"]?.memberId === login.user.id, "joined member should share grocery claims");
 
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
+import { BarChart3, Check, ChevronDown, Cloud, HandCoins, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
 import { HumiEmptyState, HumiPeek } from "./ui/HumiBrandIllustration";
@@ -29,7 +29,10 @@ export function GroceryList({
   excludedItems,
   onShare,
   checkedItems,
+  groceryClaims = {},
   setCheckedItems,
+  onToggleClaim,
+  currentMemberId,
   cloudSync,
   onOpenUserCenter,
   onOpenInventory,
@@ -66,8 +69,11 @@ export function GroceryList({
           customItems={customItems}
           totalItemCount={totalItemCount}
           checkedItems={checkedItems}
+          groceryClaims={groceryClaims}
           checkedItemCount={checkedItemCount}
           onToggleItem={toggle}
+          onToggleClaim={onToggleClaim}
+          currentMemberId={currentMemberId}
           onRemoveItem={onExcludeItem}
           onRemoveCustomItem={onRemoveCustomItem}
           onShare={onShare}
@@ -256,7 +262,10 @@ function ShoppingChecklist({
   totalItemCount,
   checkedItemCount,
   checkedItems,
+  groceryClaims,
   onToggleItem,
+  onToggleClaim,
+  currentMemberId,
   onRemoveItem,
   onRemoveCustomItem,
   onShare,
@@ -305,7 +314,10 @@ function ShoppingChecklist({
                   key={item.key}
                   item={item}
                   checked={checkedItems[item.key]}
+                  claim={groceryClaims[item.key]}
+                  currentMemberId={currentMemberId}
                   onToggle={() => onToggleItem(item)}
+                  onToggleClaim={() => onToggleClaim?.(item)}
                   onRemove={() => onRemoveItem(item)}
                 />
               ))}
@@ -333,7 +345,10 @@ function ShoppingChecklist({
                 key={item.key}
                 item={{ ...item, amount: item.amount ?? "自定义" }}
                 checked={checkedItems[item.key]}
+                claim={groceryClaims[item.key]}
+                currentMemberId={currentMemberId}
                 onToggle={() => onToggleItem(item)}
+                onToggleClaim={() => onToggleClaim?.(item)}
                 onRemove={() => onRemoveCustomItem(item.key)}
                 removeLabel={`删除 ${item.name}`}
                 actionIcon={Trash2}
@@ -561,41 +576,88 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
   );
 }
 
-function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIcon: ActionIcon = PackageCheck }) {
+function ShoppingItem({
+  item,
+  checked,
+  claim,
+  currentMemberId,
+  onToggle,
+  onToggleClaim,
+  onRemove,
+  removeLabel,
+  actionIcon: ActionIcon = PackageCheck,
+}) {
+  const claimState = getClaimState(claim, currentMemberId);
   return (
     <div
-      className="grocery-item-enter flex items-center gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20"
+      className="grocery-item-enter grid gap-2 rounded-[18px] border border-line bg-canvas p-3 transition hover:border-ink/20"
       data-checked={Boolean(checked)}
     >
-      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-        <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
-          {checked && <Check size={15} className="check-pop" />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="strike-text max-w-full truncate text-sm font-black" data-checked={Boolean(checked)}>
-            {item.name}
+      <div className="flex items-center gap-2">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+          <input type="checkbox" checked={Boolean(checked)} onChange={onToggle} className="peer sr-only" />
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink/18 bg-white transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
+            {checked && <Check size={15} className="check-pop" />}
           </span>
-          <span className="mt-0.5 block text-xs font-bold text-ink/42">
-            {item.type === "seasoning" ? "调料" : "食材"}
-            {item.pantryItem ? " · 常备" : ""}
-            {item.required === false ? " · 可选" : ""}
+          <span className="min-w-0 flex-1">
+            <span className="strike-text max-w-full truncate text-sm font-black" data-checked={Boolean(checked)}>
+              {item.name}
+            </span>
+            <span className="mt-0.5 block text-xs font-bold text-ink/42">
+              {item.type === "seasoning" ? "调料" : "食材"}
+              {item.pantryItem ? " · 常备" : ""}
+              {item.required === false ? " · 可选" : ""}
+            </span>
           </span>
+          <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-ink/66">
+            {formatShoppingAmount(item)}
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
+          aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
+        >
+          <ActionIcon size={15} />
+        </button>
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-[14px] bg-white px-3 py-2">
+        <span className="min-w-0 truncate text-xs font-black text-ink/52">
+          {claimState.label}
         </span>
-        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-ink/66">
-          {formatShoppingAmount(item)}
-        </span>
-      </label>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
-      >
-        <ActionIcon size={15} />
-      </button>
+        <button
+          type="button"
+          onClick={onToggleClaim}
+          disabled={!onToggleClaim || claimState.disabled}
+          className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full bg-ink px-3 text-xs font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-ink/12 disabled:text-ink/35"
+        >
+          <HandCoins size={13} />
+          {claimState.action}
+        </button>
+      </div>
     </div>
   );
+}
+
+function getClaimState(claim, currentMemberId) {
+  if (!claim) {
+    return { label: "还没人认领", action: "我来买", disabled: false };
+  }
+  if (claim.status === "done") {
+    const mine = claim.memberId === currentMemberId;
+    return {
+      label: `${claim.memberName || "家人"}已买到`,
+      action: mine ? "撤销" : "已完成",
+      disabled: !mine,
+    };
+  }
+  const mine = claim.memberId === currentMemberId;
+  return {
+    label: `${claim.memberName || "家人"}在买`,
+    action: mine ? "买到了" : "已认领",
+    disabled: !mine,
+  };
 }
 
 function formatShoppingAmount(item) {
