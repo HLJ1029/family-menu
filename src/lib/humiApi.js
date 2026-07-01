@@ -111,6 +111,34 @@ export async function closeCraveRequest(token, ownerSecret) {
   });
 }
 
+export async function createGroceryShare(session, payload) {
+  return humiApiRequest("/grocery-shares", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function loadGroceryShare(token) {
+  if (!token) throw new Error("买菜清单不完整。");
+  return humiPublicRequest(`/grocery-shares/${encodeURIComponent(token)}`);
+}
+
+export async function claimGroceryShareItem(token, payload, session = null) {
+  if (!token) throw new Error("买菜清单不完整。");
+  if (isHumiApiSession(session)) {
+    return humiApiRequest(`/grocery-shares/${encodeURIComponent(token)}/claims`, {
+      method: "POST",
+      session,
+      body: payload,
+    });
+  }
+  return humiPublicRequest(`/grocery-shares/${encodeURIComponent(token)}/claims`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
 async function humiApiRequest(path, { method = "GET", session, body } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const controller = new AbortController();

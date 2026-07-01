@@ -272,6 +272,41 @@ try {
     assert(String(error.message).startsWith("403 "), "non-owner invite creation should return 403");
   }
 
+  const groceryShare = await request(`${baseUrl}/grocery-shares`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      initiatorName: "主厨",
+      items: [
+        { key: "ingredient:tomato", name: "西红柿", amount: "约2个", type: "ingredient", source: "今晚菜单" },
+        { key: "custom:milk", name: "牛奶", amount: "1盒", type: "custom", source: "顺手买" },
+      ],
+    },
+  });
+  assert(groceryShare.share?.token, "grocery share should return token");
+  assert(groceryShare.share?.items?.length === 2, "grocery share should expose items");
+  const publicGroceryShare = await request(`${baseUrl}/grocery-shares/${groceryShare.share.token}`);
+  assert(publicGroceryShare.share?.householdId === loadedStateEnvelope.family.id, "public grocery share should attach household");
+  const claimedGroceryShare = await request(`${baseUrl}/grocery-shares/${groceryShare.share.token}/claims`, {
+    method: "POST",
+    body: {
+      itemKey: "custom:milk",
+      participantKey: "temporary-grocery-smoke",
+      memberName: "顺路买菜的家人",
+    },
+  });
+  assert(
+    claimedGroceryShare.share?.claims?.["custom:milk"]?.memberName === "顺路买菜的家人",
+    "grocery share should accept temporary claim",
+  );
+  const ownerStateAfterGroceryClaim = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    ownerStateAfterGroceryClaim.state?.groceryClaims?.["custom:milk"]?.status === "claimed",
+    "temporary grocery claim should sync into household state",
+  );
+
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",
     body: {

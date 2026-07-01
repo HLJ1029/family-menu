@@ -140,6 +140,23 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/grocery-shares") {
+        await handleCreateGroceryShare(request, response);
+        return;
+      }
+
+      const groceryShareMatch = url.pathname.match(/^\/grocery-shares\/([^/]+)$/);
+      if (request.method === "GET" && groceryShareMatch) {
+        await handleGetGroceryShare(response, groceryShareMatch[1]);
+        return;
+      }
+
+      const groceryShareClaimMatch = url.pathname.match(/^\/grocery-shares\/([^/]+)\/claims$/);
+      if (request.method === "POST" && groceryShareClaimMatch) {
+        await handleClaimGroceryShare(request, response, groceryShareClaimMatch[1]);
+        return;
+      }
+
       const craveRequestMatch = url.pathname.match(/^\/crave-requests\/([^/]+)$/);
       if (request.method === "GET" && craveRequestMatch) {
         await handleGetCraveRequest(response, craveRequestMatch[1]);
@@ -444,6 +461,47 @@ async function handleCreateCraveRequest(request, response) {
   sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
 }
 
+async function handleCreateGroceryShare(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  const share = await store.createGroceryShare(user.id, {
+    householdName: stringValue(body.householdName, 32),
+    initiatorName: stringValue(body.initiatorName, 32) || user.displayName,
+    items: sanitizeGroceryShareItems(body.items),
+  });
+  sendJson(response, 201, { share: toPublicGroceryShare(share) });
+}
+
+async function handleGetGroceryShare(response, token) {
+  const share = await store.getGroceryShare(token);
+  if (!share) throw httpError(404, "grocery_share_not_found", "这个买菜清单已经失效。");
+  sendJson(response, 200, { share: toPublicGroceryShare(share) });
+}
+
+async function handleClaimGroceryShare(request, response, token) {
+  const auth = await getOptionalAuth(request);
+  const user = auth?.userId ? await store.getUser(auth.userId) : null;
+  const body = await readJson(request);
+  try {
+    const share = await store.claimGroceryShareItem(token, {
+      itemKey: stringValue(body.itemKey, 160),
+      participantKey: stringValue(body.participantKey, 80),
+      memberId: user?.id || "",
+      memberName: stringValue(body.memberName, 32) || user?.displayName || "家人",
+      status: stringValue(body.status, 16),
+    });
+    if (!share) throw httpError(404, "grocery_share_not_found", "这个买菜清单已经失效。");
+    sendJson(response, 200, { share: toPublicGroceryShare(share) });
+  } catch (error) {
+    if (error.code === "grocery_item_not_found") {
+      throw httpError(404, "grocery_item_not_found", "清单里没有这项食材。");
+    }
+    throw error;
+  }
+}
+
 async function handleGetCraveRequest(response, token) {
   const craveRequest = await store.getCraveRequest(token);
   if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
@@ -541,6 +599,27 @@ function toPublicCraveRequest(request) {
     })),
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toPublicGroceryShare(share) {
+  return {
+    id: share.id,
+    token: share.token,
+    householdId: share.householdId,
+    householdName: share.householdName,
+    initiatorName: share.initiatorName,
+    status: share.status,
+    items: (share.items ?? []).map((item) => ({
+      key: item.key,
+      name: item.name,
+      amount: item.amount,
+      type: item.type,
+      source: item.source,
+    })),
+    claims: share.claims ?? {},
+    createdAt: share.createdAt,
+    updatedAt: share.updatedAt,
   };
 }
 
@@ -735,6 +814,16 @@ function sanitizeGroceryLikeItem(item = {}) {
     amount: stringValue(item.amount),
     source: stringValue(item.source),
   };
+}
+
+function sanitizeGroceryShareItems(items = []) {
+  return sanitizeList(items, (item) => ({
+    key: stringValue(item?.key, 160),
+    name: stringValue(item?.name, 80),
+    amount: stringValue(item?.amount, 80),
+    type: stringValue(item?.type || "ingredient", 40),
+    source: stringValue(item?.source, 80),
+  }), 120).filter((item) => item.key && item.name);
 }
 
 function sanitizeGroceryClaims(value = {}) {

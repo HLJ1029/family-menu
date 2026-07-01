@@ -13,6 +13,7 @@ const DEFAULT_DATA = {
   householdStates: {},
   craveRequests: [],
   householdInvites: [],
+  groceryShares: [],
   revokedTokens: [],
 };
 
@@ -260,6 +261,96 @@ export class HumiStore {
     return { invite, household };
   }
 
+  async createGroceryShare(ownerUserId, payload = {}) {
+    await this.load();
+    const household = await this.ensureHouseholdForUser(ownerUserId, {
+      householdName: payload.householdName,
+      memberName: payload.initiatorName,
+    });
+    const owner = this.data.users.find((item) => item.id === ownerUserId);
+    const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
+    const now = new Date().toISOString();
+    const share = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      householdId: household.id,
+      householdName: household.name,
+      initiatorId: ownerUserId,
+      initiatorName: sanitizeText(payload.initiatorName, "", 32) || ownerMember?.nickname || owner?.displayName || "主厨",
+      status: "open",
+      items: sanitizeGroceryShareItems(payload.items),
+      claims: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.groceryShares.unshift(share);
+    this.data.groceryShares = this.data.groceryShares.slice(0, 2000);
+    await this.save();
+    return share;
+  }
+
+  async getGroceryShare(token) {
+    await this.load();
+    return this.data.groceryShares.find((item) => item.token === token) ?? null;
+  }
+
+  async claimGroceryShareItem(token, payload = {}) {
+    await this.load();
+    const share = this.data.groceryShares.find((item) => item.token === token);
+    if (!share) return null;
+    if (share.status !== "open") return share;
+    const itemKey = sanitizeText(payload.itemKey, "", 160);
+    const item = share.items.find((entry) => entry.key === itemKey);
+    if (!item) {
+      const error = new Error("Grocery item not found.");
+      error.code = "grocery_item_not_found";
+      throw error;
+    }
+    const now = new Date().toISOString();
+    const memberId = sanitizeText(payload.memberId, "", 100)
+      || `temporary:${sanitizeText(payload.participantKey, "", 80) || randomUUID()}`;
+    const currentClaim = share.claims[itemKey];
+    const status = payload.status === "done" || currentClaim?.memberId === memberId ? "done" : "claimed";
+    const claim = {
+      itemKey,
+      itemName: item.name,
+      memberId,
+      memberName: sanitizeText(payload.memberName, "家人", 32),
+      status,
+      claimedAt: currentClaim?.claimedAt || now,
+      completedAt: status === "done" ? now : "",
+      updatedAt: now,
+      temporary: !sanitizeText(payload.memberId, "", 100),
+    };
+    share.claims[itemKey] = claim;
+    share.updatedAt = now;
+    this.syncGroceryClaimToHouseholdState(share.householdId, claim);
+    await this.save();
+    return share;
+  }
+
+  syncGroceryClaimToHouseholdState(householdId, claim) {
+    if (!householdId || !claim?.itemKey) return;
+    const currentState = this.data.householdStates[householdId] ?? {};
+    this.data.householdStates[householdId] = {
+      ...currentState,
+      householdId,
+      groceryClaims: {
+        ...(currentState.groceryClaims ?? {}),
+        [claim.itemKey]: {
+          itemKey: claim.itemKey,
+          itemName: claim.itemName,
+          memberId: claim.memberId,
+          memberName: claim.memberName,
+          status: claim.status,
+          claimedAt: claim.claimedAt,
+          completedAt: claim.completedAt,
+        },
+      },
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   async saveProfile(userId, profile) {
     await this.load();
     this.data.profiles[userId] = {
@@ -460,4 +551,17 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function sanitizeGroceryShareItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      key: sanitizeText(item?.key, "", 160),
+      name: sanitizeText(item?.name, "", 80),
+      amount: sanitizeText(item?.amount, "", 80),
+      type: sanitizeText(item?.type, "ingredient", 40),
+      source: sanitizeText(item?.source, "", 80),
+    }))
+    .filter((item) => item.key && item.name)
+    .slice(0, 120);
 }

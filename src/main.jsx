@@ -5,6 +5,7 @@ import { CalendarPage } from "./components/CalendarPage";
 import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
+import { GroceryShareLanding } from "./components/GroceryShareLanding";
 import { InventoryPage } from "./components/InventoryPage";
 import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
@@ -62,6 +63,7 @@ import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, wi
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import {
   closeCraveRequest,
+  createGroceryShare,
   createCraveRequest,
   createHumiHousehold,
   createHouseholdInvite,
@@ -136,6 +138,7 @@ function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [craveLandingToken, setCraveLandingToken] = useState(() => getCraveTokenFromUrl());
   const [householdInviteToken, setHouseholdInviteToken] = useState(() => getHouseholdInviteTokenFromUrl());
+  const [groceryShareToken, setGroceryShareToken] = useState(() => getGroceryShareTokenFromUrl());
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
@@ -1924,6 +1927,36 @@ function App() {
 
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
+    if (isHumiApiSession(humiSession)) {
+      try {
+        const data = await createGroceryShare(humiSession, {
+          householdName: family?.name || familyName || "我家",
+          initiatorName: displaySession?.user?.displayName || humiSession.user?.displayName || "主厨",
+          items: [
+            ...visibleGroceryItems.map((item) => ({
+              key: item.key,
+              name: item.name,
+              amount: formatRawAmount(item) || "适量",
+              type: item.type,
+              source: item.source || "",
+            })),
+            ...customItems.map((item) => ({
+              key: item.key,
+              name: item.name,
+              amount: item.amount || "按需",
+              type: "custom",
+              source: "顺手买",
+            })),
+          ],
+        });
+        if (data.share?.token && postGroceryShareToMiniProgram(data.share)) {
+          showNotice("买菜卡片已准备好，请点右上角分享");
+          return;
+        }
+      } catch (error) {
+        showNotice(error.message || "买菜卡片暂时没生成成功，先给你海报");
+      }
+    }
     await openPosterPreview({
       type: "grocery_list",
       title: "Humi 购物清单",
@@ -2918,6 +2951,21 @@ function App() {
     );
   }
 
+  if (groceryShareToken) {
+    return (
+      <GroceryShareLanding
+        token={groceryShareToken}
+        humiSession={humiSession}
+        onClose={() => {
+          clearGroceryShareTokenFromUrl();
+          setGroceryShareToken("");
+          setOnboardingComplete(true);
+          setActiveView("grocery");
+        }}
+      />
+    );
+  }
+
   if (!signedIn && !onboardingComplete) {
     return (
       <>
@@ -3274,6 +3322,11 @@ function getHouseholdInviteTokenFromUrl() {
   return new URL(window.location.href).searchParams.get("invite") || "";
 }
 
+function getGroceryShareTokenFromUrl() {
+  if (typeof window === "undefined") return "";
+  return new URL(window.location.href).searchParams.get("grocery") || "";
+}
+
 function clearCraveTokenFromUrl() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
@@ -3285,6 +3338,13 @@ function clearHouseholdInviteTokenFromUrl() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   url.searchParams.delete("invite");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function clearGroceryShareTokenFromUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("grocery");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
@@ -3312,6 +3372,23 @@ function postHouseholdInviteShareToMiniProgram(payload) {
       token: payload.token,
       householdName: payload.householdName || "我的家",
       inviterName: payload.inviterName || "主厨",
+      requestedAt: Date.now(),
+    },
+  });
+  return true;
+}
+
+function postGroceryShareToMiniProgram(payload) {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.postMessage) return false;
+  miniProgram.postMessage({
+    data: {
+      type: "humi:share-grocery",
+      token: payload.token,
+      householdName: payload.householdName || "我家",
+      initiatorName: payload.initiatorName || "主厨",
+      itemCount: Array.isArray(payload.items) ? payload.items.length : 0,
       requestedAt: Date.now(),
     },
   });

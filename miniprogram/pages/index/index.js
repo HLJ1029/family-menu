@@ -5,8 +5,10 @@ Page({
     url: "",
     launchCraveToken: "",
     launchInviteToken: "",
+    launchGroceryToken: "",
     shareCrave: null,
     shareInvite: null,
+    shareGrocery: null,
     loginPending: false,
     loginError: "",
     phoneBindVisible: false,
@@ -19,6 +21,14 @@ Page({
   onLoad(options = {}) {
     const launchCraveToken = options.crave || "";
     const launchInviteToken = options.invite || "";
+    const launchGroceryToken = options.grocery || "";
+    if (launchGroceryToken) {
+      this.setData({
+        launchGroceryToken,
+        url: appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" })
+      });
+      return;
+    }
     if (launchInviteToken) {
       this.setData({
         launchInviteToken,
@@ -62,6 +72,7 @@ Page({
     if (latestMessage?.type === "humi:share-crave" && latestMessage?.token) {
       this.setData({
         shareInvite: null,
+        shareGrocery: null,
         shareCrave: {
           token: latestMessage.token,
           householdName: latestMessage.householdName || "我家",
@@ -74,10 +85,25 @@ Page({
     if (latestMessage?.type === "humi:share-household-invite" && latestMessage?.token) {
       this.setData({
         shareCrave: null,
+        shareGrocery: null,
         shareInvite: {
           token: latestMessage.token,
           householdName: latestMessage.householdName || "我的家",
           inviterName: latestMessage.inviterName || "主厨"
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (latestMessage?.type === "humi:share-grocery" && latestMessage?.token) {
+      this.setData({
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我家",
+          initiatorName: latestMessage.initiatorName || "主厨",
+          itemCount: latestMessage.itemCount || 0
         }
       });
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
@@ -194,6 +220,13 @@ Page({
   },
 
   onShareAppMessage() {
+    const shareGrocery = this.data.shareGrocery;
+    if (shareGrocery?.token) {
+      return {
+        title: `${shareGrocery.initiatorName}发来 ${shareGrocery.itemCount || ""} 项买菜清单`,
+        path: `/pages/index/index?grocery=${encodeURIComponent(shareGrocery.token)}`
+      };
+    }
     const shareInvite = this.data.shareInvite;
     if (shareInvite?.token) {
       return {
@@ -215,6 +248,10 @@ Page({
   },
 
   buildH5Url() {
+    const launchGroceryToken = this.data.launchGroceryToken;
+    if (launchGroceryToken) {
+      return appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" });
+    }
     const launchInviteToken = this.data.launchInviteToken;
     if (launchInviteToken) {
       return appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" });
