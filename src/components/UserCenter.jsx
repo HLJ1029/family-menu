@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
@@ -405,9 +405,8 @@ export function UserCenter({
               </button>
             </div>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
-            <UtilityButton icon={PackageCheck} label="家中已有" onClick={() => onViewChange("inventory")} />
             <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
           </div>
         </section>
@@ -970,7 +969,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
       {!session?.user && !signedIn && (
         <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；创建我的家后，菜单、库存和画像会一起保存。
+          可以先填写体验；创建我的家后，菜单、后台已有和画像会一起保存。
         </div>
       )}
 
@@ -1055,7 +1054,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
             <ChoiceButton
               active={draft.shoppingTolerance === "low"}
               label="少买菜"
-              note="优先用库存"
+              note="优先用家里现有"
               onClick={() => updateValue("shoppingTolerance", "low")}
             />
             <ChoiceButton

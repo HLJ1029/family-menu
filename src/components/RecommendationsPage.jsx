@@ -75,7 +75,7 @@ export function RecommendationsPage({
               {aiRecommendationLoading ? "重新核对中" : "先用家里已有"}
             </p>
             <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
-              推荐先看库存、再看今晚时间，真实菜品仍然是主视觉。
+              推荐先看家里现有、再看今晚时间，真实菜品仍然是主视觉。
             </p>
           </div>
         </div>

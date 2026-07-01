@@ -6,7 +6,6 @@ import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
 import { GroceryShareLanding } from "./components/GroceryShareLanding";
-import { InventoryPage } from "./components/InventoryPage";
 import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
 import { Planner } from "./components/Planner";
@@ -185,7 +184,7 @@ function App() {
     legacyKeys: ["familyos:cloud-grocery-enabled"],
   });
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
-  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
+  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和后台已有。");
   const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
   const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -209,7 +208,7 @@ function App() {
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
@@ -273,7 +272,7 @@ function App() {
     setProfileOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
     setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
+    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和口味反馈。");
     showNotice("已登录 Humi");
   }, [setOnboardingComplete, setProfileOnboardingComplete]);
 
@@ -288,7 +287,7 @@ function App() {
     setCloudMenuLoading(true);
     setCloudGroceryLoading(true);
     setCloudSyncStatus("正在读取微信账号保存的菜单...");
-    setCloudGroceryStatus("正在读取微信账号保存的清单和库存...");
+    setCloudGroceryStatus("正在读取微信账号保存的清单和后台已有...");
 
     async function loadWechatState() {
       try {
@@ -296,9 +295,9 @@ function App() {
         if (!active) return;
         applyHumiStateEnvelope(data, {
           loadedMenuStatus: "已读取微信账号保存的今晚菜单和一周计划。",
-          loadedGroceryStatus: "已读取微信账号保存的食材清单和家中库存。",
+          loadedGroceryStatus: "已读取微信账号保存的食材清单和后台已有。",
           emptyMenuStatus: "微信账号保存已开启，今晚菜单会自动保存。",
-          emptyGroceryStatus: "微信账号保存已开启，清单和库存会自动保存。",
+          emptyGroceryStatus: "微信账号保存已开启，清单和后台已有会自动保存。",
         });
       } catch (error) {
         if (active) {
@@ -349,7 +348,7 @@ function App() {
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
-        setCloudGroceryStatus("清单和家中库存已保存到微信账号。");
+        setCloudGroceryStatus("清单和后台已有已保存到微信账号。");
       } catch (error) {
         setCloudSyncStatus(error.message);
         setCloudGroceryStatus(error.message);
@@ -525,7 +524,7 @@ function App() {
         setCheckedItems(cloudGrocery.checkedItems);
         setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
         setPantryItems(cloudGrocery.pantryItems);
-        setCloudGroceryStatus("已从云端读取食材清单和厨房库存。");
+        setCloudGroceryStatus("已从云端读取食材清单和后台已有。");
       } catch (error) {
         if (active) setCloudGroceryStatus(error.message);
       } finally {
@@ -558,7 +557,7 @@ function App() {
           excludedGroceryKeys,
           pantryItems,
         });
-        setCloudGroceryStatus("食材清单和家中库存已保存到我的家。");
+        setCloudGroceryStatus("食材清单和后台已有已保存到我的家。");
       } catch (error) {
         setCloudGroceryStatus(error.message);
       }
@@ -742,8 +741,8 @@ function App() {
     setAiRecommendation(null);
     setAiRecommendationStatus(
       signedIn
-        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、库存和口味。"
-        : "先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。",
+        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、后台已有和口味。"
+        : "先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和口味。",
     );
   }, [signedIn, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
@@ -1572,7 +1571,7 @@ function App() {
     }
 
     setAiRecommendationLoading(true);
-    setAiRecommendationStatus("正在用精准推荐重新揉合你家的口味、库存和反馈...");
+    setAiRecommendationStatus("正在用精准推荐重新揉合你家的口味、后台已有和反馈...");
     try {
       const result = await recommendMeals(
         buildAiRecommendationContext({
@@ -1675,7 +1674,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和口味。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -1702,7 +1701,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和口味。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -1802,7 +1801,7 @@ function App() {
     setNewPantryItem("");
     setNewPantryAmount("");
     setNewPantryExpiresOn("");
-    showNotice(`${trimmed} 已加入厨房库存`);
+    showNotice(`${trimmed} 已记到后台已有`);
   }
 
   function addGroceryItemToPantry(item, source = "清单完成") {
@@ -1821,7 +1820,7 @@ function App() {
         },
       ];
     });
-    showNotice(`${item.name} 已加入家中已有`);
+    showNotice(`${item.name} 已记到后台已有`);
     return true;
   }
 
@@ -1834,7 +1833,7 @@ function App() {
     if (!key) return;
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
     if (typeof itemOrKey === "object" && itemOrKey?.name) {
-      addGroceryItemToPantry(itemOrKey, "清单移入家中已有");
+      addGroceryItemToPantry(itemOrKey, "清单移入后台已有");
     }
   }
 
@@ -1867,7 +1866,7 @@ function App() {
         }));
       return [...current, ...additions];
     });
-    showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
+    showNotice(`已把 ${pantryItemsToAdd.length} 个常备项记到后台已有`);
   }
 
   function toggleGroceryClaim(item) {
@@ -2005,24 +2004,6 @@ function App() {
       fallbackSuccess: "一周计划已复制",
       refreshLabel: "重新生成海报",
     });
-  }
-
-  async function shareInventorySummary() {
-    const expiredItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired");
-    const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
-    const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
-    const text = [
-      "Humi 家中库存",
-      "",
-      `全部库存：${pantryItems.length} 项`,
-      `临期：${expiringItems.length} 项`,
-      `日期已过：${expiredItems.length} 项`,
-      "",
-      formatInventoryShareSection("临期优先处理", expiringItems),
-      formatInventoryShareSection("日期已过", expiredItems),
-      formatInventoryShareSection("家里现有", freshItems),
-    ].join("\n");
-    await shareText({ type: "inventory", title: "Humi 家中库存", text, success: "库存摘要已复制" });
   }
 
   async function shareText({ type, title, text, success }) {
@@ -2187,7 +2168,7 @@ function App() {
           : "已登录 Humi。",
       );
       setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
+      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和口味反馈。");
       setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
@@ -2491,9 +2472,9 @@ function App() {
 
   function applyHumiStateEnvelope(data, {
     loadedMenuStatus = "已读取当前家的菜单。",
-    loadedGroceryStatus = "已读取当前家的清单和库存。",
+    loadedGroceryStatus = "已读取当前家的清单和后台已有。",
     emptyMenuStatus = "当前家还没有保存菜单，之后会自动保存。",
-    emptyGroceryStatus = "当前家还没有保存清单和库存，之后会自动保存。",
+    emptyGroceryStatus = "当前家还没有保存清单和后台已有，之后会自动保存。",
   } = {}) {
     const state = data?.state;
     if (data?.family) setFamily(data.family);
@@ -2546,7 +2527,7 @@ function App() {
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
         setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
-        setCloudGroceryStatus("清单和家中库存也会继续自动同步。");
+        setCloudGroceryStatus("清单和后台已有也会继续自动同步。");
         showNotice("菜单已保存到微信账号");
       } catch (error) {
         setCloudSyncStatus(error.message);
@@ -2581,9 +2562,9 @@ function App() {
         const data = await loadHumiState(humiSession);
         applyHumiStateEnvelope(data, {
           loadedMenuStatus: "已刷新当前家保存的菜单。",
-          loadedGroceryStatus: "已刷新当前家保存的清单和库存。",
+          loadedGroceryStatus: "已刷新当前家保存的清单和后台已有。",
           emptyMenuStatus: "当前家还没有保存菜单。",
-          emptyGroceryStatus: "当前家还没有保存清单和库存。",
+          emptyGroceryStatus: "当前家还没有保存清单和后台已有。",
         });
         showNotice("微信账号菜单已刷新");
       } catch (error) {
@@ -2652,9 +2633,9 @@ function App() {
       const data = await switchHumiHousehold(humiSession, householdId);
       applyHumiStateEnvelope(data, {
         loadedMenuStatus: "已切换并读取当前家的菜单。",
-        loadedGroceryStatus: "已切换并读取当前家的清单和库存。",
+        loadedGroceryStatus: "已切换并读取当前家的清单和后台已有。",
         emptyMenuStatus: "已切换到这个家。这里还没有保存菜单。",
-        emptyGroceryStatus: "已切换到这个家。这里还没有保存清单和库存。",
+        emptyGroceryStatus: "已切换到这个家。这里还没有保存清单和后台已有。",
       });
       showNotice(`已切换到 ${data.family?.name || "这个家"}`);
     } catch (error) {
@@ -2694,14 +2675,14 @@ function App() {
   async function migrateGroceryToCloud() {
     if (isHumiApiSession(humiSession)) {
       setCloudGroceryLoading(true);
-      setCloudGroceryStatus("正在保存食材清单和家中库存...");
+      setCloudGroceryStatus("正在保存食材清单和后台已有...");
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
         setCloudSyncStatus("今晚菜单和一周计划也会继续自动同步。");
-        setCloudGroceryStatus("食材清单和家中库存已保存到微信账号。");
-        showNotice("清单和库存已保存到微信账号");
+        setCloudGroceryStatus("食材清单和后台已有已保存到微信账号。");
+        showNotice("清单和后台已有已保存到微信账号");
       } catch (error) {
         setCloudGroceryStatus(error.message);
       } finally {
@@ -2715,7 +2696,7 @@ function App() {
     }
 
     setCloudGroceryLoading(true);
-    setCloudGroceryStatus("正在迁移食材清单和库存...");
+    setCloudGroceryStatus("正在迁移食材清单和后台已有...");
     try {
       await migrateLocalGroceryToCloud({
         familyId: family.id,
@@ -2725,7 +2706,7 @@ function App() {
         pantryItems,
       });
       setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("本地食材清单和厨房库存已迁移到家庭空间。");
+      setCloudGroceryStatus("本地食材清单和后台已有已迁移到家庭空间。");
       showNotice("食材清单已迁移到云端");
     } catch (error) {
       setCloudGroceryStatus(error.message);
@@ -2741,9 +2722,9 @@ function App() {
         const data = await loadHumiState(humiSession);
         applyHumiStateEnvelope(data, {
           loadedMenuStatus: "已刷新当前家保存的菜单。",
-          loadedGroceryStatus: "已刷新当前家保存的清单和库存。",
+          loadedGroceryStatus: "已刷新当前家保存的清单和后台已有。",
           emptyMenuStatus: "当前家还没有保存菜单。",
-          emptyGroceryStatus: "当前家还没有保存清单和库存。",
+          emptyGroceryStatus: "当前家还没有保存清单和后台已有。",
         });
         showNotice("微信账号清单已刷新");
       } catch (error) {
@@ -2767,7 +2748,7 @@ function App() {
       setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
       setPantryItems(cloudGrocery.pantryItems);
       setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("已刷新云端食材清单和厨房库存。");
+      setCloudGroceryStatus("已刷新云端食材清单和后台已有。");
       showNotice("云端食材清单已刷新");
     } catch (error) {
       setCloudGroceryStatus(error.message);
@@ -3182,39 +3163,7 @@ function App() {
                   onRefresh: refreshCloudGrocery,
                 }}
                 onOpenUserCenter={() => navigateTo("user")}
-                onOpenInventory={() => navigateTo("inventory")}
                 onOpenStats={() => navigateTo("stats")}
-              />
-            )}
-            {activeView === "inventory" && (
-              <InventoryPage
-                pantryItems={pantryItems}
-                pantryExpirySummary={pantryExpirySummary}
-                newPantryItem={newPantryItem}
-                setNewPantryItem={setNewPantryItem}
-                newPantryAmount={newPantryAmount}
-                setNewPantryAmount={setNewPantryAmount}
-                newPantryExpiresOn={newPantryExpiresOn}
-                setNewPantryExpiresOn={setNewPantryExpiresOn}
-                onAddPantryItem={addPantryItem}
-                onRemovePantryItem={removePantryItem}
-                onShare={shareInventorySummary}
-                cloudSync={{
-                  family,
-                  signedIn,
-                  enabled: cloudGroceryEnabled,
-                  loading: cloudGroceryLoading,
-                  status: cloudGroceryStatus,
-                  onMigrate: migrateGroceryToCloud,
-                  onRefresh: refreshCloudGrocery,
-                }}
-                onOpenUserCenter={() => navigateTo("user")}
-                mealLogs={mealLogs}
-                mealCalendar={mealCalendar}
-                familyProfile={familyProfile}
-                nutritionGoals={nutritionGoals}
-                weekPlan={weekPlan}
-                mealPlan={mealPlan}
               />
             )}
             {activeView === "stats" && (
@@ -3491,7 +3440,7 @@ function getFlowMotion(currentView, nextView) {
   if (currentView === nextView) return null;
   if (currentView === "dashboard" && nextView === "today") return "dish-to-menu";
   if ((currentView === "planner" || currentView === "today") && nextView === "grocery") return "ingredients";
-  if (currentView === "grocery" && (nextView === "inventory" || nextView === "user")) return "pantry";
+  if (currentView === "grocery" && nextView === "user") return "pantry";
   if (nextView === "user" || nextView === "stats") return "portrait";
   return "soft";
 }
@@ -3539,11 +3488,6 @@ function formatAiError(error) {
     return "暂时只能保存在本机。";
   }
   return message;
-}
-
-function formatInventoryShareSection(title, items) {
-  if (items.length === 0) return `${title}\n- 无`;
-  return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 提醒日期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
 
 function createHumiSessionFamily(humiSession) {

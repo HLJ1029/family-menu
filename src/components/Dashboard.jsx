@@ -163,7 +163,7 @@ export function Dashboard({
             </p>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {aiRecommendationLoading
-                ? "正在重新核对库存、时间和家人口味。"
+                ? "正在重新核对家里现有、时间和家人口味。"
                 : dinnerReady
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
@@ -275,7 +275,7 @@ export function Dashboard({
             <div className="mt-4 rounded-[20px] border border-line bg-white p-4">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">免费 / 精准</p>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
-                “换一组”永远走基础规则，不限次数；“精准推荐”才会调用高成本 API，参考家人口味、库存和反馈做更深揉合。
+                “换一组”永远走基础规则，不限次数；“精准推荐”才会调用高成本 API，参考家人口味、家里现有和反馈做更深揉合。
               </p>
             </div>
           )}

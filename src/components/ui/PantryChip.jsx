@@ -15,7 +15,7 @@ export function PantryChip({ item, onRemove }) {
       type="button"
       onClick={onRemove}
       className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-ink"
-      aria-label={`从厨房库存移除 ${item.name}`}
+      aria-label={`从后台已有移除 ${item.name}`}
     >
       <span>{item.name}</span>
       {item.amount && <span className="text-ink/38">{item.amount}</span>}

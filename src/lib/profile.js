@@ -95,7 +95,7 @@ export function buildCompactFamilyPrompt(profile = {}) {
 }
 
 export function shoppingToleranceLabel(value) {
-  if (value === "low") return "少买菜，优先用库存";
+  if (value === "low") return "少买菜，优先用家里现有";
   if (value === "high") return "愿意专门买菜";
   return "可买2-3样主食材";
 }

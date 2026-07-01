@@ -35,7 +35,6 @@ export function GroceryList({
   currentMemberId,
   cloudSync,
   onOpenUserCenter,
-  onOpenInventory,
   onOpenStats,
   onGroceryItemChecked,
 }) {
@@ -157,9 +156,9 @@ export function GroceryList({
               <PackageCheck size={19} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black">家中已有</p>
+              <p className="text-sm font-black">后台已有</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-                勾选买回的食材会自动记到后台。盐、油、酱油这类常备项可以轻轻移出清单。
+                勾选买回的食材会自动记到后台。盐、油、酱油这类常备项可以轻轻移出清单，不用单独维护。
               </p>
             </div>
           </div>
@@ -176,14 +175,6 @@ export function GroceryList({
         <div className="mt-4 grid gap-2">
           <button
             type="button"
-            onClick={onOpenInventory}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
-          >
-            <PackageCheck size={17} />
-            看家中已有
-          </button>
-          <button
-            type="button"
             onClick={onOpenStats}
             className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-transparent px-4 text-sm font-black text-ink/62 transition hover:text-ink"
           >
@@ -193,9 +184,9 @@ export function GroceryList({
         </div>
         <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">后台记录</p>
-          <p className="mt-1 text-sm font-black">不用专门维护库存</p>
+          <p className="mt-1 text-sm font-black">不用专门维护后台已有</p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            当前后台记着 {pantryItems.length} 个家中已有项；不准也没关系，推荐只把它当加分项。
+            当前后台记着 {pantryItems.length} 个家里现有项；不准也没关系，推荐只把它当加分项。
           </p>
         </div>
         {excludedItems.length > 0 && (
@@ -568,7 +559,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`${item.name} 加入厨房库存`}
+        aria-label={`${item.name} 记到后台已有`}
       >
         <PackageCheck size={15} />
       </button>
@@ -617,7 +608,7 @@ function ShoppingItem({
           type="button"
           onClick={onRemove}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-          aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
+          aria-label={removeLabel ?? `${item.name} 记到后台已有`}
         >
           <ActionIcon size={15} />
         </button>
