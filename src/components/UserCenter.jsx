@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, Plus, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
@@ -44,6 +44,9 @@ export function UserCenter({
   onStartCraveRequest,
   onCreateHousehold,
   onSwitchHousehold,
+  activeHouseholdInvite,
+  onCreateHouseholdInvite,
+  onShareHouseholdInvite,
   onExportValidationData,
   onViewChange,
   onAskFamily,
@@ -172,6 +175,9 @@ export function UserCenter({
           role={familyRole}
           members={familyMembers}
           currentUserId={currentUserId}
+          activeInvite={activeHouseholdInvite}
+          onCreateInvite={onCreateHouseholdInvite}
+          onShareInvite={onShareHouseholdInvite}
         />
         <HouseholdSwitcher
           signedIn={signedIn}
@@ -598,7 +604,7 @@ function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGe
   );
 }
 
-function FamilyRolePanel({ signedIn, family, role, members, currentUserId }) {
+function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activeInvite, onCreateInvite, onShareInvite }) {
   const isOwner = role === "owner";
   const roleLabel = isOwner ? "主厨" : "家人";
   const memberCount = members.length || (family ? 1 : 0);
@@ -634,6 +640,42 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId }) {
           lines={["点一个感觉", "认领买菜项", "加入想吃池子"]}
         />
       </div>
+
+      {family && (
+        <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">邀请家人</p>
+              <h4 className="mt-2 text-xl font-black tracking-[-0.03em]">把这个家发给家人</h4>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                {isOwner
+                  ? "生成小程序卡片后，家人点开并登录就会成为正式成员。"
+                  : "你已经在这个家里了；只有主厨能生成新的家庭邀请卡片。"}
+              </p>
+            </div>
+            {isOwner ? (
+              <button type="button" onClick={onCreateInvite} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+                <Share2 size={16} />
+                邀请家人
+              </button>
+            ) : (
+              <span className="w-fit rounded-full bg-white px-3 py-2 text-xs font-black text-ink/45">成员</span>
+            )}
+          </div>
+          {activeInvite?.token && isOwner && (
+            <div className="mt-3 flex flex-col gap-2 rounded-[18px] border border-line bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-ink">{activeInvite.householdName || family.name} 的邀请卡片已准备好</p>
+                <p className="mt-1 text-xs font-bold text-ink/42">已加入 {activeInvite.acceptedCount || 0} 人 · 点击后会唤起小程序分享</p>
+              </div>
+              <button type="button" onClick={onShareInvite} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink">
+                <Share2 size={14} />
+                再分享
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {family && (
         <div className="mt-4 grid gap-2">

@@ -237,6 +237,41 @@ try {
   assert(memberLoadedState.state?.recommendationAccess?.preciseUsed === 1, "joined member should share recommendation access");
   assert(memberLoadedState.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined member should share want-to-eat pool");
 
+  const householdInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: loadedStateEnvelope.family.id, inviterName: "主厨" },
+  });
+  assert(householdInvite.invite?.token, "household invite should return token");
+  assert(householdInvite.invite?.householdId === loadedStateEnvelope.family.id, "household invite should attach household");
+  const publicInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}`);
+  assert(publicInvite.invite?.householdName === loadedStateEnvelope.family.name, "public invite should expose household name");
+  const invitedLogin = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `invite-member-smoke-${runId}` },
+  });
+  const joinedInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${invitedLogin.accessToken}` },
+    body: { memberName: "被邀请的家人" },
+  });
+  assert(joinedInvite.family?.role === "member", "invite joiner should see member role");
+  assert(
+    joinedInvite.family?.members?.some((member) => member.memberId === invitedLogin.user.id && member.status === "formal"),
+    "invite joiner should become formal household member",
+  );
+  assert(joinedInvite.households?.some((household) => household.id === loadedStateEnvelope.family.id), "invite joiner should receive households");
+  try {
+    await request(`${baseUrl}/household-invites`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: { householdId: loadedStateEnvelope.family.id, inviterName: "家人" },
+    });
+    throw new Error("non-owner invite creation should be forbidden");
+  } catch (error) {
+    assert(String(error.message).startsWith("403 "), "non-owner invite creation should return 403");
+  }
+
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",
     body: {

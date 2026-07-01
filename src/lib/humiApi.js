@@ -37,6 +37,28 @@ export async function switchHumiHousehold(session, householdId) {
   });
 }
 
+export async function createHouseholdInvite(session, payload) {
+  return humiApiRequest("/household-invites", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function loadHouseholdInvite(token) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}`);
+}
+
+export async function joinHouseholdInvite(token, session, payload = {}) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiApiRequest(`/household-invites/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
 export async function logoutHumiSession(session) {
   if (!session?.accessToken) return;
   await humiApiRequest("/auth/logout", {

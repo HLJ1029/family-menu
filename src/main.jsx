@@ -6,6 +6,7 @@ import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
 import { InventoryPage } from "./components/InventoryPage";
+import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
 import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
@@ -63,6 +64,7 @@ import {
   closeCraveRequest,
   createCraveRequest,
   createHumiHousehold,
+  createHouseholdInvite,
   isHumiApiSession,
   loadCraveRequest,
   loadHumiState,
@@ -133,6 +135,7 @@ function App() {
   const swipeStartRef = useRef(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [craveLandingToken, setCraveLandingToken] = useState(() => getCraveTokenFromUrl());
+  const [householdInviteToken, setHouseholdInviteToken] = useState(() => getHouseholdInviteTokenFromUrl());
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
@@ -193,6 +196,7 @@ function App() {
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [recommendationAccess, setRecommendationAccess] = useLocalStorageState("humi:recommendation-access:v1", defaultRecommendationAccess);
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
+  const [activeHouseholdInvite, setActiveHouseholdInvite] = useLocalStorageState("humi:household-invite:v1", null);
   const [cravePromptSignal, setCravePromptSignal] = useState(0);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -2629,6 +2633,30 @@ function App() {
     }
   }
 
+  async function createFamilyInviteCard() {
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("请先在小程序里登录 Humi");
+      return;
+    }
+    if (!family?.id) {
+      showNotice("先创建我的家，再邀请家人");
+      return;
+    }
+    try {
+      const data = await createHouseholdInvite(humiSession, {
+        householdId: family.id,
+        inviterName: displaySession?.user?.displayName || humiSession.user?.displayName || "主厨",
+      });
+      if (data.invite?.token) {
+        setActiveHouseholdInvite(data.invite);
+        postHouseholdInviteShareToMiniProgram(data.invite);
+        showNotice("家庭邀请卡片已准备好，请点右上角分享");
+      }
+    } catch (error) {
+      showNotice(error.message || "家庭邀请暂时没生成成功");
+    }
+  }
+
   async function migrateGroceryToCloud() {
     if (isHumiApiSession(humiSession)) {
       setCloudGroceryLoading(true);
@@ -2801,13 +2829,7 @@ function App() {
   }
 
   function askFamilyFromHome() {
-    setCravePromptSignal(Date.now());
-    if (activeView !== "dashboard") {
-      navigateTo("dashboard");
-    } else {
-      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "smooth" }));
-    }
-    showNotice("已打开感觉征集，先选一个感觉再生成邀请卡片");
+    startCraveRequest("随便都行");
   }
 
   function goBack() {
@@ -2870,6 +2892,27 @@ function App() {
           setCraveLandingToken("");
           setOnboardingComplete(true);
           setActiveView("dashboard");
+        }}
+      />
+    );
+  }
+
+  if (householdInviteToken) {
+    return (
+      <InviteLanding
+        token={householdInviteToken}
+        humiSession={humiSession}
+        onJoined={(data) => {
+          if (data.family) setFamily(data.family);
+          if (Array.isArray(data.households)) setHumiHouseholds(data.households);
+          setOnboardingComplete(true);
+          setProfileOnboardingComplete(true);
+        }}
+        onClose={() => {
+          clearHouseholdInviteTokenFromUrl();
+          setHouseholdInviteToken("");
+          setOnboardingComplete(true);
+          setActiveView("user");
         }}
       />
     );
@@ -3165,6 +3208,9 @@ function App() {
                 onStartCraveRequest={startCraveRequest}
                 onCreateHousehold={createAnotherHumiHousehold}
                 onSwitchHousehold={switchActiveHumiHousehold}
+                activeHouseholdInvite={activeHouseholdInvite}
+                onCreateHouseholdInvite={createFamilyInviteCard}
+                onShareHouseholdInvite={() => activeHouseholdInvite && postHouseholdInviteShareToMiniProgram(activeHouseholdInvite)}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onAskFamily={askFamilyFromHome}
@@ -3223,10 +3269,22 @@ function getCraveTokenFromUrl() {
   return new URL(window.location.href).searchParams.get("crave") || "";
 }
 
+function getHouseholdInviteTokenFromUrl() {
+  if (typeof window === "undefined") return "";
+  return new URL(window.location.href).searchParams.get("invite") || "";
+}
+
 function clearCraveTokenFromUrl() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   url.searchParams.delete("crave");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function clearHouseholdInviteTokenFromUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("invite");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
@@ -3238,6 +3296,22 @@ function postCraveShareToMiniProgram(payload) {
     data: {
       type: "humi:share-crave",
       ...payload,
+      requestedAt: Date.now(),
+    },
+  });
+  return true;
+}
+
+function postHouseholdInviteShareToMiniProgram(payload) {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.postMessage) return false;
+  miniProgram.postMessage({
+    data: {
+      type: "humi:share-household-invite",
+      token: payload.token,
+      householdName: payload.householdName || "我的家",
+      inviterName: payload.inviterName || "主厨",
       requestedAt: Date.now(),
     },
   });

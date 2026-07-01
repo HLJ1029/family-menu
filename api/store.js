@@ -12,6 +12,7 @@ const DEFAULT_DATA = {
   states: {},
   householdStates: {},
   craveRequests: [],
+  householdInvites: [],
   revokedTokens: [],
 };
 
@@ -196,6 +197,67 @@ export class HumiStore {
     this.data.activeHouseholds[userId] = household.id;
     await this.save();
     return household;
+  }
+
+  async createHouseholdInvite(ownerUserId, payload = {}) {
+    await this.load();
+    const householdId = sanitizeText(payload.householdId, "", 80);
+    const household = householdId
+      ? this.data.households.find((item) => item.id === householdId)
+      : this.findActiveHouseholdByMember(ownerUserId);
+    if (!household) {
+      const error = new Error("Household not found.");
+      error.code = "household_not_found";
+      throw error;
+    }
+    if (household.ownerId !== ownerUserId) {
+      const error = new Error("Only the household owner can invite members.");
+      error.code = "forbidden";
+      throw error;
+    }
+
+    const owner = this.data.users.find((item) => item.id === ownerUserId);
+    const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
+    const now = new Date().toISOString();
+    const invite = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      householdId: household.id,
+      householdName: household.name,
+      inviterId: ownerUserId,
+      inviterName: sanitizeText(payload.inviterName, "", 32) || ownerMember?.nickname || owner?.displayName || "主厨",
+      status: "open",
+      acceptedMemberIds: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.householdInvites.unshift(invite);
+    this.data.householdInvites = this.data.householdInvites.slice(0, 2000);
+    await this.save();
+    return invite;
+  }
+
+  async getHouseholdInvite(token) {
+    await this.load();
+    return this.data.householdInvites.find((item) => item.token === token) ?? null;
+  }
+
+  async acceptHouseholdInvite(token, userId, options = {}) {
+    await this.load();
+    const invite = this.data.householdInvites.find((item) => item.token === token);
+    if (!invite) return null;
+    if (invite.status !== "open") {
+      const error = new Error("Invite is closed.");
+      error.code = "invite_closed";
+      throw error;
+    }
+    const household = await this.addHouseholdMember(invite.householdId, userId, options);
+    const now = new Date().toISOString();
+    invite.acceptedMemberIds = [...new Set([...(invite.acceptedMemberIds ?? []), userId])];
+    invite.acceptedAt = now;
+    invite.updatedAt = now;
+    await this.save();
+    return { invite, household };
   }
 
   async saveProfile(userId, profile) {

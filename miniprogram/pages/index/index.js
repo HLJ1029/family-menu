@@ -4,7 +4,9 @@ Page({
   data: {
     url: "",
     launchCraveToken: "",
+    launchInviteToken: "",
     shareCrave: null,
+    shareInvite: null,
     loginPending: false,
     loginError: "",
     phoneBindVisible: false,
@@ -16,6 +18,14 @@ Page({
 
   onLoad(options = {}) {
     const launchCraveToken = options.crave || "";
+    const launchInviteToken = options.invite || "";
+    if (launchInviteToken) {
+      this.setData({
+        launchInviteToken,
+        url: appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" })
+      });
+      return;
+    }
     if (launchCraveToken) {
       this.setData({
         launchCraveToken,
@@ -51,10 +61,23 @@ Page({
     const latestMessage = messages[messages.length - 1];
     if (latestMessage?.type === "humi:share-crave" && latestMessage?.token) {
       this.setData({
+        shareInvite: null,
         shareCrave: {
           token: latestMessage.token,
           householdName: latestMessage.householdName || "我家",
           initiatorName: latestMessage.initiatorName || "主厨"
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (latestMessage?.type === "humi:share-household-invite" && latestMessage?.token) {
+      this.setData({
+        shareCrave: null,
+        shareInvite: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我的家",
+          inviterName: latestMessage.inviterName || "主厨"
         }
       });
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
@@ -171,6 +194,13 @@ Page({
   },
 
   onShareAppMessage() {
+    const shareInvite = this.data.shareInvite;
+    if (shareInvite?.token) {
+      return {
+        title: `${shareInvite.inviterName}邀请你加入 ${shareInvite.householdName}`,
+        path: `/pages/index/index?invite=${encodeURIComponent(shareInvite.token)}`
+      };
+    }
     const shareCrave = this.data.shareCrave;
     if (shareCrave?.token) {
       return {
@@ -185,6 +215,10 @@ Page({
   },
 
   buildH5Url() {
+    const launchInviteToken = this.data.launchInviteToken;
+    if (launchInviteToken) {
+      return appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" });
+    }
     const launchCraveToken = this.data.launchCraveToken;
     if (launchCraveToken) {
       return appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" });

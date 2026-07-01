@@ -93,6 +93,23 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/household-invites") {
+        await handleCreateHouseholdInvite(request, response);
+        return;
+      }
+
+      const householdInviteMatch = url.pathname.match(/^\/household-invites\/([^/]+)$/);
+      if (request.method === "GET" && householdInviteMatch) {
+        await handleGetHouseholdInvite(response, householdInviteMatch[1]);
+        return;
+      }
+
+      const householdInviteJoinMatch = url.pathname.match(/^\/household-invites\/([^/]+)\/join$/);
+      if (request.method === "POST" && householdInviteJoinMatch) {
+        await handleJoinHouseholdInvite(request, response, householdInviteJoinMatch[1]);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/state") {
         await handleGetState(request, response);
         return;
@@ -317,6 +334,58 @@ async function handleSetActiveHousehold(request, response) {
   }
 }
 
+async function handleCreateHouseholdInvite(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const invite = await store.createHouseholdInvite(user.id, {
+      householdId: stringValue(body.householdId, 80),
+      inviterName: stringValue(body.inviterName, 32) || user.displayName,
+    });
+    sendJson(response, 201, { invite: toPublicHouseholdInvite(invite) });
+  } catch (error) {
+    if (error.code === "household_not_found") {
+      throw httpError(404, "household_not_found", "没有找到这个家，暂时不能邀请家人。");
+    }
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能邀请家人加入这个家。");
+    }
+    throw error;
+  }
+}
+
+async function handleGetHouseholdInvite(response, token) {
+  const invite = await store.getHouseholdInvite(token);
+  if (!invite) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+  sendJson(response, 200, { invite: toPublicHouseholdInvite(invite) });
+}
+
+async function handleJoinHouseholdInvite(request, response, token) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const result = await store.acceptHouseholdInvite(token, user.id, {
+      memberName: stringValue(body.memberName, 32) || user.displayName,
+    });
+    if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+    const households = await store.getHouseholdsForUser(user.id);
+    sendJson(response, 200, {
+      invite: toPublicHouseholdInvite(result.invite),
+      family: toHumiFamily(result.household, user),
+      households: toHumiFamilies(households, user),
+    });
+  } catch (error) {
+    if (error.code === "invite_closed") {
+      throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    }
+    throw error;
+  }
+}
+
 async function handleRecommend(request, response) {
   const body = await readJson(request);
   if (body.mode !== "precise") {
@@ -472,6 +541,20 @@ function toPublicCraveRequest(request) {
     })),
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toPublicHouseholdInvite(invite) {
+  return {
+    id: invite.id,
+    token: invite.token,
+    householdId: invite.householdId,
+    householdName: invite.householdName,
+    inviterName: invite.inviterName,
+    status: invite.status,
+    acceptedCount: (invite.acceptedMemberIds ?? []).length,
+    createdAt: invite.createdAt,
+    updatedAt: invite.updatedAt,
   };
 }
 
