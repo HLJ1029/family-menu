@@ -2369,7 +2369,7 @@ function App() {
       ],
       acceptanceRules: [
         "只推荐候选菜谱里的菜，不能创造新菜。",
-        "优先使用快到期或家里已有的主食材。",
+        "优先使用快到期或家里现有的主食材。",
         "避开近期已经安排过的菜。",
         "晚饭组合必须按家庭人数落地：1人建议1-2道，2人建议2道，3-4人建议2-3道，5人以上建议3-4道。",
         "如果菜品数量少于家庭人数需要，可用份量补足，但推荐理由要说明份量安排。",
@@ -3030,6 +3030,8 @@ function App() {
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onQuickDinnerConfirm={quickConfirmDinner}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
+                pantryItems={pantryItems}
+                onRemovePantryItem={removePantryItem}
               />
             )}
             {activeView === "library" && (

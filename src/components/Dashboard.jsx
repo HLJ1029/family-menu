@@ -9,6 +9,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getExpiryState } from "../lib/pantry";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
@@ -77,10 +78,13 @@ export function Dashboard({
   onSetDinnerConfirmation,
   onQuickDinnerConfirm,
   onToggleConsumedRecipe,
+  pantryItems = [],
+  onRemovePantryItem,
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [craveOpen, setCraveOpen] = useState(false);
+  const [dismissedPantryChecks, setDismissedPantryChecks] = useState({});
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
@@ -127,6 +131,7 @@ export function Dashboard({
   const decisionSummary = hasStaple ? "已有主食" : "建议补主食";
   const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
   const preciseEnabled = recommendationAccess?.plan === "plus" || preciseTrialRemaining > 0;
+  const pantryCheckItem = buildPantryCheckItem({ recipes: activeRecipes, pantryItems, dismissedPantryChecks });
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
@@ -206,6 +211,44 @@ export function Dashboard({
               </button>
             ))}
           </div>
+
+          {!dinnerReady && pantryCheckItem && (
+            <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-line bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-ink">家里还有 {pantryCheckItem.name} 吗？</p>
+                <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
+                  这组推荐把它当作加分项；不在了也没关系，我会从后台已有里轻轻拿掉。
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDismissedPantryChecks((current) => ({
+                      ...current,
+                      [pantryCheckItem.key]: true,
+                    }))
+                  }
+                  className="min-h-10 rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink/58"
+                >
+                  还有
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRemovePantryItem?.(pantryCheckItem.key);
+                    setDismissedPantryChecks((current) => ({
+                      ...current,
+                      [pantryCheckItem.key]: true,
+                    }));
+                  }}
+                  className="min-h-10 rounded-full bg-ink px-4 text-xs font-black text-white"
+                >
+                  没了
+                </button>
+              </div>
+            </div>
+          )}
 
           {!dinnerReady && recommendation.source === "crave" && (
             <div className="mt-5 rounded-[22px] border border-line bg-white p-4">
@@ -860,4 +903,21 @@ function getRecommendationItems(recommendation) {
       .filter(Boolean);
   }
   return (recommendation?.recipes ?? []).map((recipe) => ({ recipe, quantity: 1 }));
+}
+
+function buildPantryCheckItem({ recipes = [], pantryItems = [], dismissedPantryChecks = {} }) {
+  const recipeIngredientNames = new Set(
+    recipes.flatMap((recipe) => recipe.ingredients.map((item) => normalizeName(item.name))),
+  );
+  return pantryItems.find(
+    (item) =>
+      item?.key &&
+      !dismissedPantryChecks[item.key] &&
+      getExpiryState(item.expiresOn) !== "expired" &&
+      recipeIngredientNames.has(normalizeName(item.name)),
+  );
+}
+
+function normalizeName(value = "") {
+  return value.trim().toLowerCase();
 }

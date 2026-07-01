@@ -434,7 +434,7 @@ function buildBasicRecommendation(payload = {}) {
     recipeIds,
     reason: stringValue(payload.ruleFallback?.reason) || "已按家庭画像和本地规则给你一组基础推荐。",
     explanation: {
-      pantry: "基础版已参考本地库存信号。",
+      pantry: "基础版已参考家里现有信号。",
       preference: "基础版已参考家庭偏好标签。",
       grocery: "基础版会尽量控制主要采购缺口。",
     },
