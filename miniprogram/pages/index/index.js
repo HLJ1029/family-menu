@@ -3,6 +3,8 @@ const { HUMI_WECHAT_LOGIN_ENABLED, getHumiApiBaseUrl, getHumiH5Url } = require("
 Page({
   data: {
     url: "",
+    launchCraveToken: "",
+    shareCrave: null,
     loginPending: false,
     loginError: "",
     phoneBindVisible: false,
@@ -12,7 +14,15 @@ Page({
     phoneSessionUpdatedAt: 0
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const launchCraveToken = options.crave || "";
+    if (launchCraveToken) {
+      this.setData({
+        launchCraveToken,
+        url: appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" })
+      });
+      return;
+    }
     if (HUMI_WECHAT_LOGIN_ENABLED) {
       this.loginWithWechat({ initial: true });
       return;
@@ -39,6 +49,17 @@ Page({
   handleMessage(event) {
     const messages = event.detail?.data || [];
     const latestMessage = messages[messages.length - 1];
+    if (latestMessage?.type === "humi:share-crave" && latestMessage?.token) {
+      this.setData({
+        shareCrave: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我家",
+          initiatorName: latestMessage.initiatorName || "主厨"
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
       this.loginWithWechat();
     }
@@ -147,10 +168,33 @@ Page({
         this.setData({ phoneBindPending: false });
       }
     });
+  },
+
+  onShareAppMessage() {
+    const shareCrave = this.data.shareCrave;
+    if (shareCrave?.token) {
+      return {
+        title: `${shareCrave.householdName}今晚要做饭，你想吃点啥？`,
+        path: `/pages/index/index?crave=${encodeURIComponent(shareCrave.token)}`
+      };
+    }
+    return {
+      title: "Humi 帮你安排今晚吃什么",
+      path: "/pages/index/index"
+    };
   }
 });
 
 function appendSessionToUrl(url, session) {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}humiLogin=wechat&humiSession=${encodeURIComponent(JSON.stringify(session))}`;
+}
+
+function appendQuery(url, params = {}) {
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  if (entries.length === 0) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${entries.join("&")}`;
 }

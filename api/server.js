@@ -103,6 +103,29 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/crave-requests") {
+        await handleCreateCraveRequest(request, response);
+        return;
+      }
+
+      const craveRequestMatch = url.pathname.match(/^\/crave-requests\/([^/]+)$/);
+      if (request.method === "GET" && craveRequestMatch) {
+        await handleGetCraveRequest(response, craveRequestMatch[1]);
+        return;
+      }
+
+      const craveVoteMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/votes$/);
+      if (request.method === "POST" && craveVoteMatch) {
+        await handleCraveVote(request, response, craveVoteMatch[1]);
+        return;
+      }
+
+      const craveCloseMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/close$/);
+      if (request.method === "POST" && craveCloseMatch) {
+        await handleCloseCraveRequest(request, response, craveCloseMatch[1]);
+        return;
+      }
+
       sendJson(response, 404, { error: "not_found" });
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
@@ -238,6 +261,39 @@ async function handleExplain(request, response) {
   sendJson(response, 200, result);
 }
 
+async function handleCreateCraveRequest(request, response) {
+  const body = await readJson(request);
+  const craveRequest = await store.createCraveRequest(body);
+  sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
+}
+
+async function handleGetCraveRequest(response, token) {
+  const craveRequest = await store.getCraveRequest(token);
+  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+}
+
+async function handleCraveVote(request, response, token) {
+  const body = await readJson(request);
+  const craveRequest = await store.addCraveVote(token, body);
+  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+}
+
+async function handleCloseCraveRequest(request, response, token) {
+  const body = await readJson(request);
+  try {
+    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret);
+    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有发起者能结束这次征集。");
+    }
+    throw error;
+  }
+}
+
 // 方案 A：不强制登录（游客也能用 AI 推荐），仅按客户端 IP 限流保护 DeepSeek 额度。
 const aiRateBuckets = new Map();
 
@@ -261,6 +317,27 @@ function getClientIp(request) {
     return forwarded.split(",")[0].trim();
   }
   return request.socket?.remoteAddress || "unknown";
+}
+
+function toPublicCraveRequest(request) {
+  return {
+    id: request.id,
+    token: request.token,
+    householdName: request.householdName,
+    initiatorName: request.initiatorName,
+    mealType: request.mealType,
+    status: request.status,
+    votes: (request.votes ?? []).map((vote) => ({
+      id: vote.id,
+      memberName: vote.memberName,
+      feelingTag: vote.feelingTag,
+      note: vote.note,
+      temporary: vote.temporary,
+      createdAt: vote.createdAt,
+    })),
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
 }
 
 async function requireAuth(request) {

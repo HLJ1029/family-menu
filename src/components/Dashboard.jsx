@@ -57,6 +57,10 @@ export function Dashboard({
   onSubmitRecommendationFeedback,
   onCloseRecommendationFeedback,
   onStartCraveRequest,
+  activeCraveRequest,
+  onCopyCraveLink,
+  onRefreshCraveRequest,
+  onGenerateFromCrave,
   onPickForMeal,
   session,
   onOpenUserCenter,
@@ -100,7 +104,6 @@ export function Dashboard({
 
   function submitFeeling() {
     onStartCraveRequest?.(selectedFeeling);
-    setCraveOpen(false);
   }
 
   const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
@@ -239,38 +242,49 @@ export function Dashboard({
           </div>
           {!dinnerReady && craveOpen && (
             <div className="mt-5 rounded-[24px] border border-line bg-white p-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">感觉征集</p>
-                  <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">先选一个感觉</h3>
-                  <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
-                    家人不用想菜名，点一个大概感觉就行。没人选时，Humi 也会自己做主。
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={submitFeeling}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
-                >
-                  就按这个出菜单
-                </button>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {feelingTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSelectedFeeling(tag)}
-                    className={`min-h-11 rounded-full border px-3 text-sm font-black transition ${
-                      selectedFeeling === tag
-                        ? "border-ink bg-ink text-white"
-                        : "border-line bg-white text-ink hover:border-ink/30"
-                    } ${tag === "随便都行" ? "col-span-2 sm:col-span-3" : ""}`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              {activeCraveRequest?.token ? (
+                <CraveRequestPanel
+                  request={activeCraveRequest}
+                  onCopyCraveLink={onCopyCraveLink}
+                  onRefreshCraveRequest={onRefreshCraveRequest}
+                  onGenerateFromCrave={onGenerateFromCrave}
+                />
+              ) : (
+                <>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">感觉征集</p>
+                      <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">先选一个感觉</h3>
+                      <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
+                        家人不用想菜名，点一个大概感觉就行。没人选时，Humi 也会自己做主。
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={submitFeeling}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+                    >
+                      生成邀请卡片
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {feelingTags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSelectedFeeling(tag)}
+                        className={`min-h-11 rounded-full border px-3 text-sm font-black transition ${
+                          selectedFeeling === tag
+                            ? "border-ink bg-ink text-white"
+                            : "border-line bg-white text-ink hover:border-ink/30"
+                        } ${tag === "随便都行" ? "col-span-2 sm:col-span-3" : ""}`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
           {!dinnerReady && feedbackOpen && (
@@ -369,6 +383,51 @@ export function Dashboard({
       />
     </div>
   );
+}
+
+function CraveRequestPanel({ request, onCopyCraveLink, onRefreshCraveRequest, onGenerateFromCrave }) {
+  const votes = request.votes ?? [];
+  const summary = summarizeVotes(votes);
+  return (
+    <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">收集中</p>
+          <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">大家点了什么感觉</h3>
+          <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
+            {votes.length > 0 ? `照顾到：${summary}` : "邀请卡片已经准备好。没人回复也能直接出菜单。"}
+          </p>
+        </div>
+        <span className="rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">已回 {votes.length}</span>
+      </div>
+      <div className="mt-4 grid gap-2">
+        {votes.length > 0 ? votes.map((vote) => (
+          <div key={vote.id} className="flex items-center justify-between gap-3 rounded-[18px] border border-line bg-canvas p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">{vote.memberName || "家人"} · {vote.feelingTag}</p>
+              {vote.note && <p className="mt-1 truncate text-xs font-bold text-ink/42">{vote.note}</p>}
+            </div>
+            <span className="h-2 w-2 shrink-0 rounded-full bg-ink" />
+          </div>
+        )) : (
+          <div className="rounded-[18px] border border-line bg-canvas p-3 text-sm font-bold leading-6 text-ink/52">
+            在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。
+          </div>
+        )}
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制链接</button>
+        <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新</button>
+        <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">就这些出菜单</button>
+      </div>
+    </div>
+  );
+}
+
+function summarizeVotes(votes) {
+  const counts = new Map();
+  votes.forEach((vote) => counts.set(vote.feelingTag, (counts.get(vote.feelingTag) ?? 0) + 1));
+  return [...counts.entries()].map(([tag, count]) => count > 1 ? `${tag} x${count}` : tag).join(" · ");
 }
 
 const recommendationRejectReasons = [

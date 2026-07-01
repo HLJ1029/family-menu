@@ -8,6 +8,7 @@ const DEFAULT_DATA = {
   identities: [],
   profiles: {},
   states: {},
+  craveRequests: [],
   revokedTokens: [],
 };
 
@@ -137,6 +138,73 @@ export class HumiStore {
     await this.load();
     return this.data.revokedTokens.includes(token);
   }
+
+  async createCraveRequest(payload = {}) {
+    await this.load();
+    const now = new Date().toISOString();
+    const token = randomUUID().replaceAll("-", "");
+    const ownerSecret = randomUUID().replaceAll("-", "");
+    const request = {
+      id: randomUUID(),
+      token,
+      ownerSecret,
+      householdName: sanitizeText(payload.householdName, "我家", 32),
+      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      mealType: sanitizeText(payload.mealType, "dinner", 24),
+      status: "open",
+      votes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.craveRequests.unshift(request);
+    this.data.craveRequests = this.data.craveRequests.slice(0, 2000);
+    await this.save();
+    return request;
+  }
+
+  async getCraveRequest(token) {
+    await this.load();
+    return this.data.craveRequests.find((item) => item.token === token) ?? null;
+  }
+
+  async addCraveVote(token, vote = {}) {
+    await this.load();
+    const request = this.data.craveRequests.find((item) => item.token === token);
+    if (!request) return null;
+    if (request.status !== "open") return request;
+    const now = new Date().toISOString();
+    const participantKey = sanitizeText(vote.participantKey, "", 80) || randomUUID();
+    const nextVote = {
+      id: randomUUID(),
+      participantKey,
+      memberName: sanitizeText(vote.memberName, "家人", 32),
+      feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32),
+      note: sanitizeText(vote.note, "", 80),
+      temporary: vote.temporary !== false,
+      createdAt: now,
+    };
+    const existingIndex = request.votes.findIndex((item) => item.participantKey === participantKey);
+    if (existingIndex >= 0) request.votes[existingIndex] = nextVote;
+    else request.votes.push(nextVote);
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
+  async closeCraveRequest(token, ownerSecret) {
+    await this.load();
+    const request = this.data.craveRequests.find((item) => item.token === token);
+    if (!request) return null;
+    if (request.ownerSecret !== ownerSecret) {
+      const error = new Error("Owner secret mismatch.");
+      error.code = "forbidden";
+      throw error;
+    }
+    request.status = "closed";
+    request.updatedAt = new Date().toISOString();
+    await this.save();
+    return request;
+  }
 }
 
 function normalizePhone(value = "") {
@@ -151,4 +219,9 @@ function normalizeCountryCode(value = "") {
 function maskPhoneNumber(phoneNumber) {
   if (phoneNumber.length < 7) return phoneNumber ? `${phoneNumber.slice(0, 2)}****` : "";
   return `${phoneNumber.slice(0, 3)}****${phoneNumber.slice(-4)}`;
+}
+
+function sanitizeText(value, fallback = "", maxLength = 80) {
+  const text = String(value ?? "").trim().replace(/\s+/g, " ");
+  return (text || fallback).slice(0, maxLength);
 }

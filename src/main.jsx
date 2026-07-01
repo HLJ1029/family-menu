@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
+import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryList } from "./components/GroceryList";
 import { InventoryPage } from "./components/InventoryPage";
@@ -58,7 +59,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
-import { isHumiApiSession, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
+import { createCraveRequest, isHumiApiSession, loadCraveRequest, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -116,6 +117,7 @@ function App() {
   const viewHistoryRef = useRef(["dashboard"]);
   const swipeStartRef = useRef(null);
   const [activeView, setActiveView] = useState("dashboard");
+  const [craveLandingToken, setCraveLandingToken] = useState(() => getCraveTokenFromUrl());
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
@@ -735,6 +737,7 @@ function App() {
     );
   }, [signedIn, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
+  const activeCraveRequest = craveSignals.find((item) => item.token) ?? null;
 
   useEffect(() => {
     if (activeView !== "dashboard" || todayMenu.length > 0) return;
@@ -933,8 +936,40 @@ function App() {
     });
   }
 
-  function startCraveRequest(feelingTag) {
+  async function startCraveRequest(feelingTag) {
     const safeFeeling = feelingTag || "随便都行";
+    try {
+      const data = await createCraveRequest({
+        householdName: family?.name || familyName || "我家",
+        initiatorName: displaySession?.user?.displayName || "主厨",
+        mealType: "dinner",
+        initialFeelingTag: safeFeeling,
+      });
+      const request = data.request;
+      if (request?.token) {
+        postCraveShareToMiniProgram({
+          token: request.token,
+          householdName: request.householdName,
+          initiatorName: request.initiatorName,
+        });
+        setCraveSignals((current) => [
+          {
+            id: request.id || `crave:${Date.now()}`,
+            token: request.token,
+            ownerSecret: data.ownerSecret,
+            feelingTag: safeFeeling,
+            status: request.status,
+            votes: request.votes ?? [],
+            createdAt: request.createdAt || new Date().toISOString(),
+            recipeIds: displayedRecommendation.recipes.map((recipe) => recipe.id),
+          },
+          ...current.filter((item) => item.token !== request.token),
+        ].slice(0, 24));
+        showNotice("邀请卡片已准备好，请点右上角分享");
+      }
+    } catch (error) {
+      showNotice(error.message || "协作链接暂时没生成成功");
+    }
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
     const alternateRuleRecommendation = buildTodayRecommendation({
       pantryItems,
@@ -975,6 +1010,62 @@ function App() {
     showNotice(safeFeeling === "随便都行" ? "那就 Humi 来做主" : `已按“${safeFeeling}”换一组`);
   }
 
+  async function refreshCraveRequest() {
+    if (!activeCraveRequest?.token) return;
+    try {
+      const data = await loadCraveRequest(activeCraveRequest.token);
+      const request = data.request;
+      setCraveSignals((current) => current.map((item) => (
+        item.token === request.token
+          ? { ...item, ...request, ownerSecret: item.ownerSecret, feelingTag: item.feelingTag }
+          : item
+      )));
+      showNotice(`已刷新，收到 ${(request.votes ?? []).length} 个回复`);
+    } catch (error) {
+      showNotice(error.message || "刷新失败");
+    }
+  }
+
+  function copyCraveLink() {
+    if (!activeCraveRequest?.token) return;
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.searchParams.set("crave", activeCraveRequest.token);
+    navigator.clipboard?.writeText(url.toString());
+    postCraveShareToMiniProgram({
+      token: activeCraveRequest.token,
+      householdName: activeCraveRequest.householdName || family?.name || familyName || "我家",
+      initiatorName: activeCraveRequest.initiatorName || displaySession?.user?.displayName || "主厨",
+    });
+    showNotice("邀请链接已复制，小程序分享卡片也已准备好");
+  }
+
+  function generateFromCraveRequest() {
+    if (!activeCraveRequest) return;
+    const votes = activeCraveRequest.votes ?? [];
+    const voteFeeling = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行")?.feelingTag
+      ?? activeCraveRequest.feelingTag
+      ?? "随便都行";
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const nextRecommendation = buildTodayRecommendation({
+      pantryItems,
+      weekPlan,
+      groceryItems: visibleGroceryItems,
+      todayRecipes,
+      familyMembers,
+      familyProfile,
+      excludedRecipeIds: voteFeeling === "随便都行" ? [] : currentRecipeIds,
+    });
+    setAiRecommendation({
+      ...nextRecommendation,
+      source: "crave",
+      reason: votes.length > 0
+        ? `${nextRecommendation.reason} 已揉合 ${votes.length} 个家人回复。`
+        : `${nextRecommendation.reason} 还没人回复，先让 Humi 做主。`,
+    });
+    setAiRecommendationStatus(votes.length > 0 ? "已按家人感觉揉合出一组。" : "还没人回复，已先按家庭画像出一组。");
+    showNotice("已按这次征集出菜单");
+  }
   function pickForMeal(slotId) {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
     const preferredRecipe = recipes.find((recipe) => recipe.tags?.includes(slotLabel) || recipe.categories?.includes(slotLabel))
@@ -2352,6 +2443,20 @@ function App() {
     window.setTimeout(() => setEntryMotion(false), 1360);
   }
 
+  if (craveLandingToken) {
+    return (
+      <CraveLanding
+        token={craveLandingToken}
+        onClose={() => {
+          clearCraveTokenFromUrl();
+          setCraveLandingToken("");
+          setOnboardingComplete(true);
+          setActiveView("dashboard");
+        }}
+      />
+    );
+  }
+
   if (!signedIn && !onboardingComplete) {
     return (
       <>
@@ -2412,6 +2517,10 @@ function App() {
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
                 onStartCraveRequest={startCraveRequest}
+                activeCraveRequest={activeCraveRequest}
+                onCopyCraveLink={copyCraveLink}
+                onRefreshCraveRequest={refreshCraveRequest}
+                onGenerateFromCrave={generateFromCraveRequest}
                 onPickForMeal={pickForMeal}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("user")}
@@ -2663,6 +2772,32 @@ function App() {
       />
     </div>
   );
+}
+
+function getCraveTokenFromUrl() {
+  if (typeof window === "undefined") return "";
+  return new URL(window.location.href).searchParams.get("crave") || "";
+}
+
+function clearCraveTokenFromUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("crave");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function postCraveShareToMiniProgram(payload) {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.postMessage) return false;
+  miniProgram.postMessage({
+    data: {
+      type: "humi:share-crave",
+      ...payload,
+      requestedAt: Date.now(),
+    },
+  });
+  return true;
 }
 
 function normalizeName(value) {
