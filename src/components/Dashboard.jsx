@@ -71,6 +71,7 @@ export function Dashboard({
   mealLogs,
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onQuickDinnerConfirm,
   onToggleConsumedRecipe,
 }) {
   const [arranging, setArranging] = useState(false);
@@ -388,6 +389,7 @@ export function Dashboard({
         mealLogs={mealLogs}
         onSetDinnerSource={onSetDinnerSource}
         onSetDinnerConfirmation={onSetDinnerConfirmation}
+        onQuickDinnerConfirm={onQuickDinnerConfirm}
         onToggleConsumedRecipe={onToggleConsumedRecipe}
         todayRecipes={todayRecipes}
         showConfirmation={dinnerReady}
@@ -456,6 +458,7 @@ export function DinnerLogPanel({
   mealLogs = {},
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onQuickDinnerConfirm,
   onToggleConsumedRecipe,
   todayRecipes = [],
   showConfirmation,
@@ -468,10 +471,10 @@ export function DinnerLogPanel({
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="eyebrow">晚餐记录</p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">今天这顿从哪里来</h2>
+          <p className="eyebrow">晚间轻确认</p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">今晚安排了，做了吗？</h2>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            每天只记一次。没在家做饭也可以打开 Humi，饮食画像会更真实。
+            点一下就够了。做了会默认把今晚菜单计入画像；换了也没关系。
           </p>
         </div>
         {mealLog?.confirmation === "all" && (
@@ -481,6 +484,28 @@ export function DinnerLogPanel({
           </span>
         )}
       </div>
+      {showConfirmation && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <QuickConfirmButton
+            active={mealLog?.confirmation === "all"}
+            title="做了"
+            text="按今晚菜单计入画像"
+            onClick={() => onQuickDinnerConfirm?.("done")}
+          />
+          <QuickConfirmButton
+            active={mealLog?.confirmation === "changed"}
+            title="换了别的"
+            text="不把原菜单算进去"
+            onClick={() => onQuickDinnerConfirm?.("changed")}
+          />
+          <QuickConfirmButton
+            active={mealLog?.source === "outside" || mealLog?.confirmation === "outside"}
+            title="出去吃了"
+            text="只记录来源"
+            onClick={() => onQuickDinnerConfirm?.("outside")}
+          />
+        </div>
+      )}
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div>
           <p className="mb-2 text-xs font-black text-ink/38">晚餐来源</p>
@@ -568,6 +593,23 @@ export function DinnerLogPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function QuickConfirmButton({ active, title, text, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-[76px] rounded-[18px] border px-4 py-3 text-left transition ${
+        active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink hover:border-ink/20"
+      }`}
+    >
+      <span className="block text-base font-black">{title}</span>
+      <span className={`mt-1 block text-xs font-bold leading-5 ${active ? "text-white/68" : "text-ink/45"}`}>
+        {text}
+      </span>
+    </button>
   );
 }
 

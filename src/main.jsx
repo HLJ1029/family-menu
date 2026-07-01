@@ -1156,6 +1156,59 @@ function App() {
     showNotice(labels[confirmation] ?? "晚餐确认已记录");
   }
 
+  function quickConfirmDinner(result) {
+    const now = new Date().toISOString();
+    if (result === "done") {
+      updateTodayMealLog({
+        source: "home",
+        confirmation: "all",
+        consumedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        quickConfirmedAt: now,
+      });
+      trackValidationEvent(validationEvents.mealConfirmed, {
+        confirmation: "all",
+        consumedCount: todayMenu.length,
+        dateKey: todayDateKey,
+        quick: true,
+      });
+      showNotice("今晚已确认做了");
+      return;
+    }
+    if (result === "changed") {
+      updateTodayMealLog({
+        source: "home",
+        confirmation: "changed",
+        consumedEntries: [],
+        plannedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        quickConfirmedAt: now,
+      });
+      trackValidationEvent(validationEvents.mealConfirmed, {
+        confirmation: "changed",
+        consumedCount: 0,
+        dateKey: todayDateKey,
+        quick: true,
+      });
+      showNotice("已记录今晚换了别的");
+      return;
+    }
+    if (result === "outside") {
+      updateTodayMealLog({
+        source: "outside",
+        confirmation: "outside",
+        consumedEntries: [],
+        plannedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        quickConfirmedAt: now,
+      });
+      trackValidationEvent(validationEvents.mealConfirmed, {
+        confirmation: "outside",
+        consumedCount: 0,
+        dateKey: todayDateKey,
+        quick: true,
+      });
+      showNotice("已记录今晚出去吃了");
+    }
+  }
+
   function toggleConsumedRecipe(recipeId) {
     const currentEntries = todayMealLog.consumedEntries ?? todayMenu.map((item) => ({
       recipeId: item.recipeId,
@@ -2623,6 +2676,7 @@ function App() {
                 mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
+                onQuickDinnerConfirm={quickConfirmDinner}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
               />
             )}
@@ -2691,6 +2745,7 @@ function App() {
                 mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
+                onQuickDinnerConfirm={quickConfirmDinner}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
                 cloudSync={{
                   family,

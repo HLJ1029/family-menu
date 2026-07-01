@@ -20,6 +20,7 @@ export function TodayMenu({
   mealLogs,
   onSetDinnerSource,
   onSetDinnerConfirmation,
+  onQuickDinnerConfirm,
   onToggleConsumedRecipe,
 }) {
   const [showAddPanel, setShowAddPanel] = useState(true);
@@ -90,6 +91,7 @@ export function TodayMenu({
           mealLogs={mealLogs}
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onQuickDinnerConfirm={onQuickDinnerConfirm}
           onToggleConsumedRecipe={onToggleConsumedRecipe}
           todayRecipes={todayRecipes}
           showConfirmation={false}
@@ -204,6 +206,7 @@ export function TodayMenu({
             mealLogs={mealLogs}
             onSetDinnerSource={onSetDinnerSource}
             onSetDinnerConfirmation={onSetDinnerConfirmation}
+            onQuickDinnerConfirm={onQuickDinnerConfirm}
             onToggleConsumedRecipe={onToggleConsumedRecipe}
             todayRecipes={todayRecipes}
             showConfirmation
