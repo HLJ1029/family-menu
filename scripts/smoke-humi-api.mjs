@@ -93,6 +93,22 @@ try {
   assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
   assert(joinedCrave.request?.votes?.[0]?.memberId === login.user.id, "joined crave vote should attach user");
 
+  const basicRecommendation = await request(`${baseUrl}/recommend`, {
+    method: "POST",
+    body: {
+      candidates: [
+        { id: "tomato-egg", name: "西红柿炒鸡蛋" },
+        { id: "rice", name: "米饭" },
+      ],
+      ruleFallback: {
+        recipeIds: ["tomato-egg", "rice"],
+        reason: "本地规则推荐。",
+      },
+    },
+  });
+  assert(basicRecommendation.source === "rule", "public recommendation should use basic rule path");
+  assert(basicRecommendation.recipeIds?.[0] === "tomato-egg", "basic recommendation should return fallback ids");
+
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },

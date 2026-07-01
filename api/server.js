@@ -21,7 +21,7 @@ const config = {
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
   deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
   deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-  // 方案 A：游客也放行 AI 推荐，但按 IP 限流，避免 DeepSeek 额度被公开接口刷
+  // 基础推荐默认走本地规则；只有登录用户显式请求精准模式时才允许消耗 DeepSeek。
   aiRateLimit: Number(process.env.HUMI_AI_RATE_LIMIT || 30),
   aiRateWindowMs: Number(process.env.HUMI_AI_RATE_WINDOW_MS || 60000),
 };
@@ -244,15 +244,42 @@ async function handleSaveState(request, response) {
 }
 
 async function handleRecommend(request, response) {
+  const body = await readJson(request);
+  if (body.mode !== "precise") {
+    sendJson(response, 200, buildBasicRecommendation(body));
+    return;
+  }
+  await requireAuth(request);
   enforceAiAccess(request);
   if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
-  const body = await readJson(request);
   const result = await generateMealRecommendation(body, {
     apiKey: config.deepseekApiKey,
     model: config.deepseekModel,
     baseUrl: config.deepseekBaseUrl,
   });
   sendJson(response, 200, result);
+}
+
+function buildBasicRecommendation(payload = {}) {
+  const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+  if (candidates.length === 0) {
+    throw httpError(400, "missing_candidates", "缺少可推荐的菜谱。");
+  }
+  const candidateIds = new Set(candidates.map((candidate) => stringValue(candidate.id)).filter(Boolean));
+  const fallbackIds = Array.isArray(payload.ruleFallback?.recipeIds)
+    ? payload.ruleFallback.recipeIds.map(stringValue).filter((id) => candidateIds.has(id))
+    : [];
+  const recipeIds = [...new Set(fallbackIds.length > 0 ? fallbackIds : [...candidateIds])].slice(0, 2);
+  return {
+    recipeIds,
+    reason: stringValue(payload.ruleFallback?.reason) || "已按家庭画像和本地规则给你一组基础推荐。",
+    explanation: {
+      pantry: "基础版已参考本地库存信号。",
+      preference: "基础版已参考家庭偏好标签。",
+      grocery: "基础版会尽量控制主要采购缺口。",
+    },
+    source: "rule",
+  };
 }
 
 async function handleExplain(request, response) {
@@ -323,7 +350,7 @@ async function handleCloseCraveRequest(request, response, token) {
   }
 }
 
-// 方案 A：不强制登录（游客也能用 AI 推荐），仅按客户端 IP 限流保护 DeepSeek 额度。
+// 精准推荐仍按客户端 IP 限流，避免登录态被滥用刷 DeepSeek 额度。
 const aiRateBuckets = new Map();
 
 function enforceAiAccess(request) {
