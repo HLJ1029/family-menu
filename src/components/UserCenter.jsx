@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, ShieldAlert, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, PackageCheck, Phone, Plus, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
@@ -10,6 +10,13 @@ import { Card } from "./ui/Card";
 import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
+
+const quickWantRecipes = [
+  { id: "tomato-egg", name: "西红柿炒鸡蛋" },
+  { id: "potato-beef", name: "土豆烧牛肉" },
+  { id: "mapo-tofu", name: "麻婆豆腐" },
+  { id: "wintermelon-rib-soup", name: "冬瓜排骨汤" },
+];
 
 export function UserCenter({
   authProps,
@@ -24,6 +31,7 @@ export function UserCenter({
   nutritionGoals,
   setNutritionGoals,
   recommendationFeedback = [],
+  wantToEatItems = [],
   craveSignals = [],
   activeCraveRequest,
   onCopyCraveLink,
@@ -32,6 +40,11 @@ export function UserCenter({
   onExportValidationData,
   onViewChange,
   onAskFamily,
+  onAddWantToEat,
+  onAddWantRecipe,
+  onAddWantToToday,
+  onCompleteWantToEat,
+  onRemoveWantToEat,
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
@@ -39,6 +52,8 @@ export function UserCenter({
   const signOutLabel = humiSession ? "退出并重新验证微信登录" : "退出账号";
   const [activeSettings, setActiveSettings] = useState(null);
   const [phoneBindStatus, setPhoneBindStatus] = useState("");
+  const [wantTitle, setWantTitle] = useState("");
+  const [wantNote, setWantNote] = useState("");
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
   const sourceSummary = Object.values(mealLogs).reduce(
@@ -67,6 +82,8 @@ export function UserCenter({
       meta: "晚饭反馈",
     })),
   ].slice(0, 5);
+  const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
+  const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
 
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
@@ -78,6 +95,13 @@ export function UserCenter({
       return;
     }
     setPhoneBindStatus("当前环境暂时无法唤起手机号授权，请在微信小程序内重试。");
+  }
+
+  function submitWantToEat(event) {
+    event.preventDefault();
+    onAddWantToEat?.({ title: wantTitle, note: wantNote });
+    setWantTitle("");
+    setWantNote("");
   }
 
   return (
@@ -157,6 +181,83 @@ export function UserCenter({
               </div>
             )}
           </div>
+        </section>
+        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">想吃池子</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                不用等发起征集。家人随手写一句，主厨排今晚时可以直接放进菜单。
+              </p>
+            </div>
+            <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+              待安排 {openWantItems.length}
+            </span>
+          </div>
+
+          <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={wantTitle}
+                onChange={(event) => setWantTitle(event.target.value)}
+                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+                placeholder="例如：想吃牛肉面"
+              />
+              <input
+                value={wantNote}
+                onChange={(event) => setWantNote(event.target.value)}
+                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+                placeholder="补一句，可不填"
+              />
+              <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+                <Plus size={16} />
+                加入
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickWantRecipes.map((recipe) => (
+              <button
+                key={recipe.id}
+                type="button"
+                onClick={() => onAddWantRecipe?.(recipe.id)}
+                className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
+              >
+                + {recipe.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {openWantItems.length > 0 ? openWantItems.map((item) => (
+              <WantToEatRow
+                key={item.id}
+                item={item}
+                onAddToday={() => onAddWantToToday?.(item)}
+                onDone={() => onCompleteWantToEat?.(item.id)}
+                onRemove={() => onRemoveWantToEat?.(item.id)}
+              />
+            )) : (
+              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+                池子还是空的。可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
+              </div>
+            )}
+          </div>
+
+          {doneWantItems.length > 0 && (
+            <div className="mt-4 rounded-[20px] bg-canvas p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {doneWantItems.map((item) => (
+                  <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
+                    {item.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
           <HumiPeek
@@ -405,6 +506,37 @@ function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGe
         <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制/分享</button>
         <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
         <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">就这些出菜单</button>
+      </div>
+    </div>
+  );
+}
+
+function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
+  return (
+    <div className="rounded-[20px] border border-line bg-canvas p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black">{item.title}</p>
+          <p className="mt-1 text-xs font-bold text-ink/42">
+            {item.memberName || "家人"}想吃{item.note ? ` · ${item.note}` : ""}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-ink/45">
+          待安排
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
+          <Utensils size={14} />
+          今晚就吃
+        </button>
+        <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+          标记安排
+        </button>
+        <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+          <Trash2 size={13} />
+          移除
+        </button>
       </div>
     </div>
   );

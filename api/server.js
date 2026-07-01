@@ -485,6 +485,7 @@ function sanitizeAppState(state = {}) {
     excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
     pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
     familyProfile: sanitizeProfile(state.familyProfile),
+    wantToEatItems: sanitizeList(state.wantToEatItems, sanitizeWantToEatItem, 200),
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
   };
@@ -610,6 +611,22 @@ function sanitizePantryItem(item = {}) {
     amount: stringValue(item.amount),
     expiresOn: dateValue(item.expiresOn),
     source: stringValue(item.source),
+  };
+}
+
+function sanitizeWantToEatItem(item = {}) {
+  const title = stringValue(item.title);
+  if (!title) return null;
+  return {
+    id: stringValue(item.id) || `want:${Date.now()}`,
+    title,
+    recipeId: stringValue(item.recipeId),
+    note: stringValue(item.note),
+    memberId: stringValue(item.memberId),
+    memberName: stringValue(item.memberName) || "家人",
+    status: item.status === "done" ? "done" : "open",
+    createdAt: stringValue(item.createdAt),
+    completedAt: stringValue(item.completedAt),
   };
 }
 

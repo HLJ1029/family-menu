@@ -173,6 +173,7 @@ function App() {
     "humi:nutrition-goals:v1",
     () => getDefaultNutritionGoals(defaultFamilyProfile),
   );
+  const [wantToEatItems, setWantToEatItems] = useLocalStorageState("humi:want-to-eat:v1", []);
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
   const [cravePromptSignal, setCravePromptSignal] = useState(0);
@@ -217,6 +218,7 @@ function App() {
     pantryItems,
     familyProfile,
     nutritionGoals,
+    wantToEatItems,
     recommendationFeedback,
     craveSignals,
   }), [
@@ -230,6 +232,7 @@ function App() {
     mealLogs,
     nutritionGoals,
     pantryItems,
+    wantToEatItems,
     recommendationFeedback,
     craveSignals,
     todayMenu,
@@ -293,6 +296,7 @@ function App() {
           setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
           setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
           setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
+          setWantToEatItems(Array.isArray(state.wantToEatItems) ? state.wantToEatItems : []);
           setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
           setCloudSyncStatus("已读取微信账号保存的今晚菜单和一周计划。");
           setCloudGroceryStatus("已读取微信账号保存的食材清单和家中库存。");
@@ -333,6 +337,7 @@ function App() {
     setMealLogs,
     setNutritionGoals,
     setPantryItems,
+    setWantToEatItems,
     setRecommendationFeedback,
     setGroceryClaims,
     setTodayMenu,
@@ -917,6 +922,66 @@ function App() {
     showNotice(`${recipe?.name ?? "菜品"} 已放进今晚菜单`, {
       illustration: "menu-accepted",
     });
+  }
+
+  function addWantToEatItem({ title, recipeId = "", note = "" }) {
+    const trimmedTitle = String(title ?? "").trim();
+    if (!trimmedTitle) {
+      showNotice("先写一个想吃的");
+      return;
+    }
+    const actor = getHouseholdActor({ humiSession, family, fallbackSession: displaySession });
+    const now = new Date().toISOString();
+    setWantToEatItems((current) => [
+      {
+        id: `want:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        title: trimmedTitle.slice(0, 40),
+        recipeId,
+        note: String(note ?? "").trim().slice(0, 80),
+        memberId: actor.memberId,
+        memberName: actor.memberName,
+        status: "open",
+        createdAt: now,
+      },
+      ...current,
+    ].slice(0, 80));
+    showNotice(`${trimmedTitle} 已放进想吃池子`);
+  }
+
+  function addWantRecipe(recipeId) {
+    const recipe = getRecipe(recipeId);
+    if (!recipe) return;
+    addWantToEatItem({ title: recipe.name, recipeId });
+  }
+
+  function addWantToToday(item) {
+    if (!item) return;
+    if (item.recipeId) {
+      addToday(item.recipeId);
+      completeWantToEatItem(item.id);
+      return;
+    }
+    const matchedRecipe = recipes.find((recipe) => recipe.name === item.title)
+      ?? recipes.find((recipe) => recipe.name.includes(item.title) || item.title.includes(recipe.name));
+    if (matchedRecipe) {
+      addToday(matchedRecipe.id);
+      completeWantToEatItem(item.id);
+      return;
+    }
+    showNotice("这条还没匹配到菜谱，先去菜谱库挑一道");
+    navigateTo("library");
+  }
+
+  function completeWantToEatItem(itemId) {
+    const now = new Date().toISOString();
+    setWantToEatItems((current) => current.map((item) => (
+      item.id === itemId ? { ...item, status: "done", completedAt: now } : item
+    )));
+  }
+
+  function removeWantToEatItem(itemId) {
+    setWantToEatItems((current) => current.filter((item) => item.id !== itemId));
+    showNotice("已从想吃池子移除");
   }
 
   function addRecommendedToday() {
@@ -2407,6 +2472,7 @@ function App() {
         setGroceryClaims(state?.groceryClaims ?? {});
         setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
         setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
+        setWantToEatItems(Array.isArray(state?.wantToEatItems) ? state.wantToEatItems : []);
         setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
         showNotice("微信账号清单已刷新");
       } catch (error) {
@@ -2875,6 +2941,7 @@ function App() {
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
+                wantToEatItems={wantToEatItems}
                 craveSignals={craveSignals}
                 activeCraveRequest={activeCraveRequest}
                 onCopyCraveLink={copyCraveLink}
@@ -2883,6 +2950,11 @@ function App() {
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onAskFamily={askFamilyFromHome}
+                onAddWantToEat={addWantToEatItem}
+                onAddWantRecipe={addWantRecipe}
+                onAddWantToToday={addWantToToday}
+                onCompleteWantToEat={completeWantToEatItem}
+                onRemoveWantToEat={removeWantToEatItem}
               />
             )}
           </div>
@@ -2961,6 +3033,15 @@ function getGroceryClaimActor({ humiSession, family }) {
   return {
     memberId,
     memberName: familyMember?.nickname || humiSession.user?.displayName || "家人",
+  };
+}
+
+function getHouseholdActor({ humiSession, family, fallbackSession }) {
+  const memberId = humiSession?.user?.id || fallbackSession?.user?.id || "guest";
+  const familyMember = family?.members?.find((member) => member.memberId === memberId);
+  return {
+    memberId,
+    memberName: familyMember?.nickname || humiSession?.user?.displayName || fallbackSession?.user?.displayName || "家人",
   };
 }
 
