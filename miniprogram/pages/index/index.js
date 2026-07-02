@@ -43,11 +43,10 @@ Page({
       });
       return;
     }
+    this.setData({ url: getHumiH5Url() });
     if (HUMI_WECHAT_LOGIN_ENABLED) {
       this.loginWithWechat({ initial: true });
-      return;
     }
-    this.setData({ url: getHumiH5Url() });
   },
 
   onShow() {
