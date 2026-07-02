@@ -587,6 +587,7 @@ function toPublicCraveRequest(request) {
     initiatorName: request.initiatorName,
     mealType: request.mealType,
     status: request.status,
+    deadlineAt: request.deadlineAt,
     votes: (request.votes ?? []).map((vote) => ({
       id: vote.id,
       memberName: vote.memberName,

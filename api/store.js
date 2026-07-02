@@ -412,6 +412,7 @@ export class HumiStore {
   async createCraveRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const now = new Date().toISOString();
+    const deadlineAt = resolveCraveDeadline(payload.deadlineAt, now);
     const token = randomUUID().replaceAll("-", "");
     const ownerSecret = randomUUID().replaceAll("-", "");
     const household = ownerUserId
@@ -430,6 +431,7 @@ export class HumiStore {
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
       mealType: sanitizeText(payload.mealType, "dinner", 24),
       status: "open",
+      deadlineAt,
       votes: [],
       createdAt: now,
       updatedAt: now,
@@ -551,6 +553,15 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function resolveCraveDeadline(value, createdAt) {
+  const explicitTime = Date.parse(String(value ?? ""));
+  if (Number.isFinite(explicitTime) && explicitTime > Date.now()) {
+    return new Date(explicitTime).toISOString();
+  }
+  const createdTime = Date.parse(createdAt);
+  return new Date((Number.isFinite(createdTime) ? createdTime : Date.now()) + 30 * 60 * 1000).toISOString();
 }
 
 function sanitizeGroceryShareItems(items = []) {

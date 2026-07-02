@@ -544,7 +544,7 @@ export function Dashboard({
 function CraveRequestPanel({ request, onCopyCraveLink, onRefreshCraveRequest, onGenerateFromCrave }) {
   const votes = request.votes ?? [];
   const summary = summarizeVotes(votes);
-  const deadlineLabel = formatCraveDeadline(request.createdAt);
+  const deadlineLabel = formatCraveDeadline(request);
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -588,11 +588,16 @@ function summarizeVotes(votes) {
   return [...counts.entries()].map(([tag, count]) => count > 1 ? `${tag} x${count}` : tag).join(" · ");
 }
 
-function formatCraveDeadline(createdAt) {
-  if (!createdAt) return "随时可以点“现在出菜单”。";
-  const createdTime = new Date(createdAt).getTime();
-  if (Number.isNaN(createdTime)) return "随时可以点“现在出菜单”。";
-  const remainingMinutes = Math.ceil((createdTime + 30 * 60 * 1000 - Date.now()) / 60000);
+function formatCraveDeadline(request) {
+  const explicitTime = new Date(request?.deadlineAt || "").getTime();
+  const createdTime = new Date(request?.createdAt || "").getTime();
+  const deadlineTime = Number.isFinite(explicitTime)
+    ? explicitTime
+    : Number.isFinite(createdTime)
+      ? createdTime + 30 * 60 * 1000
+      : NaN;
+  if (!Number.isFinite(deadlineTime)) return "随时可以点“现在出菜单”。";
+  const remainingMinutes = Math.ceil((deadlineTime - Date.now()) / 60000);
   if (remainingMinutes <= 0) return "已经可以出菜单；没人回也不会卡住。";
   return `约 ${remainingMinutes} 分钟后也可以直接出菜单。`;
 }

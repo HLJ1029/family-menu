@@ -755,16 +755,16 @@ function App() {
 
   useEffect(() => {
     if (!activeCraveRequest?.token || todayMenu.length > 0) return undefined;
-    const createdTime = new Date(activeCraveRequest.createdAt).getTime();
-    if (Number.isNaN(createdTime)) return undefined;
-    const remainingMs = createdTime + CRAVE_AUTO_GENERATE_MS - Date.now();
+    const deadlineTime = getCraveDeadlineTime(activeCraveRequest);
+    if (!Number.isFinite(deadlineTime)) return undefined;
+    const remainingMs = deadlineTime - Date.now();
     if (remainingMs <= 0) {
       generateFromCraveRequest({ automatic: true });
       return undefined;
     }
     const timer = window.setTimeout(() => generateFromCraveRequest({ automatic: true }), remainingMs);
     return () => window.clearTimeout(timer);
-  }, [activeCraveRequest?.token, activeCraveRequest?.createdAt, todayMenu.length]);
+  }, [activeCraveRequest?.token, activeCraveRequest?.deadlineAt, activeCraveRequest?.createdAt, todayMenu.length]);
 
   useEffect(() => {
     if (activeView !== "dashboard" || todayMenu.length > 0) return;
@@ -1080,6 +1080,7 @@ function App() {
             feelingTag: safeFeeling,
             status: request.status,
             votes: request.votes ?? [],
+            deadlineAt: request.deadlineAt,
             createdAt: request.createdAt || new Date().toISOString(),
             recipeIds: displayedRecommendation.recipes.map((recipe) => recipe.id),
           },
@@ -3435,6 +3436,14 @@ function clearCraveTokenFromUrl() {
   const url = new URL(window.location.href);
   url.searchParams.delete("crave");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function getCraveDeadlineTime(request) {
+  const explicitTime = new Date(request?.deadlineAt || "").getTime();
+  if (Number.isFinite(explicitTime)) return explicitTime;
+  const createdTime = new Date(request?.createdAt || "").getTime();
+  if (!Number.isFinite(createdTime)) return NaN;
+  return createdTime + CRAVE_AUTO_GENERATE_MS;
 }
 
 function clearHouseholdInviteTokenFromUrl() {

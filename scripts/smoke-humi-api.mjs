@@ -191,6 +191,10 @@ try {
   });
   assert(crave.request?.token, "crave request should return token");
   assert(crave.request?.householdId === loadedStateEnvelope.family?.id, "crave request should attach owner household");
+  assert(
+    Number.isFinite(Date.parse(crave.request?.deadlineAt)),
+    "crave request should return an explicit deadline",
+  );
   await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
     method: "POST",
     body: {
