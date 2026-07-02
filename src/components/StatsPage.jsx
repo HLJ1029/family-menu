@@ -57,7 +57,7 @@ export function StatsPage({
           </p>
           {!insights.hasConfirmedMeals && (
             <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
-              样本不足，当前先用今日菜单和本周三餐计划做弱参考
+              样本不足，当前先用今日菜单和最近三餐计划做弱参考
             </p>
           )}
           <div className="mt-7 grid gap-3 sm:grid-cols-3">

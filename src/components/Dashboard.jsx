@@ -889,7 +889,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
     return {
       title: dinnerReady ? "今晚安排完成" : "已记录在家做",
       text: dinnerReady
-        ? `已同步营养统计。本周在家做 ${sourceStats.home} 次，采购清单已经自动汇总。`
+        ? `已同步营养统计。最近在家做 ${sourceStats.home} 次，采购清单已经自动汇总。`
         : "先回【今晚】安排菜单，再继续生成采购清单。",
       actions: dinnerReady
         ? [
@@ -901,7 +901,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
   }
   if (source === "delivery") {
     return {
-      title: `今晚记为外卖 · 本周第 ${sourceStats.delivery} 次`,
+      title: `今晚记为外卖 · 最近第 ${sourceStats.delivery} 次`,
       text: `${sourceStats.awayStreak >= 2 ? `连续 ${sourceStats.awayStreak} 天在外吃/点外卖。` : "已同步饮食画像。"} 明天建议安排一组清淡在家做菜单，比如番茄鸡蛋类 + 一道绿叶菜。`,
       actions: [
         { label: "回到今晚", view: "dashboard", primary: true },
@@ -911,7 +911,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
   }
   if (source === "outside") {
     return {
-      title: `今晚记为外食 · 本周第 ${sourceStats.outside} 次`,
+      title: `今晚记为外食 · 最近第 ${sourceStats.outside} 次`,
       text: "饮食画像已更新。明天回来打开 Humi，可以直接继续安排一组省时晚饭。",
       actions: [
         { label: "回到今晚", view: "dashboard", primary: true },

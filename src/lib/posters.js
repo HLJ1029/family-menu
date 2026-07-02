@@ -212,9 +212,9 @@ function drawPosterHeader(ctx, { icon, dark = false }) {
 }
 
 function drawEmptyTonightPoster(ctx) {
-  drawEmptyBlock(ctx, "回到首页点「帮我安排晚饭」", 360);
+  drawEmptyBlock(ctx, "回到【今晚】点「今晚就做」", 360);
   drawQuestionBlock(ctx, 78, 945);
-  drawText(ctx, "今晚还没安排", 78, 1100, {
+  drawText(ctx, "今晚先空着", 78, 1100, {
     size: 100,
     weight: 950,
     lineHeight: 110,
@@ -278,15 +278,15 @@ function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImag
   drawText(ctx, "HUMI", 140, 99, { size: 28, weight: 950, maxWidth: 160 });
 
   if (dishCount === 0) {
-    drawText(ctx, "这一周", 74, 250, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
-    drawText(ctx, "还没安排", 74, 362, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
+    drawText(ctx, "想连排", 74, 250, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
+    drawText(ctx, "几天？", 74, 362, { size: 106, weight: 950, lineHeight: 112, maxWidth: 900 });
     drawMarker(ctx, 80, 386, 360, 28);
-    drawEmptyBlock(ctx, "回到首页，把晚饭先安排起来。", 560);
+    drawEmptyBlock(ctx, "回到【今晚】，先定一顿也可以。", 560);
     drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, maxWidth: 140 });
     return;
   }
 
-  drawText(ctx, "这一周", 72, 292, { size: 118, weight: 950, lineHeight: 116, maxWidth: 900 });
+  drawText(ctx, "这几天", 72, 292, { size: 118, weight: 950, lineHeight: 116, maxWidth: 900 });
   drawText(ctx, "心里有数", 72, 406, { size: 118, weight: 950, lineHeight: 116, maxWidth: 900 });
   drawMarker(ctx, 80, 384, 492, 34);
   drawText(ctx, "晚饭先安排好，日子就松一点。", 76, 488, {
@@ -624,7 +624,7 @@ function drawWeekLayout(ctx, plannedDays) {
       weight: 950,
       color: index === new Date().getDay() - 1 ? COLORS.ink : COLORS.white,
     });
-    const names = day.recipes.map((recipe) => recipe.name).join("  /  ") || "还没安排";
+    const names = day.recipes.map((recipe) => recipe.name).join("  /  ") || "先空着";
     drawText(ctx, names, 220, y + 52, {
       size: 31,
       weight: 900,
