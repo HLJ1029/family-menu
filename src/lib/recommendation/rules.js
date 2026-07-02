@@ -11,10 +11,12 @@ export function buildTodayRecommendation({
   todayRecipes = [],
   familyMembers = [],
   familyProfile = {},
+  wantToEatItems = [],
   excludedRecipeIds = [],
 }) {
   const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers, familyProfile);
+  const wantSignals = collectWantSignals(wantToEatItems);
   const hardAvoidSignals = buildHardAvoidSignals(familyPreference);
   const planningMode = getPlanningMode(familyProfile.planningMode);
   const excludedIds = new Set(excludedRecipeIds);
@@ -47,6 +49,7 @@ export function buildTodayRecommendation({
       const repeatedPenalty = recentRecipeIds.has(recipe.id) ? 22 : 0;
       const dislikedPenalty = dislikedSignals.some((signal) => recipe.name.includes(signal)) ? 16 : 0;
       const preferenceScore = scorePreference(recipe, familyPreference);
+      const wantScore = scoreWantSignals(recipe, wantSignals);
       const modeScore = scorePlanningMode(recipe, planningMode.id);
       const score =
         quickBonus +
@@ -54,6 +57,7 @@ export function buildTodayRecommendation({
         pantryBonus +
         nutritionBonus +
         modeScore +
+        wantScore.bonus +
         preferenceScore.bonus -
         repeatedPenalty -
         dislikedPenalty -
@@ -66,6 +70,7 @@ export function buildTodayRecommendation({
         expiringPantryMatches,
         missingRequired,
         preferenceScore,
+        wantScore,
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -96,6 +101,9 @@ export function buildTodayRecommendation({
   const preferenceHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
     .reduce((total, item) => total + item.preferenceScore.hits, 0);
+  const wantIntentHits = scored
+    .filter(({ recipe }) => selectedIds.has(recipe.id))
+    .reduce((total, item) => total + item.wantScore.hits, 0);
   const calories = recommendationItems.reduce(
     (total, item) => total + nutritionFor(item.recipe).caloriesKcal * item.quantity,
     0,
@@ -119,14 +127,17 @@ export function buildTodayRecommendation({
       groceryItems,
       selectedMissing,
       preferenceHits,
+      wantIntentHits,
     }),
     inventoryHits,
     expiringHits,
     preferenceHits,
+    wantIntentHits,
     missingItems: dedupeItems(selectedMissing),
     explanation: {
       pantry: buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItems }),
       preference: buildPreferenceExplanation(preferenceHits),
+      want: buildWantExplanation(wantIntentHits),
       grocery: buildGroceryExplanation(selectedMissing),
     },
     nutrition: {
@@ -241,6 +252,11 @@ function buildPreferenceExplanation(preferenceHits) {
   return "还没记录太多口味，先按家里现有、耗时和搭配来安排。";
 }
 
+function buildWantExplanation(wantIntentHits) {
+  if (wantIntentHits > 0) return `照顾到 ${wantIntentHits} 条想吃池子的待安排心愿。`;
+  return "想吃池子里还没有能直接匹配的菜，先按今晚可执行度安排。";
+}
+
 function buildGroceryExplanation(missingItems) {
   if (missingItems.length === 0) return "主食材基本够了，可以直接开做。";
   return `还要买：${dedupeItems(missingItems).map((item) => item.name).join("、")}。`;
@@ -303,6 +319,39 @@ function scorePreference(recipe, familyPreference) {
     bonus: likeHits * 10 + goalBonus,
     penalty: dislikeHits * 40 + allergyHits * 120,
     hits: likeHits + (goalBonus > 0 ? 1 : 0),
+  };
+}
+
+function collectWantSignals(wantToEatItems = []) {
+  return wantToEatItems
+    .filter((item) => item?.status !== "done")
+    .slice(0, 12)
+    .flatMap((item) => {
+      const title = normalize(item.title);
+      const note = normalize(item.note);
+      const recipeId = normalize(item.recipeId);
+      return [
+        recipeId && { type: "recipe", value: recipeId },
+        title && { type: "text", value: title },
+        note && { type: "text", value: note },
+      ].filter(Boolean);
+    });
+}
+
+function scoreWantSignals(recipe, wantSignals = []) {
+  if (wantSignals.length === 0) return { bonus: 0, hits: 0 };
+  const recipeId = normalize(recipe.id);
+  const haystack = buildRecipeHaystack(recipe);
+  const hits = wantSignals.reduce((count, signal) => {
+    if (signal.type === "recipe" && signal.value === recipeId) return count + 1;
+    if (signal.type !== "text") return count;
+    if (signal.value.length <= 1) return count;
+    if (haystack.includes(signal.value) || signal.value.includes(normalize(recipe.name))) return count + 1;
+    return count;
+  }, 0);
+  return {
+    bonus: Math.min(36, hits * 18),
+    hits,
   };
 }
 
@@ -407,10 +456,13 @@ function pairsWellWithSet(selected, candidate) {
   return selected.some((recipe) => pairsWell(recipe, candidate));
 }
 
-function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits }) {
+function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits, wantIntentHits }) {
   const quickCount = selected.filter((recipe) => recipe.timeMinutes <= 25).length;
   if (expiringHits > 0) {
     return `优先用掉 ${expiringHits} 项快到期食材，日期已过的先留给你确认，适合今天减少浪费。`;
+  }
+  if (wantIntentHits > 0) {
+    return `优先照顾想吃池子里的 ${wantIntentHits} 条待安排心愿，同时继续避开家里的硬忌口。`;
   }
   if (preferenceHits > 0) {
     return `已参考家人口味和饮食目标，尽量避开忌口，也照顾到 ${preferenceHits} 个口味信号。`;

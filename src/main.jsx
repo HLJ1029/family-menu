@@ -727,8 +727,9 @@ function App() {
         todayRecipes,
         familyMembers,
         familyProfile,
+        wantToEatItems,
       }),
-    [familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
+    [familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, wantToEatItems, weekPlan],
   );
 
   useEffect(() => {
@@ -975,6 +976,16 @@ function App() {
     )));
   }
 
+  function completeMatchedWantItems(matchedRecipes = []) {
+    if (matchedRecipes.length === 0) return;
+    const now = new Date().toISOString();
+    setWantToEatItems((current) => current.map((item) => (
+      item.status === "done" || !matchedRecipes.some((recipe) => recipeMatchesWantItem(recipe, item))
+        ? item
+        : { ...item, status: "done", completedAt: now }
+    )));
+  }
+
   function removeWantToEatItem(itemId) {
     setWantToEatItems((current) => current.filter((item) => item.id !== itemId));
     showNotice("已从想吃池子移除");
@@ -992,6 +1003,7 @@ function App() {
     }
 
     recommendedItems.forEach((item) => addToday(item.recipe.id, item.quantity));
+    completeMatchedWantItems(recommendedItems.map((item) => item.recipe));
     trackProductEvent(appEvents.recommendationAccepted, {
       recipeIds: recommendedItems.map((item) => item.recipe.id),
       quantities: recommendedItems.map((item) => ({
@@ -1051,6 +1063,7 @@ function App() {
       todayRecipes,
       familyMembers,
       familyProfile,
+      wantToEatItems,
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     const nextRecommendation = {
@@ -1129,6 +1142,7 @@ function App() {
       todayRecipes,
       familyMembers,
       familyProfile,
+      wantToEatItems,
       excludedRecipeIds: voteFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     setAiRecommendation({
@@ -1469,6 +1483,7 @@ function App() {
           todayRecipes: [],
           familyMembers,
           familyProfile,
+          wantToEatItems,
           excludedRecipeIds: [...existingIds],
         });
         const recipeId = recommendation.recipes.find((recipe) => !existingIds.has(recipe.id))?.id;
@@ -1533,6 +1548,7 @@ function App() {
       todayRecipes,
       familyMembers,
       familyProfile,
+      wantToEatItems,
       excludedRecipeIds: currentRecipeIds,
     });
     trackProductEvent(appEvents.recommendationRequest, {
@@ -3397,6 +3413,27 @@ function consumePreciseRecommendation(access = {}) {
     preciseTrialRemaining: Math.max(0, normalized.preciseTrialRemaining - 1),
     preciseUsed: normalized.preciseUsed + 1,
   };
+}
+
+function recipeMatchesWantItem(recipe, item) {
+  if (!recipe || !item) return false;
+  if (item.recipeId && item.recipeId === recipe.id) return true;
+  const signals = [item.title, item.note]
+    .map((value) => normalizeName(String(value ?? "")))
+    .filter((value) => value.length > 1);
+  if (signals.length === 0) return false;
+  const haystack = [
+    recipe.id,
+    recipe.name,
+    recipe.description,
+    ...(recipe.categories ?? []),
+    ...(recipe.tags ?? []),
+    ...(recipe.ingredients ?? []).map((ingredient) => ingredient.name),
+  ]
+    .map((value) => normalizeName(String(value ?? "")))
+    .join(" ");
+  const recipeName = normalizeName(recipe.name);
+  return signals.some((signal) => haystack.includes(signal) || signal.includes(recipeName));
 }
 
 function normalizeName(value) {
