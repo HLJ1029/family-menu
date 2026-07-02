@@ -1233,22 +1233,26 @@ function App() {
       return;
     }
     if (slotId === "breakfast") {
+      const consumedEntries = [{ recipeId: preferredRecipe.id, quantity: 1 }];
       updateMealPlanSlot(todayDateKey, "breakfast", () => [{ recipeId: preferredRecipe.id, quantity: 1 }]);
       recordMealSlot("breakfast", {
         source: "home",
-        consumedEntries: [{ recipeId: preferredRecipe.id, quantity: 1 }],
+        consumedEntries,
         quickRecordedAt: new Date().toISOString(),
       });
+      consumePantryForEntries(consumedEntries);
       showNotice(`${preferredRecipe.name} 已换到早餐`);
       return;
     }
     assignMealRecipe(todayDateKey, slotId, preferredRecipe.id, 1, { silent: slotId === "breakfast" || slotId === "lunch" });
     if (slotId === "lunch") {
+      const consumedEntries = getMealSlotEntriesAfterAdd("lunch", preferredRecipe.id);
       recordMealSlot("lunch", {
         source: "home",
-        consumedEntries: getMealSlotEntriesAfterAdd("lunch", preferredRecipe.id),
+        consumedEntries,
         quickRecordedAt: new Date().toISOString(),
       });
+      consumePantryForEntries(consumedEntries);
     }
     showNotice(`${preferredRecipe.name} 已记到${slotLabel}`);
   }
@@ -1314,6 +1318,7 @@ function App() {
       consumedEntries,
       quickRecordedAt: new Date().toISOString(),
     });
+    consumePantryForEntries(consumedEntries);
     trackValidationEvent(validationEvents.mealSourceSelected, {
       mealSlot: "breakfast",
       source: "home",
@@ -1338,6 +1343,7 @@ function App() {
         consumedEntries,
         quickRecordedAt: now,
       });
+      consumePantryForEntries(consumedEntries);
       trackValidationEvent(validationEvents.mealSourceSelected, {
         mealSlot: "lunch",
         source,
@@ -1369,11 +1375,13 @@ function App() {
 
   function setDinnerSource(source) {
     if (source === "home") {
+      const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
       updateTodayMealLog({
         source,
         confirmation: todayMenu.length > 0 ? "all" : undefined,
-        consumedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        consumedEntries,
       });
+      consumePantryForEntries(consumedEntries);
     } else {
       updateTodayMealLog({ source, confirmation: undefined, consumedEntries: [] });
     }
@@ -1393,12 +1401,16 @@ function App() {
   }
 
   function setDinnerConfirmation(confirmation) {
+    const consumedEntries = confirmation === "all"
+      ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
+      : todayMealLog.consumedEntries ?? [];
     updateTodayMealLog({
       confirmation,
-      consumedEntries: confirmation === "all"
-        ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
-        : todayMealLog.consumedEntries ?? [],
+      consumedEntries,
     });
+    if (confirmation === "all" || confirmation === "partial") {
+      consumePantryForEntries(consumedEntries);
+    }
     const labels = {
       all: "已确认今晚吃了",
       partial: "已记录吃了一部分",
@@ -1415,12 +1427,14 @@ function App() {
   function quickConfirmDinner(result) {
     const now = new Date().toISOString();
     if (result === "done") {
+      const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
       updateTodayMealLog({
         source: "home",
         confirmation: "all",
-        consumedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        consumedEntries,
         quickConfirmedAt: now,
       });
+      consumePantryForEntries(consumedEntries);
       trackValidationEvent(validationEvents.mealConfirmed, {
         confirmation: "all",
         consumedCount: todayMenu.length,
@@ -1481,6 +1495,7 @@ function App() {
       consumedEntries: nextEntries,
       confirmation: nextEntries.length === todayMenu.length ? "all" : nextEntries.length > 0 ? "partial" : "missed",
     });
+    consumePantryForEntries(nextEntries);
   }
 
   function syncHomeMealLogWithMenu(nextMenu, { defaultSelectedRecipeId } = {}) {
@@ -1927,6 +1942,19 @@ function App() {
 
   function removePantryItem(key) {
     setPantryItems((current) => current.filter((item) => item.key !== key));
+  }
+
+  function consumePantryForEntries(entries = []) {
+    const ingredientNames = new Set(
+      entries
+        .map((entry) => getRecipe(entry.recipeId))
+        .filter(Boolean)
+        .flatMap((recipe) => recipe.ingredients ?? [])
+        .map((ingredient) => normalizeName(ingredient.name))
+        .filter(Boolean),
+    );
+    if (ingredientNames.size === 0) return;
+    setPantryItems((current) => current.filter((item) => !ingredientNames.has(normalizeName(item.name))));
   }
 
   function excludeGroceryItem(itemOrKey) {
