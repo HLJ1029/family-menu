@@ -351,10 +351,12 @@ export function Dashboard({
             {!dinnerReady && (
               <button
                 type="button"
-                onClick={onOpenRecommendationFeedback}
+                onClick={craveSelectionMode
+                  ? () => onRequestAiRecommendation({ id: "crave_reject_all", label: "都不想吃" })
+                  : onOpenRecommendationFeedback}
                 className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:px-7 sm:text-base"
               >
-                不想吃
+                {craveSelectionMode ? "都不想吃" : "不想吃"}
               </button>
             )}
             {!dinnerReady && (
