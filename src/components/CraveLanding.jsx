@@ -125,6 +125,9 @@ export function CraveLanding({ token, humiSession, onClose }) {
     );
   }
 
+  const closed = request.status === "closed";
+  const resultDishes = request.resultSummary?.dishes ?? [];
+
   return (
     <FullScreenShell>
       <main className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
@@ -154,14 +157,27 @@ export function CraveLanding({ token, humiSession, onClose }) {
                 {request.initiatorName || "主厨"}会看着安排。想看今晚最后定了什么，可以加入这个家。
               </p>
               {status && <p className="mt-3 text-sm font-bold leading-6 text-ink/52">{status}</p>}
+              <CraveResultSummary request={request} />
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={joinHousehold} className="rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
-                  加入这个家看结果
+                  {resultDishes.length > 0 ? "加入这个家" : "加入这个家看结果"}
                 </button>
                 <button type="button" onClick={onClose} className="rounded-full border border-line bg-white px-6 py-3 text-sm font-black text-ink">
                   先不用
                 </button>
               </div>
+            </div>
+          ) : closed ? (
+            <div className="mt-6 rounded-[24px] bg-canvas p-5">
+              <CheckCircle2 size={28} />
+              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">今晚已经安排好了</h2>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                这次征集已经结束，可以直接看看主厨最后定了什么。
+              </p>
+              <CraveResultSummary request={request} />
+              <button type="button" onClick={onClose} className="mt-5 w-full rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
+                回到 Humi
+              </button>
             </div>
           ) : (
             <form className="mt-6 grid gap-4" onSubmit={submitVote}>
@@ -202,6 +218,27 @@ export function CraveLanding({ token, humiSession, onClose }) {
         </section>
       </main>
     </FullScreenShell>
+  );
+}
+
+function CraveResultSummary({ request }) {
+  const dishes = request?.resultSummary?.dishes ?? [];
+  if (dishes.length === 0) return null;
+  return (
+    <div className="mt-5 rounded-[22px] border border-line bg-white p-4">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">今晚定了</p>
+      <div className="mt-3 grid gap-2">
+        {dishes.map((dish) => (
+          <div key={dish.name} className="flex items-center justify-between gap-3 rounded-2xl bg-canvas px-4 py-3">
+            <span className="min-w-0 truncate text-sm font-black text-ink">{dish.name}</span>
+            {dish.timeMinutes ? <span className="shrink-0 text-xs font-black text-ink/45">{dish.timeMinutes} min</span> : null}
+          </div>
+        ))}
+      </div>
+      {request.resultSummary?.reason ? (
+        <p className="mt-3 text-xs font-bold leading-5 text-ink/48">{request.resultSummary.reason}</p>
+      ) : null}
+    </div>
   );
 }
 

@@ -537,7 +537,7 @@ export class HumiStore {
     return request;
   }
 
-  async closeCraveRequest(token, ownerSecret) {
+  async closeCraveRequest(token, ownerSecret, resultSummary = null) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
@@ -545,6 +545,9 @@ export class HumiStore {
       const error = new Error("Owner secret mismatch.");
       error.code = "forbidden";
       throw error;
+    }
+    if (resultSummary) {
+      request.resultSummary = sanitizeCraveResultSummary(resultSummary);
     }
     request.status = "closed";
     request.updatedAt = new Date().toISOString();
@@ -587,6 +590,21 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function sanitizeCraveResultSummary(summary = {}) {
+  const dishes = Array.isArray(summary.dishes) ? summary.dishes : [];
+  return {
+    dishes: dishes
+      .map((dish) => ({
+        name: sanitizeText(dish?.name, "", 40),
+        timeMinutes: Number.isFinite(Number(dish?.timeMinutes)) ? Number(dish.timeMinutes) : null,
+      }))
+      .filter((dish) => dish.name)
+      .slice(0, 4),
+    reason: sanitizeText(summary.reason, "", 180),
+    generatedAt: sanitizeText(summary.generatedAt, new Date().toISOString(), 40),
+  };
 }
 
 function normalizeRecommendationAccess(access = {}) {

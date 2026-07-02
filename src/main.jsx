@@ -1217,21 +1217,25 @@ function App() {
       craveVotes: votes,
       excludedRecipeIds: voteFeeling === "随便都行" ? [] : currentRecipeIds,
     });
-    setAiRecommendation({
+    const nextCraveRecommendation = {
       ...nextRecommendation,
       source: "crave",
       craveVotes: votes,
       reason: votes.length > 0
         ? `${nextRecommendation.reason} 已揉合 ${votes.length} 个家人回复。`
         : `${nextRecommendation.reason} 还没人回复，先让 Humi 做主。`,
-    });
+    };
+    setAiRecommendation(nextCraveRecommendation);
+    const generatedAt = new Date().toISOString();
     setCraveSignals((current) => current.map((item) => (
       item.token === activeCraveRequest.token
-        ? { ...item, status: "closed", generatedAt: new Date().toISOString() }
+        ? { ...item, status: "closed", generatedAt, resultSummary: buildCraveResultSummary(nextCraveRecommendation, generatedAt) }
         : item
     )));
     if (activeCraveRequest.token && activeCraveRequest.ownerSecret) {
-      closeCraveRequest(activeCraveRequest.token, activeCraveRequest.ownerSecret).catch(() => {});
+      closeCraveRequest(activeCraveRequest.token, activeCraveRequest.ownerSecret, {
+        resultSummary: buildCraveResultSummary(nextCraveRecommendation, generatedAt),
+      }).catch(() => {});
     }
     setAiRecommendationStatus(
       votes.length > 0
@@ -1714,7 +1718,7 @@ function App() {
     }
 
     setAiRecommendationLoading(true);
-    setAiRecommendationStatus("正在用精准推荐重新揉合你家的口味、后台已有和反馈...");
+    setAiRecommendationStatus("正在用精准推荐重新揉合家庭画像、后台已有和晚饭反馈...");
     try {
       const result = await recommendMeals(preciseContext);
       const nextRecommendation = hydrateAiRecommendation({
@@ -1815,8 +1819,8 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和口味。"
-          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和晚饭反馈。"
+          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的习惯。",
       );
     }
   }
@@ -1842,8 +1846,8 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和口味。"
-          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、后台已有和晚饭反馈。"
+          : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的习惯。",
       );
     }
   }
@@ -2322,7 +2326,7 @@ function App() {
           : "已登录 Humi。",
       );
       setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和口味反馈。");
+      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和晚饭反馈。");
       setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
@@ -3749,6 +3753,19 @@ function getRecommendationItems(recommendation) {
       .filter(Boolean);
   }
   return (recommendation?.recipes ?? []).map((recipe) => ({ recipe, quantity: 1, targetServings: recipe.servings }));
+}
+
+function buildCraveResultSummary(recommendation, generatedAt = new Date().toISOString()) {
+  return {
+    dishes: getRecommendationItems(recommendation)
+      .map(({ recipe }) => ({
+        name: recipe.name,
+        timeMinutes: recipe.timeMinutes,
+      }))
+      .slice(0, 4),
+    reason: recommendation?.reason || "",
+    generatedAt,
+  };
 }
 
 function orderPlanDaysFrom(startDay) {

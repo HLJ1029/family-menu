@@ -553,7 +553,7 @@ async function handleJoinCraveRequest(request, response, token) {
 async function handleCloseCraveRequest(request, response, token) {
   const body = await readJson(request);
   try {
-    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret);
+    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary);
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
     sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
   } catch (error) {
@@ -599,6 +599,14 @@ function toPublicCraveRequest(request) {
     mealType: request.mealType,
     status: request.status,
     deadlineAt: request.deadlineAt,
+    resultSummary: request.resultSummary ? {
+      dishes: (request.resultSummary.dishes ?? []).map((dish) => ({
+        name: dish.name,
+        timeMinutes: dish.timeMinutes,
+      })),
+      reason: request.resultSummary.reason,
+      generatedAt: request.resultSummary.generatedAt,
+    } : undefined,
     votes: (request.votes ?? []).map((vote) => ({
       id: vote.id,
       memberName: vote.memberName,

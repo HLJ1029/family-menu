@@ -228,6 +228,21 @@ try {
     )),
     "joined user should become formal household member",
   );
+  const closedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/close`, {
+    method: "POST",
+    body: {
+      ownerSecret: crave.ownerSecret,
+      resultSummary: {
+        dishes: [{ name: "番茄炒蛋", timeMinutes: 15 }],
+        reason: "已揉合家人回复。",
+        generatedAt: "2026-07-02T00:00:00.000Z",
+      },
+    },
+  });
+  assert(closedCrave.request?.status === "closed", "closed crave request should return closed status");
+  assert(closedCrave.request?.resultSummary?.dishes?.[0]?.name === "番茄炒蛋", "closed crave request should expose result summary");
+  const publicClosedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}`);
+  assert(publicClosedCrave.request?.resultSummary?.dishes?.[0]?.name === "番茄炒蛋", "public crave request should keep result summary");
 
   const memberLoadedState = await request(`${baseUrl}/state`, {
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },

@@ -103,11 +103,11 @@ export async function joinCraveRequest(token, session, payload) {
   });
 }
 
-export async function closeCraveRequest(token, ownerSecret) {
+export async function closeCraveRequest(token, ownerSecret, payload = {}) {
   if (!token) throw new Error("征集链接不完整。");
   return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/close`, {
     method: "POST",
-    body: { ownerSecret },
+    body: { ownerSecret, ...payload },
   });
 }
 
