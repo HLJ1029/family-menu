@@ -10,8 +10,8 @@
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前已审计内容提交：`5a2d30c`（新增 1.1 规格验收矩阵；之后可能存在仅用于 Pages 重试的空提交，以 `git log` 为准）。
-- 最新 GitHub Pages：run `28627831073` rerun / success / `npm run release:check:online` 已通过。
+- 当前已审计内容提交：`d85d4e3`（发布状态机检已验证必备发布材料齐全）。
+- 最新 GitHub Pages：run `28628643808` / success / `npm run release:check:online` 已通过。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步`。
 - 当前阻塞：2026-07-03 使用 `root@api.humi-home.com` 与 `ubuntu@api.humi-home.com` 均返回 `Permission denied (publickey,password)`，无法 SSH 登录生产机。
 

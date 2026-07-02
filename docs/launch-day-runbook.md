@@ -12,6 +12,7 @@
 - API：`https://api.humi-home.com`
 - 当前状态：H5 与小程序包已上传；微信公众平台提交审核/审核通过后发布仍需平台侧确认。
 - 后端注意：生产 API 当前仍落后于 `main` 的 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 API 侧改动，需恢复服务器 SSH 后按 `docs/humi-api-production-deploy-runbook.md` 补部署。
+- 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 
 ## 2. 审核通过后立即执行
 

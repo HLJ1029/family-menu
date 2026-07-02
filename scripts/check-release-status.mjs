@@ -158,6 +158,10 @@ async function requiredArtifactInfo() {
       path: "docs/humi-1.1-gray-release-tracker.md",
     },
     {
+      name: "releaseOperatorHandoff",
+      path: "docs/humi-1.1-release-operator-handoff.md",
+    },
+    {
       name: "launchDayRunbook",
       path: "docs/launch-day-runbook.md",
     },

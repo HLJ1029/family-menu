@@ -15,6 +15,7 @@
 
 - 当前 `main`、GitHub Pages、线上 readiness 和下一步动作以 `npm run release:status` 输出为准。
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
+- 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：未完成，原因是当前设备无法 SSH 登录 `api.humi-home.com`，详见 `docs/humi-api-production-deploy-runbook.md`。
@@ -61,10 +62,11 @@
 
 ## 4. 当前建议顺序
 
-1. 先恢复生产 API SSH，并补部署 API 增量。
-2. 再进入微信公众平台提交审核/发布。
-3. 发布后按 `docs/launch-day-runbook.md` 做 P0 真机验收。
-4. 灰度给 10-20 个家庭，反馈统一进 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`，只在 P0/审核问题时发 1.1.x。
+1. 先按 `docs/humi-1.1-release-operator-handoff.md` 判断当前状态和下一步 owner。
+2. 恢复生产 API SSH，并补部署 API 增量。
+3. 再进入微信公众平台提交审核/发布。
+4. 发布后按 `docs/launch-day-runbook.md` 做 P0 真机验收。
+5. 灰度给 10-20 个家庭，反馈统一进 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`，只在 P0/审核问题时发 1.1.x。
 
 ## 5. 验证命令
 
