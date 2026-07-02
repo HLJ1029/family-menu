@@ -21,7 +21,7 @@ const config = {
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
   deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
   deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-  // 基础推荐默认走本地规则；只有登录用户显式请求精准模式时才允许消耗 DeepSeek。
+  // 基础推荐默认走本地规则；只有登录用户显式请求精准能力时才允许消耗 DeepSeek。
   aiRateLimit: Number(process.env.HUMI_AI_RATE_LIMIT || 30),
   aiRateWindowMs: Number(process.env.HUMI_AI_RATE_WINDOW_MS || 60000),
 };
@@ -448,7 +448,12 @@ function buildBasicRecommendation(payload = {}) {
 }
 
 async function handleExplain(request, response) {
+  const auth = await requireAuth(request);
   enforceAiAccess(request);
+  const accessStatus = await store.getPreciseRecommendationAccess(auth.userId);
+  if (!accessStatus.canUse) {
+    throw httpError(402, "precise_trial_exhausted", "精准解释尝鲜已用完，基础推荐说明仍可直接查看。");
+  }
   if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
   const body = await readJson(request);
   const result = await generateRecommendationExplanation(body, {
@@ -456,7 +461,8 @@ async function handleExplain(request, response) {
     model: config.deepseekModel,
     baseUrl: config.deepseekBaseUrl,
   });
-  sendJson(response, 200, result);
+  const recommendationAccess = await store.consumePreciseRecommendationAccess(auth.userId);
+  sendJson(response, 200, { ...result, recommendationAccess });
 }
 
 async function handleCreateCraveRequest(request, response) {

@@ -339,6 +339,20 @@ try {
   } catch (error) {
     assert(String(error.message).startsWith("401 "), "public precise recommendation should return 401");
   }
+  try {
+    await request(`${baseUrl}/explain`, {
+      method: "POST",
+      body: {
+        recommendation: {
+          recipes: [{ name: "西红柿炒鸡蛋", categories: ["家常菜"] }],
+          reason: "本地规则推荐。",
+        },
+      },
+    });
+    throw new Error("public precise explanation should require auth");
+  } catch (error) {
+    assert(String(error.message).startsWith("401 "), "public precise explanation should return 401");
+  }
   await request(`${baseUrl}/state`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -362,6 +376,21 @@ try {
     throw new Error("exhausted precise recommendation should be rejected");
   } catch (error) {
     assert(String(error.message).startsWith("402 "), "exhausted precise recommendation should return 402");
+  }
+  try {
+    await request(`${baseUrl}/explain`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: {
+        recommendation: {
+          recipes: [{ name: "西红柿炒鸡蛋", categories: ["家常菜"] }],
+          reason: "本地规则推荐。",
+        },
+      },
+    });
+    throw new Error("exhausted precise explanation should be rejected");
+  } catch (error) {
+    assert(String(error.message).startsWith("402 "), "exhausted precise explanation should return 402");
   }
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
