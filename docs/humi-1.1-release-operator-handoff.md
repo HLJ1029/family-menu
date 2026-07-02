@@ -50,6 +50,7 @@ docs/humi-api-production-deploy-runbook.md
 - `npm run monitor:prod` 通过。
 - `npm run release:check:online` 通过。
 - AI-HQ Humi 状态记录部署时间、执行人、备份路径和验证结果。
+- `docs/humi-1.1-release-evidence-log.md` 填写 API 补部署证据。
 
 ### Step B：微信公众平台提交审核
 
@@ -82,6 +83,7 @@ docs/miniprogram-review-materials.md
 - 审核备注/提交页截图。
 - 提交成功或审核中截图。
 - AI-HQ Humi 状态记录提交时间、提交人、版本和审核状态。
+- `docs/humi-1.1-release-evidence-log.md` 填写审核提交证据索引。
 
 ### Step C：审核通过后发布
 
@@ -99,6 +101,7 @@ docs/launch-day-runbook.md
 - 真机打开小程序，不只看开发者工具。
 - P0 真机路径全部通过，尤其是普通启动、`crave`、`invite`、`grocery` 三类小程序卡片。
 - AI-HQ Humi 状态记录发布时间、执行人、验证结果和是否出现 P0/P1 问题。
+- `docs/humi-1.1-release-evidence-log.md` 填写发布与 P0 真机验收证据。
 
 ### Step D：10-20 家灰度
 

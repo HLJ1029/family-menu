@@ -162,6 +162,10 @@ async function requiredArtifactInfo() {
       path: "docs/humi-1.1-release-operator-handoff.md",
     },
     {
+      name: "releaseEvidenceLog",
+      path: "docs/humi-1.1-release-evidence-log.md",
+    },
+    {
       name: "launchDayRunbook",
       path: "docs/launch-day-runbook.md",
     },
