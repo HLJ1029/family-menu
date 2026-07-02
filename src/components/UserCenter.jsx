@@ -532,19 +532,6 @@ export function UserCenter({
         </Card>
 
         <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="eyebrow">接下来</p>
-              <h3 className="card-title">接下来</h3>
-            </div>
-            <Database size={22} />
-          </div>
-          <p className="mt-4 text-sm font-bold leading-7 text-ink/52">
-            现在可以先用 Humi 安排晚饭。下一步准备小程序入口，让家里人更容易打开。
-          </p>
-        </Card>
-
-        <Card>
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-white">
               <Cloud size={20} />
@@ -556,7 +543,7 @@ export function UserCenter({
                   ? "菜单、画像和清单会优先跟随 Humi 账号。"
                   : wechatLoginEnabled
                   ? "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"
-                  : "首发先不要求登录；核心菜单、计划和清单保存在当前设备。"}
+                  : "未登录也能先安排晚饭；核心菜单、计划和清单保存在当前设备。"}
               </p>
             </div>
           </div>
