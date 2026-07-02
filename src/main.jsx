@@ -1725,7 +1725,11 @@ function App() {
       setAiExplanation(result.reason ?? nextRecommendation.reason);
       setAiRecommendationStatus("精准推荐已给你重新想好一组。");
       setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
-      setRecommendationAccess((current) => consumePreciseRecommendation(current));
+      setRecommendationAccess((current) => (
+        result.recommendationAccess
+          ? normalizeRecommendationAccess(result.recommendationAccess)
+          : consumePreciseRecommendation(current)
+      ));
       setPreciseRecommendationCache((current) => writePreciseRecommendationCache(current, preciseCacheKey, result));
       trackProductEvent(appEvents.recommendationShown, {
         source: nextRecommendation.source ?? "deepseek",

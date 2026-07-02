@@ -409,15 +409,20 @@ async function handleRecommend(request, response) {
     sendJson(response, 200, buildBasicRecommendation(body));
     return;
   }
-  await requireAuth(request);
+  const auth = await requireAuth(request);
   enforceAiAccess(request);
+  const accessStatus = await store.getPreciseRecommendationAccess(auth.userId);
+  if (!accessStatus.canUse) {
+    throw httpError(402, "precise_trial_exhausted", "精准推荐尝鲜已用完，基础推荐仍可无限使用。");
+  }
   if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
   const result = await generateMealRecommendation(body, {
     apiKey: config.deepseekApiKey,
     model: config.deepseekModel,
     baseUrl: config.deepseekBaseUrl,
   });
-  sendJson(response, 200, result);
+  const recommendationAccess = await store.consumePreciseRecommendationAccess(auth.userId);
+  sendJson(response, 200, { ...result, recommendationAccess });
 }
 
 function buildBasicRecommendation(payload = {}) {

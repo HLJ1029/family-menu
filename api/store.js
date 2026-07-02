@@ -398,6 +398,40 @@ export class HumiStore {
     return this.data.householdStates[household.id];
   }
 
+  async getPreciseRecommendationAccess(userId) {
+    await this.load();
+    const household = await this.ensureHouseholdForUser(userId);
+    const state = this.data.householdStates[household.id] ?? {};
+    const access = normalizeRecommendationAccess(state.recommendationAccess);
+    return {
+      access,
+      canUse: access.plan === "plus" || access.preciseTrialRemaining > 0,
+    };
+  }
+
+  async consumePreciseRecommendationAccess(userId) {
+    await this.load();
+    const household = await this.ensureHouseholdForUser(userId);
+    const currentState = this.data.householdStates[household.id] ?? {};
+    const access = normalizeRecommendationAccess(currentState.recommendationAccess);
+    const nextAccess = access.plan === "plus"
+      ? { ...access, preciseUsed: access.preciseUsed + 1 }
+      : {
+        ...access,
+        preciseTrialRemaining: Math.max(0, access.preciseTrialRemaining - 1),
+        preciseUsed: access.preciseUsed + 1,
+      };
+    this.data.householdStates[household.id] = {
+      ...currentState,
+      householdId: household.id,
+      recommendationAccess: nextAccess,
+      updatedAt: new Date().toISOString(),
+    };
+    this.data.states[userId] = this.data.householdStates[household.id];
+    await this.save();
+    return nextAccess;
+  }
+
   async revokeToken(token) {
     await this.load();
     this.data.revokedTokens = [...new Set([...this.data.revokedTokens, token])].slice(-1000);
@@ -553,6 +587,15 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function normalizeRecommendationAccess(access = {}) {
+  const parsedTrialRemaining = Number.parseInt(access.preciseTrialRemaining, 10);
+  return {
+    plan: access.plan === "plus" ? "plus" : "free",
+    preciseTrialRemaining: Math.max(0, Math.min(20, Number.isFinite(parsedTrialRemaining) ? parsedTrialRemaining : 3)),
+    preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
+  };
 }
 
 function resolveCraveDeadline(value, createdAt) {

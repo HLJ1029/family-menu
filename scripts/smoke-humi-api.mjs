@@ -339,6 +339,30 @@ try {
   } catch (error) {
     assert(String(error.message).startsWith("401 "), "public precise recommendation should return 401");
   }
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      state: {
+        ...loadedState,
+        recommendationAccess: { plan: "free", preciseTrialRemaining: 0, preciseUsed: 3 },
+      },
+    },
+  });
+  try {
+    await request(`${baseUrl}/recommend`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: {
+        mode: "precise",
+        candidates: [{ id: "tomato-egg", name: "西红柿炒鸡蛋" }],
+        ruleFallback: { recipeIds: ["tomato-egg"], reason: "本地规则推荐。" },
+      },
+    });
+    throw new Error("exhausted precise recommendation should be rejected");
+  } catch (error) {
+    assert(String(error.message).startsWith("402 "), "exhausted precise recommendation should return 402");
+  }
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
