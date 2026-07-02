@@ -497,7 +497,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
                   }`}
                 >
                   <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-white"} />
-                  {inTodayMenu ? "再加一份" : "加入今晚"}
+                  {inTodayMenu ? "再加一份" : "补进今晚"}
                 </button>
               </div>
             </article>

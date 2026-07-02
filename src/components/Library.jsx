@@ -114,11 +114,15 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onOpen(recipe.id);
+            if (quantity > 0) {
+              onOpen(recipe.id);
+              return;
+            }
+            onAdd(recipe.id);
           }}
           className="min-h-11 w-full rounded-full border border-ink/10 bg-ink px-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `已选 ${quantity} 份 · 看做法` : "看做法"}
+          {quantity > 0 ? `已在今晚 ${quantity} 份 · 看做法` : "补进今晚"}
         </button>
       </div>
     </article>
