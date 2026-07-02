@@ -371,7 +371,7 @@ img {
   .entry-table-motion__dish--two {
     right: 30px;
     top: 44px;
-    background: #ffb86a;
+    background: rgba(17, 17, 17, 0.48);
     --dish-x: 82px;
     --dish-y: -58px;
     animation-delay: 90ms;

@@ -250,8 +250,8 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
           <h3 className="card-title">营养环说明</h3>
           <div className="mt-4 grid gap-3 text-sm font-bold leading-6 text-ink/55">
             <p>黑色环表示当天餐次完整度，按 3 道菜为满环。</p>
-            <p>绿色环表示蔬菜/清爽类比例，橙色环表示蛋白类比例。</p>
-            <p>当前版本基于菜谱分类和食材估算，后续可替换为真实营养数据。</p>
+            <p>内圈用深浅区分蔬菜/清爽类和蛋白类比例，不引入额外颜色。</p>
+            <p>当前先按菜谱分类和食材做家庭参考，不作为医学或健康诊断。</p>
           </div>
         </Card>
       </div>
@@ -357,8 +357,8 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           progress={summary.vegetableProgress}
           radius={vegRadius}
           stroke={stroke}
-          color="#111111"
-          trackColor={selected ? "rgba(217,240,107,0.16)" : "rgba(217,240,107,0.28)"}
+          color={selected ? "rgba(255,255,255,0.72)" : "rgba(17,17,17,0.62)"}
+          trackColor={selected ? "rgba(255,255,255,0.12)" : "rgba(17,17,17,0.06)"}
           center={dimension / 2}
           delayClass="fitness-ring-delay-1"
         />
@@ -366,8 +366,8 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           progress={summary.proteinProgress}
           radius={proteinRadius}
           stroke={stroke}
-          color="#FFB86A"
-          trackColor={selected ? "rgba(255,184,106,0.16)" : "rgba(255,184,106,0.26)"}
+          color={selected ? "rgba(255,255,255,0.48)" : "rgba(17,17,17,0.36)"}
+          trackColor={selected ? "rgba(255,255,255,0.1)" : "rgba(17,17,17,0.05)"}
           center={dimension / 2}
           delayClass="fitness-ring-delay-2"
         />

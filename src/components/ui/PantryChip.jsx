@@ -5,9 +5,9 @@ export function PantryChip({ item, onRemove }) {
   const expiryState = getExpiryState(item.expiresOn);
   const expiryClass =
     expiryState === "expired"
-      ? "bg-rose-100 text-rose-700"
+      ? "bg-ink text-white"
       : expiryState === "soon"
-        ? "bg-ink text-white"
+        ? "bg-white text-ink"
         : "bg-canvas text-ink/45";
 
   return (
