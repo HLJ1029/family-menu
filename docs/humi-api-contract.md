@@ -2,12 +2,12 @@
 
 默认域名：`https://api.humi-home.com`
 
-当前生产状态（2026-07-02）：
+当前生产状态（2026-07-03）：
 
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 生产 API 目前落后于 `main`：1.1.37/1.1.38/1.1.39/1.1.42 的 API 侧字段和闸门已通过本地 smoke，等待恢复服务器 SSH 后补部署。
+- 生产 API 目前落后于 `main`：1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52 的 API 侧字段、闸门、邀请加入状态同步与买菜认领冲突保护已通过本地 smoke，等待恢复服务器 SSH 后补部署。
 
 本地启动：
 
@@ -209,6 +209,7 @@ Authorization: Bearer <accessToken>
 - `POST /grocery-shares`：登录用户把当前清单生成可分享 token。
 - `GET /grocery-shares/:token`：公开读取清单摘要。
 - `POST /grocery-shares/:token/claims`：免登录或登录成员认领/标记买到某项食材，并同步回家庭 `groceryClaims`。
+- 已被其他成员认领或买到的项不能被第二个成员覆盖；服务端返回 `409 grocery_item_claimed` 或 `409 grocery_item_done`，前端应展示“已有人在买/已买到”而不是继续完成。
 
 买菜认领是免费协作能力，不按次数计费。
 
