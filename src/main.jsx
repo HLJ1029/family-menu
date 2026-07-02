@@ -212,7 +212,7 @@ function App() {
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和行为反馈。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
@@ -276,7 +276,7 @@ function App() {
     setProfileOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
     setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和口味反馈。");
+    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、后台已有和晚饭反馈。");
     showNotice("已登录 Humi");
   }, [setOnboardingComplete, setProfileOnboardingComplete]);
 
@@ -746,8 +746,8 @@ function App() {
     setAiRecommendation(null);
     setAiRecommendationStatus(
       signedIn
-        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、后台已有和口味。"
-        : "先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和口味。",
+        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、后台已有和晚饭反馈。"
+        : "先按家里现有情况给你安排；之后会继续参考家庭画像、后台已有和行为反馈。",
     );
   }, [signedIn, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
@@ -1612,7 +1612,7 @@ function App() {
     if (!session?.user) {
       setAiExplanation(displayedRecommendation.reason);
       setAiExplanationStatus(
-        signedIn ? "这组先按当前菜单说明，Humi 会继续参考家里的口味。" : "这组先按当前菜单说明，Humi 会慢慢记住家里的口味。",
+        signedIn ? "这组先按当前菜单说明，Humi 会继续参考家里的晚饭反馈。" : "这组先按当前菜单说明，Humi 会慢慢记住家里的习惯。",
       );
       return;
     }

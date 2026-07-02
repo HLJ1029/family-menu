@@ -1,5 +1,5 @@
 // 前端调用自建 AI 端点（/recommend、/explain），替代 Supabase Edge Function。
-// 方案 A：游客也可调用，登录用户带上 token；服务端按 IP 限流。
+// 精准模式需要登录主厨身份，并由服务端统一执行家庭额度与付费闸门。
 // 由 VITE_HUMI_AI_VIA_API==="1" 开启；未开启时调用方继续走 Supabase（见 aiRecommendation/aiExplanation）。
 import { readHumiSession } from "./humiIdentity";
 
