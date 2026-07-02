@@ -258,7 +258,7 @@ export function UserCenter({
               ))
             ) : (
               <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-                还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的口味记录。
+                还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的饭线索。
               </div>
             )}
           </div>
@@ -284,7 +284,7 @@ export function UserCenter({
           <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">收费边界</p>
             <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
-              不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度口味协调和完整版画像回顾上。
+              不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度家庭协调和完整版画像回顾上。
             </p>
           </div>
         </section>
@@ -874,7 +874,7 @@ function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatIte
       title: `最近更常有人想要「${topFeeling[0]}」`,
       text: topFeeling[1] > 1
         ? `已经出现 ${topFeeling[1]} 次。之后揉合菜单时，Humi 会优先把这个感觉当成软偏好。`
-        : "这条感觉已经记下来了，后面家人再点几次就会长成更稳定的口味线索。",
+        : "这条感觉已经记下来了，后面家人再点几次就会长成更稳定的饭线索。",
     });
   }
 
@@ -912,7 +912,7 @@ function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatIte
     reflections.push({
       meta: "想吃池子",
       title: openWantCount > 0 ? `还有 ${openWantCount} 个想吃的等安排` : `已经安排过 ${doneWantCount} 个想吃的`,
-      text: "这些不是设置表，而是家人自然丢进来的口味线索，会慢慢喂给今晚推荐。",
+      text: "这些不是设置表，而是家人自然丢进来的感觉线索，会慢慢喂给今晚推荐。",
     });
   }
 
