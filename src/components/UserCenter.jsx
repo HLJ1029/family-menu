@@ -87,10 +87,13 @@ export function UserCenter({
   const topReasons = validationSummary.topRejectedReasons.length > 0
     ? validationSummary.topRejectedReasons
     : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
+  const craveFeelingEntries = extractCraveFeelingEntries(craveSignals);
   const familyActivity = [
-    ...craveSignals.slice(0, 4).map((item) => ({
+    ...craveFeelingEntries.slice(0, 4).map((item) => ({
       id: item.id,
-      title: item.feelingTag === "随便都行" ? "有人说随便都行" : `有人想要：${item.feelingTag}`,
+      title: item.feelingTag === "随便都行"
+        ? `${item.memberName || "有人"}说随便都行`
+        : `${item.memberName || "有人"}想要：${item.feelingTag}`,
       meta: "感觉征集",
     })),
     ...recommendationFeedback.slice(0, 2).map((item) => ({
@@ -189,7 +192,7 @@ export function UserCenter({
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
-            <StatusRow label="征集动态" value={`${craveSignals.length} 条`} />
+            <StatusRow label="征集动态" value={`${craveFeelingEntries.length} 条`} />
             <StatusRow label="想吃待安排" value={`${openWantItems.length} 个`} />
           </div>
           {familyReflections.length > 1 && (
@@ -897,8 +900,8 @@ function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
 
 function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatItems = [], sourceSummary = {} }) {
   const reflections = [];
-  const feelingCounts = craveSignals.reduce((summary, item) => {
-    const tag = item?.feelingTag;
+  const feelingCounts = extractCraveFeelingEntries(craveSignals).reduce((summary, item) => {
+    const tag = item.feelingTag;
     if (!tag || tag === "随便都行") return summary;
     summary[tag] = (summary[tag] ?? 0) + 1;
     return summary;
@@ -971,6 +974,27 @@ function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatIte
   }
 
   return reflections.slice(0, 3);
+}
+
+function extractCraveFeelingEntries(craveSignals = []) {
+  return craveSignals.flatMap((signal) => {
+    const votes = Array.isArray(signal?.votes) ? signal.votes : [];
+    if (votes.length > 0) {
+      return votes.map((vote, index) => ({
+        id: vote.id || `${signal.id || signal.token || "crave"}:vote:${index}`,
+        feelingTag: vote.feelingTag || "随便都行",
+        memberName: vote.memberName || "家人",
+        createdAt: vote.createdAt || signal.createdAt,
+      }));
+    }
+    if (!signal?.feelingTag) return [];
+    return [{
+      id: signal.id || signal.token || `crave:${signal.createdAt || signal.feelingTag}`,
+      feelingTag: signal.feelingTag,
+      memberName: signal.memberName || "有人",
+      createdAt: signal.createdAt,
+    }];
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 function summarizeCraveVotes(votes) {
