@@ -16,6 +16,7 @@
     "api:dev": "node --env-file-if-exists=.env.local api/server.js",
     "validate:api": "HUMI_WECHAT_MOCK=1 HUMI_API_DATA_FILE=/tmp/humi-api-smoke.json node scripts/smoke-humi-api.mjs",
     "validate:recommendation": "node scripts/check-recommendation-constraints.mjs",
+    "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
     "release:check:online": "node scripts/check-launch-readiness.mjs --online"

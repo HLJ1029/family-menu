@@ -47,7 +47,19 @@ npm run release:check:online
 
 ## 4. 恢复 SSH 后的连接检查
 
-先确认实际可用用户，再继续：
+先运行只读部署条件检查：
+
+```bash
+npm run deploy:api:check
+```
+
+该命令会检查本地 `main` 是否干净且同步到 `origin/main`、生产 API 健康检查是否正常，以及默认 SSH 用户是否可登录。如果生产机用户名变化，可临时指定候选：
+
+```bash
+HUMI_API_SSH_TARGETS=user@api.humi-home.com,root@api.humi-home.com npm run deploy:api:check
+```
+
+也可以手工确认实际可用用户：
 
 ```bash
 ssh -o BatchMode=yes -o ConnectTimeout=8 root@api.humi-home.com 'hostname && date'

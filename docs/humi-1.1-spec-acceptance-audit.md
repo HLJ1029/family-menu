@@ -82,6 +82,7 @@ npm run release:check:online
 生产 API 恢复 SSH 并补部署后，再跑：
 
 ```bash
+npm run deploy:api:check
 npm run monitor:prod
 npm run release:check:online
 ```
