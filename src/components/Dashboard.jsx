@@ -362,7 +362,7 @@ export function Dashboard({
                 type="button"
                 onClick={onRequestPreciseRecommendation}
                 disabled={aiRecommendationLoading || !preciseEnabled}
-                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
+                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
               >
                 <Sparkles size={18} />
                 {recommendationAccess?.plan === "plus"
@@ -381,14 +381,6 @@ export function Dashboard({
               问问大家想吃啥
             </button>
           </div>
-          {!dinnerReady && (
-            <div className="mt-4 rounded-[20px] border border-line bg-white p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">免费 / 精准</p>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
-                “换一组”永远走基础规则，不限次数；“精准推荐”才会调用高成本 API，参考家人口味、家里现有和反馈做更深揉合。
-              </p>
-            </div>
-          )}
           {craveOpen && (
             <div className="mt-5 rounded-[24px] border border-line bg-white p-4">
               {activeCraveRequest?.token ? (
@@ -513,6 +505,11 @@ export function Dashboard({
                   ? "今晚菜单已同步进本周计划，采购清单会自动汇总。"
                   : `${recommendation.reason || formatProfileSummary(familyProfile)} ${aiRecommendationStatus}`}
               </p>
+              {!dinnerReady && (
+                <p className="mt-3 max-w-2xl text-xs font-bold leading-5 text-ink/48">
+                  “换一组”走基础规则，不限次数；“精准推荐”才会调用高成本 API，缓存命中不消耗尝鲜额度。
+                </p>
+              )}
               {!profileReady && (
                 <button
                   type="button"

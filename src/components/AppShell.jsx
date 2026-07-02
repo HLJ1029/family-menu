@@ -140,7 +140,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
           <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
-        <h1 className="mt-2 max-w-3xl text-5xl font-black tracking-[-0.04em] md:text-7xl">
+        <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-normal md:text-4xl">
           {title}
         </h1>
       </div>
