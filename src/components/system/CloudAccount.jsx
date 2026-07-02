@@ -138,8 +138,7 @@ export function CloudAccount({
         <div className="mt-5 rounded-[22px] bg-canvas p-4">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">游客体验</p>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/58">
-            现在可以直接安排晚饭、保存今晚菜单和食材清单。小程序正式验证前会接入微信登录，
-            这里先不放账号入口。
+            现在可以直接安排晚饭、生成今晚菜单和食材清单；在正式小程序里会用微信身份同步到你的家。
           </p>
         </div>
       ) : (
