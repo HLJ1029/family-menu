@@ -13,6 +13,7 @@ import { getExpiryState } from "../lib/pantry";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
+import { formatCraveReason, summarizeCraveVotes } from "../lib/collaboration";
 import { AccountAvatar } from "./AppShell";
 import { DishImage } from "./ui/DishImage";
 import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
@@ -132,6 +133,7 @@ export function Dashboard({
   const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
   const preciseEnabled = recommendationAccess?.plan === "plus" || preciseTrialRemaining > 0;
   const pantryCheckItem = buildPantryCheckItem({ recipes: activeRecipes, pantryItems, dismissedPantryChecks });
+  const craveVoteSummary = summarizeCraveVotes(activeCraveRequest?.votes ?? []);
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
@@ -208,6 +210,15 @@ export function Dashboard({
                     {recipe.categories.includes("主食") && <span>主食</span>}
                     {quantity > 1 && <span className="portion-pop">x{quantity} 份</span>}
                   </span>
+                <span className="mt-4 block rounded-[18px] bg-canvas px-4 py-3 text-sm font-bold leading-6 text-ink/56">
+                  {buildDishReason({
+                    recipe,
+                    recommendation,
+                    craveVoteSummary,
+                    pantryItems,
+                    familyProfile,
+                  })}
+                </span>
               </button>
             ))}
           </div>
@@ -920,4 +931,58 @@ function buildPantryCheckItem({ recipes = [], pantryItems = [], dismissedPantryC
 
 function normalizeName(value = "") {
   return value.trim().toLowerCase();
+}
+
+function buildDishReason({ recipe, recommendation, craveVoteSummary = [], pantryItems = [], familyProfile = {} }) {
+  const matchedFeelings = craveVoteSummary
+    .map((item) => item.tag)
+    .filter((tag) => tag !== "随便都行" && recipeMatchesFeeling(recipe, tag))
+    .slice(0, 2);
+  if (matchedFeelings.length > 0) {
+    return `照顾到：${matchedFeelings.join(" · ")}`;
+  }
+
+  const matchedPantry = pantryItems
+    .filter((item) => getExpiryState(item.expiresOn) !== "expired")
+    .find((item) => recipe.ingredients.some((ingredient) => normalizeName(ingredient.name) === normalizeName(item.name)));
+  if (matchedPantry) {
+    return `用上家里现有的 ${matchedPantry.name}，少补一点菜。`;
+  }
+
+  if (recommendation?.source === "crave" && Array.isArray(recommendation?.craveVotes)) {
+    return formatCraveReason(recommendation.craveVotes);
+  }
+
+  const avoidRules = [
+    ...(familyProfile.dislikes ?? []),
+    ...(familyProfile.allergies ?? []),
+  ].filter(Boolean);
+  if (avoidRules.length > 0) {
+    return `避开：${avoidRules.slice(0, 2).join("、")}。`;
+  }
+
+  if (recipe.timeMinutes <= 20) return "快手省事，适合今晚直接开火。";
+  if (recipe.categories.includes("汤")) return "补一点汤水，让这顿饭更完整。";
+  if (recipe.categories.includes("肉菜") || recipe.categories.includes("蛋类") || recipe.categories.includes("豆制品")) {
+    return "补足蛋白，搭配蔬菜会更稳。";
+  }
+  if (recipe.tags?.some((tag) => ["清淡", "低脂", "清爽"].includes(tag))) {
+    return "口味轻一点，适合和下饭菜搭配。";
+  }
+  return "这道菜和今晚组合不打架，能顺手补齐一顿饭。";
+}
+
+function recipeMatchesFeeling(recipe, feelingTag) {
+  const categories = new Set(recipe.categories ?? []);
+  const tags = new Set(recipe.tags ?? []);
+  const haystack = [...categories, ...tags, recipe.name].join(" ");
+  if (feelingTag === "辣一点") return /辣|麻婆|鱼香/.test(haystack);
+  if (feelingTag === "清淡点") return /清淡|清爽|低脂|汤|蒸|白灼/.test(haystack);
+  if (feelingTag === "想喝汤") return categories.has("汤") || /汤|粥/.test(haystack);
+  if (feelingTag === "想吃肉") return /肉|鸡|牛|排骨|鱼|虾|蛋/.test(haystack) || categories.has("肉菜");
+  if (feelingTag === "想吃素") return categories.has("素菜") || /豆腐|蔬|青菜|西兰花|土豆|茄子/.test(haystack);
+  if (feelingTag === "不想动") return recipe.timeMinutes <= 25 || /省时|快手|10分钟|15分钟|20分钟/.test(haystack);
+  if (feelingTag === "想暖胃") return /汤|粥|炖|暖|冬瓜|番茄/.test(haystack);
+  if (feelingTag === "开胃 / 酸") return /酸|番茄|鱼香|醋|柠檬/.test(haystack);
+  return false;
 }
