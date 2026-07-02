@@ -962,6 +962,24 @@ function App() {
     showNotice(`${trimmedTitle} 已放进想吃池子`);
   }
 
+  function syncCraveVotesToWantPool(request) {
+    const candidates = buildWantItemsFromCraveRequest(request);
+    if (candidates.length === 0) return;
+    setWantToEatItems((current) => {
+      const existingIds = new Set(current.map((item) => item.id));
+      const existingOpenTitles = new Set(
+        current
+          .filter((item) => item.status !== "done")
+          .map((item) => normalizeName(item.title)),
+      );
+      const additions = candidates.filter((item) => (
+        !existingIds.has(item.id) && !existingOpenTitles.has(normalizeName(item.title))
+      ));
+      if (additions.length === 0) return current;
+      return [...additions, ...current].slice(0, 80);
+    });
+  }
+
   function addWantRecipe(recipeId) {
     const recipe = getRecipe(recipeId);
     if (!recipe) return;
@@ -1152,6 +1170,7 @@ function App() {
     try {
       const data = await loadCraveRequest(activeCraveRequest.token);
       const request = data.request;
+      syncCraveVotesToWantPool(request);
       setCraveSignals((current) => current.map((item) => (
         item.token === request.token
           ? { ...item, ...request, ownerSecret: item.ownerSecret, feelingTag: item.feelingTag }
@@ -1181,6 +1200,7 @@ function App() {
     if (!activeCraveRequest) return;
     const automatic = Boolean(options.automatic);
     const votes = activeCraveRequest.votes ?? [];
+    syncCraveVotesToWantPool(activeCraveRequest);
     const voteFeeling = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行")?.feelingTag
       ?? activeCraveRequest.feelingTag
       ?? "随便都行";
@@ -3607,6 +3627,41 @@ function recipeMatchesWantItem(recipe, item) {
     .join(" ");
   const recipeName = normalizeName(recipe.name);
   return signals.some((signal) => haystack.includes(signal) || signal.includes(recipeName));
+}
+
+function buildWantItemsFromCraveRequest(request) {
+  const votes = request?.votes ?? [];
+  return votes
+    .map((vote) => {
+      const title = extractWantTitleFromCraveVote(vote);
+      if (!title) return null;
+      const matchedRecipe = recipes.find((recipe) => normalizeName(recipe.name) === normalizeName(title));
+      return {
+        id: `want:crave:${vote.id || vote.participantKey || hashString(`${title}:${vote.createdAt || ""}`)}`,
+        title,
+        recipeId: matchedRecipe?.id ?? "",
+        note: vote.feelingTag && vote.feelingTag !== "随便都行" ? `来自征集：${vote.feelingTag}` : "来自感觉征集",
+        memberId: vote.memberId || vote.participantKey || "",
+        memberName: vote.memberName || "家人",
+        status: "open",
+        createdAt: vote.createdAt || request.createdAt || new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function extractWantTitleFromCraveVote(vote) {
+  const note = String(vote?.note ?? "").trim();
+  if (note.length < 2) return "";
+  const normalizedNote = note.replace(/[。！？!?]/g, " ").replace(/\s+/g, " ").trim();
+  const explicitMatch = normalizedNote.match(/想吃\s*([^,，、;；\s]{2,16})/);
+  if (explicitMatch?.[1]) return explicitMatch[1].trim();
+  const matchedRecipe = recipes.find((recipe) => {
+    const name = normalizeName(recipe.name);
+    const text = normalizeName(normalizedNote);
+    return name.length > 1 && (text.includes(name) || name.includes(text));
+  });
+  return matchedRecipe?.name ?? "";
 }
 
 function normalizeName(value) {
