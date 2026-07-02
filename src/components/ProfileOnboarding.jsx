@@ -144,14 +144,8 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
               />
             </ProfileBlock>
 
-            <ProfileBlock icon={SlidersHorizontal} title="口味和目标">
-              <p className="mb-2 text-xs font-bold text-ink/42">平时喜欢（可跳过）</p>
-              <TagChoices
-                options={profileOptions.tastePreferences}
-                values={draft.tastePreferences}
-                onToggle={(value) => toggleListValue("tastePreferences", value)}
-              />
-              <p className="mb-2 mt-4 text-xs font-bold text-ink/42">这次更在意</p>
+            <ProfileBlock icon={SlidersHorizontal} title="晚饭目标">
+              <p className="mb-2 text-xs font-bold text-ink/42">这次更在意</p>
               <TagChoices
                 options={profileOptions.goals}
                 values={draft.goals}

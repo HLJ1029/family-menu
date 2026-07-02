@@ -59,7 +59,6 @@ export function getProfileCompletedCount(profile = {}) {
   return [
     profile.planningMode,
     profile.familySize,
-    profile.tastePreferences?.length,
     profile.goals?.length,
     profile.dislikes?.length || profile.allergies?.length,
     profile.shoppingTolerance,
@@ -84,7 +83,6 @@ export function buildCompactFamilyPrompt(profile = {}) {
     `${profile.familySize ?? 2}人吃饭`,
     `使用场景:${mode.label}`,
     profile.hasChildren ? "有孩子一起吃" : "",
-    listPart("口味", profile.tastePreferences),
     listPart("目标", profile.goals),
     listPart("不喜欢", profile.dislikes),
     listPart("不能吃", profile.allergies),

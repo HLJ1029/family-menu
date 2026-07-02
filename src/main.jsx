@@ -207,7 +207,7 @@ function App() {
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
-  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
+  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可同步家庭成员忌口。");
   const [aiExplanation, setAiExplanation] = useState("");
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
@@ -632,7 +632,7 @@ function App() {
       setFamilyMembers([]);
       setPreferenceDraft({});
       setInviteEmail("");
-      setPreferencesStatus("创建家庭空间后，可维护家庭成员偏好。");
+      setPreferencesStatus("创建家庭空间后，可同步家庭成员忌口。");
       return;
     }
 
@@ -2376,7 +2376,7 @@ function App() {
     if (!session?.user || !family?.id) return;
 
     setPreferencesLoading(true);
-    setPreferencesStatus("正在读取家庭成员偏好...");
+    setPreferencesStatus("正在读取家庭成员忌口...");
     try {
       const members = await loadFamilyPreferences(family.id);
       if (!active()) return;
@@ -2390,7 +2390,7 @@ function App() {
           {},
         ),
       );
-      setPreferencesStatus("家庭成员偏好已读取。");
+      setPreferencesStatus("家庭成员忌口已读取。");
     } catch (error) {
       if (active()) setPreferencesStatus(error.message);
     } finally {
@@ -2415,16 +2415,16 @@ function App() {
     }
 
     setPreferencesLoading(true);
-    setPreferencesStatus("正在保存家庭成员偏好...");
+    setPreferencesStatus("正在保存家庭成员忌口...");
     try {
       await saveMemberPreference({
         familyId: family.id,
         memberId,
         preference: draftToPreference(preferenceDraft[memberId] ?? {}),
       });
-      setPreferencesStatus("家庭成员偏好已保存。");
+      setPreferencesStatus("家庭成员忌口已保存。");
       trackProductEvent(appEvents.profileSaved, { type: "member_preference" });
-      showNotice("成员偏好已保存");
+      showNotice("成员忌口已保存");
       await loadPreferencesForFamily();
     } catch (error) {
       setPreferencesStatus(error.message);
@@ -2500,7 +2500,10 @@ function App() {
       })),
       familyPreferences: familyMembers.map((member, index) => ({
         member: `家庭成员${index + 1}`,
-        preference: member.preference,
+        preference: {
+          dislikes: member.preference?.dislikes ?? [],
+          allergies: member.preference?.allergies ?? [],
+        },
       })),
       familyProfile,
       planningMode: getPlanningMode(familyProfile.planningMode),

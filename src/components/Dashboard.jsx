@@ -195,7 +195,7 @@ export function Dashboard({
             </p>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {aiRecommendationLoading
-                ? "正在重新核对家里现有、时间和家人口味。"
+                ? "正在重新核对家里现有、时间和忌口线索。"
                 : dinnerReady
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
@@ -517,7 +517,7 @@ export function Dashboard({
                   className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-xs font-black text-ink transition hover:-translate-y-0.5"
                 >
                   <Sparkles size={15} className="text-white" />
-                  设置饮食偏好
+                  设置忌口
                 </button>
               )}
             </div>

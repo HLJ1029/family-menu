@@ -259,8 +259,8 @@ function buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItem
 }
 
 function buildPreferenceExplanation(preferenceHits) {
-  if (preferenceHits > 0) return `照顾到 ${preferenceHits} 个家人口味或饮食目标。`;
-  return "还没记录太多口味，先按家里现有、耗时和搭配来安排。";
+  if (preferenceHits > 0) return `避开了 ${preferenceHits} 个家里的硬忌口线索。`;
+  return "还没积累太多行为信号，先按家里现有、耗时和搭配来安排。";
 }
 
 function buildWantExplanation(wantIntentHits) {
@@ -301,19 +301,17 @@ function collectFamilyPreference(members, familyProfile = {}) {
     (summary, member) => {
       const preference = member.preference ?? {};
       return {
-        likes: [...summary.likes, ...(preference.likes ?? [])].map(normalize),
         dislikes: [...summary.dislikes, ...(preference.dislikes ?? [])].map(normalize),
         allergies: [...summary.allergies, ...(preference.allergies ?? [])].map(normalize),
-        goals: [...summary.goals, ...(preference.goals ?? [])].map(normalize),
       };
     },
-    { likes: [], dislikes: [], allergies: [], goals: [] },
+    { dislikes: [], allergies: [] },
   );
   return {
-    likes: [...memberPreference.likes, ...(familyProfile.tastePreferences ?? [])].map(normalize),
+    likes: [],
     dislikes: [...memberPreference.dislikes, ...(familyProfile.dislikes ?? [])].map(normalize),
     allergies: [...memberPreference.allergies, ...(familyProfile.allergies ?? [])].map(normalize),
-    goals: [...memberPreference.goals, ...(familyProfile.goals ?? [])].map(normalize),
+    goals: [...(familyProfile.goals ?? [])].map(normalize),
   };
 }
 
@@ -515,7 +513,7 @@ function buildReason({ selected, inventoryHits, expiringHits, groceryItems, sele
     return `优先照顾想吃池子里的 ${wantIntentHits} 条待安排心愿，同时继续避开家里的硬忌口。`;
   }
   if (preferenceHits > 0) {
-    return `已参考家人口味和饮食目标，尽量避开忌口，也照顾到 ${preferenceHits} 个口味信号。`;
+    return `已避开家里的硬忌口，并参考 ${preferenceHits} 个行为信号来排序。`;
   }
   if (inventoryHits > 0) {
     return `优先用上家里现有食材，预计少买 ${inventoryHits} 项，适合今天快速开火。`;

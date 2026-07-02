@@ -72,9 +72,9 @@ export function CloudAccount({
             <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
               {signedIn
                 ? family
-                  ? "Humi 会把菜单、清单、后台已有和家人口味保存在这个家里。"
-                  : "已经登录。创建我的家后，菜单、清单、后台已有和口味会一起保存。"
-                : "创建我的家后，Humi 会记住菜单、清单、后台已有和家人口味。也可以先直接体验。"}
+                  ? "Humi 会把菜单、清单、后台已有和家庭画像保存在这个家里。"
+                  : "已经登录。创建我的家后，菜单、清单、后台已有和忌口线索会一起保存。"
+                : "创建我的家后，Humi 会记住菜单、清单、后台已有和家庭画像。也可以先直接体验。"}
             </p>
           </div>
         </div>
@@ -97,7 +97,7 @@ export function CloudAccount({
               <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-                以后菜单、清单、后台已有和家人口味都会保存在这里。
+                以后菜单、清单、后台已有和家庭画像都会保存在这里。
               </p>
             </div>
           ) : (

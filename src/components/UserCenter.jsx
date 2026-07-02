@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, Heart, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
+import { BarChart3, Check, ChefHat, Cloud, Database, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
-import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
@@ -447,10 +446,9 @@ export function UserCenter({
               {formatProfileSummary(familyProfile)}
             </span>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <UtilityButton icon={UserRound} label="修改家庭画像" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
             <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
-            <UtilityButton icon={Users} label="家人口味" onClick={() => setActiveSettings(activeSettings === "preferences" ? null : "preferences")} />
           </div>
         </section>
 
@@ -470,7 +468,6 @@ export function UserCenter({
           />
         )}
         <CloudSyncPanel {...cloudMenuProps} />
-        {activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
       </div>
 
       <aside className="grid content-start gap-5">
@@ -1068,14 +1065,6 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
               className="h-5 w-5 accent-black"
             />
           </label>
-        </ProfileStep>
-
-        <ProfileStep icon={Heart} title="平时喜欢怎么吃">
-          <TagChoices
-            options={profileOptions.tastePreferences}
-            values={draft.tastePreferences}
-            onToggle={(value) => toggleListValue("tastePreferences", value)}
-          />
         </ProfileStep>
 
         <ProfileStep icon={SlidersHorizontal} title="晚饭最在意什么">
