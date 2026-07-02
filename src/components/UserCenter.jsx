@@ -163,6 +163,39 @@ export function UserCenter({
           />
         </section>
 
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">家里的饭线索</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{familyReflections[0]?.title}</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{familyReflections[0]?.text}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+            >
+              安排今晚
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
+            <StatusRow label="征集动态" value={`${craveSignals.length} 条`} />
+            <StatusRow label="想吃待安排" value={`${openWantItems.length} 个`} />
+          </div>
+          {familyReflections.length > 1 && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {familyReflections.slice(1, 3).map((item) => (
+                <div key={item.title} className="rounded-[22px] border border-line bg-canvas p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">{item.meta}</p>
+                  <p className="mt-2 text-sm font-black leading-6 text-ink">{item.title}</p>
+                  <p className="mt-1 text-xs font-bold leading-5 text-ink/48">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <CloudAccount
           {...authProps}
           session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
