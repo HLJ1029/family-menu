@@ -1081,6 +1081,7 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
+      craveVotes: safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }],
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     const nextRecommendation = {
@@ -1126,6 +1127,7 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
+      craveVotes: safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }],
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     setAiRecommendation({
@@ -1191,11 +1193,13 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
+      craveVotes: votes,
       excludedRecipeIds: voteFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     setAiRecommendation({
       ...nextRecommendation,
       source: "crave",
+      craveVotes: votes,
       reason: votes.length > 0
         ? `${nextRecommendation.reason} 已揉合 ${votes.length} 个家人回复。`
         : `${nextRecommendation.reason} 还没人回复，先让 Humi 做主。`,

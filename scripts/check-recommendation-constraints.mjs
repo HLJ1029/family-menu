@@ -42,6 +42,23 @@ for (const scenario of scenarios) {
   }
 }
 
+const soupRecommendation = buildTodayRecommendation({
+  familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+  craveVotes: [{ feelingTag: "想喝汤" }],
+});
+const hasSoup = soupRecommendation.recipes.some((recipe) => {
+  const haystack = [
+    recipe.name,
+    recipe.description,
+    ...recipe.categories,
+    ...recipe.tags,
+  ].join(" ");
+  return /汤|粥/.test(haystack);
+});
+if (!hasSoup || soupRecommendation.feelingHits <= 0) {
+  throw new Error("感觉征集想喝汤时，推荐应优先照顾汤/粥类菜品。");
+}
+
 await vite.close();
 
 console.log("Recommendation hard constraints check passed.");
