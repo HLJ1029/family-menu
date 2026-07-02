@@ -597,6 +597,7 @@ export function UserCenter({
 function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGenerateFromCrave }) {
   const votes = request.votes ?? [];
   const summary = summarizeCraveVotes(votes);
+  const deadlineLabel = formatCraveDeadline(request.createdAt);
 
   return (
     <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
@@ -607,6 +608,7 @@ function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGe
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
             {votes.length > 0 ? `已收到：${summary}` : "邀请卡片已经准备好。家人点完后回到这里刷新。"}
           </p>
+          <p className="mt-1 text-xs font-black text-ink/35">{deadlineLabel}</p>
         </div>
         <span className="w-fit rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">已回 {votes.length}</span>
       </div>
@@ -630,7 +632,7 @@ function FamilyCraveCard({ request, onCopyCraveLink, onRefreshCraveRequest, onGe
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制/分享</button>
         <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
-        <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">就这些出菜单</button>
+        <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">现在出菜单</button>
       </div>
     </div>
   );
@@ -960,6 +962,15 @@ function summarizeCraveVotes(votes) {
   const counts = new Map();
   votes.forEach((vote) => counts.set(vote.feelingTag || "随便都行", (counts.get(vote.feelingTag || "随便都行") ?? 0) + 1));
   return [...counts.entries()].map(([tag, count]) => count > 1 ? `${tag} x${count}` : tag).join(" · ");
+}
+
+function formatCraveDeadline(createdAt) {
+  if (!createdAt) return "随时可以点“现在出菜单”。";
+  const createdTime = new Date(createdAt).getTime();
+  if (Number.isNaN(createdTime)) return "随时可以点“现在出菜单”。";
+  const remainingMinutes = Math.ceil((createdTime + 30 * 60 * 1000 - Date.now()) / 60000);
+  if (remainingMinutes <= 0) return "已经可以出菜单；没人回也不会卡住。";
+  return `约 ${remainingMinutes} 分钟后也可以直接出菜单。`;
 }
 
 function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {

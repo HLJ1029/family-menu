@@ -1009,6 +1009,7 @@ function App() {
 
   async function startCraveRequest(feelingTag) {
     const safeFeeling = feelingTag || "随便都行";
+    let createdShareRequest = false;
     try {
       const data = await createCraveRequest({
         householdName: family?.name || familyName || "我家",
@@ -1018,6 +1019,7 @@ function App() {
       }, isHumiApiSession(humiSession) ? humiSession : null);
       const request = data.request;
       if (request?.token) {
+        createdShareRequest = true;
         postCraveShareToMiniProgram({
           token: request.token,
           householdName: request.householdName,
@@ -1058,15 +1060,17 @@ function App() {
         ? `${alternateRuleRecommendation.reason} 家人说随便都行，先按忌口和家里习惯来。`
         : `${alternateRuleRecommendation.reason} 这次会优先照顾“${safeFeeling}”这个感觉。`,
     };
-    setCraveSignals((current) => [
-      {
-        id: `crave:${Date.now()}`,
-        feelingTag: safeFeeling,
-        createdAt: new Date().toISOString(),
-        recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
-      },
-      ...current,
-    ].slice(0, 24));
+    if (!createdShareRequest) {
+      setCraveSignals((current) => [
+        {
+          id: `crave:${Date.now()}`,
+          feelingTag: safeFeeling,
+          createdAt: new Date().toISOString(),
+          recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+        },
+        ...current,
+      ].slice(0, 24));
+    }
     setAiRecommendation(nextRecommendation);
     setAiRecommendationStatus(
       safeFeeling === "随便都行"
