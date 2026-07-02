@@ -6,7 +6,6 @@ import { getDayMeals, mealSlots } from "../lib/mealPlan";
 import { getRecipe, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
-import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const dayLabels = ["一", "二", "三", "四", "五", "六", "日"];
@@ -83,21 +82,14 @@ export function Planner({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="eyebrow">Week plan</p>
-            <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-5xl">
-              先把这一周顺一顺。
+            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">
+              想连排几天
             </h2>
           </div>
-          <HumiBrandIllustration
-            variant="weekly"
-            size="md"
-            className="-mr-1 -mt-3 shrink-0"
-            contextKey="planner-hero"
-            title="每周安排"
-          />
         </div>
         <div>
           <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-ink/52">
-            每天留一点余地，早餐、午餐、晚餐都会进入清单和饮食画像。
+            只给愿意提前排的人用；不排也不影响每天安排今晚。
           </p>
         </div>
       </div>
