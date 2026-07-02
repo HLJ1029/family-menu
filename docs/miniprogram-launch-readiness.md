@@ -254,11 +254,11 @@ H5 通过查询参数识别来源：
 
 2026-07-03 状态同步（1.1.54）：
 
-- 当前 `main` 最新提交：`e9ca566`，GitHub Pages run `28627181869` 成功。
+- 当前 `main` 最新提交：`f8ac89b`（Pages retry 空提交；业务提交 `e9ca566`），GitHub Pages run `28627397963` 成功。
 - 小程序已通过微信开发者工具上传 `1.1.54`，描述为“征集加入状态同步”。
 - 小程序 WebView URL 当前带 `h5v=1.1.54`，用于刷新 H5 缓存。
 - `npm run build`、`npm run validate:api`、`npm run validate:recommendation`、`npm run release:check`、`npm run release:check:online` 与 secret scan 已通过。
-- 生产 API 仍待 SSH 恢复后补部署 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 的后端增量；前端已保留兼容回退。
+- 生产 API 仍待 SSH 恢复后按 `docs/humi-api-production-deploy-runbook.md` 补部署 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 的后端增量；前端已保留兼容回退。
 
 2026-06-30 状态同步：
 
