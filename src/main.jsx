@@ -124,6 +124,8 @@ const defaultRecommendationAccess = {
   preciseTrialRemaining: 3,
   preciseUsed: 0,
 };
+const PRECISE_RECOMMENDATION_CACHE_LIMIT = 24;
+const PRECISE_RECOMMENDATION_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 registerServiceWorker();
 
@@ -197,6 +199,7 @@ function App() {
   const [wantToEatItems, setWantToEatItems] = useLocalStorageState("humi:want-to-eat:v1", []);
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [recommendationAccess, setRecommendationAccess] = useLocalStorageState("humi:recommendation-access:v1", defaultRecommendationAccess);
+  const [preciseRecommendationCache, setPreciseRecommendationCache] = useLocalStorageState("humi:precise-recommendation-cache:v1", {});
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
   const [activeHouseholdInvite, setActiveHouseholdInvite] = useLocalStorageState("humi:household-invite:v1", null);
   const [cravePromptSignal, setCravePromptSignal] = useState(0);
@@ -1585,6 +1588,33 @@ function App() {
       return;
     }
 
+    const preciseContext = buildAiRecommendationContext({
+      fallbackRecommendation: alternateRuleRecommendation,
+      currentRecipeIds,
+      feedbackReason,
+      mode: "precise",
+    });
+    const preciseCacheKey = buildPreciseRecommendationCacheKey(preciseContext);
+    const cachedResult = readPreciseRecommendationCache(preciseRecommendationCache, preciseCacheKey);
+    if (cachedResult) {
+      const nextRecommendation = hydrateAiRecommendation({
+        result: cachedResult,
+        fallback: alternateRuleRecommendation,
+      });
+      setAiRecommendation({ ...nextRecommendation, source: "deepseek_cache" });
+      setAiExplanation(cachedResult.reason ?? nextRecommendation.reason);
+      setAiRecommendationStatus("已复用相同条件下的精准推荐，不消耗新的 API 尝鲜额度。");
+      setAiExplanationStatus("这组搭配理由来自上次相同条件的精准推荐。");
+      trackProductEvent(appEvents.recommendationShown, {
+        source: "deepseek_cache",
+        mode: "precise_cache",
+        recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+        missingCount: nextRecommendation.missingItems.length,
+      });
+      showNotice("已复用精准推荐缓存");
+      return;
+    }
+
     if (!canUsePreciseRecommendation(recommendationAccess)) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
       setAiRecommendationStatus("精准尝鲜已用完；基础推荐仍可无限使用。");
@@ -1595,14 +1625,7 @@ function App() {
     setAiRecommendationLoading(true);
     setAiRecommendationStatus("正在用精准推荐重新揉合你家的口味、后台已有和反馈...");
     try {
-      const result = await recommendMeals(
-        buildAiRecommendationContext({
-          fallbackRecommendation: alternateRuleRecommendation,
-          currentRecipeIds,
-          feedbackReason,
-          mode: "precise",
-        }),
-      );
+      const result = await recommendMeals(preciseContext);
       const nextRecommendation = hydrateAiRecommendation({
         result,
         fallback: alternateRuleRecommendation,
@@ -1612,6 +1635,7 @@ function App() {
       setAiRecommendationStatus("精准推荐已给你重新想好一组。");
       setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
       setRecommendationAccess((current) => consumePreciseRecommendation(current));
+      setPreciseRecommendationCache((current) => writePreciseRecommendationCache(current, preciseCacheKey, result));
       trackProductEvent(appEvents.recommendationShown, {
         source: nextRecommendation.source ?? "deepseek",
         mode: "precise",
@@ -3413,6 +3437,70 @@ function consumePreciseRecommendation(access = {}) {
     preciseTrialRemaining: Math.max(0, normalized.preciseTrialRemaining - 1),
     preciseUsed: normalized.preciseUsed + 1,
   };
+}
+
+function buildPreciseRecommendationCacheKey(context) {
+  return `precise:${hashString(stableStringify({
+    mode: context?.mode,
+    candidateIds: context?.candidateRecipes?.map((recipe) => recipe.id),
+    pantryItems: context?.pantryItems,
+    familyProfile: context?.familyProfile,
+    planningMode: context?.planningMode?.id,
+    recentRecipeIds: context?.recentRecipeIds,
+    currentMissingItems: context?.currentMissingItems,
+    recentFeedback: context?.recentFeedback,
+    ruleFallback: context?.ruleFallback,
+  }))}`;
+}
+
+function readPreciseRecommendationCache(cache = {}, cacheKey) {
+  const entry = cache?.[cacheKey];
+  if (!entry?.result || !entry.createdAt) return null;
+  const createdTime = new Date(entry.createdAt).getTime();
+  if (Number.isNaN(createdTime) || Date.now() - createdTime > PRECISE_RECOMMENDATION_CACHE_TTL_MS) return null;
+  return entry.result;
+}
+
+function writePreciseRecommendationCache(cache = {}, cacheKey, result) {
+  if (!cacheKey || !result?.recipeIds?.length) return cache;
+  const now = new Date().toISOString();
+  const next = {
+    ...cache,
+    [cacheKey]: {
+      result: {
+        recipeIds: result.recipeIds,
+        reason: result.reason,
+        explanation: result.explanation,
+        source: result.source,
+      },
+      createdAt: now,
+    },
+  };
+  return Object.fromEntries(
+    Object.entries(next)
+      .filter(([, entry]) => {
+        const createdTime = new Date(entry?.createdAt).getTime();
+        return !Number.isNaN(createdTime) && Date.now() - createdTime <= PRECISE_RECOMMENDATION_CACHE_TTL_MS;
+      })
+      .sort(([, a], [, b]) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, PRECISE_RECOMMENDATION_CACHE_LIMIT),
+  );
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function hashString(value) {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function recipeMatchesWantItem(recipe, item) {
