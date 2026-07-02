@@ -389,9 +389,11 @@ async function handleJoinHouseholdInvite(request, response, token) {
       memberName: stringValue(body.memberName, 32) || user.displayName,
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+    const state = await store.getState(user.id);
     const households = await store.getHouseholdsForUser(user.id);
     sendJson(response, 200, {
       invite: toPublicHouseholdInvite(result.invite),
+      state,
       family: toHumiFamily(result.household, user),
       households: toHumiFamilies(households, user),
     });

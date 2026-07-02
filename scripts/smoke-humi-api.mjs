@@ -280,6 +280,8 @@ try {
     "invite joiner should become formal household member",
   );
   assert(joinedInvite.households?.some((household) => household.id === loadedStateEnvelope.family.id), "invite joiner should receive households");
+  assert(joinedInvite.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "invite joiner should immediately receive shared household state");
+  assert(joinedInvite.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "invite joiner should immediately receive shared want-to-eat pool");
   try {
     await request(`${baseUrl}/household-invites`, {
       method: "POST",

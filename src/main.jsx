@@ -3096,8 +3096,12 @@ function App() {
         token={householdInviteToken}
         humiSession={humiSession}
         onJoined={(data) => {
-          if (data.family) setFamily(data.family);
-          if (Array.isArray(data.households)) setHumiHouseholds(data.households);
+          applyHumiStateEnvelope(data, {
+            loadedMenuStatus: "已加入这个家，并读取这个家的今晚菜单和连排计划。",
+            loadedGroceryStatus: "已加入这个家，并读取这个家的清单和后台已有。",
+            emptyMenuStatus: "已加入这个家。这个家还没有保存菜单。",
+            emptyGroceryStatus: "已加入这个家。这个家还没有保存清单和后台已有。",
+          });
           setOnboardingComplete(true);
           setProfileOnboardingComplete(true);
         }}
