@@ -85,6 +85,7 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
   const claims = share.claims ?? {};
   const openItems = (share.items ?? []).filter((item) => claims[item.key]?.status !== "done");
   const doneItems = (share.items ?? []).filter((item) => claims[item.key]?.status === "done");
+  const currentParticipantId = getCurrentParticipantId({ participantKey, humiSession });
 
   return (
     <FullScreenShell>
@@ -121,27 +122,28 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
               const claim = claims[item.key];
               const pending = pendingKey === item.key;
               const claimed = Boolean(claim);
+              const mine = claim?.memberId === currentParticipantId;
               return (
                 <div key={item.key} className="rounded-[22px] border border-line bg-canvas p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-base font-black text-ink">{item.name}</p>
                       <p className="mt-1 text-xs font-bold text-ink/45">{item.amount || "按需"}{item.source ? ` · ${item.source}` : ""}</p>
-                      {claim && <p className="mt-2 text-xs font-black text-ink/55">{claim.memberName || "家人"}在买</p>}
+                      {claim && <p className="mt-2 text-xs font-black text-ink/55">{mine ? "你在买" : `${claim.memberName || "家人"}在买`}</p>}
                     </div>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/45">
-                      {claimed ? "已认领" : "待买"}
+                      {claimed ? mine ? "我认领了" : "已认领" : "待买"}
                     </span>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => claimItem(item, claimed ? "done" : "claimed")}
-                      disabled={pending}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:opacity-60"
+                      disabled={pending || (claimed && !mine)}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-ink/12 disabled:text-ink/35"
                     >
                       {claimed ? <Check size={16} /> : <ShoppingBasket size={16} />}
-                      {pending ? "回传中" : claimed ? "买到了" : "我来买"}
+                      {pending ? "回传中" : claimed ? mine ? "买到了" : "已有人在买" : "我来买"}
                     </button>
                     {!claimed && (
                       <button
@@ -201,4 +203,9 @@ function getParticipantKey() {
   const next = `grocery-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
   window.localStorage.setItem(PARTICIPANT_KEY, next);
   return next;
+}
+
+function getCurrentParticipantId({ participantKey, humiSession }) {
+  if (humiSession?.user?.id) return humiSession.user.id;
+  return participantKey ? `temporary:${participantKey}` : "";
 }

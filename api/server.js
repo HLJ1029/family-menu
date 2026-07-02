@@ -511,6 +511,12 @@ async function handleClaimGroceryShare(request, response, token) {
     if (error.code === "grocery_item_not_found") {
       throw httpError(404, "grocery_item_not_found", "清单里没有这项食材。");
     }
+    if (error.code === "grocery_item_claimed") {
+      throw httpError(409, "grocery_item_claimed", `${error.claim?.memberName || "家人"}已经在买这项食材。`);
+    }
+    if (error.code === "grocery_item_done") {
+      throw httpError(409, "grocery_item_done", `${error.claim?.memberName || "家人"}已经买到这项食材。`);
+    }
     throw error;
   }
 }

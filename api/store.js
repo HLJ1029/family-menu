@@ -310,6 +310,12 @@ export class HumiStore {
     const memberId = sanitizeText(payload.memberId, "", 100)
       || `temporary:${sanitizeText(payload.participantKey, "", 80) || randomUUID()}`;
     const currentClaim = share.claims[itemKey];
+    if (currentClaim?.memberId && currentClaim.memberId !== memberId) {
+      const error = new Error("Grocery item has already been claimed.");
+      error.code = currentClaim.status === "done" ? "grocery_item_done" : "grocery_item_claimed";
+      error.claim = currentClaim;
+      throw error;
+    }
     const status = payload.status === "done" || currentClaim?.memberId === memberId ? "done" : "claimed";
     const claim = {
       itemKey,

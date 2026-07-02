@@ -320,6 +320,20 @@ try {
     claimedGroceryShare.share?.claims?.["custom:milk"]?.memberName === "顺路买菜的家人",
     "grocery share should accept temporary claim",
   );
+  try {
+    await request(`${baseUrl}/grocery-shares/${groceryShare.share.token}/claims`, {
+      method: "POST",
+      body: {
+        itemKey: "custom:milk",
+        participantKey: "second-temporary-grocery-smoke",
+        memberName: "另一个家人",
+        status: "done",
+      },
+    });
+    throw new Error("second participant should not complete another member's grocery claim");
+  } catch (error) {
+    assert(String(error.message).startsWith("409 "), "second grocery participant should receive 409 conflict");
+  }
   const ownerStateAfterGroceryClaim = await request(`${baseUrl}/state`, {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
