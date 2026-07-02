@@ -42,6 +42,7 @@ export function UserCenter({
   onRefreshCraveRequest,
   onGenerateFromCrave,
   onStartCraveRequest,
+  onDecideAlone,
   onCreateHousehold,
   onSwitchHousehold,
   activeHouseholdInvite,
@@ -135,6 +136,14 @@ export function UserCenter({
     }
     if (onAskFamily) onAskFamily();
     else onViewChange("dashboard");
+  }
+
+  function decideFamilyAlone() {
+    if (onDecideAlone) {
+      onDecideAlone(familyFeelingTag);
+      return;
+    }
+    onViewChange("dashboard");
   }
 
   return (
@@ -254,6 +263,7 @@ export function UserCenter({
               selectedFeeling={familyFeelingTag}
               onSelectFeeling={setFamilyFeelingTag}
               onStart={startFamilyCrave}
+              onDecideAlone={decideFamilyAlone}
             />
           )}
           <div className="mt-4 grid gap-3">
@@ -814,7 +824,7 @@ function PermissionCard({ icon: Icon, title, active, lines }) {
   );
 }
 
-function FamilyCraveStarter({ selectedFeeling, onSelectFeeling, onStart }) {
+function FamilyCraveStarter({ selectedFeeling, onSelectFeeling, onStart, onDecideAlone }) {
   return (
     <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -825,9 +835,14 @@ function FamilyCraveStarter({ selectedFeeling, onSelectFeeling, onStart }) {
             先替今晚选一个大概方向，生成后在小程序右上角分享卡片给家人。
           </p>
         </div>
-        <button type="button" onClick={onStart} className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white">
-          生成邀请卡片
-        </button>
+        <div className="grid gap-2 sm:min-w-40">
+          <button type="button" onClick={onStart} className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white">
+            生成邀请卡片
+          </button>
+          <button type="button" onClick={onDecideAlone} className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink">
+            我自己做主
+          </button>
+        </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {feelingTags.map((tag) => (

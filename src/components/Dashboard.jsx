@@ -61,6 +61,7 @@ export function Dashboard({
   onSubmitRecommendationFeedback,
   onCloseRecommendationFeedback,
   onStartCraveRequest,
+  onDecideAlone,
   activeCraveRequest,
   cravePromptSignal,
   onCopyCraveLink,
@@ -135,6 +136,11 @@ export function Dashboard({
 
   function submitFeeling() {
     onStartCraveRequest?.(selectedFeeling);
+  }
+
+  function decideAlone() {
+    onDecideAlone?.(selectedFeeling);
+    setCraveOpen(false);
   }
 
   const purchaseCount = dinnerReady ? groceryItemCount : recommendation.missingItems.length;
@@ -402,13 +408,22 @@ export function Dashboard({
                         家人不用想菜名，点一个大概感觉就行。没人选时，Humi 也会自己做主。
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={submitFeeling}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
-                    >
-                      生成邀请卡片
-                    </button>
+                    <div className="grid gap-2 sm:min-w-40">
+                      <button
+                        type="button"
+                        onClick={submitFeeling}
+                        className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+                      >
+                        生成邀请卡片
+                      </button>
+                      <button
+                        type="button"
+                        onClick={decideAlone}
+                        className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
+                      >
+                        我自己做主
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {feelingTags.map((tag) => (

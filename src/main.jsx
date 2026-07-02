@@ -124,6 +124,7 @@ const defaultRecommendationAccess = {
   preciseTrialRemaining: 3,
   preciseUsed: 0,
 };
+const CRAVE_AUTO_GENERATE_MS = 30 * 60 * 1000;
 const PRECISE_RECOMMENDATION_CACHE_LIMIT = 24;
 const PRECISE_RECOMMENDATION_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -753,6 +754,19 @@ function App() {
   const activeCraveRequest = craveSignals.find((item) => item.token && item.status !== "closed") ?? null;
 
   useEffect(() => {
+    if (!activeCraveRequest?.token || todayMenu.length > 0) return undefined;
+    const createdTime = new Date(activeCraveRequest.createdAt).getTime();
+    if (Number.isNaN(createdTime)) return undefined;
+    const remainingMs = createdTime + CRAVE_AUTO_GENERATE_MS - Date.now();
+    if (remainingMs <= 0) {
+      generateFromCraveRequest({ automatic: true });
+      return undefined;
+    }
+    const timer = window.setTimeout(() => generateFromCraveRequest({ automatic: true }), remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [activeCraveRequest?.token, activeCraveRequest?.createdAt, todayMenu.length]);
+
+  useEffect(() => {
     if (activeView !== "dashboard" || todayMenu.length > 0) return;
     trackValidationEvent(validationEvents.recommendationSeen, {
       title: displayedRecommendation.title,
@@ -1101,6 +1115,36 @@ function App() {
     showNotice(safeFeeling === "随便都行" ? "那就 Humi 来做主" : `已按“${safeFeeling}”换一组`);
   }
 
+  function decideAloneFromCrave(feelingTag) {
+    const safeFeeling = feelingTag || "随便都行";
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const nextRecommendation = buildTodayRecommendation({
+      pantryItems,
+      weekPlan,
+      groceryItems: visibleGroceryItems,
+      todayRecipes,
+      familyMembers,
+      familyProfile,
+      wantToEatItems,
+      excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
+    });
+    setAiRecommendation({
+      ...nextRecommendation,
+      source: "rule",
+      reason: safeFeeling === "随便都行"
+        ? `${nextRecommendation.reason} 这次先跳过征集，由 Humi 直接做主。`
+        : `${nextRecommendation.reason} 这次先按“${safeFeeling}”这个感觉直接安排。`,
+    });
+    setAiRecommendationStatus("已跳过征集，先按你家的忌口、后台已有和饭线索出一组。");
+    trackProductEvent(appEvents.recommendationRequest, {
+      source: "crave_decide_alone",
+      feelingTag: safeFeeling,
+      recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+    });
+    showNotice("已直接出一组今晚菜单");
+    if (activeView !== "dashboard") navigateTo("dashboard");
+  }
+
   async function refreshCraveRequest() {
     if (!activeCraveRequest?.token) return;
     try {
@@ -1131,8 +1175,9 @@ function App() {
     showNotice("邀请链接已复制，小程序分享卡片也已准备好");
   }
 
-  function generateFromCraveRequest() {
+  function generateFromCraveRequest(options = {}) {
     if (!activeCraveRequest) return;
+    const automatic = Boolean(options.automatic);
     const votes = activeCraveRequest.votes ?? [];
     const voteFeeling = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行")?.feelingTag
       ?? activeCraveRequest.feelingTag
@@ -1163,8 +1208,14 @@ function App() {
     if (activeCraveRequest.token && activeCraveRequest.ownerSecret) {
       closeCraveRequest(activeCraveRequest.token, activeCraveRequest.ownerSecret).catch(() => {});
     }
-    setAiRecommendationStatus(votes.length > 0 ? "已按家人感觉揉合出一组。" : "还没人回复，已先按家庭画像出一组。");
-    showNotice("已按这次征集出菜单");
+    setAiRecommendationStatus(
+      votes.length > 0
+        ? "已按家人感觉揉合出一组。"
+        : automatic
+          ? "征集已到 30 分钟，没人回复也先按家庭画像出一组。"
+          : "还没人回复，已先按家庭画像出一组。",
+    );
+    showNotice(automatic ? "征集到点，已自动出菜单" : "已按这次征集出菜单");
     if (activeView !== "dashboard") {
       navigateTo("dashboard");
     }
@@ -3056,6 +3107,7 @@ function App() {
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
                 onStartCraveRequest={startCraveRequest}
+                onDecideAlone={decideAloneFromCrave}
                 activeCraveRequest={activeCraveRequest}
                 cravePromptSignal={cravePromptSignal}
                 onCopyCraveLink={copyCraveLink}
@@ -3252,6 +3304,7 @@ function App() {
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
                 onStartCraveRequest={startCraveRequest}
+                onDecideAlone={decideAloneFromCrave}
                 onCreateHousehold={createAnotherHumiHousehold}
                 onSwitchHousehold={switchActiveHumiHousehold}
                 activeHouseholdInvite={activeHouseholdInvite}
