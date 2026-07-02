@@ -1055,6 +1055,10 @@ function App() {
   }
 
   async function startCraveRequest(feelingTag) {
+    if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+      showNotice("这个家的征集需要主厨发起；家人可以直接点感觉或丢想吃。");
+      return null;
+    }
     const safeFeeling = feelingTag || "随便都行";
     let createdShareRequest = false;
     try {
@@ -2102,6 +2106,10 @@ function App() {
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
     if (isHumiApiSession(humiSession)) {
+      if (family?.role && family.role !== "owner") {
+        showNotice("这个家的买菜卡片需要主厨分享；家人可以认领和标记买到。");
+        return;
+      }
       try {
         const data = await createGroceryShare(humiSession, {
           householdName: family?.name || familyName || "我家",

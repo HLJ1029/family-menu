@@ -153,6 +153,7 @@ Authorization: Bearer <accessToken>
 
 - `owner` 可发起家庭邀请、发起征集、管理这个家。
 - `member` 可共享菜单、清单、征集记录和买菜认领。
+- `member` 不能代替主厨发起这个家的感觉征集或生成这个家的买菜分享卡片；服务端返回 403。
 - 免登录临时参与者只能投感觉、认领买菜、丢想吃，不能拥有或管理家庭。
 
 ## 感觉征集
@@ -160,6 +161,7 @@ Authorization: Bearer <accessToken>
 `POST /crave-requests`
 
 - 登录主厨调用时绑定当前家庭，返回 `request` 和 `ownerSecret`。
+- 登录普通成员调用当前家庭征集会返回 `403 forbidden`；家人只能参与投感觉，不能拥有征集。
 - `request.deadlineAt` 必须公开返回，默认 `createdAt + 30 分钟`。
 - 小程序分享卡片使用 `request.token` 进入 H5 落地页。
 
@@ -207,6 +209,7 @@ Authorization: Bearer <accessToken>
 ## 买菜协作
 
 - `POST /grocery-shares`：登录用户把当前清单生成可分享 token。
+- 当前家庭的普通成员调用 `POST /grocery-shares` 返回 `403 forbidden`；家人只能认领或标记买到清单项。
 - `GET /grocery-shares/:token`：公开读取清单摘要。
 - `POST /grocery-shares/:token/claims`：免登录或登录成员认领/标记买到某项食材，并同步回家庭 `groceryClaims`。
 - 已被其他成员认领或买到的项不能被第二个成员覆盖；服务端返回 `409 grocery_item_claimed` 或 `409 grocery_item_done`，前端应展示“已有人在买/已买到”而不是继续完成。

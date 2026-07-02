@@ -150,6 +150,29 @@ export class HumiStore {
     return this.createHouseholdForUser(userId, options);
   }
 
+  async ensureOwnedHouseholdForUser(userId, options = {}) {
+    await this.load();
+    const existing = this.findActiveHouseholdByMember(userId);
+    if (existing) {
+      if (existing.ownerId !== userId) {
+        const error = new Error("Only the household owner can start household actions.");
+        error.code = "forbidden";
+        throw error;
+      }
+      const member = existing.members.find((item) => item.memberId === userId);
+      const nextName = sanitizeText(options.memberName, "", 32);
+      if (member && nextName && member.nickname !== nextName) {
+        member.nickname = nextName;
+        member.updatedAt = new Date().toISOString();
+        existing.updatedAt = member.updatedAt;
+        await this.save();
+      }
+      return existing;
+    }
+
+    return this.createHouseholdForUser(userId, options);
+  }
+
   buildHousehold(userId, options = {}) {
     const user = this.data.users.find((item) => item.id === userId);
     const now = new Date().toISOString();
@@ -263,7 +286,7 @@ export class HumiStore {
 
   async createGroceryShare(ownerUserId, payload = {}) {
     await this.load();
-    const household = await this.ensureHouseholdForUser(ownerUserId, {
+    const household = await this.ensureOwnedHouseholdForUser(ownerUserId, {
       householdName: payload.householdName,
       memberName: payload.initiatorName,
     });
@@ -456,7 +479,7 @@ export class HumiStore {
     const token = randomUUID().replaceAll("-", "");
     const ownerSecret = randomUUID().replaceAll("-", "");
     const household = ownerUserId
-      ? await this.ensureHouseholdForUser(ownerUserId, {
+      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
         householdName: payload.householdName,
         memberName: payload.initiatorName,
       })

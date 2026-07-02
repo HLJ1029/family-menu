@@ -292,6 +292,29 @@ try {
   } catch (error) {
     assert(String(error.message).startsWith("403 "), "non-owner invite creation should return 403");
   }
+  try {
+    await request(`${baseUrl}/crave-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: { householdName: "测试家", initiatorName: "家人" },
+    });
+    throw new Error("non-owner crave request creation should be forbidden");
+  } catch (error) {
+    assert(String(error.message).startsWith("403 "), "non-owner crave request creation should return 403");
+  }
+  try {
+    await request(`${baseUrl}/grocery-shares`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: {
+        initiatorName: "家人",
+        items: [{ key: "custom:member-milk", name: "牛奶", amount: "1盒", type: "custom", source: "顺手买" }],
+      },
+    });
+    throw new Error("non-owner grocery share creation should be forbidden");
+  } catch (error) {
+    assert(String(error.message).startsWith("403 "), "non-owner grocery share creation should return 403");
+  }
 
   const groceryShare = await request(`${baseUrl}/grocery-shares`, {
     method: "POST",

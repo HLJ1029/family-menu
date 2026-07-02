@@ -470,8 +470,15 @@ async function handleExplain(request, response) {
 async function handleCreateCraveRequest(request, response) {
   const auth = await getOptionalAuth(request);
   const body = await readJson(request);
-  const craveRequest = await store.createCraveRequest(body, auth?.userId ?? null);
-  sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
+  try {
+    const craveRequest = await store.createCraveRequest(body, auth?.userId ?? null);
+    sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能发起这个家的征集。");
+    }
+    throw error;
+  }
 }
 
 async function handleCreateGroceryShare(request, response) {
@@ -479,12 +486,19 @@ async function handleCreateGroceryShare(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
-  const share = await store.createGroceryShare(user.id, {
-    householdName: stringValue(body.householdName, 32),
-    initiatorName: stringValue(body.initiatorName, 32) || user.displayName,
-    items: sanitizeGroceryShareItems(body.items),
-  });
-  sendJson(response, 201, { share: toPublicGroceryShare(share) });
+  try {
+    const share = await store.createGroceryShare(user.id, {
+      householdName: stringValue(body.householdName, 32),
+      initiatorName: stringValue(body.initiatorName, 32) || user.displayName,
+      items: sanitizeGroceryShareItems(body.items),
+    });
+    sendJson(response, 201, { share: toPublicGroceryShare(share) });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+    }
+    throw error;
+  }
 }
 
 async function handleGetGroceryShare(response, token) {
