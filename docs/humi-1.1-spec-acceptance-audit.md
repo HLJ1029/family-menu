@@ -55,7 +55,7 @@
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
 | 生产 API 补部署 | 阻塞 | 恢复 `api.humi-home.com` SSH 后执行 `docs/humi-api-production-deploy-runbook.md`，部署 1.1.37-1.1.54 后端增量 |
-| 微信公众平台提交审核/发布 | 待平台侧操作 | 按 `docs/launch-day-runbook.md` 提交审核，审核通过后点击发布并做真机 P0 验收 |
+| 微信公众平台提交审核/发布 | 待平台侧操作 | 按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 待运营侧准备 | 使用 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
 | 生产真机全路径证据 | 待小程序发布后验证 | 发布后用真实微信验证普通启动、`crave`、`invite`、`grocery`、微信登录、清单回传 |
 
