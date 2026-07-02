@@ -137,7 +137,7 @@ export function Planner({
         <h3 className="card-title">
           {selectedRecipeCount > 0
             ? `已安排 ${selectedRecipeCount} 道`
-            : "还没有安排"}
+            : "这天先空着"}
         </h3>
         <div className="mt-4 grid gap-2">
           {mealSlots.map((slot) => {
@@ -158,7 +158,7 @@ export function Planner({
                 <div className="mt-3 grid gap-2">
                   {entries.length === 0 && (
                     <p className="rounded-2xl bg-white p-3 text-sm font-bold text-ink/42">
-                      还没安排{slot.label}
+                      {slot.label}先空着
                     </p>
                   )}
                   {entries.map((entry) => {
@@ -202,10 +202,10 @@ export function Planner({
 
       <CloudInlineStatus
         {...cloudSync}
-        localLabel="本地一周计划"
-        pendingLabel="一周计划待保存"
-        enabledLabel="已保存一周计划"
-        migrateLabel={cloudSync?.enabled ? "重新保存本机计划" : "保存一周计划"}
+        localLabel="本地连排计划"
+        pendingLabel="连排计划待保存"
+        enabledLabel="已保存连排计划"
+        migrateLabel={cloudSync?.enabled ? "重新保存本机计划" : "保存连排计划"}
       />
 
       <button

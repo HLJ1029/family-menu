@@ -20,7 +20,7 @@ export function CloudSyncPanel({
       <SyncCard
         icon={Cloud}
         eyebrow="Save"
-        title="今晚菜单和一周计划"
+        title="今晚菜单和连排计划"
         description={
           cloudMenuEnabled
             ? `${family.name} 已经记住这些菜单。`

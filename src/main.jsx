@@ -298,7 +298,7 @@ function App() {
         const data = await loadHumiState(humiSession);
         if (!active) return;
         applyHumiStateEnvelope(data, {
-          loadedMenuStatus: "已读取微信账号保存的今晚菜单和一周计划。",
+          loadedMenuStatus: "已读取微信账号保存的今晚菜单和连排计划。",
           loadedGroceryStatus: "已读取微信账号保存的食材清单和后台已有。",
           emptyMenuStatus: "微信账号保存已开启，今晚菜单会自动保存。",
           emptyGroceryStatus: "微信账号保存已开启，清单和后台已有会自动保存。",
@@ -351,7 +351,7 @@ function App() {
     const timer = window.setTimeout(async () => {
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
-        setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
+        setCloudSyncStatus("今晚菜单和连排计划已保存到微信账号。");
         setCloudGroceryStatus("清单和后台已有已保存到微信账号。");
       } catch (error) {
         setCloudSyncStatus(error.message);
@@ -472,7 +472,7 @@ function App() {
           todayDateKey,
           currentDay: getCurrentPlanDay(),
         }));
-        setCloudSyncStatus("已读取我的家里保存的今晚菜单和一周计划。");
+        setCloudSyncStatus("已读取我的家里保存的今晚菜单和连排计划。");
       } catch (error) {
         if (active) setCloudSyncStatus(error.message);
       } finally {
@@ -505,7 +505,7 @@ function App() {
     const timer = window.setTimeout(async () => {
       try {
         await saveWeekPlan(family.id, weekPlan);
-        setCloudSyncStatus("一周计划已保存到我的家。");
+        setCloudSyncStatus("连排计划已保存到我的家。");
       } catch (error) {
         setCloudSyncStatus(error.message);
       }
@@ -1619,7 +1619,7 @@ function App() {
         planningMode: familyProfile.planningMode,
       });
     }
-    showNotice(addedCount > 0 ? `已安排 ${addedCount} 道菜到本周计划` : "本周计划已经排好了");
+    showNotice(addedCount > 0 ? `已安排 ${addedCount} 道菜到连排计划` : "这几天已经排好了");
   }
 
   function completeRecommendedGrocery() {
@@ -2163,20 +2163,20 @@ function App() {
 
   async function shareWeekPlan() {
     const text = [
-      "Humi 一周计划",
+      "Humi 连排几天",
       "",
       ...Object.entries(weekPlan).map(([day, recipeIds]) => {
         const names = recipeIds.map((recipeId) => getRecipe(recipeId)?.name).filter(Boolean);
-        return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
+        return `${day}：${names.length > 0 ? names.join("、") : "先空着"}`;
       }),
     ].join("\n");
     await openPosterPreview({
       type: "week_plan",
-      title: "Humi 本周菜单",
+      title: "Humi 连排几天",
       filename: "humi-week-menu.png",
       text,
       createBlob: () => createWeekMenuPoster({ weekPlan, getRecipe }),
-      fallbackSuccess: "一周计划已复制",
+      fallbackSuccess: "连排计划已复制",
       refreshLabel: "重新生成海报",
     });
   }
@@ -2699,12 +2699,12 @@ function App() {
   async function migrateMenusToCloud() {
     if (isHumiApiSession(humiSession)) {
       setCloudMenuLoading(true);
-      setCloudSyncStatus("正在保存今晚菜单和一周计划...");
+      setCloudSyncStatus("正在保存今晚菜单和连排计划...");
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
-        setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
+        setCloudSyncStatus("今晚菜单和连排计划已保存到微信账号。");
         setCloudGroceryStatus("清单和后台已有也会继续自动同步。");
         showNotice("菜单已保存到微信账号");
       } catch (error) {
@@ -2724,7 +2724,7 @@ function App() {
     try {
       await migrateLocalMenusToCloud({ familyId: family.id, todayMenu, weekPlan });
       setCloudMenuEnabled(true);
-      setCloudSyncStatus("本机今晚菜单和一周计划已保存到我的家。");
+      setCloudSyncStatus("本机今晚菜单和连排计划已保存到我的家。");
       showNotice("菜单已保存到我的家");
     } catch (error) {
       setCloudSyncStatus(error.message);
@@ -2770,7 +2770,7 @@ function App() {
         currentDay: getCurrentPlanDay(),
       }));
       setCloudMenuEnabled(true);
-      setCloudSyncStatus("已刷新我的家里保存的今晚菜单和一周计划。");
+      setCloudSyncStatus("已刷新我的家里保存的今晚菜单和连排计划。");
       showNotice("云端菜单已刷新");
     } catch (error) {
       setCloudSyncStatus(error.message);
@@ -2858,7 +2858,7 @@ function App() {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
-        setCloudSyncStatus("今晚菜单和一周计划也会继续自动同步。");
+        setCloudSyncStatus("今晚菜单和连排计划也会继续自动同步。");
         setCloudGroceryStatus("食材清单和后台已有已保存到微信账号。");
         showNotice("清单和后台已有已保存到微信账号");
       } catch (error) {

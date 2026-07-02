@@ -164,7 +164,7 @@ export function StatsPage({
               ))
             ) : (
               <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/50">
-                暂无统计数据。先回首页安排今日菜单，或在一周计划里补齐三餐。
+                暂无统计数据。先回【今晚】安排一顿，或在“想连排几天”里轻量补几餐。
               </p>
             )}
           </div>

@@ -504,7 +504,7 @@ export function Dashboard({
               )}
               <p className="mt-3 max-w-2xl text-xs font-bold leading-5 text-ink/58">
                 {dinnerReady
-                  ? "今晚菜单已同步进本周计划，采购清单会自动汇总。"
+                  ? "今晚菜单已同步进连排计划，采购清单会自动汇总。"
                   : `${recommendation.reason || formatProfileSummary(familyProfile)} ${aiRecommendationStatus}`}
               </p>
               {!dinnerReady && (
@@ -890,13 +890,13 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
       title: dinnerReady ? "今晚安排完成" : "已记录在家做",
       text: dinnerReady
         ? `已同步营养统计。本周在家做 ${sourceStats.home} 次，采购清单已经自动汇总。`
-        : "先回首页安排今晚菜单，再继续生成采购清单。",
+        : "先回【今晚】安排菜单，再继续生成采购清单。",
       actions: dinnerReady
         ? [
             { label: "查看采购清单", view: "grocery", primary: true },
             { label: "开始做饭", view: "today" },
           ]
-        : [{ label: "返回首页", view: "dashboard", primary: true }],
+        : [{ label: "回到今晚", view: "dashboard", primary: true }],
     };
   }
   if (source === "delivery") {
@@ -904,7 +904,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
       title: `今晚记为外卖 · 本周第 ${sourceStats.delivery} 次`,
       text: `${sourceStats.awayStreak >= 2 ? `连续 ${sourceStats.awayStreak} 天在外吃/点外卖。` : "已同步饮食画像。"} 明天建议安排一组清淡在家做菜单，比如番茄鸡蛋类 + 一道绿叶菜。`,
       actions: [
-        { label: "返回首页", view: "dashboard", primary: true },
+        { label: "回到今晚", view: "dashboard", primary: true },
         { label: "查看饮食画像", view: "stats" },
       ],
     };
@@ -914,7 +914,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
       title: `今晚记为外食 · 本周第 ${sourceStats.outside} 次`,
       text: "饮食画像已更新。明天回来打开 Humi，可以直接继续安排一组省时晚饭。",
       actions: [
-        { label: "返回首页", view: "dashboard", primary: true },
+        { label: "回到今晚", view: "dashboard", primary: true },
         { label: "查看饮食画像", view: "stats" },
       ],
     };
@@ -923,7 +923,7 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
     return {
       title: "今天先不记录",
       text: "今晚不会进入饮食画像，也不会影响后续推荐统计。",
-      actions: [{ label: "返回首页", view: "dashboard", primary: true }],
+      actions: [{ label: "回到今晚", view: "dashboard", primary: true }],
     };
   }
   return null;

@@ -63,10 +63,10 @@ export function TodayMenu({
             <div>
               <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
               <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚菜单还是空的。
+                今晚还没定。
               </h2>
               <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                回到首页点“帮我安排晚饭”，Humi 会先给你凑好一组。
+                回到【今晚】点“今晚就做”，Humi 会先给你凑好一组。
               </p>
             </div>
             <div className="rounded-[26px] border border-line bg-canvas p-4 text-center">
@@ -77,7 +77,7 @@ export function TodayMenu({
                 title="空菜单生活场景"
                 contextKey="today-empty-menu"
               />
-              <p className="mt-2 text-xs font-black text-ink/56">还没有安排晚饭</p>
+              <p className="mt-2 text-xs font-black text-ink/56">晚饭先空着</p>
             </div>
           </div>
         </div>
@@ -126,7 +126,7 @@ export function TodayMenu({
                 今晚安排完成。
               </h2>
               <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。还可以继续加菜或加主食。
+                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到连排计划。还可以继续加菜或加主食。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

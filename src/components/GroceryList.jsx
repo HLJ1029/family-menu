@@ -108,7 +108,7 @@ export function GroceryList({
             <HumiEmptyState
               variant="grocery-memo"
               title="购物篮还空着"
-              text="先回首页安排晚饭，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
+              text="先回【今晚】安排一顿，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
               contextKey="grocery-day-empty"
             />
           </Card>

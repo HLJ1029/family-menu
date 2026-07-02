@@ -15,7 +15,7 @@ export const navItems = [
 
 export const auxiliaryNavItems = [
   { id: "library", label: "自己挑", icon: Sparkles },
-  { id: "planner", label: "周计划", icon: CalendarDays },
+  { id: "planner", label: "想连排几天", icon: CalendarDays },
   { id: "today", label: "今晚菜单", icon: CalendarDays },
   { id: "calendar", label: "日历", icon: CalendarDays },
   { id: "stats", label: "画像回看", icon: ChefHat },
