@@ -71,6 +71,7 @@
 发布前至少跑：
 
 ```bash
+npm run release:status
 npm run build
 npm run validate:api
 npm run validate:recommendation

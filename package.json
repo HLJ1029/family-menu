@@ -19,7 +19,8 @@
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
-    "release:check:online": "node scripts/check-launch-readiness.mjs --online"
+    "release:check:online": "node scripts/check-launch-readiness.mjs --online",
+    "release:status": "node scripts/check-release-status.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

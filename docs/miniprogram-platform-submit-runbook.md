@@ -23,6 +23,7 @@
 在公众平台提交前，先在本地执行：
 
 ```bash
+npm run release:status
 npm run release:check:online
 npm run monitor:prod
 npm run deploy:api:check
@@ -30,6 +31,7 @@ npm run deploy:api:check
 
 判定：
 
+- `release:status` 会汇总线上状态、生产监控、API 部署预检和下一步动作。
 - `release:check:online` 必须通过。
 - `monitor:prod` 必须至少证明 H5 200、API health 200、基础推荐可用。
 - `deploy:api:check` 当前允许因 SSH 失败而不通过；若失败项只有 `ssh-access`，说明 H5/当前生产 API 健康，但 1.1.37-1.1.54 后端补部署仍待恢复服务器登录后执行。

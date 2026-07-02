@@ -1,0 +1,132 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+async function runNpmScript(scriptName) {
+  const startedAt = Date.now();
+  try {
+    const { stdout, stderr } = await execFileAsync("npm", ["run", scriptName], {
+      timeout: 60_000,
+      maxBuffer: 1024 * 1024 * 4,
+    });
+    return {
+      name: scriptName,
+      ok: true,
+      ms: Date.now() - startedAt,
+      stdout: stdout.trim(),
+      stderr: stderr.trim(),
+      data: parseLastJson(stdout),
+    };
+  } catch (error) {
+    return {
+      name: scriptName,
+      ok: false,
+      ms: Date.now() - startedAt,
+      stdout: String(error.stdout || "").trim(),
+      stderr: String(error.stderr || "").trim(),
+      error: error.message,
+      data: parseLastJson(error.stdout || ""),
+    };
+  }
+}
+
+async function gitInfo() {
+  const [branch, head, originHead, status] = await Promise.all([
+    run("git", ["branch", "--show-current"]),
+    run("git", ["rev-parse", "--short", "HEAD"]),
+    run("git", ["rev-parse", "--short", "origin/main"]),
+    run("git", ["status", "--porcelain"]),
+  ]);
+  return {
+    branch: branch.stdout,
+    head: head.stdout,
+    originMain: originHead.stdout,
+    clean: status.stdout.length === 0,
+    syncedToOriginMain: head.stdout === originHead.stdout,
+  };
+}
+
+async function run(command, args) {
+  const { stdout, stderr } = await execFileAsync(command, args, {
+    timeout: 15_000,
+    maxBuffer: 1024 * 1024,
+  });
+  return {
+    stdout: stdout.trim(),
+    stderr: stderr.trim(),
+  };
+}
+
+function parseLastJson(output) {
+  const text = String(output || "").trim();
+  if (!text) return null;
+  const jsonStart = text.lastIndexOf("\n{");
+  const candidate = jsonStart >= 0 ? text.slice(jsonStart + 1) : text;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+const [git, online, production, apiDeploy] = await Promise.all([
+  gitInfo(),
+  runNpmScript("release:check:online"),
+  runNpmScript("monitor:prod"),
+  runNpmScript("deploy:api:check"),
+]);
+
+const apiDeployFailedChecks = apiDeploy.data?.checks?.filter((item) => !item.ok) ?? [];
+const apiDeployOnlySshBlocked = apiDeployFailedChecks.length === 1 && apiDeployFailedChecks[0]?.name === "ssh-access";
+const productionOk = Boolean(production.data?.ok);
+const onlineOk = online.ok;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk;
+const apiDeployReady = apiDeploy.ok;
+
+const nextActions = [];
+if (!git.clean || !git.syncedToOriginMain) {
+  nextActions.push("Clean and sync local main with origin/main.");
+}
+if (!onlineOk || !productionOk) {
+  nextActions.push("Fix H5/API online readiness before submitting the mini program.");
+}
+if (apiDeployOnlySshBlocked) {
+  nextActions.push("Restore SSH access to api.humi-home.com, then run npm run deploy:api:check and docs/humi-api-production-deploy-runbook.md.");
+} else if (!apiDeployReady) {
+  nextActions.push("Resolve deploy:api:check failures before API deployment.");
+}
+if (platformSubmitReady) {
+  nextActions.push("Use docs/miniprogram-platform-submit-runbook.md to submit WeChat review; final platform action requires user confirmation.");
+}
+nextActions.push("After WeChat approval, publish 1.1.54 and run docs/launch-day-runbook.md P0 real-device checks.");
+
+console.log(JSON.stringify({
+  ok: platformSubmitReady && apiDeployReady,
+  checkedAt: new Date().toISOString(),
+  git,
+  release: {
+    onlineReady: onlineOk,
+    productionMonitorOk: productionOk,
+    apiDeployReady,
+    apiDeployOnlySshBlocked,
+    miniProgramUploadedVersion: "1.1.54",
+    miniProgramUploadDescription: "征集加入状态同步",
+  },
+  checks: [
+    summarizeCheck(online),
+    summarizeCheck(production),
+    summarizeCheck(apiDeploy),
+  ],
+  nextActions,
+}, null, 2));
+
+function summarizeCheck(check) {
+  return {
+    name: check.name,
+    ok: check.ok,
+    ms: check.ms,
+    error: check.ok ? undefined : check.error,
+    data: check.data,
+  };
+}
