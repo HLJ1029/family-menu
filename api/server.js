@@ -560,7 +560,14 @@ async function handleJoinCraveRequest(request, response, token) {
     });
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
     const household = await store.getHouseholdForUser(user.id);
-    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest), family: toHumiFamily(household, user) });
+    const households = await store.getHouseholdsForUser(user.id);
+    const state = await store.getState(user.id);
+    sendJson(response, 200, {
+      request: toPublicCraveRequest(craveRequest),
+      family: toHumiFamily(household, user),
+      households: toHumiFamilies(households, user),
+      state,
+    });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");

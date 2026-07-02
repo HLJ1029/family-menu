@@ -222,6 +222,9 @@ try {
   );
   assert(joinedCrave.family?.role === "member", "joined user should see member role");
   assert(joinedCrave.family?.ownerId === login.user.id, "joined family should keep original owner");
+  assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
+  assert(joinedCrave.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined crave user should immediately receive shared household state");
+  assert(joinedCrave.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined crave user should immediately receive shared want-to-eat pool");
   assert(
     joinedCrave.family?.members?.some((member) => (
       member.memberId === memberLogin.user.id && member.role === "member" && member.status === "formal"

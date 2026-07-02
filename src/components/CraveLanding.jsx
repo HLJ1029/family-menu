@@ -8,7 +8,7 @@ import { isWechatMiniProgramWebView } from "../lib/runtime";
 const PARTICIPANT_KEY = "humi:crave-participant-key:v1";
 const PARTICIPANT_VOTES_KEY = "humi:crave-participant-votes:v1";
 
-export function CraveLanding({ token, humiSession, onClose }) {
+export function CraveLanding({ token, humiSession, onJoined, onClose }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -57,6 +57,7 @@ export function CraveLanding({ token, humiSession, onClose }) {
         setRequest(data.request);
         setSubmitted(true);
         markLocalVote(token, participantKey, { joined: true });
+        onJoined?.(data);
         setStatus("已加入这个家，主厨能看到你刚才的选择。");
       } catch (error) {
         if (!active) return;

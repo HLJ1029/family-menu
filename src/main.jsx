@@ -3088,6 +3088,16 @@ function App() {
       <CraveLanding
         token={craveLandingToken}
         humiSession={humiSession}
+        onJoined={(data) => {
+          applyHumiStateEnvelope(data, {
+            loadedMenuStatus: "已加入这个家，并读取这个家的今晚菜单和征集记录。",
+            loadedGroceryStatus: "已加入这个家，并读取这个家的清单和后台已有。",
+            emptyMenuStatus: "已加入这个家。这个家还没有保存菜单。",
+            emptyGroceryStatus: "已加入这个家。这个家还没有保存清单和后台已有。",
+          });
+          setOnboardingComplete(true);
+          setProfileOnboardingComplete(true);
+        }}
         onClose={() => {
           clearCraveTokenFromUrl();
           setCraveLandingToken("");
