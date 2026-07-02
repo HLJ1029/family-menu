@@ -13,8 +13,8 @@
 
 ## 1. 当前发布事实
 
-- 最新 `main`：`2d8426c`（Pages retry 空提交；业务/docs 提交 `51015e7`）。
-- 最新 GitHub Pages：run `28627642169` / success / `npm run release:check:online` 已通过。
+- 本轮验收内容提交：`5a2d30c`（新增本文档；之后可能存在仅用于 Pages 重试的 `chore: retry pages deploy` 空提交，以 `git log` 为准）。
+- 最新 GitHub Pages：run `28627831073` rerun / success / `npm run release:check:online` 已通过。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：未完成，原因是当前设备无法 SSH 登录 `api.humi-home.com`，详见 `docs/humi-api-production-deploy-runbook.md`。
