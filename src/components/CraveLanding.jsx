@@ -80,8 +80,13 @@ export function CraveLanding({ token, humiSession, onClose }) {
         note,
         temporary: true,
       });
-      markLocalVote(token, participantKey, { joined: false });
       setRequest(data.request);
+      if (data.request?.status === "closed") {
+        setSubmitted(false);
+        setStatus("这次征集刚刚结束，你的选择没有再写入。");
+        return;
+      }
+      markLocalVote(token, participantKey, { joined: false });
       setSubmitted(true);
     } catch (error) {
       setStatus(error.message || "暂时没发出去，请稍后再试。");
@@ -172,8 +177,11 @@ export function CraveLanding({ token, humiSession, onClose }) {
               <CheckCircle2 size={28} />
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">今晚已经安排好了</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                这次征集已经结束，可以直接看看主厨最后定了什么。
+                {resultDishes.length > 0
+                  ? "这次征集已经结束，可以直接看看主厨最后定了什么。"
+                  : "这次征集已经结束。回到 Humi 后，可以查看主厨最后安排的今晚菜单。"}
               </p>
+              {status && <p className="mt-3 text-sm font-bold leading-6 text-ink/52">{status}</p>}
               <CraveResultSummary request={request} />
               <button type="button" onClick={onClose} className="mt-5 w-full rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
                 回到 Humi
