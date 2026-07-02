@@ -7,7 +7,7 @@ import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
-import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
 
@@ -152,29 +152,6 @@ export function UserCenter({
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
-        <section className="grid gap-5 rounded-[32px] bg-ink p-6 text-white shadow-lift md:grid-cols-[1fr_210px] md:items-center md:p-8">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.24em] text-white">我的家</p>
-            <h2 className="mt-4 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-              {signedIn ? "一家人的饭，放在一起商量。" : "先把今晚这顿顺起来。"}
-            </h2>
-            <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/62">
-              {signedIn
-                ? family
-                  ? "这里会沉淀家人点过的感觉、买菜协作和真实吃饭反馈。"
-                  : "已经登录。创建我的家后，菜单、清单和家人反馈就会一起保存。"
-                : "感觉、清单和画像先存在本机；要让家人一起用，再登录保存。"}
-            </p>
-          </div>
-          <HumiIllustrationPanel
-            variant="profile"
-            title="家庭画像"
-            size="lg"
-            tone="dark"
-            contextKey="user-center-hero"
-          />
-        </section>
-
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>

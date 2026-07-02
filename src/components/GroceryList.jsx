@@ -182,13 +182,9 @@ export function GroceryList({
             营养视图
           </button>
         </div>
-        <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">后台记录</p>
-          <p className="mt-1 text-sm font-black">不用专门维护后台已有</p>
-          <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            当前后台记着 {pantryItems.length} 个家里现有项；不准也没关系，推荐只把它当加分项。
-          </p>
-        </div>
+        <p className="mt-4 px-1 text-xs font-bold leading-5 text-ink/42">
+          后台已有当前记着 {pantryItems.length} 项，只作为推荐加分，不准也不影响清单。
+        </p>
         {excludedItems.length > 0 && (
           <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
