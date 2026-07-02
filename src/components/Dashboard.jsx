@@ -86,6 +86,7 @@ export function Dashboard({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [craveOpen, setCraveOpen] = useState(false);
   const [dismissedPantryChecks, setDismissedPantryChecks] = useState({});
+  const [selectedCraveRecipeIds, setSelectedCraveRecipeIds] = useState([]);
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
@@ -101,6 +102,14 @@ export function Dashboard({
     : recommendedItems;
   const heroRecipe = dinnerReady ? todayRecipes[0] : recommendedRecipes[0];
   const activeRecipes = dinnerReady ? todayRecipes : recommendedRecipes;
+  const craveSelectionMode = !dinnerReady && recommendation.source === "crave";
+  useEffect(() => {
+    if (!craveSelectionMode) {
+      setSelectedCraveRecipeIds([]);
+      return;
+    }
+    setSelectedCraveRecipeIds(recommendedRecipes.map((recipe) => recipe.id));
+  }, [craveSelectionMode, recommendation.title]);
   const hasStaple = activeRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
   const totalMinutes = activeRecipes.reduce((total, recipe) => total + recipe.timeMinutes, 0);
   const totalRecommendationPortions = recommendedItems.reduce((total, item) => total + item.quantity, 0);
@@ -118,8 +127,9 @@ export function Dashboard({
   const lunchSummary = todayMealSummaries.find((slot) => slot.id === "lunch");
   const lunchLog = mealLog?.meals?.lunch ?? {};
   function arrangeTonight() {
+    if (craveSelectionMode && selectedCraveRecipeIds.length === 0) return;
     setArranging(true);
-    onAddRecommended();
+    onAddRecommended(craveSelectionMode ? selectedCraveRecipeIds : null);
     window.setTimeout(() => onViewChange("today"), 520);
   }
 
@@ -134,6 +144,15 @@ export function Dashboard({
   const preciseEnabled = recommendationAccess?.plan === "plus" || preciseTrialRemaining > 0;
   const pantryCheckItem = buildPantryCheckItem({ recipes: activeRecipes, pantryItems, dismissedPantryChecks });
   const craveVoteSummary = summarizeCraveVotes(activeCraveRequest?.votes ?? []);
+  const selectedCraveCount = selectedCraveRecipeIds.length;
+
+  function toggleCraveRecipe(recipeId) {
+    setSelectedCraveRecipeIds((current) =>
+      current.includes(recipeId)
+        ? current.filter((id) => id !== recipeId)
+        : [...current, recipeId],
+    );
+  }
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
@@ -200,10 +219,34 @@ export function Dashboard({
               <button
                 key={recipe.id}
                 type="button"
-                onClick={() => onOpenRecipe(recipe.id)}
-                className="rounded-[28px] border border-line bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-ink md:p-6"
+                onClick={() => {
+                  if (craveSelectionMode) {
+                    toggleCraveRecipe(recipe.id);
+                    return;
+                  }
+                  onOpenRecipe(recipe.id);
+                }}
+                className={`rounded-[28px] border bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-ink md:p-6 ${
+                  craveSelectionMode && selectedCraveRecipeIds.includes(recipe.id)
+                    ? "border-ink ring-2 ring-ink/10"
+                    : "border-line"
+                }`}
               >
-                <span className="block text-2xl font-black tracking-[-0.03em]">{recipe.name}</span>
+                <span className="flex items-start justify-between gap-3">
+                  <span className="block min-w-0 text-2xl font-black tracking-[-0.03em]">{recipe.name}</span>
+                  {craveSelectionMode && (
+                    <span
+                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-black ${
+                        selectedCraveRecipeIds.includes(recipe.id)
+                          ? "border-ink bg-ink text-white"
+                          : "border-line bg-canvas text-ink/35"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {selectedCraveRecipeIds.includes(recipe.id) ? "✓" : ""}
+                    </span>
+                  )}
+                </span>
                 <span className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/52">
                     <span>{recipe.timeMinutes} min</span>
                     <span>{recipe.categories[0]}</span>
@@ -265,7 +308,7 @@ export function Dashboard({
             <div className="mt-5 rounded-[22px] border border-line bg-white p-4">
               <p className="text-sm font-black text-ink">已揉合家人的感觉</p>
               <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
-                这组可以继续换，也可以点“今晚就做”，Humi 会把菜放进今晚菜单并同步生成买菜清单。
+                点卡片勾选今晚真要做的菜，再落进今晚菜单；买菜清单会跟着自动生成。
               </p>
             </div>
           )}
@@ -274,10 +317,17 @@ export function Dashboard({
             <button
               type="button"
               onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
+              disabled={craveSelectionMode && selectedCraveCount === 0}
               className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
             >
               {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
-              {dinnerReady ? "查看今晚菜单" : "今晚就做"}
+              {dinnerReady
+                ? "查看今晚菜单"
+                : craveSelectionMode
+                  ? selectedCraveCount > 0
+                    ? `就做选中的 ${selectedCraveCount} 道`
+                    : "先勾一道"
+                  : "今晚就做"}
             </button>
             <button
               type="button"

@@ -980,12 +980,14 @@ function App() {
     showNotice("已从想吃池子移除");
   }
 
-  function addRecommendedToday() {
+  function addRecommendedToday(selectedRecipeIds = null) {
+    const selectedIds = Array.isArray(selectedRecipeIds) ? new Set(selectedRecipeIds) : null;
     const recommendedItems = getRecommendationItems(displayedRecommendation)
+      .filter((item) => !selectedIds || selectedIds.has(item.recipe.id))
       .filter((item) => !todayMenu.some((menuItem) => menuItem.recipeId === item.recipe.id));
 
     if (recommendedItems.length === 0) {
-      showNotice("这组菜已经在今晚菜单里");
+      showNotice(selectedIds ? "选中的菜已经在今晚菜单里" : "这组菜已经在今晚菜单里");
       return;
     }
 
