@@ -1501,6 +1501,23 @@ function App() {
         quick: true,
       });
       showNotice("已记录今晚出去吃了");
+      return;
+    }
+    if (result === "skip") {
+      updateTodayMealLog({
+        source: "skip",
+        confirmation: "skip",
+        consumedEntries: [],
+        plannedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        quickConfirmedAt: now,
+      });
+      trackValidationEvent(validationEvents.mealConfirmed, {
+        confirmation: "skip",
+        consumedCount: 0,
+        dateKey: todayDateKey,
+        quick: true,
+      });
+      showNotice("今晚先不记录");
     }
   }
 

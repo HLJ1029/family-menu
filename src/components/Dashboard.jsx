@@ -748,7 +748,7 @@ export function DinnerLogPanel({
         )}
       </div>
       {showConfirmation && (
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
           <QuickConfirmButton
             active={mealLog?.confirmation === "all"}
             title="做了"
@@ -766,6 +766,12 @@ export function DinnerLogPanel({
             title="出去吃了"
             text="只记录来源"
             onClick={() => onQuickDinnerConfirm?.("outside")}
+          />
+          <QuickConfirmButton
+            active={mealLog?.source === "skip" || mealLog?.confirmation === "skip"}
+            title="不记录"
+            text="今晚先跳过"
+            onClick={() => onQuickDinnerConfirm?.("skip")}
           />
         </div>
       )}
