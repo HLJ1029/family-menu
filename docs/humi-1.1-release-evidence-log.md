@@ -11,8 +11,8 @@
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| 最新提交 | `154f379` |
-| GitHub Pages run | `28639333760` / success after rerun |
+| API 部署提交 | `154f379` |
+| GitHub Pages run | 最新结果以 `npm run release:status` 和 GitHub Actions 为准；API 部署时对应 run `28639333760` / success after rerun |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.54` |

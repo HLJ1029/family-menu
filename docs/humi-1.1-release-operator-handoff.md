@@ -8,8 +8,8 @@
 ## 1. 当前结论
 
 - 1.1 产品功能、H5 发布材料、小程序审核材料和规格验收矩阵已收口。
-- 最新产品仓库提交：`154f379`（`docs: correct humi api deploy target`）。
-- 最新 GitHub Pages：run `28639333760`，结论 `success`，head SHA `154f3793fa02f3bf216deeeabf2cca5fe2f58c1a`。
+- 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
+- API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.54`，描述 `征集加入状态同步`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
