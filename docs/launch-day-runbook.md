@@ -11,7 +11,7 @@
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
 - 当前状态：H5 与小程序包已上传；微信公众平台提交审核/审核通过后发布仍需平台侧确认。
-- 后端注意：生产 API 当前仍落后于 `main` 的 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 API 侧改动，需恢复服务器 SSH 后按 `docs/humi-api-production-deploy-runbook.md` 补部署。
+- 后端状态：生产 API 已补部署到 1.1.54 所需增量；发布前后继续用 `npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 
 ## 2. 审核通过后立即执行
@@ -24,6 +24,13 @@
 4. 发布后等待 3-10 分钟，再进行真机验证。
 5. 在 AI-HQ Humi 状态中记录发布时间、执行人和结果。
 6. 在 `docs/humi-1.1-release-evidence-log.md` 填写发布与真机验收证据索引。
+7. 填完发布、P0 和 24 小时监控证据后执行：
+
+```bash
+npm run release:evidence:check
+```
+
+该命令通过后，才说明发布证据日志已经不再依赖口头记忆。
 
 ## 3. 发布后真机验收
 
@@ -46,6 +53,7 @@
 
 ```bash
 npm run monitor:prod
+npm run release:status
 ```
 
 期望：
@@ -53,6 +61,7 @@ npm run monitor:prod
 - H5 返回 200。
 - API `/health` 返回 `{"ok":true,"service":"humi-api"}`。
 - API `/recommend` 返回 `source:"deepseek"`。
+- `release:status` 返回 `ok: true`，且下一步只剩外部平台/灰度证据项。
 
 ## 4. 发布后 24 小时监控
 

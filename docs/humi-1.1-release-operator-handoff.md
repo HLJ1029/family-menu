@@ -119,6 +119,7 @@ docs/launch-day-runbook.md
 - 微信公众平台发布成功状态。
 - 真机打开小程序，不只看开发者工具。
 - P0 真机路径全部通过，尤其是普通启动、`crave`、`invite`、`grocery` 三类小程序卡片。
+- 填写发布、P0 和 24 小时监控证据后，`npm run release:evidence:check` 通过。
 - AI-HQ Humi 状态记录发布时间、执行人、验证结果和是否出现 P0/P1 问题。
 - `docs/humi-1.1-release-evidence-log.md` 填写发布与 P0 真机验收证据。
 
@@ -150,6 +151,7 @@ docs/launch-feedback-and-101-backlog.md
 
 ```bash
 npm run release:status
+npm run release:evidence:check
 ```
 
 读法：
@@ -159,5 +161,6 @@ npm run release:status
 - `release.artifactsReady: true`：发布必备文档齐全。
 - `release.apiDeployOnlySshBlocked: true`：只剩生产机 SSH 权限问题。
 - `release.apiDeployReady: true`：API 补部署条件已满足。
+- `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
 
-只有 `release.apiDeployReady`、微信审核发布、真机 P0 证据都完成后，1.1 才算正式发布完成。
+只有 `release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

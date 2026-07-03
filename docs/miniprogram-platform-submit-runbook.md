@@ -101,7 +101,9 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 3. 等待 3-10 分钟。
 4. 用真实微信搜索或扫码打开小程序，不只看开发者工具。
 5. 按 `docs/launch-day-runbook.md` 的 P0 验收路径验证。
-6. 在 AI-HQ Humi 状态记录发布时间、执行人、版本、验证结果和是否出现 P0/P1 问题。
+6. 在 `docs/humi-1.1-release-evidence-log.md` 填写发布、P0 和 24 小时监控证据。
+7. 执行 `npm run release:evidence:check`，确认发布证据日志已填完。
+8. 在 AI-HQ Humi 状态记录发布时间、执行人、版本、验证结果和是否出现 P0/P1 问题。
 
 ## 7. 发布后 P0 真机验收
 
