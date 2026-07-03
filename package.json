@@ -20,7 +20,8 @@
     "monitor:prod": "node scripts/check-production-health.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
     "release:check:online": "node scripts/check-launch-readiness.mjs --online",
-    "release:status": "node scripts/check-release-status.mjs"
+    "release:status": "node scripts/check-release-status.mjs",
+    "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

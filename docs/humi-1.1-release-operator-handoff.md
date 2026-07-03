@@ -68,6 +68,12 @@ docs/humi-api-production-deploy-runbook.md
 
 Owner：用户，Codex 提供材料。
 
+提交前先跑：
+
+```bash
+npm run release:wechat:check
+```
+
 执行材料：
 
 ```text
