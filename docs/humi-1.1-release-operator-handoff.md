@@ -194,6 +194,7 @@ npm run release:next:selftest
 ```bash
 npm run release:status
 npm run release:evidence:check
+npm run release:complete:check
 ```
 
 读法：
@@ -206,5 +207,6 @@ npm run release:evidence:check
 - `release.releaseEvidenceReady: false`：外部微信提交/审核/发布/真机/24 小时监控证据还没填完。
 - `release.releaseComplete: true`：工程侧、微信发布侧、真机 P0 和 24 小时监控证据都完成。
 - `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
+- `release:complete:check` 通过：可以宣布 Humi 1.1 正式发布完成；未通过时不能宣布完成。
 
 只有 `release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。
