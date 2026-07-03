@@ -158,6 +158,7 @@ npm run release:next
 打开微信公众平台后，需要一屏复制提交字段：
 
 ```bash
+npm run release:wechat:start-submit
 npm run release:wechat:copy
 ```
 

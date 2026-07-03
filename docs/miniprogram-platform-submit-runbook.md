@@ -26,6 +26,7 @@
 在公众平台提交前，先在本地执行：
 
 ```bash
+npm run release:wechat:start-submit
 npm run release:wechat:check
 npm run release:status
 npm run release:check:online

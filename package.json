@@ -32,6 +32,7 @@
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:next:selftest": "node scripts/selftest-release-next-action.mjs",
     "release:status": "node scripts/check-release-status.mjs",
+    "release:wechat:start-submit": "node scripts/start-wechat-submit-session.mjs",
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
     "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },
