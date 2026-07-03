@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
@@ -11,6 +11,12 @@ const tempEvidence = join(tempDir, "evidence.md");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
+
+  const tempSubmitDir = join(tempDir, "wechat-submit-1.1.55-20990101T000000");
+  await mkdir(tempSubmitDir, { recursive: true });
+  await writeFile(join(tempSubmitDir, "humi-review-submitted.png"), "fake screenshot bytes");
+  await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
+  await rm(tempSubmitDir, { recursive: true, force: true });
 
   await assertNext("工程侧已可提交微信审核，下一步是平台提交审核");
 
@@ -65,6 +71,7 @@ try {
     ok: true,
     tempEvidence,
     checkedStages: [
+      "submit-evidence-ready",
       "submit",
       "review",
       "publish",
@@ -82,6 +89,7 @@ async function assertNext(expected, options = {}) {
     env: {
       ...process.env,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
+      HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,

@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { readdir, stat } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -7,7 +10,8 @@ const status = await runJsonScript("release:status", { allowFailure: false });
 const wechat = await runJsonScript("release:wechat:check", { allowFailure: true });
 const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
 const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section) ?? [];
-const nextStage = getNextEvidenceStage(missingSections);
+const submitEvidenceState = await getLatestSubmitEvidenceState();
+const nextStage = getNextEvidenceStage(missingSections, submitEvidenceState);
 
 const lines = [];
 lines.push("Humi 1.1 当前行动卡");
@@ -85,8 +89,19 @@ function parseLastJson(output) {
   }
 }
 
-function getNextEvidenceStage(missing) {
+function getNextEvidenceStage(missing, submitEvidence) {
   if (missing.includes("## 4. 微信公众平台提交审核证据")) {
+    if (submitEvidence.hasEvidence) {
+      return {
+        title: "微信提交截图已留存，下一步是登记提交审核证据。",
+        actions: [
+          `确认私有证据目录无误：${submitEvidence.sessionDir}`,
+          "运行 npm run release:evidence:record:submit:latest，自动登记提交时间、审核中状态和私有截图位置。",
+          "登记后运行 npm run release:next，行动卡应切到“等待并登记审核结果”。",
+        ],
+      };
+    }
+
     return {
       title: "工程侧已可提交微信审核，下一步是平台提交审核。",
       actions: [
@@ -152,4 +167,29 @@ function getNextEvidenceStage(missing) {
       "更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。",
     ],
   };
+}
+
+async function getLatestSubmitEvidenceState() {
+  const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
+  const prefix = process.env.HUMI_WECHAT_SUBMIT_DIR_PREFIX || "wechat-submit-1.1.55-";
+
+  try {
+    const entries = await readdir(baseDir, { withFileTypes: true });
+    const dirs = entries
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
+      .map((entry) => entry.name)
+      .sort();
+    if (!dirs.length) return { hasEvidence: false, sessionDir: "" };
+
+    const sessionDir = join(baseDir, dirs.at(-1));
+    const sessionEntries = await readdir(sessionDir, { withFileTypes: true });
+    for (const entry of sessionEntries) {
+      if (!entry.isFile() || entry.name === "README.md" || entry.name.startsWith(".")) continue;
+      const info = await stat(join(sessionDir, entry.name));
+      if (info.size > 0) return { hasEvidence: true, sessionDir };
+    }
+    return { hasEvidence: false, sessionDir };
+  } catch {
+    return { hasEvidence: false, sessionDir: "" };
+  }
 }
