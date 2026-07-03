@@ -95,13 +95,10 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 提交审核后，可用命令登记证据索引：
 
 ```bash
-HUMI_WECHAT_SUBMIT_TIME='2026-07-03 14:30 CST' \
-HUMI_WECHAT_SUBMITTER='honglijie' \
-HUMI_WECHAT_REVIEW_STATUS='审核中' \
-HUMI_WECHAT_EVIDENCE_LOCATION='private://humi/wechat-submit-20260703' \
-npm run release:evidence:record:submit
+npm run release:evidence:commands -- submit
 ```
 
+命令会打印可复制模板；替换时间、提交人、状态和私有证据位置后再运行。
 `HUMI_WECHAT_EVIDENCE_LOCATION` 只填私有位置或飞书私有链接，不填截图内容、登录态、手机号或真实家庭名单。
 
 ## 6. 审核通过后发布
@@ -144,13 +141,8 @@ npm run release:evidence:record:submit
 审核结果回来后先登记结果：
 
 ```bash
-HUMI_WECHAT_REVIEW_RESULT='通过' \
-HUMI_WECHAT_REVIEW_RESULT_TIME='2026-07-04 10:15 CST' \
-HUMI_WECHAT_REVIEW_REASON='无' \
-HUMI_WECHAT_REVIEW_SEVERITY='无问题' \
-HUMI_WECHAT_REVIEW_NEEDS_PATCH='否' \
-HUMI_WECHAT_REVIEW_HANDLING='等待发布' \
-npm run release:evidence:record:review
+npm run release:evidence:commands -- review
 ```
 
+命令会打印审核结果登记模板；替换后台实际结果后再运行。
 若审核驳回，把 `HUMI_WECHAT_REVIEW_REASON` 只填后台原因摘要；不要把含隐私信息的截图或账号内容写进仓库。

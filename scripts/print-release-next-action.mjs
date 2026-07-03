@@ -25,7 +25,7 @@ if (status.release?.releaseComplete) {
   lines.push("2. 找到已上传版本 1.1.54，描述为“征集加入状态同步”。");
   lines.push("3. 核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。");
   lines.push("4. 按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。");
-  lines.push("5. 把提交时间、状态和私有截图位置填入 docs/humi-1.1-release-evidence-log.md。");
+  lines.push("5. 提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。");
 } else {
   lines.push("当前阶段：还不能提交微信审核。");
   lines.push("");
@@ -41,6 +41,7 @@ lines.push("- docs/wechat-submit-copy-packet.md");
 lines.push("- docs/miniprogram-platform-submit-runbook.md");
 lines.push("- docs/humi-1.1-release-evidence-log.md");
 lines.push("- docs/launch-day-runbook.md");
+lines.push("- npm run release:evidence:commands");
 lines.push("");
 lines.push("完成判定：");
 lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");

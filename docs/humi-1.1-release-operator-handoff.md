@@ -164,23 +164,23 @@ npm run release:wechat:copy
 提交审核后，登记证据日志：
 
 ```bash
-HUMI_WECHAT_SUBMIT_TIME='2026-07-03 14:30 CST' \
-HUMI_WECHAT_SUBMITTER='honglijie' \
-HUMI_WECHAT_REVIEW_STATUS='审核中' \
-HUMI_WECHAT_EVIDENCE_LOCATION='private://humi/wechat-submit-20260703' \
-npm run release:evidence:record:submit
+npm run release:evidence:commands -- submit
 ```
 
 审核结果、发布、P0 和 24 小时监控回来后，继续用：
 
 ```bash
-npm run release:evidence:record:review
-npm run release:evidence:record:publish
-npm run release:evidence:record:p0
-npm run release:evidence:record:monitor
+npm run release:evidence:commands -- review
+npm run release:evidence:commands -- publish
+npm run release:evidence:commands -- p0
+npm run release:evidence:commands -- monitor
 ```
 
-这些命令都需要通过环境变量提供时间、执行人、结论和私有证据位置；示例见 `docs/miniprogram-platform-submit-runbook.md` 和 `docs/launch-day-runbook.md`。
+这些命令会打印可复制模板；替换时间、执行人、结论和私有证据位置后再运行。需要一次看完全部模板：
+
+```bash
+npm run release:evidence:commands
+```
 
 需要验证登记命令本身是否还能完整跑通：
 

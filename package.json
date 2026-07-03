@@ -21,6 +21,7 @@
     "release:check": "node scripts/check-launch-readiness.mjs",
     "release:check:online": "node scripts/check-launch-readiness.mjs --online",
     "release:evidence:check": "node scripts/check-release-evidence-log.mjs",
+    "release:evidence:commands": "node scripts/print-release-evidence-commands.mjs",
     "release:evidence:record:monitor": "node scripts/record-release-evidence.mjs monitor",
     "release:evidence:record:p0": "node scripts/record-release-evidence.mjs p0",
     "release:evidence:record:publish": "node scripts/record-release-evidence.mjs publish",
