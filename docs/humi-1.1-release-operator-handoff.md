@@ -171,6 +171,17 @@ HUMI_WECHAT_EVIDENCE_LOCATION='private://humi/wechat-submit-20260703' \
 npm run release:evidence:record:submit
 ```
 
+审核结果、发布、P0 和 24 小时监控回来后，继续用：
+
+```bash
+npm run release:evidence:record:review
+npm run release:evidence:record:publish
+npm run release:evidence:record:p0
+npm run release:evidence:record:monitor
+```
+
+这些命令都需要通过环境变量提供时间、执行人、结论和私有证据位置；示例见 `docs/miniprogram-platform-submit-runbook.md` 和 `docs/launch-day-runbook.md`。
+
 需要看完整 JSON 状态：
 
 ```bash

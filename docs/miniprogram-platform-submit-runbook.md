@@ -140,3 +140,17 @@ npm run release:evidence:record:submit
    - P2：普通文案或非核心体验建议。
 3. 将问题写入 `docs/launch-feedback-and-101-backlog.md`。
 4. 只有 P0 或审核要求必须改代码时，才上传新的 1.1.x；普通文案和体验建议先进入修复池。
+
+审核结果回来后先登记结果：
+
+```bash
+HUMI_WECHAT_REVIEW_RESULT='通过' \
+HUMI_WECHAT_REVIEW_RESULT_TIME='2026-07-04 10:15 CST' \
+HUMI_WECHAT_REVIEW_REASON='无' \
+HUMI_WECHAT_REVIEW_SEVERITY='无问题' \
+HUMI_WECHAT_REVIEW_NEEDS_PATCH='否' \
+HUMI_WECHAT_REVIEW_HANDLING='等待发布' \
+npm run release:evidence:record:review
+```
+
+若审核驳回，把 `HUMI_WECHAT_REVIEW_REASON` 只填后台原因摘要；不要把含隐私信息的截图或账号内容写进仓库。

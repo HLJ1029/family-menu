@@ -32,6 +32,17 @@ npm run release:evidence:check
 
 该命令通过后，才说明发布证据日志已经不再依赖口头记忆。
 
+发布后可先用命令登记发布证据：
+
+```bash
+HUMI_WECHAT_PUBLISH_TIME='2026-07-04 11:00 CST' \
+HUMI_WECHAT_PUBLISHER='honglijie' \
+HUMI_WECHAT_PUBLISH_SCREENSHOT='private://humi/wechat-publish-20260704' \
+HUMI_WECHAT_P0_DEVICE='iPhone / WeChat version' \
+HUMI_WECHAT_ROLLBACK_STATUS='否' \
+npm run release:evidence:record:publish
+```
+
 ## 3. 发布后真机验收
 
 必须用真实微信扫码或搜索小程序验证，不只看开发者工具。
@@ -48,6 +59,15 @@ npm run release:evidence:check
 - 勾选清单食材后，后台已有信号会隐形更新，不出现独立库存维护页。
 - 进入【我的家】，能看到微信登录状态、家庭成员、饭线索、想吃池子和忌口入口。
 - 点击退出登录后，可以重新触发微信登录。
+
+P0 全部通过后可用命令批量登记：
+
+```bash
+HUMI_WECHAT_P0_DEVICE='iPhone / WeChat version' \
+HUMI_WECHAT_P0_RESULT='通过' \
+HUMI_WECHAT_P0_NOTE='全部 P0 路径通过，证据见 private://humi/p0-20260704' \
+npm run release:evidence:record:p0
+```
 
 ### 生产接口验收
 
@@ -73,6 +93,19 @@ npm run release:status
 - 小程序分享卡片 `crave` / `invite` / `grocery` 是否能直达对应 H5 落地页。
 - 是否出现登录后一直“同步中”。
 - 是否有用户反馈空白页、打不开、无法提交菜单。
+
+24 小时监控完成后可用命令批量登记：
+
+```bash
+HUMI_MONITOR_H5='正常' \
+HUMI_MONITOR_API='正常' \
+HUMI_MONITOR_RECOMMENDATION='正常' \
+HUMI_MONITOR_SHARE='正常' \
+HUMI_MONITOR_LOGIN='正常' \
+HUMI_MONITOR_FEEDBACK='无 P0/P1' \
+HUMI_MONITOR_HANDLING='无需处理' \
+npm run release:evidence:record:monitor
+```
 
 ### 需要立即处理的 P0
 
