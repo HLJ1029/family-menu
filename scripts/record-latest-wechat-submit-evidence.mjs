@@ -1,19 +1,25 @@
-import { readdir, stat } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  findLatestWechatSubmitDir,
+  getEvidenceBaseDir,
+  getWechatSubmitDirPrefix,
+  listWechatSubmitEvidenceFiles,
+} from "./wechat-submit-evidence-session.mjs";
 
 const execFileAsync = promisify(execFile);
 
-const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
-const versionPrefix = process.env.HUMI_WECHAT_SUBMIT_DIR_PREFIX || "wechat-submit-1.1.55-";
+const baseDir = getEvidenceBaseDir();
+const versionPrefix = getWechatSubmitDirPrefix();
 const submitter = process.env.HUMI_WECHAT_SUBMITTER?.trim() || process.env.USER || "honglijie";
 const submitTime = process.env.HUMI_WECHAT_SUBMIT_TIME?.trim() || formatHumanTime(new Date());
 const reviewStatus = process.env.HUMI_WECHAT_REVIEW_STATUS?.trim() || "审核中";
 
-const sessionDir = await findLatestSubmitDir(baseDir, versionPrefix);
-const evidenceFiles = await listEvidenceFiles(sessionDir);
+const sessionDir = await findLatestWechatSubmitDir({ baseDir, prefix: versionPrefix });
+if (!sessionDir) {
+  throw new Error(`No WeChat submit evidence directories found under ${baseDir} with prefix ${versionPrefix}`);
+}
+const evidenceFiles = await listWechatSubmitEvidenceFiles(sessionDir);
 
 if (!evidenceFiles.length && process.env.HUMI_ALLOW_EMPTY_WECHAT_SUBMIT_EVIDENCE !== "1") {
   console.error(`Latest WeChat submit evidence directory has no evidence files yet: ${sessionDir}`);
@@ -36,32 +42,6 @@ const { stdout } = await execFileAsync("npm", ["run", "release:evidence:record:s
 });
 
 console.log(stdout.trim());
-
-async function findLatestSubmitDir(root, prefix) {
-  const entries = await readdir(root, { withFileTypes: true });
-  const dirs = entries
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
-    .map((entry) => entry.name)
-    .sort();
-
-  if (!dirs.length) {
-    throw new Error(`No WeChat submit evidence directories found under ${root} with prefix ${prefix}`);
-  }
-
-  return join(root, dirs.at(-1));
-}
-
-async function listEvidenceFiles(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || entry.name === "README.md" || entry.name.startsWith(".")) continue;
-    const filePath = join(dir, entry.name);
-    const info = await stat(filePath);
-    if (info.size > 0) files.push(filePath);
-  }
-  return files.sort();
-}
 
 function formatHumanTime(date) {
   const parts = new Intl.DateTimeFormat("en-CA", {

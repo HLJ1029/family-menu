@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
-import { readdir, stat } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { promisify } from "node:util";
+import {
+  findLatestWechatSubmitDir,
+  listWechatSubmitEvidenceFiles,
+} from "./wechat-submit-evidence-session.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -170,25 +171,10 @@ function getNextEvidenceStage(missing, submitEvidence) {
 }
 
 async function getLatestSubmitEvidenceState() {
-  const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
-  const prefix = process.env.HUMI_WECHAT_SUBMIT_DIR_PREFIX || "wechat-submit-1.1.55-";
-
   try {
-    const entries = await readdir(baseDir, { withFileTypes: true });
-    const dirs = entries
-      .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
-      .map((entry) => entry.name)
-      .sort();
-    if (!dirs.length) return { hasEvidence: false, sessionDir: "" };
-
-    const sessionDir = join(baseDir, dirs.at(-1));
-    const sessionEntries = await readdir(sessionDir, { withFileTypes: true });
-    for (const entry of sessionEntries) {
-      if (!entry.isFile() || entry.name === "README.md" || entry.name.startsWith(".")) continue;
-      const info = await stat(join(sessionDir, entry.name));
-      if (info.size > 0) return { hasEvidence: true, sessionDir };
-    }
-    return { hasEvidence: false, sessionDir };
+    const sessionDir = await findLatestWechatSubmitDir();
+    const evidenceFiles = await listWechatSubmitEvidenceFiles(sessionDir);
+    return { hasEvidence: evidenceFiles.length > 0, sessionDir };
   } catch {
     return { hasEvidence: false, sessionDir: "" };
   }

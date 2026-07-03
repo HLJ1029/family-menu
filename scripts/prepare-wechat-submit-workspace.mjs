@@ -1,6 +1,10 @@
 import { execFile, spawn } from "node:child_process";
 import { platform } from "node:os";
 import { promisify } from "node:util";
+import {
+  findLatestWechatSubmitDir,
+  listWechatSubmitEvidenceFiles,
+} from "./wechat-submit-evidence-session.mjs";
 import { reviewNote } from "./wechat-submit-copy-data.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -9,12 +13,7 @@ if (platform() !== "darwin") {
   throw new Error("release:wechat:prepare-submit currently supports macOS open/pbcopy only.");
 }
 
-const { stdout } = await execFileAsync("npm", ["run", "release:wechat:start-submit"], {
-  maxBuffer: 1024 * 1024,
-  timeout: 60_000,
-});
-
-const sessionDir = parseSessionDir(stdout);
+const { sessionDir, reused } = await getOrCreateSessionDir();
 await writeToCommand("pbcopy", [], reviewNote);
 await execFileAsync("open", ["https://mp.weixin.qq.com/"], { timeout: 10_000 });
 await execFileAsync("open", [sessionDir], { timeout: 10_000 });
@@ -23,6 +22,7 @@ const lines = [
   "Humi 1.1 微信提审工作台已打开",
   "",
   `私有证据目录：${sessionDir}`,
+  `目录状态：${reused ? "复用最新未留证目录" : "新建目录"}`,
   "微信公众平台：https://mp.weixin.qq.com/",
   "审核备注：已复制到系统剪贴板",
   "",
@@ -38,6 +38,23 @@ const lines = [
 ];
 
 console.log(lines.join("\n"));
+
+async function getOrCreateSessionDir() {
+  const latestDir = await findLatestWechatSubmitDir().catch(() => "");
+  if (latestDir) {
+    const evidenceFiles = await listWechatSubmitEvidenceFiles(latestDir).catch(() => []);
+    if (!evidenceFiles.length) {
+      return { sessionDir: latestDir, reused: true };
+    }
+  }
+
+  const { stdout } = await execFileAsync("npm", ["run", "release:wechat:start-submit"], {
+    maxBuffer: 1024 * 1024,
+    timeout: 60_000,
+  });
+
+  return { sessionDir: parseSessionDir(stdout), reused: false };
+}
 
 function parseSessionDir(output) {
   const match = String(output).match(/私有证据目录：(.+)/);
