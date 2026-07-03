@@ -183,10 +183,11 @@ npm run release:wechat:copy
 提交审核后，登记证据日志：
 
 ```bash
+npm run release:evidence:record:submit:latest
 npm run release:evidence:commands -- submit
 ```
 
-审核结果、发布、P0 和 24 小时监控回来后，继续用：
+如果最新私有证据目录中没有 README 之外的截图或录屏，`release:evidence:record:submit:latest` 会拒绝登记，避免没有后台证据时误填发布日志。审核结果、发布、P0 和 24 小时监控回来后，继续用：
 
 ```bash
 npm run release:evidence:commands -- review

@@ -105,10 +105,11 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 提交审核后，可用命令登记证据索引：
 
 ```bash
+npm run release:evidence:record:submit:latest
 npm run release:evidence:commands -- submit
 ```
 
-命令会打印可复制模板；替换时间、提交人、状态和私有证据位置后再运行。
+如果截图已经放到最新 `wechat-submit-1.1.55-*` 私有目录，优先运行 `release:evidence:record:submit:latest`，它会自动使用最新私有目录登记证据；若目录里只有 README、没有截图或录屏，命令会拒绝登记。`release:evidence:commands -- submit` 会打印手动登记模板；替换时间、提交人、状态和私有证据位置后再运行。
 `HUMI_WECHAT_EVIDENCE_LOCATION` 只填私有位置或飞书私有链接，不填截图内容、登录态、手机号或真实家庭名单。
 
 ## 6. 审核通过后发布
