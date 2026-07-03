@@ -11,14 +11,14 @@
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| 最新提交 | `cb5c15d` |
-| GitHub Pages run | `28628986271` / success for `8688a72`; `cb5c15d` run pending latest GitHub Actions confirmation |
+| 最新提交 | `154f379` |
+| GitHub Pages run | `28639333760` / success after rerun |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.54` |
 | 小程序描述 | `征集加入状态同步` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | API SSH 已确认可用，等待执行生产 API 补部署、微信公众平台提交审核/发布、发布后真机 P0 |
+| 当前状态 | 生产 API 补部署已完成，等待微信公众平台提交审核/发布、发布后真机 P0 |
 
 ## 2. 发布前命令证据
 
@@ -28,6 +28,8 @@
 | 2026-07-03 | codex@mbp-m5pro | `npm run release:check:online` | 通过 | `Launch readiness check passed.` |
 | 2026-07-03 | codex@mbp-m5pro | `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` | 通过 | `Secret scan passed.` |
 | 2026-07-03 | codex@mbp-m5pro | `HUMI_API_SSH_TARGETS=ubuntu@api.humi-home.com HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" npm run deploy:api:check` | 通过 | SSH target `ubuntu@api.humi-home.com`，host `VM-0-8-ubuntu` |
+| 2026-07-03 | codex@mbp-m5pro | `npm run monitor:prod` | 通过 | H5 200、API health 200、基础推荐可用 |
+| 2026-07-03 | codex@mbp-m5pro | production public smoke | 通过 | `prod-smoke-1783054717323` / crave token `817e93c8d2c94dc996bb6f25ccb0cfac` |
 
 ## 3. 生产 API 补部署证据
 
@@ -35,28 +37,28 @@
 
 | 字段 | 记录 |
 | --- | --- |
-| 执行时间 | 待填 |
-| 执行人 | 待填 |
-| 可用 SSH target | 待填 |
-| 部署前备份路径 | 待填 |
-| 部署提交 | 待填 |
-| 服务管理方式 | systemd / pm2 / 其他 |
-| `npm run deploy:api:check` | 待填 |
-| `npm run monitor:prod` | 待填 |
-| `npm run release:check:online` | 待填 |
-| API smoke 结论 | 待填 |
-| 是否回滚 | 否 / 是，原因待填 |
+| 执行时间 | 2026-07-03 12:56 CST |
+| 执行人 | codex@mbp-m5pro |
+| 可用 SSH target | `ubuntu@api.humi-home.com` + `~/.ssh/humi_tencent_lighthouse` |
+| 部署前备份路径 | `/opt/humi/backups/20260703T045543Z` |
+| 部署提交 | `154f379` |
+| 服务管理方式 | systemd / `humi-api.service` / `WorkingDirectory=/opt/humi` |
+| `npm run deploy:api:check` | 通过 |
+| `npm run monitor:prod` | 通过 |
+| `npm run release:check:online` | 通过 |
+| API smoke 结论 | 通过：`deadlineAt`、vote、`resultSummary`、public result、basic recommendation、precise 401、explain 401 |
+| 是否回滚 | 否 |
 
 重点 smoke：
 
 | 路径 | 结果 | 备注 |
 | --- | --- | --- |
-| `crave` 免登录投感觉 | 待填 |  |
-| `crave` 登录加入后共享 state | 待填 |  |
-| `invite` 加入后共享 state | 待填 |  |
-| `grocery` 认领冲突 409 | 待填 |  |
-| 普通成员权限 403 | 待填 |  |
-| 精准推荐/解释额度闸门 | 待填 |  |
+| `crave` 免登录投感觉 | 通过 | production public smoke `prod-smoke-1783054717323` |
+| `crave` 登录加入后共享 state | 待真机/微信登录验证 | 需要真实微信授权 |
+| `invite` 加入后共享 state | 待真机/微信登录验证 | 需要真实微信授权 |
+| `grocery` 认领冲突 409 | 待真机/微信登录验证 | 需要正式家庭清单分享 |
+| 普通成员权限 403 | 待真机/微信登录验证 | 需要正式成员账号 |
+| 精准推荐/解释额度闸门 | 通过 | 未登录 precise recommendation/explain 均返回 401；402 需登录家庭额度态 |
 
 ## 4. 微信公众平台提交审核证据
 

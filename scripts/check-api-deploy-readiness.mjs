@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -10,7 +12,11 @@ const sshTargets = (process.env.HUMI_API_SSH_TARGETS || "")
   .filter(Boolean);
 
 const targets = sshTargets.length > 0 ? sshTargets : defaultTargets;
-const sshKey = (process.env.HUMI_API_SSH_KEY || "").trim();
+const defaultProjectKey = `${homedir()}/.ssh/humi_tencent_lighthouse`;
+const configuredSshKey = (process.env.HUMI_API_SSH_KEY || "").trim();
+const autoDetectedSshKey = !configuredSshKey && existsSync(defaultProjectKey) ? defaultProjectKey : "";
+const sshKey = configuredSshKey || autoDetectedSshKey;
+const sshKeySource = configuredSshKey ? "provided" : autoDetectedSshKey ? "auto-detected" : "default-agent";
 const requiredApiIncrements = [
   "1.1.37 deadlineAt",
   "1.1.38 precise recommendation quota gate",
@@ -110,7 +116,7 @@ await check("ssh-access", async () => {
     try {
       const result = await run("ssh", sshArgs(target, "hostname && date -u"), { timeout: 12_000 });
       attempts.push({ target, ok: true, stdout: result.stdout.split("\n").slice(0, 2) });
-      return { target, key: sshKey ? "provided" : "default-agent", attempts };
+      return { target, key: sshKeySource, attempts };
     } catch (error) {
       attempts.push({
         target,
@@ -137,7 +143,7 @@ console.log(JSON.stringify({
   ok: failed.length === 0,
   checkedAt: new Date().toISOString(),
   sshTargets: targets,
-  sshKey: sshKey ? "provided" : "default-agent",
+  sshKey: sshKeySource,
   nextAction: failed.length === 0
     ? "SSH is available. Continue with docs/humi-api-production-deploy-runbook.md."
     : "Resolve failed checks before running the production API deploy runbook.",

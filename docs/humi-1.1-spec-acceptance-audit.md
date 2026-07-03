@@ -19,7 +19,7 @@
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
-- 生产 API 代码补部署：未完成，原因是当前设备无法 SSH 登录 `api.humi-home.com`，详见 `docs/humi-api-production-deploy-runbook.md`。
+- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
 ## 2. 验收矩阵
 
@@ -56,7 +56,7 @@
 
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
-| 生产 API 补部署 | 阻塞 | 恢复 `api.humi-home.com` SSH 后执行 `docs/humi-api-production-deploy-runbook.md`，部署 1.1.37-1.1.54 后端增量 |
+| 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 待平台侧操作 | 按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
 | 生产真机全路径证据 | 待小程序发布后验证 | 发布后用真实微信验证普通启动、`crave`、`invite`、`grocery`、微信登录、清单回传，并记录到 `docs/humi-1.1-release-evidence-log.md` |
@@ -64,10 +64,9 @@
 ## 4. 当前建议顺序
 
 1. 先按 `docs/humi-1.1-release-operator-handoff.md` 判断当前状态和下一步 owner。
-2. 恢复生产 API SSH，并补部署 API 增量。
-3. 再进入微信公众平台提交审核/发布。
-4. 发布后按 `docs/launch-day-runbook.md` 做 P0 真机验收。
-5. 灰度给 10-20 个家庭，反馈统一进 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`，只在 P0/审核问题时发 1.1.x。
+2. 进入微信公众平台提交审核/发布。
+3. 发布后按 `docs/launch-day-runbook.md` 做 P0 真机验收。
+4. 灰度给 10-20 个家庭，反馈统一进 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`，只在 P0/审核问题时发 1.1.x。
 
 ## 5. 验证命令
 

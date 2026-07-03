@@ -8,16 +8,18 @@
 ## 1. 当前结论
 
 - 1.1 产品功能、H5 发布材料、小程序审核材料和规格验收矩阵已收口。
-- 最新产品仓库提交：`cb5c15d`（`chore: support api deploy ssh key preflight`）。
-- 最新 GitHub Pages：run `28628986271`，结论 `success`，head SHA `8688a721669155d07a8572b355feffa7d1ff6016`；`cb5c15d` 的 Pages run 仍以 GitHub Actions 最新结果为准。
+- 最新产品仓库提交：`154f379`（`docs: correct humi api deploy target`）。
+- 最新 GitHub Pages：run `28639333760`，结论 `success`，head SHA `154f3793fa02f3bf216deeeabf2cca5fe2f58c1a`。
 - 最新小程序上传：`1.1.54`，描述 `征集加入状态同步`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
-- 默认 `npm run release:status` 当前会显示 `ok: false`，原因是默认 SSH agent 未加载生产 key；使用下方显式 key 的 `deploy:api:check` 已通过，生产 API 补部署门禁已打开。
+- 生产 API 补部署已完成：备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，线上 health/monitor/readiness/public smoke 通过。
 
 ## 2. 先后顺序
 
-### Step A：恢复并补部署生产 API
+### Step A：生产 API 补部署
+
+状态：已完成。后续只有回滚、补验证或再次发版时需要重跑本节。
 
 Owner：Codex + 具备服务器登录权限的人。
 
@@ -35,7 +37,7 @@ HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" \
 npm run deploy:api:check
 ```
 
-如果仍只有 `ssh-access` 失败，先恢复 `api.humi-home.com` 的 SSH 登录方式。预检通过后按：
+如果后续再次部署时仍只有 `ssh-access` 失败，先恢复 `api.humi-home.com` 的 SSH 登录方式。预检通过后按：
 
 ```text
 docs/humi-api-production-deploy-runbook.md
