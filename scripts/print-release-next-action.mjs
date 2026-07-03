@@ -90,7 +90,8 @@ function getNextEvidenceStage(missing) {
     return {
       title: "工程侧已可提交微信审核，下一步是平台提交审核。",
       actions: [
-        "打开微信公众平台，进入 Humi 小程序版本管理。",
+        "运行 npm run release:wechat:prepare-submit，打开微信公众平台、证据目录并复制审核备注。",
+        "进入 Humi 小程序版本管理。",
         "找到已上传版本 1.1.55，描述为“征集单模板与分享卡片”。",
         "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
         "按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。",

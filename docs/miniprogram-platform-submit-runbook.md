@@ -27,6 +27,7 @@
 
 ```bash
 npm run release:wechat:start-submit
+npm run release:wechat:prepare-submit
 npm run release:wechat:check
 npm run release:status
 npm run release:check:online
@@ -45,9 +46,10 @@ npm run deploy:api:check
 自动化边界：
 
 - 微信开发者工具 CLI 当前只用于 `preview`、`upload`、`build-npm`、`open`、`login` 等开发工具动作；本机 CLI 不提供提交审核或发布命令。
+- `npm run release:wechat:prepare-submit` 只会创建私有证据目录、把审核备注复制到剪贴板、打开微信公众平台和证据目录；它不会提交表单、点击审核按钮或改变微信后台状态。
 - 微信公众平台提交审核/发布会改变外部平台状态，必须由有权限的操作者在后台确认后执行。
 - 若改用微信开放接口提交审核/发布，必须先有正式授权 token、可用类目和一次动作级确认；不得用聊天记录、后台截图或仓库文件保存 AppSecret/access token。
-- 当前会话已准备私有证据目录：`/Users/honglijie/.humi-release-evidence/wechat-submit-1.1.55-20260704T074044`。后台截图放这里，仓库只记录结论和私有位置。
+- 私有证据目录以 `npm run release:wechat:prepare-submit` 输出为准；当前最新目录是 `/Users/honglijie/.humi-release-evidence/wechat-submit-1.1.55-20260704T074420`。后台截图放这里，仓库只记录结论和私有位置。
 
 ## 3. 公众平台操作顺序
 
