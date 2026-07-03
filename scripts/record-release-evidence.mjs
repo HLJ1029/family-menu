@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-const evidencePath = "docs/humi-1.1-release-evidence-log.md";
+const evidencePath = process.env.HUMI_EVIDENCE_LOG_PATH || "docs/humi-1.1-release-evidence-log.md";
 const mode = process.argv[2];
 const dryRun = process.env.HUMI_EVIDENCE_DRY_RUN === "1";
 

@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-const evidencePath = "docs/humi-1.1-release-evidence-log.md";
+const evidencePath = process.env.HUMI_EVIDENCE_LOG_PATH || "docs/humi-1.1-release-evidence-log.md";
 const required = {
   HUMI_WECHAT_SUBMIT_TIME: "提交时间，例如 2026-07-03 14:30 CST",
   HUMI_WECHAT_SUBMITTER: "提交人，例如 honglijie",

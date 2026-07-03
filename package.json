@@ -26,6 +26,7 @@
     "release:evidence:record:publish": "node scripts/record-release-evidence.mjs publish",
     "release:evidence:record:review": "node scripts/record-release-evidence.mjs review",
     "release:evidence:record:submit": "node scripts/record-wechat-submit-evidence.mjs",
+    "release:evidence:selftest": "node scripts/selftest-release-evidence-recorders.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:status": "node scripts/check-release-status.mjs",
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const evidencePath = "docs/humi-1.1-release-evidence-log.md";
+const evidencePath = process.env.HUMI_EVIDENCE_LOG_PATH || "docs/humi-1.1-release-evidence-log.md";
 const content = await readFile(evidencePath, "utf8");
 
 const sections = [

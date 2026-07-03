@@ -182,6 +182,12 @@ npm run release:evidence:record:monitor
 
 这些命令都需要通过环境变量提供时间、执行人、结论和私有证据位置；示例见 `docs/miniprogram-platform-submit-runbook.md` 和 `docs/launch-day-runbook.md`。
 
+需要验证登记命令本身是否还能完整跑通：
+
+```bash
+npm run release:evidence:selftest
+```
+
 需要看完整 JSON 状态：
 
 ```bash
