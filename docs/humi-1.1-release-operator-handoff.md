@@ -13,7 +13,7 @@
 - 最新小程序上传：`1.1.54`，描述 `征集加入状态同步`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
-- `npm run release:status` 当前会显示 `ok: false`，原因是生产 API SSH 权限未恢复；若失败项只有 `ssh-access`，不代表 H5 或当前线上 API 不可用。
+- `npm run release:status` 当前会显示 `ok: false`，原因是默认 SSH agent 未加载生产 key；已确认可用连接为 `ubuntu@api.humi-home.com` + `~/.ssh/humi_tencent_lighthouse`。
 
 ## 2. 先后顺序
 
@@ -27,7 +27,15 @@ Owner：Codex + 具备服务器登录权限的人。
 npm run deploy:api:check
 ```
 
-如果仍只有 `ssh-access` 失败，先恢复 `api.humi-home.com` 的 SSH 登录方式。恢复后按：
+当前生产机需显式指定 SSH key：
+
+```bash
+HUMI_API_SSH_TARGETS=ubuntu@api.humi-home.com \
+HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" \
+npm run deploy:api:check
+```
+
+如果仍只有 `ssh-access` 失败，先恢复 `api.humi-home.com` 的 SSH 登录方式。预检通过后按：
 
 ```text
 docs/humi-api-production-deploy-runbook.md

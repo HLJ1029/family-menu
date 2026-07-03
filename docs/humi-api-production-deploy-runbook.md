@@ -10,10 +10,10 @@
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前已审计内容提交：`d85d4e3`（发布状态机检已验证必备发布材料齐全）。
-- 最新 GitHub Pages：run `28628643808` / success / `npm run release:check:online` 已通过。
+- 当前已审计内容提交：`8688a72`（发布操作交接单与证据日志均已纳入状态机检）。
+- 最新 GitHub Pages：run `28628986271` / success / `npm run release:check:online` 已通过。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步`。
-- 当前阻塞：2026-07-03 使用 `root@api.humi-home.com` 与 `ubuntu@api.humi-home.com` 均返回 `Permission denied (publickey,password)`，无法 SSH 登录生产机。
+- 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 
 ## 2. 待补部署 API 增量
 
@@ -53,7 +53,15 @@ npm run release:check:online
 npm run deploy:api:check
 ```
 
-该命令会检查本地 `main` 是否干净且同步到 `origin/main`、生产 API 健康检查是否正常，以及默认 SSH 用户是否可登录。如果生产机用户名变化，可临时指定候选：
+该命令会检查本地 `main` 是否干净且同步到 `origin/main`、生产 API 健康检查是否正常，以及默认 SSH 用户是否可登录。当前生产机需要显式指定可用用户和 key：
+
+```bash
+HUMI_API_SSH_TARGETS=ubuntu@api.humi-home.com \
+HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" \
+npm run deploy:api:check
+```
+
+如果生产机用户名变化，可临时指定候选：
 
 ```bash
 HUMI_API_SSH_TARGETS=user@api.humi-home.com,root@api.humi-home.com npm run deploy:api:check
@@ -62,8 +70,7 @@ HUMI_API_SSH_TARGETS=user@api.humi-home.com,root@api.humi-home.com npm run deplo
 也可以手工确认实际可用用户：
 
 ```bash
-ssh -o BatchMode=yes -o ConnectTimeout=8 root@api.humi-home.com 'hostname && date'
-ssh -o BatchMode=yes -o ConnectTimeout=8 ubuntu@api.humi-home.com 'hostname && date'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 ubuntu@api.humi-home.com 'hostname && date'
 ```
 
 如果仍返回 `Permission denied`，停止部署，先恢复生产机登录方式。不要为了部署把密钥、AppSecret 或 session secret 写进仓库、日志或临时文档。
@@ -96,16 +103,17 @@ sudo sh -lc 'test -f /opt/humi/current/.humi-api-data.json && cp -a /opt/humi/cu
 
 ```bash
 rsync -az --delete \
+  -e "ssh -i $HOME/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes" \
   --exclude node_modules \
   --exclude .git \
   api package.json package-lock.json \
-  <user>@api.humi-home.com:/opt/humi/current/
+  ubuntu@api.humi-home.com:/opt/humi/current/
 ```
 
 生产机安装依赖并做语法检查：
 
 ```bash
-ssh <user>@api.humi-home.com 'cd /opt/humi/current && npm ci --omit=dev && node --check api/server.js'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi/current && npm ci --omit=dev && node --check api/server.js'
 ```
 
 ## 7. 重启服务
@@ -113,13 +121,13 @@ ssh <user>@api.humi-home.com 'cd /opt/humi/current && npm ci --omit=dev && node 
 按第 5 步识别到的服务管理方式二选一：
 
 ```bash
-ssh <user>@api.humi-home.com 'sudo systemctl restart humi-api && sudo systemctl status humi-api --no-pager'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api && sudo systemctl status humi-api --no-pager'
 ```
 
 或：
 
 ```bash
-ssh <user>@api.humi-home.com 'pm2 restart humi-api --update-env && pm2 status humi-api'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'pm2 restart humi-api --update-env && pm2 status humi-api'
 ```
 
 ## 8. 部署后验证
@@ -151,8 +159,8 @@ npm run release:check:online
 如果部署后健康检查失败或 P0 链路不可用，立即恢复最近一次备份：
 
 ```bash
-ssh <user>@api.humi-home.com 'sudo rm -rf /opt/humi/current && sudo cp -a /opt/humi/backups/<STAMP>/current /opt/humi/current'
-ssh <user>@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/current && sudo cp -a /opt/humi/backups/<STAMP>/current /opt/humi/current'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
 curl -fsS https://api.humi-home.com/health
 ```
 

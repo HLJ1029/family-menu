@@ -10,6 +10,7 @@ const sshTargets = (process.env.HUMI_API_SSH_TARGETS || "")
   .filter(Boolean);
 
 const targets = sshTargets.length > 0 ? sshTargets : defaultTargets;
+const sshKey = (process.env.HUMI_API_SSH_KEY || "").trim();
 const requiredApiIncrements = [
   "1.1.37 deadlineAt",
   "1.1.38 precise recommendation quota gate",
@@ -54,6 +55,19 @@ async function run(command, args, options = {}) {
   };
 }
 
+function sshArgs(target, remoteCommand) {
+  const args = [
+    "-o", "BatchMode=yes",
+    "-o", "ConnectTimeout=8",
+    "-o", "StrictHostKeyChecking=accept-new",
+  ];
+  if (sshKey) {
+    args.push("-i", sshKey, "-o", "IdentitiesOnly=yes");
+  }
+  args.push(target, remoteCommand);
+  return args;
+}
+
 async function fetchJson(url) {
   const response = await fetch(url);
   const text = await response.text();
@@ -94,15 +108,9 @@ await check("ssh-access", async () => {
   const attempts = [];
   for (const target of targets) {
     try {
-      const result = await run("ssh", [
-        "-o", "BatchMode=yes",
-        "-o", "ConnectTimeout=8",
-        "-o", "StrictHostKeyChecking=accept-new",
-        target,
-        "hostname && date -u",
-      ], { timeout: 12_000 });
+      const result = await run("ssh", sshArgs(target, "hostname && date -u"), { timeout: 12_000 });
       attempts.push({ target, ok: true, stdout: result.stdout.split("\n").slice(0, 2) });
-      return { target, attempts };
+      return { target, key: sshKey ? "provided" : "default-agent", attempts };
     } catch (error) {
       attempts.push({
         target,
@@ -112,7 +120,7 @@ await check("ssh-access", async () => {
     }
   }
   const tried = attempts.map((item) => `${item.target}: ${item.error}`).join("; ");
-  const overrideHint = "Set HUMI_API_SSH_TARGETS=user@host,user2@host if the production user changed.";
+  const overrideHint = "Set HUMI_API_SSH_TARGETS=user@host,user2@host if the production user changed; set HUMI_API_SSH_KEY=/path/to/key if the key is not loaded in ssh-agent.";
   const error = new Error(`No SSH target is currently usable. ${tried}. ${overrideHint}`);
   error.attempts = attempts;
   throw error;
@@ -129,6 +137,7 @@ console.log(JSON.stringify({
   ok: failed.length === 0,
   checkedAt: new Date().toISOString(),
   sshTargets: targets,
+  sshKey: sshKey ? "provided" : "default-agent",
   nextAction: failed.length === 0
     ? "SSH is available. Continue with docs/humi-api-production-deploy-runbook.md."
     : "Resolve failed checks before running the production API deploy runbook.",
