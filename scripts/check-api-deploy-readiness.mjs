@@ -132,8 +132,8 @@ await check("ssh-access", async () => {
   throw error;
 });
 
-await check("pending-api-increments", async () => ({
-  pending: requiredApiIncrements,
+await check("api-increments-covered", async () => ({
+  increments: requiredApiIncrements,
   runbook: "docs/humi-api-production-deploy-runbook.md",
 }));
 
