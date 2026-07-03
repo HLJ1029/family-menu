@@ -17,7 +17,7 @@
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
-- 最新小程序上传：`1.1.54` / `征集加入状态同步` / AppID `wx4040b89f3b363416`。
+- 最新小程序上传：`1.1.55` / `征集单模板与分享卡片` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
@@ -40,7 +40,7 @@
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
 | 主厨可“我自己做主”，单人也能走完 | 已完成 | `Dashboard.jsx` 与 `UserCenter.jsx` 的 `onDecideAlone` 路径；无人参与也可出菜单 |
-| 等待态可手动出菜单，超时有退路 | 已完成 | `CraveRequestPanel` 根据 `deadlineAt` 显示倒计时和 `就这些，出菜单`；本地逻辑超时出菜单 |
+| 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；本地逻辑超时出菜单 |
 | 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | `Dashboard.jsx` 的 `craveSelectionMode` 支持勾选菜卡，按钮 `就做选中的 X 道` |
 | 每道菜展示“为什么推它” | 已完成 | `Dashboard.jsx` 的 `buildDishReason` 结合家人感觉、后台已有、忌口和推荐来源 |
 | 晚间轻确认包含“不记录” | 已完成 | `Dashboard.jsx` 的 `dinnerSources` 包含 `skip/不记录`，晚饭确认区也有 `不记录` |

@@ -1075,6 +1075,7 @@ function App() {
           token: request.token,
           householdName: request.householdName,
           initiatorName: request.initiatorName,
+          title: `${request.householdName || "我家"}今晚征集口味，点一下就行`,
         });
         setCraveSignals((current) => [
           {
@@ -1197,6 +1198,7 @@ function App() {
       token: activeCraveRequest.token,
       householdName: activeCraveRequest.householdName || family?.name || familyName || "我家",
       initiatorName: activeCraveRequest.initiatorName || displaySession?.user?.displayName || "主厨",
+      title: `${activeCraveRequest.householdName || family?.name || familyName || "我家"}今晚征集口味，点一下就行`,
     });
     showNotice("邀请链接已复制，小程序分享卡片也已准备好");
   }

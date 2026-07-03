@@ -260,6 +260,13 @@ H5 通过查询参数识别来源：
 - `npm run build`、`npm run validate:api`、`npm run validate:recommendation`、`npm run release:check`、`npm run release:check:online` 与 secret scan 已通过。
 - 生产 API 仍待 SSH 恢复后按 `docs/humi-api-production-deploy-runbook.md` 补部署 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 的后端增量；前端已保留兼容回退。
 
+2026-07-04 状态同步（1.1.55）：
+
+- 本次候选版本：`1.1.55`，描述为“征集单模板与分享卡片”。
+- 小程序 WebView URL 当前带 `h5v=1.1.55`，用于刷新 H5 缓存。
+- 1.1.55 范围：统一主厨发起、家人免登录投票、主厨等待/结果三处“今晚征集单”模板，并更新 `crave` 小程序分享卡片标题。
+- 1.1.55 不新增 API 端点，继续复用 1.1.54 已补部署的感觉征集、家庭邀请、买菜认领和权限边界服务端能力。
+
 2026-06-30 状态同步：
 
 - 1.0.0 已作为首发候选提交微信审核。

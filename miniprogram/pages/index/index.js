@@ -75,7 +75,8 @@ Page({
         shareCrave: {
           token: latestMessage.token,
           householdName: latestMessage.householdName || "我家",
-          initiatorName: latestMessage.initiatorName || "主厨"
+          initiatorName: latestMessage.initiatorName || "主厨",
+          title: latestMessage.title || ""
         }
       });
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
@@ -236,7 +237,7 @@ Page({
     const shareCrave = this.data.shareCrave;
     if (shareCrave?.token) {
       return {
-        title: `${shareCrave.householdName}今晚要做饭，你想吃点啥？`,
+        title: shareCrave.title || `${shareCrave.householdName}今晚征集口味，点一下就行`,
         path: `/pages/index/index?crave=${encodeURIComponent(shareCrave.token)}`
       };
     }

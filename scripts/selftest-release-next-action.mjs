@@ -39,7 +39,7 @@ try {
     HUMI_WECHAT_P0_DEVICE: "selftest device / WeChat",
     HUMI_WECHAT_ROLLBACK_STATUS: "否",
   });
-  await assertNext("1.1.54 已发布，下一步是真机 P0 验收");
+  await assertNext("1.1.55 已发布，下一步是真机 P0 验收");
 
   await run("release:evidence:record:p0", {
     HUMI_WECHAT_P0_DEVICE: "selftest device / WeChat",

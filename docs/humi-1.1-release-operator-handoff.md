@@ -10,7 +10,7 @@
 - 1.1 产品功能、H5 发布材料、小程序审核材料和规格验收矩阵已收口。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
-- 最新小程序上传：`1.1.54`，描述 `征集加入状态同步`，AppID `wx4040b89f3b363416`。
+- 最新小程序上传：`1.1.55`，描述 `征集单模板与分享卡片`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，线上 health/monitor/readiness/public smoke 通过。
@@ -84,8 +84,8 @@ docs/wechat-submit-copy-packet.md
 
 提交版本：
 
-- 版本：`1.1.54`
-- 描述：`征集加入状态同步`
+- 版本：`1.1.55`
+- 描述：`征集单模板与分享卡片`
 
 提交前必须确认：
 
@@ -142,7 +142,7 @@ docs/launch-feedback-and-101-backlog.md
 
 ## 3. 当前不要做
 
-- 不要在审核通过前上传新小程序版本覆盖 `1.1.54`，除非审核反馈或 P0 问题要求。
+- 不要在审核通过前上传新小程序版本覆盖 `1.1.55`，除非审核反馈或 P0 问题要求。
 - 不要在 1.1 发布前清退 Supabase、改支付、改登录架构或改数据库存储。
 - 不要把微信后台截图、登录态、手机号、真实家庭名单提交到仓库。
 - 不要因为 `release:status ok=false` 就误判 H5 不可发；先看失败项是不是只有生产 API SSH。
