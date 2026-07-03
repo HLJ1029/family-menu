@@ -3,17 +3,19 @@
 更新日期：2026-07-03
 执行设备：codex@mbp-m5pro
 
-本文档用于恢复生产机 SSH 后，补部署 Humi API 1.1.37-1.1.54 的服务端增量。
+本文档用于补部署 Humi API 1.1.37-1.1.54 的服务端增量。
 
 ## 1. 当前事实
 
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前已审计内容提交：`8688a72`（发布操作交接单与证据日志均已纳入状态机检）。
+- 当前已审计内容提交：`cb5c15d`（API 部署预检已支持显式 SSH key）。
 - 最新 GitHub Pages：run `28628986271` / success / `npm run release:check:online` 已通过。
 - 最新小程序上传：`1.1.54` / `征集加入状态同步`。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
+- 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
+- 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
 
 ## 2. 待补部署 API 增量
 
@@ -90,9 +92,11 @@ ps aux | grep '[a]pi/server.js' || true
 ```bash
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 sudo mkdir -p "/opt/humi/backups/$STAMP"
-sudo cp -a /opt/humi/current "/opt/humi/backups/$STAMP/current"
+sudo cp -a /opt/humi/api "/opt/humi/backups/$STAMP/api"
+sudo cp -a /opt/humi/package.json "/opt/humi/backups/$STAMP/package.json"
+sudo cp -a /opt/humi/package-lock.json "/opt/humi/backups/$STAMP/package-lock.json"
 sudo sh -lc 'test -n "$HUMI_API_DATA_FILE" && test -f "$HUMI_API_DATA_FILE" && cp -a "$HUMI_API_DATA_FILE" "/opt/humi/backups/'"$STAMP"'/humi-api-data.json" || true'
-sudo sh -lc 'test -f /opt/humi/current/.humi-api-data.json && cp -a /opt/humi/current/.humi-api-data.json "/opt/humi/backups/'"$STAMP"'/humi-api-data.current.json" || true'
+sudo sh -lc 'test -f /opt/humi/.humi-api-data.json && cp -a /opt/humi/.humi-api-data.json "/opt/humi/backups/'"$STAMP"'/humi-api-data.local.json" || true'
 ```
 
 上一轮已记录的生产备份：`/opt/humi/backups/20260701T163948Z`。新部署前仍必须重新备份。
@@ -107,13 +111,13 @@ rsync -az --delete \
   --exclude node_modules \
   --exclude .git \
   api package.json package-lock.json \
-  ubuntu@api.humi-home.com:/opt/humi/current/
+  ubuntu@api.humi-home.com:/opt/humi/
 ```
 
 生产机安装依赖并做语法检查：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi/current && npm ci --omit=dev && node --check api/server.js'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js'
 ```
 
 ## 7. 重启服务
@@ -159,7 +163,7 @@ npm run release:check:online
 如果部署后健康检查失败或 P0 链路不可用，立即恢复最近一次备份：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/current && sudo cp -a /opt/humi/backups/<STAMP>/current /opt/humi/current'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
 curl -fsS https://api.humi-home.com/health
 ```

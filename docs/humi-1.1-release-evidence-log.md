@@ -11,14 +11,14 @@
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| 最新提交 | `e6fa140` |
-| GitHub Pages run | `28628807828` / success after rerun |
+| 最新提交 | `cb5c15d` |
+| GitHub Pages run | `28628986271` / success for `8688a72`; `cb5c15d` run pending latest GitHub Actions confirmation |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.54` |
 | 小程序描述 | `征集加入状态同步` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 等待生产 API SSH 恢复、微信公众平台提交审核/发布、发布后真机 P0 |
+| 当前状态 | API SSH 已确认可用，等待执行生产 API 补部署、微信公众平台提交审核/发布、发布后真机 P0 |
 
 ## 2. 发布前命令证据
 
@@ -27,6 +27,7 @@
 | 2026-07-03 | codex@mbp-m5pro | `npm run release:status` | H5/API/材料通过，API SSH 失败 | 失败项只有 `ssh-access` 时不代表 H5 不可用 |
 | 2026-07-03 | codex@mbp-m5pro | `npm run release:check:online` | 通过 | `Launch readiness check passed.` |
 | 2026-07-03 | codex@mbp-m5pro | `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` | 通过 | `Secret scan passed.` |
+| 2026-07-03 | codex@mbp-m5pro | `HUMI_API_SSH_TARGETS=ubuntu@api.humi-home.com HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" npm run deploy:api:check` | 通过 | SSH target `ubuntu@api.humi-home.com`，host `VM-0-8-ubuntu` |
 
 ## 3. 生产 API 补部署证据
 
