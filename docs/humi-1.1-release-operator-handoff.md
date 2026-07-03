@@ -161,6 +161,8 @@ npm run release:evidence:check
 - `release.artifactsReady: true`：发布必备文档齐全。
 - `release.apiDeployOnlySshBlocked: true`：只剩生产机 SSH 权限问题。
 - `release.apiDeployReady: true`：API 补部署条件已满足。
+- `release.releaseEvidenceReady: false`：外部微信提交/审核/发布/真机/24 小时监控证据还没填完。
+- `release.releaseComplete: true`：工程侧、微信发布侧、真机 P0 和 24 小时监控证据都完成。
 - `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
 
 只有 `release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

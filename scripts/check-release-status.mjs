@@ -71,11 +71,12 @@ function parseLastJson(output) {
   }
 }
 
-const [git, online, production, apiDeploy] = await Promise.all([
+const [git, online, production, apiDeploy, releaseEvidence] = await Promise.all([
   gitInfo(),
   runNpmScript("release:check:online"),
   runNpmScript("monitor:prod"),
   runNpmScript("deploy:api:check"),
+  runNpmScript("release:evidence:check"),
 ]);
 const artifacts = await requiredArtifactInfo();
 
@@ -86,6 +87,8 @@ const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk;
 const apiDeployReady = apiDeploy.ok;
+const releaseEvidenceReady = releaseEvidence.ok;
+const releaseComplete = platformSubmitReady && apiDeployReady && releaseEvidenceReady;
 
 const nextActions = [];
 if (!git.clean || !git.syncedToOriginMain) {
@@ -105,7 +108,12 @@ if (apiDeployOnlySshBlocked) {
 if (platformSubmitReady) {
   nextActions.push("Use docs/miniprogram-platform-submit-runbook.md to submit WeChat review; final platform action requires user confirmation.");
 }
-nextActions.push("After WeChat approval, publish 1.1.54 and run docs/launch-day-runbook.md P0 real-device checks.");
+if (!releaseEvidenceReady) {
+  nextActions.push("After WeChat approval, publish 1.1.54, run real-device P0 checks, fill docs/humi-1.1-release-evidence-log.md, then rerun npm run release:evidence:check.");
+}
+if (releaseComplete) {
+  nextActions.push("Humi 1.1 release evidence is complete. Update AI-HQ Humi STATUS with final release and monitoring conclusions.");
+}
 
 console.log(JSON.stringify({
   ok: platformSubmitReady && apiDeployReady,
@@ -117,6 +125,8 @@ console.log(JSON.stringify({
     apiDeployReady,
     apiDeployOnlySshBlocked,
     artifactsReady: artifactsOk,
+    releaseEvidenceReady,
+    releaseComplete,
     miniProgramUploadedVersion: "1.1.54",
     miniProgramUploadDescription: "征集加入状态同步",
   },
@@ -125,6 +135,7 @@ console.log(JSON.stringify({
     summarizeCheck(online),
     summarizeCheck(production),
     summarizeCheck(apiDeploy),
+    summarizeCheck(releaseEvidence),
   ],
   nextActions,
 }, null, 2));
