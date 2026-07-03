@@ -149,6 +149,14 @@ docs/launch-feedback-and-101-backlog.md
 
 ## 4. 一键状态判断
 
+只想知道“现在下一步做什么”：
+
+```bash
+npm run release:next
+```
+
+需要看完整 JSON 状态：
+
 ```bash
 npm run release:status
 npm run release:evidence:check
