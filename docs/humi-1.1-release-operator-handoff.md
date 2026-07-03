@@ -163,6 +163,19 @@ npm run release:wechat:start-submit
 npm run release:wechat:copy
 ```
 
+当前已准备的提交证据目录：
+
+```text
+/Users/honglijie/.humi-release-evidence/wechat-submit-1.1.55-20260704T074044
+```
+
+自动化边界：
+
+- 微信开发者工具 CLI 已完成 `1.1.55` 上传，但本机 CLI 没有提交审核/发布命令。
+- 微信公众平台 `mp.weixin.qq.com` 不允许本会话用浏览器自动化控制；不得绕过该限制。
+- 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。
+- 证据截图只放私有目录或私有链接；仓库内只登记时间、状态、结论和私有位置。
+
 提交审核后，登记证据日志：
 
 ```bash

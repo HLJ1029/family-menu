@@ -42,6 +42,13 @@ npm run deploy:api:check
 - `monitor:prod` 必须至少证明 H5 200、API health 200、基础推荐可用。
 - `deploy:api:check` 当前允许因 SSH 失败而不通过；若失败项只有 `ssh-access`，说明 H5/当前生产 API 健康。1.1.55 不新增 API 端点，仍复用已补部署的 1.1.37-1.1.54 服务端增量。
 
+自动化边界：
+
+- 微信开发者工具 CLI 当前只用于 `preview`、`upload`、`build-npm`、`open`、`login` 等开发工具动作；本机 CLI 不提供提交审核或发布命令。
+- 微信公众平台提交审核/发布会改变外部平台状态，必须由有权限的操作者在后台确认后执行。
+- 若改用微信开放接口提交审核/发布，必须先有正式授权 token、可用类目和一次动作级确认；不得用聊天记录、后台截图或仓库文件保存 AppSecret/access token。
+- 当前会话已准备私有证据目录：`/Users/honglijie/.humi-release-evidence/wechat-submit-1.1.55-20260704T074044`。后台截图放这里，仓库只记录结论和私有位置。
+
 ## 3. 公众平台操作顺序
 
 1. 登录微信公众平台，进入 Humi 小程序。
