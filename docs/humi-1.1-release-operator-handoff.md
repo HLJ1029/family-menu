@@ -161,6 +161,16 @@ npm run release:next
 npm run release:wechat:copy
 ```
 
+提交审核后，登记证据日志：
+
+```bash
+HUMI_WECHAT_SUBMIT_TIME='2026-07-03 14:30 CST' \
+HUMI_WECHAT_SUBMITTER='honglijie' \
+HUMI_WECHAT_REVIEW_STATUS='审核中' \
+HUMI_WECHAT_EVIDENCE_LOCATION='private://humi/wechat-submit-20260703' \
+npm run release:evidence:record:submit
+```
+
 需要看完整 JSON 状态：
 
 ```bash

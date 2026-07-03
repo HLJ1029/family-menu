@@ -92,6 +92,18 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 
 证据可先放到本机私有目录，不要把包含登录态、后台账号或个人信息的截图提交进仓库。只把提交时间、版本号、审核状态和结论记录进 AI-HQ Humi 状态，并把证据索引填到 `docs/humi-1.1-release-evidence-log.md`。
 
+提交审核后，可用命令登记证据索引：
+
+```bash
+HUMI_WECHAT_SUBMIT_TIME='2026-07-03 14:30 CST' \
+HUMI_WECHAT_SUBMITTER='honglijie' \
+HUMI_WECHAT_REVIEW_STATUS='审核中' \
+HUMI_WECHAT_EVIDENCE_LOCATION='private://humi/wechat-submit-20260703' \
+npm run release:evidence:record:submit
+```
+
+`HUMI_WECHAT_EVIDENCE_LOCATION` 只填私有位置或飞书私有链接，不填截图内容、登录态、手机号或真实家庭名单。
+
 ## 6. 审核通过后发布
 
 审核通过后：
