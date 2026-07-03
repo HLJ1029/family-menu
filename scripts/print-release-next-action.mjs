@@ -5,6 +5,9 @@ const execFileAsync = promisify(execFile);
 
 const status = await runJsonScript("release:status", { allowFailure: false });
 const wechat = await runJsonScript("release:wechat:check", { allowFailure: true });
+const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
+const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section) ?? [];
+const nextStage = getNextEvidenceStage(missingSections);
 
 const lines = [];
 lines.push("Humi 1.1 当前行动卡");
@@ -18,14 +21,12 @@ if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
 } else if (wechat?.ok) {
-  lines.push("当前阶段：工程侧已可提交微信审核，但还没完成外部发布证据。");
+  lines.push(`当前阶段：${nextStage.title}`);
   lines.push("");
   lines.push("现在该做：");
-  lines.push("1. 打开微信公众平台，进入 Humi 小程序版本管理。");
-  lines.push("2. 找到已上传版本 1.1.54，描述为“征集加入状态同步”。");
-  lines.push("3. 核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。");
-  lines.push("4. 按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。");
-  lines.push("5. 提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。");
+  nextStage.actions.forEach((action, index) => {
+    lines.push(`${index + 1}. ${action}`);
+  });
 } else {
   lines.push("当前阶段：还不能提交微信审核。");
   lines.push("");
@@ -46,14 +47,14 @@ lines.push("");
 lines.push("完成判定：");
 lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");
 lines.push("- 工程状态：npm run release:status 必须 ok=true。");
+lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
 lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
 lines.push("");
 
-const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
-if (evidenceCheck?.data?.missing?.length) {
+if (missingSections.length) {
   lines.push("当前还缺的证据区块：");
-  for (const item of evidenceCheck.data.missing) {
-    lines.push(`- ${item.section}`);
+  for (const section of missingSections) {
+    lines.push(`- ${section}`);
   }
   lines.push("");
 }
@@ -82,4 +83,72 @@ function parseLastJson(output) {
   } catch {
     return null;
   }
+}
+
+function getNextEvidenceStage(missing) {
+  if (missing.includes("## 4. 微信公众平台提交审核证据")) {
+    return {
+      title: "工程侧已可提交微信审核，下一步是平台提交审核。",
+      actions: [
+        "打开微信公众平台，进入 Humi 小程序版本管理。",
+        "找到已上传版本 1.1.54，描述为“征集加入状态同步”。",
+        "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
+        "按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。",
+        "提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
+      ],
+    };
+  }
+
+  if (missing.includes("## 5. 审核结果证据")) {
+    return {
+      title: "微信审核已提交，下一步是等待并登记审核结果。",
+      actions: [
+        "等待微信公众平台给出 1.1.54 审核结果。",
+        "结果出来后运行 npm run release:evidence:commands -- review，按模板登记通过或驳回结论。",
+        "如果驳回，把后台原因摘要写入 docs/launch-feedback-and-101-backlog.md，再判断是否需要 1.1.x。",
+      ],
+    };
+  }
+
+  if (missing.includes("## 6. 审核通过后发布证据")) {
+    return {
+      title: "微信审核结果已登记，下一步是发布审核通过版本。",
+      actions: [
+        "如果审核结果是通过，进入微信公众平台版本管理，找到 1.1.54 并点击发布。",
+        "保存发布状态截图到私有位置，不要提交后台截图到仓库。",
+        "发布后运行 npm run release:evidence:commands -- publish，按模板登记发布时间、发布人和私有证据位置。",
+      ],
+    };
+  }
+
+  if (missing.includes("## 7. 发布后 P0 真机验收证据")) {
+    return {
+      title: "1.1.54 已发布，下一步是真机 P0 验收。",
+      actions: [
+        "用真实微信打开正式小程序，不只看开发者工具。",
+        "按 docs/launch-day-runbook.md 跑【今晚】、问问大家、清单分享、我的家、重新登录等 P0 路径。",
+        "P0 通过后运行 npm run release:evidence:commands -- p0，按模板登记设备、结果和私有证据位置。",
+      ],
+    };
+  }
+
+  if (missing.includes("## 8. 24 小时监控证据")) {
+    return {
+      title: "真机 P0 已登记，下一步是完成 24 小时监控。",
+      actions: [
+        "按 T+2h/T+6h/T+12h/T+24h 观察 H5、API、推荐、分享卡片、登录同步和用户反馈。",
+        "24 小时窗口结束后运行 npm run release:evidence:commands -- monitor，按模板登记监控结论。",
+        "最后运行 npm run release:evidence:check 和 npm run release:status，确认 releaseComplete=true。",
+      ],
+    };
+  }
+
+  return {
+    title: "外部证据区块已填完，下一步是最终状态复核。",
+    actions: [
+      "运行 npm run release:evidence:check。",
+      "运行 npm run release:status，确认 releaseComplete=true。",
+      "更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。",
+    ],
+  };
 }

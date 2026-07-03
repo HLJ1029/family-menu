@@ -186,6 +186,7 @@ npm run release:evidence:commands
 
 ```bash
 npm run release:evidence:selftest
+npm run release:next:selftest
 ```
 
 需要看完整 JSON 状态：
