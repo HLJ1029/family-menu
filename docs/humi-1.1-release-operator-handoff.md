@@ -155,6 +155,12 @@ docs/launch-feedback-and-101-backlog.md
 npm run release:next
 ```
 
+打开微信公众平台后，需要一屏复制提交字段：
+
+```bash
+npm run release:wechat:copy
+```
+
 需要看完整 JSON 状态：
 
 ```bash

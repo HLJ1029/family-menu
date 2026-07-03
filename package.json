@@ -23,6 +23,7 @@
     "release:evidence:check": "node scripts/check-release-evidence-log.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:status": "node scripts/check-release-status.mjs",
+    "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
     "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },
   "dependencies": {
