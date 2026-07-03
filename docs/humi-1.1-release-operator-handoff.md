@@ -73,6 +73,7 @@ Owner：用户，Codex 提供材料。
 ```text
 docs/miniprogram-platform-submit-runbook.md
 docs/miniprogram-review-materials.md
+docs/wechat-submit-copy-packet.md
 ```
 
 提交版本：

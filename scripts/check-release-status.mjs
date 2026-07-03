@@ -154,6 +154,10 @@ async function requiredArtifactInfo() {
       path: "docs/miniprogram-platform-submit-runbook.md",
     },
     {
+      name: "wechatSubmitCopyPacket",
+      path: "docs/wechat-submit-copy-packet.md",
+    },
+    {
       name: "grayReleaseTracker",
       path: "docs/humi-1.1-gray-release-tracker.md",
     },
