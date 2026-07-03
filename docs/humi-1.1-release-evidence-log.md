@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-03
+更新日期：2026-07-04
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | 最新结果以 `npm run release:status` 和 GitHub Actions 为准；API 部署时对应 run `28639333760` / success after rerun |
+| GitHub Pages run | `28687866822` / success / 1.1.55 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.55` |
@@ -30,6 +30,9 @@
 | 2026-07-03 | codex@mbp-m5pro | `HUMI_API_SSH_TARGETS=ubuntu@api.humi-home.com HUMI_API_SSH_KEY="$HOME/.ssh/humi_tencent_lighthouse" npm run deploy:api:check` | 通过 | SSH target `ubuntu@api.humi-home.com`，host `VM-0-8-ubuntu` |
 | 2026-07-03 | codex@mbp-m5pro | `npm run monitor:prod` | 通过 | H5 200、API health 200、基础推荐可用 |
 | 2026-07-03 | codex@mbp-m5pro | production public smoke | 通过 | `prod-smoke-1783054717323` / crave token `817e93c8d2c94dc996bb6f25ccb0cfac` |
+| 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `1d264a6` / Pages run `28687866822` success |
+| 2026-07-04 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.55` / `征集单模板与分享卡片` / package `15.7 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.55` |
+| 2026-07-04 | codex@mbp-m5pro | `npm run release:wechat:check` | 通过 | version `1.1.55` / warnings `[]` |
 
 ## 3. 生产 API 补部署证据
 
