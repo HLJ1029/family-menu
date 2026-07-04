@@ -34,6 +34,7 @@
     "release:complete:check": "node scripts/check-release-completion.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:next:selftest": "node scripts/selftest-release-next-action.mjs",
+    "release:crave-template:visuals": "node scripts/capture-crave-template-visuals.mjs",
     "release:security:audit": "node scripts/check-security-audit.mjs",
     "release:status": "node scripts/check-release-status.mjs",
     "release:wechat:start-submit": "node scripts/start-wechat-submit-session.mjs",
