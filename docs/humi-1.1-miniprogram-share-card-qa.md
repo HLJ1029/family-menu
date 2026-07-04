@@ -82,10 +82,10 @@ npm run release:wechat:share:landings
 辅助保存三张微信原生卡片截图：
 
 ```bash
-npm run release:wechat:share:cards:capture
+npm run release:wechat:share:cards:capture -- --interactive
 ```
 
-该命令会打开私有证据目录、预览二维码和核对清单，并逐项等待你把对应分享卡片预览停在屏幕上；按回车后，脚本会用正确文件名保存整屏 PNG：
+该命令会打开私有证据目录、预览二维码和核对清单，并逐项等待你把对应分享卡片预览停在屏幕上；按回车后，脚本会启动 macOS 框选截图，用正确文件名保存 PNG。建议只框选分享卡片区域；如果不加 `--interactive`，脚本会保存整屏 PNG。
 
 - `crave-card.png`
 - `invite-card.png`

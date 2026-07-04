@@ -35,6 +35,7 @@ const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await fin
 const previewQr = join(evidenceDir, "preview-qr.png");
 const checklist = join(evidenceDir, "share-card-qa-checklist.md");
 const dryRun = process.env.HUMI_SHARE_CARD_CAPTURE_DRY_RUN === "1" || process.argv.includes("--dry-run");
+const captureMode = resolveCaptureMode();
 const shouldOpenHelpers = !dryRun && process.env.HUMI_SHARE_CARD_CAPTURE_NO_OPEN !== "1";
 
 const missingCards = [];
@@ -65,12 +66,15 @@ const intro = [
   "",
   `私有证据目录：${evidenceDir}`,
   `预览二维码：${previewQr}`,
+  `截图模式：${captureMode}`,
   "",
   "当前只处理缺失的 card 图：",
   ...missingCards.map((item) => `- ${item.file}：${item.description}`),
   "",
   "每一步请先在微信开发者工具或真机里让对应分享卡片预览停在屏幕上，再回到终端按回车。",
-  "脚本会保存整屏 PNG 到正确文件名；截图保存在私有目录，不进仓库。",
+  captureMode === "interactive"
+    ? "脚本会启动 macOS 框选截图，请只框选分享卡片区域；截图保存在私有目录，不进仓库。"
+    : "脚本会保存整屏 PNG 到正确文件名；截图保存在私有目录，不进仓库。可加 --interactive 改为框选卡片区域。",
 ].join("\n");
 
 console.log(intro);
@@ -98,7 +102,7 @@ try {
       captures.push({ ...item, ok: false, skipped: true });
       continue;
     }
-    await execFileAsync("screencapture", ["-x", item.path], { timeout: 20_000 });
+    await captureScreenshot(item.path);
     captures.push(await inspectFile(item));
   }
 } finally {
@@ -117,6 +121,22 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (failed.length) process.exit(1);
+
+function resolveCaptureMode() {
+  if (process.argv.includes("--interactive")) return "interactive";
+  if (process.argv.includes("--fullscreen")) return "fullscreen";
+  const mode = process.env.HUMI_SHARE_CARD_CAPTURE_MODE?.trim().toLowerCase();
+  if (mode === "interactive" || mode === "fullscreen") return mode;
+  return "fullscreen";
+}
+
+async function captureScreenshot(path) {
+  if (captureMode === "interactive") {
+    await execFileAsync("screencapture", ["-i", "-x", path], { timeout: 120_000 });
+    return;
+  }
+  await execFileAsync("screencapture", ["-x", path], { timeout: 20_000 });
+}
 
 async function findLatestEvidenceDir() {
   const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR;

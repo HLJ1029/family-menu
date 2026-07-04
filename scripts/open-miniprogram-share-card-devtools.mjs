@@ -54,7 +54,7 @@ console.log(JSON.stringify({
   nextActions: [
     "In WeChat DevTools, use the opened mini program project or scan preview-qr.png with WeChat.",
     "Trigger crave, invite, and grocery share card previews one by one.",
-    "Run npm run release:wechat:share:cards:capture to save the three card screenshots.",
+    "Run npm run release:wechat:share:cards:capture -- --interactive to save the three card screenshots.",
     "Run npm run release:wechat:share:evidence after all card screenshots are present.",
   ],
 }, null, 2));
