@@ -85,6 +85,18 @@ npm run release:wechat:share:cards:capture
 
 因为微信原生分享卡片不在 H5 DOM 内，这一步仍需要开发者工具或真机把卡片实际调出来；脚本负责命名、截图和基础 PNG 校验。
 
+如果三张截图已经通过真机、微信开发者工具另存或 AirDrop 放在某个目录，也可以导入：
+
+```bash
+npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots
+```
+
+导入命令会在来源目录中查找 `crave-card.png`、`invite-card.png`、`grocery-card.png`，或包含 `crave/invite/grocery/征集/邀请/清单/买菜` 等关键词的 PNG，并复制成正确文件名到私有证据目录。也可以显式指定三张图：
+
+```bash
+npm run release:wechat:share:cards:import -- --crave /path/crave.png --invite /path/invite.png --grocery /path/grocery.png
+```
+
 检查截图是否齐全：
 
 ```bash
