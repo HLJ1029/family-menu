@@ -16,6 +16,44 @@ const REQUIRED_SCREENSHOTS = [
   ["grocery-landing.png", "grocery token 打开后的免登录认领落地页截图"],
 ];
 const CARD_SCREENSHOTS = REQUIRED_SCREENSHOTS.filter(([file]) => file.endsWith("-card.png"));
+const TRIGGER_GUIDE = [
+  {
+    key: "crave",
+    file: "crave-card.png",
+    title: "crave / 今晚征集口味",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【我的家】或【今晚】里的“问问大家/今晚征集单”。",
+      "选择一个感觉，生成征集单卡片。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应包含“今晚征集口味，点一下就行”，path 应带 `?crave=` token。",
+    ],
+  },
+  {
+    key: "invite",
+    file: "invite-card.png",
+    title: "invite / 邀请家人",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【我的家】，找到邀请家人的分享动作。",
+      "生成邀请家人卡片。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应为“某某邀请你加入某个家”的语义，path 应带 `?invite=` token。",
+    ],
+  },
+  {
+    key: "grocery",
+    file: "grocery-card.png",
+    title: "grocery / 买菜清单",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【清单】，确保今晚菜单已有待买食材。",
+      "点击清单页的买菜分享动作。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应为“某某发来买菜清单/若干项买菜清单”的语义，path 应带 `?grocery=` token。",
+    ],
+  },
+];
 
 const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
 const previewQr = join(evidenceDir, "preview-qr.png");
@@ -46,6 +84,12 @@ const lines = [
   "2. 运行 npm run release:wechat:share:devtools 打开微信开发者工具、预览二维码和核对清单。",
   "3. 微信原生 card 图需要开发者工具或真机实际调出，推荐用 npm run release:wechat:share:cards:capture -- --interactive 框选卡片保存，或用 npm run release:wechat:share:cards:import 导入已有截图。",
   "4. 截图齐全后运行 evidence 和 complete 完成 P1 收口。",
+  "",
+  "原生 card 触发顺序：",
+  ...TRIGGER_GUIDE.flatMap((item, index) => [
+    `${index + 1}. ${item.title} → 保存为 ${item.file}`,
+    ...item.steps.map((step) => `   - ${step}`),
+  ]),
   "",
   "原生 card 截图文件名：",
   ...CARD_SCREENSHOTS.map(([file, description], index) => `${index + 1}. ${file}：${description}`),
@@ -123,6 +167,16 @@ function buildChecklist({ evidenceDir, previewQr, shareExpectations, screenshotR
     "| --- | --- | --- | --- |",
     screenshotRows.join("\n"),
     "",
+    "## 原生卡片触发步骤",
+    "",
+    ...TRIGGER_GUIDE.flatMap((item) => [
+      `### ${item.title}`,
+      "",
+      `保存文件：\`${item.file}\``,
+      "",
+      ...item.steps.map((step, index) => `${index + 1}. ${step}`),
+      "",
+    ]),
     "## 视觉通过标准",
     "",
     "- 分享卡片标题与上表一致，且卡片打开后带对应 token。",

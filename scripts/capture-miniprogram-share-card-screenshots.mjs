@@ -15,19 +15,34 @@ const CARD_FILES = [
     key: "crave",
     file: "crave-card.png",
     description: "crave 小程序分享卡片预览截图",
-    trigger: "在 Humi 小程序里发起“问问大家/今晚征集单”，让分享卡片预览停在屏幕上。",
+    trigger: [
+      "进入【我的家】或【今晚】里的“问问大家/今晚征集单”。",
+      "选择一个感觉并生成征集单卡片。",
+      "点击页面分享动作，或点右上角菜单转发。",
+      "确认预览标题包含“今晚征集口味，点一下就行”，path 带 ?crave= token。",
+    ],
   },
   {
     key: "invite",
     file: "invite-card.png",
     description: "invite 小程序分享卡片预览截图",
-    trigger: "在【我的家】生成“邀请家人”卡片，让分享卡片预览停在屏幕上。",
+    trigger: [
+      "进入【我的家】。",
+      "点击邀请家人的分享动作，生成邀请卡片。",
+      "点击页面分享动作，或点右上角菜单转发。",
+      "确认预览标题是“某某邀请你加入某个家”的语义，path 带 ?invite= token。",
+    ],
   },
   {
     key: "grocery",
     file: "grocery-card.png",
     description: "grocery 小程序分享卡片预览截图",
-    trigger: "在清单页生成买菜分享卡片，让分享卡片预览停在屏幕上。",
+    trigger: [
+      "进入【清单】，确保今晚菜单已有待买食材。",
+      "点击清单页的买菜分享动作。",
+      "点击页面分享动作，或点右上角菜单转发。",
+      "确认预览标题是“某某发来买菜清单/若干项买菜清单”的语义，path 带 ?grocery= token。",
+    ],
   },
 ];
 
@@ -71,6 +86,12 @@ const intro = [
   "当前只处理缺失的 card 图：",
   ...missingCards.map((item) => `- ${item.file}：${item.description}`),
   "",
+  "每张 card 的触发步骤：",
+  ...missingCards.flatMap((item) => [
+    `- ${item.file}`,
+    ...item.trigger.map((step, index) => `  ${index + 1}. ${step}`),
+  ]),
+  "",
   "每一步请先在微信开发者工具或真机里让对应分享卡片预览停在屏幕上，再回到终端按回车。",
   captureMode === "interactive"
     ? "脚本会启动 macOS 框选截图，请只框选分享卡片区域；截图保存在私有目录，不进仓库。"
@@ -96,7 +117,9 @@ try {
   for (const item of missingCards) {
     console.log("");
     console.log(`准备截图：${item.file}`);
-    console.log(item.trigger);
+    for (const [index, step] of item.trigger.entries()) {
+      console.log(`${index + 1}. ${step}`);
+    }
     const answer = await rl.question("卡片预览已经停在屏幕上后，按回车截图；输入 skip 跳过：");
     if (answer.toLowerCase() === "skip") {
       captures.push({ ...item, ok: false, skipped: true });
