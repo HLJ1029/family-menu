@@ -10,6 +10,7 @@
 - 小程序 `1.1.56` 已上传，但暂不提交审核。
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图和三张微信原生 card 图缺口。
+- `npm run release:spec:audit` 会把三份策划书、验收矩阵和当前 P0/P1 gate 做机器复核，防止文档只存在但没有覆盖要求。
 - P0/P1 完成后，再重新跑 `npm run release:next` 判断是否进入微信审核准备。
 - P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
 

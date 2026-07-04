@@ -40,7 +40,7 @@ const report = {
     syncedToOriginMain: Boolean(git.syncedToOriginMain),
   },
   gates: {
-    specAcceptanceAuditReady: hasArtifact(status, "specAcceptanceAudit"),
+    specAcceptanceAuditReady: Boolean(release.specAcceptanceAuditReady),
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
     platformSubmitReady: Boolean(status?.ok),
@@ -116,6 +116,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       description: "P0/P1 已完成，但工程状态、线上状态、API 预检、安全审计或发布材料仍有失败项。",
       nextCommands: [
         "npm run release:status",
+        "npm run release:spec:audit",
         "npm run release:security:audit",
         "npm run release:check:online",
         "npm run monitor:prod",

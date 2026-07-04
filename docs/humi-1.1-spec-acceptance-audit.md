@@ -77,6 +77,7 @@
 
 ```bash
 npm run release:status
+npm run release:spec:audit
 npm run build
 npm run validate:api
 npm run validate:recommendation

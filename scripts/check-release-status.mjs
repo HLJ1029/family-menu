@@ -71,12 +71,13 @@ function parseLastJson(output) {
   }
 }
 
-const [git, online, production, apiDeploy, securityAudit, releaseEvidence] = await Promise.all([
+const [git, online, production, apiDeploy, securityAudit, specAudit, releaseEvidence] = await Promise.all([
   gitInfo(),
   runNpmScript("release:check:online"),
   runNpmScript("monitor:prod"),
   runNpmScript("deploy:api:check"),
   runNpmScript("release:security:audit"),
+  runNpmScript("release:spec:audit"),
   runNpmScript("release:evidence:check"),
 ]);
 const artifacts = await requiredArtifactInfo();
@@ -88,8 +89,9 @@ const productionOk = Boolean(production.data?.ok);
 const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
+const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && specAuditOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -106,6 +108,9 @@ if (!artifactsOk) {
 }
 if (!securityAuditOk) {
   nextActions.push("Resolve npm audit advisories before WeChat review.");
+}
+if (!specAuditOk) {
+  nextActions.push("Fix docs/humi-1.1-spec-acceptance-audit.md coverage before claiming the 1.1 spec scope is implemented.");
 }
 if (!preReviewHardeningReady) {
   nextActions.push("Finish docs/humi-1.1-pre-review-hardening.md P0/P1 product hardening before WeChat review.");
@@ -135,6 +140,7 @@ console.log(JSON.stringify({
     apiDeployReady,
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
+    specAcceptanceAuditReady: specAuditOk,
     preReviewHardeningReady,
     preReviewHardeningOpenItems: preReviewHardening.openItems,
     artifactsReady: artifactsOk,
@@ -150,6 +156,7 @@ console.log(JSON.stringify({
     summarizeCheck(production),
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
+    summarizeCheck(specAudit),
     summarizeCheck(releaseEvidence),
   ],
   nextActions,

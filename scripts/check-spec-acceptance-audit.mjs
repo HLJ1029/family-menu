@@ -1,0 +1,188 @@
+import { access, readFile } from "node:fs/promises";
+
+const SOURCE_SPECS = [
+  "/Users/honglijie/Downloads/humi 家庭协作 spec.md",
+  "/Users/honglijie/Downloads/humi 感觉征集 spec.md",
+  "/Users/honglijie/Downloads/humi 结构重构 spec.md",
+];
+
+const AUDIT_PATH = "docs/humi-1.1-spec-acceptance-audit.md";
+const HARDENING_PATH = "docs/humi-1.1-pre-review-hardening.md";
+
+const REQUIRED_MATRIX_ITEMS = [
+  "三 tab 定版",
+  "发现/自己挑降为辅助页",
+  "【今晚菜单】加菜不降级为列表",
+  "周计划降级为【今晚】辅助入口",
+  "【今晚】首屏主角是晚饭推荐",
+  "早餐/午餐纳入数据但不抢晚饭主线",
+  "清单汇总三餐食材",
+  "不做独立库存维护页",
+  "清单勾选反推后台已有",
+  "忌口是硬约束",
+  "【我的家】从资料页升级为协作主场",
+  "主厨/家人角色边界",
+  "家人打开分享卡片先免登录参与",
+  "家人点完感觉后再引导加入家庭",
+  "感觉标签控制在低思考范围",
+  "主厨可“我自己做主”",
+  "等待态可手动出菜单",
+  "征集结果可勾选收敛",
+  "每道菜展示“为什么推它”",
+  "晚间轻确认包含“不记录”",
+  "买菜认领可回传",
+  "想吃池子可由家人/主厨沉淀",
+  "精准推荐走成本闸门",
+  "精准推荐缓存复用",
+  "小程序分享路径覆盖",
+  "小程序普通启动不被登录墙挡住",
+  "发布材料去除旧",
+];
+
+const sourceSpecs = await Promise.all(SOURCE_SPECS.map(inspectSourceSpec));
+const audit = await inspectAudit();
+const hardening = await inspectHardening();
+
+const ok = sourceSpecs.every((item) => item.ok) && audit.ok && hardening.ok;
+
+console.log(JSON.stringify({
+  ok,
+  checkedAt: new Date().toISOString(),
+  sourceSpecs,
+  audit,
+  hardening,
+  nextActions: buildNextActions({ sourceSpecs, audit, hardening }),
+}, null, 2));
+
+if (!ok) process.exit(1);
+
+async function inspectSourceSpec(path) {
+  try {
+    await access(path);
+    const content = await readFile(path, "utf8");
+    return {
+      path,
+      ok: content.trim().length > 0,
+      bytes: Buffer.byteLength(content),
+      error: content.trim().length > 0 ? undefined : "Source spec is empty.",
+    };
+  } catch (error) {
+    return { path, ok: false, error: error.message };
+  }
+}
+
+async function inspectAudit() {
+  try {
+    const content = await readFile(AUDIT_PATH, "utf8");
+    const missingSourceRefs = SOURCE_SPECS.filter((path) => !content.includes(path));
+    const matrixRows = parseMatrixRows(content);
+    const incompleteRows = matrixRows.filter((row) => row.status !== "已完成");
+    const missingMatrixItems = REQUIRED_MATRIX_ITEMS.filter((label) => !matrixRows.some((row) => row.requirement.includes(label)));
+    const externalRows = parseExternalRows(content);
+    const unexpectedOpenRows = externalRows.filter((row) => {
+      if (row.item === "生产 API 补部署") return row.status !== "已完成";
+      return !["进行中", "暂缓", "模板已准备，待填真实名单", "待小程序发布后验证"].includes(row.status);
+    });
+
+    return {
+      path: AUDIT_PATH,
+      ok: missingSourceRefs.length === 0 && matrixRows.length >= REQUIRED_MATRIX_ITEMS.length && incompleteRows.length === 0 && missingMatrixItems.length === 0 && unexpectedOpenRows.length === 0,
+      matrixRows: matrixRows.length,
+      completedMatrixRows: matrixRows.filter((row) => row.status === "已完成").length,
+      missingSourceRefs,
+      incompleteRows,
+      missingMatrixItems,
+      externalRows,
+      unexpectedOpenRows,
+    };
+  } catch (error) {
+    return {
+      path: AUDIT_PATH,
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
+async function inspectHardening() {
+  try {
+    const content = await readFile(HARDENING_PATH, "utf8");
+    const openP0P1 = content
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => /^- \[ \] P[01]\b/.test(line));
+    return {
+      path: HARDENING_PATH,
+      ok: true,
+      openP0P1,
+      preReviewGateActive: content.includes("暂不提交审核") && content.includes("提审前产品打磨"),
+      warning: openP0P1.length ? "P0/P1 hardening is still open; release:status remains responsible for blocking WeChat review." : undefined,
+    };
+  } catch (error) {
+    return {
+      path: HARDENING_PATH,
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
+function parseMatrixRows(content) {
+  const section = sliceBetween(content, "## 2. 验收矩阵", "## 3.");
+  return section
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && !line.includes("---") && !line.includes("规格要求"))
+    .map(parseTableRow)
+    .filter((row) => row.cells.length >= 3)
+    .map((row) => ({
+      requirement: row.cells[0],
+      status: row.cells[1],
+      evidence: row.cells[2],
+    }));
+}
+
+function parseExternalRows(content) {
+  const section = sliceBetween(content, "## 3. 仍未完成或仍需外部确认", "## 4.");
+  return section
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && !line.includes("---") && !line.includes("项目"))
+    .map(parseTableRow)
+    .filter((row) => row.cells.length >= 3)
+    .map((row) => ({
+      item: row.cells[0],
+      status: row.cells[1],
+      nextStep: row.cells[2],
+    }));
+}
+
+function parseTableRow(line) {
+  return {
+    cells: line
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim()),
+  };
+}
+
+function sliceBetween(content, startMarker, endMarker) {
+  const start = content.indexOf(startMarker);
+  if (start < 0) return "";
+  const end = content.indexOf(endMarker, start + startMarker.length);
+  return end < 0 ? content.slice(start) : content.slice(start, end);
+}
+
+function buildNextActions({ sourceSpecs, audit, hardening }) {
+  const actions = [];
+  const missingSources = sourceSpecs.filter((item) => !item.ok);
+  if (missingSources.length) actions.push(`Restore missing or empty source specs: ${missingSources.map((item) => item.path).join(", ")}.`);
+  if (audit.missingSourceRefs?.length) actions.push(`Add missing source spec references to ${AUDIT_PATH}: ${audit.missingSourceRefs.join(", ")}.`);
+  if (audit.missingMatrixItems?.length) actions.push(`Add missing acceptance rows: ${audit.missingMatrixItems.join(", ")}.`);
+  if (audit.incompleteRows?.length) actions.push("Resolve incomplete rows in the spec acceptance matrix before claiming 1.1 scope is implemented.");
+  if (audit.unexpectedOpenRows?.length) actions.push("Normalize section 3 to only known external/pre-review follow-ups.");
+  if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
+  if (!actions.length) actions.push("Spec acceptance audit is covered; continue with release:status and pre-review evidence gates.");
+  return actions;
+}
