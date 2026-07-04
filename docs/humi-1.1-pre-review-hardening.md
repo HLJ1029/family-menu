@@ -9,6 +9,7 @@
 
 - 小程序 `1.1.55` 已上传，但暂不提交审核。
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
+- `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图和三张微信原生 card 图缺口。
 - P0/P1 完成后，再重新跑 `npm run release:next` 判断是否进入微信审核准备。
 - P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
 
@@ -24,11 +25,11 @@
   - 证据：`src/components/UserCenter.jsx` 在家庭动态区显示发起状态并滚动定位；`src/main.jsx` 返回创建的征集请求用于本页反馈。
 - [x] P1 征集口味单据模板确认：主厨发起、家人投票、投票完成、主厨等待、生成结果五个状态统一为“今晚征集单”的设计语言。
   - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
-  - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`，`npm run release:crave-template:visuals`。
+  - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`，`npm run release:crave-template:visuals`，`npm run release:pre-review:evidence`。
   - 证据：`src/components/CraveSheet.jsx` 五个状态统一使用“今晚征集单”，按钮统一为“分享征集单/提交征集单/回到 Humi 看今晚”等单据语言；`scripts/check-crave-sheet-template.mjs` 已覆盖关键文案；`scripts/capture-crave-template-visuals.mjs` 会把主厨发起、主厨等待、家人投票、投票完成、征集结束五个真实组件状态截图到私有证据目录并输出 PNG 尺寸/SHA。
 - [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
-  - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:landings`，`npm run release:wechat:share:devtools`，`npm run release:wechat:share:cards:capture -- --interactive`，`npm run release:wechat:share:evidence`，`npm run release:wechat:share:complete`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
+  - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:landings`，`npm run release:pre-review:evidence`，`npm run release:wechat:share:devtools`，`npm run release:wechat:share:cards:capture -- --interactive`，`npm run release:wechat:share:evidence`，`npm run release:wechat:share:complete`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
   - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；`docs/humi-1.1-miniprogram-share-card-qa.md` 规定最终截图文件名、PNG/尺寸/文件大小要求和视觉标准；`npm run release:wechat:share:prepare` 会生成私有核对清单；`npm run release:wechat:share:landings` 可自动生成三张 token H5 落地页截图；`npm run release:wechat:share:devtools` 会打开开发者工具和证据材料；`npm run release:wechat:share:cards:capture -- --interactive` 会辅助框选保存三张微信原生卡片截图；`scripts/check-miniprogram-share-evidence.mjs` 会检查六张截图的完整 PNG、尺寸、size 和 SHA256；`npm run release:wechat:share:complete` 会在人工视觉确认后勾选本 P1；仍需三类卡片的开发者工具/真机截图作为最终证据。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：`release:next` 当前阶段为“提审前产品打磨”；AI-HQ 状态同步该策略。
@@ -44,5 +45,6 @@
 ## 当前建议顺序
 
 1. 先用微信开发者工具/真机完成小程序卡片连调和三张原生分享卡片截图。
-2. 运行 `npm run release:wechat:share:evidence` 和 `npm run release:wechat:share:complete` 完成证据复核与 P1 勾选。
-3. 运行 `npm run release:closure` 和 `npm run release:next`，确认是否进入微信公众平台提审准备。
+2. 运行 `npm run release:pre-review:evidence` 查看私有证据总览，确认只剩或已补齐三张微信原生 card。
+3. 运行 `npm run release:wechat:share:evidence` 和 `npm run release:wechat:share:complete` 完成证据复核与 P1 勾选。
+4. 运行 `npm run release:closure` 和 `npm run release:next`，确认是否进入微信公众平台提审准备。
