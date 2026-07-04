@@ -39,6 +39,7 @@
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
     "release:wechat:share:prepare": "node scripts/prepare-miniprogram-share-card-qa.mjs",
     "release:wechat:share:evidence": "node scripts/check-miniprogram-share-evidence.mjs",
+    "release:wechat:share:landings": "node scripts/capture-miniprogram-share-landings.mjs",
     "release:wechat:share:selftest": "node scripts/check-miniprogram-share-cards.mjs",
     "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },

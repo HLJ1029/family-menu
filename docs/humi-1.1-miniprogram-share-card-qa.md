@@ -57,6 +57,20 @@ npm run release:wechat:share:prepare
 
 该命令会先运行 `npm run release:wechat:share:selftest` 的同等逻辑，确认三类分享数据仍然正确，然后在私有证据目录写入 `share-card-qa-checklist.md` 和 `share-card-expected.json`。
 
+自动生成三张 H5 落地页截图：
+
+```bash
+npm run release:wechat:share:landings
+```
+
+该命令会启动本地 mock Humi API 和本地 H5，创建 `crave`、`invite`、`grocery` 三类真实 token，并自动保存：
+
+- `crave-landing.png`
+- `invite-landing.png`
+- `grocery-landing.png`
+
+这只能证明 token 打开后的 H5 落地页与免登录/加入流程入口，不替代微信原生分享卡片截图。三张 `*-card.png` 仍需微信开发者工具或真机生成。
+
 检查截图是否齐全：
 
 ```bash

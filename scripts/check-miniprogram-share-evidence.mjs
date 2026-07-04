@@ -65,10 +65,12 @@ const result = {
   checkedAt: new Date().toISOString(),
   evidenceDir,
   requiredFiles: files,
+  missingFiles: missing.map((item) => item.file),
   nextActions: missing.length
     ? [
+      `Missing evidence files: ${missing.map((item) => item.file).join(", ")}.`,
       `Open the preview QR in ${evidenceDir}/preview-qr.png with WeChat or WeChat DevTools.`,
-      "Trigger and screenshot crave, invite, and grocery share cards.",
+      "Trigger and screenshot only the missing share cards or landing pages listed above.",
       "Save screenshots using the exact required filenames, then rerun npm run release:wechat:share:evidence.",
     ]
     : [

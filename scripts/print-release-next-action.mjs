@@ -9,6 +9,7 @@ const execFileAsync = promisify(execFile);
 
 const status = await runJsonScript("release:status", { allowFailure: false });
 const wechat = await runJsonScript("release:wechat:check", { allowFailure: true });
+const shareEvidence = await runJsonScript("release:wechat:share:evidence", { allowFailure: true });
 const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
 const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section) ?? [];
 const submitEvidenceState = await getLatestSubmitEvidenceState();
@@ -28,8 +29,14 @@ if (openHardeningItems.length) {
   lines.push("");
   lines.push("现在该做：");
   lines.push("1. 按 docs/humi-1.1-pre-review-hardening.md 逐项完成 P0/P1 功能和体验项。");
-  lines.push("2. 每完成一项，更新清单证据、运行构建和对应验证命令。");
-  lines.push("3. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。");
+  if (shareEvidence?.missingFiles?.length) {
+    lines.push(`2. 小程序分享复核当前只缺：${shareEvidence.missingFiles.join("、")}。`);
+    lines.push("3. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，用微信开发者工具/真机截图补齐。");
+    lines.push("4. 每完成一项，更新清单证据、运行构建和对应验证命令。");
+  } else {
+    lines.push("2. 每完成一项，更新清单证据、运行构建和对应验证命令。");
+  }
+  lines.push(`${shareEvidence?.missingFiles?.length ? 5 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。`);
 } else if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
@@ -66,6 +73,7 @@ lines.push("- 工程状态：npm run release:status 必须 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
 lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
+lines.push("- 补 H5 落地页截图：npm run release:wechat:share:landings 会自动生成 crave/invite/grocery 三张 landing 图。");
 lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
 lines.push("");
 
