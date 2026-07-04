@@ -45,6 +45,7 @@ const report = {
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
     platformSubmitReady: Boolean(status?.ok),
     apiDeployReady: Boolean(release.apiDeployReady),
+    securityAuditReady: Boolean(release.securityAuditReady),
     releaseEvidenceReady: Boolean(release.releaseEvidenceReady),
     releaseComplete: Boolean(release.releaseComplete),
   },
@@ -110,9 +111,10 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
     return {
       key: "engineering-gate",
       title: "工程提审门禁未通过",
-      description: "P0/P1 已完成，但工程状态、线上状态、API 预检或发布材料仍有失败项。",
+      description: "P0/P1 已完成，但工程状态、线上状态、API 预检、安全审计或发布材料仍有失败项。",
       nextCommands: [
         "npm run release:status",
+        "npm run release:security:audit",
         "npm run release:check:online",
         "npm run monitor:prod",
         "npm run deploy:api:check",
@@ -242,6 +244,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "api-deploy",
       title: "API 部署预检未通过",
       details: ["Run npm run deploy:api:check for details."],
+    });
+  }
+  if (!release.securityAuditReady) {
+    blockers.push({
+      key: "security-audit",
+      title: "依赖安全审计未通过",
+      details: ["Run npm run release:security:audit for details."],
     });
   }
   if (missingReleaseEvidence.length) {

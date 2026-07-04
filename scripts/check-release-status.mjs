@@ -71,11 +71,12 @@ function parseLastJson(output) {
   }
 }
 
-const [git, online, production, apiDeploy, releaseEvidence] = await Promise.all([
+const [git, online, production, apiDeploy, securityAudit, releaseEvidence] = await Promise.all([
   gitInfo(),
   runNpmScript("release:check:online"),
   runNpmScript("monitor:prod"),
   runNpmScript("deploy:api:check"),
+  runNpmScript("release:security:audit"),
   runNpmScript("release:evidence:check"),
 ]);
 const artifacts = await requiredArtifactInfo();
@@ -86,8 +87,9 @@ const apiDeployOnlySshBlocked = apiDeployFailedChecks.length === 1 && apiDeployF
 const productionOk = Boolean(production.data?.ok);
 const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
+const securityAuditOk = securityAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -101,6 +103,9 @@ if (!onlineOk || !productionOk) {
 }
 if (!artifactsOk) {
   nextActions.push("Restore missing release runbooks/templates before platform submission.");
+}
+if (!securityAuditOk) {
+  nextActions.push("Resolve npm audit advisories before WeChat review.");
 }
 if (!preReviewHardeningReady) {
   nextActions.push("Finish docs/humi-1.1-pre-review-hardening.md P0/P1 product hardening before WeChat review.");
@@ -129,6 +134,7 @@ console.log(JSON.stringify({
     productionMonitorOk: productionOk,
     apiDeployReady,
     apiDeployOnlySshBlocked,
+    securityAuditReady: securityAuditOk,
     preReviewHardeningReady,
     preReviewHardeningOpenItems: preReviewHardening.openItems,
     artifactsReady: artifactsOk,
@@ -143,6 +149,7 @@ console.log(JSON.stringify({
     summarizeCheck(online),
     summarizeCheck(production),
     summarizeCheck(apiDeploy),
+    summarizeCheck(securityAudit),
     summarizeCheck(releaseEvidence),
   ],
   nextActions,

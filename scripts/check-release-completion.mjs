@@ -28,6 +28,7 @@ const report = {
     onlineReady: Boolean(release.onlineReady),
     productionMonitorOk: Boolean(release.productionMonitorOk),
     apiDeployReady: Boolean(release.apiDeployReady),
+    securityAuditReady: Boolean(release.securityAuditReady),
     artifactsReady: Boolean(release.artifactsReady),
     releaseEvidenceReady: Boolean(release.releaseEvidenceReady),
     releaseComplete: Boolean(release.releaseComplete),
