@@ -87,8 +87,10 @@ function buildNextActions({ evidenceDir, missing, missingCards, missingLandings 
     actions.push("Run npm run release:wechat:share:landings to regenerate missing H5 landing screenshots.");
   }
   if (missingCards.length) {
-    actions.push(`Open the preview QR in ${evidenceDir}/preview-qr.png with WeChat or WeChat DevTools.`);
+    actions.push("Run npm run release:wechat:share:devtools to open WeChat DevTools, the preview QR, and the QA checklist.");
+    actions.push(`Open the preview QR in ${evidenceDir}/preview-qr.png with WeChat or WeChat DevTools if you prefer scanning manually.`);
     actions.push("Run npm run release:wechat:share:cards:capture to capture the missing native mini program share card screenshots with exact filenames.");
+    actions.push("Or run npm run release:wechat:share:cards:import -- --source-dir /path/to/card-screenshots if the card screenshots already exist.");
   }
   actions.push("Rerun npm run release:wechat:share:evidence after adding the missing files.");
   return actions;
