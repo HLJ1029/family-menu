@@ -2,7 +2,7 @@ import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const DEFAULT_WECHAT_SUBMIT_DIR_PREFIX = "wechat-submit-1.1.55-";
+export const DEFAULT_WECHAT_SUBMIT_DIR_PREFIX = "wechat-submit-1.1.56-";
 
 export function getEvidenceBaseDir() {
   return process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");

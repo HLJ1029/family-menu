@@ -5,7 +5,7 @@ const stages = {
     title: "提交微信审核后",
     note: "把微信公众平台显示的提交时间、审核中状态和私有截图位置替换进去。",
     command: [
-      "# 如果截图已放入最新 wechat-submit-1.1.55-* 私有目录，可直接运行：",
+      "# 如果截图已放入最新 wechat-submit-1.1.56-* 私有目录，可直接运行：",
       "npm run release:evidence:record:submit:latest",
       "",
       "# 或手动指定提交时间和证据位置：",

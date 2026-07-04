@@ -146,7 +146,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
       actions: [
         "运行 npm run release:wechat:prepare-submit，打开微信公众平台、证据目录并复制审核备注。",
         "进入 Humi 小程序版本管理。",
-        "找到已上传版本 1.1.55，描述为“征集单模板与分享卡片”。",
+        "找到已上传版本 1.1.56，描述为“分享卡片转发兜底”。",
         "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
         "按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。",
         "提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
@@ -158,7 +158,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
     return {
       title: "微信审核已提交，下一步是等待并登记审核结果。",
       actions: [
-        "等待微信公众平台给出 1.1.55 审核结果。",
+        "等待微信公众平台给出 1.1.56 审核结果。",
         "结果出来后运行 npm run release:evidence:commands -- review，按模板登记通过或驳回结论。",
         "如果驳回，把后台原因摘要写入 docs/launch-feedback-and-101-backlog.md，再判断是否需要 1.1.x。",
       ],
@@ -169,7 +169,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
     return {
       title: "微信审核结果已登记，下一步是发布审核通过版本。",
       actions: [
-        "如果审核结果是通过，进入微信公众平台版本管理，找到 1.1.55 并点击发布。",
+        "如果审核结果是通过，进入微信公众平台版本管理，找到 1.1.56 并点击发布。",
         "保存发布状态截图到私有位置，不要提交后台截图到仓库。",
         "发布后运行 npm run release:evidence:commands -- publish，按模板登记发布时间、发布人和私有证据位置。",
       ],
@@ -178,7 +178,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
 
   if (missing.includes("## 7. 发布后 P0 真机验收证据")) {
     return {
-      title: "1.1.55 已发布，下一步是真机 P0 验收。",
+      title: "1.1.56 已发布，下一步是真机 P0 验收。",
       actions: [
         "用真实微信打开正式小程序，不只看开发者工具。",
         "按 docs/launch-day-runbook.md 跑【今晚】、问问大家、清单分享、我的家、重新登录等 P0 路径。",

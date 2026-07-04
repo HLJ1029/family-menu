@@ -25,22 +25,48 @@ Page({
     if (launchGroceryToken) {
       this.setData({
         launchGroceryToken,
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: {
+          token: launchGroceryToken,
+          householdName: "我家",
+          initiatorName: "主厨",
+          itemCount: 0
+        },
         url: appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" })
       });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
     if (launchInviteToken) {
       this.setData({
         launchInviteToken,
+        shareCrave: null,
+        shareGrocery: null,
+        shareInvite: {
+          token: launchInviteToken,
+          householdName: "这个家",
+          inviterName: "主厨"
+        },
         url: appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" })
       });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
     if (launchCraveToken) {
       this.setData({
         launchCraveToken,
+        shareInvite: null,
+        shareGrocery: null,
+        shareCrave: {
+          token: launchCraveToken,
+          householdName: "我家",
+          initiatorName: "主厨",
+          title: "今晚征集口味，点一下就行"
+        },
         url: appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" })
       });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
     this.setData({ url: getHumiH5Url() });
@@ -222,8 +248,11 @@ Page({
   onShareAppMessage() {
     const shareGrocery = this.data.shareGrocery;
     if (shareGrocery?.token) {
+      const itemCount = Number(shareGrocery.itemCount || 0);
       return {
-        title: `${shareGrocery.initiatorName}发来 ${shareGrocery.itemCount || ""} 项买菜清单`,
+        title: itemCount > 0
+          ? `${shareGrocery.initiatorName}发来 ${itemCount} 项买菜清单`
+          : `${shareGrocery.initiatorName}发来买菜清单`,
         path: `/pages/index/index?grocery=${encodeURIComponent(shareGrocery.token)}`
       };
     }

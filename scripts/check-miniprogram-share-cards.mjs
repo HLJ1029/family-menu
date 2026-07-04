@@ -20,6 +20,10 @@ const cases = [
     },
     launchOptions: { crave: "crave-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?crave=crave-token-123&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "今晚征集口味，点一下就行",
+      path: "/pages/index/index?crave=crave-token-123",
+    },
   },
   {
     name: "invite",
@@ -35,6 +39,10 @@ const cases = [
     },
     launchOptions: { invite: "invite-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?invite=invite-token-123&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "主厨邀请你加入 这个家",
+      path: "/pages/index/index?invite=invite-token-123",
+    },
   },
   {
     name: "grocery",
@@ -51,6 +59,10 @@ const cases = [
     },
     launchOptions: { grocery: "grocery-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?grocery=grocery-token-123&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "主厨发来买菜清单",
+      path: "/pages/index/index?grocery=grocery-token-123",
+    },
   },
 ];
 
@@ -64,12 +76,17 @@ const results = cases.map((testCase) => {
   const launchPage = createPageInstance(pageDefinition);
   launchPage.onLoad(testCase.launchOptions);
   assertEqual(`${testCase.name} launch url`, launchPage.data.url, testCase.expectedLaunchUrl);
+  const launchShare = launchPage.onShareAppMessage();
+  assertEqual(`${testCase.name} launch share title`, launchShare.title, testCase.expectedLaunchShare.title);
+  assertEqual(`${testCase.name} launch share path`, launchShare.path, testCase.expectedLaunchShare.path);
 
   return {
     name: testCase.name,
     title: share.title,
     path: share.path,
     launchUrl: launchPage.data.url,
+    launchShareTitle: launchShare.title,
+    launchSharePath: launchShare.path,
   };
 });
 

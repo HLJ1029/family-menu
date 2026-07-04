@@ -25,7 +25,7 @@ const values = {
 const replacements = new Map([
   ["提交时间", values.submitTime],
   ["提交人", values.submitter],
-  ["提交版本", "`1.1.55`"],
+  ["提交版本", "`1.1.56`"],
   ["审核备注版本", values.noteVersion],
   ["审核单状态", values.reviewStatus],
   ["证据原件位置", values.evidenceLocation],
@@ -44,7 +44,7 @@ for (const [field, value] of replacements) {
 
 const preservedLocation = values.evidenceLocation;
 nextSection = nextSection
-  .replace("| 上传版本 `1.1.55` 列表 | 待填 | 待填 |  |", `| 上传版本 \`1.1.55\` 列表 | 已留存 | ${preservedLocation} |  |`)
+  .replace("| 上传版本 `1.1.56` 列表 | 待填 | 待填 |  |", `| 上传版本 \`1.1.56\` 列表 | 已留存 | ${preservedLocation} |  |`)
   .replace("| request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |", `| request 合法域名 \`api.humi-home.com\` | 已留存 | ${preservedLocation} |  |`)
   .replace("| web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |", `| web-view 业务域名 \`www.humi-home.com\` | 已留存 | ${preservedLocation} |  |`)
   .replace("| 隐私保护指引关键项 | 待填 | 待填 |  |", `| 隐私保护指引关键项 | 已留存 | ${preservedLocation} |  |`)
@@ -65,7 +65,7 @@ const report = {
   nextActions: [
     "Wait for WeChat review result.",
     "After approval or rejection, fill section 5 in docs/humi-1.1-release-evidence-log.md.",
-    "If approved, publish 1.1.55, run real-device P0 checks, then fill sections 6-8.",
+    "If approved, publish 1.1.56, run real-device P0 checks, then fill sections 6-8.",
   ],
 };
 

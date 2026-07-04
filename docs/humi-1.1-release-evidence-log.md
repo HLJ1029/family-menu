@@ -12,11 +12,11 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28697298347` / success / 1.1.55 H5 已部署 |
+| GitHub Pages run | `28697298347` / success / 1.1.56 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.55` |
-| 小程序描述 | `征集单模板与分享卡片` |
+| 小程序版本 | `1.1.56` |
+| 小程序描述 | `分享卡片转发兜底` |
 | AppID | `wx4040b89f3b363416` |
 | 当前状态 | 生产 API 补部署已完成，等待微信公众平台提交审核/发布、发布后真机 P0 |
 
@@ -32,7 +32,7 @@
 | 2026-07-03 | codex@mbp-m5pro | production public smoke | 通过 | `prod-smoke-1783054717323` / crave token `817e93c8d2c94dc996bb6f25ccb0cfac` |
 | 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `1d264a6` / Pages run `28687866822` success |
 | 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `3954f05` / Pages run `28697298347` success / `release:closure` 已纳入总收口审计 |
-| 2026-07-04 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.55` / `征集单模板与分享卡片` / package `15.7 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.55` |
+| 2026-07-04 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.56` / `分享卡片转发兜底` / package `16.4 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.56` |
 | 2026-07-04 | codex@mbp-m5pro | `npm run release:wechat:check` | 阻止提审 | 当前策略为提审前产品打磨；仍缺三张微信原生分享卡片截图证据 |
 
 ## 3. 生产 API 补部署证据
@@ -72,14 +72,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.55` |
+| 提交版本 | `1.1.56` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.55` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.56` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -107,7 +107,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.55` |
+| 发布版本 | `1.1.56` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

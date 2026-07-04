@@ -24,7 +24,7 @@ const evidenceFiles = await listWechatSubmitEvidenceFiles(sessionDir);
 if (!evidenceFiles.length && process.env.HUMI_ALLOW_EMPTY_WECHAT_SUBMIT_EVIDENCE !== "1") {
   console.error(`Latest WeChat submit evidence directory has no evidence files yet: ${sessionDir}`);
   console.error("Put WeChat platform screenshots or recordings in that directory first.");
-  console.error("Expected examples: humi-1.1.55-version-list.png, humi-review-submit-note.png, humi-review-submitted.png");
+  console.error("Expected examples: humi-1.1.56-version-list.png, humi-review-submit-note.png, humi-review-submitted.png");
   console.error("If you intentionally need a dry run without files, set HUMI_ALLOW_EMPTY_WECHAT_SUBMIT_EVIDENCE=1.");
   process.exit(1);
 }

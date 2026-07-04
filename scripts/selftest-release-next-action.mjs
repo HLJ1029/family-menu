@@ -16,7 +16,7 @@ try {
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
 
-  const tempSubmitDir = join(tempDir, "wechat-submit-1.1.55-20990101T000000");
+  const tempSubmitDir = join(tempDir, "wechat-submit-1.1.56-20990101T000000");
   await mkdir(tempSubmitDir, { recursive: true });
   await writeFile(join(tempSubmitDir, "humi-review-submitted.png"), "fake screenshot bytes");
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
@@ -49,7 +49,7 @@ try {
     HUMI_WECHAT_P0_DEVICE: "selftest device / WeChat",
     HUMI_WECHAT_ROLLBACK_STATUS: "否",
   });
-  await assertNext("1.1.55 已发布，下一步是真机 P0 验收");
+  await assertNext("1.1.56 已发布，下一步是真机 P0 验收");
 
   await run("release:evidence:record:p0", {
     HUMI_WECHAT_P0_DEVICE: "selftest device / WeChat",
