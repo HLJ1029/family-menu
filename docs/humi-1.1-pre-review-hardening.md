@@ -28,8 +28,8 @@
   - 证据：`src/components/CraveSheet.jsx` 五个状态统一使用“今晚征集单”，按钮统一为“分享征集单/提交征集单/回到 Humi 看今晚”等单据语言；`scripts/check-crave-sheet-template.mjs` 已覆盖关键文案。
 - [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
-  - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
-  - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；仍需三类卡片的开发者工具/真机截图作为最终证据。
+  - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:evidence`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
+  - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；`docs/humi-1.1-miniprogram-share-card-qa.md` 规定最终截图文件名并由 `scripts/check-miniprogram-share-evidence.mjs` 检查；仍需三类卡片的开发者工具/真机截图作为最终证据。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：`release:next` 当前阶段为“提审前产品打磨”；AI-HQ 状态同步该策略。
   - 验证：`npm run release:next`，`npm run release:status`。

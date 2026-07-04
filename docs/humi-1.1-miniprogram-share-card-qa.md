@@ -1,0 +1,60 @@
+# Humi 1.1 小程序分享卡片复核
+
+更新日期：2026-07-04
+设备：codex@mbp-m5pro
+
+本文档用于完成提审前最后一个 P1：`crave`、`invite`、`grocery` 三类小程序卡片分享复核。
+
+## 当前证据目录
+
+私有证据目录：
+
+```text
+/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522
+```
+
+已生成：
+
+- `preview-qr.png`：微信开发者工具 CLI 预览二维码。
+- `preview-info.json`：CLI preview 包体信息，当前包体 `16113` bytes。
+- `auto-preview-info.json`：CLI auto-preview 包体信息，当前包体 `16113` bytes。
+- `README.md`：私有证据说明。
+
+代码层自测：
+
+```bash
+npm run release:wechat:share:selftest
+```
+
+该命令已覆盖：
+
+- `crave` 卡片标题、path、token 落地 URL。
+- `invite` 卡片标题、path、token 落地 URL。
+- `grocery` 卡片标题、path、token 落地 URL。
+
+## 还需要的截图
+
+把以下截图保存到私有证据目录。真实姓名、手机号、微信号不要进入仓库。
+
+| 文件名 | 内容 |
+| --- | --- |
+| `crave-card.png` | `crave` 小程序分享卡片预览截图 |
+| `crave-landing.png` | `crave` token 打开后的免登录投票落地页截图 |
+| `invite-card.png` | `invite` 小程序分享卡片预览截图 |
+| `invite-landing.png` | `invite` token 打开后的加入家庭落地页截图 |
+| `grocery-card.png` | `grocery` 小程序分享卡片预览截图 |
+| `grocery-landing.png` | `grocery` token 打开后的免登录认领落地页截图 |
+
+## 检查命令
+
+```bash
+npm run release:wechat:share:evidence
+```
+
+通过标准：
+
+- 六个截图文件全部存在且非空。
+- 命令输出每个文件的 size 和 SHA256。
+- 截图视觉上符合对应卡片和落地页行为。
+
+通过后再勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。

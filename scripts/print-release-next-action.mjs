@@ -53,6 +53,7 @@ lines.push("");
 lines.push("要打开的材料：");
 lines.push("- docs/humi-1.1-pre-review-hardening.md");
 lines.push("- docs/wechat-submit-copy-packet.md");
+lines.push("- docs/humi-1.1-miniprogram-share-card-qa.md");
 lines.push("- docs/miniprogram-platform-submit-runbook.md");
 lines.push("- docs/humi-1.1-release-evidence-log.md");
 lines.push("- docs/launch-day-runbook.md");
@@ -63,6 +64,7 @@ lines.push("- 提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须
 lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");
 lines.push("- 工程状态：npm run release:status 必须 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
+lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
 lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
 lines.push("");
 

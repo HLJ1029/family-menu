@@ -200,6 +200,10 @@ async function requiredArtifactInfo() {
       path: "docs/wechat-submit-copy-packet.md",
     },
     {
+      name: "miniProgramShareCardQa",
+      path: "docs/humi-1.1-miniprogram-share-card-qa.md",
+    },
+    {
       name: "grayReleaseTracker",
       path: "docs/humi-1.1-gray-release-tracker.md",
     },
