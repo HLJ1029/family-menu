@@ -10,31 +10,49 @@ const requiredFiles = [
     key: "crave-card",
     file: "crave-card.png",
     description: "crave 小程序分享卡片预览截图",
+    minWidth: 240,
+    minHeight: 160,
+    minBytes: 8_000,
   },
   {
     key: "crave-landing",
     file: "crave-landing.png",
     description: "crave token 打开后的免登录投票落地页截图",
+    minWidth: 320,
+    minHeight: 568,
+    minBytes: 16_000,
   },
   {
     key: "invite-card",
     file: "invite-card.png",
     description: "invite 小程序分享卡片预览截图",
+    minWidth: 240,
+    minHeight: 160,
+    minBytes: 8_000,
   },
   {
     key: "invite-landing",
     file: "invite-landing.png",
     description: "invite token 打开后的加入家庭落地页截图",
+    minWidth: 320,
+    minHeight: 568,
+    minBytes: 16_000,
   },
   {
     key: "grocery-card",
     file: "grocery-card.png",
     description: "grocery 小程序分享卡片预览截图",
+    minWidth: 240,
+    minHeight: 160,
+    minBytes: 8_000,
   },
   {
     key: "grocery-landing",
     file: "grocery-landing.png",
     description: "grocery token 打开后的免登录认领落地页截图",
+    minWidth: 320,
+    minHeight: 568,
+    minBytes: 16_000,
   },
 ];
 
@@ -83,12 +101,23 @@ async function inspectEvidenceFile(evidenceDir, item) {
       stat(path),
       readFile(path),
     ]);
+    const png = inspectPng(bytes);
+    const ok = fileStat.isFile()
+      && fileStat.size > 0
+      && fileStat.size >= item.minBytes
+      && png.ok
+      && png.width >= item.minWidth
+      && png.height >= item.minHeight;
     return {
       ...item,
       path,
-      ok: fileStat.isFile() && fileStat.size > 0,
+      ok,
       size: fileStat.size,
+      image: png,
       sha256: createHash("sha256").update(bytes).digest("hex"),
+      error: ok
+        ? undefined
+        : buildImageError(item, fileStat, png),
     };
   } catch (error) {
     return {
@@ -98,4 +127,47 @@ async function inspectEvidenceFile(evidenceDir, item) {
       error: `${basename(path)} missing or unreadable: ${error.message}`,
     };
   }
+}
+
+function inspectPng(bytes) {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(signature)) {
+    return { ok: false, format: "unknown", width: 0, height: 0 };
+  }
+  let width = 0;
+  let height = 0;
+  let hasIhdr = false;
+  let hasIend = false;
+  let offset = 8;
+  while (offset + 12 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.subarray(offset + 4, offset + 8).toString("ascii");
+    const dataOffset = offset + 8;
+    const nextOffset = dataOffset + length + 4;
+    if (nextOffset > bytes.length) break;
+    if (type === "IHDR" && length >= 13) {
+      width = bytes.readUInt32BE(dataOffset);
+      height = bytes.readUInt32BE(dataOffset + 4);
+      hasIhdr = true;
+    }
+    if (type === "IEND") {
+      hasIend = true;
+      break;
+    }
+    offset = nextOffset;
+  }
+  return {
+    ok: hasIhdr && hasIend,
+    format: "png",
+    width,
+    height,
+    complete: hasIend,
+  };
+}
+
+function buildImageError(item, fileStat, png) {
+  if (!fileStat.isFile() || fileStat.size <= 0) return `${item.file} is empty or not a file.`;
+  if (fileStat.size < item.minBytes) return `${item.file} is too small: ${fileStat.size} bytes, expected at least ${item.minBytes} bytes.`;
+  if (!png.ok) return `${item.file} is not a complete PNG screenshot.`;
+  return `${item.file} is too small: ${png.width}x${png.height}, expected at least ${item.minWidth}x${item.minHeight}.`;
 }

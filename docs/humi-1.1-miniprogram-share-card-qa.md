@@ -19,6 +19,8 @@
 - `preview-info.json`：CLI preview 包体信息，当前包体 `16113` bytes。
 - `auto-preview-info.json`：CLI auto-preview 包体信息，当前包体 `16113` bytes。
 - `README.md`：私有证据说明。
+- `share-card-qa-checklist.md`：运行 `npm run release:wechat:share:prepare` 后生成的私有核对清单。
+- `share-card-expected.json`：运行 `npm run release:wechat:share:prepare` 后生成的三类分享标题、path 和落地 URL 预期数据。
 
 代码层自测：
 
@@ -53,6 +55,8 @@ npm run release:wechat:share:selftest
 npm run release:wechat:share:prepare
 ```
 
+该命令会先运行 `npm run release:wechat:share:selftest` 的同等逻辑，确认三类分享数据仍然正确，然后在私有证据目录写入 `share-card-qa-checklist.md` 和 `share-card-expected.json`。
+
 检查截图是否齐全：
 
 ```bash
@@ -61,8 +65,9 @@ npm run release:wechat:share:evidence
 
 通过标准：
 
-- 六个截图文件全部存在且非空。
-- 命令输出每个文件的 size 和 SHA256。
+- 六个截图文件全部存在、非空且为完整 PNG。
+- 分享卡片截图尺寸至少 `240x160` 且不小于 `8 KB`，落地页截图尺寸至少 `320x568` 且不小于 `16 KB`。
+- 命令输出每个文件的 size、图片尺寸和 SHA256。
 - 截图视觉上符合对应卡片和落地页行为。
 
 通过后再勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。
