@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28697298347` / success / 1.1.56 H5 已部署 |
+| GitHub Pages run | `28713834307` / success / 1.1.56 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.56` |
@@ -32,6 +32,7 @@
 | 2026-07-03 | codex@mbp-m5pro | production public smoke | 通过 | `prod-smoke-1783054717323` / crave token `817e93c8d2c94dc996bb6f25ccb0cfac` |
 | 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `1d264a6` / Pages run `28687866822` success |
 | 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `3954f05` / Pages run `28697298347` success / `release:closure` 已纳入总收口审计 |
+| 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `bdb2ede` / Pages run `28713834307` success / 小程序 `1.1.56` 已上传 |
 | 2026-07-04 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.56` / `分享卡片转发兜底` / package `16.4 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.56` |
 | 2026-07-04 | codex@mbp-m5pro | `npm run release:wechat:check` | 阻止提审 | 当前策略为提审前产品打磨；仍缺三张微信原生分享卡片截图证据 |
 
