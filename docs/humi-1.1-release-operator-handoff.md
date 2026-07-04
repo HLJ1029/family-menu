@@ -10,7 +10,7 @@
 - 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
 - 当前阶段是提审前产品打磨：先完成 `docs/humi-1.1-pre-review-hardening.md` 的 P0/P1，再进入微信公众平台审核。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
-- 最新产品提交以 `git log --oneline -1` 为准；对应 GitHub Pages run `28687866822`，结论 `success`。
+- 最新产品提交以 `git log --oneline -1` 为准；当前已知最新 GitHub Pages run `28697298347`，结论 `success`。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.55`，描述 `征集单模板与分享卡片`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`，1.1.55 已部署。

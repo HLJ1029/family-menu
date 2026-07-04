@@ -43,6 +43,6 @@
 
 ## 当前建议顺序
 
-1. 先完成 P1 的选菜发现体验和协作入口反馈。
-2. 用微信开发者工具/真机做小程序卡片连调。
-3. P0/P1 全部勾完后，再进入微信公众平台提审动作。
+1. 先用微信开发者工具/真机完成小程序卡片连调和三张原生分享卡片截图。
+2. 运行 `npm run release:wechat:share:evidence` 和 `npm run release:wechat:share:complete` 完成证据复核与 P1 勾选。
+3. 运行 `npm run release:closure` 和 `npm run release:next`，确认是否进入微信公众平台提审准备。
