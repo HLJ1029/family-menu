@@ -65,6 +65,7 @@ lines.push("- docs/miniprogram-platform-submit-runbook.md");
 lines.push("- docs/humi-1.1-release-evidence-log.md");
 lines.push("- docs/launch-day-runbook.md");
 lines.push("- npm run release:evidence:commands");
+lines.push("- npm run release:closure");
 lines.push("");
 lines.push("完成判定：");
 lines.push("- 提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须全部勾完。");

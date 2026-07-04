@@ -30,6 +30,7 @@
     "release:evidence:record:submit": "node scripts/record-wechat-submit-evidence.mjs",
     "release:evidence:record:submit:latest": "node scripts/record-latest-wechat-submit-evidence.mjs",
     "release:evidence:selftest": "node scripts/selftest-release-evidence-recorders.mjs",
+    "release:closure": "node scripts/print-release-closure-audit.mjs",
     "release:complete:check": "node scripts/check-release-completion.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:next:selftest": "node scripts/selftest-release-next-action.mjs",

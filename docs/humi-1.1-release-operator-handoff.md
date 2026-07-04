@@ -176,6 +176,14 @@ docs/launch-feedback-and-101-backlog.md
 npm run release:next
 ```
 
+想看“离 1.1 完整上线还差哪几段”：
+
+```bash
+npm run release:closure
+```
+
+`release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。
+
 只有 `release:next` 不再显示“提审前产品打磨”后，才进入微信公众平台材料：
 
 ```bash
