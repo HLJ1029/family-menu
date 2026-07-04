@@ -59,6 +59,8 @@ const requiredFiles = [
 const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
 const files = await Promise.all(requiredFiles.map((item) => inspectEvidenceFile(evidenceDir, item)));
 const missing = files.filter((item) => !item.ok);
+const missingCards = missing.filter((item) => item.key.endsWith("-card"));
+const missingLandings = missing.filter((item) => item.key.endsWith("-landing"));
 
 const result = {
   ok: missing.length === 0,
@@ -67,12 +69,7 @@ const result = {
   requiredFiles: files,
   missingFiles: missing.map((item) => item.file),
   nextActions: missing.length
-    ? [
-      `Missing evidence files: ${missing.map((item) => item.file).join(", ")}.`,
-      `Open the preview QR in ${evidenceDir}/preview-qr.png with WeChat or WeChat DevTools.`,
-      "Trigger and screenshot only the missing share cards or landing pages listed above.",
-      "Save screenshots using the exact required filenames, then rerun npm run release:wechat:share:evidence.",
-    ]
+    ? buildNextActions({ evidenceDir, missing, missingCards, missingLandings })
     : [
       "All mini program share card evidence files are present.",
       "Mark the P1 item in docs/humi-1.1-pre-review-hardening.md as complete if the screenshots visually match the expected card and landing behavior.",
@@ -81,6 +78,21 @@ const result = {
 
 console.log(JSON.stringify(result, null, 2));
 if (!result.ok) process.exit(1);
+
+function buildNextActions({ evidenceDir, missing, missingCards, missingLandings }) {
+  const actions = [
+    `Missing evidence files: ${missing.map((item) => item.file).join(", ")}.`,
+  ];
+  if (missingLandings.length) {
+    actions.push("Run npm run release:wechat:share:landings to regenerate missing H5 landing screenshots.");
+  }
+  if (missingCards.length) {
+    actions.push(`Open the preview QR in ${evidenceDir}/preview-qr.png with WeChat or WeChat DevTools.`);
+    actions.push("Run npm run release:wechat:share:cards:capture to capture the missing native mini program share card screenshots with exact filenames.");
+  }
+  actions.push("Rerun npm run release:wechat:share:evidence after adding the missing files.");
+  return actions;
+}
 
 async function findLatestEvidenceDir() {
   const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR;

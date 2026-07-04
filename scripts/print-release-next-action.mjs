@@ -31,7 +31,7 @@ if (openHardeningItems.length) {
   lines.push("1. 按 docs/humi-1.1-pre-review-hardening.md 逐项完成 P0/P1 功能和体验项。");
   if (shareEvidence?.missingFiles?.length) {
     lines.push(`2. 小程序分享复核当前只缺：${shareEvidence.missingFiles.join("、")}。`);
-    lines.push("3. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，用微信开发者工具/真机截图补齐。");
+    lines.push("3. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，运行 npm run release:wechat:share:cards:capture 辅助保存。");
     lines.push("4. 每完成一项，更新清单证据、运行构建和对应验证命令。");
   } else {
     lines.push("2. 每完成一项，更新清单证据、运行构建和对应验证命令。");
@@ -74,6 +74,7 @@ lines.push("- 每个外部阶段完成后：按 npm run release:evidence:command
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
 lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
 lines.push("- 补 H5 落地页截图：npm run release:wechat:share:landings 会自动生成 crave/invite/grocery 三张 landing 图。");
+lines.push("- 补微信原生卡片截图：npm run release:wechat:share:cards:capture 会逐项等待卡片预览并保存正确文件名。");
 lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
 lines.push("");
 

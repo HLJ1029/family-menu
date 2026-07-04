@@ -71,6 +71,20 @@ npm run release:wechat:share:landings
 
 这只能证明 token 打开后的 H5 落地页与免登录/加入流程入口，不替代微信原生分享卡片截图。三张 `*-card.png` 仍需微信开发者工具或真机生成。
 
+辅助保存三张微信原生卡片截图：
+
+```bash
+npm run release:wechat:share:cards:capture
+```
+
+该命令会打开私有证据目录、预览二维码和核对清单，并逐项等待你把对应分享卡片预览停在屏幕上；按回车后，脚本会用正确文件名保存整屏 PNG：
+
+- `crave-card.png`
+- `invite-card.png`
+- `grocery-card.png`
+
+因为微信原生分享卡片不在 H5 DOM 内，这一步仍需要开发者工具或真机把卡片实际调出来；脚本负责命名、截图和基础 PNG 校验。
+
 检查截图是否齐全：
 
 ```bash
