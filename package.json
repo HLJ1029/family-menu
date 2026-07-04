@@ -15,6 +15,7 @@
     "validate:images": "node scripts/validate-dish-assets.mjs",
     "api:dev": "node --env-file-if-exists=.env.local api/server.js",
     "validate:api": "HUMI_WECHAT_MOCK=1 HUMI_API_DATA_FILE=/tmp/humi-api-smoke.json node scripts/smoke-humi-api.mjs",
+    "validate:crave-template": "node scripts/check-crave-sheet-template.mjs",
     "validate:recommendation": "node scripts/check-recommendation-constraints.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
@@ -36,6 +37,7 @@
     "release:wechat:start-submit": "node scripts/start-wechat-submit-session.mjs",
     "release:wechat:prepare-submit": "node scripts/prepare-wechat-submit-workspace.mjs",
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
+    "release:wechat:share:selftest": "node scripts/check-miniprogram-share-cards.mjs",
     "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },
   "dependencies": {

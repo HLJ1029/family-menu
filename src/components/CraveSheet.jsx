@@ -13,7 +13,7 @@ export function CraveStarterSheet({
       eyebrow="今晚征集单"
       title="今晚想问大家什么口味？"
       subtitle="先替这次征集定一个方向，家人打开卡片后只要点一个感觉。"
-      statusLabel="未发送"
+      statusLabel="待发送"
       compact={compact}
       footer={(
         <div className="grid gap-2 sm:grid-cols-2">
@@ -46,14 +46,14 @@ export function CraveCollectingSheet({
 
   return (
     <CraveSheetShell
-      eyebrow="征集中"
+      eyebrow="今晚征集单"
       title="大家点了什么感觉"
       subtitle={votes.length > 0 ? `已收到 ${votes.length} 个回复，可以随时出菜单。` : "卡片已经准备好。没人回也可以直接让 Humi 出菜单。"}
-      statusLabel={`已回 ${votes.length}`}
+      statusLabel={votes.length > 0 ? `征集中 · ${votes.length} 个回复` : "征集中"}
       compact={compact}
       footer={(
         <div className="grid gap-2 sm:grid-cols-3">
-          <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">复制/分享</button>
+          <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">分享征集单</button>
           <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
           <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">现在出菜单</button>
         </div>
@@ -103,10 +103,10 @@ export function CraveVoteSheet({
   return (
     <form onSubmit={onSubmit}>
       <CraveSheetShell
-        eyebrow={`${request?.householdName || "我家"} · 今晚`}
+        eyebrow="今晚征集单"
         title="你想吃点啥？"
-        subtitle="不用想菜名，点一个今晚的感觉就行。"
-        statusLabel="免登录可投"
+        subtitle={`${request?.householdName || "我家"} 正在问今晚口味。不用想菜名，点一个感觉就行。`}
+        statusLabel="免登录参与"
         footer={(
           <div className="grid gap-3">
             <input
@@ -124,7 +124,7 @@ export function CraveVoteSheet({
             {status && <p className="text-sm font-bold leading-6 text-ink/52">{status}</p>}
             <button type="submit" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-black text-white">
               <CheckCircle2 size={18} />
-              发给主厨
+              提交征集单
             </button>
           </div>
         )}
@@ -139,7 +139,7 @@ export function CraveSubmittedSheet({ request, status, onJoinHousehold, onClose 
   const resultDishes = request?.resultSummary?.dishes ?? [];
   return (
     <CraveSheetShell
-      eyebrow="已回传"
+      eyebrow="今晚征集单"
       title="收到！主厨会看着安排"
       subtitle={resultDishes.length > 0 ? "这次征集已经出菜单了，可以加入这个家看结果。" : "你已经完成这次投票了，关掉也没关系。"}
       statusLabel="已提交"
@@ -162,13 +162,13 @@ export function CraveSubmittedSheet({ request, status, onJoinHousehold, onClose 
 export function CraveClosedSheet({ request, status, onClose }) {
   return (
     <CraveSheetShell
-      eyebrow="征集结束"
-      title="今晚已经安排好了"
-      subtitle="这次征集已经关闭，回到 Humi 后可以看主厨最后定了什么。"
+      eyebrow="今晚征集单"
+      title={hasResultSummary(request) ? "今晚定好了" : "这张征集单已结束"}
+      subtitle={hasResultSummary(request) ? "主厨已经根据大家的感觉定了菜单。" : "这次征集已经关闭，回到 Humi 后可以看主厨最后定了什么。"}
       statusLabel="已结束"
       footer={(
         <button type="button" onClick={onClose} className="w-full rounded-full bg-ink px-6 py-3 text-sm font-black text-white">
-          回到 Humi
+          回到 Humi 看今晚
         </button>
       )}
     >
@@ -260,6 +260,10 @@ function ResultSummary({ request, status }) {
       )}
     </div>
   );
+}
+
+function hasResultSummary(request) {
+  return (request?.resultSummary?.dishes ?? []).length > 0;
 }
 
 function formatCraveDeadline(request) {

@@ -22,14 +22,14 @@
   - 完成标准：点击后有明确的“今晚征集单”反馈；分享/复制动作可继续触达小程序卡片。
   - 验证：`npm run build`，本地手动点击【我的家】问问大家。
   - 证据：`src/components/UserCenter.jsx` 在家庭动态区显示发起状态并滚动定位；`src/main.jsx` 返回创建的征集请求用于本页反馈。
-- [ ] P1 征集口味单据模板确认：主厨发起、家人投票、投票完成、主厨等待、生成结果五个状态统一为“今晚征集单”的设计语言。
+- [x] P1 征集口味单据模板确认：主厨发起、家人投票、投票完成、主厨等待、生成结果五个状态统一为“今晚征集单”的设计语言。
   - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
-  - 验证：`npm run build`，`npm run validate:api`。
-  - 证据：对应组件为 `src/components/CraveSheet.jsx` 和 `src/components/CraveLanding.jsx`。
+  - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`。
+  - 证据：`src/components/CraveSheet.jsx` 五个状态统一使用“今晚征集单”，按钮统一为“分享征集单/提交征集单/回到 Humi 看今晚”等单据语言；`scripts/check-crave-sheet-template.mjs` 已覆盖关键文案。
 - [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
-  - 验证：`npm run build`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
-  - 证据：`miniprogram/pages/index/index.js` 与私有真机证据。
+  - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
+  - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；仍需三类卡片的开发者工具/真机截图作为最终证据。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：`release:next` 当前阶段为“提审前产品打磨”；AI-HQ 状态同步该策略。
   - 验证：`npm run release:next`，`npm run release:status`。
@@ -44,6 +44,5 @@
 ## 当前建议顺序
 
 1. 先完成 P1 的选菜发现体验和协作入口反馈。
-2. 复核征集单模板五个状态，并让用户确认是否满意。
-3. 用微信开发者工具/真机做小程序卡片连调。
-4. P0/P1 全部勾完后，再进入微信公众平台提审动作。
+2. 用微信开发者工具/真机做小程序卡片连调。
+3. P0/P1 全部勾完后，再进入微信公众平台提审动作。
