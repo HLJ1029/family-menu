@@ -21,13 +21,13 @@ export function Library({
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">自己挑</p>
             <h2 className="mt-2 text-2xl font-black tracking-normal sm:text-3xl">
-              想换一道菜
+              发现新菜
             </h2>
           </div>
         </div>
         <div>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            看到合适的就补进今晚，清单会跟着更新。
+            像刷菜谱卡片一样慢慢逛。看到合适的就补进今晚，清单会跟着更新。
           </p>
         </div>
       </div>
@@ -61,6 +61,21 @@ export function Library({
           />
         ))}
       </div>
+      {visibleRecipes.length === 0 && (
+        <div className="rounded-[24px] border border-dashed border-line bg-white p-6 text-center shadow-card">
+          <p className="text-lg font-black text-ink">这组条件下还没菜</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            换个分类或点顶部搜索清空关键词，再继续逛。
+          </p>
+          <button
+            type="button"
+            onClick={() => setCategory("全部")}
+            className="mt-4 min-h-11 rounded-full bg-ink px-5 text-sm font-black text-white"
+          >
+            看全部
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -1061,6 +1061,7 @@ function App() {
     }
     const safeFeeling = feelingTag || "随便都行";
     let createdShareRequest = false;
+    let createdRequest = null;
     try {
       const data = await createCraveRequest({
         householdName: family?.name || familyName || "我家",
@@ -1071,6 +1072,7 @@ function App() {
       const request = data.request;
       if (request?.token) {
         createdShareRequest = true;
+        createdRequest = request;
         postCraveShareToMiniProgram({
           token: request.token,
           householdName: request.householdName,
@@ -1138,6 +1140,7 @@ function App() {
       recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
     });
     showNotice(safeFeeling === "随便都行" ? "那就 Humi 来做主" : `已按“${safeFeeling}”换一组`);
+    return createdRequest;
   }
 
   function decideAloneFromCrave(feelingTag) {

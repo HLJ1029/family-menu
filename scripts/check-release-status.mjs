@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -79,16 +79,18 @@ const [git, online, production, apiDeploy, releaseEvidence] = await Promise.all(
   runNpmScript("release:evidence:check"),
 ]);
 const artifacts = await requiredArtifactInfo();
+const preReviewHardening = await preReviewHardeningInfo();
 
 const apiDeployFailedChecks = apiDeploy.data?.checks?.filter((item) => !item.ok) ?? [];
 const apiDeployOnlySshBlocked = apiDeployFailedChecks.length === 1 && apiDeployFailedChecks[0]?.name === "ssh-access";
 const productionOk = Boolean(production.data?.ok);
 const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
+const preReviewHardeningReady = preReviewHardening.ok;
 const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
-const releaseComplete = platformSubmitReady && apiDeployReady && releaseEvidenceReady;
+const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
 
 const nextActions = [];
 if (!git.clean || !git.syncedToOriginMain) {
@@ -100,12 +102,15 @@ if (!onlineOk || !productionOk) {
 if (!artifactsOk) {
   nextActions.push("Restore missing release runbooks/templates before platform submission.");
 }
+if (!preReviewHardeningReady) {
+  nextActions.push("Finish docs/humi-1.1-pre-review-hardening.md P0/P1 product hardening before WeChat review.");
+}
 if (apiDeployOnlySshBlocked) {
   nextActions.push("Restore SSH access to api.humi-home.com, then run npm run deploy:api:check and docs/humi-api-production-deploy-runbook.md.");
 } else if (!apiDeployReady) {
   nextActions.push("Resolve deploy:api:check failures before API deployment.");
 }
-if (platformSubmitReady) {
+if (platformSubmitReady && preReviewHardeningReady) {
   nextActions.push("Use docs/miniprogram-platform-submit-runbook.md to submit WeChat review; final platform action requires user confirmation.");
 }
 if (!releaseEvidenceReady) {
@@ -116,7 +121,7 @@ if (releaseComplete) {
 }
 
 console.log(JSON.stringify({
-  ok: platformSubmitReady && apiDeployReady,
+  ok: platformSubmitReady && apiDeployReady && preReviewHardeningReady,
   checkedAt: new Date().toISOString(),
   git,
   release: {
@@ -124,6 +129,8 @@ console.log(JSON.stringify({
     productionMonitorOk: productionOk,
     apiDeployReady,
     apiDeployOnlySshBlocked,
+    preReviewHardeningReady,
+    preReviewHardeningOpenItems: preReviewHardening.openItems,
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
@@ -131,6 +138,7 @@ console.log(JSON.stringify({
     miniProgramUploadDescription: "征集单模板与分享卡片",
   },
   requiredArtifacts: artifacts,
+  preReviewHardening,
   checks: [
     summarizeCheck(online),
     summarizeCheck(production),
@@ -148,6 +156,29 @@ function summarizeCheck(check) {
     error: check.ok ? undefined : check.error,
     data: check.data,
   };
+}
+
+async function preReviewHardeningInfo() {
+  const path = process.env.HUMI_PRE_REVIEW_HARDENING_PATH || "docs/humi-1.1-pre-review-hardening.md";
+  try {
+    const content = await readFile(path, "utf8");
+    const openItems = content
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => /^- \[ \] P[01]\b/.test(line));
+    return {
+      path,
+      ok: openItems.length === 0,
+      openItems,
+    };
+  } catch (error) {
+    return {
+      path,
+      ok: false,
+      openItems: ["P0 pre-review hardening checklist is missing."],
+      error: error.message,
+    };
+  }
 }
 
 async function requiredArtifactInfo() {

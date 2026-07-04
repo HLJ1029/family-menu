@@ -1,0 +1,49 @@
+# Humi 1.1 提审前产品打磨清单
+
+更新日期：2026-07-04
+执行设备：codex@mbp-m5pro
+
+本文档是 1.1 进入微信审核前的产品收口单。当前策略是先把功能、体验和证据逐步完善，再进入微信公众平台审核；不再把“立即提审”作为默认下一步。
+
+## 当前原则
+
+- 小程序 `1.1.55` 已上传，但暂不提交审核。
+- `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
+- P0/P1 完成后，再重新跑 `npm run release:next` 判断是否进入微信审核准备。
+- P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
+
+## P0/P1 收口项
+
+- [x] P1 自己挑/今晚菜单选菜：从【今晚菜单】进入选菜时，必须保留小红书式图片卡片，并提供清晰入口打开完整【自己挑】菜品页，用于发现新菜。
+  - 完成标准：`TodayMenu` 内嵌选菜区有完整菜品页入口；空搜索结果有回退动作；移动端不被底部导航遮挡。
+  - 验证：`npm run build`，并用移动端视口查看【今晚菜单】加菜区。
+  - 证据：`src/components/TodayMenu.jsx` 增加“发现新菜”入口和空搜索兜底；`src/components/Library.jsx` 标题与空状态回到发现心智。
+- [x] P1 我的家协作入口：从【我的家】点“问问大家”不能让用户误以为跳回首页；应在【今晚】或【我的家】内明确展示征集单/等待态。
+  - 完成标准：点击后有明确的“今晚征集单”反馈；分享/复制动作可继续触达小程序卡片。
+  - 验证：`npm run build`，本地手动点击【我的家】问问大家。
+  - 证据：`src/components/UserCenter.jsx` 在家庭动态区显示发起状态并滚动定位；`src/main.jsx` 返回创建的征集请求用于本页反馈。
+- [ ] P1 征集口味单据模板确认：主厨发起、家人投票、投票完成、主厨等待、生成结果五个状态统一为“今晚征集单”的设计语言。
+  - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
+  - 验证：`npm run build`，`npm run validate:api`。
+  - 证据：对应组件为 `src/components/CraveSheet.jsx` 和 `src/components/CraveLanding.jsx`。
+- [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
+  - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
+  - 验证：`npm run build`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
+  - 证据：`miniprogram/pages/index/index.js` 与私有真机证据。
+- [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
+  - 完成标准：`release:next` 当前阶段为“提审前产品打磨”；AI-HQ 状态同步该策略。
+  - 验证：`npm run release:next`，`npm run release:status`。
+  - 证据：本文件、`docs/humi-1.1-spec-acceptance-audit.md`、`docs/humi-1.1-release-operator-handoff.md`、`scripts/check-release-status.mjs`、`scripts/print-release-next-action.mjs`。
+
+## P2 灰度后可继续项
+
+- [ ] P2 首批 10-20 个家庭的匿名反馈表填充。
+- [ ] P2 菜品图风格继续扩充，但不阻塞 1.1 提审。
+- [ ] P2 根据真实反馈决定是否拆 1.1.x 小修版本。
+
+## 当前建议顺序
+
+1. 先完成 P1 的选菜发现体验和协作入口反馈。
+2. 复核征集单模板五个状态，并让用户确认是否满意。
+3. 用微信开发者工具/真机做小程序卡片连调。
+4. P0/P1 全部勾完后，再进入微信公众平台提审动作。

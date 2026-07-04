@@ -7,9 +7,10 @@
 
 ## 1. 当前结论
 
-- 1.1 产品功能、H5 发布材料、小程序审核材料和规格验收矩阵已收口。
+- 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
+- 当前阶段是提审前产品打磨：先完成 `docs/humi-1.1-pre-review-hardening.md` 的 P0/P1，再进入微信公众平台审核。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
-- 最新产品提交：`1d264a6`（`feat: add crave sheet release template`）；对应 GitHub Pages run `28687866822`，结论 `success`。
+- 最新产品提交以 `git log --oneline -1` 为准；对应 GitHub Pages run `28687866822`，结论 `success`。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.55`，描述 `征集单模板与分享卡片`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`，1.1.55 已部署。
@@ -17,6 +18,25 @@
 - 生产 API 补部署已完成：备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，线上 health/monitor/readiness/public smoke 通过。
 
 ## 2. 先后顺序
+
+### Step 0：提审前产品打磨
+
+状态：进行中。当前暂停直接提审。
+
+Owner：Codex，涉及视觉/产品方向不确定项时由用户确认。
+
+执行：
+
+```bash
+npm run release:next
+npm run release:status
+```
+
+完成标准：
+
+- `docs/humi-1.1-pre-review-hardening.md` 中 P0/P1 全部勾选。
+- `npm run release:status` 里 `release.preReviewHardeningReady: true`。
+- 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
 
 ### Step A：生产 API 补部署
 
@@ -156,7 +176,7 @@ docs/launch-feedback-and-101-backlog.md
 npm run release:next
 ```
 
-打开微信公众平台后，需要一屏复制提交字段：
+只有 `release:next` 不再显示“提审前产品打磨”后，才进入微信公众平台材料：
 
 ```bash
 npm run release:wechat:start-submit
@@ -222,6 +242,7 @@ npm run release:complete:check
 - `release.onlineReady: true`：线上 H5 readiness 通过。
 - `release.productionMonitorOk: true`：H5、API health、基础推荐监控通过。
 - `release.artifactsReady: true`：发布必备文档齐全。
+- `release.preReviewHardeningReady: true`：提审前 P0/P1 产品打磨已全部完成。
 - `release.apiDeployOnlySshBlocked: true`：只剩生产机 SSH 权限问题。
 - `release.apiDeployReady: true`：API 补部署条件已满足。
 - `release.releaseEvidenceReady: false`：外部微信提交/审核/发布/真机/24 小时监控证据还没填完。
@@ -229,4 +250,4 @@ npm run release:complete:check
 - `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
 - `release:complete:check` 通过：可以宣布 Humi 1.1 正式发布完成；未通过时不能宣布完成。
 
-只有 `release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。
+只有 `release.preReviewHardeningReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, Search, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { Minus, Plus, Search, Share2, ShoppingBasket, Sparkles, Trash2, Utensils } from "lucide-react";
 import { nutritionFor, recipes } from "../lib/recipes";
 import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -85,6 +85,7 @@ export function TodayMenu({
           todayRecipes={todayRecipes}
           onAddToday={onAddToday}
           onOpenRecipe={onOpenRecipe}
+          onViewChange={onViewChange}
         />
         <DinnerLogPanel
           mealLog={mealLog}
@@ -189,6 +190,7 @@ export function TodayMenu({
             todayRecipes={todayRecipes}
             onAddToday={onAddToday}
             onOpenRecipe={onOpenRecipe}
+            onViewChange={onViewChange}
           />
         )}
 
@@ -320,7 +322,7 @@ export function TodayMenu({
   );
 }
 
-const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe, forcedPreset }, ref) {
+const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe, onViewChange, forcedPreset }, ref) {
   const [keyword, setKeyword] = useState("");
   const [activePreset, setActivePreset] = useState("all");
   const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
@@ -373,14 +375,24 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
             家常菜、快手菜、汤菜都在这里，看到想吃的就顺手加进今晚。
           </p>
         </div>
-        <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4 md:w-72">
-          <Search size={17} className="text-ink/38" />
-          <input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-ink/35"
-            placeholder="搜索菜名、食材"
-          />
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:w-[420px]">
+          <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4">
+            <Search size={17} className="text-ink/38" />
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-ink/35"
+              placeholder="搜索菜名、食材"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => onViewChange?.("library")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 sm:border sm:border-ink sm:bg-white sm:text-ink"
+          >
+            <Sparkles size={16} />
+            发现新菜
+          </button>
         </div>
       </div>
 
@@ -504,6 +516,31 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
           );
         })}
       </div>
+      {visibleRecipes.length === 0 && (
+        <div className="mt-4 rounded-[24px] border border-dashed border-line bg-canvas p-5 text-center">
+          <p className="text-base font-black text-ink">没找到这道菜</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            先换个关键词，或者打开完整菜品页慢慢逛。
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setKeyword("")}
+              className="min-h-11 rounded-full border border-line bg-white px-4 text-sm font-black text-ink"
+            >
+              清空搜索
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewChange?.("library")}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white"
+            >
+              <Sparkles size={16} />
+              去自己挑
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 });

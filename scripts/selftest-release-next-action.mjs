@@ -8,9 +8,13 @@ const execFileAsync = promisify(execFile);
 
 const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
 const tempEvidence = join(tempDir, "evidence.md");
+const tempHardening = join(tempDir, "hardening.md");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
+  await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
+  await assertNext("提审前产品打磨");
+  await writeFile(tempHardening, "- [x] P1 selftest open item\n");
 
   const tempSubmitDir = join(tempDir, "wechat-submit-1.1.55-20990101T000000");
   await mkdir(tempSubmitDir, { recursive: true });
@@ -90,6 +94,7 @@ async function assertNext(expected, options = {}) {
       ...process.env,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
+      HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
@@ -106,6 +111,7 @@ async function run(script, extraEnv) {
       ...process.env,
       ...extraEnv,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
+      HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,

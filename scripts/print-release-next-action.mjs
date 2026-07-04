@@ -13,6 +13,7 @@ const evidenceCheck = status.checks?.find((check) => check.name === "release:evi
 const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section) ?? [];
 const submitEvidenceState = await getLatestSubmitEvidenceState();
 const nextStage = getNextEvidenceStage(missingSections, submitEvidenceState);
+const openHardeningItems = status.release?.preReviewHardeningOpenItems ?? [];
 
 const lines = [];
 lines.push("Humi 1.1 当前行动卡");
@@ -22,7 +23,14 @@ lines.push(`当前提交：${status.git?.head ?? "unknown"} / origin/main ${stat
 lines.push(`小程序版本：${status.release?.miniProgramUploadedVersion ?? "unknown"} / ${status.release?.miniProgramUploadDescription ?? "unknown"}`);
 lines.push("");
 
-if (status.release?.releaseComplete) {
+if (openHardeningItems.length) {
+  lines.push("当前阶段：提审前产品打磨。");
+  lines.push("");
+  lines.push("现在该做：");
+  lines.push("1. 按 docs/humi-1.1-pre-review-hardening.md 逐项完成 P0/P1 功能和体验项。");
+  lines.push("2. 每完成一项，更新清单证据、运行构建和对应验证命令。");
+  lines.push("3. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。");
+} else if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
 } else if (wechat?.ok) {
@@ -43,6 +51,7 @@ if (status.release?.releaseComplete) {
 
 lines.push("");
 lines.push("要打开的材料：");
+lines.push("- docs/humi-1.1-pre-review-hardening.md");
 lines.push("- docs/wechat-submit-copy-packet.md");
 lines.push("- docs/miniprogram-platform-submit-runbook.md");
 lines.push("- docs/humi-1.1-release-evidence-log.md");
@@ -50,6 +59,7 @@ lines.push("- docs/launch-day-runbook.md");
 lines.push("- npm run release:evidence:commands");
 lines.push("");
 lines.push("完成判定：");
+lines.push("- 提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须全部勾完。");
 lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");
 lines.push("- 工程状态：npm run release:status 必须 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
@@ -60,6 +70,14 @@ if (missingSections.length) {
   lines.push("当前还缺的证据区块：");
   for (const section of missingSections) {
     lines.push(`- ${section}`);
+  }
+  lines.push("");
+}
+
+if (openHardeningItems.length) {
+  lines.push("当前还未完成的 P0/P1 打磨项：");
+  for (const item of openHardeningItems) {
+    lines.push(`- ${item.replace(/^- \[ \] /, "")}`);
   }
   lines.push("");
 }

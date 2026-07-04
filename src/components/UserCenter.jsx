@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { BarChart3, Check, ChefHat, Cloud, Database, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
@@ -64,7 +64,9 @@ export function UserCenter({
   const [wantTitle, setWantTitle] = useState("");
   const [wantNote, setWantNote] = useState("");
   const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
+  const [familyCraveStatus, setFamilyCraveStatus] = useState("");
   const [newHouseholdName, setNewHouseholdName] = useState("");
+  const familyCraveRef = useRef(null);
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
   const currentUserId = humiSession?.user?.id || session?.user?.id || "";
@@ -131,12 +133,26 @@ export function UserCenter({
   }
 
   function startFamilyCrave() {
+    setFamilyCraveStatus("正在把今晚征集单放到我的家。");
+    window.setTimeout(() => {
+      familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
     if (onStartCraveRequest) {
-      onStartCraveRequest(familyFeelingTag);
+      Promise.resolve(onStartCraveRequest(familyFeelingTag)).then((request) => {
+        setFamilyCraveStatus(
+          request?.token
+            ? "今晚征集单已在我的家展开，点“复制/分享”发给家人。"
+            : "已记录这次口味线索；如果分享卡片没生成，可以回到【今晚】再试一次。",
+        );
+      });
       return;
     }
-    if (onAskFamily) onAskFamily();
-    else onViewChange("dashboard");
+    if (onAskFamily) {
+      onAskFamily();
+      setFamilyCraveStatus("已发起问问大家。");
+    } else {
+      setFamilyCraveStatus("请先回【今晚】发起问问大家。");
+    }
   }
 
   function decideFamilyAlone() {
@@ -211,7 +227,7 @@ export function UserCenter({
           }}
           onSwitch={onSwitchHousehold}
         />
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section ref={familyCraveRef} className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">家庭动态</p>
@@ -228,6 +244,11 @@ export function UserCenter({
               问问大家
             </button>
           </div>
+          {familyCraveStatus && (
+            <div className="mt-4 rounded-[20px] border border-line bg-canvas px-4 py-3 text-sm font-black leading-6 text-ink/62">
+              {familyCraveStatus}
+            </div>
+          )}
           {activeCraveRequest?.token && (
             <CraveCollectingSheet
               request={activeCraveRequest}
