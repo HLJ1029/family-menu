@@ -65,6 +65,7 @@ lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。")
 lines.push("- 工程状态：npm run release:status 必须 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
+lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
 lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
 lines.push("");
 

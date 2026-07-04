@@ -47,6 +47,14 @@ npm run release:wechat:share:selftest
 
 ## 检查命令
 
+打开私有证据目录和预览二维码：
+
+```bash
+npm run release:wechat:share:prepare
+```
+
+检查截图是否齐全：
+
 ```bash
 npm run release:wechat:share:evidence
 ```
