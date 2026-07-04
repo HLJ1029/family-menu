@@ -95,6 +95,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       description: "三份策划书主体已收口，但 P0/P1 hardening 尚未全部完成，不能提交微信审核。",
       nextCommands: [
         "npm run release:pre-review:evidence",
+        "npm run release:wechat:share:doctor",
         "npm run release:wechat:share:devtools",
         "npm run release:wechat:share:cards:capture -- --interactive",
         "npm run release:wechat:share:cards:import -- --source-dir /path/to/card-screenshots",

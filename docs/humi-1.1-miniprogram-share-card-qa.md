@@ -57,6 +57,14 @@ npm run release:wechat:share:prepare
 
 该命令会先运行 `npm run release:wechat:share:selftest` 的同等逻辑，确认三类分享数据仍然正确，然后在私有证据目录写入 `share-card-qa-checklist.md` 和 `share-card-expected.json`。
 
+先做一次本机 QA 体检：
+
+```bash
+npm run release:wechat:share:doctor
+```
+
+该命令只读检查微信开发者工具 CLI、小程序项目目录、私有证据目录、当前还缺的截图，以及 macOS 是否处于 `UserIsActive=0`。如果屏幕已锁定，请先解锁 Mac，再运行开发者工具和交互截图命令；否则 CLI 可能返回打开成功，但实际窗口无法被继续操作。
+
 ## 打开开发者工具与证据目录
 
 ```bash

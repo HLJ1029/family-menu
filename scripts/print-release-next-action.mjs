@@ -32,13 +32,14 @@ if (openHardeningItems.length) {
   if (shareEvidence?.missingFiles?.length) {
     lines.push(`2. 小程序分享复核当前只缺：${shareEvidence.missingFiles.join("、")}。`);
     lines.push("3. 运行 npm run release:pre-review:evidence 生成私有证据总览，确认征集单视觉图和 H5 落地页已齐。");
-    lines.push("4. 运行 npm run release:wechat:share:devtools 打开小程序项目、预览二维码和核对清单。");
-    lines.push("5. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，推荐运行 npm run release:wechat:share:cards:capture -- --interactive 框选保存，或用 npm run release:wechat:share:cards:import 导入已有截图。");
-    lines.push("6. 截图补齐后运行 npm run release:wechat:share:evidence，再运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
+    lines.push("4. 运行 npm run release:wechat:share:doctor 确认开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");
+    lines.push("5. 运行 npm run release:wechat:share:devtools 打开小程序项目、预览二维码和核对清单。");
+    lines.push("6. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，推荐运行 npm run release:wechat:share:cards:capture -- --interactive 框选保存，或用 npm run release:wechat:share:cards:import 导入已有截图。");
+    lines.push("7. 截图补齐后运行 npm run release:wechat:share:evidence，再运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
   } else {
     lines.push("2. 小程序分享截图证据已齐，运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
   }
-  lines.push(`${shareEvidence?.missingFiles?.length ? 7 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。`);
+  lines.push(`${shareEvidence?.missingFiles?.length ? 8 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。`);
 } else if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
@@ -76,6 +77,7 @@ lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。")
 lines.push("- 工程状态：npm run release:status 必须 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
+lines.push("- 小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");
 lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇总征集单视觉图、H5 落地页图和微信原生 card 缺口。");
 lines.push("- 小程序卡片收口：npm run release:wechat:share:complete 会在人工视觉确认后勾选提审前 P1。");
 lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");

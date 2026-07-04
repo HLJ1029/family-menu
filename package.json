@@ -43,6 +43,7 @@
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
     "release:wechat:share:prepare": "node scripts/prepare-miniprogram-share-card-qa.mjs",
     "release:wechat:share:devtools": "node scripts/open-miniprogram-share-card-devtools.mjs",
+    "release:wechat:share:doctor": "node scripts/doctor-miniprogram-share-card-qa.mjs",
     "release:wechat:share:cards:capture": "node scripts/capture-miniprogram-share-card-screenshots.mjs",
     "release:wechat:share:cards:import": "node scripts/import-miniprogram-share-card-screenshots.mjs",
     "release:wechat:share:complete": "node scripts/complete-miniprogram-share-card-review.mjs",

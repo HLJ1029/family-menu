@@ -202,6 +202,7 @@ function buildNextActions(missingShareNativeCards) {
   }
   return [
     `Missing native mini program share cards: ${missingShareNativeCards.join(", ")}.`,
+    "Run npm run release:wechat:share:doctor to verify WeChat DevTools CLI, evidence directory, desktop activity, and missing files.",
     "Run npm run release:wechat:share:devtools to open WeChat DevTools, preview QR, and checklist.",
     "Run npm run release:wechat:share:cards:capture -- --interactive to capture exact card regions.",
     "Or run npm run release:wechat:share:cards:import -- --source-dir /path/to/card-screenshots if the files already exist.",
