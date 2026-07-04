@@ -2,7 +2,9 @@
 
 更新日期：2026-07-02
 
-本文档是 Humi 小程序首发的执行基线。其他路线图只保留方向，具体范围、阻塞项和验收结果以本文为准。
+本文档是 Humi 小程序 WebView MVP 的历史执行基线。1.1 当前收口、阻塞项和下一步以 `npm run release:next`、`npm run release:closure`、`docs/humi-1.1-pre-review-hardening.md` 和 `docs/humi-1.1-spec-acceptance-audit.md` 为准；本文件中较早日期的 checklist 仅作为历史背景，不再单独作为当前提审门禁。
+
+当前状态（2026-07-05）：小程序 `1.1.56` 已通过微信开发者工具 CLI 上传；生产 H5/API 在线；三份 1.1 策划书主体已由 `npm run release:spec:audit` 纳入门禁；当前暂不提交审核，剩余提审前 P1 是补齐 `crave-card.png`、`invite-card.png`、`grocery-card.png` 三张微信原生分享卡片截图证据。
 
 ## 1. 首发结论
 
@@ -278,6 +280,8 @@ H5 通过查询参数识别来源：
 
 ## 6. 域名备案完成后的工作
 
+> 历史清单说明：本节记录域名/业务域名阶段的执行项。当前 1.1 是否可继续，不再靠逐项阅读本节判断；请以 `npm run release:status`、`npm run release:closure` 和 `docs/humi-1.1-release-evidence-log.md` 的最新输出为准。
+
 ### 需要用户在平台完成
 
 - [x] 确认域名实名认证和备案通过。
@@ -311,6 +315,8 @@ www.humi-home.com
 - [ ] build、commit、push，并生成候选版本。
 
 ## 7. 真机验收矩阵
+
+> 当前用法：本节用于审核通过/发布后的真机 P0 验收参考。提审前当前唯一未完成 P1 是微信原生分享卡片截图复核；发布后的真机验收结果登记到 `docs/humi-1.1-release-evidence-log.md`。
 
 每项使用 iPhone 微信至少测试一次；关键链路建议再用一台不同型号手机复测。
 
@@ -385,6 +391,8 @@ www.humi-home.com
 - 至少 10 个家庭完成一次“推荐 → 接受 → 清单”。
 
 ## 9. 发布闸门
+
+> 历史清单说明：本节是早期首发发布闸门草案。当前发布/审核门禁已经迁移到 `npm run release:status`、`npm run release:closure`、`npm run release:wechat:check` 和 `npm run release:evidence:check`。
 
 只有以下条件全部满足，才能提交小程序审核：
 

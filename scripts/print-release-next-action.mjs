@@ -69,6 +69,8 @@ lines.push("- docs/humi-1.1-release-evidence-log.md");
 lines.push("- docs/launch-day-runbook.md");
 lines.push("- npm run release:evidence:commands");
 lines.push("- npm run release:pre-review:evidence");
+lines.push("- npm run release:spec:audit");
+lines.push("- npm run release:wechat:share:doctor");
 lines.push("- npm run release:closure");
 lines.push("");
 lines.push("完成判定：");
