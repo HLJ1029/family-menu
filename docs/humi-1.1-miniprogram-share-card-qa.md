@@ -98,4 +98,14 @@ npm run release:wechat:share:evidence
 - 命令输出每个文件的 size、图片尺寸和 SHA256。
 - 截图视觉上符合对应卡片和落地页行为。
 
-通过后再勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。
+视觉确认三张微信原生卡片正确后，运行收口命令：
+
+```bash
+npm run release:wechat:share:complete
+```
+
+该命令会先重新跑截图证据门禁，然后要求执行人确认三张原生卡片视觉正确；确认后才会勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。非交互环境可在人工视觉确认后使用：
+
+```bash
+HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 npm run release:wechat:share:complete
+```
