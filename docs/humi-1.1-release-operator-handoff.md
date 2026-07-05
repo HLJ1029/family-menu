@@ -254,6 +254,8 @@ npm run release:complete:check
 - `release.productionMonitorOk: true`：H5、API health、基础推荐监控通过。
 - `release.artifactsReady: true`：发布必备文档齐全。
 - `release.preReviewHardeningReady: true`：提审前 P0/P1 产品打磨已全部完成。
+- `release.productReviewReady: true`：发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏这些产品复核锚点已通过。
+- `release.wechatSubmitWorkspaceGuardReady: true`：`release:wechat:prepare-submit` 未带显式确认变量时不会打开微信公众平台。
 - `release.apiDeployOnlySshBlocked: true`：只剩生产机 SSH 权限问题。
 - `release.apiDeployReady: true`：API 补部署条件已满足。
 - `release.releaseEvidenceReady: false`：外部微信提交/审核/发布/真机/24 小时监控证据还没填完。
@@ -261,4 +263,4 @@ npm run release:complete:check
 - `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
 - `release:complete:check` 通过：可以宣布 Humi 1.1 正式发布完成；未通过时不能宣布完成。
 
-只有 `release.preReviewHardeningReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。
+只有 `release.preReviewHardeningReady`、`release.productReviewReady`、`release.wechatSubmitWorkspaceGuardReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

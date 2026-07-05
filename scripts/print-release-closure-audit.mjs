@@ -43,6 +43,8 @@ const report = {
   gates: {
     specAcceptanceAuditReady: Boolean(release.specAcceptanceAuditReady),
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
+    productReviewReady: Boolean(release.productReviewReady),
+    wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
     platformSubmitReady: Boolean(status?.ok),
     apiDeployReady: Boolean(release.apiDeployReady),
@@ -116,9 +118,10 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
     return {
       key: "engineering-gate",
       title: "工程提审门禁未通过",
-      description: "P0/P1 已完成，但工程状态、线上状态、API 预检、安全审计或发布材料仍有失败项。",
+      description: "P0/P1 已完成，但工程状态、产品复核、线上状态、API 预检、安全审计或发布材料仍有失败项。",
       nextCommands: [
         "npm run release:status",
+        "npm run release:product:review",
         "npm run release:spec:audit",
         "npm run release:security:audit",
         "npm run release:check:online",
@@ -257,6 +260,20 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "security-audit",
       title: "依赖安全审计未通过",
       details: ["Run npm run release:security:audit for details."],
+    });
+  }
+  if (!release.productReviewReady) {
+    blockers.push({
+      key: "product-review",
+      title: "产品复核锚点未通过",
+      details: ["Run npm run release:product:review for details."],
+    });
+  }
+  if (!release.wechatSubmitWorkspaceGuardReady) {
+    blockers.push({
+      key: "wechat-submit-guard",
+      title: "微信提审工作台确认护栏未通过",
+      details: ["Run npm run release:wechat:prepare-submit:selftest for details."],
     });
   }
   if (missingReleaseEvidence.length) {

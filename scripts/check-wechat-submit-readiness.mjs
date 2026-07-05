@@ -33,6 +33,8 @@ const submitReady = Boolean(
     && status.release?.productionMonitorOk
     && (status.release?.apiDeployReady || deployOnlyLocalDirty)
     && status.release?.preReviewHardeningReady
+    && status.release?.productReviewReady
+    && status.release?.wechatSubmitWorkspaceGuardReady
     && status.release?.artifactsReady,
 );
 
@@ -45,6 +47,8 @@ const packet = {
     ...(status.git?.clean ? [] : ["Local working tree is dirty; commit or stash engineering changes before tagging final release evidence."]),
     ...(ready ? [] : ["release:status is not fully green; see releaseStatusOk=false and warnings before final release bookkeeping."]),
     ...(status.release?.preReviewHardeningReady ? [] : ["Pre-review P0/P1 hardening is not complete; do not submit WeChat review yet."]),
+    ...(status.release?.productReviewReady ? [] : ["Product review anchors are not complete; run npm run release:product:review before WeChat review."]),
+    ...(status.release?.wechatSubmitWorkspaceGuardReady ? [] : ["WeChat submit workspace confirmation guard is not covered; do not prepare review submission."]),
   ],
   releaseStatusOk: ready,
   submitMaterials: [

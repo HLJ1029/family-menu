@@ -29,6 +29,8 @@ const report = {
     productionMonitorOk: Boolean(release.productionMonitorOk),
     apiDeployReady: Boolean(release.apiDeployReady),
     securityAuditReady: Boolean(release.securityAuditReady),
+    productReviewReady: Boolean(release.productReviewReady),
+    wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     artifactsReady: Boolean(release.artifactsReady),
     releaseEvidenceReady: Boolean(release.releaseEvidenceReady),
     releaseComplete: Boolean(release.releaseComplete),
