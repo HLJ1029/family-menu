@@ -6,6 +6,7 @@ const checks = [
     forbidden: [
       "当前仍处于提审前产品打磨阶段",
       "三张微信原生分享卡片截图证据补齐并完成 P1 后",
+      "以 `npm run release:wechat:prepare-submit` 输出为准",
     ],
   },
   {
@@ -20,6 +21,7 @@ const checks = [
     forbidden: [
       "当前已知最新 GitHub Pages run `28726626647`",
       "当前已知最新 GitHub Pages run `28726737462`",
+      "重新运行 `npm run release:wechat:prepare-submit`",
     ],
   },
   {

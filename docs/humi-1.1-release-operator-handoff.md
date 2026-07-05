@@ -189,7 +189,7 @@ npm run release:closure
 
 ```bash
 npm run release:wechat:start-submit
-npm run release:wechat:prepare-submit
+HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 npm run release:wechat:copy
 ```
 
@@ -199,12 +199,12 @@ npm run release:wechat:copy
 /Users/honglijie/.humi-release-evidence/wechat-submit-1.1.59-20260705T094930
 ```
 
-后续如果重新运行 `npm run release:wechat:prepare-submit`，以命令最新输出的目录为准。
+后续如果重新运行 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit`，以命令最新输出的目录为准。
 
 自动化边界：
 
 - 微信开发者工具 CLI 已完成 `1.1.59` 上传，但本机 CLI 没有提交审核/发布命令。
-- `release:wechat:prepare-submit` 会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只负责复制审核备注、打开公众平台和证据目录；不提交审核、不发布、不撤回，也不调用微信开放接口。
+- `release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只负责复制审核备注、打开公众平台和证据目录；不提交审核、不发布、不撤回，也不调用微信开放接口。
 - 微信公众平台 `mp.weixin.qq.com` 不允许本会话用浏览器自动化控制；不得绕过该限制。
 - 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。
 - 证据截图只放私有目录或私有链接；仓库内只登记时间、状态、结论和私有位置。

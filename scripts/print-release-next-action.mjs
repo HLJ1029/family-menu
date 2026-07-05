@@ -154,7 +154,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
       actions: [
         "先不要自动进入微信公众平台提交审核；审核/发布属于外部状态变更，必须等用户动作当下确认。",
         "需要复核时运行 npm run release:wechat:check，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录均可用。",
-        "用户明确确认进入审核后，再运行 npm run release:wechat:prepare-submit 打开微信公众平台、证据目录并复制审核备注。",
+        "用户明确确认进入审核后，再运行 HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit 打开微信公众平台、证据目录并复制审核备注。",
         "进入 Humi 小程序版本管理，找到已上传版本 1.1.59，描述为“原生分享确认页”。",
         "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
         "用户在后台确认无误后提交审核；提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",

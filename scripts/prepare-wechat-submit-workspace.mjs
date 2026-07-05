@@ -15,6 +15,25 @@ if (platform() !== "darwin") {
   throw new Error("release:wechat:prepare-submit currently supports macOS open/pbcopy only.");
 }
 
+if (process.env.HUMI_WECHAT_REVIEW_ACTION_CONFIRMED !== "1") {
+  const lines = [
+    "Humi 1.1 微信提审工作台未打开",
+    "",
+    "原因：打开微信公众平台属于审核关键路径准备动作，必须先由用户在动作当下确认。",
+    "",
+    "确认进入微信审核后再运行：",
+    "HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit",
+    "",
+    "确认前只做复核：",
+    "npm run release:map",
+    "npm run release:next",
+    "npm run release:closure",
+    "npm run release:wechat:check",
+  ];
+  console.log(lines.join("\n"));
+  process.exit(1);
+}
+
 const { sessionDir, reused } = await getOrCreateSessionDir();
 await writeToCommand("pbcopy", [], reviewNote);
 await execFileAsync("open", ["https://mp.weixin.qq.com/"], { timeout: 10_000 });

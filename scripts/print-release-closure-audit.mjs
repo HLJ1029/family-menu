@@ -138,7 +138,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:wechat:check",
         "npm run release:next",
         "npm run release:wechat:copy",
-        "# 用户明确确认进入审核后再运行：npm run release:wechat:prepare-submit",
+        "# 用户明确确认进入审核后再运行：HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit",
         "npm run release:evidence:record:submit:latest",
       ],
       userConfirmationsRequired: [
