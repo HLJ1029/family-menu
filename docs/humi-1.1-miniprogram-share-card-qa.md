@@ -5,7 +5,7 @@
 
 本文档用于完成提审前最后一个 P1：`crave`、`invite`、`grocery` 三类小程序卡片分享复核。
 
-2026-07-05 更新：`1.1.58` 起，H5 内的分享动作会先进入原生 `pages/share/index` 分享确认页，再由该页的 `open-type="share"` 触发微信卡片。不要再依赖 web-view `postMessage` 实时同步分享态；`postMessage` 只作为兼容兜底。
+2026-07-05 更新：`1.1.59` 起，H5 内的分享动作会先进入原生 `pages/share/index` 分享确认页，再由该页的 `open-type="share"` 触发微信卡片。不要再依赖 web-view `postMessage` 实时同步分享态；`postMessage` 只作为兼容兜底。
 
 ## 当前证据目录
 

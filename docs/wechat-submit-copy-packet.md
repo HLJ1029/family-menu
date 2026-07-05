@@ -11,7 +11,7 @@
 | --- | --- |
 | 小程序名称 | `Humi` |
 | AppID | `wx4040b89f3b363416` |
-| 上传版本 | `1.1.58` |
+| 上传版本 | `1.1.59` |
 | 版本描述 | `原生分享确认页` |
 | H5 域名 | `https://www.humi-home.com/` |
 | API 域名 | `https://api.humi-home.com` |
@@ -113,7 +113,7 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 
 | 证据 | 建议文件名 |
 | --- | --- |
-| 上传版本 `1.1.58` 列表 | `humi-1.1.58-version-list.png` |
+| 上传版本 `1.1.59` 列表 | `humi-1.1.59-version-list.png` |
 | request 合法域名 | `humi-request-domain-api.png` |
 | web-view 业务域名 | `humi-webview-domain-www.png` |
 | 隐私保护指引关键项 | `humi-privacy-settings.png` |
@@ -126,6 +126,6 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 
 - 提交时间。
 - 提交人。
-- 提交版本：`1.1.58`。
+- 提交版本：`1.1.59`。
 - 审核单状态。
 - 证据原件私有位置。

@@ -6,7 +6,7 @@ const pageDefinition = loadMiniProgramPage(source);
 const sharePageSource = await readFile("miniprogram/pages/share/index.js", "utf8");
 const shareRelay = loadShareRelay(sharePageSource);
 const indexHtml = await readFile("index.html", "utf8");
-if (!indexHtml.includes("https://res.wx.qq.com/open/js/jweixin-1.6.0.js")) {
+if (!indexHtml.includes("/vendor/jweixin-1.6.0.js")) {
   throw new Error("index.html must load the WeChat JSSDK before miniProgram share actions can navigate to the native relay page.");
 }
 
