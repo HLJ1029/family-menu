@@ -121,10 +121,10 @@ if (apiDeployOnlySshBlocked) {
   nextActions.push("Resolve deploy:api:check failures before API deployment.");
 }
 if (platformSubmitReady && preReviewHardeningReady) {
-  nextActions.push("Use docs/miniprogram-platform-submit-runbook.md to submit WeChat review; final platform action requires user confirmation.");
+  nextActions.push("Engineering gates are ready for WeChat review preparation; wait for user confirmation before any platform submit action.");
 }
 if (!releaseEvidenceReady) {
-  nextActions.push("After WeChat approval, publish 1.1.59, run real-device P0 checks, fill docs/humi-1.1-release-evidence-log.md, then rerun npm run release:evidence:check.");
+  nextActions.push("After user-confirmed WeChat submit, approval, publish, real-device P0 checks, and 24h monitoring, fill docs/humi-1.1-release-evidence-log.md and rerun npm run release:evidence:check.");
 }
 if (releaseComplete) {
   nextActions.push("Humi 1.1 release evidence is complete. Update AI-HQ Humi STATUS with final release and monitoring conclusions.");
@@ -200,6 +200,10 @@ async function requiredArtifactInfo() {
     {
       name: "specAcceptanceAudit",
       path: "docs/humi-1.1-spec-acceptance-audit.md",
+    },
+    {
+      name: "closureMap",
+      path: "docs/humi-1.1-closure-map.md",
     },
     {
       name: "apiDeployRunbook",

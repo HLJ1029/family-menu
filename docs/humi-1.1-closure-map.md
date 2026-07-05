@@ -1,0 +1,56 @@
+# Humi 1.1 收口地图
+
+更新日期：2026-07-05
+执行设备：codex@mbp-m5pro
+
+这页只回答一个问题：现在到底做到哪了，下一步该不该动。
+
+## 当前一句话
+
+Humi 1.1 功能、体验、提审前 P0/P1、生产 API、H5 部署、小程序上传和三类小程序原生分享卡片证据都已完成；当前不自动提交微信审核，停在用户确认是否进入微信公众平台审核。
+
+## 已完成
+
+- 三份策划书验收矩阵：`npm run release:spec:audit` 通过，27/27 项已完成。
+- 提审前 P0/P1：`docs/humi-1.1-pre-review-hardening.md` 全部勾选。
+- 小程序上传：`1.1.59` / `原生分享确认页` / AppID `wx4040b89f3b363416`。
+- H5 部署：GitHub Pages run `28726626647` 成功。
+- 生产 API：`https://api.humi-home.com` health/monitor/readiness 通过。
+- 分享卡片：`crave-card.png`、`invite-card.png`、`grocery-card.png` 和三张 H5 landing 图均已在私有证据目录校验通过。
+- 当前工程门禁：`npm run release:status` 为 `ok=true`；`npm run release:wechat:check` 为 `ok=true`。
+
+## 当前停点
+
+不要自动提交审核。
+
+下一步只有在用户明确确认“进入微信审核”后才执行：
+
+```bash
+npm run release:wechat:prepare-submit
+```
+
+确认前只做复核：
+
+```bash
+npm run release:next
+npm run release:closure
+npm run release:wechat:check
+```
+
+## 完整上线还差什么
+
+| 阶段 | 当前状态 | 完成证据 |
+| --- | --- | --- |
+| 微信公众平台提交审核 | 待用户确认 | `docs/humi-1.1-release-evidence-log.md` 第 4 节 |
+| 微信审核结果 | 待平台返回 | `docs/humi-1.1-release-evidence-log.md` 第 5 节 |
+| 审核通过后发布 | 待审核通过与用户确认 | `docs/humi-1.1-release-evidence-log.md` 第 6 节 |
+| 发布后 P0 真机验收 | 待发布后执行 | `docs/humi-1.1-release-evidence-log.md` 第 7 节 |
+| 24 小时监控 | 待发布后执行 | `docs/humi-1.1-release-evidence-log.md` 第 8 节 |
+| 10-20 家灰度反馈 | 待真实名单与反馈 | `docs/humi-1.1-gray-release-tracker.md` |
+
+## 不再重复做
+
+- 不再重做 1.1 策划书主体功能，除非新测试发现 P0/P1 问题。
+- 不再把“问问大家”“发现新菜”“征集单模板”“三类小程序分享卡片”作为开放项。
+- 不再用聊天记录判断下一步；以 `npm run release:next`、`npm run release:closure` 和本文件为准。
+

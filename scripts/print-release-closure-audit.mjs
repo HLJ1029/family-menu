@@ -59,6 +59,7 @@ const report = {
   nextCommands: currentPhase.nextCommands,
   userConfirmationsRequired: currentPhase.userConfirmationsRequired,
   authoritativeDocs: [
+    "docs/humi-1.1-closure-map.md",
     "docs/humi-1.1-spec-acceptance-audit.md",
     "docs/humi-1.1-pre-review-hardening.md",
     "docs/humi-1.1-miniprogram-share-card-qa.md",
@@ -131,17 +132,17 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
   if (missingSections.includes("## 4. 微信公众平台提交审核证据")) {
     return {
       key: "wechat-submit",
-      title: "等待微信公众平台提交审核",
-      description: "本地工程已可进入提交准备，但提交审核会改变外部平台状态，需要用户动作级确认。",
+      title: "等待用户确认是否进入微信审核",
+      description: "功能完善与工程门禁已完成；微信公众平台提交审核会改变外部平台状态，必须停在用户动作级确认点。",
       nextCommands: [
-        "npm run release:wechat:start-submit",
-        "npm run release:wechat:prepare-submit",
         "npm run release:wechat:check",
+        "npm run release:next",
         "npm run release:wechat:copy",
+        "# 用户明确确认进入审核后再运行：npm run release:wechat:prepare-submit",
         "npm run release:evidence:record:submit:latest",
       ],
       userConfirmationsRequired: [
-        `确认在微信公众平台提交 ${WECHAT_SUBMIT_VERSION} 审核。`,
+        `确认是否进入微信公众平台提交 ${WECHAT_SUBMIT_VERSION} 审核。`,
         "确认提交审核后登记私有证据目录。",
       ],
     };

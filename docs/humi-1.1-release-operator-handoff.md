@@ -3,14 +3,14 @@
 更新日期：2026-07-05
 执行设备：codex@mbp-m5pro
 
-本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。
+本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
 
 ## 1. 当前结论
 
 - 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
 - 当前阶段是微信审核准备：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，下一步需用户确认后进入微信公众平台审核。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
-- 最新产品提交以 `git log --oneline -1` 为准；当前已知最新 GitHub Pages run `28726207221`，结论 `success`。
+- 最新产品提交以 `git log --oneline -1` 为准；当前已知最新 GitHub Pages run `28726626647`，结论 `success`。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.59`，描述 `原生分享确认页`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`，1.1.59 已部署。
@@ -21,7 +21,7 @@
 
 ### Step 0：提审前产品打磨
 
-状态：进行中。当前暂停直接提审。
+状态：已完成。当前停在用户确认是否进入微信审核。
 
 Owner：Codex，涉及视觉/产品方向不确定项时由用户确认。
 
@@ -37,6 +37,7 @@ npm run release:status
 - `docs/humi-1.1-pre-review-hardening.md` 中 P0/P1 全部勾选。
 - `npm run release:status` 里 `release.preReviewHardeningReady: true`。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
+- 当前已满足；后续如果新增提审前 P0/P1，再回到本步骤。
 
 ### Step A：生产 API 补部署
 

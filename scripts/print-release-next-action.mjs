@@ -62,6 +62,7 @@ if (openHardeningItems.length) {
 
 lines.push("");
 lines.push("要打开的材料：");
+lines.push("- docs/humi-1.1-closure-map.md");
 lines.push("- docs/humi-1.1-pre-review-hardening.md");
 lines.push("- docs/wechat-submit-copy-packet.md");
 lines.push("- docs/humi-1.1-miniprogram-share-card-qa.md");
