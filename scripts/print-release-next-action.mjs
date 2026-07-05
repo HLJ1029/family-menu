@@ -40,7 +40,7 @@ if (openHardeningItems.length) {
   } else {
     lines.push("2. 小程序分享截图证据已齐，运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
   }
-  lines.push(`${shareEvidence?.missingFiles?.length ? 9 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入微信审核准备。`);
+  lines.push(`${shareEvidence?.missingFiles?.length ? 9 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入生产候选完善与内测验证阶段。`);
 } else if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
@@ -152,14 +152,14 @@ function getNextEvidenceStage(missing, submitEvidence) {
     }
 
     return {
-      title: "功能完善与工程门禁已完成，等待用户确认是否进入微信审核。",
+      title: "1.1 生产候选完善与内测验证，暂不进入微信审核。",
       actions: [
-        "先不要自动进入微信公众平台提交审核；审核/发布属于外部状态变更，必须等用户动作当下确认。",
-        "需要复核时运行 npm run release:wechat:check，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录均可用。",
-        "用户明确确认进入审核后，再运行 HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit 打开微信公众平台、证据目录并复制审核备注。",
-        "进入 Humi 小程序版本管理，找到已上传版本 1.1.59，描述为“原生分享确认页”。",
-        "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
-        "用户在后台确认无误后提交审核；提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
+        "继续把 1.1 当作生产候选版本做产品复核、真机体验确认和灰度名单准备；当前不直接进入微信公众平台提交审核。",
+        "运行 npm run release:product:review 和 npm run release:spec:audit，确认发现新菜、我的家问问大家、征集单模板、小程序卡片和三份策划书矩阵仍然闭环。",
+        "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录仍可用。",
+        "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",
+        "只有用户明确说“现在进入微信审核”后，才运行 HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit 打开微信公众平台。",
+        "真正提交审核后，再运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
       ],
     };
   }

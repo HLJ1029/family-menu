@@ -23,7 +23,7 @@ try {
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
   await rm(tempSubmitDir, { recursive: true, force: true });
 
-  await assertNext("功能完善与工程门禁已完成，等待用户确认是否进入微信审核");
+  await assertNext("1.1 生产候选完善与内测验证，暂不进入微信审核");
 
   await run("release:evidence:record:submit", {
     HUMI_WECHAT_SUBMIT_TIME: "2026-07-03 14:30 CST",
@@ -96,6 +96,7 @@ async function assertNext(expected, options = {}) {
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
+      HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
@@ -113,6 +114,7 @@ async function run(script, extraEnv) {
       ...extraEnv,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
+      HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,

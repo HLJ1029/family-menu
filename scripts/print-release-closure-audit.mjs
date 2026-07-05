@@ -134,10 +134,12 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
 
   if (missingSections.includes("## 4. 微信公众平台提交审核证据")) {
     return {
-      key: "wechat-submit",
-      title: "等待用户确认是否进入微信审核",
-      description: "功能完善与工程门禁已完成；微信公众平台提交审核会改变外部平台状态，必须停在用户动作级确认点。",
+      key: "candidate-hardening",
+      title: "1.1 生产候选完善与内测验证",
+      description: "当前先继续完善功能、体验和候选版本证据；微信公众平台提交审核会改变外部平台状态，必须等用户明确说进入审核后才执行。",
       nextCommands: [
+        "npm run release:product:review",
+        "npm run release:spec:audit",
         "npm run release:wechat:check",
         "npm run release:next",
         "npm run release:wechat:copy",
@@ -145,8 +147,8 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:evidence:record:submit:latest",
       ],
       userConfirmationsRequired: [
-        `确认是否进入微信公众平台提交 ${WECHAT_SUBMIT_VERSION} 审核。`,
-        "确认提交审核后登记私有证据目录。",
+        `后续某个明确时点再确认是否进入微信公众平台提交 ${WECHAT_SUBMIT_VERSION} 审核。`,
+        "真正提交审核后确认并登记私有证据目录。",
       ],
     };
   }
