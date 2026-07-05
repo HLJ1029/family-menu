@@ -27,6 +27,7 @@ const requiredApiIncrements = [
   "1.1.53 owner action boundary",
   "1.1.54 crave join shared state",
 ];
+const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
 
 const checks = [];
 
@@ -95,11 +96,15 @@ await check("git-main-clean", async () => {
   const head = await run("git", ["rev-parse", "--short", "HEAD"]);
   const upstream = await run("git", ["rev-parse", "--short", "origin/main"]);
   if (branch.stdout !== "main") throw new Error(`Expected branch main, got ${branch.stdout || "(detached)"}`);
-  if (status.stdout) throw new Error("Working tree has uncommitted changes.");
+  if (status.stdout && !completionSelftestAllowDirty) throw new Error("Working tree has uncommitted changes.");
   if (head.stdout !== upstream.stdout) {
     throw new Error(`HEAD ${head.stdout} does not match origin/main ${upstream.stdout}.`);
   }
-  return { branch: branch.stdout, head: head.stdout };
+  return {
+    branch: branch.stdout,
+    head: head.stdout,
+    cleanOverride: status.stdout ? "completion-selftest" : undefined,
+  };
 });
 
 await check("production-api-health", async () => {

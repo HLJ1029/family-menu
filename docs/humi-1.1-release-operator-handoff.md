@@ -240,6 +240,7 @@ npm run release:evidence:commands
 ```bash
 npm run release:evidence:selftest
 npm run release:next:selftest
+npm run release:complete:selftest
 ```
 
 需要看完整 JSON 状态：
@@ -264,5 +265,6 @@ npm run release:complete:check
 - `release.releaseComplete: true`：工程侧、微信发布侧、真机 P0 和 24 小时监控证据都完成。
 - `release:evidence:check` 通过：微信提交、审核结果、发布、真机 P0 和 24 小时监控证据都已填写。
 - `release:complete:check` 通过：可以宣布 Humi 1.1 正式发布完成；未通过时不能宣布完成。
+- `release:complete:selftest` 通过：临时完整证据日志可让最终完成门禁通过，证明完成判定脚本本身仍可用。
 
 只有 `release.preReviewHardeningReady`、`release.productReviewReady`、`release.wechatSubmitWorkspaceGuardReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

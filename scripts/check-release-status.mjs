@@ -3,6 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
 
 async function runNpmScript(scriptName) {
   const startedAt = Date.now();
@@ -43,7 +44,8 @@ async function gitInfo() {
     branch: branch.stdout,
     head: head.stdout,
     originMain: originHead.stdout,
-    clean: status.stdout.length === 0,
+    clean: status.stdout.length === 0 || completionSelftestAllowDirty,
+    cleanOverride: status.stdout.length === 0 ? undefined : completionSelftestAllowDirty ? "completion-selftest" : undefined,
     syncedToOriginMain: head.stdout === originHead.stdout,
   };
 }
