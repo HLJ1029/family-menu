@@ -59,10 +59,24 @@ if (!releaseMap.includes("release:product:review")) {
   });
 }
 
+const evidenceCommands = await readFile("scripts/print-release-evidence-commands.mjs", "utf8");
+for (const command of ["release:next", "release:closure", "release:evidence:check", "release:status"]) {
+  if (!evidenceCommands.includes(command)) {
+    failures.push({
+      path: "scripts/print-release-evidence-commands.mjs",
+      phrase: `missing ${command} in post-evidence checks`,
+    });
+  }
+}
+
 const result = {
   ok: failures.length === 0,
   checkedAt: new Date().toISOString(),
-  scope: [...checks.map((check) => check.path), "scripts/print-release-map.mjs"],
+  scope: [
+    ...checks.map((check) => check.path),
+    "scripts/print-release-map.mjs",
+    "scripts/print-release-evidence-commands.mjs",
+  ],
   failures,
 };
 

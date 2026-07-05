@@ -103,6 +103,8 @@ for (const stage of order) {
 
 lines.push("登记后检查：");
 lines.push("```bash");
+lines.push("npm run release:next");
+lines.push("npm run release:closure");
 lines.push("npm run release:evidence:check");
 lines.push("npm run release:status");
 lines.push("```");

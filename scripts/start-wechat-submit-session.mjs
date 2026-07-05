@@ -37,6 +37,9 @@ const lines = [
   "登记后检查：",
   "```bash",
   "npm run release:next",
+  "npm run release:closure",
+  "npm run release:evidence:check",
+  "npm run release:status",
   "npm run release:complete:check",
   "```",
 ];
@@ -84,6 +87,9 @@ npm run release:evidence:record:submit
 
 \`\`\`bash
 npm run release:next
+npm run release:closure
+npm run release:evidence:check
+npm run release:status
 npm run release:complete:check
 \`\`\`
 `;
