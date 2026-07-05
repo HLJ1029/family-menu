@@ -75,6 +75,7 @@ lines.push("- npm run release:pre-review:evidence");
 lines.push("- npm run release:product:review");
 lines.push("- npm run release:candidate:check");
 lines.push("- npm run release:candidate:prepare");
+lines.push("- npm run release:candidate:review");
 lines.push("- npm run release:spec:audit");
 lines.push("- npm run release:wechat:share:doctor");
 lines.push("- npm run release:closure");
@@ -90,6 +91,7 @@ lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇
 lines.push("- 产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。");
 lines.push("- 生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。");
 lines.push("- 生成内测执行包：npm run release:candidate:prepare 会在私有目录生成匿名名单 CSV、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息不得进仓库。");
+lines.push("- 复盘内测结果：npm run release:candidate:review 会读取最新私有执行包，汇总 P0/P1、核心链路完成和是否可继续审核准备。");
 lines.push("- 小程序卡片收口：npm run release:wechat:share:complete 会在人工视觉确认后勾选提审前 P1。");
 lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
 lines.push("- 补 H5 落地页截图：npm run release:wechat:share:landings 会自动生成 crave/invite/grocery 三张 landing 图。");
@@ -161,6 +163,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
         "继续把 1.1 当作生产候选版本做产品复核、真机体验确认和灰度名单准备；当前不直接进入微信公众平台提交审核。",
         "运行 npm run release:product:review、npm run release:candidate:check 和 npm run release:spec:audit，确认发现新菜、我的家问问大家、征集单模板、小程序卡片、内测准备和三份策划书矩阵仍然闭环。",
         "运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成私有内测执行包；要直接打开目录时去掉该环境变量。",
+        "内测结果填入私有执行包后，运行 npm run release:candidate:review 判断是否有 P0/P1 或需要先发 1.1.x。",
         "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录仍可用。",
         "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",
         "只有用户明确说“现在进入微信审核”后，才运行 HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit 打开微信公众平台。",

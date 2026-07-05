@@ -78,6 +78,12 @@ if (!releaseNext.includes("release:candidate:prepare")) {
     phrase: "missing release:candidate:prepare in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:review")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:review in candidate-stage action card",
+  });
+}
 
 const releaseStatus = await readFile("scripts/check-release-status.mjs", "utf8");
 if (!releaseStatus.includes("candidateHardeningReady")) {
