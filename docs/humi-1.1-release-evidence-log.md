@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28744383941` / success / 1.1.59 H5 已部署 |
+| GitHub Pages run | 最新 run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准；历史 run 见第 2 节 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.59` |

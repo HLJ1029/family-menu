@@ -12,23 +12,29 @@ const checks = [
   {
     path: "docs/humi-1.1-closure-map.md",
     forbidden: [
+      "H5 部署：GitHub Pages run `",
       "GitHub Pages run `28726626647` 成功",
       "GitHub Pages run `28726737462` 成功",
+      "GitHub Pages run `28744383941` 成功",
     ],
   },
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     forbidden: [
+      "当前已知最新 GitHub Pages run `",
       "当前已知最新 GitHub Pages run `28726626647`",
       "当前已知最新 GitHub Pages run `28726737462`",
+      "当前已知最新 GitHub Pages run `28744383941`",
       "重新运行 `npm run release:wechat:prepare-submit`",
     ],
   },
   {
     path: "docs/humi-1.1-release-evidence-log.md",
     forbidden: [
+      "| GitHub Pages run | `",
       "| GitHub Pages run | `28726626647` / success / 1.1.59 H5 已部署 |",
       "| GitHub Pages run | `28726737462` / success / 1.1.59 H5 已部署 |",
+      "| GitHub Pages run | `28744383941` / success / 1.1.59 H5 已部署 |",
       "工程侧已可准备提交微信审核",
     ],
   },
@@ -45,10 +51,18 @@ for (const check of checks) {
   }
 }
 
+const releaseMap = await readFile("scripts/print-release-map.mjs", "utf8");
+if (!releaseMap.includes("release:product:review")) {
+  failures.push({
+    path: "scripts/print-release-map.mjs",
+    phrase: "missing release:product:review in release map review commands",
+  });
+}
+
 const result = {
   ok: failures.length === 0,
   checkedAt: new Date().toISOString(),
-  scope: checks.map((check) => check.path),
+  scope: [...checks.map((check) => check.path), "scripts/print-release-map.mjs"],
   failures,
 };
 
