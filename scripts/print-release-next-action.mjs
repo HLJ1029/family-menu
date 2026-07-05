@@ -72,6 +72,7 @@ lines.push("- docs/humi-1.1-release-evidence-log.md");
 lines.push("- docs/launch-day-runbook.md");
 lines.push("- npm run release:evidence:commands");
 lines.push("- npm run release:pre-review:evidence");
+lines.push("- npm run release:product:review");
 lines.push("- npm run release:spec:audit");
 lines.push("- npm run release:wechat:share:doctor");
 lines.push("- npm run release:closure");
@@ -84,6 +85,7 @@ lines.push("- 每个外部阶段完成后：按 npm run release:evidence:command
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
 lines.push("- 小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");
 lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇总征集单视觉图、H5 落地页图和微信原生 card 缺口。");
+lines.push("- 产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。");
 lines.push("- 小程序卡片收口：npm run release:wechat:share:complete 会在人工视觉确认后勾选提审前 P1。");
 lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
 lines.push("- 补 H5 落地页截图：npm run release:wechat:share:landings 会自动生成 crave/invite/grocery 三张 landing 图。");

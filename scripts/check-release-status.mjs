@@ -78,6 +78,7 @@ const [
   apiDeploy,
   securityAudit,
   docsFreshness,
+  productReview,
   wechatSubmitWorkspaceGuard,
   specAudit,
   releaseEvidence,
@@ -88,6 +89,7 @@ const [
   runNpmScript("deploy:api:check"),
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
+  runNpmScript("release:product:review"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
   runNpmScript("release:evidence:check"),
@@ -102,10 +104,11 @@ const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
+const productReviewOk = productReview.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -125,6 +128,9 @@ if (!securityAuditOk) {
 }
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
+}
+if (!productReviewOk) {
+  nextActions.push("Fix release:product:review failures before claiming the 1.1 product review anchors are covered.");
 }
 if (!wechatSubmitWorkspaceGuardOk) {
   nextActions.push("Restore release:wechat:prepare-submit confirmation guard before relying on WeChat review preparation.");
@@ -161,6 +167,7 @@ console.log(JSON.stringify({
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
+    productReviewReady: productReviewOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
     specAcceptanceAuditReady: specAuditOk,
     preReviewHardeningReady,
@@ -179,6 +186,7 @@ console.log(JSON.stringify({
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
+    summarizeCheck(productReview),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),
     summarizeCheck(releaseEvidence),

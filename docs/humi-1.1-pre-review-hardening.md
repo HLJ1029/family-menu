@@ -10,6 +10,7 @@
 - 小程序 `1.1.59` 已上传，但暂不提交审核。
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、三张直达原生分享确认页二维码和三张微信原生 card 图缺口。
+- `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据和微信审核显式确认护栏。
 - `npm run release:spec:audit` 会把三份策划书、验收矩阵和当前 P0/P1 gate 做机器复核，防止文档只存在但没有覆盖要求。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“等待用户确认是否进入微信审核”，不自动推动平台提交。
 - P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
@@ -34,7 +35,7 @@
   - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；`docs/humi-1.1-miniprogram-share-card-qa.md` 规定最终截图文件名、PNG/尺寸/文件大小要求和视觉标准；`npm run release:wechat:share:landings` 已生成三张 token H5 落地页截图；`npm run release:wechat:share:direct-previews` 已生成三张直达 `pages/share/index` 原生确认页二维码；微信开发者工具已调出三类虚拟好友小程序卡片并保存 `crave-card.png`、`invite-card.png`、`grocery-card.png`；`npm run release:wechat:share:evidence` 已校验六张截图的完整 PNG、尺寸、size 和 SHA256；`HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 npm run release:wechat:share:complete` 已完成本 P1 勾选。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：P0/P1 完成后，`release:next` 当前阶段为“等待用户确认是否进入微信审核”；AI-HQ 状态同步该策略。
-  - 验证：`npm run release:next`，`npm run release:status`。
+  - 验证：`npm run release:next`，`npm run release:status`，`npm run release:product:review`。
   - 证据：本文件、`docs/humi-1.1-spec-acceptance-audit.md`、`docs/humi-1.1-release-operator-handoff.md`、`scripts/check-release-status.mjs`、`scripts/print-release-next-action.mjs`。
 
 ## P2 灰度后可继续项
@@ -47,4 +48,5 @@
 
 1. 运行 `npm run release:closure` 和 `npm run release:next`，确认当前处于等待用户确认的微信审核准备。
 2. 运行 `npm run release:wechat:check`，确认提交审核前材料与域名/隐私核对项仍为通过。
-3. 用户确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。
+3. 运行 `npm run release:product:review`，确认关键产品体验锚点仍可由源码、文档和证据共同证明。
+4. 用户确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。

@@ -37,6 +37,7 @@
     "release:next:selftest": "node scripts/selftest-release-next-action.mjs",
     "release:crave-template:visuals": "node scripts/capture-crave-template-visuals.mjs",
     "release:pre-review:evidence": "node scripts/prepare-pre-review-evidence-dashboard.mjs",
+    "release:product:review": "node scripts/check-product-review-readiness.mjs",
     "release:security:audit": "node scripts/check-security-audit.mjs",
     "release:docs:check": "node scripts/check-release-doc-freshness.mjs",
     "release:spec:audit": "node scripts/check-spec-acceptance-audit.mjs",
