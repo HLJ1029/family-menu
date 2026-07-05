@@ -27,6 +27,11 @@ const shareFiles = [
   ["grocery-card.png", "grocery 微信原生分享卡片", "native-card"],
   ["grocery-landing.png", "grocery 免登录买菜认领落地页", "h5-landing"],
 ];
+const directPreviewFiles = [
+  ["direct-preview/crave-preview-qr.png", "crave 直达原生分享确认页二维码", "direct-preview-qr"],
+  ["direct-preview/invite-preview-qr.png", "invite 直达原生分享确认页二维码", "direct-preview-qr"],
+  ["direct-preview/grocery-preview-qr.png", "grocery 直达原生分享确认页二维码", "direct-preview-qr"],
+];
 
 const [gitState, hardening, latestCraveDir, latestShareDir] = await Promise.all([
   readGitState(),
@@ -35,9 +40,10 @@ const [gitState, hardening, latestCraveDir, latestShareDir] = await Promise.all(
   findLatestDir("miniprogram-share-card-preview-"),
 ]);
 
-const [craveTemplateEvidence, shareEvidence] = await Promise.all([
+const [craveTemplateEvidence, shareEvidence, directPreviewEvidence] = await Promise.all([
   inspectGroup(latestCraveDir, craveTemplateFiles, { minWidth: 320, minHeight: 240, minBytes: 20_000 }),
   inspectGroup(latestShareDir, shareFiles, { minWidth: 240, minHeight: 160, minBytes: 8_000 }),
+  inspectGroup(latestShareDir, directPreviewFiles, { minWidth: 240, minHeight: 240, minBytes: 8_000 }),
 ]);
 
 const missingShareNativeCards = shareEvidence.files
@@ -52,8 +58,12 @@ const result = {
   hardening,
   craveTemplateEvidence,
   shareEvidence,
+  directPreviewEvidence,
   missingShareNativeCards,
-  nextActions: buildNextActions(missingShareNativeCards),
+  nextActions: buildNextActions({
+    missingShareNativeCards,
+    missingDirectPreviewQr: directPreviewEvidence.files.filter((item) => !item.ok).map((item) => item.file),
+  }),
 };
 
 await mkdir(dashboardDir, { recursive: true, mode: 0o700 });
@@ -132,19 +142,19 @@ async function inspectPngFile(dir, file, thresholds) {
   const path = join(dir, file);
   try {
     const [fileStat, bytes] = await Promise.all([stat(path), readFile(path)]);
-    const png = inspectPng(bytes);
+    const image = inspectImage(bytes);
     const ok = fileStat.isFile()
       && fileStat.size >= thresholds.minBytes
-      && png.ok
-      && png.width >= thresholds.minWidth
-      && png.height >= thresholds.minHeight;
+      && image.ok
+      && image.width >= thresholds.minWidth
+      && image.height >= thresholds.minHeight;
     return {
       ok,
       path,
       size: fileStat.size,
-      image: png,
+      image,
       sha256: createHash("sha256").update(bytes).digest("hex"),
-      error: ok ? undefined : buildPngError(file, fileStat, png, thresholds),
+      error: ok ? undefined : buildImageError(file, fileStat, image, thresholds),
     };
   } catch (error) {
     return {
@@ -155,11 +165,18 @@ async function inspectPngFile(dir, file, thresholds) {
   }
 }
 
-function inspectPng(bytes) {
+function inspectImage(bytes) {
   const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(signature)) {
-    return { ok: false, format: "unknown", width: 0, height: 0, complete: false };
+  if (bytes.length >= 24 && bytes.subarray(0, 8).equals(signature)) {
+    return inspectPng(bytes);
   }
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    return inspectJpeg(bytes);
+  }
+  return { ok: false, format: "unknown", width: 0, height: 0, complete: false };
+}
+
+function inspectPng(bytes) {
   let width = 0;
   let height = 0;
   let hasIhdr = false;
@@ -185,14 +202,58 @@ function inspectPng(bytes) {
   return { ok: hasIhdr && hasIend, format: "png", width, height, complete: hasIend };
 }
 
-function buildPngError(file, fileStat, png, thresholds) {
-  if (!fileStat.isFile() || fileStat.size <= 0) return `${file} is empty or not a file.`;
-  if (fileStat.size < thresholds.minBytes) return `${file} is too small: ${fileStat.size} bytes.`;
-  if (!png.ok) return `${file} is not a complete PNG.`;
-  return `${file} is ${png.width}x${png.height}; expected at least ${thresholds.minWidth}x${thresholds.minHeight}.`;
+function inspectJpeg(bytes) {
+  let offset = 2;
+  while (offset + 4 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    offset += 2;
+    if (marker === 0xd9) break;
+    if (marker === 0xda) break;
+    if (offset + 2 > bytes.length) break;
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) break;
+    if (
+      marker === 0xc0
+      || marker === 0xc1
+      || marker === 0xc2
+      || marker === 0xc3
+      || marker === 0xc5
+      || marker === 0xc6
+      || marker === 0xc7
+      || marker === 0xc9
+      || marker === 0xca
+      || marker === 0xcb
+      || marker === 0xcd
+      || marker === 0xce
+      || marker === 0xcf
+    ) {
+      if (offset + 7 <= bytes.length) {
+        return {
+          ok: true,
+          format: "jpeg",
+          width: bytes.readUInt16BE(offset + 5),
+          height: bytes.readUInt16BE(offset + 3),
+          complete: bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9,
+        };
+      }
+    }
+    offset += length;
+  }
+  return { ok: false, format: "jpeg", width: 0, height: 0, complete: false };
 }
 
-function buildNextActions(missingShareNativeCards) {
+function buildImageError(file, fileStat, image, thresholds) {
+  if (!fileStat.isFile() || fileStat.size <= 0) return `${file} is empty or not a file.`;
+  if (fileStat.size < thresholds.minBytes) return `${file} is too small: ${fileStat.size} bytes.`;
+  if (!image.ok) return `${file} is not a readable PNG/JPEG image.`;
+  return `${file} is ${image.width}x${image.height}; expected at least ${thresholds.minWidth}x${thresholds.minHeight}.`;
+}
+
+function buildNextActions({ missingShareNativeCards, missingDirectPreviewQr }) {
   if (!missingShareNativeCards.length) {
     return [
       "Run npm run release:wechat:share:evidence.",
@@ -200,14 +261,19 @@ function buildNextActions(missingShareNativeCards) {
       "Run npm run release:closure.",
     ];
   }
-  return [
+  const actions = [
     `Missing native mini program share cards: ${missingShareNativeCards.join(", ")}.`,
     "Run npm run release:wechat:share:doctor to verify WeChat DevTools CLI, evidence directory, desktop activity, and missing files.",
     "Run npm run release:wechat:share:devtools to open WeChat DevTools, preview QR, and checklist.",
+    "Run npm run release:wechat:share:direct-previews to generate direct QR codes for pages/share/index if the full H5 path is slow or unstable.",
     "Run npm run release:wechat:share:cards:capture -- --interactive to capture exact card regions.",
     "Or run npm run release:wechat:share:cards:import -- --source-dir /path/to/card-screenshots if the files already exist.",
     "Rerun npm run release:pre-review:evidence after adding the screenshots.",
   ];
+  if (missingDirectPreviewQr.length) {
+    actions.splice(1, 0, `Missing direct preview QR files: ${missingDirectPreviewQr.join(", ")}.`);
+  }
+  return actions;
 }
 
 function buildReadme(result) {
@@ -235,6 +301,12 @@ function buildReadme(result) {
     `目录：\`${result.shareEvidence.dir || "missing"}\``,
     "",
     tableFor(result.shareEvidence.files),
+    "",
+    "## 直达原生分享确认页二维码",
+    "",
+    `目录：\`${result.shareEvidence.dir ? `${result.shareEvidence.dir}/direct-preview` : "missing"}\``,
+    "",
+    tableFor(result.directPreviewEvidence.files),
     "",
     "## 下一步",
     "",
