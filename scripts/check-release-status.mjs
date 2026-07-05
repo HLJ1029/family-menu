@@ -124,7 +124,7 @@ if (platformSubmitReady && preReviewHardeningReady) {
   nextActions.push("Use docs/miniprogram-platform-submit-runbook.md to submit WeChat review; final platform action requires user confirmation.");
 }
 if (!releaseEvidenceReady) {
-  nextActions.push("After WeChat approval, publish 1.1.57, run real-device P0 checks, fill docs/humi-1.1-release-evidence-log.md, then rerun npm run release:evidence:check.");
+  nextActions.push("After WeChat approval, publish 1.1.58, run real-device P0 checks, fill docs/humi-1.1-release-evidence-log.md, then rerun npm run release:evidence:check.");
 }
 if (releaseComplete) {
   nextActions.push("Humi 1.1 release evidence is complete. Update AI-HQ Humi STATUS with final release and monitoring conclusions.");
@@ -146,7 +146,7 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: "1.1.57",
+    miniProgramUploadedVersion: "1.1.58",
     miniProgramUploadDescription: "原生分享确认页",
   },
   requiredArtifacts: artifacts,
