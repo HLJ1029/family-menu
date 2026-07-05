@@ -43,6 +43,7 @@
     "release:status": "node scripts/check-release-status.mjs",
     "release:wechat:start-submit": "node scripts/start-wechat-submit-session.mjs",
     "release:wechat:prepare-submit": "node scripts/prepare-wechat-submit-workspace.mjs",
+    "release:wechat:prepare-submit:selftest": "node scripts/selftest-wechat-submit-workspace-guard.mjs",
     "release:wechat:copy": "node scripts/print-wechat-submit-copy.mjs",
     "release:wechat:share:prepare": "node scripts/prepare-miniprogram-share-card-qa.mjs",
     "release:wechat:share:direct-previews": "node scripts/prepare-miniprogram-share-direct-previews.mjs",
