@@ -1197,13 +1197,13 @@ function App() {
     url.search = "";
     url.searchParams.set("crave", activeCraveRequest.token);
     navigator.clipboard?.writeText(url.toString());
-    postCraveShareToMiniProgram({
+    const openedMiniProgramShare = postCraveShareToMiniProgram({
       token: activeCraveRequest.token,
       householdName: activeCraveRequest.householdName || family?.name || familyName || "我家",
       initiatorName: activeCraveRequest.initiatorName || displaySession?.user?.displayName || "主厨",
       title: `${activeCraveRequest.householdName || family?.name || familyName || "我家"}今晚征集口味，点一下就行`,
     });
-    showNotice("邀请链接已复制，小程序分享卡片也已准备好");
+    showNotice(openedMiniProgramShare ? "已打开小程序分享卡片" : "邀请链接已复制，小程序分享卡片也已准备好");
   }
 
   function generateFromCraveRequest(options = {}) {
@@ -2137,7 +2137,7 @@ function App() {
           ],
         });
         if (data.share?.token && postGroceryShareToMiniProgram(data.share)) {
-          showNotice("买菜卡片已准备好，请点右上角分享");
+          showNotice("已打开买菜分享卡片");
           return;
         }
       } catch (error) {
@@ -2855,8 +2855,8 @@ function App() {
       });
       if (data.invite?.token) {
         setActiveHouseholdInvite(data.invite);
-        postHouseholdInviteShareToMiniProgram(data.invite);
-        showNotice("家庭邀请卡片已准备好，请点右上角分享");
+        const openedMiniProgramShare = postHouseholdInviteShareToMiniProgram(data.invite);
+        showNotice(openedMiniProgramShare ? "已打开家庭邀请卡片" : "家庭邀请卡片已准备好，请点右上角分享");
       }
     } catch (error) {
       showNotice(error.message || "家庭邀请暂时没生成成功");
@@ -3526,7 +3526,7 @@ function postCraveShareToMiniProgram(payload) {
       requestedAt: Date.now(),
     },
   });
-  return true;
+  return navigateToMiniProgramShare("crave", payload);
 }
 
 function postHouseholdInviteShareToMiniProgram(payload) {
@@ -3542,7 +3542,7 @@ function postHouseholdInviteShareToMiniProgram(payload) {
       requestedAt: Date.now(),
     },
   });
-  return true;
+  return navigateToMiniProgramShare("invite", payload);
 }
 
 function postGroceryShareToMiniProgram(payload) {
@@ -3559,6 +3559,24 @@ function postGroceryShareToMiniProgram(payload) {
       requestedAt: Date.now(),
     },
   });
+  return navigateToMiniProgramShare("grocery", {
+    ...payload,
+    itemCount: Array.isArray(payload.items) ? payload.items.length : 0,
+  });
+}
+
+function navigateToMiniProgramShare(type, payload = {}) {
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.navigateTo) return true;
+  const params = new URLSearchParams();
+  params.set("type", type);
+  params.set("token", payload.token || "");
+  if (payload.householdName) params.set("householdName", payload.householdName);
+  if (payload.initiatorName) params.set("initiatorName", payload.initiatorName);
+  if (payload.inviterName) params.set("inviterName", payload.inviterName);
+  if (payload.title) params.set("title", payload.title);
+  if (payload.itemCount !== undefined) params.set("itemCount", String(payload.itemCount));
+  miniProgram.navigateTo({ url: `/pages/share/index?${params.toString()}` });
   return true;
 }
 

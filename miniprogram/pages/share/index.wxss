@@ -1,0 +1,95 @@
+page {
+  min-height: 100vh;
+  background: #f7f5f1;
+  color: #111111;
+}
+
+.share-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 56rpx 40rpx 64rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  color: rgba(17, 17, 17, 0.42);
+  font-size: 22rpx;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+}
+
+.brand-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 999rpx;
+  background: #111111;
+}
+
+.share-card {
+  margin-top: 52rpx;
+  padding: 44rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.1);
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 24rpx 80rpx rgba(17, 17, 17, 0.08);
+}
+
+.eyebrow {
+  color: rgba(17, 17, 17, 0.44);
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.title {
+  margin-top: 18rpx;
+  font-size: 56rpx;
+  line-height: 1.08;
+  font-weight: 900;
+}
+
+.body {
+  margin-top: 24rpx;
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 28rpx;
+  line-height: 1.62;
+  font-weight: 700;
+}
+
+.meta-row {
+  margin-top: 36rpx;
+  display: flex;
+  justify-content: space-between;
+  gap: 24rpx;
+  color: rgba(17, 17, 17, 0.44);
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.actions {
+  padding-top: 48rpx;
+}
+
+.primary-button,
+.ghost-button {
+  min-height: 104rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.primary-button {
+  background: #111111;
+  color: #ffffff;
+}
+
+.ghost-button {
+  margin-top: 20rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.12);
+  background: #ffffff;
+  color: rgba(17, 17, 17, 0.62);
+}

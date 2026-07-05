@@ -3,6 +3,8 @@ import vm from "node:vm";
 
 const source = await readFile("miniprogram/pages/index/index.js", "utf8");
 const pageDefinition = loadMiniProgramPage(source);
+const sharePageSource = await readFile("miniprogram/pages/share/index.js", "utf8");
+const shareRelay = loadShareRelay(sharePageSource);
 
 const cases = [
   {
@@ -73,6 +75,10 @@ const results = cases.map((testCase) => {
   assertEqual(`${testCase.name} title`, share.title, testCase.expectedShare.title);
   assertEqual(`${testCase.name} path`, share.path, testCase.expectedShare.path);
 
+  const relay = shareRelay.buildShareData({ ...testCase.message, type: testCase.name });
+  assertEqual(`${testCase.name} relay title`, relay.title, testCase.expectedShare.title);
+  assertEqual(`${testCase.name} relay path`, relay.path, testCase.expectedShare.path);
+
   const launchPage = createPageInstance(pageDefinition);
   launchPage.onLoad(testCase.launchOptions);
   assertEqual(`${testCase.name} launch url`, launchPage.data.url, testCase.expectedLaunchUrl);
@@ -84,6 +90,8 @@ const results = cases.map((testCase) => {
     name: testCase.name,
     title: share.title,
     path: share.path,
+    relayTitle: relay.title,
+    relayPath: relay.path,
     launchUrl: launchPage.data.url,
     launchShareTitle: launchShare.title,
     launchSharePath: launchShare.path,
@@ -124,6 +132,26 @@ function loadMiniProgramPage(code) {
   vm.runInNewContext(code, context, { filename: "miniprogram/pages/index/index.js" });
   if (!capturedPage) throw new Error("Mini program page definition was not captured.");
   return capturedPage;
+}
+
+function loadShareRelay(code) {
+  const module = { exports: {} };
+  const context = {
+    console,
+    module,
+    exports: module.exports,
+    Page() {},
+    wx: {
+      showShareMenu() {},
+      navigateBack() {},
+    },
+  };
+
+  vm.runInNewContext(code, context, { filename: "miniprogram/pages/share/index.js" });
+  if (typeof module.exports.buildShareData !== "function") {
+    throw new Error("Share relay buildShareData was not exported.");
+  }
+  return module.exports;
 }
 
 function createPageInstance(definition) {

@@ -1,0 +1,23 @@
+<view class="share-shell">
+  <view>
+    <view class="brand-row">
+      <view class="brand-dot"></view>
+      <text>HUMI</text>
+    </view>
+
+    <view class="share-card">
+      <view class="eyebrow">{{eyebrow}}</view>
+      <view class="title">{{title}}</view>
+      <view class="body">{{body}}</view>
+      <view class="meta-row">
+        <text>{{householdName}}</text>
+        <text>{{meta}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="primary-button" open-type="share">发送给家人</button>
+    <button class="ghost-button" bindtap="goBack">返回 Humi</button>
+  </view>
+</view>
