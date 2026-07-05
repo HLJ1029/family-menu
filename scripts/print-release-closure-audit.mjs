@@ -97,6 +97,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:pre-review:evidence",
         "npm run release:wechat:share:doctor",
         "npm run release:wechat:share:devtools",
+        "npm run release:wechat:share:direct-previews",
         "npm run release:wechat:share:cards:capture -- --interactive",
         "npm run release:wechat:share:cards:import -- --source-dir /path/to/card-screenshots",
         "npm run release:wechat:share:evidence",

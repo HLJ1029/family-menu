@@ -113,6 +113,7 @@ function buildNextActions({ cli, project, desktop, missingNativeCards, missingH5
   if (missingH5Landings.length) actions.push(`Run npm run release:wechat:share:landings to generate missing H5 landing screenshots: ${missingH5Landings.join(", ")}.`);
   if (missingNativeCards.length) {
     actions.push(`Run npm run release:wechat:share:devtools, then trigger and capture missing native cards: ${missingNativeCards.join(", ")}.`);
+    actions.push("If the H5 share entry is unstable in DevTools, run npm run release:wechat:share:direct-previews and scan the generated direct-preview QR codes.");
     actions.push("Use npm run release:wechat:share:cards:capture -- --interactive for fresh screenshots, or release:wechat:share:cards:import for existing PNGs.");
   }
   if (!actions.length) actions.push("Run npm run release:wechat:share:evidence, then npm run release:wechat:share:complete after visual confirmation.");

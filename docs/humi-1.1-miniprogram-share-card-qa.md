@@ -1,6 +1,6 @@
 # Humi 1.1 小程序分享卡片复核
 
-更新日期：2026-07-04
+更新日期：2026-07-05
 设备：codex@mbp-m5pro
 
 本文档用于完成提审前最后一个 P1：`crave`、`invite`、`grocery` 三类小程序卡片分享复核。
@@ -23,6 +23,7 @@
 - `README.md`：私有证据说明。
 - `share-card-qa-checklist.md`：运行 `npm run release:wechat:share:prepare` 后生成的私有核对清单。
 - `share-card-expected.json`：运行 `npm run release:wechat:share:prepare` 后生成的三类分享标题、path 和落地 URL 预期数据。
+- `direct-preview/`：运行 `npm run release:wechat:share:direct-previews` 后生成的三张直达原生分享确认页预览二维码和 info 文件。
 
 代码层自测：
 
@@ -74,6 +75,22 @@ npm run release:wechat:share:devtools
 ```
 
 该命令会打开微信开发者工具小程序项目、私有证据目录、预览二维码和核对清单。它不会上传新版本、提交审核或发布，只用于把截图复核需要的窗口一次性打开。
+
+## 生成直达原生分享确认页预览
+
+如果 DevTools 里的 H5 WebView 没有触发微信 JSSDK 中继，或不想再从完整 H5 流程手动走到分享按钮，可以直接生成三张原生确认页预览二维码：
+
+```bash
+npm run release:wechat:share:direct-previews
+```
+
+该命令会调用微信开发者工具 CLI preview 的 `--compile-condition`，分别生成：
+
+- `direct-preview/crave-preview-qr.png`：直达 `pages/share/index?type=crave...`
+- `direct-preview/invite-preview-qr.png`：直达 `pages/share/index?type=invite...`
+- `direct-preview/grocery-preview-qr.png`：直达 `pages/share/index?type=grocery...`
+
+扫对应二维码或在开发者工具里打开后，页面应显示 Humi 原生分享确认卡；点击“发送给家人”后，再保存微信原生分享卡片截图为 `crave-card.png`、`invite-card.png`、`grocery-card.png`。这一步只用于提审前 QA 取证，不上传新版本、不提交审核、不发布。
 
 ## 三张原生卡片怎么触发
 
