@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-04
+更新日期：2026-07-05
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28713834307` / success / 1.1.56 H5 已部署 |
+| GitHub Pages run | `28726064589` / success / 1.1.59 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.56` |
-| 小程序描述 | `分享卡片转发兜底` |
+| 小程序版本 | `1.1.59` |
+| 小程序描述 | `原生分享确认页` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 生产 API 补部署已完成，等待微信公众平台提交审核/发布、发布后真机 P0 |
+| 当前状态 | 生产 API 补部署已完成；提审前 P1 仍缺三张微信原生分享卡片截图，暂不提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -35,6 +35,9 @@
 | 2026-07-04 | codex@mbp-m5pro | `git push origin main` | 通过 | `bdb2ede` / Pages run `28713834307` success / 小程序 `1.1.56` 已上传 |
 | 2026-07-04 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.56` / `分享卡片转发兜底` / package `16.4 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.56` |
 | 2026-07-04 | codex@mbp-m5pro | `npm run release:wechat:check` | 阻止提审 | 当前策略为提审前产品打磨；仍缺三张微信原生分享卡片截图证据 |
+| 2026-07-05 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.59` / `原生分享确认页` / package `20.1 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.59` |
+| 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `76dc75d` / Pages run `28726064589` success / 证据总览已纳入 direct-preview 二维码 |
+| 2026-07-05 | codex@mbp-m5pro | `npm run release:pre-review:evidence` | 阻止提审 | 征集单视觉图、H5 landing、direct-preview 二维码均 OK；仍缺 `crave-card.png`、`invite-card.png`、`grocery-card.png` |
 
 ## 3. 生产 API 补部署证据
 
@@ -73,14 +76,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.56` |
+| 提交版本 | `1.1.59` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.56` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.59` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -108,7 +111,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.56` |
+| 发布版本 | `1.1.59` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

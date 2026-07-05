@@ -2,12 +2,12 @@
 
 默认域名：`https://api.humi-home.com`
 
-当前生产状态（2026-07-04）：
+当前生产状态（2026-07-05）：
 
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 生产 API 已完成 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 的服务端增量补部署；备份路径 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，`npm run deploy:api:check`、`npm run monitor:prod` 和 `npm run release:check:online` 已通过。1.1.56 为分享卡片转发兜底前端/小程序壳更新，不新增 API 端点。
+- 生产 API 已完成 1.1.37/1.1.38/1.1.39/1.1.42/1.1.51/1.1.52/1.1.53/1.1.54 的服务端增量补部署；备份路径 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，`npm run deploy:api:check`、`npm run monitor:prod` 和 `npm run release:check:online` 已通过。1.1.59 为原生分享确认页与 JSSDK/小程序壳更新，不新增 API 端点。
 
 本地启动：
 

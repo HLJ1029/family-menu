@@ -4,6 +4,8 @@ import { promisify } from "node:util";
 import {
   findLatestWechatSubmitDir,
   listWechatSubmitEvidenceFiles,
+  WECHAT_SUBMIT_DESCRIPTION,
+  WECHAT_SUBMIT_VERSION,
 } from "./wechat-submit-evidence-session.mjs";
 import { reviewNote } from "./wechat-submit-copy-data.mjs";
 
@@ -28,7 +30,7 @@ const lines = [
   "",
   "接下来在微信公众平台完成：",
   "1. 进入 Humi 小程序版本管理。",
-  "2. 找到 1.1.56 / 分享卡片转发兜底。",
+  `2. 找到 ${WECHAT_SUBMIT_VERSION} / ${WECHAT_SUBMIT_DESCRIPTION}。`,
   "3. 核对 request 域名 api.humi-home.com、web-view 域名 www.humi-home.com、隐私保护指引。",
   "4. 粘贴审核备注并提交审核。",
   "5. 把后台截图放入上面的私有证据目录。",

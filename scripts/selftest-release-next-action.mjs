@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -16,7 +17,7 @@ try {
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
 
-  const tempSubmitDir = join(tempDir, "wechat-submit-1.1.56-20990101T000000");
+  const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
   await mkdir(tempSubmitDir, { recursive: true });
   await writeFile(join(tempSubmitDir, "humi-review-submitted.png"), "fake screenshot bytes");
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");

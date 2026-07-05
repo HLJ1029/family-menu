@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -140,7 +141,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:evidence:record:submit:latest",
       ],
       userConfirmationsRequired: [
-        "确认在微信公众平台提交 1.1.56 审核。",
+        `确认在微信公众平台提交 ${WECHAT_SUBMIT_VERSION} 审核。`,
         "确认提交审核后登记私有证据目录。",
       ],
     };
@@ -171,7 +172,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:next",
       ],
       userConfirmationsRequired: [
-        "确认在微信公众平台发布审核通过的 1.1.56。",
+        `确认在微信公众平台发布审核通过的 ${WECHAT_SUBMIT_VERSION}。`,
       ],
     };
   }

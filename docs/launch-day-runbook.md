@@ -1,17 +1,17 @@
 # Humi 1.1 小程序发布 Runbook
 
-更新日期：2026-07-03
+更新日期：2026-07-05
 执行设备：codex@mbp-m5pro
 
 ## 1. 当前状态
 
-- 小程序版本：`1.1.56`
-- 版本描述：`分享卡片转发兜底`
+- 小程序版本：`1.1.59`
+- 版本描述：`原生分享确认页`
 - AppID：`wx4040b89f3b363416`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
-- 当前状态：H5 与小程序包已上传；微信公众平台提交审核/审核通过后发布仍需平台侧确认。
-- 后端状态：生产 API 已补部署到 1.1.54 所需服务端增量；1.1.56 为征集单模板/分享卡片前端与小程序壳层更新，发布前后继续用 `npm run monitor:prod` 和 `npm run release:status` 复核。
+- 当前状态：H5 与小程序包已上传；当前先完善提审前 P1 分享卡片证据，不直接提交审核。
+- 后端状态：生产 API 已补部署到 1.1.54 所需服务端增量；1.1.59 为原生分享确认页与 JSSDK/小程序壳层更新，不新增 API 端点，发布前后继续用 `npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 
 ## 2. 审核通过后立即执行

@@ -1,6 +1,6 @@
 # Humi 1.1 Spec Acceptance Audit
 
-更新日期：2026-07-04
+更新日期：2026-07-05
 执行设备：codex@mbp-m5pro
 
 本文档把三份 1.1 策划书收敛成验收清单：
@@ -17,7 +17,7 @@
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
-- 最新小程序上传：`1.1.56` / `分享卡片转发兜底` / AppID `wx4040b89f3b363416`。
+- 最新小程序上传：`1.1.59` / `原生分享确认页` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260703T045543Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
