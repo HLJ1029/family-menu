@@ -98,6 +98,8 @@ Owner：用户，Codex 提供材料。
 npm run release:wechat:check
 ```
 
+该命令必须在产品仓库干净且 `main` 已同步到 `origin/main` 时返回 `ok=true`；如果本地还有未提交改动，只能继续工程收口，不能把微信审核准备视为可执行。
+
 执行材料：
 
 ```text

@@ -13,14 +13,6 @@ if (!status) {
   throw new Error("Unable to parse release:status output.");
 }
 
-const deployCheck = status.checks?.find((check) => check.name === "deploy:api:check");
-const deployOnlyLocalDirty = Boolean(
-  deployCheck
-    && !deployCheck.ok
-    && Array.isArray(deployCheck.data?.checks)
-    && deployCheck.data.checks.every((check) => check.ok || check.name === "git-main-clean"),
-);
-
 const ready = Boolean(
   status.ok
     && status.release?.onlineReady
@@ -29,9 +21,12 @@ const ready = Boolean(
     && status.release?.artifactsReady,
 );
 const submitReady = Boolean(
-  status.release?.onlineReady
+  status.ok
+    && status.git?.clean
+    && status.git?.syncedToOriginMain
+    && status.release?.onlineReady
     && status.release?.productionMonitorOk
-    && (status.release?.apiDeployReady || deployOnlyLocalDirty)
+    && status.release?.apiDeployReady
     && status.release?.preReviewHardeningReady
     && status.release?.productReviewReady
     && status.release?.wechatSubmitWorkspaceGuardReady
@@ -45,6 +40,7 @@ const packet = {
   uploadDescription: status.release?.miniProgramUploadDescription,
   warnings: [
     ...(status.git?.clean ? [] : ["Local working tree is dirty; commit or stash engineering changes before tagging final release evidence."]),
+    ...(status.git?.syncedToOriginMain ? [] : ["Local main is not synced with origin/main; push or pull before WeChat review preparation."]),
     ...(ready ? [] : ["release:status is not fully green; see releaseStatusOk=false and warnings before final release bookkeeping."]),
     ...(status.release?.preReviewHardeningReady ? [] : ["Pre-review P0/P1 hardening is not complete; do not submit WeChat review yet."]),
     ...(status.release?.productReviewReady ? [] : ["Product review anchors are not complete; run npm run release:product:review before WeChat review."]),
