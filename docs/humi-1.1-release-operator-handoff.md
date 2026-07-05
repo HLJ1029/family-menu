@@ -31,6 +31,7 @@ Owner：Codex，涉及视觉/产品方向不确定项时由用户确认。
 npm run release:next
 npm run release:status
 npm run release:product:review
+npm run release:candidate:check
 ```
 
 完成标准：
@@ -38,6 +39,7 @@ npm run release:product:review
 - `docs/humi-1.1-pre-review-hardening.md` 中 P0/P1 全部勾选。
 - `npm run release:status` 里 `release.preReviewHardeningReady: true`。
 - `npm run release:product:review` 通过，确认发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏仍有源码/文档/证据锚点。
+- `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
 - 当前已满足；后续如果新增提审前 P0/P1，继续在本步骤完善，不直接跳到审核。
 
@@ -185,6 +187,7 @@ npm run release:next
 
 ```bash
 npm run release:closure
+npm run release:candidate:check
 ```
 
 `release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。

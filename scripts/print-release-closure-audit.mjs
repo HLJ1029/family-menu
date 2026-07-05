@@ -44,6 +44,7 @@ const report = {
     specAcceptanceAuditReady: Boolean(release.specAcceptanceAuditReady),
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     productReviewReady: Boolean(release.productReviewReady),
+    candidateHardeningReady: Boolean(release.candidateHardeningReady),
     wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
     platformSubmitReady: Boolean(status?.ok),
@@ -122,6 +123,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       nextCommands: [
         "npm run release:status",
         "npm run release:product:review",
+        "npm run release:candidate:check",
         "npm run release:spec:audit",
         "npm run release:security:audit",
         "npm run release:check:online",
@@ -139,6 +141,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       description: "当前先继续完善功能、体验和候选版本证据；微信公众平台提交审核会改变外部平台状态，必须等用户明确说进入审核后才执行。",
       nextCommands: [
         "npm run release:product:review",
+        "npm run release:candidate:check",
         "npm run release:spec:audit",
         "npm run release:wechat:check",
         "npm run release:next",
@@ -269,6 +272,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "product-review",
       title: "产品复核锚点未通过",
       details: ["Run npm run release:product:review for details."],
+    });
+  }
+  if (!release.candidateHardeningReady) {
+    blockers.push({
+      key: "candidate-hardening",
+      title: "生产候选内测材料未通过",
+      details: ["Run npm run release:candidate:check for details."],
     });
   }
   if (!release.wechatSubmitWorkspaceGuardReady) {
