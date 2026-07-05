@@ -8,9 +8,9 @@
 ## 1. 当前结论
 
 - 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
-- 当前阶段是提审前产品打磨：先完成 `docs/humi-1.1-pre-review-hardening.md` 的 P0/P1，再进入微信公众平台审核。
+- 当前阶段是微信审核准备：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，下一步需用户确认后进入微信公众平台审核。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
-- 最新产品提交以 `git log --oneline -1` 为准；当前已知最新 GitHub Pages run `28726064589`，结论 `success`。
+- 最新产品提交以 `git log --oneline -1` 为准；当前已知最新 GitHub Pages run `28726207221`，结论 `success`。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.59`，描述 `原生分享确认页`，AppID `wx4040b89f3b363416`。
 - 当前 H5：`https://www.humi-home.com/`，1.1.59 已部署。
@@ -184,7 +184,7 @@ npm run release:closure
 
 `release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。
 
-只有 `release:next` 不再显示“提审前产品打磨”后，才进入微信公众平台材料：
+现在 `release:next` 应停在“功能完善与工程门禁已完成，等待用户确认是否进入微信审核”。进入微信公众平台材料前仍需用户动作当下确认：
 
 ```bash
 npm run release:wechat:start-submit
@@ -208,7 +208,7 @@ npm run release:wechat:copy
 - 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。
 - 证据截图只放私有目录或私有链接；仓库内只登记时间、状态、结论和私有位置。
 
-提交审核后，登记证据日志：
+用户确认并完成提交审核后，登记证据日志：
 
 ```bash
 npm run release:evidence:record:submit:latest

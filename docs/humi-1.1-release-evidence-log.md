@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28726064589` / success / 1.1.59 H5 已部署 |
+| GitHub Pages run | `28726207221` / success / 1.1.59 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.59` |
 | 小程序描述 | `原生分享确认页` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 生产 API 补部署已完成；提审前 P1 仍缺三张微信原生分享卡片截图，暂不提交微信审核 |
+| 当前状态 | 生产 API 补部署和提审前 P0/P1 打磨已完成；工程侧已可准备提交微信审核，但尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -38,6 +38,7 @@
 | 2026-07-05 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.59` / `原生分享确认页` / package `20.1 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.59` |
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `76dc75d` / Pages run `28726064589` success / 证据总览已纳入 direct-preview 二维码 |
 | 2026-07-05 | codex@mbp-m5pro | `npm run release:pre-review:evidence` | 阻止提审 | 征集单视觉图、H5 landing、direct-preview 二维码均 OK；仍缺 `crave-card.png`、`invite-card.png`、`grocery-card.png` |
+| 2026-07-05 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` / `npm run release:wechat:share:complete` | 通过 | DevTools 原生分享确认页已复核 `crave`、`invite`、`grocery` 三类虚拟好友小程序卡片；六张截图证据均 OK，private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522` |
 
 ## 3. 生产 API 补部署证据
 

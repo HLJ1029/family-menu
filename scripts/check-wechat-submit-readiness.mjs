@@ -62,9 +62,10 @@ const packet = {
   ],
   nextActions: submitReady
     ? [
-      "Open WeChat public platform and submit version 1.1.59 for review.",
+      "Wait for user confirmation before changing WeChat platform state.",
+      "After confirmation, open WeChat public platform and prepare version 1.1.59 for review.",
       "Store private screenshots outside the repo.",
-      "Record submit time, submitter, review status, and private evidence location in docs/humi-1.1-release-evidence-log.md.",
+      "Only after the platform submit action is completed, record submit time, submitter, review status, and private evidence location in docs/humi-1.1-release-evidence-log.md.",
     ]
     : status.nextActions,
 };

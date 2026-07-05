@@ -148,14 +148,14 @@ function getNextEvidenceStage(missing, submitEvidence) {
     }
 
     return {
-      title: "工程侧已可提交微信审核，下一步是平台提交审核。",
+      title: "功能完善与工程门禁已完成，等待用户确认是否进入微信审核。",
       actions: [
-        "运行 npm run release:wechat:prepare-submit，打开微信公众平台、证据目录并复制审核备注。",
-        "进入 Humi 小程序版本管理。",
-        "找到已上传版本 1.1.59，描述为“原生分享确认页”。",
+        "先不要自动进入微信公众平台提交审核；审核/发布属于外部状态变更，必须等用户动作当下确认。",
+        "需要复核时运行 npm run release:wechat:check，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录均可用。",
+        "用户明确确认进入审核后，再运行 npm run release:wechat:prepare-submit 打开微信公众平台、证据目录并复制审核备注。",
+        "进入 Humi 小程序版本管理，找到已上传版本 1.1.59，描述为“原生分享确认页”。",
         "核对 request 合法域名 api.humi-home.com、web-view 业务域名 www.humi-home.com、隐私保护指引。",
-        "按 docs/wechat-submit-copy-packet.md 填审核备注并提交审核。",
-        "提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
+        "用户在后台确认无误后提交审核；提交后运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
       ],
     };
   }
