@@ -86,7 +86,8 @@ const checks = [
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:review")
-      && handoff.includes("release:candidate:prepare"),
+      && handoff.includes("release:candidate:prepare")
+      && handoff.includes("release:candidate:review"),
   },
 ];
 
