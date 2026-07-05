@@ -124,6 +124,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:status",
         "npm run release:product:review",
         "npm run release:candidate:check",
+        "npm run release:candidate:prepare",
         "npm run release:spec:audit",
         "npm run release:security:audit",
         "npm run release:check:online",
@@ -142,6 +143,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       nextCommands: [
         "npm run release:product:review",
         "npm run release:candidate:check",
+        "npm run release:candidate:prepare",
         "npm run release:spec:audit",
         "npm run release:wechat:check",
         "npm run release:next",

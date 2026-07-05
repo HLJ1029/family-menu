@@ -5,9 +5,10 @@ const files = {
   feedback: "docs/launch-feedback-and-101-backlog.md",
   handoff: "docs/humi-1.1-release-operator-handoff.md",
   nextAction: "scripts/print-release-next-action.mjs",
+  packageJson: "package.json",
 };
 
-const [tracker, feedback, handoff, nextAction] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -76,6 +77,14 @@ const checks = [
       && handoff.includes("审核不是默认下一步")
       && nextAction.includes("1.1 生产候选完善与内测验证，暂不进入微信审核")
       && nextAction.includes("灰度名单准备"),
+  },
+  {
+    key: "candidate-private-packet",
+    title: "候选内测私有执行包命令可用",
+    path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
+    ok: packageJson.includes("release:candidate:prepare")
+      && nextAction.includes("release:candidate:prepare")
+      && handoff.includes("release:candidate:prepare"),
   },
 ];
 

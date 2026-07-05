@@ -35,6 +35,7 @@
     "release:complete:check": "node scripts/check-release-completion.mjs",
     "release:complete:selftest": "node scripts/selftest-release-completion-check.mjs",
     "release:candidate:check": "node scripts/check-candidate-hardening-readiness.mjs",
+    "release:candidate:prepare": "node scripts/prepare-candidate-validation-packet.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",
     "release:next:selftest": "node scripts/selftest-release-next-action.mjs",
     "release:crave-template:visuals": "node scripts/capture-crave-template-visuals.mjs",

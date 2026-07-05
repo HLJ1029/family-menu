@@ -29,6 +29,7 @@ lines.push("复核命令");
 lines.push("- npm run release:next");
 lines.push("- npm run release:product:review");
 lines.push("- npm run release:candidate:check");
+lines.push("- npm run release:candidate:prepare");
 lines.push("- npm run release:closure");
 lines.push("- npm run release:wechat:check");
 lines.push("");
