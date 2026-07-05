@@ -11,7 +11,7 @@ const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z")
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || join(privateBaseDir, `candidate-validation-${stamp}`);
 const shouldOpen = process.env.HUMI_CANDIDATE_VALIDATION_NO_OPEN !== "1";
 
-const [git, candidate, status] = await Promise.all([
+const [gitState, candidate, status] = await Promise.all([
   readGitState(),
   runJsonScript("release:candidate:check"),
   runJsonScript("release:status"),
@@ -20,7 +20,7 @@ const [git, candidate, status] = await Promise.all([
 await mkdir(packetDir, { recursive: true, mode: 0o700 });
 
 const files = [
-  ["README.md", buildReadme({ git, candidate, status })],
+  ["README.md", buildReadme({ git: gitState, candidate, status })],
   ["anonymous-users.csv", buildAnonymousUsersCsv()],
   ["feedback-template.csv", buildFeedbackTemplateCsv()],
   ["daily-review.csv", buildDailyReviewCsv()],
@@ -41,7 +41,7 @@ const result = {
   ok: Boolean(candidate.ok && status.ok),
   checkedAt: new Date().toISOString(),
   packetDir,
-  git,
+  git: gitState,
   release: {
     statusOk: Boolean(status.ok),
     candidateHardeningReady: Boolean(status.release?.candidateHardeningReady),
@@ -64,9 +64,9 @@ if (!result.ok) process.exit(1);
 
 async function readGitState() {
   const [head, originMain, status] = await Promise.all([
-    git(["rev-parse", "--short", "HEAD"]),
-    git(["rev-parse", "--short", "origin/main"]),
-    git(["status", "--short", "--branch"]),
+    runGit(["rev-parse", "--short", "HEAD"]),
+    runGit(["rev-parse", "--short", "origin/main"]),
+    runGit(["status", "--short", "--branch"]),
   ]);
   return {
     head,
@@ -76,7 +76,7 @@ async function readGitState() {
   };
 }
 
-async function git(args) {
+async function runGit(args) {
   const { stdout } = await execFileAsync("git", args, { timeout: 15_000 });
   return stdout.trim();
 }
