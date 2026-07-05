@@ -71,12 +71,13 @@ function parseLastJson(output) {
   }
 }
 
-const [git, online, production, apiDeploy, securityAudit, specAudit, releaseEvidence] = await Promise.all([
+const [git, online, production, apiDeploy, securityAudit, docsFreshness, specAudit, releaseEvidence] = await Promise.all([
   gitInfo(),
   runNpmScript("release:check:online"),
   runNpmScript("monitor:prod"),
   runNpmScript("deploy:api:check"),
   runNpmScript("release:security:audit"),
+  runNpmScript("release:docs:check"),
   runNpmScript("release:spec:audit"),
   runNpmScript("release:evidence:check"),
 ]);
@@ -89,9 +90,10 @@ const productionOk = Boolean(production.data?.ok);
 const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
+const docsFreshnessOk = docsFreshness.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && specAuditOk;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && specAuditOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -108,6 +110,9 @@ if (!artifactsOk) {
 }
 if (!securityAuditOk) {
   nextActions.push("Resolve npm audit advisories before WeChat review.");
+}
+if (!docsFreshnessOk) {
+  nextActions.push("Fix stale release-doc wording before relying on the release action map.");
 }
 if (!specAuditOk) {
   nextActions.push("Fix docs/humi-1.1-spec-acceptance-audit.md coverage before claiming the 1.1 spec scope is implemented.");
@@ -140,6 +145,7 @@ console.log(JSON.stringify({
     apiDeployReady,
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
+    docsFreshnessReady: docsFreshnessOk,
     specAcceptanceAuditReady: specAuditOk,
     preReviewHardeningReady,
     preReviewHardeningOpenItems: preReviewHardening.openItems,
@@ -156,6 +162,7 @@ console.log(JSON.stringify({
     summarizeCheck(production),
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
+    summarizeCheck(docsFreshness),
     summarizeCheck(specAudit),
     summarizeCheck(releaseEvidence),
   ],

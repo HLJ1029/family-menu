@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `154f379` |
-| GitHub Pages run | `28726626647` / success / 1.1.59 H5 已部署 |
+| GitHub Pages run | `28744383941` / success / 1.1.59 H5 已部署 |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.59` |
@@ -40,6 +40,7 @@
 | 2026-07-05 | codex@mbp-m5pro | `npm run release:pre-review:evidence` | 阻止提审 | 征集单视觉图、H5 landing、direct-preview 二维码均 OK；仍缺 `crave-card.png`、`invite-card.png`、`grocery-card.png` |
 | 2026-07-05 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` / `npm run release:wechat:share:complete` | 通过 | DevTools 原生分享确认页已复核 `crave`、`invite`、`grocery` 三类虚拟好友小程序卡片；六张截图证据均 OK，private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522` |
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `117cd3e` / Pages run `28726626647` success / `release:next` 与 `release:closure` 均停在用户确认点 |
+| 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `2527e30` / Pages run `28744383941` success / 新增只读 `npm run release:map` 收口地图命令 |
 
 ## 3. 生产 API 补部署证据
 
