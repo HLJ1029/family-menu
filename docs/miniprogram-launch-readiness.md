@@ -4,7 +4,7 @@
 
 本文档是 Humi 小程序 WebView MVP 的历史执行基线。1.1 当前收口、阻塞项和下一步以 `npm run release:next`、`npm run release:closure`、`docs/humi-1.1-pre-review-hardening.md` 和 `docs/humi-1.1-spec-acceptance-audit.md` 为准；本文件中较早日期的 checklist 仅作为历史背景，不再单独作为当前提审门禁。
 
-当前状态（2026-07-05）：小程序 `1.1.59` 已通过微信开发者工具 CLI 上传；生产 H5/API 在线；三份 1.1 策划书主体已由 `npm run release:spec:audit` 纳入门禁；提审前 P0/P1 已完成，`crave-card.png`、`invite-card.png`、`grocery-card.png` 三张微信原生分享卡片截图证据已补齐。当前不直接提交审核，状态停在用户确认是否进入微信公众平台审核。
+当前状态（2026-07-06）：小程序 `1.1.59` 已通过微信开发者工具 CLI 上传；生产 H5/API 在线；三份 1.1 策划书主体已由 `npm run release:spec:audit` 纳入门禁；提审前 P0/P1 已完成，`crave-card.png`、`invite-card.png`、`grocery-card.png` 三张微信原生分享卡片截图证据已补齐。当前不直接提交审核，状态停在生产候选完善与真实内测复盘；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。
 
 ## 1. 首发结论
 
@@ -269,7 +269,7 @@ H5 通过查询参数识别来源：
 - 1.1.56 范围：在 `crave`、`invite`、`grocery` token 落地打开时预置小程序原生分享态，确保家人从卡片进入后再次转发仍保持对应标题和 path；同时保留 1.1.55 的“今晚征集单”模板与分享卡片标题更新。
 - 1.1.56 不新增 API 端点，继续复用 1.1.54 已补部署的感觉征集、家庭邀请、买菜认领和权限边界服务端能力。
 - 生产 API 已完成 1.1.37-1.1.54 服务端增量补部署；`npm run deploy:api:check`、`npm run monitor:prod` 和 `npm run release:check:online` 当前通过。
-- 当前不直接提交审核；提审前 P0/P1 已完成，下一步用 `npm run release:closure` / `npm run release:next` 复核后，由用户确认是否进入微信公众平台提交审核。
+- 当前不直接提交审核；提审前 P0/P1 已完成，下一步用 `npm run release:closure` / `npm run release:next` / `npm run release:candidate:review` 复核真实候选反馈。候选复盘达标后，再由用户确认是否进入微信公众平台提交审核。
 
 2026-07-05 状态同步（1.1.59）：
 
@@ -277,7 +277,7 @@ H5 通过查询参数识别来源：
 - 小程序 WebView URL 当前带 `h5v=1.1.59`，用于刷新 H5 缓存。
 - 1.1.59 范围：新增小程序原生分享确认页，H5 在小程序 WebView 中触发分享时先跳转小程序页，由小程序 `onShareAppMessage` 生成 `crave`、`invite`、`grocery` 卡片；同时本地加载 JSSDK，避免线上依赖外部 SDK 地址。
 - 1.1.59 不新增 API 端点，继续复用 1.1.54 已补部署的感觉征集、家庭邀请、买菜认领和权限边界服务端能力。
-- 当前不直接提交审核；三张微信原生分享卡片截图证据已补齐，后续由用户确认后再进入微信公众平台审核。
+- 当前不直接提交审核；三张微信原生分享卡片截图证据已补齐，后续先补真实 U001-U020 候选复盘。候选复盘达标后，再由用户确认是否进入微信公众平台审核。
 
 2026-06-30 状态同步：
 

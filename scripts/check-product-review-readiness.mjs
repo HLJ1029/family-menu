@@ -70,7 +70,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product review anchors are covered. Continue with release:status and release:closure; do not enter WeChat review without user confirmation.",
+        "Product review anchors are covered. Continue with release:status, release:candidate:review, and release:closure; do not enter WeChat review until candidate validation passes and the user confirms.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",

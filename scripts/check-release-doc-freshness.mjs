@@ -8,6 +8,12 @@ const checks = [
       "三张微信原生分享卡片截图证据补齐并完成 P1 后",
       "以 `npm run release:wechat:prepare-submit` 输出为准",
     ],
+    required: [
+      "真实候选复盘尚未通过",
+      "npm run release:candidate:review",
+      "release.candidateValidationReady",
+      "真实候选复盘未通过时它必须失败",
+    ],
   },
   {
     path: "docs/humi-1.1-closure-map.md",
@@ -16,6 +22,13 @@ const checks = [
       "GitHub Pages run `28726626647` 成功",
       "GitHub Pages run `28726737462` 成功",
       "GitHub Pages run `28744383941` 成功",
+      "最后再由用户确认是否进入微信公众平台审核",
+    ],
+    required: [
+      "真实候选复盘达标后",
+      "release.candidateValidationReady",
+      "npm run release:candidate:review",
+      "待候选复盘达标后用户确认",
     ],
   },
   {
@@ -26,6 +39,12 @@ const checks = [
       "当前已知最新 GitHub Pages run `28726737462`",
       "当前已知最新 GitHub Pages run `28744383941`",
       "重新运行 `npm run release:wechat:prepare-submit`",
+    ],
+    required: [
+      "release.candidateValidationReady=false",
+      "npm run release:candidate:review",
+      "候选复盘达标前",
+      "不能把微信审核准备视为可执行",
     ],
   },
   {
@@ -38,6 +57,29 @@ const checks = [
       "工程侧已可准备提交微信审核",
     ],
   },
+  {
+    path: "docs/humi-1.1-pre-review-hardening.md",
+    forbidden: [
+      "确认当前处于等待用户确认的微信审核准备",
+    ],
+    required: [
+      "release.candidateValidationReady=true",
+      "npm run release:candidate:review",
+      "候选复盘达标后",
+    ],
+  },
+  {
+    path: "docs/miniprogram-launch-readiness.md",
+    forbidden: [
+      "状态停在用户确认是否进入微信公众平台审核",
+      "后续由用户确认后再进入微信公众平台审核",
+    ],
+    required: [
+      "release.candidateValidationReady=false",
+      "候选复盘达标后",
+      "npm run release:candidate:review",
+    ],
+  },
 ];
 
 const failures = [];
@@ -47,6 +89,11 @@ for (const check of checks) {
   for (const phrase of check.forbidden) {
     if (content.includes(phrase)) {
       failures.push({ path: check.path, phrase });
+    }
+  }
+  for (const phrase of check.required ?? []) {
+    if (!content.includes(phrase)) {
+      failures.push({ path: check.path, phrase: `missing ${phrase}` });
     }
   }
 }
@@ -102,6 +149,18 @@ if (!releaseStatus.includes("candidateReviewSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidateReviewSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateValidationReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateValidationReady in release status",
+  });
+}
+if (!releaseStatus.includes("release:candidate:review")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing real release:candidate:review in release status",
   });
 }
 

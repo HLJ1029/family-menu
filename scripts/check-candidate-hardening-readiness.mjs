@@ -105,7 +105,7 @@ const result = {
     ]
     : [
       "Candidate hardening materials are ready for anonymous internal test planning.",
-      "Do not submit WeChat review until the user explicitly confirms that platform action.",
+      "Do not submit WeChat review until real candidate validation passes and the user explicitly confirms that platform action.",
     ],
 };
 

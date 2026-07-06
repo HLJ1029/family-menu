@@ -3,7 +3,7 @@
 更新日期：2026-07-05
 执行设备：codex@mbp-m5pro
 
-本文档用于把 Humi 1.1.59 从“开发者工具已上传”推进到微信公众平台审核、发布和发布后证据留存。后台页面名称和字段可能随微信平台调整，最终以微信公众平台实时展示为准。当前提审前 P0/P1 已完成，仍不自动提交微信审核；只有用户动作当下确认后，才进入本 runbook 的平台提交动作。
+本文档用于把 Humi 1.1.59 从“开发者工具已上传”推进到微信公众平台审核、发布和发布后证据留存。后台页面名称和字段可能随微信平台调整，最终以微信公众平台实时展示为准。当前提审前 P0/P1 已完成，但真实候选复盘尚未通过，仍不自动提交微信审核；只有 `npm run release:candidate:review` 达标且用户动作当下确认后，才进入本 runbook 的平台提交动作。
 
 若只想判断“现在下一步该谁做什么”，先看 `docs/humi-1.1-release-operator-handoff.md`。
 若已经打开微信公众平台并只想复制填写内容，看 `docs/wechat-submit-copy-packet.md`。
@@ -26,8 +26,7 @@
 在公众平台提交前，先在本地执行：
 
 ```bash
-npm run release:wechat:start-submit
-HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
+npm run release:candidate:review
 npm run release:wechat:check
 npm run release:status
 npm run release:check:online
@@ -37,11 +36,19 @@ npm run deploy:api:check
 
 判定：
 
-- `release:status` 会汇总线上状态、生产监控、API 部署预检和下一步动作。
-- `release:wechat:check` 会确认是否可进入微信公众平台提交，并输出本次提交要打开的材料。
+- `release:candidate:review` 必须达到 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个尝试协作，且无 P0/P1。
+- `release:status` 会汇总线上状态、生产监控、API 部署预检、真实候选复盘和下一步动作；`release.candidateValidationReady` 必须为 `true`。
+- `release:wechat:check` 会确认是否可进入微信公众平台提交，并输出本次提交要打开的材料；真实候选复盘未通过时它必须失败。
 - `release:check:online` 必须通过。
 - `monitor:prod` 必须至少证明 H5 200、API health 200、基础推荐可用。
 - `deploy:api:check` 必须通过；当前生产 API SSH 已可用，H5/当前生产 API 健康。1.1.59 不新增 API 端点，仍复用已补部署的 1.1.37-1.1.54 服务端增量。
+
+候选复盘与上述只读检查都通过后，用户再在动作当下确认并打开提交工作台：
+
+```bash
+npm run release:wechat:start-submit
+HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
+```
 
 自动化边界：
 

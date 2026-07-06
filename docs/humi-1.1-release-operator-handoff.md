@@ -103,10 +103,11 @@ Owner：用户，Codex 提供材料。
 提交前先跑：
 
 ```bash
+npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-该命令必须在产品仓库干净且 `main` 已同步到 `origin/main` 时返回 `ok=true`；如果本地还有未提交改动，只能继续工程收口，不能把微信审核准备视为可执行。
+`release:candidate:review` 必须先通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
@@ -198,7 +199,7 @@ npm run release:candidate:check
 
 `release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。
 
-现在 `release:next` 应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”。在用户决定审核前，继续做产品复核、真机体验确认、灰度名单准备与细节完善；进入微信公众平台材料前仍需用户动作当下确认：
+现在 `release:next` 应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”。在候选复盘达标前，继续做产品复核、真机体验确认、灰度名单准备与细节完善；进入微信公众平台材料前仍需 `release:candidate:review` 通过，并由用户动作当下确认：
 
 ```bash
 npm run release:wechat:start-submit

@@ -13,6 +13,7 @@
 - `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据和微信审核显式确认护栏。
 - `npm run release:spec:audit` 会把三份策划书、验收矩阵和当前 P0/P1 gate 做机器复核，防止文档只存在但没有覆盖要求。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”，不自动推动平台提交。
+- `npm run release:status` 的 `release.engineeringGatesReady=true` 只代表工程项健康；真实候选复盘也通过后，`release.candidateValidationReady=true` / `release:status ok=true` 才能进入微信审核准备讨论。
 - P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
 
 ## P0/P1 收口项
@@ -46,7 +47,8 @@
 
 ## 当前建议顺序
 
-1. 运行 `npm run release:closure` 和 `npm run release:next`，确认当前处于等待用户确认的微信审核准备。
-2. 运行 `npm run release:wechat:check`，确认提交审核前材料与域名/隐私核对项仍为通过。
-3. 运行 `npm run release:product:review`，确认关键产品体验锚点仍可由源码、文档和证据共同证明。
-4. 用户确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。
+1. 运行 `npm run release:closure` 和 `npm run release:next`，确认当前处于生产候选完善与内测验证阶段。
+2. 运行 `npm run release:product:review`，确认关键产品体验锚点仍可由源码、文档和证据共同证明。
+3. 填写私有 U001-U020 候选反馈后，运行 `npm run release:candidate:review`，确认达到真实样本阈值且无 P0/P1。
+4. 候选复盘达标后，再运行 `npm run release:wechat:check`，确认提交审核前材料与域名/隐私核对项为通过。
+5. 用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。

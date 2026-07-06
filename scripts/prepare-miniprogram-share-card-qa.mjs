@@ -190,7 +190,7 @@ function buildChecklist({ evidenceDir, previewQr, shareExpectations, screenshotR
     "- 已有截图可用 `npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots` 导入。",
     "- 补齐后运行 `npm run release:wechat:share:evidence`，确认每张图输出 size、尺寸和 SHA256。",
     "- 人工视觉确认三张原生 card 后，运行 `npm run release:wechat:share:complete` 勾选提审前 P1。",
-    "- 最后运行 `npm run release:closure` 确认是否进入微信审核准备。",
+    "- 最后运行 `npm run release:closure` 确认是否仍停在生产候选完善与内测验证；真实候选复盘未达标前不进入微信审核准备。",
     "",
   ].join("\n");
 }
