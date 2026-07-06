@@ -45,6 +45,7 @@ const report = {
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     productReviewReady: Boolean(release.productReviewReady),
     candidateHardeningReady: Boolean(release.candidateHardeningReady),
+    candidateReviewSelftestReady: Boolean(release.candidateReviewSelftestReady),
     wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
     platformSubmitReady: Boolean(status?.ok),
@@ -262,6 +263,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "api-deploy",
       title: "API 部署预检未通过",
       details: ["Run npm run deploy:api:check for details."],
+    });
+  }
+  if (!release.candidateReviewSelftestReady) {
+    blockers.push({
+      key: "candidate-review-selftest",
+      title: "候选内测复盘自测未通过",
+      details: ["Run npm run release:candidate:review:selftest for details."],
     });
   }
   if (!release.securityAuditReady) {

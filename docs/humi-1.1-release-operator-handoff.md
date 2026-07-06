@@ -34,6 +34,7 @@ npm run release:product:review
 npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:review
+npm run release:candidate:review:selftest
 ```
 
 完成标准：
@@ -44,6 +45,7 @@ npm run release:candidate:review
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含匿名名单、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息仍不得进仓库。
 - `npm run release:candidate:review` 可复盘最新私有内测执行包；如果仍是模板，会提示等待真实匿名反馈；如果出现 P0/P1，会阻止进入审核准备。
+- `npm run release:candidate:review:selftest` 可用临时 CSV 验证复盘脚本本身，覆盖空模板、P1 阻断和有效反馈通过三种路径。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
 - 当前已满足；后续如果新增提审前 P0/P1，继续在本步骤完善，不直接跳到审核。
 

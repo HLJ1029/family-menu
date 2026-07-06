@@ -82,6 +82,7 @@ const [
   docsFreshness,
   productReview,
   candidateHardening,
+  candidateReviewSelftest,
   wechatSubmitWorkspaceGuard,
   specAudit,
   releaseEvidence,
@@ -94,6 +95,7 @@ const [
   runNpmScript("release:docs:check"),
   runNpmScript("release:product:review"),
   runNpmScript("release:candidate:check"),
+  runNpmScript("release:candidate:review:selftest"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
   runNpmScript("release:evidence:check"),
@@ -110,10 +112,11 @@ const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
 const productReviewOk = productReview.ok;
 const candidateHardeningOk = candidateHardening.ok;
+const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -139,6 +142,9 @@ if (!productReviewOk) {
 }
 if (!candidateHardeningOk) {
   nextActions.push("Fix release:candidate:check failures before claiming the 1.1 production candidate is ready for internal validation.");
+}
+if (!candidateReviewSelftestOk) {
+  nextActions.push("Fix release:candidate:review:selftest before relying on private candidate validation review results.");
 }
 if (!wechatSubmitWorkspaceGuardOk) {
   nextActions.push("Restore release:wechat:prepare-submit confirmation guard before relying on WeChat review preparation.");
@@ -177,6 +183,7 @@ console.log(JSON.stringify({
     docsFreshnessReady: docsFreshnessOk,
     productReviewReady: productReviewOk,
     candidateHardeningReady: candidateHardeningOk,
+    candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
     specAcceptanceAuditReady: specAuditOk,
     preReviewHardeningReady,
@@ -197,6 +204,7 @@ console.log(JSON.stringify({
     summarizeCheck(docsFreshness),
     summarizeCheck(productReview),
     summarizeCheck(candidateHardening),
+    summarizeCheck(candidateReviewSelftest),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),
     summarizeCheck(releaseEvidence),
