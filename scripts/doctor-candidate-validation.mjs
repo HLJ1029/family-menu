@@ -158,6 +158,7 @@ function candidateFiles(result) {
   const packetDir = result.packetDir;
   return [
     ["邀请文案", "invite-copy.md"],
+    ["U001-U010 批量邀请清单", "outreach-batch.md"],
     ["体验者反馈单", "tester-feedback-form.md"],
     ["主厨记录单", "host-run-sheet.md"],
     ["匿名用户进度表", "anonymous-users.csv"],

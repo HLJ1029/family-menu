@@ -95,11 +95,13 @@ const checks = [
   },
   {
     key: "candidate-feedback-forms",
-    title: "候选执行包包含体验者反馈单和主厨记录单",
+    title: "候选执行包包含批量邀请清单、体验者反馈单和主厨记录单",
     path: files.prepareScript,
     ok: [
       "tester-feedback-form.md",
       "host-run-sheet.md",
+      "outreach-batch.md",
+      "U001-U010 批量邀请清单",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",

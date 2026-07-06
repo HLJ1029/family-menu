@@ -26,6 +26,7 @@ const files = [
   ["daily-review.csv", buildDailyReviewCsv()],
   ["issue-triage.csv", buildIssueTriageCsv()],
   ["invite-copy.md", buildInviteCopy()],
+  ["outreach-batch.md", buildOutreachBatch()],
   ["tester-feedback-form.md", buildTesterFeedbackForm()],
   ["host-run-sheet.md", buildHostRunSheet()],
 ];
@@ -56,7 +57,7 @@ const result = {
   files: files.map(([file]) => join(packetDir, file)),
   nextActions: [
     "Fill anonymous-users.csv with U001-U020 only; keep real contacts in private chat/docs.",
-    "Send invite-copy.md text manually to selected testers.",
+    "Use outreach-batch.md to copy one anonymous U001-U010 message per tester.",
     "Use tester-feedback-form.md for user-facing feedback and host-run-sheet.md for operator notes.",
     "Transfer summarized results into feedback-template.csv and daily-review.csv during internal validation.",
     "Run npm run release:candidate:doctor to inspect missing validation counts before rerunning release:candidate:review.",
@@ -132,13 +133,14 @@ function buildReadme({ git, candidate, status }) {
     "- `daily-review.csv`：Day 1-Day 3 每日复盘。",
     "- `issue-triage.csv`：P0/P1/P2/建议分级和是否进入 1.1.x。",
     "- `invite-copy.md`：可以手动发给内测用户的邀请文案。",
+    "- `outreach-batch.md`：U001-U010 可复制发送的匿名邀请消息。",
     "- `tester-feedback-form.md`：体验者可直接照着回答的反馈单。",
     "- `host-run-sheet.md`：主厨/执行人记录每次体验、卡点和回填字段的单据。",
     "",
     "## 执行顺序",
     "",
     "1. 从 `anonymous-users.csv` 里选 10-20 个匿名编号。",
-    "2. 用 `invite-copy.md` 手动发送邀请，不在仓库记录真实联系方式。",
+    "2. 用 `outreach-batch.md` 手动复制发送 U001-U010 邀请，不在仓库记录真实联系方式。",
     "3. 发 `tester-feedback-form.md` 的问题给体验者；执行人自己用 `host-run-sheet.md` 记录现场观察。",
     "4. 每个用户至少跑一次【今晚】推荐、今晚菜单、清单，尽量再跑一次问问大家/邀请家人/买菜认领。",
     "5. 把单个用户结果汇总到 `feedback-template.csv`，用 `daily-review.csv` 做每天汇总。",
@@ -222,6 +224,49 @@ function buildInviteCopy() {
     "",
     "它不是专业营养或医疗建议，只是帮家庭把今晚吃什么、买什么、谁来买整理清楚。",
     "",
+  ].join("\n");
+}
+
+function buildOutreachBatch() {
+  const messages = [];
+  for (let index = 1; index <= 10; index += 1) {
+    const id = `U${String(index).padStart(3, "0")}`;
+    messages.push([
+      `## ${id}`,
+      "",
+      "```text",
+      `我给你留了一个 Humi 内测编号：${id}。`,
+      "",
+      "想请你帮我试一下这个家庭吃饭安排小程序，大概 5 分钟。",
+      "",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "2. 看【今晚】推荐",
+      "3. 点“今晚就做”或换一组后选一个想做的菜",
+      "4. 看【清单】里要买什么",
+      "5. 有空的话试一下【我的家】里的问问大家，或把清单分享给家人认领",
+      "",
+      "试完后直接回我这几句就行：",
+      "1. 推荐里有没有你今晚真的愿意做的菜？1-5 分",
+      "2. 买菜清单有没有减少负担？1-5 分",
+      "3. 问问大家/邀请家人/清单分享顺不顺？1-5 分或没试",
+      "4. 哪一步最困惑或最卡？",
+      "5. 明天你还会不会再打开？为什么？",
+      "",
+      "如果卡住，可以直接给我截图或录屏。不要在反馈里写手机号、真实姓名或家庭隐私。",
+      "```",
+      "",
+    ].join("\n"));
+  }
+
+  return [
+    "# Humi 1.1 U001-U010 批量邀请清单",
+    "",
+    "本文件用于手动复制给 10 个候选体验者。不要把真实姓名、手机号、微信号或聊天截图写回仓库。",
+    "",
+    "发送后，在 `anonymous-users.csv` 中把对应用户的邀请状态改为 `已邀请`；体验完成后再改为 `已体验`。",
+    "",
+    ...messages,
   ].join("\n");
 }
 
