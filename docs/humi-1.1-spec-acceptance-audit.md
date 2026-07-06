@@ -64,10 +64,12 @@
 
 ## 4. 当前建议顺序
 
-1. 运行 `npm run release:next` 和 `npm run release:wechat:check`，确认仍处于微信审核准备且未自动改变平台状态。
-2. 用户动作当下确认后，进入微信公众平台提交审核。
-3. 审核通过后按 `docs/launch-day-runbook.md` 发布并做 P0 真机验收。
-4. 灰度给 10-20 个家庭，反馈统一进 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`，只在 P0/审核问题时发 1.1.x。
+1. 运行 `npm run release:next`、`npm run release:product:review`、`npm run release:candidate:check` 和 `npm run release:spec:audit`，确认当前仍处于“1.1 生产候选完善与内测验证”，不是微信审核提交阶段。
+2. 运行 `HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare` 生成或复用私有内测执行包；真实用户信息、截图和联系方式继续留在私有目录，不进仓库。
+3. 灰度给 10-20 个家庭，反馈统一进私有候选执行包、`docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`；复盘时运行 `npm run release:candidate:review`。
+4. `release:candidate:review` 默认必须达到 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个尝试协作，且无 P0/P1，才允许进入微信审核准备讨论。
+5. 候选复盘达标后，用户在动作当下明确确认，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。
+6. 审核通过后按 `docs/launch-day-runbook.md` 发布并做 P0 真机验收；发布后 24 小时监控和真实微信全路径证据登记到 `docs/humi-1.1-release-evidence-log.md`。
 
 ## 5. 验证命令
 

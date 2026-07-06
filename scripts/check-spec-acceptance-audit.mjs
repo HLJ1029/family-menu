@@ -79,6 +79,7 @@ async function inspectAudit() {
     const incompleteRows = matrixRows.filter((row) => row.status !== "已完成");
     const missingMatrixItems = REQUIRED_MATRIX_ITEMS.filter((label) => !matrixRows.some((row) => row.requirement.includes(label)));
     const externalRows = parseExternalRows(content);
+    const currentOrder = inspectCurrentOrder(content);
     const unexpectedOpenRows = externalRows.filter((row) => {
       if (row.item === "生产 API 补部署") return row.status !== "已完成";
       return !["进行中", "暂缓", "模板已准备，待填真实名单", "待小程序发布后验证"].includes(row.status);
@@ -86,7 +87,12 @@ async function inspectAudit() {
 
     return {
       path: AUDIT_PATH,
-      ok: missingSourceRefs.length === 0 && matrixRows.length >= REQUIRED_MATRIX_ITEMS.length && incompleteRows.length === 0 && missingMatrixItems.length === 0 && unexpectedOpenRows.length === 0,
+      ok: missingSourceRefs.length === 0
+        && matrixRows.length >= REQUIRED_MATRIX_ITEMS.length
+        && incompleteRows.length === 0
+        && missingMatrixItems.length === 0
+        && unexpectedOpenRows.length === 0
+        && currentOrder.ok,
       matrixRows: matrixRows.length,
       completedMatrixRows: matrixRows.filter((row) => row.status === "已完成").length,
       missingSourceRefs,
@@ -94,6 +100,7 @@ async function inspectAudit() {
       missingMatrixItems,
       externalRows,
       unexpectedOpenRows,
+      currentOrder,
     };
   } catch (error) {
     return {
@@ -155,6 +162,28 @@ function parseExternalRows(content) {
       status: row.cells[1],
       nextStep: row.cells[2],
     }));
+}
+
+function inspectCurrentOrder(content) {
+  const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
+  const required = [
+    "1.1 生产候选完善与内测验证",
+    "release:product:review",
+    "release:candidate:check",
+    "release:candidate:prepare",
+    "release:candidate:review",
+    "10 个真实体验",
+    "8 个完成【今晚】菜单",
+    "8 个完成清单",
+    "3 个尝试协作",
+    "无 P0/P1",
+    "动作当下明确确认",
+  ];
+  const missing = required.filter((text) => !section.includes(text));
+  return {
+    ok: missing.length === 0,
+    missing,
+  };
 }
 
 function parseTableRow(line) {
