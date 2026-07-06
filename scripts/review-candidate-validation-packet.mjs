@@ -12,6 +12,13 @@ const files = {
   issueTriage: join(packetDir, "issue-triage.csv"),
 };
 
+const thresholds = {
+  minExperiencedUsers: readThreshold("HUMI_CANDIDATE_MIN_EXPERIENCED_USERS", 10),
+  minCompletedTonight: readThreshold("HUMI_CANDIDATE_MIN_COMPLETED_TONIGHT", 8),
+  minCompletedGrocery: readThreshold("HUMI_CANDIDATE_MIN_COMPLETED_GROCERY", 8),
+  minTriedCollaboration: readThreshold("HUMI_CANDIDATE_MIN_TRIED_COLLABORATION", 3),
+};
+
 const [anonymousUsers, feedback, dailyReview, issueTriage] = await Promise.all([
   readCsv(files.anonymousUsers),
   readCsv(files.feedback),
@@ -43,6 +50,32 @@ if (experiencedUsers.length === 0 && feedbackRows.length === 0 && dailyRows.leng
     title: "候选内测执行包尚未填入真实反馈",
     details: ["Fill anonymous-users.csv, feedback-template.csv, or daily-review.csv with anonymous U001-U020 results."],
   });
+}
+if (!blockers.some((item) => item.key === "no-real-validation")) {
+  if (experiencedUsers.length < thresholds.minExperiencedUsers) {
+    blockers.push({
+      key: "insufficient-validation-sample",
+      title: "真实体验样本数不足",
+      details: [`experiencedUsers=${experiencedUsers.length}; required>=${thresholds.minExperiencedUsers}`],
+    });
+  }
+  if (completedTonight.length < thresholds.minCompletedTonight || completedGrocery.length < thresholds.minCompletedGrocery) {
+    blockers.push({
+      key: "insufficient-core-completion",
+      title: "核心路径完成数不足",
+      details: [
+        `completedTonight=${completedTonight.length}; required>=${thresholds.minCompletedTonight}`,
+        `completedGrocery=${completedGrocery.length}; required>=${thresholds.minCompletedGrocery}`,
+      ],
+    });
+  }
+  if (triedCollaboration.length < thresholds.minTriedCollaboration) {
+    blockers.push({
+      key: "insufficient-collaboration-sample",
+      title: "协作路径样本数不足",
+      details: [`triedCollaboration=${triedCollaboration.length}; required>=${thresholds.minTriedCollaboration}`],
+    });
+  }
 }
 if (p0Users.length || p0Feedback.length || p0Issues.length) {
   blockers.push({
@@ -83,6 +116,7 @@ const result = {
     p0Count: p0Users.length + p0Feedback.length + p0Issues.length,
     p1Count: p1Users.length + p1Feedback.length + p1Issues.length,
   },
+  thresholds,
   blockers,
   recommendation: recommendation(blockers),
   nextActions: nextActions(blockers),
@@ -191,6 +225,9 @@ function recommendation(blockers) {
   if (blockers.some((item) => item.key === "p1")) {
     return "triage-p1-before-review";
   }
+  if (blockers.some((item) => item.key.startsWith("insufficient-"))) {
+    return "wait-for-more-validation";
+  }
   return "candidate-validation-clear";
 }
 
@@ -199,6 +236,7 @@ function nextActions(blockers) {
   if (rec === "wait-for-validation-input") {
     return [
       "Fill the private candidate-validation CSV files with anonymous U001-U020 results.",
+      "Default pass thresholds are 10 experienced users, 8 completed Tonight menus, 8 completed grocery lists, and 3 collaboration samples.",
       "Keep real contact details and screenshots outside the repository.",
       "Rerun npm run release:candidate:review after at least one real validation entry is recorded.",
     ];
@@ -215,6 +253,13 @@ function nextActions(blockers) {
       "Review P1 issues and decide whether they must be fixed before WeChat review.",
       "If any P1 affects core retention, fix it before review.",
       "If accepted for later 1.1.x, document the decision in the private packet and AI-HQ status.",
+    ];
+  }
+  if (rec === "wait-for-more-validation") {
+    return [
+      "Continue candidate validation before WeChat review.",
+      "Reach the configured minimum real-user sample and core path completion counts.",
+      "Rerun npm run release:candidate:review after adding more anonymous U001-U020 results.",
     ];
   }
   return [
@@ -239,6 +284,10 @@ function buildMarkdown(result) {
     "",
     ...Object.entries(result.summary).map(([key, value]) => `- ${key}: ${value}`),
     "",
+    "## 最低样本要求",
+    "",
+    ...Object.entries(result.thresholds).map(([key, value]) => `- ${key}: ${value}`),
+    "",
     "## 阻塞项",
     "",
     ...(result.blockers.length ? result.blockers.flatMap((item) => [
@@ -252,4 +301,10 @@ function buildMarkdown(result) {
     ...result.nextActions.map((item) => `- ${item}`),
     "",
   ].join("\n");
+}
+
+function readThreshold(envName, fallback) {
+  const value = Number(process.env[envName]);
+  if (Number.isFinite(value) && value >= 0) return value;
+  return fallback;
 }

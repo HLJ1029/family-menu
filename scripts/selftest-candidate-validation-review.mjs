@@ -17,6 +17,21 @@ const cases = [
     },
   },
   {
+    name: "insufficient-sample",
+    files: smallValidPacket(),
+    expect: {
+      ok: false,
+      recommendation: "wait-for-more-validation",
+      blocker: "insufficient-validation-sample",
+      summary: {
+        experiencedUsers: 2,
+        completedTonight: 2,
+        completedGrocery: 2,
+        triedCollaboration: 1,
+      },
+    },
+  },
+  {
     name: "p1-blocker",
     files: p1Packet(),
     expect: {
@@ -32,10 +47,10 @@ const cases = [
       ok: true,
       recommendation: "candidate-validation-clear",
       summary: {
-        experiencedUsers: 2,
-        completedTonight: 2,
-        completedGrocery: 2,
-        triedCollaboration: 1,
+        experiencedUsers: 10,
+        completedTonight: 10,
+        completedGrocery: 10,
+        triedCollaboration: 3,
       },
     },
   },
@@ -162,26 +177,41 @@ function p1Packet() {
   };
 }
 
+function smallValidPacket() {
+  return buildPacket([
+    userRow(1, { collaboration: "问问大家" }),
+    userRow(2, { collaboration: "没有" }),
+  ]);
+}
+
 function validPacket() {
+  return buildPacket(Array.from({ length: 10 }, (_, index) => userRow(index + 1, {
+    collaboration: index < 3 ? ["问问大家", "邀请家人", "买菜认领"][index] : "没有",
+  })));
+}
+
+function buildPacket(users) {
   return {
-    "anonymous-users.csv": csv([
-      anonymousHeader(),
-      ["U001", "两人家庭", "iPhone 15 / WeChat 9", "已体验", "2026-07-06", "是", "是", "问问大家", "5", "5", "4", "已复访", "通过", "private://candidate/U001", "流程顺"],
-      ["U002", "三人家庭", "iPhone 14 / WeChat 9", "已体验", "2026-07-06", "是", "是", "没有", "4", "5", "待填", "待观察", "通过", "private://candidate/U002", "未测协作"],
-    ]),
-    "feedback-template.csv": csv([
-      feedbackHeader(),
-      ["U001", "iPhone 15 / WeChat 9", "2026-07-06", "今晚", "是", "是", "问问大家", "5", "5", "4", "无", "推荐能直接做", "private://candidate/U001", "建议", "否", "不处理"],
-      ["U002", "iPhone 14 / WeChat 9", "2026-07-06", "清单", "是", "是", "没有", "4", "5", "待填", "无", "清单能看懂", "private://candidate/U002", "建议", "否", "不处理"],
-    ]),
+    "anonymous-users.csv": csv([anonymousHeader(), ...users.map((user) => user.anonymous)]),
+    "feedback-template.csv": csv([feedbackHeader(), ...users.map((user) => user.feedback)]),
     "daily-review.csv": csv([
       dailyHeader(),
-      ["Day 1", "2", "2", "2", "1", "0", "0", "核心路径通过", "继续观察"],
+      ["Day 1", String(users.length), String(users.length), String(users.length), String(users.filter((user) => user.collaboration !== "没有").length), "0", "0", "核心路径通过", "继续观察"],
     ]),
     "issue-triage.csv": csv([
       issueHeader(),
       ["SUG-001", "希望菜更多", "U001", "建议", "是", "否", "否", "codex@mbp-m5pro", "不处理", "不阻塞"],
     ]),
+  };
+}
+
+function userRow(index, { collaboration }) {
+  const id = `U${String(index).padStart(3, "0")}`;
+  const device = index % 2 === 0 ? "iPhone 14 / WeChat 9" : "iPhone 15 / WeChat 9";
+  return {
+    collaboration,
+    anonymous: [id, index % 2 === 0 ? "三人家庭" : "两人家庭", device, "已体验", "2026-07-06", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", index <= 4 ? "已复访" : "待观察", "通过", `private://candidate/${id}`, "流程顺"],
+    feedback: [id, device, "2026-07-06", index % 2 === 0 ? "清单" : "今晚", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", "无", index % 2 === 0 ? "清单能看懂" : "推荐能直接做", `private://candidate/${id}`, "建议", "否", "不处理"],
   };
 }
 
