@@ -10974,5 +10974,2999 @@
       "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
     ],
     "difficultyLevel": "easy"
+  },
+  {
+    "id": "scallion-oil-chicken-thigh",
+    "name": "葱油鸡腿肉",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "高蛋白",
+      "葱香",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "chicken",
+    "description": "鸡腿肉先煎后拌葱油，肉质嫩、香气足，适合配米饭。",
+    "ingredients": [
+      {
+        "name": "去骨鸡腿肉",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 5,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "姜片",
+        "amount": 3,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 15,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 15,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡腿肉切块，用料酒、盐和少量生抽抓匀腌 10 分钟。",
+      "小葱切段，葱白和葱绿分开备用。",
+      "热锅少油放入鸡腿肉，中火煎到两面微黄并熟透。",
+      "另起少量油，小火把葱白和姜片煸香，关火后倒入葱绿。",
+      "把葱油和剩余生抽淋在鸡腿肉上，拌匀即可。"
+    ],
+    "tips": "葱绿不要久炸，关火后下锅更容易保留清香。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/scallion-oil-chicken-thigh.png",
+      "alt": "葱油鸡腿肉 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#scallion-oil-chicken-thigh.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 330,
+      "proteinG": 29,
+      "fatG": 21,
+      "carbsG": 5,
+      "fiberG": 1,
+      "sodiumMg": 720,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "garlic-mushroom-chicken-cubes",
+    "name": "蒜香口蘑鸡丁",
+    "categories": [
+      "家常菜",
+      "省时菜"
+    ],
+    "tags": [
+      "高蛋白",
+      "低脂",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "mushroom",
+    "description": "口蘑吸收鸡丁鲜味，蒜香明显但口感清爽。",
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "口蘑",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 10,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡胸肉切丁，用料酒、生抽和黑胡椒腌 8 分钟。",
+      "口蘑切厚片，蒜切末。",
+      "热锅少油，下鸡丁炒到变色后盛出。",
+      "锅中放蒜末和口蘑，炒到口蘑微微出水。",
+      "倒回鸡丁，加盐调味，大火收干即可。"
+    ],
+    "tips": "口蘑不要切太薄，保留厚度更有肉感。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/garlic-mushroom-chicken-cubes.png",
+      "alt": "蒜香口蘑鸡丁 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#garlic-mushroom-chicken-cubes.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 34,
+      "fatG": 8,
+      "carbsG": 10,
+      "fiberG": 3,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "tomato-egg-dough-drop-soup",
+    "name": "番茄鸡蛋疙瘩汤",
+    "categories": [
+      "主食",
+      "汤"
+    ],
+    "tags": [
+      "暖胃",
+      "快手",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "tomato",
+    "description": "番茄汤底酸甜开胃，面疙瘩柔软，适合晚餐简单吃。",
+    "ingredients": [
+      {
+        "name": "西红柿",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "面粉",
+        "amount": 90,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "面粉分次淋入少量清水，用筷子搅成小疙瘩。",
+      "西红柿切块，鸡蛋打散。",
+      "锅中少油炒西红柿至出汁，加两碗水煮开。",
+      "下入面疙瘩并搅散，煮到浮起。",
+      "淋入蛋液，加盐和白胡椒调味，撒葱花。"
+    ],
+    "tips": "搅面疙瘩时水要慢慢加，颗粒会更均匀。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/tomato-egg-dough-drop-soup.png",
+      "alt": "番茄鸡蛋疙瘩汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#tomato-egg-dough-drop-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 310,
+      "proteinG": 14,
+      "fatG": 9,
+      "carbsG": 44,
+      "fiberG": 3,
+      "sodiumMg": 680,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "minced-pork-green-beans",
+    "name": "肉末豆角",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "快手",
+      "下饭菜",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "beans",
+    "description": "豆角切小段和肉末同炒，咸香下饭，也适合带饭。",
+    "ingredients": [
+      {
+        "name": "豆角",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "猪肉末",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 8,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "豆角洗净切小段，肉末用少量生抽抓匀。",
+      "锅中烧水，加少量盐，把豆角焯到断生后捞出。",
+      "热锅放油，下肉末炒散。",
+      "加入蒜末和豆角翻炒 2 分钟。",
+      "加蚝油和盐调味，炒到豆角入味。"
+    ],
+    "tips": "豆角一定要炒熟，焯水能缩短炒制时间。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/minced-pork-green-beans.png",
+      "alt": "肉末豆角 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#minced-pork-green-beans.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 300,
+      "proteinG": 17,
+      "fatG": 18,
+      "carbsG": 18,
+      "fiberG": 5,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "green-pepper-egg-pancake",
+    "name": "青椒鸡蛋饼",
+    "categories": [
+      "早餐",
+      "省时菜"
+    ],
+    "tags": [
+      "蛋类",
+      "快手",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "egg",
+    "description": "青椒碎拌进蛋液煎成薄饼，香软好切，早餐很省心。",
+    "ingredients": [
+      {
+        "name": "鸡蛋",
+        "amount": 3,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "面粉",
+        "amount": 30,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "青椒去籽切小丁。",
+      "鸡蛋打散，加入面粉、青椒丁、盐和白胡椒搅匀。",
+      "平底锅刷薄油，倒入蛋糊摊平。",
+      "小火煎到定型后翻面。",
+      "两面金黄后切块装盘。"
+    ],
+    "tips": "火不要太大，小火煎出来更嫩。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/green-pepper-egg-pancake.png",
+      "alt": "青椒鸡蛋饼 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#green-pepper-egg-pancake.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 250,
+      "proteinG": 15,
+      "fatG": 16,
+      "carbsG": 12,
+      "fiberG": 2,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "shrimp-steamed-egg-custard",
+    "name": "虾仁蒸蛋羹",
+    "categories": [
+      "蒸菜",
+      "家常菜"
+    ],
+    "tags": [
+      "高蛋白",
+      "嫩滑",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "egg",
+    "description": "嫩滑蒸蛋配虾仁，清淡鲜甜，适合老人和孩子。",
+    "ingredients": [
+      {
+        "name": "鸡蛋",
+        "amount": 3,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 100,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡蛋打散，加入约 1.5 倍温水和盐搅匀。",
+      "蛋液过筛倒入浅碗，盖保鲜膜扎小孔。",
+      "水开后中小火蒸 8 分钟。",
+      "放上虾仁再蒸 4-5 分钟。",
+      "出锅淋生抽和香油，撒葱花。"
+    ],
+    "tips": "蛋液过筛和中小火蒸，是表面细腻的关键。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/shrimp-steamed-egg-custard.png",
+      "alt": "虾仁蒸蛋羹 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#shrimp-steamed-egg-custard.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 22,
+      "fatG": 12,
+      "carbsG": 3,
+      "fiberG": 0,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "shiitake-greens-noodle-soup",
+    "name": "香菇青菜面",
+    "categories": [
+      "主食",
+      "汤面"
+    ],
+    "tags": [
+      "清淡",
+      "快手",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "noodle",
+    "description": "清汤面配香菇和青菜，简单舒服，适合早餐或夜宵。",
+    "ingredients": [
+      {
+        "name": "挂面",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鲜香菇",
+        "amount": 5,
+        "unit": "朵",
+        "required": true
+      },
+      {
+        "name": "小青菜",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "香菇切片，小青菜洗净。",
+      "锅中加水煮开，放入香菇煮 2 分钟。",
+      "下挂面煮到八成熟。",
+      "放入青菜，加生抽和盐调味。",
+      "面熟后关火，滴少量香油。"
+    ],
+    "tips": "青菜最后放，颜色和口感都会更好。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/shiitake-greens-noodle-soup.png",
+      "alt": "香菇青菜面 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#shiitake-greens-noodle-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 380,
+      "proteinG": 13,
+      "fatG": 6,
+      "carbsG": 68,
+      "fiberG": 5,
+      "sodiumMg": 780,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "egg-wrapped-tofu",
+    "name": "鸡蛋抱豆腐",
+    "categories": [
+      "家常菜",
+      "豆制品"
+    ],
+    "tags": [
+      "蛋类",
+      "嫩滑",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "tofu",
+    "description": "豆腐和蛋液一起煎到定型，外香内嫩。",
+    "ingredients": [
+      {
+        "name": "嫩豆腐",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "嫩豆腐切小块，鸡蛋打散加盐。",
+      "平底锅刷油，放入豆腐块小火煎 1 分钟。",
+      "倒入蛋液，让蛋液包住豆腐。",
+      "盖盖小火焖到蛋液凝固。",
+      "淋少量生抽，撒葱花出锅。"
+    ],
+    "tips": "用不粘锅更容易保持完整。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/egg-wrapped-tofu.png",
+      "alt": "鸡蛋抱豆腐 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#egg-wrapped-tofu.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 240,
+      "proteinG": 18,
+      "fatG": 16,
+      "carbsG": 8,
+      "fiberG": 1,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "garlic-steamed-enoki",
+    "name": "蒜蓉蒸金针菇",
+    "categories": [
+      "素菜",
+      "蒸菜"
+    ],
+    "tags": [
+      "少油",
+      "蒜香",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "mushroom",
+    "description": "金针菇蒸到柔软，蒜蓉酱汁清爽开胃。",
+    "ingredients": [
+      {
+        "name": "金针菇",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 15,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小米椒",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "金针菇切去根部，撕散铺盘。",
+      "蒜末用少量热油激香，加入生抽和蚝油拌匀。",
+      "把蒜蓉汁均匀铺在金针菇上。",
+      "水开后蒸 8 分钟。",
+      "出锅撒小米椒或葱花。"
+    ],
+    "tips": "蒸出的汤汁很鲜，不用额外加水。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/garlic-steamed-enoki.png",
+      "alt": "蒜蓉蒸金针菇 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#garlic-steamed-enoki.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 120,
+      "proteinG": 6,
+      "fatG": 5,
+      "carbsG": 14,
+      "fiberG": 5,
+      "sodiumMg": 650,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "tomato-potato-beef-soup",
+    "name": "番茄土豆牛肉汤",
+    "categories": [
+      "汤",
+      "炖菜"
+    ],
+    "tags": [
+      "暖胃",
+      "牛肉",
+      "45分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 45,
+    "accent": "beef",
+    "description": "番茄汤底搭配土豆和牛肉，酸甜浓郁，晚餐很有满足感。",
+    "ingredients": [
+      {
+        "name": "牛肉块",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "西红柿",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "土豆",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "姜片",
+        "amount": 3,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "牛肉切块焯水，冲净浮沫。",
+      "西红柿切块，土豆切滚刀块。",
+      "锅中少油炒西红柿到出沙，加牛肉和热水。",
+      "小火炖 30 分钟后加入土豆。",
+      "土豆软后加盐和生抽调味。"
+    ],
+    "tips": "用熟得快的牛肉部位可以明显缩短时间。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/tomato-potato-beef-soup.png",
+      "alt": "番茄土豆牛肉汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#tomato-potato-beef-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 390,
+      "proteinG": 28,
+      "fatG": 16,
+      "carbsG": 30,
+      "fiberG": 4,
+      "sodiumMg": 760,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "black-pepper-king-oyster-beef",
+    "name": "黑椒杏鲍菇牛肉粒",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "牛肉",
+      "黑椒",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "beef",
+    "description": "牛肉粒和杏鲍菇都带嚼感，黑椒香气明显。",
+    "ingredients": [
+      {
+        "name": "牛里脊",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "杏鲍菇",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "洋葱",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "黑胡椒",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "牛肉切粒，用料酒、生抽和黑胡椒腌 10 分钟。",
+      "杏鲍菇切丁，洋葱切块。",
+      "热锅下牛肉粒快速煎到变色后盛出。",
+      "放杏鲍菇煎到边缘微黄。",
+      "倒回牛肉，加蚝油和黑胡椒翻匀。"
+    ],
+    "tips": "牛肉回锅后不要久炒，避免变老。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/black-pepper-king-oyster-beef.png",
+      "alt": "黑椒杏鲍菇牛肉粒 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#black-pepper-king-oyster-beef.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 29,
+      "fatG": 20,
+      "carbsG": 13,
+      "fiberG": 3,
+      "sodiumMg": 720,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "sour-soup-beef-rolls",
+    "name": "酸汤肥牛",
+    "categories": [
+      "家常菜",
+      "汤"
+    ],
+    "tags": [
+      "酸辣",
+      "开胃",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "beef",
+    "description": "酸汤搭配肥牛卷和金针菇，开胃又快手。",
+    "ingredients": [
+      {
+        "name": "肥牛卷",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "金针菇",
+        "amount": 150,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "番茄",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "青菜",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "黄灯笼辣椒酱",
+        "amount": 12,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白醋",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "金针菇切根洗净，肥牛卷焯水变色捞出。",
+      "锅中少油炒番茄和辣椒酱。",
+      "加入热水煮开，放金针菇煮 3 分钟。",
+      "放入肥牛卷和青菜。",
+      "加盐和白醋调味，煮开即关火。"
+    ],
+    "tips": "肥牛先焯水，汤会更清爽。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/sour-soup-beef-rolls.png",
+      "alt": "酸汤肥牛 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#sour-soup-beef-rolls.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 430,
+      "proteinG": 25,
+      "fatG": 31,
+      "carbsG": 12,
+      "fiberG": 4,
+      "sodiumMg": 980,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "stir-fried-snow-peas",
+    "name": "清炒荷兰豆",
+    "categories": [
+      "素菜",
+      "省时菜"
+    ],
+    "tags": [
+      "清爽",
+      "10分钟",
+      "低脂"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 10,
+    "accent": "greens",
+    "description": "荷兰豆清脆鲜甜，适合作为一顿饭里的绿色配菜。",
+    "ingredients": [
+      {
+        "name": "荷兰豆",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "蒜片",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "荷兰豆撕去老筋，胡萝卜切薄片。",
+      "锅中水开后加少量盐，荷兰豆焯 30 秒捞出。",
+      "热锅少油爆香蒜片。",
+      "放入荷兰豆和胡萝卜快速翻炒。",
+      "加盐调味，保持脆嫩出锅。"
+    ],
+    "tips": "焯水时间别长，荷兰豆才会脆。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/stir-fried-snow-peas.png",
+      "alt": "清炒荷兰豆 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#stir-fried-snow-peas.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 120,
+      "proteinG": 5,
+      "fatG": 5,
+      "carbsG": 16,
+      "fiberG": 5,
+      "sodiumMg": 430,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "dace-youmai-greens",
+    "name": "豆豉鲮鱼油麦菜",
+    "categories": [
+      "家常菜",
+      "绿叶菜"
+    ],
+    "tags": [
+      "快手",
+      "下饭菜",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "greens",
+    "description": "油麦菜配豆豉鲮鱼，咸香够味，很适合配粥或米饭。",
+    "ingredients": [
+      {
+        "name": "油麦菜",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "豆豉鲮鱼",
+        "amount": 80,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "油麦菜洗净切段，豆豉鲮鱼拆成小块。",
+      "热锅少油爆香蒜末。",
+      "放入油麦菜大火快炒。",
+      "油麦菜刚变软时加入豆豉鲮鱼。",
+      "淋少量生抽，翻匀出锅。"
+    ],
+    "tips": "豆豉鲮鱼本身有咸味，盐可以不加。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/dace-youmai-greens.png",
+      "alt": "豆豉鲮鱼油麦菜 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#dace-youmai-greens.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 220,
+      "proteinG": 13,
+      "fatG": 15,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 880,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "yam-shrimp-stir-fry",
+    "name": "山药炒虾仁",
+    "categories": [
+      "家常菜",
+      "减脂期"
+    ],
+    "tags": [
+      "高蛋白",
+      "清爽",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "shrimp",
+    "description": "山药脆嫩、虾仁鲜甜，是清淡但有满足感的一道菜。",
+    "ingredients": [
+      {
+        "name": "山药",
+        "amount": 220,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾仁",
+        "amount": 160,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "荷兰豆",
+        "amount": 60,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "山药去皮切片，泡水防氧化。",
+      "虾仁用料酒和白胡椒腌 5 分钟。",
+      "山药、荷兰豆和胡萝卜焯水 1 分钟。",
+      "热锅少油下虾仁炒到变色。",
+      "加入蔬菜，加盐快速翻匀。"
+    ],
+    "tips": "山药切好后泡水，颜色会更干净。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/yam-shrimp-stir-fry.png",
+      "alt": "山药炒虾仁 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#yam-shrimp-stir-fry.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 270,
+      "proteinG": 25,
+      "fatG": 6,
+      "carbsG": 31,
+      "fiberG": 4,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "curry-potato-chicken",
+    "name": "咖喱土豆鸡丁",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "浓香",
+      "孩子爱吃",
+      "30分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 30,
+    "accent": "curry",
+    "description": "咖喱香浓，土豆软糯，鸡丁入味，是很稳的家庭晚餐。",
+    "ingredients": [
+      {
+        "name": "鸡腿肉",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "土豆",
+        "amount": 1,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 80,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "洋葱",
+        "amount": 80,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "咖喱块",
+        "amount": 35,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡腿肉切丁，土豆和胡萝卜切块，洋葱切片。",
+      "锅中少油炒香洋葱，放鸡丁炒到变色。",
+      "加入土豆和胡萝卜翻炒。",
+      "加热水没过食材，小火煮到土豆变软。",
+      "关小火放咖喱块，搅匀后再煮到浓稠。"
+    ],
+    "tips": "咖喱块下锅后要勤搅，避免糊底。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/curry-potato-chicken.png",
+      "alt": "咖喱土豆鸡丁 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#curry-potato-chicken.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 460,
+      "proteinG": 27,
+      "fatG": 22,
+      "carbsG": 38,
+      "fiberG": 5,
+      "sodiumMg": 930,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "mixed-vegetable-fried-rice",
+    "name": "什锦炒饭",
+    "categories": [
+      "主食",
+      "省时菜"
+    ],
+    "tags": [
+      "剩饭友好",
+      "午餐",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "rice",
+    "description": "米饭粒粒分明，配鸡蛋和蔬菜，解决剩饭很方便。",
+    "ingredients": [
+      {
+        "name": "剩米饭",
+        "amount": 320,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "玉米粒",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "青豆",
+        "amount": 40,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡蛋打散，胡萝卜切丁。",
+      "热锅油热后先炒鸡蛋，盛出。",
+      "锅中放胡萝卜、玉米和青豆炒香。",
+      "加入米饭压散翻炒。",
+      "倒回鸡蛋，加盐和生抽调味。"
+    ],
+    "tips": "冷饭更容易炒散，热饭可先摊开吹凉。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/mixed-vegetable-fried-rice.png",
+      "alt": "什锦炒饭 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#mixed-vegetable-fried-rice.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 17,
+      "fatG": 16,
+      "carbsG": 78,
+      "fiberG": 5,
+      "sodiumMg": 780,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "cold-noodles-shredded-chicken",
+    "name": "鸡丝凉面",
+    "categories": [
+      "主食",
+      "省时菜"
+    ],
+    "tags": [
+      "凉面",
+      "夏天",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "noodle",
+    "description": "鸡丝、黄瓜丝和凉面拌在一起，清爽但有蛋白质。",
+    "ingredients": [
+      {
+        "name": "面条",
+        "amount": 200,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡胸肉",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 15,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香醋",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "芝麻酱",
+        "amount": 18,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 6,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡胸肉煮熟后撕成鸡丝。",
+      "面条煮熟过凉水，沥干。",
+      "黄瓜和胡萝卜切丝。",
+      "芝麻酱用生抽、香醋和少量水调开。",
+      "把面、鸡丝和蔬菜拌匀，淋酱汁。"
+    ],
+    "tips": "面条过凉后拌一点香油，可以防粘。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/cold-noodles-shredded-chicken.png",
+      "alt": "鸡丝凉面 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#cold-noodles-shredded-chicken.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 520,
+      "proteinG": 32,
+      "fatG": 15,
+      "carbsG": 65,
+      "fiberG": 5,
+      "sodiumMg": 880,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "seaweed-dried-shrimp-wonton",
+    "name": "紫菜虾皮馄饨",
+    "categories": [
+      "主食",
+      "汤"
+    ],
+    "tags": [
+      "早餐",
+      "馄饨",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "wonton",
+    "description": "清汤馄饨加紫菜虾皮，鲜味足，早餐很舒服。",
+    "ingredients": [
+      {
+        "name": "小馄饨",
+        "amount": 16,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "紫菜",
+        "amount": 4,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾皮",
+        "amount": 8,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 6,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 3,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "碗中放紫菜、虾皮、葱花、生抽和白胡椒。",
+      "锅中水开后下馄饨。",
+      "煮到馄饨浮起后再煮 1 分钟。",
+      "舀热汤冲入碗中。",
+      "放入馄饨，滴香油即可。"
+    ],
+    "tips": "先用热汤冲开紫菜和虾皮，汤味更鲜。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/seaweed-dried-shrimp-wonton.png",
+      "alt": "紫菜虾皮馄饨 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#seaweed-dried-shrimp-wonton.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 18,
+      "fatG": 11,
+      "carbsG": 48,
+      "fiberG": 2,
+      "sodiumMg": 950,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "pan-fried-basa-fish",
+    "name": "香煎巴沙鱼",
+    "categories": [
+      "家常菜",
+      "减脂期"
+    ],
+    "tags": [
+      "鱼类",
+      "高蛋白",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "fish",
+    "description": "巴沙鱼简单煎香，配一点柠檬和蔬菜，清爽不腻。",
+    "ingredients": [
+      {
+        "name": "巴沙鱼柳",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "西兰花",
+        "amount": 100,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "柠檬",
+        "amount": 0.5,
+        "unit": "个",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "黑胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "巴沙鱼擦干水分，切成大块。",
+      "用盐、黑胡椒和料酒腌 8 分钟。",
+      "西兰花焯水备用。",
+      "平底锅刷油，放入鱼块中火煎。",
+      "两面微黄后装盘，挤少量柠檬汁。"
+    ],
+    "tips": "鱼块下锅前擦干，煎的时候不容易散。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/pan-fried-basa-fish.png",
+      "alt": "香煎巴沙鱼 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#pan-fried-basa-fish.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 260,
+      "proteinG": 34,
+      "fatG": 10,
+      "carbsG": 8,
+      "fiberG": 2,
+      "sodiumMg": 520,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "wintermelon-dried-shrimp-soup",
+    "name": "冬瓜虾皮汤",
+    "categories": [
+      "汤",
+      "省时菜"
+    ],
+    "tags": [
+      "清淡",
+      "低脂",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "wintermelon",
+    "description": "冬瓜清甜，虾皮提鲜，是很轻盈的家常汤。",
+    "ingredients": [
+      {
+        "name": "冬瓜",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾皮",
+        "amount": 10,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 2,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "冬瓜去皮切薄片，虾皮冲洗一下。",
+      "锅中加水煮开，放入冬瓜。",
+      "冬瓜煮到半透明后加入虾皮。",
+      "加盐调味，再煮 1 分钟。",
+      "关火撒葱花，滴少量香油。"
+    ],
+    "tips": "冬瓜切薄一点，汤很快就能煮好。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/wintermelon-dried-shrimp-soup.png",
+      "alt": "冬瓜虾皮汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#wintermelon-dried-shrimp-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 90,
+      "proteinG": 4,
+      "fatG": 2,
+      "carbsG": 14,
+      "fiberG": 2,
+      "sodiumMg": 560,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "minced-pork-vermicelli-pot",
+    "name": "肉末粉丝煲",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "粉丝",
+      "酱香",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "pork",
+    "description": "粉丝吸满肉末酱汁，热乎下饭。",
+    "ingredients": [
+      {
+        "name": "红薯粉丝",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "猪肉末",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 8,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "老抽",
+        "amount": 4,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "粉丝用温水泡软，剪短。",
+      "热锅少油，下肉末炒散。",
+      "加入蒜末、生抽、蚝油和老抽炒香。",
+      "倒入一小碗水，放入粉丝。",
+      "小火煮到粉丝吸汁，撒葱花出锅。"
+    ],
+    "tips": "粉丝不要煮太干，留一点汤汁口感更好。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/minced-pork-vermicelli-pot.png",
+      "alt": "肉末粉丝煲 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#minced-pork-vermicelli-pot.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 470,
+      "proteinG": 17,
+      "fatG": 18,
+      "carbsG": 60,
+      "fiberG": 2,
+      "sodiumMg": 850,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "pan-fried-egg-tofu",
+    "name": "香煎鸡蛋豆腐",
+    "categories": [
+      "家常菜",
+      "豆制品"
+    ],
+    "tags": [
+      "外酥里嫩",
+      "20分钟",
+      "孩子爱吃"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "tofu",
+    "description": "鸡蛋豆腐煎到表面金黄，口感软嫩，很适合配清淡蔬菜。",
+    "ingredients": [
+      {
+        "name": "鸡蛋豆腐",
+        "amount": 2,
+        "unit": "条",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 1,
+        "unit": "个",
+        "required": false
+      },
+      {
+        "name": "淀粉",
+        "amount": 20,
+        "unit": "克",
+        "required": false
+      },
+      {
+        "name": "小葱",
+        "amount": 1,
+        "unit": "根",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡蛋豆腐切厚片，轻轻裹一层淀粉。",
+      "鸡蛋打散备用。",
+      "平底锅放油，豆腐片蘸蛋液后下锅。",
+      "小火煎到两面金黄。",
+      "淋少量生抽，撒葱花。"
+    ],
+    "tips": "翻面动作轻一点，豆腐更完整。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/pan-fried-egg-tofu.png",
+      "alt": "香煎鸡蛋豆腐 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#pan-fried-egg-tofu.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 300,
+      "proteinG": 14,
+      "fatG": 19,
+      "carbsG": 18,
+      "fiberG": 1,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "poached-lettuce-shrimp",
+    "name": "白灼生菜虾仁",
+    "categories": [
+      "减脂期",
+      "家常菜"
+    ],
+    "tags": [
+      "高蛋白",
+      "清淡",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "shrimp",
+    "description": "生菜清脆，虾仁鲜甜，调味轻但很有鲜味。",
+    "ingredients": [
+      {
+        "name": "虾仁",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "生菜",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜片",
+        "amount": 2,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "香醋",
+        "amount": 4,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 2,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "虾仁去虾线，生菜洗净。",
+      "锅中水开放姜片，先烫生菜 20 秒捞出。",
+      "再放虾仁煮到变色。",
+      "生菜铺底，虾仁放在上面。",
+      "生抽、香醋和香油调成汁淋上。"
+    ],
+    "tips": "虾仁变色即可捞出，煮久会老。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/poached-lettuce-shrimp.png",
+      "alt": "白灼生菜虾仁 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#poached-lettuce-shrimp.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 210,
+      "proteinG": 28,
+      "fatG": 5,
+      "carbsG": 10,
+      "fiberG": 4,
+      "sodiumMg": 600,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "carrot-corn-chicken-soup",
+    "name": "胡萝卜玉米鸡汤",
+    "categories": [
+      "汤",
+      "家常菜"
+    ],
+    "tags": [
+      "清甜",
+      "家庭菜",
+      "45分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 45,
+    "accent": "soup",
+    "description": "玉米和胡萝卜带出清甜味，鸡汤温和不油腻。",
+    "ingredients": [
+      {
+        "name": "鸡腿",
+        "amount": 1,
+        "unit": "只",
+        "required": true
+      },
+      {
+        "name": "玉米",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "姜片",
+        "amount": 3,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡腿剁块后焯水，冲净浮沫。",
+      "玉米切段，胡萝卜切滚刀块。",
+      "锅中放鸡块、姜片和足量热水。",
+      "小火煮 25 分钟后放玉米和胡萝卜。",
+      "继续煮 15 分钟，加盐调味。"
+    ],
+    "tips": "焯水后用热水炖，汤味更清。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/carrot-corn-chicken-soup.png",
+      "alt": "胡萝卜玉米鸡汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#carrot-corn-chicken-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 360,
+      "proteinG": 27,
+      "fatG": 17,
+      "carbsG": 25,
+      "fiberG": 4,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "lotus-root-rib-soup",
+    "name": "莲藕排骨汤",
+    "categories": [
+      "汤",
+      "炖菜"
+    ],
+    "tags": [
+      "家常汤",
+      "暖胃",
+      "70分钟"
+    ],
+    "servings": 2,
+    "difficulty": "中等",
+    "timeMinutes": 70,
+    "accent": "soup",
+    "description": "莲藕粉糯，排骨汤清甜，是经典家庭汤。",
+    "ingredients": [
+      {
+        "name": "排骨",
+        "amount": 350,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "莲藕",
+        "amount": 300,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "姜片",
+        "amount": 4,
+        "unit": "片",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 10,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "排骨冷水下锅焯水，冲净。",
+      "莲藕去皮切滚刀块。",
+      "锅中放排骨、姜片和热水，小火炖 40 分钟。",
+      "加入莲藕继续炖 25 分钟。",
+      "最后加盐调味。"
+    ],
+    "tips": "喜欢粉藕口感可以多炖 10 分钟。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/lotus-root-rib-soup.png",
+      "alt": "莲藕排骨汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#lotus-root-rib-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 480,
+      "proteinG": 28,
+      "fatG": 30,
+      "carbsG": 27,
+      "fiberG": 4,
+      "sodiumMg": 720,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "medium"
+  },
+  {
+    "id": "green-pepper-eggplant-pork",
+    "name": "青椒茄子炒肉",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "小炒",
+      "25分钟",
+      "下饭菜"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "eggplant",
+    "description": "茄子软糯、青椒清香，肉片增香，是很家常的下饭菜。",
+    "ingredients": [
+      {
+        "name": "长茄子",
+        "amount": 2,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "青椒",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "猪瘦肉",
+        "amount": 120,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "蒜末",
+        "amount": 8,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "生抽",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "蚝油",
+        "amount": 8,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 14,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "茄子切条，青椒切片，瘦肉切片。",
+      "肉片用少量生抽抓匀。",
+      "锅中少油先炒肉片到变色盛出。",
+      "放茄子炒软，再加入青椒和蒜末。",
+      "倒回肉片，加蚝油和盐调味。"
+    ],
+    "tips": "茄子可以先用少量盐抓一下，炒时更省油。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/green-pepper-eggplant-pork.png",
+      "alt": "青椒茄子炒肉 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#green-pepper-eggplant-pork.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 330,
+      "proteinG": 18,
+      "fatG": 20,
+      "carbsG": 22,
+      "fiberG": 6,
+      "sodiumMg": 780,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "bok-choy-tofu-soup",
+    "name": "小白菜豆腐汤",
+    "categories": [
+      "汤",
+      "素菜"
+    ],
+    "tags": [
+      "清淡",
+      "快手",
+      "15分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 15,
+    "accent": "tofu",
+    "description": "小白菜和豆腐煮成清汤，适合搭配重口味主菜。",
+    "ingredients": [
+      {
+        "name": "小白菜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "北豆腐",
+        "amount": 250,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "虾皮",
+        "amount": 6,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 2,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "白胡椒",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "香油",
+        "amount": 2,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "豆腐切块，小白菜洗净切段。",
+      "锅中加水煮开，放入豆腐。",
+      "小火煮 3 分钟后加入小白菜。",
+      "加入虾皮、盐和白胡椒。",
+      "小白菜变软后关火，滴香油。"
+    ],
+    "tips": "豆腐先煮一下，汤味会更柔和。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/bok-choy-tofu-soup.png",
+      "alt": "小白菜豆腐汤 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#bok-choy-tofu-soup.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 190,
+      "proteinG": 14,
+      "fatG": 10,
+      "carbsG": 10,
+      "fiberG": 3,
+      "sodiumMg": 620,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "soybean-paste-chicken-cubes",
+    "name": "酱爆鸡丁",
+    "categories": [
+      "家常菜",
+      "下饭菜"
+    ],
+    "tags": [
+      "酱香",
+      "鸡肉",
+      "25分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 25,
+    "accent": "chicken",
+    "description": "鸡丁裹上酱香汁，配黄瓜丁很清爽。",
+    "ingredients": [
+      {
+        "name": "鸡胸肉",
+        "amount": 260,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "黄瓜",
+        "amount": 1,
+        "unit": "根",
+        "required": true
+      },
+      {
+        "name": "胡萝卜",
+        "amount": 50,
+        "unit": "克",
+        "required": false
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "黄豆酱",
+        "amount": 18,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "生抽",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "料酒",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      },
+      {
+        "name": "白糖",
+        "amount": 3,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 12,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "鸡胸肉切丁，用料酒和生抽腌 8 分钟。",
+      "黄瓜和胡萝卜切丁。",
+      "热锅少油，下鸡丁炒到变色。",
+      "加入黄豆酱和少量白糖炒香。",
+      "放入黄瓜丁和胡萝卜丁，快速翻匀。"
+    ],
+    "tips": "黄瓜最后放，保持清脆口感。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/soybean-paste-chicken-cubes.png",
+      "alt": "酱爆鸡丁 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#soybean-paste-chicken-cubes.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 320,
+      "proteinG": 34,
+      "fatG": 12,
+      "carbsG": 17,
+      "fiberG": 2,
+      "sodiumMg": 860,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
+  },
+  {
+    "id": "pumpkin-egg-pancake",
+    "name": "南瓜鸡蛋饼",
+    "categories": [
+      "早餐",
+      "省时菜"
+    ],
+    "tags": [
+      "蛋类",
+      "软糯",
+      "20分钟"
+    ],
+    "servings": 2,
+    "difficulty": "简单",
+    "timeMinutes": 20,
+    "accent": "pumpkin",
+    "description": "南瓜压成泥和蛋液煎成饼，微甜软糯。",
+    "ingredients": [
+      {
+        "name": "南瓜",
+        "amount": 180,
+        "unit": "克",
+        "required": true
+      },
+      {
+        "name": "鸡蛋",
+        "amount": 2,
+        "unit": "个",
+        "required": true
+      },
+      {
+        "name": "面粉",
+        "amount": 50,
+        "unit": "克",
+        "required": true
+      }
+    ],
+    "seasonings": [
+      {
+        "name": "盐",
+        "amount": 1,
+        "unit": "克",
+        "pantryItem": true
+      },
+      {
+        "name": "食用油",
+        "amount": 8,
+        "unit": "毫升",
+        "pantryItem": true
+      }
+    ],
+    "steps": [
+      "南瓜蒸熟压成泥。",
+      "加入鸡蛋、面粉和少量盐搅成糊。",
+      "平底锅刷薄油，倒入南瓜蛋糊。",
+      "小火煎到定型后翻面。",
+      "两面金黄后切块。"
+    ],
+    "tips": "南瓜含水不同，面粉可少量调整。",
+    "image": {
+      "status": "illustration",
+      "url": "/family-menu/assets/dishes/pumpkin-egg-pancake.png",
+      "alt": "南瓜鸡蛋饼 Humi 手绘水彩菜品图",
+      "sourceName": "Lovart export (9) Humi dish asset",
+      "sourceUrl": "lovart-export:export-9#pumpkin-egg-pancake.png",
+      "license": "Generated for this project",
+      "note": "来自 Lovart export (9) 的 Humi 新增菜品库资产，遵循白瓷盘/浅象牙纸背景/柔和水彩质感规范。"
+    },
+    "nutrition": {
+      "perServing": true,
+      "servingSize": "约2人份菜谱的1人份",
+      "caloriesKcal": 280,
+      "proteinG": 11,
+      "fatG": 11,
+      "carbsG": 34,
+      "fiberG": 4,
+      "sodiumMg": 380,
+      "estimateMethod": "ingredient-based household estimate",
+      "dataSources": [
+        "FAO/INFOODS China Food Composition Table reference",
+        "USDA FoodData Central reference foods"
+      ]
+    },
+    "sourceNotes": [
+      "菜品名称与做法按常见中式家常餐整理，步骤为原创改写。",
+      "营养参数按当前食材用量估算为每人份，适合产品展示与相对比较，不作为医学建议。"
+    ],
+    "difficultyLevel": "easy"
   }
 ]
