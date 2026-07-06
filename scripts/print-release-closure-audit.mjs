@@ -45,6 +45,7 @@ const report = {
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     productReviewReady: Boolean(release.productReviewReady),
     candidateHardeningReady: Boolean(release.candidateHardeningReady),
+    candidateValidationReady: Boolean(release.candidateValidationReady),
     candidateReviewSelftestReady: Boolean(release.candidateReviewSelftestReady),
     wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     shareCardEvidenceReady: Boolean(shareEvidence?.ok),
@@ -112,6 +113,26 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       ],
       userConfirmationsRequired: [
         "视觉确认三张微信原生分享卡片确实符合 crave/invite/grocery 预期。",
+      ],
+    };
+  }
+
+  if (release.engineeringGatesReady && !release.candidateValidationReady) {
+    return {
+      key: "candidate-hardening",
+      title: "1.1 生产候选完善与内测验证",
+      description: "工程门禁健康，但真实候选内测复盘尚未达标；先补真实匿名反馈、核心路径完成数和协作样本，暂不进入微信审核。",
+      nextCommands: [
+        "npm run release:product:review",
+        "npm run release:candidate:check",
+        "npm run release:candidate:prepare",
+        "npm run release:candidate:review",
+        "npm run release:candidate:review:selftest",
+        "npm run release:spec:audit",
+        "npm run release:next",
+      ],
+      userConfirmationsRequired: [
+        "候选复盘达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1 后，再确认是否进入微信审核准备。",
       ],
     };
   }
@@ -293,6 +314,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "candidate-hardening",
       title: "生产候选内测材料未通过",
       details: ["Run npm run release:candidate:check for details."],
+    });
+  }
+  if (!release.candidateValidationReady) {
+    blockers.push({
+      key: "candidate-validation",
+      title: "真实候选内测复盘未通过",
+      details: ["Run npm run release:candidate:review for details."],
     });
   }
   if (!release.wechatSubmitWorkspaceGuardReady) {

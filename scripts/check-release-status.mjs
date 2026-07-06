@@ -82,6 +82,7 @@ const [
   docsFreshness,
   productReview,
   candidateHardening,
+  candidateValidationReview,
   candidateReviewSelftest,
   wechatSubmitWorkspaceGuard,
   specAudit,
@@ -95,6 +96,7 @@ const [
   runNpmScript("release:docs:check"),
   runNpmScript("release:product:review"),
   runNpmScript("release:candidate:check"),
+  runNpmScript("release:candidate:review"),
   runNpmScript("release:candidate:review:selftest"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
@@ -112,11 +114,13 @@ const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
 const productReviewOk = productReview.ok;
 const candidateHardeningOk = candidateHardening.ok;
+const candidateValidationReady = candidateValidationReview.ok;
 const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const platformSubmitReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
@@ -146,6 +150,18 @@ if (!candidateHardeningOk) {
 if (!candidateReviewSelftestOk) {
   nextActions.push("Fix release:candidate:review:selftest before relying on private candidate validation review results.");
 }
+if (!candidateValidationReady) {
+  const recommendation = candidateValidationReview.data?.recommendation;
+  if (recommendation === "wait-for-validation-input") {
+    nextActions.push("Fill the private candidate validation packet with real anonymous U001-U020 feedback before WeChat review preparation.");
+  } else if (recommendation === "wait-for-more-validation") {
+    nextActions.push("Continue candidate validation until it reaches 10 experienced users, 8 completed Tonight menus, 8 completed grocery lists, and 3 collaboration samples.");
+  } else if (recommendation === "stop-and-fix-p0" || recommendation === "triage-p1-before-review") {
+    nextActions.push("Fix or explicitly triage candidate P0/P1 findings before WeChat review preparation.");
+  } else {
+    nextActions.push("Run npm run release:candidate:prepare and npm run release:candidate:review before WeChat review preparation.");
+  }
+}
 if (!wechatSubmitWorkspaceGuardOk) {
   nextActions.push("Restore release:wechat:prepare-submit confirmation guard before relying on WeChat review preparation.");
 }
@@ -160,8 +176,10 @@ if (apiDeployOnlySshBlocked) {
 } else if (!apiDeployReady) {
   nextActions.push("Resolve deploy:api:check failures before API deployment.");
 }
-if (platformSubmitReady && preReviewHardeningReady) {
-  nextActions.push("Engineering gates are ready for WeChat review preparation; wait for user confirmation before any platform submit action.");
+if (engineeringGatesReady && preReviewHardeningReady && candidateValidationReady) {
+  nextActions.push("Engineering and candidate validation gates are ready for WeChat review preparation; wait for user confirmation before any platform submit action.");
+} else if (engineeringGatesReady && preReviewHardeningReady && !candidateValidationReady) {
+  nextActions.push("Engineering gates are healthy, but real candidate validation is not complete; keep 1.1 in production-candidate validation.");
 }
 if (!releaseEvidenceReady) {
   nextActions.push("After user-confirmed WeChat submit, approval, publish, real-device P0 checks, and 24h monitoring, fill docs/humi-1.1-release-evidence-log.md and rerun npm run release:evidence:check.");
@@ -181,8 +199,10 @@ console.log(JSON.stringify({
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
+    engineeringGatesReady,
     productReviewReady: productReviewOk,
     candidateHardeningReady: candidateHardeningOk,
+    candidateValidationReady,
     candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
     specAcceptanceAuditReady: specAuditOk,
@@ -204,6 +224,7 @@ console.log(JSON.stringify({
     summarizeCheck(docsFreshness),
     summarizeCheck(productReview),
     summarizeCheck(candidateHardening),
+    summarizeCheck(candidateValidationReview),
     summarizeCheck(candidateReviewSelftest),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),

@@ -9,7 +9,7 @@
 
 - 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
 - 当前阶段是 1.1 生产候选完善与内测验证：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，继续保持工程门禁、产品验收和用户确认项可重复通过；最终进入微信公众平台审核前必须再次由用户确认。
-- 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准。
+- 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
 - API 部署提交：`154f379`（`docs: correct humi api deploy target`）；对应 GitHub Pages run `28639333760`，结论 `success`。
 - 最新小程序上传：`1.1.59`，描述 `原生分享确认页`，AppID `wx4040b89f3b363416`。
@@ -47,7 +47,7 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:review` 可复盘最新私有内测执行包；如果仍是模板、样本不足或出现 P0/P1，会阻止进入审核准备；默认最低标准是 10 个真实体验、8 个完成今晚菜单、8 个完成清单、3 个尝试协作。
 - `npm run release:candidate:review:selftest` 可用临时 CSV 验证复盘脚本本身，覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
-- 当前已满足；后续如果新增提审前 P0/P1，继续在本步骤完善，不直接跳到审核。
+- 当前提审前 P0/P1 和工程项已满足；真实候选复盘尚待 U001-U020 匿名反馈，未达标前继续在本步骤完善，不直接跳到审核。
 
 ### Step A：生产 API 补部署
 

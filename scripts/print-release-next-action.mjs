@@ -44,6 +44,16 @@ if (openHardeningItems.length) {
 } else if (status.release?.releaseComplete) {
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
+} else if (status.release?.engineeringGatesReady && !status.release?.candidateValidationReady) {
+  lines.push("当前阶段：1.1 生产候选完善与内测验证，暂不进入微信审核。");
+  lines.push("");
+  lines.push("现在该做：");
+  lines.push("1. 继续把 1.1 当作生产候选版本做真实内测和细节完善；当前不直接进入微信公众平台提交审核。");
+  lines.push("2. 运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成或复用私有内测执行包。");
+  lines.push("3. 把 U001-U020 的真实匿名反馈填入私有执行包，真实姓名、微信号、手机号和截图继续留在仓库外。");
+  lines.push("4. 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
+  lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+  lines.push("6. 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
 } else if (wechat?.ok) {
   lines.push(`当前阶段：${nextStage.title}`);
   lines.push("");
@@ -84,7 +94,7 @@ lines.push("");
 lines.push("完成判定：");
 lines.push("- 提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须全部勾完。");
 lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");
-lines.push("- 工程状态：npm run release:status 必须 ok=true。");
+lines.push("- 工程状态：npm run release:status 里的 release.engineeringGatesReady 必须为 true；真实候选复盘也通过后，release:status 才会 ok=true。");
 lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
 lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
 lines.push("- 小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");

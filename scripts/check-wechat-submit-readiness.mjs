@@ -29,6 +29,7 @@ const submitReady = Boolean(
     && status.release?.apiDeployReady
     && status.release?.preReviewHardeningReady
     && status.release?.productReviewReady
+    && status.release?.candidateValidationReady
     && status.release?.wechatSubmitWorkspaceGuardReady
     && status.release?.artifactsReady,
 );
@@ -44,6 +45,7 @@ const packet = {
     ...(ready ? [] : ["release:status is not fully green; see releaseStatusOk=false and warnings before final release bookkeeping."]),
     ...(status.release?.preReviewHardeningReady ? [] : ["Pre-review P0/P1 hardening is not complete; do not submit WeChat review yet."]),
     ...(status.release?.productReviewReady ? [] : ["Product review anchors are not complete; run npm run release:product:review before WeChat review."]),
+    ...(status.release?.candidateValidationReady ? [] : ["Real candidate validation has not passed; run npm run release:candidate:review after filling anonymous U001-U020 feedback."]),
     ...(status.release?.wechatSubmitWorkspaceGuardReady ? [] : ["WeChat submit workspace confirmation guard is not covered; do not prepare review submission."]),
   ],
   releaseStatusOk: ready,

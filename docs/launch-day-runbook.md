@@ -81,7 +81,7 @@ npm run release:status
 - H5 返回 200。
 - API `/health` 返回 `{"ok":true,"service":"humi-api"}`。
 - API `/recommend` 返回 `source:"deepseek"`。
-- `release:status` 返回 `ok: true`，且下一步只剩外部平台/灰度证据项。
+- `release:status` 的 `release.engineeringGatesReady` 返回 `true`；只有真实候选复盘也通过后，`release:status ok=true` 才表示可以进入微信审核准备讨论。
 
 ## 4. 发布后 24 小时监控
 
