@@ -6,9 +6,10 @@ const files = {
   handoff: "docs/humi-1.1-release-operator-handoff.md",
   nextAction: "scripts/print-release-next-action.mjs",
   packageJson: "package.json",
+  prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -91,6 +92,18 @@ const checks = [
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:review"),
+  },
+  {
+    key: "candidate-feedback-forms",
+    title: "候选执行包包含体验者反馈单和主厨记录单",
+    path: files.prepareScript,
+    ok: [
+      "tester-feedback-form.md",
+      "host-run-sheet.md",
+      "Humi 1.1 体验者反馈单",
+      "Humi 1.1 主厨记录单",
+      "release:candidate:doctor",
+    ].every((text) => prepareScript.includes(text)),
   },
 ];
 

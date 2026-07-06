@@ -65,7 +65,7 @@
 ## 4. 当前建议顺序
 
 1. 运行 `npm run release:next`、`npm run release:product:review`、`npm run release:candidate:check` 和 `npm run release:spec:audit`，确认当前仍处于“1.1 生产候选完善与内测验证”，不是微信审核提交阶段。
-2. 运行 `HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare` 生成或复用私有内测执行包；真实用户信息、截图和联系方式继续留在私有目录，不进仓库。
+2. 运行 `HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare` 生成或复用私有内测执行包；真实用户信息、截图和联系方式继续留在私有目录，不进仓库。执行包内的 `tester-feedback-form.md` 给体验者回答，`host-run-sheet.md` 给执行人记录观察。
 3. 运行 `npm run release:candidate:doctor` 查看真实体验、【今晚】菜单、清单和协作样本还差多少，先把功能和内测闭环补齐。
 4. 灰度给 10-20 个家庭，反馈统一进私有候选执行包、`docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`；复盘时运行 `npm run release:candidate:review`。
 5. `release:candidate:review` 默认必须达到 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个尝试协作，且无 P0/P1，才允许进入微信审核准备讨论。
