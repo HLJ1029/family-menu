@@ -41,6 +41,12 @@ lines.push(`- 反馈记录：${result.summary?.feedbackRows ?? 0}`);
 lines.push(`- 每日复盘记录：${result.summary?.dailyReviewRows ?? 0}`);
 lines.push("");
 
+lines.push("现在要打开的文件：");
+for (const file of candidateFiles(result)) {
+  lines.push(`- ${file.label}: ${file.path}`);
+}
+lines.push("");
+
 if (result.blockers?.length) {
   lines.push("阻塞项：");
   for (const blocker of result.blockers) {
@@ -146,4 +152,20 @@ function buildHumanActions(result) {
     "先运行 npm run release:status 和 npm run release:wechat:check 做只读确认。",
     "只有用户在动作当下明确确认，才打开微信公众平台提交工作台。",
   ];
+}
+
+function candidateFiles(result) {
+  const packetDir = result.packetDir;
+  return [
+    ["邀请文案", "invite-copy.md"],
+    ["体验者反馈单", "tester-feedback-form.md"],
+    ["主厨记录单", "host-run-sheet.md"],
+    ["匿名用户进度表", "anonymous-users.csv"],
+    ["单条反馈回填表", "feedback-template.csv"],
+    ["每日复盘表", "daily-review.csv"],
+    ["P0/P1 问题分级表", "issue-triage.csv"],
+  ].map(([label, file]) => ({
+    label,
+    path: `${packetDir}/${file}`,
+  }));
 }
