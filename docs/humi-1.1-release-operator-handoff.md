@@ -33,6 +33,7 @@ npm run release:status
 npm run release:product:review
 npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
+npm run release:candidate:doctor
 npm run release:candidate:review
 npm run release:candidate:review:selftest
 ```
@@ -44,6 +45,7 @@ npm run release:candidate:review:selftest
 - `npm run release:product:review` 通过，确认发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏仍有源码/文档/证据锚点。
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含匿名名单、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息仍不得进仓库。
+- `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:review` 可复盘最新私有内测执行包；如果仍是模板、样本不足或出现 P0/P1，会阻止进入审核准备；默认最低标准是 10 个真实体验、8 个完成今晚菜单、8 个完成清单、3 个尝试协作。
 - `npm run release:candidate:review:selftest` 可用临时 CSV 验证复盘脚本本身，覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
@@ -103,11 +105,12 @@ Owner：用户，Codex 提供材料。
 提交前先跑：
 
 ```bash
+npm run release:candidate:doctor
 npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:review` 必须先通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
@@ -195,11 +198,12 @@ npm run release:next
 ```bash
 npm run release:closure
 npm run release:candidate:check
+npm run release:candidate:doctor
 ```
 
 `release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。
 
-现在 `release:next` 应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”。在候选复盘达标前，继续做产品复核、真机体验确认、灰度名单准备与细节完善；进入微信公众平台材料前仍需 `release:candidate:review` 通过，并由用户动作当下确认：
+现在 `release:next` 应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”。在候选复盘达标前，继续做产品复核、真机体验确认、灰度名单准备与细节完善；`release:candidate:doctor` 用来确认还差哪些真实反馈，进入微信公众平台材料前仍需 `release:candidate:review` 通过，并由用户动作当下确认：
 
 ```bash
 npm run release:wechat:start-submit

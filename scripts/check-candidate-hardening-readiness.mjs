@@ -83,10 +83,13 @@ const checks = [
     title: "候选内测私有执行包命令可用",
     path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare")
+      && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
+      && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
+      && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:review"),
   },
 ];

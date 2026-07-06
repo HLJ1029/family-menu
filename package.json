@@ -36,6 +36,7 @@
     "release:complete:selftest": "node scripts/selftest-release-completion-check.mjs",
     "release:candidate:check": "node scripts/check-candidate-hardening-readiness.mjs",
     "release:candidate:prepare": "node scripts/prepare-candidate-validation-packet.mjs",
+    "release:candidate:doctor": "node scripts/doctor-candidate-validation.mjs",
     "release:candidate:review": "node scripts/review-candidate-validation-packet.mjs",
     "release:candidate:review:selftest": "node scripts/selftest-candidate-validation-review.mjs",
     "release:next": "node scripts/print-release-next-action.mjs",

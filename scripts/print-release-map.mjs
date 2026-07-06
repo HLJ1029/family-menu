@@ -30,6 +30,7 @@ lines.push("- npm run release:next");
 lines.push("- npm run release:product:review");
 lines.push("- npm run release:candidate:check");
 lines.push("- npm run release:candidate:prepare");
+lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:review");
 lines.push("- npm run release:closure");
 lines.push("- npm run release:wechat:check");

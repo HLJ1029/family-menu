@@ -48,7 +48,7 @@ if (experiencedUsers.length === 0 && feedbackRows.length === 0 && dailyRows.leng
   blockers.push({
     key: "no-real-validation",
     title: "候选内测执行包尚未填入真实反馈",
-    details: ["Fill anonymous-users.csv, feedback-template.csv, or daily-review.csv with anonymous U001-U020 results."],
+    details: ["请在 anonymous-users.csv、feedback-template.csv 或 daily-review.csv 中填入 U001-U020 的真实匿名体验结果。"],
   });
 }
 if (!blockers.some((item) => item.key === "no-real-validation")) {
@@ -99,24 +99,29 @@ if (blockingIssues.length) {
   });
 }
 
+const summary = {
+  candidateUsers: userRows.length,
+  activeUsers: activeUsers.length,
+  experiencedUsers: experiencedUsers.length,
+  completedTonight: completedTonight.length,
+  completedGrocery: completedGrocery.length,
+  triedCollaboration: triedCollaboration.length,
+  feedbackRows: feedbackRows.length,
+  dailyReviewRows: dailyRows.length,
+  p0Count: p0Users.length + p0Feedback.length + p0Issues.length,
+  p1Count: p1Users.length + p1Feedback.length + p1Issues.length,
+};
+const thresholdProgress = buildThresholdProgress(summary, thresholds);
+
 const result = {
   ok: blockers.length === 0,
   checkedAt: new Date().toISOString(),
   packetDir,
   files,
-  summary: {
-    candidateUsers: userRows.length,
-    activeUsers: activeUsers.length,
-    experiencedUsers: experiencedUsers.length,
-    completedTonight: completedTonight.length,
-    completedGrocery: completedGrocery.length,
-    triedCollaboration: triedCollaboration.length,
-    feedbackRows: feedbackRows.length,
-    dailyReviewRows: dailyRows.length,
-    p0Count: p0Users.length + p0Feedback.length + p0Issues.length,
-    p1Count: p1Users.length + p1Feedback.length + p1Issues.length,
-  },
+  summary,
   thresholds,
+  thresholdProgress,
+  missingToThresholds: Object.fromEntries(thresholdProgress.map((item) => [item.key, item.missing])),
   blockers,
   recommendation: recommendation(blockers),
   nextActions: nextActions(blockers),
@@ -235,37 +240,70 @@ function nextActions(blockers) {
   const rec = recommendation(blockers);
   if (rec === "wait-for-validation-input") {
     return [
-      "Fill the private candidate-validation CSV files with anonymous U001-U020 results.",
-      "Default pass thresholds are 10 experienced users, 8 completed Tonight menus, 8 completed grocery lists, and 3 collaboration samples.",
-      "Keep real contact details and screenshots outside the repository.",
-      "Rerun npm run release:candidate:review after at least one real validation entry is recorded.",
+      "把 U001-U020 的真实匿名体验结果填入私有候选 CSV。",
+      "默认通过线是 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个协作样本。",
+      "真实联系方式和截图继续留在仓库外。",
+      "至少录入一条真实体验后，重新运行 npm run release:candidate:review。",
     ];
   }
   if (rec === "stop-and-fix-before-review") {
     return [
-      "Do not enter WeChat review.",
-      "Fix reproducible P0/blocking issues first and record the fix in docs/humi-1.1-pre-review-hardening.md.",
-      "Regenerate or update the private validation packet, then rerun release:candidate:review.",
+      "不要进入微信审核。",
+      "先修复可复现的 P0 或阻塞项，并把修复记录写入 docs/humi-1.1-pre-review-hardening.md。",
+      "更新私有候选执行包后，重新运行 npm run release:candidate:review。",
     ];
   }
   if (rec === "triage-p1-before-review") {
     return [
-      "Review P1 issues and decide whether they must be fixed before WeChat review.",
-      "If any P1 affects core retention, fix it before review.",
-      "If accepted for later 1.1.x, document the decision in the private packet and AI-HQ status.",
+      "先判断 P1 是否必须在微信审核前修复。",
+      "任何影响核心留存的 P1 都先修复。",
+      "若接受进入后续 1.1.x，请把决策写入私有候选执行包和 AI-HQ 状态。",
     ];
   }
   if (rec === "wait-for-more-validation") {
     return [
-      "Continue candidate validation before WeChat review.",
-      "Reach the configured minimum real-user sample and core path completion counts.",
-      "Rerun npm run release:candidate:review after adding more anonymous U001-U020 results.",
+      "继续候选内测，不进入微信审核。",
+      "先补足配置的真实样本数和核心路径完成数。",
+      "补入更多 U001-U020 匿名结果后，重新运行 npm run release:candidate:review。",
     ];
   }
   return [
-    "Candidate validation has no P0/P1 blockers in the private packet.",
-    "Continue product review and only enter WeChat review after explicit user confirmation.",
+    "私有候选执行包里没有 P0/P1 阻塞项。",
+    "继续做产品复核；只有用户明确确认后才进入微信审核。",
   ];
+}
+
+function buildThresholdProgress(summary, thresholds) {
+  return [
+    {
+      key: "experiencedUsers",
+      label: "真实体验样本",
+      current: summary.experiencedUsers,
+      required: thresholds.minExperiencedUsers,
+    },
+    {
+      key: "completedTonight",
+      label: "完成【今晚】菜单",
+      current: summary.completedTonight,
+      required: thresholds.minCompletedTonight,
+    },
+    {
+      key: "completedGrocery",
+      label: "完成清单",
+      current: summary.completedGrocery,
+      required: thresholds.minCompletedGrocery,
+    },
+    {
+      key: "triedCollaboration",
+      label: "尝试协作路径",
+      current: summary.triedCollaboration,
+      required: thresholds.minTriedCollaboration,
+    },
+  ].map((item) => ({
+    ...item,
+    missing: Math.max(0, item.required - item.current),
+    ok: item.current >= item.required,
+  }));
 }
 
 function buildMarkdown(result) {
@@ -287,6 +325,10 @@ function buildMarkdown(result) {
     "## 最低样本要求",
     "",
     ...Object.entries(result.thresholds).map(([key, value]) => `- ${key}: ${value}`),
+    "",
+    "## 达标进度",
+    "",
+    ...result.thresholdProgress.map((item) => `- ${item.label}: ${item.current}/${item.required}${item.ok ? "，已达标" : `，还差 ${item.missing}`}`),
     "",
     "## 阻塞项",
     "",

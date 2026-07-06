@@ -125,6 +125,12 @@ if (!releaseNext.includes("release:candidate:prepare")) {
     phrase: "missing release:candidate:prepare in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:doctor")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:doctor in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("release:candidate:review")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
