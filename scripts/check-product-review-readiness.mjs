@@ -35,6 +35,14 @@ const REQUIRED_CHECKS = [
     minOccurrences: { text: "eyebrow=\"今晚征集单\"", count: 5 },
   },
   {
+    key: "product-entrypoint-smoke",
+    title: "候选入口线上烟测脚本",
+    path: "package.json",
+    required: ["release:product:smoke"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["www.humi-home.com", "发现新菜", "查看征集单", "**/crave-requests", "product-entrypoint-smoke"],
+  },
+  {
     key: "native-share-cards",
     title: "小程序三类原生分享卡片证据",
     path: "docs/humi-1.1-miniprogram-share-card-qa.md",
