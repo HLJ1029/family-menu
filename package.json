@@ -38,6 +38,7 @@
     "release:candidate:prepare": "node scripts/prepare-candidate-validation-packet.mjs",
     "release:candidate:doctor": "node scripts/doctor-candidate-validation.mjs",
     "release:candidate:desk": "node scripts/print-candidate-validation-desk.mjs",
+    "release:candidate:desk:selftest": "node scripts/selftest-candidate-validation-desk.mjs",
     "release:candidate:record": "node scripts/record-candidate-feedback.mjs",
     "release:candidate:record:selftest": "node scripts/selftest-candidate-feedback-record.mjs",
     "release:candidate:daily": "node scripts/record-candidate-daily-review.mjs",

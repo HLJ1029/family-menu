@@ -36,6 +36,7 @@ npm run release:next
 npm run release:product:review
 npm run release:candidate:check
 npm run release:candidate:desk
+npm run release:candidate:desk:selftest
 npm run release:candidate:doctor
 npm run release:candidate:review
 npm run release:closure

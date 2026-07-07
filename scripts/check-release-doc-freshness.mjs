@@ -152,6 +152,12 @@ if (!releaseNext.includes("release:candidate:desk")) {
     phrase: "missing release:candidate:desk in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:desk:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:desk:selftest in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("release:candidate:review")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
@@ -182,6 +188,12 @@ if (!releaseStatus.includes("candidateReviewSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidateReviewSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateDeskSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateDeskSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidateValidationReady")) {
