@@ -334,7 +334,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       ${summaryCards(summaryUsers.length ? summaryUsers : users)}
     </section>
     <section class="user-list" aria-label="逐个发送">
-      ${users.map(renderUser).join("\n")}
+      ${users.map((user) => renderUser(user, date)).join("\n")}
     </section>
     <section class="guard" aria-label="护栏">
       <h2>固定护栏</h2>
@@ -374,7 +374,8 @@ function summaryCards(users) {
   }).join("\n");
 }
 
-function renderUser(user) {
+function renderUser(user, date) {
+  const markInviteCommand = `npm run release:candidate:invite -- --users ${user.id} --date ${date} --sent-confirmed`;
   return `<article class="user-card" id="${escapeAttribute(user.id)}">
   <div class="user-head">
     <h2>${escapeHtml(user.id)}</h2>
@@ -393,6 +394,13 @@ function renderUser(user) {
       <button data-copy="${escapeAttribute(user.testerMessage)}">复制体验者文案</button>
     </div>
     <pre>${escapeHtml(user.testerMessage)}</pre>
+  </div>
+  <div class="copy-block">
+    <div class="copy-head">
+      <h3>真实发送后登记</h3>
+      <button class="secondary" data-copy="${escapeAttribute(markInviteCommand)}">复制本 U 已发送登记命令</button>
+    </div>
+    <pre>${escapeHtml(markInviteCommand)}</pre>
   </div>
   <div class="copy-block">
     <div class="copy-head">

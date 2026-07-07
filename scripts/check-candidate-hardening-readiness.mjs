@@ -335,7 +335,7 @@ const checks = [
   },
   {
     key: "candidate-dispatch-workbench",
-    title: "候选今日分发工作台可把文案和回填模板放到同一私有页面",
+    title: "候选今日分发工作台可把文案、发送标记和回填模板放到同一私有页面",
     path: `${files.packageJson}, ${files.candidateDispatchWorkbench}, ${files.candidateDispatchWorkbenchSelftest}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
     ok: packageJson.includes("release:candidate:dispatch:workbench")
       && packageJson.includes("release:candidate:dispatch:workbench:selftest")
@@ -345,8 +345,10 @@ const checks = [
       && candidateDispatchWorkbench.includes("不会发送微信消息")
       && candidateDispatchWorkbench.includes("不会标记已邀请")
       && candidateDispatchWorkbench.includes("不进入微信公众平台审核动作")
+      && candidateDispatchWorkbench.includes("复制本 U 已发送登记命令")
       && candidateDispatchWorkbench.includes("--sent-confirmed")
       && candidateDispatchWorkbenchSelftest.includes("candidate-dispatch-workbench-html")
+      && candidateDispatchWorkbenchSelftest.includes("per-user sent mark commands")
       && candidateDispatchWorkbenchSelftest.includes("mode: \"600\"")
       && candidateDispatchWorkbenchSelftest.includes("不会发送微信消息")
       && candidateDispatchWorkbenchSelftest.includes("不进入微信公众平台审核动作")

@@ -40,6 +40,9 @@ assert(result.users[0].hasRecordCommand, "workbench should include record comman
 assert(mode === 0o600, `workbench mode expected 600, got ${mode.toString(8)}`);
 assert(html.includes('data-workbench-kind="humi-candidate-dispatch"'), "workbench missing stable marker");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
+assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
+assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");
+assert(html.includes("npm run release:candidate:invite -- --users U002 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U002 invite command");
 assert(html.includes("复制回填模板"), "workbench should expose copy buttons for record templates");
 assert(html.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "workbench missing confirmed invite command");
 assert(html.includes("npm run release:candidate:day:close -- --date 2026-07-07"), "workbench missing day close command");
