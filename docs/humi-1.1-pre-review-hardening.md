@@ -21,11 +21,11 @@
 - [x] P1 自己挑/今晚菜单选菜：从【今晚菜单】进入选菜时，必须保留小红书式图片卡片，并提供清晰入口打开完整【自己挑】菜品页，用于发现新菜。
   - 完成标准：`TodayMenu` 内嵌选菜区有完整菜品页入口；空搜索结果有回退动作；移动端不被底部导航遮挡。
   - 验证：`npm run build`，并用移动端视口查看【今晚菜单】加菜区。
-  - 证据：`src/components/TodayMenu.jsx` 增加“发现新菜”入口和空搜索兜底；`src/components/Library.jsx` 标题与空状态回到发现心智。
+  - 证据：`src/components/TodayMenu.jsx` 增加“发现新菜”入口和空搜索兜底；从【今晚菜单】进入完整菜品页会重置全局搜索和分类，确保用户看到小红书式图片卡片流；`src/components/Library.jsx` 标题与空状态回到发现心智。
 - [x] P1 我的家协作入口：从【我的家】点“问问大家”不能让用户误以为跳回首页；应在【今晚】或【我的家】内明确展示征集单/等待态。
   - 完成标准：点击后有明确的“今晚征集单”反馈；分享/复制动作可继续触达小程序卡片。
   - 验证：`npm run build`，本地手动点击【我的家】问问大家。
-  - 证据：`src/components/UserCenter.jsx` 在家庭动态区显示发起状态并滚动定位；`src/main.jsx` 返回创建的征集请求用于本页反馈。
+  - 证据：`src/components/UserCenter.jsx` 在家庭动态区显示发起状态并滚动定位；已有征集单时按钮变为“查看征集单”并聚焦本页单据，不重复创建或跳转；`src/main.jsx` 返回创建的征集请求用于本页反馈。
 - [x] P1 征集口味单据模板确认：主厨发起、家人投票、投票完成、主厨等待、生成结果五个状态统一为“今晚征集单”的设计语言。
   - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
   - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`，`npm run release:crave-template:visuals`，`npm run release:pre-review:evidence`。

@@ -133,6 +133,13 @@ export function UserCenter({
   }
 
   function startFamilyCrave() {
+    if (activeCraveRequest?.token) {
+      setFamilyCraveStatus("今晚征集单已经在我的家展开，直接在下方分享、刷新回复或出菜单。");
+      window.setTimeout(() => {
+        familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 40);
+      return;
+    }
     setFamilyCraveStatus("正在把今晚征集单放到我的家。");
     window.setTimeout(() => {
       familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -241,7 +248,7 @@ export function UserCenter({
               onClick={startFamilyCrave}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
             >
-              问问大家
+              {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
             </button>
           </div>
           {familyCraveStatus && (
@@ -250,13 +257,15 @@ export function UserCenter({
             </div>
           )}
           {activeCraveRequest?.token && (
-            <CraveCollectingSheet
-              request={activeCraveRequest}
-              onCopyCraveLink={onCopyCraveLink}
-              onRefreshCraveRequest={onRefreshCraveRequest}
-              onGenerateFromCrave={onGenerateFromCrave}
-              compact
-            />
+            <div className="mt-4">
+              <CraveCollectingSheet
+                request={activeCraveRequest}
+                onCopyCraveLink={onCopyCraveLink}
+                onRefreshCraveRequest={onRefreshCraveRequest}
+                onGenerateFromCrave={onGenerateFromCrave}
+                compact
+              />
+            </div>
           )}
           {!activeCraveRequest?.token && (
             <CraveStarterSheet

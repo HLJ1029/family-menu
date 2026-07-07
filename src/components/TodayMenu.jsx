@@ -14,6 +14,7 @@ export function TodayMenu({
   onUpdateQuantity,
   onOpenRecipe,
   onViewChange,
+  onOpenLibraryDiscovery,
   cloudSync,
   onShare,
   mealLog,
@@ -86,6 +87,7 @@ export function TodayMenu({
           onAddToday={onAddToday}
           onOpenRecipe={onOpenRecipe}
           onViewChange={onViewChange}
+          onOpenLibraryDiscovery={onOpenLibraryDiscovery}
         />
         <DinnerLogPanel
           mealLog={mealLog}
@@ -191,6 +193,7 @@ export function TodayMenu({
             onAddToday={onAddToday}
             onOpenRecipe={onOpenRecipe}
             onViewChange={onViewChange}
+            onOpenLibraryDiscovery={onOpenLibraryDiscovery}
           />
         )}
 
@@ -322,7 +325,14 @@ export function TodayMenu({
   );
 }
 
-const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe, onViewChange, forcedPreset }, ref) {
+const QuickAddRecipes = forwardRef(function QuickAddRecipes({
+  todayRecipes,
+  onAddToday,
+  onOpenRecipe,
+  onViewChange,
+  onOpenLibraryDiscovery,
+  forcedPreset,
+}, ref) {
   const [keyword, setKeyword] = useState("");
   const [activePreset, setActivePreset] = useState("all");
   const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
@@ -362,6 +372,15 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
     if (forcedPreset) setActivePreset(forcedPreset);
   }, [forcedPreset]);
 
+  function openFullLibrary() {
+    setKeyword("");
+    if (onOpenLibraryDiscovery) {
+      onOpenLibraryDiscovery();
+      return;
+    }
+    onViewChange?.("library");
+  }
+
   return (
     <section
       ref={ref}
@@ -387,7 +406,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
           </div>
           <button
             type="button"
-            onClick={() => onViewChange?.("library")}
+            onClick={openFullLibrary}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 sm:border sm:border-ink sm:bg-white sm:text-ink"
           >
             <Sparkles size={16} />
@@ -532,7 +551,7 @@ const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAd
             </button>
             <button
               type="button"
-              onClick={() => onViewChange?.("library")}
+              onClick={openFullLibrary}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white"
             >
               <Sparkles size={16} />

@@ -3034,6 +3034,16 @@ function App() {
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
   }
 
+  function openFullRecipeLibrary() {
+    setQuery("");
+    setCategory("全部");
+    if (activeView === "library") {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+      return;
+    }
+    navigateTo("library");
+  }
+
   function askFamilyFromHome() {
     startCraveRequest("随便都行");
   }
@@ -3300,6 +3310,7 @@ function App() {
                 onUpdateQuantity={updateTodayQuantity}
                 onOpenRecipe={openRecipe}
                 onViewChange={navigateTo}
+                onOpenLibraryDiscovery={openFullRecipeLibrary}
                 onShare={shareTodayMenu}
                 mealLog={todayMealLog}
                 mealLogs={mealLogs}

@@ -5,9 +5,9 @@ const REQUIRED_CHECKS = [
     key: "dish-discovery",
     title: "今晚菜单发现新菜入口",
     path: "src/components/TodayMenu.jsx",
-    required: ["发现新菜", "补进今晚", "再加一份"],
+    required: ["发现新菜", "补进今晚", "再加一份", "onOpenLibraryDiscovery", "openFullLibrary"],
     evidence: "docs/humi-1.1-pre-review-hardening.md",
-    evidenceRequired: ["自己挑/今晚菜单选菜", "小红书式图片卡片", "发现新菜"],
+    evidenceRequired: ["自己挑/今晚菜单选菜", "小红书式图片卡片", "发现新菜", "完整菜品页"],
   },
   {
     key: "library-card-browsing",
@@ -21,9 +21,9 @@ const REQUIRED_CHECKS = [
     key: "family-ask-feedback",
     title: "我的家问问大家本页反馈",
     path: "src/components/UserCenter.jsx",
-    required: ["问问大家", "今晚征集单已在我的家展开", "setFamilyCraveStatus"],
+    required: ["问问大家", "查看征集单", "今晚征集单已经在我的家展开", "setFamilyCraveStatus"],
     evidence: "docs/humi-1.1-pre-review-hardening.md",
-    evidenceRequired: ["我的家协作入口", "今晚征集单", "本页反馈"],
+    evidenceRequired: ["我的家协作入口", "今晚征集单", "本页反馈", "查看征集单"],
   },
   {
     key: "crave-sheet-template",
