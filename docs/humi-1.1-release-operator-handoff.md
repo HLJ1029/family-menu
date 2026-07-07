@@ -31,6 +31,7 @@ Owner：Codex，涉及视觉/产品方向不确定项时由用户确认。
 npm run release:next
 npm run release:status
 npm run release:product:review
+npm run release:product:smoke
 npm run release:candidate:check
 cat docs/humi-1.1-candidate-validation-forms.md
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
@@ -62,6 +63,7 @@ npm run release:candidate:review:selftest
 - `docs/humi-1.1-pre-review-hardening.md` 中 P0/P1 全部勾选。
 - `npm run release:status` 里 `release.preReviewHardeningReady: true`。
 - `npm run release:product:review` 通过，确认发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏仍有源码/文档/证据锚点。
+- `npm run release:product:smoke` 通过，使用生产 H5 移动端视口实际验证【今晚菜单】发现新菜打开完整菜品页、菜品卡片数量充足、【我的家】问问大家进入征集单而不是跳回首页。
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - `docs/humi-1.1-candidate-validation-forms.md` 已固化体验者反馈单、主厨记录单、单据预览、批量导入字段、每日复盘表和单据设计规则，避免候选内测只存在私有包里、执行人不知道该给用户看哪张单。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含 U001-U020 匿名名单、反馈表、批量导入模板 `candidate-feedback-import.csv`、每日复盘、问题分级表、邀请文案、U001-U020 批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md`、主厨记录单 `host-run-sheet.md` 和单据设计预览 `candidate-forms-preview.html`；真实用户信息仍不得进仓库。
@@ -350,6 +352,7 @@ npm run release:complete:check
 - `release.artifactsReady: true`：发布必备文档齐全。
 - `release.preReviewHardeningReady: true`：提审前 P0/P1 产品打磨已全部完成。
 - `release.productReviewReady: true`：发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏这些产品复核锚点已通过。
+- `release.productSmokeReady: true`：生产 H5 移动端入口烟测已通过，发现新菜和我的家问问大家的实际跳转符合 1.1 候选体验。
 - `release.wechatSubmitWorkspaceGuardReady: true`：`release:wechat:prepare-submit` 未带显式确认变量时不会打开微信公众平台。
 - `release.apiDeployOnlySshBlocked: true`：只剩生产机 SSH 权限问题。
 - `release.apiDeployReady: true`：API 补部署条件已满足。
@@ -359,4 +362,4 @@ npm run release:complete:check
 - `release:complete:check` 通过：可以宣布 Humi 1.1 正式发布完成；未通过时不能宣布完成。
 - `release:complete:selftest` 通过：临时完整证据日志可让最终完成门禁通过，证明完成判定脚本本身仍可用。
 
-只有 `release.preReviewHardeningReady`、`release.productReviewReady`、`release.wechatSubmitWorkspaceGuardReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。
+只有 `release.preReviewHardeningReady`、`release.productReviewReady`、`release.productSmokeReady`、`release.wechatSubmitWorkspaceGuardReady`、`release.apiDeployReady`、微信审核发布、真机 P0 和 24 小时监控证据都完成后，1.1 才算正式发布完成。

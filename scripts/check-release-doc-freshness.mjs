@@ -66,6 +66,7 @@ const checks = [
     ],
     required: [
       "release.candidateValidationReady=true",
+      "npm run release:product:smoke",
       "npm run release:candidate:review",
       "候选复盘达标后",
     ],
@@ -335,6 +336,18 @@ if (!releaseStatus.includes("release:candidate:review")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing real release:candidate:review in release status",
+  });
+}
+if (!releaseStatus.includes("release:product:smoke")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing release:product:smoke in release status",
+  });
+}
+if (!releaseStatus.includes("productSmokeReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing productSmokeReady in release status",
   });
 }
 

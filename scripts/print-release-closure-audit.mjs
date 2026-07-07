@@ -44,6 +44,7 @@ const report = {
     specAcceptanceAuditReady: Boolean(release.specAcceptanceAuditReady),
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     productReviewReady: Boolean(release.productReviewReady),
+    productSmokeReady: Boolean(release.productSmokeReady),
     candidateHardeningReady: Boolean(release.candidateHardeningReady),
     candidateValidationReady: Boolean(release.candidateValidationReady),
     candidatePrepareSelftestReady: Boolean(release.candidatePrepareSelftestReady),
@@ -135,6 +136,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       description: "工程门禁健康，但真实候选内测复盘尚未达标；先补真实匿名反馈、核心路径完成数和协作样本，暂不进入微信审核。",
       nextCommands: [
         "npm run release:product:review",
+        "npm run release:product:smoke",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
@@ -174,6 +176,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       nextCommands: [
         "npm run release:status",
         "npm run release:product:review",
+        "npm run release:product:smoke",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
@@ -213,6 +216,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       description: "当前先继续完善功能、体验和候选版本证据；微信公众平台提交审核会改变外部平台状态，必须等用户明确说进入审核后才执行。",
       nextCommands: [
         "npm run release:product:review",
+        "npm run release:product:smoke",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
@@ -449,6 +453,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "product-review",
       title: "产品复核锚点未通过",
       details: ["Run npm run release:product:review for details."],
+    });
+  }
+  if (!release.productSmokeReady) {
+    blockers.push({
+      key: "product-smoke",
+      title: "生产 H5 入口烟测未通过",
+      details: ["Run npm run release:product:smoke for details."],
     });
   }
   if (!release.candidateHardeningReady) {

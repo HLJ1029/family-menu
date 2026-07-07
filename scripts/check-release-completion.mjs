@@ -30,6 +30,7 @@ const report = {
     apiDeployReady: Boolean(release.apiDeployReady),
     securityAuditReady: Boolean(release.securityAuditReady),
     productReviewReady: Boolean(release.productReviewReady),
+    productSmokeReady: Boolean(release.productSmokeReady),
     wechatSubmitWorkspaceGuardReady: Boolean(release.wechatSubmitWorkspaceGuardReady),
     artifactsReady: Boolean(release.artifactsReady),
     releaseEvidenceReady: Boolean(release.releaseEvidenceReady),

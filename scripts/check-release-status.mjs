@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
 const skipCandidatePrepareSelftest = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1" || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1";
+const skipProductSmoke = completionSelftestAllowDirty || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1";
 
 async function runNpmScript(scriptName) {
   const startedAt = Date.now();
@@ -101,6 +102,7 @@ const [
   securityAudit,
   docsFreshness,
   productReview,
+  productSmoke,
   candidateHardening,
   candidateValidationReview,
   candidatePrepareSelftest,
@@ -127,6 +129,10 @@ const [
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
   runNpmScript("release:product:review"),
+  runOptionalNpmScript("release:product:smoke", {
+    skip: skipProductSmoke,
+    reason: "skip production H5 Playwright smoke during release completion selftests",
+  }),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
   runOptionalNpmScript("release:candidate:prepare:selftest", {
@@ -160,6 +166,7 @@ const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
 const productReviewOk = productReview.ok;
+const productSmokeOk = productSmoke.ok;
 const candidateHardeningOk = candidateHardening.ok;
 const candidateValidationReady = candidateValidationReview.ok;
 const candidatePrepareSelftestOk = candidatePrepareSelftest.ok;
@@ -178,7 +185,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && productSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -202,6 +209,9 @@ if (!docsFreshnessOk) {
 }
 if (!productReviewOk) {
   nextActions.push("Fix release:product:review failures before claiming the 1.1 product review anchors are covered.");
+}
+if (!productSmokeOk) {
+  nextActions.push("Fix release:product:smoke failures before relying on the production H5 discovery and user-center collaboration entrypoints.");
 }
 if (!candidateHardeningOk) {
   nextActions.push("Fix release:candidate:check failures before claiming the 1.1 production candidate is ready for internal validation.");
@@ -296,6 +306,7 @@ console.log(JSON.stringify({
     docsFreshnessReady: docsFreshnessOk,
     engineeringGatesReady,
     productReviewReady: productReviewOk,
+    productSmokeReady: productSmokeOk,
     candidateHardeningReady: candidateHardeningOk,
     candidateValidationReady,
     candidatePrepareSelftestReady: candidatePrepareSelftestOk,
@@ -330,6 +341,7 @@ console.log(JSON.stringify({
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
     summarizeCheck(productReview),
+    summarizeCheck(productSmoke),
     summarizeCheck(candidateHardening),
     summarizeCheck(candidateValidationReview),
     summarizeCheck(candidatePrepareSelftest),

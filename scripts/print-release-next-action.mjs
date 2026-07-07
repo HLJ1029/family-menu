@@ -340,6 +340,7 @@ function getMaterialList(scope) {
       "npm run release:status",
       "npm run release:next",
       "npm run release:product:review",
+      "npm run release:product:smoke",
       "npm run release:candidate:check",
       "npm run release:candidate:forms:preview",
       "npm run release:candidate:doctor",
@@ -370,6 +371,7 @@ function getMaterialList(scope) {
     "npm run release:evidence:commands",
     "npm run release:pre-review:evidence",
     "npm run release:product:review",
+    "npm run release:product:smoke",
     "npm run release:candidate:check",
     "npm run release:candidate:prepare",
     "npm run release:candidate:prepare:selftest",
@@ -406,6 +408,7 @@ function getCompletionCriteria(scope) {
   const candidateCriteria = [
     "工程状态：npm run release:status 里的 release.engineeringGatesReady 必须为 true；真实候选复盘也通过后，release:status 才会 ok=true。",
     "生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。",
+    "生产 H5 入口烟测：npm run release:product:smoke 会用移动端视口验证发现新菜打开完整菜品页、菜品卡片数量充足、我的家问问大家进入征集单而不是跳回首页。",
     "单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。",
     "单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。",
     "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、每个 U 的已发送登记命令、回填模板和日结命令放进同一个可复制页面；它不会发送消息或自动标记邀请。",
@@ -427,7 +430,7 @@ function getCompletionCriteria(scope) {
     "小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。",
     "小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。",
     "提审前证据总览：npm run release:pre-review:evidence 会汇总征集单视觉图、H5 落地页图和微信原生 card 缺口。",
-    "产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。",
+    "产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏；npm run release:product:smoke 会实际跑生产 H5 移动端入口。",
     "1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。",
   ];
 }
