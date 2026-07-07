@@ -107,7 +107,7 @@ const checks = [
       "tester-feedback-form.md",
       "host-run-sheet.md",
       "outreach-batch.md",
-      "U001-U010 批量邀请清单",
+      "U001-U020 批量邀请清单",
       "release:candidate:record",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",

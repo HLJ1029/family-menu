@@ -107,7 +107,7 @@ lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇
 lines.push("- 产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。");
 lines.push("- 生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。");
 lines.push("- 生成内测执行包：npm run release:candidate:prepare 会在私有目录生成匿名名单 CSV、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息不得进仓库。");
-lines.push("- 批量邀请清单：release:candidate:prepare 会生成 outreach-batch.md，可直接复制 U001-U010 的匿名邀请消息。");
+lines.push("- 批量邀请清单：release:candidate:prepare 会生成 outreach-batch.md，可直接复制 U001-U020 的匿名邀请消息。");
 lines.push("- 候选反馈单据：release:candidate:prepare 还会生成 tester-feedback-form.md 和 host-run-sheet.md，用来分别收体验者原话和执行人观察。");
 lines.push("- 单人反馈回填：npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\" 会把匿名汇总写回最新私有执行包。");
 lines.push("- 回填工具自测：npm run release:candidate:record:selftest 会用临时私有执行包确认 anonymous-users.csv 和 feedback-template.csv 写入逻辑。");
