@@ -129,7 +129,7 @@ user,date,device,entry,tonight,grocery,collaboration,recommendation,grocery-scor
 - `user`：只填 `U001-U020`。
 - `tonight` / `grocery`：填 `yes` 或 `no`。
 - `collaboration`：填 `ask`、`invite`、`grocery` 或 `none`。
-- `recommendation` / `grocery-score` / `share-score`：填 1-5；没试分享时 `share-score` 可留空。
+- `recommendation` / `grocery-score` / `share-score`：填 1-5；未完成对应路径时可填 `没试`，不要为了凑分数乱填。
 - `severity`：填 `P0`、`P1`、`P2`、`建议` 或留空。
 - `evidence`：只填私有位置，例如 `private://wechat/U001-001`。
 - 导入时如果 `severity` 是 `P0` 或 `P1`，回填工具会自动新增 `issue-triage.csv` 行。

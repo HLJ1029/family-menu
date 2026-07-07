@@ -284,6 +284,8 @@ const checks = [
       && candidateRecord.includes("wechat-id")
       && candidateRecord.includes("real-name")
       && candidateRecord.includes("nextIssueId")
+      && candidateRecord.includes("--recommendation 1-5|没试")
+      && candidateRecord.includes("--grocery-score 1-5|没试")
       && nextAction.includes("issue-triage.csv")
       && nextAction.includes("PII 写入前阻断")
       && handoff.includes("P0/P1 会自动追加到 `issue-triage.csv`")
