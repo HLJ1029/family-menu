@@ -69,6 +69,7 @@ const result = {
     candidateFeedbackImport: join(packetDir, "candidate-feedback-import.csv"),
   },
   nextActions: [
+    `Run npm run release:candidate:dispatch:workbench -- --date ${date} to open the copy-friendly private HTML workbench for this batch.`,
     "Copy each user section from candidate-dispatch-YYYY-MM-DD.md into the private chat for that tester.",
     `After sending, run npm run release:candidate:invite -- --from-dispatch ${date} --sent-confirmed to mark anonymous IDs as 已邀请.`,
     "After feedback arrives, replace every placeholder in the generated release:candidate:record template before running it.",
@@ -232,6 +233,8 @@ function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
   }
   lines.push("");
   lines.push("## 逐个发送");
+  lines.push("");
+  lines.push(`先运行 \`npm run release:candidate:dispatch:workbench -- --date ${result.date}\` 可打开私有 HTML 工作台，逐个复制体验者文案和回填模板；工作台不会发送消息或标记邀请。`);
   lines.push("");
   for (const user of users) {
     lines.push(`### ${user.id}${user.collaborationTarget ? " / 协作目标" : ""}`);

@@ -26,6 +26,8 @@ const requiredText = [
   "尝试协作：0/3",
   "今日分发单已生成",
   "candidate-dispatch-2026-07-07.md",
+  "release:candidate:dispatch:workbench -- --date 2026-07-07",
+  "candidate-dispatch-workbench-2026-07-07.html",
   "U001: 问问大家小程序卡片（优先跑协作）",
   "U002: 邀请家人小程序卡片",
   "今天先做",
@@ -69,6 +71,7 @@ async function writePacket(dir) {
     writeFile(join(dir, "candidate-forms-preview.html"), "<!doctype html><title>Humi 1.1 候选内测单据预览</title><main>体验者反馈单 / 主厨记录单</main>\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-day-plan.md"), "# Humi 1.1 候选内测日计划\n\n- 建议新邀请：U001、U002\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-dispatch-2026-07-07.md"), "# Humi 1.1 候选内测今日分发单\n\n- U001：问问大家小程序卡片\n- U002：邀请家人小程序卡片\n", { mode: 0o600 }),
+    writeFile(join(dir, "candidate-dispatch-workbench-2026-07-07.html"), "<!doctype html><title>Humi 1.1 候选分发工作台</title><main>U001</main>\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-dispatch-2026-07-07.json"), JSON.stringify({
       ok: true,
       checkedAt: "2026-07-07T00:00:00.000Z",

@@ -96,6 +96,7 @@ const checks = [
       "daily-review.csv",
       "npm run release:candidate:plan",
       "npm run release:candidate:dispatch -- --date YYYY-MM-DD",
+      "npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD",
       "npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
@@ -188,6 +189,18 @@ if (!releaseNext.includes("release:candidate:dispatch")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
     phrase: "missing release:candidate:dispatch in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:dispatch:workbench")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:dispatch:workbench in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:dispatch:workbench:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:dispatch:workbench:selftest in candidate-stage action card",
   });
 }
 if (!releaseNext.includes("release:candidate:invite")) {
@@ -286,6 +299,12 @@ if (!releaseStatus.includes("candidateDispatchSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidateDispatchSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateDispatchWorkbenchSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateDispatchWorkbenchSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidateDayCloseSelftestReady")) {

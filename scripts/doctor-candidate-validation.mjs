@@ -67,6 +67,7 @@ if (dispatch) {
     if (dispatch.allUsersInvited) {
       lines.push("- 今天这批已标记已邀请；等待真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
     } else if (!dispatch.someUsersInvited) {
+      lines.push(`- 发送前可运行 \`npm run release:candidate:dispatch:workbench -- --date ${today}\`，打开私有 HTML 工作台逐个复制文案和回填模板。`);
       lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`);
     }
   } else {
@@ -207,6 +208,7 @@ function candidateFiles(result) {
     ["候选内测日计划", "candidate-day-plan.md"],
     dispatch ? ["今日分发单", `candidate-dispatch-${today}.md`] : null,
     dispatch ? ["今日分发 JSON", `candidate-dispatch-${today}.json`] : null,
+    dispatch ? ["今日分发工作台", `candidate-dispatch-workbench-${today}.html`] : null,
     ["邀请文案", "invite-copy.md"],
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
     ["单据设计预览", "candidate-forms-preview.html"],

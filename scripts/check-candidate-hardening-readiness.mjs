@@ -18,12 +18,14 @@ const files = {
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
   candidateDispatch: "scripts/print-candidate-dispatch-pack.mjs",
   candidateDispatchSelftest: "scripts/selftest-candidate-dispatch-pack.mjs",
+  candidateDispatchWorkbench: "scripts/print-candidate-dispatch-workbench.mjs",
+  candidateDispatchWorkbenchSelftest: "scripts/selftest-candidate-dispatch-workbench.mjs",
   candidateInvite: "scripts/mark-candidate-invites.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -107,6 +109,8 @@ const checks = [
       && packageJson.includes("release:candidate:plan:selftest")
       && packageJson.includes("release:candidate:dispatch")
       && packageJson.includes("release:candidate:dispatch:selftest")
+      && packageJson.includes("release:candidate:dispatch:workbench")
+      && packageJson.includes("release:candidate:dispatch:workbench:selftest")
       && packageJson.includes("release:candidate:invite")
       && packageJson.includes("release:candidate:invite:selftest")
       && packageJson.includes("release:candidate:desk")
@@ -126,6 +130,7 @@ const checks = [
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:plan")
       && nextAction.includes("release:candidate:dispatch")
+      && nextAction.includes("release:candidate:dispatch:workbench")
       && nextAction.includes("release:candidate:invite")
       && nextAction.includes("release:candidate:plan:selftest")
       && nextAction.includes("release:candidate:desk")
@@ -143,6 +148,7 @@ const checks = [
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:plan")
       && handoff.includes("release:candidate:dispatch")
+      && handoff.includes("release:candidate:dispatch:workbench")
       && handoff.includes("release:candidate:invite")
       && handoff.includes("release:candidate:plan:selftest")
       && handoff.includes("release:candidate:desk")
@@ -299,6 +305,8 @@ const checks = [
       && candidateDispatch.includes("release:candidate:record")
       && candidateDispatch.includes("release:candidate:invite")
       && candidateDispatch.includes("release:candidate:day:close")
+      && candidateDispatch.includes("release:candidate:dispatch:workbench")
+      && candidateDispatch.includes("工作台不会发送消息或标记邀请")
       && candidateDispatch.includes("问问大家小程序卡片")
       && candidateDispatch.includes("邀请家人小程序卡片")
       && candidateDispatch.includes("买菜清单小程序卡片")
@@ -319,9 +327,32 @@ const checks = [
       && candidateDispatchSelftest.includes("重点看是否能找到完整菜品页和愿意做的新菜")
       && candidateDispatchSelftest.includes("重点看食材、已有项和谁在买是否容易理解")
       && nextAction.includes("release:candidate:dispatch")
+      && nextAction.includes("release:candidate:dispatch:workbench")
       && nextAction.includes("release:candidate:invite")
       && handoff.includes("release:candidate:dispatch")
+      && handoff.includes("release:candidate:dispatch:workbench")
       && candidateForms.includes("release:candidate:dispatch"),
+  },
+  {
+    key: "candidate-dispatch-workbench",
+    title: "候选今日分发工作台可把文案和回填模板放到同一私有页面",
+    path: `${files.packageJson}, ${files.candidateDispatchWorkbench}, ${files.candidateDispatchWorkbenchSelftest}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:dispatch:workbench")
+      && packageJson.includes("release:candidate:dispatch:workbench:selftest")
+      && candidateDispatchWorkbench.includes("candidate-dispatch-workbench-")
+      && candidateDispatchWorkbench.includes("data-workbench-kind=\"humi-candidate-dispatch\"")
+      && candidateDispatchWorkbench.includes("navigator.clipboard.writeText")
+      && candidateDispatchWorkbench.includes("不会发送微信消息")
+      && candidateDispatchWorkbench.includes("不会标记已邀请")
+      && candidateDispatchWorkbench.includes("不进入微信公众平台审核动作")
+      && candidateDispatchWorkbench.includes("--sent-confirmed")
+      && candidateDispatchWorkbenchSelftest.includes("candidate-dispatch-workbench-html")
+      && candidateDispatchWorkbenchSelftest.includes("mode: \"600\"")
+      && candidateDispatchWorkbenchSelftest.includes("不会发送微信消息")
+      && candidateDispatchWorkbenchSelftest.includes("不进入微信公众平台审核动作")
+      && nextAction.includes("release:candidate:dispatch:workbench")
+      && handoff.includes("release:candidate:dispatch:workbench")
+      && candidateForms.includes("release:candidate:dispatch:workbench"),
   },
   {
     key: "candidate-invite-mark",
@@ -390,8 +421,10 @@ const checks = [
       && prepareScript.includes("release:candidate:forms:preview")
       && prepareScript.includes("candidate-forms-preview.html")
       && prepareScript.includes("release:candidate:dispatch -- --date YYYY-MM-DD")
+      && prepareScript.includes("release:candidate:dispatch:workbench -- --date YYYY-MM-DD")
       && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed")
       && prepareScript.includes("candidate-dispatch-YYYY-MM-DD.md/json")
+      && prepareScript.includes("candidate-dispatch-workbench-YYYY-MM-DD.html")
       && prepareScript.includes("不能原样运行")
       && prepareScript.includes("1-5|没试")
       && !prepareScript.includes("--recommendation 5 --grocery-score 5")
@@ -409,6 +442,7 @@ const checks = [
       && candidatePrivacy.includes("real-name")
       && candidatePrivacy.includes("candidate-day-close-")
       && candidatePrivacy.includes("candidate-dispatch-")
+      && candidatePrivacy.includes("candidate-dispatch-workbench-")
       && candidatePrivacy.includes("candidate-forms-preview.html")
       && candidatePrivacy.includes("Do not paste the sensitive values into chat or commits")
       && nextAction.includes("release:candidate:privacy:check")

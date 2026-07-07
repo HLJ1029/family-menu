@@ -18,6 +18,8 @@ assert(result.users[0].entryTask === "crave-card", "U001 should cover the crave 
 assert(result.users[1].entryTask === "invite-card", "U002 should cover the invite mini program card");
 assert(result.users[0].hasMessage, "dispatch should include U001 message");
 assert(dispatch.includes("Humi 1.1 候选内测今日分发单"), "dispatch markdown missing title");
+assert(dispatch.includes("release:candidate:dispatch:workbench -- --date 2026-07-07"), "dispatch should point to the private HTML workbench");
+assert(dispatch.includes("工作台不会发送消息或标记邀请"), "dispatch workbench guidance should preserve no-send boundary");
 assert(dispatch.includes("U001：问问大家小程序卡片"), "dispatch should label U001 mini program card task");
 assert(dispatch.includes("入口任务：问问大家小程序卡片"), "dispatch missing entry task detail");
 assert(dispatch.includes("入口任务：邀请家人小程序卡片"), "dispatch missing invite card task detail");

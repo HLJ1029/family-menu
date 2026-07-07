@@ -33,6 +33,7 @@ const files = [
   "candidate-review.md",
   "candidate-review.json",
   ...await dispatchPackFiles(packetDir),
+  ...await dispatchWorkbenchFiles(packetDir),
   ...await closeReportFiles(packetDir),
 ];
 
@@ -100,6 +101,18 @@ async function dispatchPackFiles(dir) {
     const entries = await readdir(dir, { withFileTypes: true });
     return entries
       .filter((entry) => entry.isFile() && /^candidate-dispatch-\d{4}-\d{2}-\d{2}\.(md|json)$/.test(entry.name))
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+async function dispatchWorkbenchFiles(dir) {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && /^candidate-dispatch-workbench-\d{4}-\d{2}-\d{2}\.html$/.test(entry.name))
       .map((entry) => entry.name)
       .sort();
   } catch {

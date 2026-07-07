@@ -16,8 +16,10 @@ const requiredText = [
   "当前动作：继续完善 1.1 生产候选与真实内测；候选复盘达标前不进入微信审核。",
   "今日分发单已生成",
   `${packetDir}/candidate-dispatch-${today}.md`,
+  `${packetDir}/candidate-dispatch-workbench-${today}.html`,
   "U001: 问问大家小程序卡片（优先跑协作）",
   "U002: 邀请家人小程序卡片",
+  `发送前可运行 \`npm run release:candidate:dispatch:workbench -- --date ${today}\``,
   `真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`,
   "先发今天分发单里的 U 编号",
   "不要把“已邀请”当成“已体验”",
@@ -99,6 +101,7 @@ async function writePacket(dir) {
     writeFile(join(dir, "candidate-forms-preview.html"), "<!doctype html><title>Humi 1.1 候选内测单据预览</title><main>体验者反馈单 / 主厨记录单</main>\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-day-plan.md"), "# Humi 1.1 候选内测日计划\n\n- 建议新邀请：U001、U002\n", { mode: 0o600 }),
     writeFile(join(dir, `candidate-dispatch-${today}.md`), "# Humi 1.1 候选内测今日分发单\n\n- U001：问问大家小程序卡片\n- U002：邀请家人小程序卡片\n", { mode: 0o600 }),
+    writeFile(join(dir, `candidate-dispatch-workbench-${today}.html`), "<!doctype html><title>Humi 1.1 候选分发工作台</title><main>U001</main>\n", { mode: 0o600 }),
     writeFile(join(dir, `candidate-dispatch-${today}.json`), JSON.stringify({
       ok: true,
       checkedAt: `${today}T00:00:00.000Z`,

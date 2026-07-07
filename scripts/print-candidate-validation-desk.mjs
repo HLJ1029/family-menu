@@ -50,13 +50,14 @@ if (dispatch) {
 } else {
   lines.push("2. 运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 生成今日分发单；若还没有分发单，才打开 `outreach-batch.md` 只复制今天建议编号的邀请文案。");
 }
-lines.push("3. 打开 `candidate-forms-preview.html`，确认体验者反馈单和主厨记录单可读后再发真实内测。");
-lines.push(`4. 确认今天这些消息或小程序卡片已经真实发出后，运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\` 标记已邀请。`);
-lines.push("5. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
-lines.push("6. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
-lines.push("7. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
-lines.push(`8. 今天结束运行 \`npm run release:candidate:day:close -- --date ${today}\`，一次完成隐私扫描、每日复盘、doctor、candidate review 和私有收尾报告。`);
-lines.push("9. 需要单独补写 daily-review.csv 时，再运行 `npm run release:candidate:daily -- --date YYYY-MM-DD`。");
+lines.push(`3. 运行 \`npm run release:candidate:dispatch:workbench -- --date ${today}\`，生成并打开 \`candidate-dispatch-workbench-${today}.html\`。`);
+lines.push("4. 打开 `candidate-forms-preview.html`，确认体验者反馈单和主厨记录单可读后再发真实内测。");
+lines.push(`5. 确认今天这些消息或小程序卡片已经真实发出后，运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\` 标记已邀请。`);
+lines.push("6. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
+lines.push("7. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
+lines.push("8. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
+lines.push(`9. 今天结束运行 \`npm run release:candidate:day:close -- --date ${today}\`，一次完成隐私扫描、每日复盘、doctor、candidate review 和私有收尾报告。`);
+lines.push("10. 需要单独补写 daily-review.csv 时，再运行 `npm run release:candidate:daily -- --date YYYY-MM-DD`。");
 lines.push("");
 
 lines.push("今天不要做：");
@@ -141,6 +142,7 @@ function candidateFiles(dir) {
     ["候选内测日计划", "candidate-day-plan.md"],
     dispatch ? ["今日分发单", `candidate-dispatch-${today}.md`] : null,
     dispatch ? ["今日分发 JSON", `candidate-dispatch-${today}.json`] : null,
+    dispatch ? ["今日分发工作台", `candidate-dispatch-workbench-${today}.html`] : null,
     ...requiredCandidateFiles(dir).map((item) => [item.label, item.file]),
   ].filter(Boolean).map(([label, file]) => ({
     label,
