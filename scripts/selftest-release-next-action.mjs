@@ -18,6 +18,8 @@ try {
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
   await assertNext("发送今天这些 U 编号");
+  await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
+  await assertNext("继续发送今日分发单里尚未标记已邀请的 U 编号");
   await writePendingCandidatePacket(tempDir, "已邀请");
   await assertNext("今天分发单里的 U 编号已标记为已邀请");
   await writeValidCandidatePacket(tempDir);
@@ -129,12 +131,13 @@ async function run(script, extraEnv) {
 async function writePendingCandidatePacket(baseDir, inviteStatus) {
   const packetDir = join(baseDir, "candidate-validation-20990101T000000Z");
   const today = new Date().toISOString().slice(0, 10);
+  const statuses = Array.isArray(inviteStatus) ? inviteStatus : [inviteStatus, inviteStatus];
   await mkdir(packetDir, { recursive: true });
   await Promise.all([
     writeFile(join(packetDir, "anonymous-users.csv"), csv([
       anonymousHeader(),
-      ["U001", "两人家庭", "iPhone 15 / WeChat 9", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U001", ""],
-      ["U002", "三人家庭", "iPhone 14 / WeChat 9", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U002", ""],
+      ["U001", "两人家庭", "iPhone 15 / WeChat 9", statuses[0], "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U001", ""],
+      ["U002", "三人家庭", "iPhone 14 / WeChat 9", statuses[1], "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U002", ""],
     ]), { mode: 0o600 }),
     writeFile(join(packetDir, "feedback-template.csv"), csv([
       feedbackHeader(),

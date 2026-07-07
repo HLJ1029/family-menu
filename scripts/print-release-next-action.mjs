@@ -54,15 +54,27 @@ if (openHardeningItems.length) {
   if (candidateAction.dispatch) {
     if (candidateAction.dispatch.allUsersInvited) {
       lines.push("下一步一句话：今天分发单里的 U 编号已标记为已邀请；等待今天这批 U 编号的真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
+    } else if (candidateAction.dispatch.someUsersInvited) {
+      lines.push("下一步一句话：继续发送今日分发单里尚未标记已邀请的 U 编号；已邀请的 U 编号等待真实反馈并准备回填。");
     } else {
       lines.push(`下一步一句话：打开 ${candidateAction.dispatch.markdownPath}，发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`。`);
     }
     lines.push("");
-    lines.push(candidateAction.dispatch.allUsersInvited ? "今天已发，待回收：" : "今天要发：");
-    for (const user of candidateAction.dispatch.users) {
-      const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
-      const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
-      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}${status}`);
+    if (candidateAction.dispatch.someUsersInvited) {
+      lines.push("还没发：");
+      for (const user of candidateAction.dispatch.pendingUsers) {
+        lines.push(`- ${formatDispatchUser(user)}`);
+      }
+      lines.push("");
+      lines.push("已发待回收：");
+      for (const user of candidateAction.dispatch.invitedUsers) {
+        lines.push(`- ${formatDispatchUser(user)}`);
+      }
+    } else {
+      lines.push(candidateAction.dispatch.allUsersInvited ? "今天已发，待回收：" : "今天要发：");
+      for (const user of candidateAction.dispatch.users) {
+        lines.push(`- ${formatDispatchUser(user)}`);
+      }
     }
     lines.push("");
   } else if (candidateAction.packetDir) {
@@ -80,6 +92,12 @@ if (openHardeningItems.length) {
       lines.push("3. 批量收齐后，优先填 `candidate-feedback-import.csv`，再运行 `npm run release:candidate:record -- --import candidate-feedback-import.csv`。");
       lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
       lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+    } else if (candidateAction.dispatch.someUsersInvited) {
+      lines.push(`1. 只发送“还没发”里的 U 编号：${candidateAction.dispatch.pendingUsers.map((user) => user.id).join("、")}。`);
+      lines.push(`2. 发送后运行 \`npm run release:candidate:invite -- --users ${candidateAction.dispatch.pendingUsers.map((user) => user.id).join(",")} --date ${candidateAction.date}\`，只补标这批匿名 U 编号。`);
+      lines.push("3. 已发待回收的 U 编号继续等待真实反馈；不要用已邀请状态当作已体验。");
+      lines.push("4. 收到反馈后，替换分发单里的 `release:candidate:record` 模板或填 `candidate-feedback-import.csv`，再回填匿名汇总。");
+      lines.push(`5. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
     } else {
       lines.push(`1. 打开 \`${candidateAction.dispatch.markdownPath}\`，逐条复制 U 编号对应的入口任务和体验者文案。`);
       lines.push(`2. 真实发送后运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`，只标记匿名 U 编号，不记录真实联系人。`);
@@ -254,8 +272,10 @@ async function getCandidateActionState() {
         inviteStatus: statuses.get(id) || "",
       };
     });
+    const invitedUsers = users.filter((user) => isInvitedStatus(user.inviteStatus));
+    const pendingUsers = users.filter((user) => !isInvitedStatus(user.inviteStatus));
     const allUsersInvited = users.length > 0
-      && users.every((user) => ["已邀请", "已体验"].includes(user.inviteStatus));
+      && pendingUsers.length === 0;
     return {
       date,
       packetDir,
@@ -263,12 +283,25 @@ async function getCandidateActionState() {
         markdownPath,
         jsonPath,
         users,
+        invitedUsers,
+        pendingUsers,
         allUsersInvited,
+        someUsersInvited: invitedUsers.length > 0 && pendingUsers.length > 0,
       },
     };
   } catch {
     return { date, packetDir, dispatch: null };
   }
+}
+
+function formatDispatchUser(user) {
+  const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
+  const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
+  return `${user.id}: ${user.entryLabel}${suffix}${status}`;
+}
+
+function isInvitedStatus(status) {
+  return ["已邀请", "已体验"].includes(String(status || "").trim());
 }
 
 async function readCandidateInviteStatuses(packetDir) {

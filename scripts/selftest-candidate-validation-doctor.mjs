@@ -42,6 +42,19 @@ for (const text of invitedRequiredText) {
   assert(invitedStdout.includes(text), `doctor invited output missing: ${text}`);
 }
 
+await writeAnonymousUsers(packetDir, ["已邀请", "待邀请"]);
+const partialStdout = await runDoctor(packetDir);
+const partialRequiredText = [
+  "还没发",
+  "U002: 邀请家人小程序卡片 / 待邀请",
+  "已发待回收",
+  "U001: 问问大家小程序卡片（优先跑协作） / 已邀请",
+  "继续只发送“还没发”的 U 编号",
+];
+for (const text of partialRequiredText) {
+  assert(partialStdout.includes(text), `doctor partial output missing: ${text}`);
+}
+
 console.log(JSON.stringify({
   ok: true,
   checkedAt: new Date().toISOString(),
@@ -56,6 +69,11 @@ console.log(JSON.stringify({
       name: "doctor-switches-to-feedback-after-invite-mark",
       ok: true,
       requiredText: invitedRequiredText,
+    },
+    {
+      name: "doctor-splits-partial-invite-progress",
+      ok: true,
+      requiredText: partialRequiredText,
     },
   ],
 }, null, 2));
@@ -122,10 +140,11 @@ async function writePacket(dir) {
 }
 
 async function writeAnonymousUsers(dir, inviteStatus) {
+  const statuses = Array.isArray(inviteStatus) ? inviteStatus : [inviteStatus, inviteStatus];
   await writeFile(join(dir, "anonymous-users.csv"), csv([
     anonymousHeader(),
-    ["U001", "待定", "待填", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
-    ["U002", "待定", "待填", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
+    ["U001", "待定", "待填", statuses[0], "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
+    ["U002", "待定", "待填", statuses[1], "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
   ]), { mode: 0o600 });
 }
 

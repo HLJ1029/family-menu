@@ -49,14 +49,24 @@ if (dispatch) {
   lines.push(`- 分发单: ${dispatch.markdownPath}`);
   lines.push(`- JSON: ${dispatch.jsonPath}`);
   if (dispatch.users.length) {
-    for (const user of dispatch.users) {
-      const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
-      const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
-      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}${status}`);
+    if (dispatch.someUsersInvited) {
+      lines.push("- 还没发：");
+      for (const user of dispatch.pendingUsers) {
+        lines.push(`  - ${formatDispatchUser(user)}`);
+      }
+      lines.push("- 已发待回收：");
+      for (const user of dispatch.invitedUsers) {
+        lines.push(`  - ${formatDispatchUser(user)}`);
+      }
+      lines.push("- 继续只发送“还没发”的 U 编号；已发的等待真实反馈。");
+    } else {
+      for (const user of dispatch.users) {
+        lines.push(`- ${formatDispatchUser(user)}`);
+      }
     }
     if (dispatch.allUsersInvited) {
       lines.push("- 今天这批已标记已邀请；等待真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
-    } else {
+    } else if (!dispatch.someUsersInvited) {
       lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`);
     }
   } else {
@@ -151,6 +161,8 @@ function buildHumanActions(result, dispatch, today) {
     return [
       dispatch?.allUsersInvited
         ? "等待今天这批 U 编号的真实反馈；收到后替换分发单里的 record 模板并回填匿名结果。"
+        : dispatch?.someUsersInvited
+        ? `继续只发送还没发的 U 编号：${dispatch.pendingUsers.map((user) => user.id).join("、")}；已发的 U 编号等待真实反馈。`
         : dispatch
         ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today}。`
         : `先运行 npm run release:candidate:plan 和 npm run release:candidate:dispatch -- --date ${today}，生成今日分发单后再发送。`,
@@ -226,16 +238,30 @@ async function readDispatchSummary(dir, date) {
         inviteStatus: statuses.get(id) || "",
       };
     });
+    const invitedUsers = users.filter((user) => isInvitedStatus(user.inviteStatus));
+    const pendingUsers = users.filter((user) => !isInvitedStatus(user.inviteStatus));
     return {
       markdownPath,
       jsonPath,
       users,
-      allUsersInvited: users.length > 0
-        && users.every((user) => ["已邀请", "已体验"].includes(user.inviteStatus)),
+      invitedUsers,
+      pendingUsers,
+      allUsersInvited: users.length > 0 && pendingUsers.length === 0,
+      someUsersInvited: invitedUsers.length > 0 && pendingUsers.length > 0,
     };
   } catch {
     return null;
   }
+}
+
+function formatDispatchUser(user) {
+  const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
+  const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
+  return `${user.id}: ${user.entryLabel}${suffix}${status}`;
+}
+
+function isInvitedStatus(status) {
+  return ["已邀请", "已体验"].includes(String(status || "").trim());
 }
 
 async function readCandidateInviteStatuses(dir) {
