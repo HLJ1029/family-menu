@@ -31,6 +31,7 @@ const requiredText = [
   "今天先做",
   "candidate-day-plan.md",
   "打开 `candidate-dispatch-2026-07-07.md`",
+  "npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed",
   "npm run release:candidate:plan",
   "今天不要做",
   "outreach-batch.md",
