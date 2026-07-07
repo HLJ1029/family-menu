@@ -8,9 +8,10 @@ const files = {
   packageJson: "package.json",
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
+  candidateDesk: "scripts/print-candidate-validation-desk.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -86,6 +87,7 @@ const checks = [
     path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare")
       && packageJson.includes("release:candidate:doctor")
+      && packageJson.includes("release:candidate:desk")
       && packageJson.includes("release:candidate:record")
       && packageJson.includes("release:candidate:record:selftest")
       && packageJson.includes("release:candidate:daily")
@@ -93,12 +95,14 @@ const checks = [
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:doctor")
+      && nextAction.includes("release:candidate:desk")
       && nextAction.includes("release:candidate:record")
       && nextAction.includes("release:candidate:record:selftest")
       && nextAction.includes("release:candidate:daily")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:doctor")
+      && handoff.includes("release:candidate:desk")
       && handoff.includes("release:candidate:record")
       && handoff.includes("release:candidate:record:selftest")
       && handoff.includes("release:candidate:daily")
@@ -137,6 +141,22 @@ const checks = [
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
     ].every((text) => candidateForms.includes(text)),
+  },
+  {
+    key: "candidate-execution-desk",
+    title: "候选内测执行台可直接打印今日动作和私有包路径",
+    path: `${files.packageJson}, ${files.candidateDesk}, ${files.nextAction}, ${files.handoff}`,
+    ok: [
+      "Humi 1.1 候选内测执行台",
+      "今天先做",
+      "今天不要做",
+      "outreach-batch.md",
+      "tester-feedback-form.md",
+      "host-run-sheet.md",
+      "candidate-feedback-import.csv",
+      "release:candidate:daily -- --date",
+      "docs/humi-1.1-candidate-validation-forms.md",
+    ].every((text) => candidateDesk.includes(text)),
   },
 ];
 

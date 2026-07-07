@@ -146,6 +146,12 @@ if (!releaseNext.includes("release:candidate:doctor")) {
     phrase: "missing release:candidate:doctor in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:desk")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:desk in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("release:candidate:review")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
