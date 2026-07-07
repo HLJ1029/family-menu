@@ -56,7 +56,7 @@ const result = {
   nextActions: [
     "Copy each user section from candidate-dispatch-YYYY-MM-DD.md into the private chat for that tester.",
     "After sending, mark the same anonymous IDs as 已邀请 in anonymous-users.csv.",
-    "After feedback arrives, use the generated release:candidate:record commands or candidate-feedback-import.csv.",
+    "After feedback arrives, replace every placeholder in the generated release:candidate:record template before running it.",
     "Run npm run release:candidate:privacy:check, npm run release:candidate:doctor, and npm run release:candidate:day:close -- --date YYYY-MM-DD after each batch.",
   ],
 };
@@ -118,7 +118,8 @@ function extractOutreachMessage(markdown, userId) {
 }
 
 function buildRecordCommand(userId, { collaboration }) {
-  return `npm run release:candidate:record -- --user ${userId} --tonight yes --grocery yes --collaboration ${collaboration} --recommendation 5 --grocery-score 5 --share-score ${collaboration === "none" ? "没试" : "4"} --note "清单有用"`;
+  const collaborationChoices = collaboration === "ask" ? "ask|grocery|invite|none" : "none|ask|grocery|invite";
+  return `npm run release:candidate:record -- --user ${userId} --tonight yes|no --grocery yes|no --collaboration ${collaborationChoices} --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --severity P0|P1|P2|建议|通过 --note "替换成真实匿名摘要"`;
 }
 
 function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
@@ -152,7 +153,9 @@ function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
     lines.push("");
     lines.push("收到反馈后的回填命令模板：");
     lines.push("");
-    lines.push("```bash");
+    lines.push("先替换所有选项和摘要；不要原样运行这条模板。");
+    lines.push("");
+    lines.push("```text");
     lines.push(user.recordCommand);
     lines.push("```");
     lines.push("");

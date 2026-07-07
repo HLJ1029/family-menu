@@ -225,6 +225,10 @@ const checks = [
       && candidateDispatch.includes("host-run-sheet.md")
       && candidateDispatch.includes("release:candidate:record")
       && candidateDispatch.includes("release:candidate:day:close")
+      && candidateDispatch.includes("不要原样运行")
+      && candidateDispatch.includes("--recommendation 1-5|没试")
+      && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")
+      && !candidateDispatch.includes("--note \"清单有用\"")
       && nextAction.includes("release:candidate:dispatch")
       && handoff.includes("release:candidate:dispatch")
       && candidateForms.includes("release:candidate:dispatch"),
