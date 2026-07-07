@@ -238,6 +238,8 @@ const checks = [
       && candidateDispatch.includes("邀请家人小程序卡片")
       && candidateDispatch.includes("买菜清单小程序卡片")
       && candidateDispatch.includes("recordEntry: \"分享卡片\"")
+      && candidateDispatch.includes("0. 入口任务")
+      && candidateDispatch.includes("这次请按这个入口任务试")
       && candidateDispatch.includes("不要原样运行")
       && candidateDispatch.includes("--recommendation 1-5|没试")
       && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")

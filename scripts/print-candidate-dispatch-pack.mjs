@@ -33,7 +33,10 @@ const users = inviteIds.map((id, index) => {
     id,
     collaborationTarget,
     entryTask,
-    message: extractOutreachMessage(outreach, id),
+    message: buildTesterMessage({
+      baseMessage: extractOutreachMessage(outreach, id),
+      entryTask,
+    }),
     recordCommand: buildRecordCommand(id, {
       collaboration: collaborationTarget ? entryTask.collaborationCommand : "none",
       entry: entryTask.recordEntry,
@@ -127,6 +130,25 @@ function extractOutreachMessage(markdown, userId) {
   const pattern = new RegExp(`^## ${escapeRegExp(userId)}\\n\\n\\\`\\\`\\\`text\\n([\\s\\S]*?)\\n\\\`\\\`\\\``, "m");
   const match = markdown.match(pattern);
   return match ? match[1].trim() : "";
+}
+
+function buildTesterMessage({ baseMessage, entryTask }) {
+  if (!baseMessage) return "";
+  const lines = baseMessage.split("\n");
+  const pathIndex = lines.findIndex((line) => line.trim() === "使用路径：");
+  if (pathIndex < 0) {
+    return [
+      baseMessage,
+      "",
+      `这次请按这个入口任务试：${entryTask.label}。`,
+      entryTask.instruction,
+    ].join("\n");
+  }
+  return [
+    ...lines.slice(0, pathIndex + 1),
+    `0. 入口任务：${entryTask.label}。${entryTask.instruction}`,
+    ...lines.slice(pathIndex + 1),
+  ].join("\n");
 }
 
 function assignEntryTask({ index, collaborationTarget, collaborationTaskIndex }) {

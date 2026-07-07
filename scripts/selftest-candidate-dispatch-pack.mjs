@@ -35,6 +35,8 @@ assert(dispatch.includes("Humi 1.1 候选内测今日分发单"), "dispatch mark
 assert(dispatch.includes("U001：问问大家小程序卡片"), "dispatch should label U001 mini program card task");
 assert(dispatch.includes("入口任务：问问大家小程序卡片"), "dispatch missing entry task detail");
 assert(dispatch.includes("入口任务：邀请家人小程序卡片"), "dispatch missing invite card task detail");
+assert(dispatch.includes("0. 入口任务：问问大家小程序卡片"), "tester copy should include the assigned entry task");
+assert(dispatch.includes("0. 入口任务：邀请家人小程序卡片"), "tester copy should include the invite entry task");
 assert(dispatch.includes("点卡片进入后"), "dispatch should tell testers to enter from mini program cards");
 assert(dispatch.includes("我给你留了一个 Humi 内测编号：U001。"), "dispatch missing U001 message");
 assert(dispatch.includes("npm run release:candidate:record -- --user U001 --entry \"分享卡片\""), "dispatch missing record command with share-card entry");
@@ -81,6 +83,8 @@ async function writePacket(dir) {
       "```text",
       "我给你留了一个 Humi 内测编号：U001。",
       "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
       "```",
       "",
       "## U002",
@@ -88,6 +92,8 @@ async function writePacket(dir) {
       "```text",
       "我给你留了一个 Humi 内测编号：U002。",
       "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
       "```",
       "",
     ].join("\n"), { mode: 0o600 }),
