@@ -85,12 +85,18 @@ const checks = [
     path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare")
       && packageJson.includes("release:candidate:doctor")
+      && packageJson.includes("release:candidate:record")
+      && packageJson.includes("release:candidate:record:selftest")
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:doctor")
+      && nextAction.includes("release:candidate:record")
+      && nextAction.includes("release:candidate:record:selftest")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:doctor")
+      && handoff.includes("release:candidate:record")
+      && handoff.includes("release:candidate:record:selftest")
       && handoff.includes("release:candidate:review"),
   },
   {
@@ -102,6 +108,7 @@ const checks = [
       "host-run-sheet.md",
       "outreach-batch.md",
       "U001-U010 批量邀请清单",
+      "release:candidate:record",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",

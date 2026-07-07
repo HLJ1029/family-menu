@@ -70,6 +70,9 @@ lines.push("");
 lines.push("重新检查：");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:review");
+lines.push("");
+lines.push("单个用户回填示例：");
+lines.push("- npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"");
 
 console.log(lines.join("\n"));
 
@@ -124,6 +127,7 @@ function buildHumanActions(result) {
       "先在私有包的 anonymous-users.csv 填 U001-U020 的真实匿名体验状态。",
       "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段。",
       "把具体卡点、用户原话摘要和私有截图位置填到 feedback-template.csv。",
+      "也可以用 npm run release:candidate:record -- ... 回填单个用户，少手改 CSV。",
       "每天把新增人数、P0/P1 数和当天结论填到 daily-review.csv。",
       "真实姓名、微信号、手机号、截图和录屏继续放仓库外，不写进 Git。",
     ];

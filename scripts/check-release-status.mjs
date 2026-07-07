@@ -83,6 +83,7 @@ const [
   productReview,
   candidateHardening,
   candidateValidationReview,
+  candidateRecordSelftest,
   candidateReviewSelftest,
   wechatSubmitWorkspaceGuard,
   specAudit,
@@ -97,6 +98,7 @@ const [
   runNpmScript("release:product:review"),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
+  runNpmScript("release:candidate:record:selftest"),
   runNpmScript("release:candidate:review:selftest"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
@@ -115,11 +117,12 @@ const docsFreshnessOk = docsFreshness.ok;
 const productReviewOk = productReview.ok;
 const candidateHardeningOk = candidateHardening.ok;
 const candidateValidationReady = candidateValidationReview.ok;
+const candidateRecordSelftestOk = candidateRecordSelftest.ok;
 const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateRecordSelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -146,6 +149,9 @@ if (!productReviewOk) {
 }
 if (!candidateHardeningOk) {
   nextActions.push("Fix release:candidate:check failures before claiming the 1.1 production candidate is ready for internal validation.");
+}
+if (!candidateRecordSelftestOk) {
+  nextActions.push("Fix release:candidate:record:selftest before relying on private candidate feedback writeback.");
 }
 if (!candidateReviewSelftestOk) {
   nextActions.push("Fix release:candidate:review:selftest before relying on private candidate validation review results.");
@@ -203,6 +209,7 @@ console.log(JSON.stringify({
     productReviewReady: productReviewOk,
     candidateHardeningReady: candidateHardeningOk,
     candidateValidationReady,
+    candidateRecordSelftestReady: candidateRecordSelftestOk,
     candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
     specAcceptanceAuditReady: specAuditOk,
@@ -225,6 +232,7 @@ console.log(JSON.stringify({
     summarizeCheck(productReview),
     summarizeCheck(candidateHardening),
     summarizeCheck(candidateValidationReview),
+    summarizeCheck(candidateRecordSelftest),
     summarizeCheck(candidateReviewSelftest),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),

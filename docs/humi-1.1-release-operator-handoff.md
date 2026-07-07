@@ -1,6 +1,6 @@
 # Humi 1.1 Release Operator Handoff
 
-更新日期：2026-07-05
+更新日期：2026-07-07
 执行设备：codex@mbp-m5pro
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
@@ -34,6 +34,7 @@ npm run release:product:review
 npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:doctor
+npm run release:candidate:record:selftest
 npm run release:candidate:review
 npm run release:candidate:review:selftest
 ```
@@ -46,6 +47,8 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含匿名名单、反馈表、每日复盘、问题分级表、邀请文案、批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md` 和主厨记录单 `host-run-sheet.md`；真实用户信息仍不得进仓库。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
+- `npm run release:candidate:record -- --user U001 ...` 可把单个体验者的匿名结果回填到最新私有执行包，减少手改 CSV；真实姓名、微信号、手机号、截图和录屏仍只保留在仓库外。
+- `npm run release:candidate:record:selftest` 可用临时私有执行包验证单人反馈回填命令能正确更新 `anonymous-users.csv` 并追加 `feedback-template.csv`。
 - `npm run release:candidate:review` 可复盘最新私有内测执行包；如果仍是模板、样本不足或出现 P0/P1，会阻止进入审核准备；默认最低标准是 10 个真实体验、8 个完成今晚菜单、8 个完成清单、3 个尝试协作。
 - `npm run release:candidate:review:selftest` 可用临时 CSV 验证复盘脚本本身，覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
@@ -106,11 +109,12 @@ Owner：用户，Codex 提供材料。
 
 ```bash
 npm run release:candidate:doctor
+npm run release:candidate:record:selftest
 npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；收到单个体验者反馈后，用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"` 回填匿名汇总；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
@@ -199,6 +203,7 @@ npm run release:next
 npm run release:closure
 npm run release:candidate:check
 npm run release:candidate:doctor
+npm run release:candidate:record:selftest
 ```
 
 `release:closure` 会汇总规格验收、提审前 P0/P1、小程序分享卡片证据、微信审核/发布证据、真机 P0 和 24 小时监控阶段；它只读状态并输出下一组命令，不会提交审核、不发布、不修改微信后台。
