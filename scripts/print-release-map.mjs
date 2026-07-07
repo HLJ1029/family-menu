@@ -35,6 +35,8 @@ lines.push("- npm run release:candidate:plan");
 lines.push("- npm run release:candidate:plan:selftest");
 lines.push("- npm run release:candidate:dispatch");
 lines.push("- npm run release:candidate:dispatch:selftest");
+lines.push("- npm run release:candidate:invite");
+lines.push("- npm run release:candidate:invite:selftest");
 lines.push("- npm run release:candidate:day:close");
 lines.push("- npm run release:candidate:day:close:selftest");
 lines.push("- npm run release:candidate:review");

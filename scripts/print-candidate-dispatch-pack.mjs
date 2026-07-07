@@ -55,7 +55,7 @@ const result = {
   },
   nextActions: [
     "Copy each user section from candidate-dispatch-YYYY-MM-DD.md into the private chat for that tester.",
-    "After sending, mark the same anonymous IDs as 已邀请 in anonymous-users.csv.",
+    `After sending, run npm run release:candidate:invite -- --from-dispatch ${date} to mark anonymous IDs as 已邀请.`,
     "After feedback arrives, replace every placeholder in the generated release:candidate:record template before running it.",
     "Run npm run release:candidate:privacy:check, npm run release:candidate:doctor, and npm run release:candidate:day:close -- --date YYYY-MM-DD after each batch.",
   ],
@@ -175,6 +175,7 @@ function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
   lines.push("## 批次收尾");
   lines.push("");
   lines.push("```bash");
+  lines.push(`npm run release:candidate:invite -- --from-dispatch ${result.date}`);
   lines.push("npm run release:candidate:privacy:check");
   lines.push("npm run release:candidate:doctor");
   lines.push(`npm run release:candidate:day:close -- --date ${result.date}`);

@@ -96,6 +96,7 @@ const checks = [
       "daily-review.csv",
       "npm run release:candidate:plan",
       "npm run release:candidate:dispatch -- --date YYYY-MM-DD",
+      "npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
@@ -175,6 +176,12 @@ if (!releaseNext.includes("release:candidate:dispatch")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
     phrase: "missing release:candidate:dispatch in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:invite")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:invite in candidate-stage action card",
   });
 }
 if (!releaseNext.includes("release:candidate:desk")) {

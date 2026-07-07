@@ -12,11 +12,12 @@ const files = {
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
   candidateDispatch: "scripts/print-candidate-dispatch-pack.mjs",
+  candidateInvite: "scripts/mark-candidate-invites.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -97,6 +98,8 @@ const checks = [
       && packageJson.includes("release:candidate:plan:selftest")
       && packageJson.includes("release:candidate:dispatch")
       && packageJson.includes("release:candidate:dispatch:selftest")
+      && packageJson.includes("release:candidate:invite")
+      && packageJson.includes("release:candidate:invite:selftest")
       && packageJson.includes("release:candidate:desk")
       && packageJson.includes("release:candidate:desk:selftest")
       && packageJson.includes("release:candidate:record")
@@ -113,6 +116,7 @@ const checks = [
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:plan")
       && nextAction.includes("release:candidate:dispatch")
+      && nextAction.includes("release:candidate:invite")
       && nextAction.includes("release:candidate:plan:selftest")
       && nextAction.includes("release:candidate:desk")
       && nextAction.includes("release:candidate:desk:selftest")
@@ -128,6 +132,7 @@ const checks = [
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:plan")
       && handoff.includes("release:candidate:dispatch")
+      && handoff.includes("release:candidate:invite")
       && handoff.includes("release:candidate:plan:selftest")
       && handoff.includes("release:candidate:desk")
       && handoff.includes("release:candidate:desk:selftest")
@@ -224,14 +229,31 @@ const checks = [
       && candidateDispatch.includes("tester-feedback-form.md")
       && candidateDispatch.includes("host-run-sheet.md")
       && candidateDispatch.includes("release:candidate:record")
+      && candidateDispatch.includes("release:candidate:invite")
       && candidateDispatch.includes("release:candidate:day:close")
       && candidateDispatch.includes("不要原样运行")
       && candidateDispatch.includes("--recommendation 1-5|没试")
       && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")
       && !candidateDispatch.includes("--note \"清单有用\"")
       && nextAction.includes("release:candidate:dispatch")
+      && nextAction.includes("release:candidate:invite")
       && handoff.includes("release:candidate:dispatch")
       && candidateForms.includes("release:candidate:dispatch"),
+  },
+  {
+    key: "candidate-invite-mark",
+    title: "候选邀请状态可从分发单标记匿名 U 编号",
+    path: `${files.packageJson}, ${files.candidateInvite}, ${files.nextAction}, ${files.handoff}, ${files.prepareScript}`,
+    ok: packageJson.includes("release:candidate:invite")
+      && packageJson.includes("release:candidate:invite:selftest")
+      && candidateInvite.includes("candidate-dispatch-")
+      && candidateInvite.includes("anonymous-users.csv")
+      && candidateInvite.includes("已邀请")
+      && candidateInvite.includes("does not create validation feedback")
+      && candidateInvite.includes("does not store real contacts")
+      && nextAction.includes("release:candidate:invite")
+      && handoff.includes("release:candidate:invite")
+      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD"),
   },
   {
     key: "candidate-day-close",
@@ -276,6 +298,7 @@ const checks = [
       && handoff.includes("release:candidate:prepare:selftest")
       && prepareScript.includes("release:candidate:desk:selftest")
       && prepareScript.includes("release:candidate:dispatch -- --date YYYY-MM-DD")
+      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD")
       && prepareScript.includes("candidate-dispatch-YYYY-MM-DD.md/json")
       && prepareScript.includes("不能原样运行")
       && prepareScript.includes("1-5|没试")

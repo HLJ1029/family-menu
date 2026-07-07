@@ -380,7 +380,7 @@ function scanText(fieldName, value) {
 function helpText() {
   return [
     "Usage:",
-    "  npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"",
+    "  npm run release:candidate:record -- --user U001 --tonight yes|no --grocery yes|no --collaboration ask|invite|grocery|none --recommendation 1-5 --grocery-score 1-5 --share-score 1-5|没试 --note \"替换成真实匿名摘要\"",
     "  npm run release:candidate:record -- --import candidate-feedback-import.csv",
     "",
     "Options:",

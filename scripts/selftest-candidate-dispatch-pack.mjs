@@ -32,6 +32,7 @@ assert(result.users[0].hasMessage, "dispatch should include U001 message");
 assert(dispatch.includes("Humi 1.1 候选内测今日分发单"), "dispatch markdown missing title");
 assert(dispatch.includes("我给你留了一个 Humi 内测编号：U001。"), "dispatch missing U001 message");
 assert(dispatch.includes("npm run release:candidate:record -- --user U001"), "dispatch missing record command");
+assert(dispatch.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07"), "dispatch missing invite mark command");
 assert(dispatch.includes("不要原样运行这条模板"), "dispatch should warn against running placeholder command as-is");
 assert(dispatch.includes("--recommendation 1-5|没试"), "dispatch should require real recommendation score replacement");
 assert(dispatch.includes("--note \"替换成真实匿名摘要\""), "dispatch should require real anonymous note replacement");

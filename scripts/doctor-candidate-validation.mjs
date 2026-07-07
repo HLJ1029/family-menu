@@ -71,8 +71,9 @@ lines.push("重新检查：");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:review");
 lines.push("");
-lines.push("单个用户回填示例：");
-lines.push("- npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"");
+lines.push("单个用户回填：");
+lines.push("- 先替换分发单里的 record 模板；不要原样运行占位命令。");
+lines.push("- npm run release:candidate:record -- --user U001 ...");
 
 console.log(lines.join("\n"));
 

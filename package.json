@@ -42,6 +42,8 @@
     "release:candidate:plan:selftest": "node scripts/selftest-candidate-day-plan.mjs",
     "release:candidate:dispatch": "node scripts/print-candidate-dispatch-pack.mjs",
     "release:candidate:dispatch:selftest": "node scripts/selftest-candidate-dispatch-pack.mjs",
+    "release:candidate:invite": "node scripts/mark-candidate-invites.mjs",
+    "release:candidate:invite:selftest": "node scripts/selftest-candidate-invite-mark.mjs",
     "release:candidate:desk": "node scripts/print-candidate-validation-desk.mjs",
     "release:candidate:desk:selftest": "node scripts/selftest-candidate-validation-desk.mjs",
     "release:candidate:record": "node scripts/record-candidate-feedback.mjs",

@@ -52,6 +52,8 @@ assert(contents["README.md"].includes("release:candidate:plan"), "README does no
 assert(contents["README.md"].includes("candidate-day-plan.md"), "README does not mention candidate-day-plan.md");
 assert(contents["README.md"].includes("release:candidate:dispatch -- --date YYYY-MM-DD"), "README does not mention release:candidate:dispatch");
 assert(contents["README.md"].includes("candidate-dispatch-YYYY-MM-DD.md/json"), "README does not mention candidate dispatch files");
+assert(contents["README.md"].includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD"), "README does not mention release:candidate:invite");
+assert(contents["README.md"].includes("标为已邀请"), "README should explain invite marking");
 assert(contents["README.md"].includes("不能原样运行"), "README should warn against running record templates as-is");
 assert(contents["README.md"].includes("1-5|没试"), "README should require score placeholders");
 assert(!contents["README.md"].includes("--recommendation 5 --grocery-score 5"), "README should not default to positive feedback scores");
