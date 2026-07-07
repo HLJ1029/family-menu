@@ -1,46 +1,41 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-desk-"));
+const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-day-close-"));
 await writePacket(packetDir);
 
-const { stdout } = await execFileAsync("node", ["scripts/print-candidate-validation-desk.mjs"], {
+const { stdout } = await execFileAsync("node", [
+  "scripts/close-candidate-validation-day.mjs",
+  "--date", "2026-07-07",
+], {
   env: {
     ...process.env,
     HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
   },
-  timeout: 30_000,
-  maxBuffer: 1024 * 1024,
+  timeout: 60_000,
+  maxBuffer: 1024 * 1024 * 4,
 });
 
-const requiredText = [
-  "Humi 1.1 候选内测执行台",
-  `私有执行包：${packetDir}`,
-  "真实体验：0/10",
-  "完成【今晚】菜单：0/8",
-  "完成清单：0/8",
-  "尝试协作：0/3",
-  "今天先做",
-  "candidate-day-plan.md",
-  "npm run release:candidate:plan",
-  "今天不要做",
-  "outreach-batch.md",
-  "tester-feedback-form.md",
-  "host-run-sheet.md",
-  "candidate-feedback-import.csv",
-  "docs/humi-1.1-candidate-validation-forms.md",
-  "npm run release:candidate:day:close",
-  "npm run release:candidate:record -- --import candidate-feedback-import.csv",
-  "达标后仍需用户动作当下确认",
-];
+const result = JSON.parse(stdout);
+const closeMarkdown = await readFile(join(packetDir, "candidate-day-close-2026-07-07.md"), "utf8");
+const closeJson = await readFile(join(packetDir, "candidate-day-close-2026-07-07.json"), "utf8");
+const daily = await readFile(join(packetDir, "daily-review.csv"), "utf8");
 
-for (const text of requiredText) {
-  assert(stdout.includes(text), `desk output missing: ${text}`);
-}
+assert(result.ok, "day close command did not complete ok");
+assert(result.privacyOk, "day close did not report privacyOk");
+assert(result.dailyReviewOk, "day close did not update daily review");
+assert(result.candidateValidationReady === false, "day close should not fake candidate validation readiness");
+assert(result.dailySummary.newExperienceUsers === 2, "day close did not summarize daily users");
+assert(result.missingToThresholds.experiencedUsers === 8, "day close did not keep threshold gaps");
+assert(daily.includes("2026-07-07,2,2,1,1,0,0,继续候选验证"), "daily-review.csv was not updated with day close");
+assert(closeMarkdown.includes("Humi 1.1 候选内测日收尾"), "close markdown missing title");
+assert(closeMarkdown.includes("候选复盘达标：否"), "close markdown should show validation not ready");
+assert(closeMarkdown.includes("insufficient-validation-sample"), "close markdown should include validation blocker");
+assert(JSON.parse(closeJson).candidateValidationReady === false, "close json should show validation not ready");
 
 console.log(JSON.stringify({
   ok: true,
@@ -48,15 +43,16 @@ console.log(JSON.stringify({
   packetDir,
   cases: [
     {
-      name: "template-packet-desk-output",
+      name: "candidate-day-close-writes-private-report-without-faking-readiness",
       ok: true,
-      requiredText,
+      closeMarkdown: join(packetDir, "candidate-day-close-2026-07-07.md"),
     },
   ],
 }, null, 2));
 
 async function writePacket(dir) {
   await Promise.all([
+    writeFile(join(dir, "README.md"), "# Humi 1.1 候选执行包\n", { mode: 0o600 }),
     writeFile(join(dir, "invite-copy.md"), "# Humi 1.1 候选邀请文案\n\n请体验 5 分钟。\n", { mode: 0o600 }),
     writeFile(join(dir, "outreach-batch.md"), "# U001-U020 批量邀请清单\n\n- U001：请体验 5 分钟。\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-day-plan.md"), "# Humi 1.1 候选内测日计划\n\n- 建议新邀请：U001、U002\n", { mode: 0o600 }),
@@ -68,12 +64,14 @@ async function writePacket(dir) {
     ].join("\n"), { mode: 0o600 }),
     writeFile(join(dir, "anonymous-users.csv"), csv([
       anonymousHeader(),
-      ["U001", "待定", "待填", "待邀请", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
-      ["U002", "待定", "待填", "待邀请", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
+      ["U001", "待定", "iPhone 15 / WeChat 9", "已体验", "2026-07-07", "是", "是", "问问大家", "5", "5", "4", "待观察", "建议", "private://candidate/U001", "清单有用"],
+      ["U002", "待定", "Android / WeChat 9", "已体验", "2026-07-07", "是", "否", "没有", "4", "3", "没试", "待观察", "建议", "private://candidate/U002", "清单入口不明显"],
+      ["U003", "待定", "待填", "待邀请", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
     ]), { mode: 0o600 }),
     writeFile(join(dir, "feedback-template.csv"), csv([
       feedbackHeader(),
-      ["U001", "待填", "待填", "今晚/自己挑/想连排几天/清单/我的家/分享卡片", "是/否", "是/否", "问问大家/邀请家人/买菜认领/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
+      ["U001", "iPhone 15 / WeChat 9", "2026-07-07", "今晚", "是", "是", "问问大家", "5", "5", "4", "没有卡住", "能发现新菜", "private://candidate/U001", "建议", "否", "新反馈"],
+      ["U002", "Android / WeChat 9", "2026-07-07", "清单", "是", "否", "没有", "4", "3", "没试", "清单入口不明显", "需要再看", "private://candidate/U002", "建议", "待观察", "新反馈"],
     ]), { mode: 0o600 }),
     writeFile(join(dir, "daily-review.csv"), csv([
       dailyHeader(),

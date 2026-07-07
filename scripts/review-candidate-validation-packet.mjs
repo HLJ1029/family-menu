@@ -42,9 +42,17 @@ const p0Issues = issueTriage.rows.filter((row) => row["等级"] === "P0" && !isP
 const p1Issues = issueTriage.rows.filter((row) => row["等级"] === "P1" && !isPlaceholder(row["问题"]));
 const blockingIssues = issueTriage.rows.filter((row) => isYes(row["是否阻塞审核"]));
 const dailyRows = dailyReview.rows.filter((row) => !isPlaceholder(row["新体验人数"]) || !isPlaceholder(row["今日结论"]));
+const dailyEvidenceRows = dailyRows.filter((row) => [
+  "新体验人数",
+  "完成今晚菜单",
+  "完成清单",
+  "尝试协作",
+  "P0数",
+  "P1数",
+].some((key) => numericValue(row[key]) > 0));
 
 const blockers = [];
-if (experiencedUsers.length === 0 && feedbackRows.length === 0 && dailyRows.length === 0) {
+if (experiencedUsers.length === 0 && feedbackRows.length === 0 && dailyEvidenceRows.length === 0) {
   blockers.push({
     key: "no-real-validation",
     title: "候选内测执行包尚未填入真实反馈",
@@ -108,6 +116,7 @@ const summary = {
   triedCollaboration: triedCollaboration.length,
   feedbackRows: feedbackRows.length,
   dailyReviewRows: dailyRows.length,
+  dailyEvidenceRows: dailyEvidenceRows.length,
   p0Count: p0Users.length + p0Feedback.length + p0Issues.length,
   p1Count: p1Users.length + p1Feedback.length + p1Issues.length,
 };
@@ -214,6 +223,11 @@ function isPlaceholder(value) {
 
 function isYes(value) {
   return ["是", "已完成", "已体验", "true", "TRUE", "1"].includes(String(value || "").trim());
+}
+
+function numericValue(value) {
+  const number = Number(String(value || "").trim());
+  return Number.isFinite(number) ? number : 0;
 }
 
 function ids(rows) {

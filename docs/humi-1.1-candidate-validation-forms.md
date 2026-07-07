@@ -107,6 +107,7 @@
 用户说了明确卡点或建议，就在 feedback-template.csv 增加一行。
 P0/P1 同步写入 issue-triage.csv，并回到产品修复，不进入审核。
 每天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD。
+每天收工前优先运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，一次完成隐私扫描、daily-review、doctor、candidate review 和私有收尾报告。
 每轮回填后运行 npm run release:candidate:doctor。
 每轮邀请前运行 npm run release:candidate:plan，生成 candidate-day-plan.md，先看今天建议邀请、需要追问和优先协作的 U 编号。
 每轮复盘前运行 npm run release:candidate:privacy:check，确认匿名包没有手机号、邮箱、微信号或真实姓名。
@@ -147,6 +148,7 @@ npm run release:candidate:record -- --import candidate-feedback-import.csv
 
 ```bash
 npm run release:candidate:daily -- --date YYYY-MM-DD
+npm run release:candidate:day:close -- --date YYYY-MM-DD
 ```
 
 通过线：
@@ -170,9 +172,10 @@ npm run release:candidate:plan:selftest
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
+npm run release:candidate:day:close:selftest
 npm run release:candidate:privacy:check
 npm run release:candidate:privacy:selftest
 npm run release:candidate:review
 ```
 
-`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
+`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。

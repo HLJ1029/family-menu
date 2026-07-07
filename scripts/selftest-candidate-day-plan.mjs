@@ -32,6 +32,7 @@ const requiredText = [
   "需要追问：U001、U002",
   "优先跑协作：U003、U004、U005",
   "npm run release:candidate:privacy:check",
+  "npm run release:candidate:day:close",
   "候选复盘达标前不进入微信公众平台审核动作",
 ];
 

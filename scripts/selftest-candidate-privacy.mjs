@@ -22,15 +22,17 @@ await writePacket(dirtyDir, {
   "anonymous-users.csv": "用户编号,备注\nU001,手机号：13800138000\n",
   "feedback-template.csv": "用户编号,用户原话摘要\nU001,微信号：humi_test_001\n",
   "host-run-sheet.md": "真实姓名：张三\n",
+  "candidate-day-close-2026-07-07.md": "联系人：李四\n",
 });
 
 const dirty = await runPrivacy(dirtyDir);
 assert(dirty.exitCode !== 0, "dirty packet should fail privacy scan");
 assert(dirty.data?.ok === false, "dirty packet did not return ok=false");
-assert(dirty.data?.findings?.length === 3, "dirty packet should report three finding locations");
+assert(dirty.data?.findings?.length === 4, "dirty packet should report four finding locations");
 assert(dirty.stdout && !dirty.stdout.includes("13800138000"), "privacy output must not echo phone values");
 assert(dirty.stdout && !dirty.stdout.includes("humi_test_001"), "privacy output must not echo WeChat ID values");
 assert(dirty.stdout && !dirty.stdout.includes("张三"), "privacy output must not echo real names");
+assert(dirty.stdout && !dirty.stdout.includes("李四"), "privacy output must not echo close-report real names");
 
 console.log(JSON.stringify({
   ok: true,

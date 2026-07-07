@@ -184,7 +184,7 @@ function buildMarkdown(data) {
   lines.push("3. 执行人用 `host-run-sheet.md` 记录是否能发现新菜、完成今晚菜单、生成清单和走完协作。");
   lines.push("4. 收到反馈后，用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名汇总。");
   lines.push("5. 每轮回填后运行 `npm run release:candidate:privacy:check` 和 `npm run release:candidate:doctor`。");
-  lines.push("6. 一天结束运行 `npm run release:candidate:daily -- --date YYYY-MM-DD` 写入每日复盘。");
+  lines.push("6. 一天结束优先运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD`，写入每日复盘和私有收尾报告。");
   lines.push("");
   lines.push("## 不要做");
   lines.push("");
@@ -198,6 +198,7 @@ function buildMarkdown(data) {
   lines.push(`npm run release:candidate:record -- --user ${data.plan.recommendedInviteUsers[0] || "U001"} --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"`);
   lines.push("npm run release:candidate:record -- --import candidate-feedback-import.csv");
   lines.push("npm run release:candidate:privacy:check");
+  lines.push(`npm run release:candidate:day:close -- --date ${data.date}`);
   lines.push(`npm run release:candidate:daily -- --date ${data.date}`);
   lines.push("npm run release:candidate:review");
   lines.push("```");

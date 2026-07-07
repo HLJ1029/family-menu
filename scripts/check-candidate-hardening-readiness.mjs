@@ -11,9 +11,10 @@ const files = {
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
+  candidateDayClose: "scripts/close-candidate-validation-day.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDayClose] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -98,6 +99,8 @@ const checks = [
       && packageJson.includes("release:candidate:record:selftest")
       && packageJson.includes("release:candidate:daily")
       && packageJson.includes("release:candidate:daily:selftest")
+      && packageJson.includes("release:candidate:day:close")
+      && packageJson.includes("release:candidate:day:close:selftest")
       && packageJson.includes("release:candidate:privacy:check")
       && packageJson.includes("release:candidate:privacy:selftest")
       && packageJson.includes("release:candidate:review")
@@ -111,6 +114,7 @@ const checks = [
       && nextAction.includes("release:candidate:record")
       && nextAction.includes("release:candidate:record:selftest")
       && nextAction.includes("release:candidate:daily")
+      && nextAction.includes("release:candidate:day:close")
       && nextAction.includes("release:candidate:privacy:check")
       && nextAction.includes("release:candidate:privacy:selftest")
       && nextAction.includes("release:candidate:review")
@@ -124,6 +128,7 @@ const checks = [
       && handoff.includes("release:candidate:record")
       && handoff.includes("release:candidate:record:selftest")
       && handoff.includes("release:candidate:daily")
+      && handoff.includes("release:candidate:day:close")
       && handoff.includes("release:candidate:privacy:check")
       && handoff.includes("release:candidate:privacy:selftest")
       && handoff.includes("release:candidate:review"),
@@ -161,6 +166,7 @@ const checks = [
       "是否能发现新菜并补进今晚",
       "candidate-feedback-import.csv",
       "daily-review.csv",
+      "release:candidate:day:close",
       "npm run release:candidate:plan",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
@@ -181,6 +187,7 @@ const checks = [
       "tester-feedback-form.md",
       "host-run-sheet.md",
       "candidate-feedback-import.csv",
+      "release:candidate:day:close",
       "release:candidate:daily -- --date",
       "docs/humi-1.1-candidate-validation-forms.md",
     ].every((text) => candidateDesk.includes(text)),
@@ -197,6 +204,22 @@ const checks = [
       && nextAction.includes("candidate-day-plan.md")
       && handoff.includes("release:candidate:plan")
       && candidateForms.includes("release:candidate:plan"),
+  },
+  {
+    key: "candidate-day-close",
+    title: "候选每日收尾可生成私有日结报告且不伪造通过",
+    path: `${files.packageJson}, ${files.candidateDayClose}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:day:close")
+      && packageJson.includes("release:candidate:day:close:selftest")
+      && candidateDayClose.includes("candidate-day-close-")
+      && candidateDayClose.includes("candidateValidationReady")
+      && candidateDayClose.includes("does not create fake feedback")
+      && candidateDayClose.includes("scripts/check-candidate-privacy.mjs")
+      && candidateDayClose.includes("scripts/record-candidate-daily-review.mjs")
+      && candidateDayClose.includes("scripts/review-candidate-validation-packet.mjs")
+      && nextAction.includes("release:candidate:day:close")
+      && handoff.includes("release:candidate:day:close")
+      && candidateForms.includes("release:candidate:day:close"),
   },
   {
     key: "candidate-prepare-selftest",
@@ -217,6 +240,7 @@ const checks = [
       && candidatePrivacy.includes("email")
       && candidatePrivacy.includes("wechat-id")
       && candidatePrivacy.includes("real-name")
+      && candidatePrivacy.includes("candidate-day-close-")
       && candidatePrivacy.includes("Do not paste the sensitive values into chat or commits")
       && nextAction.includes("release:candidate:privacy:check")
       && nextAction.includes("只报文件/类型/行号，不回显敏感值")

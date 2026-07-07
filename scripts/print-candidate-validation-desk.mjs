@@ -34,8 +34,8 @@ lines.push("2. 打开 `outreach-batch.md`，只复制今天建议编号的邀请
 lines.push("3. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
 lines.push("4. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
 lines.push("5. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
-lines.push(`6. 今天结束运行 \`npm run release:candidate:daily -- --date ${today}\` 写入每日复盘。`);
-lines.push("7. 每轮回填后运行 `npm run release:candidate:privacy:check` 和 `npm run release:candidate:doctor`。");
+lines.push(`6. 今天结束运行 \`npm run release:candidate:day:close -- --date ${today}\`，一次完成隐私扫描、每日复盘、doctor、candidate review 和私有收尾报告。`);
+lines.push("7. 需要单独补写 daily-review.csv 时，再运行 `npm run release:candidate:daily -- --date YYYY-MM-DD`。");
 lines.push("");
 
 lines.push("今天不要做：");
@@ -60,6 +60,7 @@ lines.push("- npm run release:candidate:plan");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"");
 lines.push("- npm run release:candidate:record -- --import candidate-feedback-import.csv");
+lines.push(`- npm run release:candidate:day:close -- --date ${today}`);
 lines.push(`- npm run release:candidate:daily -- --date ${today}`);
 lines.push("- npm run release:candidate:review");
 lines.push("");

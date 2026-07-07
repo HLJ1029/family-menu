@@ -96,6 +96,7 @@ const checks = [
       "daily-review.csv",
       "npm run release:candidate:plan",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
+      "npm run release:candidate:day:close -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
     ],
   },
@@ -204,6 +205,12 @@ if (!releaseNext.includes("release:candidate:privacy:selftest")) {
     phrase: "missing release:candidate:privacy:selftest in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:day:close")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:day:close in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("docs/humi-1.1-candidate-validation-forms.md")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
@@ -240,6 +247,12 @@ if (!releaseStatus.includes("candidatePlanSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidatePlanSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateDayCloseSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateDayCloseSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidatePrivacyReady")) {

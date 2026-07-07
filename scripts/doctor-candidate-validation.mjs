@@ -128,7 +128,8 @@ function buildHumanActions(result) {
       "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段。",
       "把具体卡点、用户原话摘要和私有截图位置填到 feedback-template.csv。",
       "也可以用 npm run release:candidate:record -- ... 回填单个用户，少手改 CSV。",
-      "每天运行 npm run release:candidate:daily -- --date YYYY-MM-DD，把新增人数、P0/P1 数和当天结论写入 daily-review.csv。",
+      "每天收工前运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，把新增人数、P0/P1、当天结论、隐私扫描和候选复盘写入私有收尾报告。",
+      "只需要单独补 daily-review.csv 时，再运行 npm run release:candidate:daily -- --date YYYY-MM-DD。",
       "真实姓名、微信号、手机号、截图和录屏继续放仓库外，不写进 Git。",
     ];
   }
