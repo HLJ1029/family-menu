@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -20,6 +20,7 @@ const { stdout } = await execFileAsync("npm", [
   env: {
     ...process.env,
     HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
+    HUMI_PRIVATE_EVIDENCE_DIR: packetDir,
     HUMI_CANDIDATE_WORKBENCH_NO_OPEN: "1",
   },
   timeout: 30_000,
@@ -32,6 +33,7 @@ const mode = (await stat(result.workbenchPath)).mode & 0o777;
 
 assert(result.ok === true, "workbench did not return ok=true");
 assert(result.workbenchPath === join(packetDir, "candidate-dispatch-workbench-2026-07-07.html"), "workbench path should be inside packet");
+assert(result.shareEvidenceDir === join(packetDir, "miniprogram-share-card-preview-20260707T000000"), "workbench should expose latest share evidence dir");
 assert(result.users.length === 2, "workbench should parse two users");
 assert(result.users[0].id === "U001", "workbench should parse U001");
 assert(result.users[0].entryLabel === "问问大家小程序卡片", "workbench should preserve U001 entry label");
@@ -49,10 +51,13 @@ assert(html.includes("问问大家小程序卡片 / 优先跑协作 / 已邀请"
 assert(html.includes("今晚发现新菜 / 普通路径 / 待邀请"), "workbench should show pending status in summary");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
 assert(html.includes("小程序卡片发送确认"), "workbench should expose mini program share card send guidance");
+assert(html.includes("小程序卡片证据目录"), "workbench should expose mini program share evidence directory");
 assert(html.includes("pages/share/index?type=crave&amp;token=&lt;真实征集token&gt;&amp;householdName=&lt;家庭名&gt;"), "workbench should show crave share confirmation path template");
 assert(html.includes("/pages/index/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");
 assert(html.includes("npm run release:wechat:share:direct-previews"), "workbench should expose DevTools direct-preview command");
 assert(html.includes("direct-preview/crave-preview-qr.png"), "workbench should show crave direct-preview QR file");
+assert(html.includes("复制直达二维码路径"), "workbench should expose copy buttons for direct-preview QR paths");
+assert(html.includes(`${packetDir}/miniprogram-share-card-preview-20260707T000000/direct-preview/crave-preview-qr.png`), "workbench should show absolute crave direct-preview QR path");
 assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
 assert(html.includes("复制待发送标记命令"), "workbench should expose pending-only batch command when some users were already invited");
 assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");
@@ -86,6 +91,7 @@ console.log(JSON.stringify({
 }, null, 2));
 
 async function writePacket(dir) {
+  await mkdir(join(dir, "miniprogram-share-card-preview-20260707T000000", "direct-preview"), { recursive: true, mode: 0o700 });
   await Promise.all([
     writeFile(join(dir, "anonymous-users.csv"), [
       "用户编号,家庭类型,设备/微信版本,邀请状态,首次体验日期,完成今晚菜单,完成清单,尝试协作,推荐评分,清单评分,分享评分,复访状态,当前等级,私有证据位置,备注",

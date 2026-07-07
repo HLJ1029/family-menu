@@ -19,6 +19,7 @@ const noOpen = Boolean(args.noOpen) || process.env.HUMI_CANDIDATE_WORKBENCH_NO_O
 const markdownPath = join(packetDir, `candidate-dispatch-${date}.md`);
 const jsonPath = join(packetDir, `candidate-dispatch-${date}.json`);
 const workbenchPath = join(packetDir, `candidate-dispatch-workbench-${date}.html`);
+const shareEvidenceDir = await findLatestShareEvidenceDir();
 
 await ensureDispatchExists();
 
@@ -34,7 +35,7 @@ const users = parseDispatchUsers(markdown).map((user) => ({
   inviteStatus: inviteStatuses.get(user.id) || "待确认",
 })).map((user) => ({
   ...user,
-  shareCardGuide: buildShareCardGuide(user),
+  shareCardGuide: buildShareCardGuide(user, shareEvidenceDir),
 }));
 const pendingUsers = users.filter((user) => !isAlreadySent(user.inviteStatus));
 const batchInviteCommand = pendingUsers.length === 0
@@ -48,6 +49,7 @@ const html = buildWorkbenchHtml({
   checkedAt: new Date().toISOString(),
   markdownPath,
   jsonPath,
+  shareEvidenceDir,
   users,
   pendingUsers,
   batchInviteCommand,
@@ -66,6 +68,7 @@ const result = {
   workbenchPath,
   sourceMarkdown: markdownPath,
   sourceJson: jsonPath,
+  shareEvidenceDir,
   users: users.map((user) => ({
     id: user.id,
     entryLabel: user.entryLabel,
@@ -173,6 +176,20 @@ async function findLatestPacketDir() {
   return join(privateBaseDir, latest);
 }
 
+async function findLatestShareEvidenceDir() {
+  try {
+    const entries = await readdir(privateBaseDir, { withFileTypes: true });
+    const latest = entries
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith("miniprogram-share-card-preview-"))
+      .map((entry) => entry.name)
+      .sort()
+      .at(-1);
+    return latest ? join(privateBaseDir, latest) : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseDispatchUsers(markdown) {
   const users = [];
   const sectionPattern = /^### (U\d{3})([^\n]*)\n([\s\S]*?)(?=^### U\d{3}|\n## 体验者反馈单摘要|\n## 主厨记录单摘要|\n## 收尾命令|\n## 隐私和审核护栏|(?![\s\S]))/gm;
@@ -195,7 +212,7 @@ function parseDispatchUsers(markdown) {
   return users;
 }
 
-function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath, users, pendingUsers, batchInviteCommand }) {
+function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath, shareEvidenceDir, users, pendingUsers, batchInviteCommand }) {
   const alreadySentCount = users.length - pendingUsers.length;
   return `<!doctype html>
 <html lang="zh-CN">
@@ -390,6 +407,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       <div>私有执行包：<code>${escapeHtml(packetDir)}</code></div>
       <div>来源分发单：<code>${escapeHtml(markdownPath)}</code></div>
       <div>来源 JSON：<code>${escapeHtml(jsonPath)}</code></div>
+      <div>小程序卡片证据目录：<code>${escapeHtml(shareEvidenceDir || "未找到；需要连调时先运行 npm run release:wechat:share:prepare")}</code></div>
       <div>发送状态：<strong>${escapeHtml(String(alreadySentCount))}</strong> 已发送/已体验，<strong>${escapeHtml(String(pendingUsers.length))}</strong> 待发送</div>
     </section>
     <section class="command-bar" aria-label="批次命令">
@@ -499,12 +517,13 @@ function renderShareCardGuide(guide) {
     <div class="copy-head">
       <h3>小程序卡片发送确认</h3>
       <button class="secondary" data-copy="${escapeAttribute(guide.devtoolsCommand)}">复制 DevTools 连调命令</button>
+      <button class="secondary" data-copy="${escapeAttribute(guide.directPreviewPath)}">复制直达二维码路径</button>
     </div>
     <ul class="guide-list">
       <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生确认页后点「发送给家人」。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
       <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
-      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewFile)}</code> 后再点「发送给家人」。</li>
+      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewPath)}</code> 后再点「发送给家人」。</li>
       <li>卡片真实发出后，才运行本 U 的已发送登记命令；工作台不会替你发送或标记。</li>
     </ul>
   </div>`;
@@ -522,7 +541,7 @@ function buildDispatchUsersById(dispatchJson) {
   }).filter(([id]) => /^U\d{3}$/.test(id)));
 }
 
-function buildShareCardGuide(user) {
+function buildShareCardGuide(user, shareEvidenceDir) {
   const key = user.entryTaskKey || inferEntryTaskKey(user.entryLabel);
   const guides = {
     "crave-card": {
@@ -549,6 +568,7 @@ function buildShareCardGuide(user) {
   return {
     ...guide,
     devtoolsCommand: "npm run release:wechat:share:direct-previews",
+    directPreviewPath: shareEvidenceDir ? join(shareEvidenceDir, guide.directPreviewFile) : guide.directPreviewFile,
   };
 }
 
