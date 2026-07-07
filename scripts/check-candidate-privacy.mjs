@@ -28,6 +28,7 @@ const files = [
   "outreach-batch.md",
   "tester-feedback-form.md",
   "host-run-sheet.md",
+  "candidate-forms-preview.html",
   "candidate-day-plan.md",
   "candidate-review.md",
   "candidate-review.json",

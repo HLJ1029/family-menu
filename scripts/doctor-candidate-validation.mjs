@@ -209,6 +209,7 @@ function candidateFiles(result) {
     dispatch ? ["今日分发 JSON", `candidate-dispatch-${today}.json`] : null,
     ["邀请文案", "invite-copy.md"],
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
+    ["单据设计预览", "candidate-forms-preview.html"],
     ["体验者反馈单", "tester-feedback-form.md"],
     ["主厨记录单", "host-run-sheet.md"],
     ["批量反馈导入模板", "candidate-feedback-import.csv"],

@@ -240,6 +240,8 @@ const checks = [
         "U001: 问问大家小程序卡片（优先跑协作）",
         "真实发送后再运行",
         "不要把“已邀请”当成“已体验”",
+        "单据设计预览",
+        "candidate-forms-preview.html",
       ].every((text) => candidateDoctorSelftest.includes(text)),
   },
   {
@@ -255,6 +257,7 @@ const checks = [
       "今日分发单已生成",
       "release:candidate:plan",
       "outreach-batch.md",
+      "candidate-forms-preview.html",
       "tester-feedback-form.md",
       "host-run-sheet.md",
       "candidate-feedback-import.csv",
@@ -267,6 +270,7 @@ const checks = [
         "candidate-dispatch-2026-07-07.md",
         "U001: 问问大家小程序卡片（优先跑协作）",
         "打开 `candidate-dispatch-2026-07-07.md`",
+        "candidate-forms-preview.html",
       ].every((text) => candidateDeskSelftest.includes(text)),
   },
   {
@@ -405,6 +409,7 @@ const checks = [
       && candidatePrivacy.includes("real-name")
       && candidatePrivacy.includes("candidate-day-close-")
       && candidatePrivacy.includes("candidate-dispatch-")
+      && candidatePrivacy.includes("candidate-forms-preview.html")
       && candidatePrivacy.includes("Do not paste the sensitive values into chat or commits")
       && nextAction.includes("release:candidate:privacy:check")
       && nextAction.includes("只报文件/类型/行号，不回显敏感值")

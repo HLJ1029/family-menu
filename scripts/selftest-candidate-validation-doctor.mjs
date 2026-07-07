@@ -21,6 +21,8 @@ const requiredText = [
   `真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`,
   "先发今天分发单里的 U 编号",
   "不要把“已邀请”当成“已体验”",
+  "单据设计预览",
+  "candidate-forms-preview.html",
   "体验者反馈单",
   "主厨记录单",
   "单个用户回填",
@@ -94,6 +96,7 @@ async function writePacket(dir) {
   await Promise.all([
     writeFile(join(dir, "invite-copy.md"), "# Humi 1.1 候选邀请文案\n\n请体验 5 分钟。\n", { mode: 0o600 }),
     writeFile(join(dir, "outreach-batch.md"), "# U001-U020 批量邀请清单\n\n- U001：请体验 5 分钟。\n", { mode: 0o600 }),
+    writeFile(join(dir, "candidate-forms-preview.html"), "<!doctype html><title>Humi 1.1 候选内测单据预览</title><main>体验者反馈单 / 主厨记录单</main>\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-day-plan.md"), "# Humi 1.1 候选内测日计划\n\n- 建议新邀请：U001、U002\n", { mode: 0o600 }),
     writeFile(join(dir, `candidate-dispatch-${today}.md`), "# Humi 1.1 候选内测今日分发单\n\n- U001：问问大家小程序卡片\n- U002：邀请家人小程序卡片\n", { mode: 0o600 }),
     writeFile(join(dir, `candidate-dispatch-${today}.json`), JSON.stringify({
