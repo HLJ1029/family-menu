@@ -123,6 +123,7 @@ const checks = [
       "U001-U020 批量邀请清单",
       "release:candidate:record",
       "--import candidate-feedback-import.csv",
+      "release:candidate:desk:selftest",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",
