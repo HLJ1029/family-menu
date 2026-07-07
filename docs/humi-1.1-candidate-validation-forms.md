@@ -3,7 +3,7 @@
 更新日期：2026-07-07
 执行设备：codex@mbp-m5pro
 
-本文档是候选内测单据和设计验收锚点。私有执行包里的 `tester-feedback-form.md`、`host-run-sheet.md`、`candidate-feedback-import.csv` 和 `daily-review.csv` 都应与这里保持一致；真实姓名、手机号、微信号、截图和录屏仍只放在仓库外。
+本文档是候选内测单据和设计验收锚点。私有执行包里的 `tester-feedback-form.md`、`host-run-sheet.md`、`candidate-forms-preview.html`、`candidate-feedback-import.csv` 和 `daily-review.csv` 都应与这里保持一致；真实姓名、手机号、微信号、截图和录屏仍只放在仓库外。
 
 ## 1. 单据设计原则
 
@@ -11,6 +11,7 @@
 - 执行人单独使用主厨记录单，把体验者原话转成匿名字段和问题分级。
 - 所有可进仓库的字段只使用 `U001-U020` 匿名编号。
 - 单据文案保持 Humi 的家庭饭桌语气：具体、短句、围绕今晚吃什么、买什么、谁来买。
+- 私有包必须生成 `candidate-forms-preview.html`，用于在发送真实内测前确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的可读性。
 - 评分统一为 1-5 分；推荐、清单或分享没走到时允许填“没试”，避免逼用户乱评。
 - 全部核心路径未完成且评分都是“没试”的记录只作为卡点反馈，不计入真实体验样本。
 - 每天结束必须有 `daily-review.csv` 汇总，结论只写今天是否继续内测、是否修复、是否进入 1.1.x。
@@ -175,6 +176,8 @@ npm run release:candidate:day:close -- --date YYYY-MM-DD
 npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:prepare:selftest
+npm run release:candidate:forms:preview
+npm run release:candidate:forms:preview:selftest
 npm run release:candidate:doctor
 npm run release:candidate:plan
 npm run release:candidate:plan:selftest
@@ -189,6 +192,6 @@ npm run release:candidate:privacy:selftest
 npm run release:candidate:review
 ```
 
-`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:invite` 会从当天分发单读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈；非 dry-run 写入必须带 `--sent-confirmed`，确认消息或小程序卡片已经真实发出。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
+`release:candidate:forms:preview` 会在私有候选包写入并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的版式；该文件不提交仓库。`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:invite` 会从当天分发单读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈；非 dry-run 写入必须带 `--sent-confirmed`，确认消息或小程序卡片已经真实发出。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
 
 `release:candidate:desk` 会优先识别当天 `candidate-dispatch-YYYY-MM-DD.md/json`，把 U001-U006 这类当天要发的编号和入口任务直接打印出来；如果当天分发单还没生成，执行台会提示先运行 `release:candidate:dispatch -- --date YYYY-MM-DD`，避免执行人回到全量 `outreach-batch.md` 里手工找文案。

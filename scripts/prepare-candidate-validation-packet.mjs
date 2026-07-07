@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { buildCandidateFormsPreviewHtml, CANDIDATE_FORMS_PREVIEW_FILE } from "./lib/candidate-forms-preview.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -20,17 +21,30 @@ const [gitState, candidate, status] = await Promise.all([
 
 await mkdir(packetDir, { recursive: true, mode: 0o700 });
 
+const testerFeedbackForm = buildTesterFeedbackForm();
+const hostRunSheet = buildHostRunSheet();
+const candidateFeedbackImportCsv = buildCandidateFeedbackImportCsv();
+const dailyReviewCsv = buildDailyReviewCsv();
+
 const files = [
   ["README.md", buildReadme({ git: gitState, candidate, status })],
   ["anonymous-users.csv", buildAnonymousUsersCsv()],
   ["feedback-template.csv", buildFeedbackTemplateCsv()],
-  ["candidate-feedback-import.csv", buildCandidateFeedbackImportCsv()],
-  ["daily-review.csv", buildDailyReviewCsv()],
+  ["candidate-feedback-import.csv", candidateFeedbackImportCsv],
+  ["daily-review.csv", dailyReviewCsv],
   ["issue-triage.csv", buildIssueTriageCsv()],
   ["invite-copy.md", buildInviteCopy()],
   ["outreach-batch.md", buildOutreachBatch()],
-  ["tester-feedback-form.md", buildTesterFeedbackForm()],
-  ["host-run-sheet.md", buildHostRunSheet()],
+  ["tester-feedback-form.md", testerFeedbackForm],
+  ["host-run-sheet.md", hostRunSheet],
+  [CANDIDATE_FORMS_PREVIEW_FILE, buildCandidateFormsPreviewHtml({
+    generatedAt: new Date().toISOString(),
+    packetDir,
+    testerFeedbackForm,
+    hostRunSheet,
+    importHeader: firstLine(candidateFeedbackImportCsv),
+    dailyReviewHeader: firstLine(dailyReviewCsv),
+  })],
 ];
 
 for (const [file, content] of files) {
@@ -40,6 +54,7 @@ for (const [file, content] of files) {
 if (shouldOpen) {
   await openPath(packetDir);
   await openPath(join(packetDir, "README.md"));
+  await openPath(join(packetDir, CANDIDATE_FORMS_PREVIEW_FILE));
 }
 
 const result = {
@@ -62,6 +77,7 @@ const result = {
     "Fill anonymous-users.csv with U001-U020 only; keep real contacts in private chat/docs.",
     "Use outreach-batch.md to copy one anonymous U001-U020 message per tester.",
     "Use tester-feedback-form.md for user-facing feedback and host-run-sheet.md for operator notes.",
+    "Open candidate-forms-preview.html to confirm the tester form and host run sheet layout before sending.",
     "Use npm run release:candidate:plan to generate candidate-day-plan.md before inviting each batch.",
     "Use npm run release:candidate:dispatch -- --date YYYY-MM-DD to generate today's send list and placeholder record templates.",
     "After sending, use npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed to mark anonymous U ids as 已邀请.",
@@ -148,6 +164,7 @@ function buildReadme({ git, candidate, status }) {
     "- `outreach-batch.md`：U001-U020 可复制发送的匿名邀请消息。",
     "- `tester-feedback-form.md`：体验者可直接照着回答的反馈单。",
     "- `host-run-sheet.md`：主厨/执行人记录每次体验、卡点和回填字段的单据。",
+    "- `candidate-forms-preview.html`：体验者反馈单、主厨记录单、导入字段和每日复盘规则的可视化预览。",
     "- `candidate-day-plan.md`：运行 `npm run release:candidate:plan` 后生成的当日邀请编号、追问编号和路径重点。",
     "- `candidate-dispatch-YYYY-MM-DD.md/json`：运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 后生成的当日发送对象、邀请文案和回填模板。",
     "- `npm run release:candidate:record -- ...`：把单个用户结果安全回填到本私有包。",
@@ -156,25 +173,27 @@ function buildReadme({ git, candidate, status }) {
     "- `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`：发送当天分发单后，把对应匿名 U 编号标为已邀请；不记录真实联系人；未带确认参数时不会写入。",
     "- `npm run release:candidate:desk`：打印今天要打开的私有包文件、回填命令和不要做的事。",
     "- `npm run release:candidate:desk:selftest`：用临时私有包确认执行台可读包、可打印今日动作和隐私/审核护栏。",
+    "- `npm run release:candidate:forms:preview`：重新生成并打开 `candidate-forms-preview.html`，用于确认单据设计。",
     "- 仓库内模板锚点：`docs/humi-1.1-candidate-validation-forms.md`。",
     "",
     "## 执行顺序",
     "",
     "1. 从 `anonymous-users.csv` 里选 10-20 个匿名编号。",
-    "2. 用 `outreach-batch.md` 手动复制发送 U001-U020 邀请，不在仓库记录真实联系方式。",
-    "3. 运行 `npm run release:candidate:plan` 生成 `candidate-day-plan.md`，先看今天该邀哪些编号、哪些人优先跑协作。",
-    "4. 运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 生成今日分发单；只复制当天 U 编号对应的邀请文案。",
-    "5. 发送后运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`，把当天 U 编号标为已邀请。",
-    "6. 运行 `npm run release:candidate:desk`，确认今天要打开的私有文件和可复制命令。",
-    "7. 运行 `npm run release:candidate:desk:selftest`，确认执行台工具本身仍可读取临时私有包。",
-    "8. 发 `tester-feedback-form.md` 的问题给体验者；执行人自己用 `host-run-sheet.md` 记录现场观察。",
-    "9. 每个用户至少跑一次【今晚】推荐、今晚菜单、清单，尽量再跑一次问问大家/邀请家人/买菜认领。",
-    "10. 把单个用户结果汇总到 `feedback-template.csv`，并在每天结束时用 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 自动写 `daily-review.csv` 和私有收尾报告。",
+    "2. 打开 `candidate-forms-preview.html`，确认体验者反馈单和主厨记录单可读后，再发给真实体验者。",
+    "3. 用 `outreach-batch.md` 手动复制发送 U001-U020 邀请，不在仓库记录真实联系方式。",
+    "4. 运行 `npm run release:candidate:plan` 生成 `candidate-day-plan.md`，先看今天该邀哪些编号、哪些人优先跑协作。",
+    "5. 运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 生成今日分发单；只复制当天 U 编号对应的邀请文案。",
+    "6. 发送后运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`，把当天 U 编号标为已邀请。",
+    "7. 运行 `npm run release:candidate:desk`，确认今天要打开的私有文件和可复制命令。",
+    "8. 运行 `npm run release:candidate:desk:selftest`，确认执行台工具本身仍可读取临时私有包。",
+    "9. 发 `tester-feedback-form.md` 的问题给体验者；执行人自己用 `host-run-sheet.md` 记录现场观察。",
+    "10. 每个用户至少跑一次【今晚】推荐、今晚菜单、清单，尽量再跑一次问问大家/邀请家人/买菜认领。",
+    "11. 把单个用户结果汇总到 `feedback-template.csv`，并在每天结束时用 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 自动写 `daily-review.csv` 和私有收尾报告。",
     "   分发单里的 `release:candidate:record` 是模板，必须把 `yes|no`、`1-5|没试`、问题等级和真实匿名摘要替换后再运行，不能原样运行。",
     "   多位用户一起回填时，先填 `candidate-feedback-import.csv`，再运行 `npm run release:candidate:record -- --import candidate-feedback-import.csv`。",
-    "11. 任一 P0 或多个用户同一核心链路卡住，先暂停审核准备，进入修复。",
-    "12. 每轮回填后运行 `npm run release:candidate:doctor` 看还差哪些样本。",
-    "13. 内测无 P0/P1 且 `npm run release:candidate:review` 通过后，再由用户明确确认是否进入微信审核。",
+    "12. 任一 P0 或多个用户同一核心链路卡住，先暂停审核准备，进入修复。",
+    "13. 每轮回填后运行 `npm run release:candidate:doctor` 看还差哪些样本。",
+    "14. 内测无 P0/P1 且 `npm run release:candidate:review` 通过后，再由用户明确确认是否进入微信审核。",
     "",
     "## 候选复盘最低通过标准",
     "",
@@ -390,6 +409,10 @@ function buildHostRunSheet() {
 
 function toCsv(rows) {
   return `${rows.map((row) => row.map(csvCell).join(",")).join("\n")}\n`;
+}
+
+function firstLine(value) {
+  return String(value || "").split(/\r?\n/).find(Boolean) || "";
 }
 
 function csvCell(value) {

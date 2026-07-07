@@ -7,6 +7,8 @@ const files = {
   nextAction: "scripts/print-release-next-action.mjs",
   packageJson: "package.json",
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
+  candidateFormsPreview: "scripts/print-candidate-forms-preview.mjs",
+  candidateFormsPreviewSelftest: "scripts/selftest-candidate-forms-preview.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDoctor: "scripts/doctor-candidate-validation.mjs",
   candidateDoctorSelftest: "scripts/selftest-candidate-validation-doctor.mjs",
@@ -21,7 +23,7 @@ const files = {
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -97,6 +99,8 @@ const checks = [
     path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare")
       && packageJson.includes("release:candidate:prepare:selftest")
+      && packageJson.includes("release:candidate:forms:preview")
+      && packageJson.includes("release:candidate:forms:preview:selftest")
       && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:doctor:selftest")
       && packageJson.includes("release:candidate:plan")
@@ -118,6 +122,7 @@ const checks = [
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:prepare:selftest")
+      && nextAction.includes("release:candidate:forms:preview")
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:plan")
       && nextAction.includes("release:candidate:dispatch")
@@ -134,6 +139,7 @@ const checks = [
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:prepare:selftest")
+      && handoff.includes("release:candidate:forms:preview")
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:plan")
       && handoff.includes("release:candidate:dispatch")
@@ -156,6 +162,7 @@ const checks = [
     ok: [
       "tester-feedback-form.md",
       "host-run-sheet.md",
+      "candidate-forms-preview.html",
       "candidate-feedback-import.csv",
       "outreach-batch.md",
       "candidate-day-plan.md",
@@ -164,6 +171,7 @@ const checks = [
       "release:candidate:record",
       "--import candidate-feedback-import.csv",
       "release:candidate:desk:selftest",
+      "release:candidate:forms:preview",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",
@@ -176,6 +184,7 @@ const checks = [
     ok: [
       "Humi 1.1 候选内测单据模板",
       "单据设计原则",
+      "candidate-forms-preview.html",
       "不计入真实体验样本",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
@@ -193,6 +202,24 @@ const checks = [
       "npm run release:candidate:privacy:check",
       "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
     ].every((text) => candidateForms.includes(text)),
+  },
+  {
+    key: "candidate-form-preview",
+    title: "候选单据可生成 HTML 设计预览",
+    path: `${files.packageJson}, ${files.prepareScript}, ${files.candidateFormsPreview}, ${files.candidateFormsPreviewSelftest}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:forms:preview")
+      && packageJson.includes("release:candidate:forms:preview:selftest")
+      && prepareScript.includes("candidate-forms-preview.html")
+      && prepareScript.includes("buildCandidateFormsPreviewHtml")
+      && candidateFormsPreview.includes("candidate-forms-preview.html")
+      && candidateFormsPreview.includes("tester-feedback-form.md")
+      && candidateFormsPreview.includes("host-run-sheet.md")
+      && candidateFormsPreview.includes("candidate-feedback-import.csv")
+      && candidateFormsPreview.includes("daily-review.csv")
+      && candidateFormsPreviewSelftest.includes("data-preview-kind=\"humi-candidate-forms\"")
+      && candidateFormsPreviewSelftest.includes("批量导入字段")
+      && candidateFormsPreviewSelftest.includes("每日复盘字段")
+      && candidateForms.includes("candidate-forms-preview.html"),
   },
   {
     key: "candidate-doctor-dispatch-focus",
@@ -356,6 +383,8 @@ const checks = [
       && nextAction.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:prepare:selftest")
       && prepareScript.includes("release:candidate:desk:selftest")
+      && prepareScript.includes("release:candidate:forms:preview")
+      && prepareScript.includes("candidate-forms-preview.html")
       && prepareScript.includes("release:candidate:dispatch -- --date YYYY-MM-DD")
       && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed")
       && prepareScript.includes("candidate-dispatch-YYYY-MM-DD.md/json")

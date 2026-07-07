@@ -36,6 +36,7 @@ const requiredFiles = [
   "outreach-batch.md",
   "tester-feedback-form.md",
   "host-run-sheet.md",
+  "candidate-forms-preview.html",
 ];
 
 assert(result.files?.length === requiredFiles.length, "candidate prepare did not report the expected file count");
@@ -49,6 +50,8 @@ for (const file of requiredFiles) {
 }
 
 assert(contents["README.md"].includes("release:candidate:desk:selftest"), "README does not mention release:candidate:desk:selftest");
+assert(contents["README.md"].includes("candidate-forms-preview.html"), "README does not mention candidate-forms-preview.html");
+assert(contents["README.md"].includes("release:candidate:forms:preview"), "README does not mention release:candidate:forms:preview");
 assert(contents["README.md"].includes("release:candidate:plan"), "README does not mention release:candidate:plan");
 assert(contents["README.md"].includes("candidate-day-plan.md"), "README does not mention candidate-day-plan.md");
 assert(contents["README.md"].includes("release:candidate:dispatch -- --date YYYY-MM-DD"), "README does not mention release:candidate:dispatch");
@@ -67,6 +70,11 @@ assert(contents["outreach-batch.md"].includes("## U020"), "outreach-batch.md is 
 assert(contents["candidate-feedback-import.csv"].trim() === "user,date,device,entry,tonight,grocery,collaboration,recommendation,grocery-score,share-score,stuck,note,severity,evidence,revisit", "candidate-feedback-import.csv should only contain the import header");
 assert(contents["tester-feedback-form.md"].includes("Humi 1.1 体验者反馈单"), "tester feedback form title is missing");
 assert(contents["host-run-sheet.md"].includes("Humi 1.1 主厨记录单"), "host run sheet title is missing");
+assert(contents["candidate-forms-preview.html"].includes('data-preview-kind="humi-candidate-forms"'), "forms preview marker is missing");
+assert(contents["candidate-forms-preview.html"].includes("体验者反馈单"), "forms preview is missing tester form content");
+assert(contents["candidate-forms-preview.html"].includes("主厨记录单"), "forms preview is missing host sheet content");
+assert(contents["candidate-forms-preview.html"].includes("批量导入字段"), "forms preview is missing import fields");
+assert(!contents["candidate-forms-preview.html"].includes("<script"), "forms preview should not include script tags");
 assert(contents["daily-review.csv"].includes("Day 3"), "daily-review.csv does not include Day 1-Day 3 placeholders");
 
 const review = await runReview(result.packetDir);

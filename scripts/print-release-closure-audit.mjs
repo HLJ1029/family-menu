@@ -47,6 +47,7 @@ const report = {
     candidateHardeningReady: Boolean(release.candidateHardeningReady),
     candidateValidationReady: Boolean(release.candidateValidationReady),
     candidatePrepareSelftestReady: Boolean(release.candidatePrepareSelftestReady),
+    candidateFormsPreviewSelftestReady: Boolean(release.candidateFormsPreviewSelftestReady),
     candidatePlanSelftestReady: Boolean(release.candidatePlanSelftestReady),
     candidateDispatchSelftestReady: Boolean(release.candidateDispatchSelftestReady),
     candidateInviteSelftestReady: Boolean(release.candidateInviteSelftestReady),
@@ -137,6 +138,8 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
+        "npm run release:candidate:forms:preview",
+        "npm run release:candidate:forms:preview:selftest",
         "npm run release:candidate:plan",
         "npm run release:candidate:plan:selftest",
         "npm run release:candidate:dispatch",
@@ -174,6 +177,8 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
+        "npm run release:candidate:forms:preview",
+        "npm run release:candidate:forms:preview:selftest",
         "npm run release:candidate:plan",
         "npm run release:candidate:plan:selftest",
         "npm run release:candidate:dispatch",
@@ -211,6 +216,8 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
         "npm run release:candidate:prepare:selftest",
+        "npm run release:candidate:forms:preview",
+        "npm run release:candidate:forms:preview:selftest",
         "npm run release:candidate:plan",
         "npm run release:candidate:plan:selftest",
         "npm run release:candidate:dispatch",
@@ -358,6 +365,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "candidate-prepare-selftest",
       title: "候选内测执行包生成自测未通过",
       details: ["Run npm run release:candidate:prepare:selftest for details."],
+    });
+  }
+  if (!release.candidateFormsPreviewSelftestReady) {
+    blockers.push({
+      key: "candidate-forms-preview-selftest",
+      title: "候选单据设计预览自测未通过",
+      details: ["Run npm run release:candidate:forms:preview:selftest for details."],
     });
   }
   if (!release.candidatePlanSelftestReady) {

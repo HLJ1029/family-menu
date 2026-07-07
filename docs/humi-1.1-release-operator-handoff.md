@@ -35,6 +35,8 @@ npm run release:candidate:check
 cat docs/humi-1.1-candidate-validation-forms.md
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:prepare:selftest
+npm run release:candidate:forms:preview
+npm run release:candidate:forms:preview:selftest
 npm run release:candidate:plan
 npm run release:candidate:plan:selftest
 npm run release:candidate:dispatch
@@ -59,9 +61,11 @@ npm run release:candidate:review:selftest
 - `npm run release:status` 里 `release.preReviewHardeningReady: true`。
 - `npm run release:product:review` 通过，确认发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏仍有源码/文档/证据锚点。
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
-- `docs/humi-1.1-candidate-validation-forms.md` 已固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则，避免候选内测只存在私有包里、执行人不知道该给用户看哪张单。
-- `npm run release:candidate:prepare` 可生成私有内测执行包，包含 U001-U020 匿名名单、反馈表、批量导入模板 `candidate-feedback-import.csv`、每日复盘、问题分级表、邀请文案、U001-U020 批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md` 和主厨记录单 `host-run-sheet.md`；真实用户信息仍不得进仓库。
+- `docs/humi-1.1-candidate-validation-forms.md` 已固化体验者反馈单、主厨记录单、单据预览、批量导入字段、每日复盘表和单据设计规则，避免候选内测只存在私有包里、执行人不知道该给用户看哪张单。
+- `npm run release:candidate:prepare` 可生成私有内测执行包，包含 U001-U020 匿名名单、反馈表、批量导入模板 `candidate-feedback-import.csv`、每日复盘、问题分级表、邀请文案、U001-U020 批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md`、主厨记录单 `host-run-sheet.md` 和单据设计预览 `candidate-forms-preview.html`；真实用户信息仍不得进仓库。
 - `npm run release:candidate:prepare:selftest` 可用临时私有目录验证候选执行包文件、权限、README 步骤、U001-U020 和空模板复盘状态。
+- `npm run release:candidate:forms:preview` 可在最新私有包重新生成并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。
+- `npm run release:candidate:forms:preview:selftest` 可用临时私有包验证 HTML 预览可生成、权限为 600 且包含核心单据板块。
 - `npm run release:candidate:plan` 可在私有执行包生成 `candidate-day-plan.md`，按当前缺口列出今天建议邀请、需要追问、必跑【今晚】/清单和优先协作的 U 编号。
 - `npm run release:candidate:plan:selftest` 可用临时私有执行包验证日计划能选出追问用户、下一批邀请用户和协作目标。
 - `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 可在私有执行包生成 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽当天计划里的 U 编号、对应邀请文案、反馈单摘要和回填命令模板，减少从 U001-U020 全量清单里手工筛选；模板必须替换成真实匿名反馈后再运行，不能原样运行。
@@ -141,6 +145,8 @@ Owner：用户，Codex 提供材料。
 ```bash
 npm run release:candidate:doctor
 npm run release:candidate:prepare:selftest
+npm run release:candidate:forms:preview
+npm run release:candidate:forms:preview:selftest
 npm run release:candidate:plan
 npm run release:candidate:plan:selftest
 npm run release:candidate:dispatch
@@ -157,7 +163,7 @@ npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；发送后运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；收到单个体验者反馈后，先替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:forms:preview` 先打开私有包里的单据设计预览，确认体验者反馈单和主厨记录单可读；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；发送后运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；收到单个体验者反馈后，先替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
@@ -248,6 +254,8 @@ npm run release:closure
 npm run release:candidate:check
 npm run release:candidate:desk
 npm run release:candidate:prepare:selftest
+npm run release:candidate:forms:preview
+npm run release:candidate:forms:preview:selftest
 npm run release:candidate:doctor
 npm run release:candidate:plan
 npm run release:candidate:plan:selftest
