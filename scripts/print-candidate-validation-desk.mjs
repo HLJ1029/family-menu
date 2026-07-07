@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -9,6 +9,7 @@ const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), 
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || await findLatestPacketDir();
 const today = new Date().toISOString().slice(0, 10);
 const review = await runReview();
+const dispatch = await readDispatchSummary(packetDir, today);
 
 await assertPacketFiles(packetDir);
 
@@ -28,9 +29,27 @@ if (result?.summary) {
 }
 lines.push("");
 
+if (dispatch) {
+  lines.push("今日分发单已生成：");
+  lines.push(`- 分发单: ${dispatch.markdownPath}`);
+  if (dispatch.users.length) {
+    for (const user of dispatch.users) {
+      const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
+      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}`);
+    }
+  } else {
+    lines.push("- 暂无今日发送对象。");
+  }
+  lines.push("");
+}
+
 lines.push("今天先做：");
 lines.push("1. 先运行 `npm run release:candidate:plan`，再打开 `candidate-day-plan.md` 看今天建议邀请、追问和优先协作的 U 编号。");
-lines.push("2. 打开 `outreach-batch.md`，只复制今天建议编号的邀请文案，逐条发送。");
+if (dispatch) {
+  lines.push(`2. 打开 \`candidate-dispatch-${today}.md\`，逐条复制 U 编号对应的入口任务和体验者文案。`);
+} else {
+  lines.push("2. 运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 生成今日分发单；若还没有分发单，才打开 `outreach-batch.md` 只复制今天建议编号的邀请文案。");
+}
 lines.push("3. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
 lines.push("4. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
 lines.push("5. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
@@ -118,8 +137,10 @@ async function assertPacketFiles(dir) {
 function candidateFiles(dir) {
   return [
     ["候选内测日计划", "candidate-day-plan.md"],
+    dispatch ? ["今日分发单", `candidate-dispatch-${today}.md`] : null,
+    dispatch ? ["今日分发 JSON", `candidate-dispatch-${today}.json`] : null,
     ...requiredCandidateFiles(dir).map((item) => [item.label, item.file]),
-  ].map(([label, file]) => ({
+  ].filter(Boolean).map(([label, file]) => ({
     label,
     path: `${dir}/${file}`,
   }));
@@ -141,4 +162,21 @@ function requiredCandidateFiles(dir) {
     file,
     path: `${dir}/${file}`,
   }));
+}
+
+async function readDispatchSummary(dir, date) {
+  const jsonPath = `${dir}/candidate-dispatch-${date}.json`;
+  const markdownPath = `${dir}/candidate-dispatch-${date}.md`;
+  try {
+    const content = await readFile(jsonPath, "utf8");
+    await access(markdownPath);
+    const parsed = JSON.parse(content);
+    return {
+      markdownPath,
+      jsonPath,
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+    };
+  } catch {
+    return null;
+  }
 }

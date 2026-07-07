@@ -190,3 +190,5 @@ npm run release:candidate:review
 ```
 
 `release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:invite` 会从当天分发单读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
+
+`release:candidate:desk` 会优先识别当天 `candidate-dispatch-YYYY-MM-DD.md/json`，把 U001-U006 这类当天要发的编号和入口任务直接打印出来；如果当天分发单还没生成，执行台会提示先运行 `release:candidate:dispatch -- --date YYYY-MM-DD`，避免执行人回到全量 `outreach-batch.md` 里手工找文案。

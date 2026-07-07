@@ -68,7 +68,7 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:dispatch:selftest` 可用临时私有执行包验证今日分发单能按日计划抽取文案并保留隐私/审核护栏。
 - `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD` 可在发送当天分发单后，把对应匿名 U 编号标为已邀请；它不记录真实联系人，也不会生成体验反馈。
 - `npm run release:candidate:invite:selftest` 可用临时私有执行包验证邀请状态标记只更新匿名邀请状态，dry-run 不写入。
-- `npm run release:candidate:desk` 可把最新私有包、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
+- `npm run release:candidate:desk` 可把最新私有包、当天 `candidate-dispatch-YYYY-MM-DD.md/json`、U 编号入口任务、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:desk:selftest` 可用临时私有执行包验证执行台能读取包、打印今日动作和隐私/审核护栏。
 - `npm run release:candidate:record -- --user U001 ...` 可把单个体验者的匿名结果回填到最新私有执行包，减少手改 CSV；写入前会拒绝手机号、邮箱、微信号和真实姓名，真实姓名、微信号、手机号、截图和录屏仍只保留在仓库外。

@@ -9,6 +9,7 @@ const files = {
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
+  candidateDeskSelftest: "scripts/selftest-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
   candidateDispatch: "scripts/print-candidate-dispatch-pack.mjs",
@@ -18,7 +19,7 @@ const files = {
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -193,12 +194,14 @@ const checks = [
   {
     key: "candidate-execution-desk",
     title: "候选内测执行台可直接打印今日动作和私有包路径",
-    path: `${files.packageJson}, ${files.candidateDesk}, ${files.nextAction}, ${files.handoff}`,
+    path: `${files.packageJson}, ${files.candidateDesk}, ${files.candidateDeskSelftest}, ${files.nextAction}, ${files.handoff}`,
     ok: [
       "Humi 1.1 候选内测执行台",
       "今天先做",
       "今天不要做",
       "candidate-day-plan.md",
+      "candidate-dispatch-",
+      "今日分发单已生成",
       "release:candidate:plan",
       "outreach-batch.md",
       "tester-feedback-form.md",
@@ -207,7 +210,13 @@ const checks = [
       "release:candidate:day:close",
       "release:candidate:daily -- --date",
       "docs/humi-1.1-candidate-validation-forms.md",
-    ].every((text) => candidateDesk.includes(text)),
+    ].every((text) => candidateDesk.includes(text))
+      && [
+        "今日分发单已生成",
+        "candidate-dispatch-2026-07-07.md",
+        "U001: 问问大家小程序卡片（优先跑协作）",
+        "打开 `candidate-dispatch-2026-07-07.md`",
+      ].every((text) => candidateDeskSelftest.includes(text)),
   },
   {
     key: "candidate-day-plan",
