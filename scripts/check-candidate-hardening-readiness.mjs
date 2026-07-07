@@ -269,12 +269,18 @@ const checks = [
   },
   {
     key: "candidate-prepare-selftest",
-    title: "候选执行包生成自测可验证文件和权限",
+    title: "候选执行包生成自测可验证文件、权限和分发顺序",
     path: `${files.packageJson}, ${files.prepareScript}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare:selftest")
       && nextAction.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:prepare:selftest")
-      && prepareScript.includes("release:candidate:desk:selftest"),
+      && prepareScript.includes("release:candidate:desk:selftest")
+      && prepareScript.includes("release:candidate:dispatch -- --date YYYY-MM-DD")
+      && prepareScript.includes("candidate-dispatch-YYYY-MM-DD.md/json")
+      && prepareScript.includes("不能原样运行")
+      && prepareScript.includes("1-5|没试")
+      && !prepareScript.includes("--recommendation 5 --grocery-score 5")
+      && !prepareScript.includes("--note \"清单有用\""),
   },
   {
     key: "candidate-privacy-scan",

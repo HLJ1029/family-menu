@@ -50,6 +50,12 @@ for (const file of requiredFiles) {
 assert(contents["README.md"].includes("release:candidate:desk:selftest"), "README does not mention release:candidate:desk:selftest");
 assert(contents["README.md"].includes("release:candidate:plan"), "README does not mention release:candidate:plan");
 assert(contents["README.md"].includes("candidate-day-plan.md"), "README does not mention candidate-day-plan.md");
+assert(contents["README.md"].includes("release:candidate:dispatch -- --date YYYY-MM-DD"), "README does not mention release:candidate:dispatch");
+assert(contents["README.md"].includes("candidate-dispatch-YYYY-MM-DD.md/json"), "README does not mention candidate dispatch files");
+assert(contents["README.md"].includes("不能原样运行"), "README should warn against running record templates as-is");
+assert(contents["README.md"].includes("1-5|没试"), "README should require score placeholders");
+assert(!contents["README.md"].includes("--recommendation 5 --grocery-score 5"), "README should not default to positive feedback scores");
+assert(!contents["README.md"].includes("--note \"清单有用\""), "README should not default to positive feedback notes");
 assert(contents["README.md"].includes("真实姓名、手机号、微信号、截图和录屏"), "README does not state privacy boundaries");
 assert(contents["README.md"].includes("暂不进入微信审核"), "README does not state the no-review boundary");
 assert(contents["anonymous-users.csv"].match(/^U\d{3},/gm)?.length === 20, "anonymous-users.csv does not contain U001-U020 rows");
