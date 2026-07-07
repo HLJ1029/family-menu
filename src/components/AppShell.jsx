@@ -2,6 +2,7 @@ import { ArrowLeft, CalendarDays, ChefHat, Search, Sparkles, UserRound } from "l
 import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { getNavItem, mobileNavItems, navItems } from "./navigation";
+import { stableHash } from "./ui/characterIllustrations";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
@@ -103,19 +104,35 @@ export function Sidebar({ activeView, onChange }) {
 export function AccountAvatar({ session, onClick, compact = false }) {
   const email = session?.user?.email;
   const displayName = session?.user?.displayName;
-  const initial = email ? email.slice(0, 1).toUpperCase() : displayName ? displayName.slice(0, 1) : "";
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const identitySeed = email || displayName || (isWechatMiniProgram ? "wechat-mini-program" : "guest");
+  const avatars = [
+    "/assets/brand/avatars/humi-avatar-f-01.webp",
+    "/assets/brand/avatars/humi-avatar-m-01.webp",
+  ];
+  const avatarSrc = avatars[stableHash(identitySeed) % avatars.length];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`motion-card grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
+      className={`motion-card grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label={email || displayName || isWechatMiniProgram ? "打开我的家" : "登录并保存我的 Humi"}
+      aria-label="回到 Humi 首页"
+      title="回到 Humi 首页"
     >
-      {initial ? initial : <UserRound size={19} />}
+      {avatarSrc ? (
+        <img
+          src={avatarSrc}
+          alt=""
+          className="h-full w-full scale-[0.96] object-contain object-center"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <UserRound size={19} />
+      )}
     </button>
   );
 }

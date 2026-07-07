@@ -3201,7 +3201,7 @@ function App() {
               query={query}
               setQuery={setQuery}
               session={displaySession}
-              onOpenUserCenter={() => navigateTo("user")}
+              onOpenUserCenter={() => navigateTo("dashboard")}
               onBack={goBack}
             />
           )}
@@ -3235,7 +3235,7 @@ function App() {
                 onRecordBreakfast={recordBreakfast}
                 onSetLunchSource={setLunchSource}
                 session={displaySession}
-                onOpenUserCenter={() => navigateTo("user")}
+                onOpenUserCenter={() => navigateTo("dashboard")}
                 familyProfile={familyProfile}
                 groceryItemCount={visibleGroceryItems.length}
                 onSelectPlanningMode={selectPlanningMode}
