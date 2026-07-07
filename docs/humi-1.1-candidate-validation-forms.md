@@ -108,6 +108,7 @@
 P0/P1 同步写入 issue-triage.csv，并回到产品修复，不进入审核。
 每天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD。
 每轮回填后运行 npm run release:candidate:doctor。
+每轮复盘前运行 npm run release:candidate:privacy:check，确认匿名包没有手机号、邮箱、微信号或真实姓名。
 ```
 
 ## 4. 批量导入字段
@@ -154,6 +155,7 @@ npm run release:candidate:daily -- --date YYYY-MM-DD
 - 至少 8 个样本完成清单。
 - 至少 3 个样本尝试问问大家、邀请家人或买菜认领。
 - 没有 P0/P1。
+- `npm run release:candidate:privacy:check` 通过，且输出只包含文件、类型和行号，不回显敏感值。
 
 ## 6. 验收命令
 
@@ -165,7 +167,9 @@ npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
+npm run release:candidate:privacy:check
+npm run release:candidate:privacy:selftest
 npm run release:candidate:review
 ```
 
-`release:candidate:review` 在真实反馈不足时失败是正确结果；它用于在候选内测未完成时阻止进入微信审核。
+`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。

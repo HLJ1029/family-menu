@@ -9,9 +9,10 @@ const files = {
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
+  candidatePrivacy: "scripts/check-candidate-privacy.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -94,6 +95,8 @@ const checks = [
       && packageJson.includes("release:candidate:record:selftest")
       && packageJson.includes("release:candidate:daily")
       && packageJson.includes("release:candidate:daily:selftest")
+      && packageJson.includes("release:candidate:privacy:check")
+      && packageJson.includes("release:candidate:privacy:selftest")
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:prepare:selftest")
@@ -103,6 +106,8 @@ const checks = [
       && nextAction.includes("release:candidate:record")
       && nextAction.includes("release:candidate:record:selftest")
       && nextAction.includes("release:candidate:daily")
+      && nextAction.includes("release:candidate:privacy:check")
+      && nextAction.includes("release:candidate:privacy:selftest")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:prepare:selftest")
@@ -112,6 +117,8 @@ const checks = [
       && handoff.includes("release:candidate:record")
       && handoff.includes("release:candidate:record:selftest")
       && handoff.includes("release:candidate:daily")
+      && handoff.includes("release:candidate:privacy:check")
+      && handoff.includes("release:candidate:privacy:selftest")
       && handoff.includes("release:candidate:review"),
   },
   {
@@ -146,6 +153,7 @@ const checks = [
       "candidate-feedback-import.csv",
       "daily-review.csv",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
+      "npm run release:candidate:privacy:check",
       "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
     ].every((text) => candidateForms.includes(text)),
   },
@@ -173,6 +181,23 @@ const checks = [
       && nextAction.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:prepare:selftest")
       && prepareScript.includes("release:candidate:desk:selftest"),
+  },
+  {
+    key: "candidate-privacy-scan",
+    title: "候选执行包隐私扫描可阻止 PII 进入匿名材料",
+    path: `${files.packageJson}, ${files.candidatePrivacy}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:privacy:check")
+      && packageJson.includes("release:candidate:privacy:selftest")
+      && candidatePrivacy.includes("phone")
+      && candidatePrivacy.includes("email")
+      && candidatePrivacy.includes("wechat-id")
+      && candidatePrivacy.includes("real-name")
+      && candidatePrivacy.includes("Do not paste the sensitive values into chat or commits")
+      && nextAction.includes("release:candidate:privacy:check")
+      && nextAction.includes("只报文件/类型/行号，不回显敏感值")
+      && handoff.includes("release:candidate:privacy:check")
+      && handoff.includes("release:candidate:privacy:selftest")
+      && candidateForms.includes("release:candidate:privacy:check"),
   },
 ];
 

@@ -43,6 +43,7 @@ const checks = [
     required: [
       "release.candidateValidationReady=false",
       "npm run release:candidate:review",
+      "npm run release:candidate:privacy:check",
       "候选复盘达标前",
       "不能把微信审核准备视为可执行",
     ],
@@ -93,6 +94,7 @@ const checks = [
       "candidate-feedback-import.csv",
       "daily-review.csv",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
+      "npm run release:candidate:privacy:check",
     ],
   },
 ];
@@ -176,6 +178,18 @@ if (!releaseNext.includes("release:candidate:review:selftest")) {
     phrase: "missing release:candidate:review:selftest in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:privacy:check")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:privacy:check in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:privacy:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:privacy:selftest in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("docs/humi-1.1-candidate-validation-forms.md")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
@@ -206,6 +220,18 @@ if (!releaseStatus.includes("candidatePrepareSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidatePrepareSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidatePrivacyReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidatePrivacyReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidatePrivacySelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidatePrivacySelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidateValidationReady")) {
