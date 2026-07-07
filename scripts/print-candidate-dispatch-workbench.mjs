@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { access, chmod, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -80,6 +81,7 @@ const result = {
     hasTesterMessage: Boolean(user.testerMessage),
     hasShareCardGuide: Boolean(user.shareCardGuide),
     shareCardQrReady: user.shareCardGuide?.directPreviewOk ?? null,
+    hasShareCardQrImage: Boolean(user.shareCardGuide?.directPreviewUrl),
     hasDraftCommand: Boolean(user.draftCommand),
     hasRecordCommand: Boolean(user.recordCommand),
   })),
@@ -371,6 +373,29 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       color: var(--ink);
       overflow-wrap: anywhere;
     }
+    .qr-preview {
+      display: grid;
+      gap: 8px;
+      width: min(220px, 100%);
+      margin: 4px 0 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .qr-preview img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .qr-preview figcaption {
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
     .copy-head {
       display: flex;
       flex-wrap: wrap;
@@ -523,6 +548,10 @@ function renderShareCardGuide(guide) {
       <button class="secondary" data-copy="${escapeAttribute(guide.devtoolsCommand)}">复制 DevTools 连调命令</button>
       <button class="secondary" data-copy="${escapeAttribute(guide.directPreviewPath)}">复制直达二维码路径</button>
     </div>
+    ${guide.directPreviewUrl ? `<figure class="qr-preview" data-share-qr="ready">
+      <img src="${escapeAttribute(guide.directPreviewUrl)}" alt="${escapeAttribute(guide.actionLabel)}直达二维码">
+      <figcaption>可扫码直达「${escapeHtml(guide.actionLabel)}」原生分享确认页；扫码后再点「发送给家人」。</figcaption>
+    </figure>` : ""}
     <ul class="guide-list">
       <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生确认页后点「发送给家人」。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
@@ -578,6 +607,7 @@ async function buildShareCardGuide(user, shareEvidenceDir) {
     directPreviewPath,
     directPreviewOk: directPreview.ok,
     directPreviewSize: directPreview.size,
+    directPreviewUrl: directPreview.ok ? pathToFileURL(directPreviewPath).href : "",
   };
 }
 
