@@ -26,7 +26,17 @@ const [markdown, dispatchJson] = await Promise.all([
   readFile(markdownPath, "utf8"),
   readDispatchJson(),
 ]);
-const users = parseDispatchUsers(markdown);
+const inviteStatuses = await readInviteStatuses(packetDir);
+const users = parseDispatchUsers(markdown).map((user) => ({
+  ...user,
+  inviteStatus: inviteStatuses.get(user.id) || "待确认",
+}));
+const pendingUsers = users.filter((user) => !isAlreadySent(user.inviteStatus));
+const batchInviteCommand = pendingUsers.length === 0
+  ? "npm run release:candidate:doctor"
+  : pendingUsers.length < users.length
+    ? `npm run release:candidate:invite -- --users ${pendingUsers.map((user) => user.id).join(",")} --date ${date} --sent-confirmed`
+    : `npm run release:candidate:invite -- --from-dispatch ${date} --sent-confirmed`;
 const html = buildWorkbenchHtml({
   packetDir,
   date,
@@ -34,7 +44,8 @@ const html = buildWorkbenchHtml({
   markdownPath,
   jsonPath,
   users,
-  dispatchJson,
+  pendingUsers,
+  batchInviteCommand,
 });
 
 await writeFile(workbenchPath, html, { mode: 0o600 });
@@ -54,12 +65,15 @@ const result = {
     id: user.id,
     entryLabel: user.entryLabel,
     collaborationTarget: user.collaborationTarget,
+    inviteStatus: user.inviteStatus,
     hasTesterMessage: Boolean(user.testerMessage),
     hasRecordCommand: Boolean(user.recordCommand),
   })),
   nextActions: [
     "Open candidate-dispatch-workbench-YYYY-MM-DD.html and copy each tester message into the private chat for that U id.",
-    `After the messages or mini program cards are actually sent, run npm run release:candidate:invite -- --from-dispatch ${date} --sent-confirmed.`,
+    pendingUsers.length
+      ? `After the pending messages or mini program cards are actually sent, run ${batchInviteCommand}.`
+      : "All users in this dispatch are already marked sent/experienced; wait for feedback and avoid resending.",
     "After feedback arrives, copy the record command template, replace every placeholder with real anonymous feedback, then run it.",
     `End the day with npm run release:candidate:day:close -- --date ${date}.`,
   ],
@@ -75,11 +89,14 @@ if (args.json) {
     `私有执行包：${packetDir}`,
     `工作台：${workbenchPath}`,
     `来源分发单：${markdownPath}`,
+    `待发送：${pendingUsers.length}/${users.length}`,
     "",
     "今日对象：",
-    ...result.users.map((user) => `- ${user.id}: ${user.entryLabel}${user.collaborationTarget ? "（优先跑协作）" : ""}`),
+    ...result.users.map((user) => `- ${user.id}: ${user.entryLabel}${user.collaborationTarget ? "（优先跑协作）" : ""} / ${user.inviteStatus}`),
     "",
-    "下一步：打开 HTML 工作台逐个复制体验者文案；真实发送后再运行带 --sent-confirmed 的 invite 命令。",
+    pendingUsers.length
+      ? "下一步：打开 HTML 工作台，只发送待邀请对象；真实发送后再运行带 --sent-confirmed 的 invite 命令。"
+      : "下一步：今天分发单对象都已标记发送；等待真实反馈，避免重复发送。",
     "",
     JSON.stringify(result, null, 2),
   ].join("\n"));
@@ -112,6 +129,27 @@ async function readDispatchJson() {
     return JSON.parse(await readFile(jsonPath, "utf8"));
   } catch {
     return null;
+  }
+}
+
+async function readInviteStatuses(dir) {
+  try {
+    const content = await readFile(join(dir, "anonymous-users.csv"), "utf8");
+    const rows = parseCsv(content);
+    const [headers, ...data] = rows;
+    const idIndex = headers.indexOf("用户编号");
+    const statusIndex = headers.indexOf("邀请状态");
+    const statuses = new Map();
+    if (idIndex < 0 || statusIndex < 0) return statuses;
+    for (const row of data) {
+      const id = String(row[idIndex] || "").trim().toUpperCase();
+      if (/^U\d{3}$/.test(id)) {
+        statuses.set(id, String(row[statusIndex] || "").trim() || "待确认");
+      }
+    }
+    return statuses;
+  } catch {
+    return new Map();
   }
 }
 
@@ -149,8 +187,8 @@ function parseDispatchUsers(markdown) {
   return users;
 }
 
-function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath, users, dispatchJson }) {
-  const summaryUsers = dispatchJson?.users ?? [];
+function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath, users, pendingUsers, batchInviteCommand }) {
+  const alreadySentCount = users.length - pendingUsers.length;
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -278,6 +316,16 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       color: var(--muted);
       background: #fff;
     }
+    .tag.sent {
+      border-color: #a7d8c9;
+      color: #0f766e;
+      background: #eef8f4;
+    }
+    .tag.pending {
+      border-color: #f1c27d;
+      color: #92400e;
+      background: #fff7ed;
+    }
     .copy-block {
       display: grid;
       gap: 8px;
@@ -322,16 +370,17 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       <div>私有执行包：<code>${escapeHtml(packetDir)}</code></div>
       <div>来源分发单：<code>${escapeHtml(markdownPath)}</code></div>
       <div>来源 JSON：<code>${escapeHtml(jsonPath)}</code></div>
+      <div>发送状态：<strong>${escapeHtml(String(alreadySentCount))}</strong> 已发送/已体验，<strong>${escapeHtml(String(pendingUsers.length))}</strong> 待发送</div>
     </section>
     <section class="command-bar" aria-label="批次命令">
-      <button data-copy="${escapeAttribute(`npm run release:candidate:invite -- --from-dispatch ${date} --sent-confirmed`)}">复制已发送标记命令</button>
+      <button data-copy="${escapeAttribute(batchInviteCommand)}">${pendingUsers.length === 0 ? "复制候选进度检查命令" : pendingUsers.length < users.length ? "复制待发送标记命令" : "复制已发送标记命令"}</button>
       <button class="secondary" data-copy="${escapeAttribute(`npm run release:candidate:privacy:check`)}">复制隐私扫描命令</button>
       <button class="secondary" data-copy="${escapeAttribute(`npm run release:candidate:day:close -- --date ${date}`)}">复制今日收尾命令</button>
     </section>
   </header>
   <main>
     <section class="grid" aria-label="今日对象">
-      ${summaryCards(summaryUsers.length ? summaryUsers : users)}
+      ${summaryCards(users)}
     </section>
     <section class="user-list" aria-label="逐个发送">
       ${users.map((user) => renderUser(user, date)).join("\n")}
@@ -340,6 +389,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       <h2>固定护栏</h2>
       <ul>
         <li>这个工作台不会发送微信消息，不记录真实联系人，也不会标记已邀请。</li>
+        <li>只给“待邀请/候补/待确认”的 U 编号发送；已邀请或已体验的 U 编号等待反馈，避免重复打扰。</li>
         <li>消息或小程序卡片真实发出后，才运行带 <code>--sent-confirmed</code> 的 invite 命令。</li>
         <li>回填命令必须替换 <code>yes|no</code>、<code>1-5|没试</code>、问题等级和真实匿名摘要；不要原样运行模板。</li>
         <li>手机号、邮箱、微信号、真实姓名、截图和录屏只放在仓库外私有位置。</li>
@@ -370,16 +420,19 @@ function summaryCards(users) {
     const id = user.id || "U___";
     const label = user.entryLabel || user.entryTask || "待确认入口";
     const suffix = user.collaborationTarget ? "优先跑协作" : "普通路径";
-    return `<div class="summary-card"><strong>${escapeHtml(id)}</strong><span>${escapeHtml(label)} / ${escapeHtml(suffix)}</span></div>`;
+    const status = user.inviteStatus || "待确认";
+    return `<div class="summary-card"><strong>${escapeHtml(id)}</strong><span>${escapeHtml(label)} / ${escapeHtml(suffix)} / ${escapeHtml(status)}</span></div>`;
   }).join("\n");
 }
 
 function renderUser(user, date) {
   const markInviteCommand = `npm run release:candidate:invite -- --users ${user.id} --date ${date} --sent-confirmed`;
+  const sent = isAlreadySent(user.inviteStatus);
   return `<article class="user-card" id="${escapeAttribute(user.id)}">
   <div class="user-head">
     <h2>${escapeHtml(user.id)}</h2>
     <span class="tag">${escapeHtml(user.entryLabel)}${user.collaborationTarget ? " / 优先跑协作" : ""}</span>
+    <span class="tag ${sent ? "sent" : "pending"}">${escapeHtml(user.inviteStatus)}</span>
   </div>
   <div class="copy-block">
     <div class="copy-head">
@@ -397,7 +450,7 @@ function renderUser(user, date) {
   </div>
   <div class="copy-block">
     <div class="copy-head">
-      <h3>真实发送后登记</h3>
+      <h3>${sent ? "已发送，等待反馈" : "真实发送后登记"}</h3>
       <button class="secondary" data-copy="${escapeAttribute(markInviteCommand)}">复制本 U 已发送登记命令</button>
     </div>
     <pre>${escapeHtml(markInviteCommand)}</pre>
@@ -410,6 +463,48 @@ function renderUser(user, date) {
     <pre>${escapeHtml(user.recordCommand)}</pre>
   </div>
 </article>`;
+}
+
+function isAlreadySent(status) {
+  return ["已邀请", "已体验"].includes(String(status || "").trim());
+}
+
+function parseCsv(content) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+    if (quoted) {
+      if (char === "\"" && next === "\"") {
+        cell += "\"";
+        index += 1;
+      } else if (char === "\"") {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === "\"") {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (char !== "\r") {
+      cell += char;
+    }
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows;
 }
 
 function escapeHtml(value) {

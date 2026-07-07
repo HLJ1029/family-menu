@@ -35,18 +35,26 @@ assert(result.workbenchPath === join(packetDir, "candidate-dispatch-workbench-20
 assert(result.users.length === 2, "workbench should parse two users");
 assert(result.users[0].id === "U001", "workbench should parse U001");
 assert(result.users[0].entryLabel === "问问大家小程序卡片", "workbench should preserve U001 entry label");
+assert(result.users[0].inviteStatus === "已邀请", "workbench should read U001 invite status");
+assert(result.users[1].inviteStatus === "待邀请", "workbench should read U002 invite status");
 assert(result.users[0].hasTesterMessage, "workbench should include tester message");
 assert(result.users[0].hasRecordCommand, "workbench should include record command");
 assert(mode === 0o600, `workbench mode expected 600, got ${mode.toString(8)}`);
 assert(html.includes('data-workbench-kind="humi-candidate-dispatch"'), "workbench missing stable marker");
+assert(html.includes("发送状态：<strong>1</strong> 已发送/已体验，<strong>1</strong> 待发送"), "workbench should summarize sent and pending counts");
+assert(html.includes("问问大家小程序卡片 / 优先跑协作 / 已邀请"), "workbench should show invited status in summary");
+assert(html.includes("今晚发现新菜 / 普通路径 / 待邀请"), "workbench should show pending status in summary");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
 assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
+assert(html.includes("复制待发送标记命令"), "workbench should expose pending-only batch command when some users were already invited");
 assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");
 assert(html.includes("npm run release:candidate:invite -- --users U002 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U002 invite command");
+assert(html.includes("npm run release:candidate:invite -- --users U002 --date 2026-07-07 --sent-confirmed"), "workbench missing pending-only batch invite command");
+assert(!html.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "workbench should not expose all-dispatch command when some users are already invited");
 assert(html.includes("复制回填模板"), "workbench should expose copy buttons for record templates");
-assert(html.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "workbench missing confirmed invite command");
 assert(html.includes("npm run release:candidate:day:close -- --date 2026-07-07"), "workbench missing day close command");
 assert(html.includes("不会发送微信消息"), "workbench should state it does not send messages");
+assert(html.includes("避免重复打扰"), "workbench should warn against resending invited users");
 assert(html.includes("不进入微信公众平台审核动作"), "workbench should preserve review guard");
 assert(html.includes("navigator.clipboard.writeText"), "workbench should support copy buttons");
 assert(!html.includes("--recommendation 5 --grocery-score 5"), "workbench should not include default positive scores");
@@ -69,6 +77,11 @@ console.log(JSON.stringify({
 
 async function writePacket(dir) {
   await Promise.all([
+    writeFile(join(dir, "anonymous-users.csv"), [
+      "用户编号,家庭类型,设备/微信版本,邀请状态,首次体验日期,完成今晚菜单,完成清单,尝试协作,推荐评分,清单评分,分享评分,复访状态,当前等级,私有证据位置,备注",
+      "U001,待定,待填,已邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U002,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+    ].join("\n"), { mode: 0o600 }),
     writeFile(join(dir, "candidate-dispatch-2026-07-07.json"), JSON.stringify({
       ok: true,
       date: "2026-07-07",
