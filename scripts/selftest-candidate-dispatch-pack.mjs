@@ -8,21 +8,7 @@ const execFileAsync = promisify(execFile);
 const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-dispatch-"));
 await writePacket(packetDir);
 
-const { stdout } = await execFileAsync("node", [
-  "scripts/print-candidate-dispatch-pack.mjs",
-  "--date", "2026-07-07",
-  "--batch-size", "2",
-  "--json",
-], {
-  env: {
-    ...process.env,
-    HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
-  },
-  timeout: 60_000,
-  maxBuffer: 1024 * 1024 * 4,
-});
-
-const result = JSON.parse(stdout);
+const result = await runDispatch({ packetDir, batchSize: 2 });
 const dispatch = await readFile(join(packetDir, "candidate-dispatch-2026-07-07.md"), "utf8");
 
 assert(result.ok, "dispatch command did not return ok=true");
@@ -50,6 +36,25 @@ assert(!dispatch.includes("--note \"清单有用\""), "dispatch should not defau
 assert(dispatch.includes("npm run release:candidate:day:close -- --date 2026-07-07"), "dispatch missing closeout command");
 assert(dispatch.includes("不把真实姓名、手机号、微信号、聊天截图或录屏写进仓库"), "dispatch missing privacy warning");
 
+const fullPacketDir = await mkdtemp(join(tmpdir(), "humi-candidate-dispatch-full-"));
+await writePacket(fullPacketDir);
+const fullResult = await runDispatch({ packetDir: fullPacketDir, batchSize: 6 });
+const fullDispatch = await readFile(join(fullPacketDir, "candidate-dispatch-2026-07-07.md"), "utf8");
+
+assert(fullResult.users.length === 6, "full dispatch should include six planned users");
+assertEntry(fullResult.users[0], "U001", "crave-card", "问问大家小程序卡片");
+assertEntry(fullResult.users[1], "U002", "invite-card", "邀请家人小程序卡片");
+assertEntry(fullResult.users[2], "U003", "grocery-card", "买菜清单小程序卡片");
+assertEntry(fullResult.users[3], "U004", "normal-open", "普通打开小程序");
+assertEntry(fullResult.users[4], "U005", "today-discovery", "今晚发现新菜");
+assertEntry(fullResult.users[5], "U006", "grocery-list", "清单理解");
+assert(fullDispatch.includes("0. 入口任务：买菜清单小程序卡片"), "tester copy should include grocery card entry task");
+assert(fullDispatch.includes("0. 入口任务：普通打开小程序"), "tester copy should include normal-open entry task");
+assert(fullDispatch.includes("0. 入口任务：今晚发现新菜"), "tester copy should include discovery entry task");
+assert(fullDispatch.includes("重点看是否能找到完整菜品页和愿意做的新菜"), "discovery tester copy should preserve full dish page observation");
+assert(fullDispatch.includes("0. 入口任务：清单理解"), "tester copy should include grocery-list entry task");
+assert(fullDispatch.includes("重点看食材、已有项和谁在买是否容易理解"), "grocery-list tester copy should preserve list observation");
+
 console.log(JSON.stringify({
   ok: true,
   checkedAt: new Date().toISOString(),
@@ -60,8 +65,32 @@ console.log(JSON.stringify({
       ok: true,
       users: result.users,
     },
+    {
+      name: "dispatch-pack-covers-six-entry-tasks",
+      ok: true,
+      packetDir: fullPacketDir,
+      users: fullResult.users,
+    },
   ],
 }, null, 2));
+
+async function runDispatch({ packetDir, batchSize }) {
+  const { stdout } = await execFileAsync("node", [
+    "scripts/print-candidate-dispatch-pack.mjs",
+    "--date", "2026-07-07",
+    "--batch-size", String(batchSize),
+    "--json",
+  ], {
+    env: {
+      ...process.env,
+      HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
+    },
+    timeout: 60_000,
+    maxBuffer: 1024 * 1024 * 4,
+  });
+
+  return JSON.parse(stdout);
+}
 
 async function writePacket(dir) {
   await Promise.all([
@@ -69,7 +98,10 @@ async function writePacket(dir) {
       "用户编号,家庭类型,设备/微信版本,邀请状态,首次体验日期,完成今晚菜单,完成清单,尝试协作,推荐评分,清单评分,分享评分,复访状态,当前等级,私有证据位置,备注",
       "U001,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
       "U002,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
-      "U003,待定,待填,候补,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U003,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U004,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U005,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U006,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
       "",
     ].join("\n"), { mode: 0o600 }),
     writeFile(join(dir, "feedback-template.csv"), "用户编号,设备与微信版本,体验日期,入口,完成今晚菜单,完成清单,协作类型,推荐评分,清单评分,分享评分,卡住的位置,用户原话摘要,私有截图/录屏位置,问题等级,是否进入1.1.x,处理状态\n", { mode: 0o600 }),
@@ -91,6 +123,42 @@ async function writePacket(dir) {
       "",
       "```text",
       "我给你留了一个 Humi 内测编号：U002。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U003",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U003。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U004",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U004。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U005",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U005。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U006",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U006。",
       "请试一下今晚推荐和清单。",
       "使用路径：",
       "1. 打开 Humi 小程序",
@@ -121,4 +189,11 @@ async function writePacket(dir) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertEntry(user, id, entryTask, entryLabel) {
+  assert(user.id === id, `expected ${id}, got ${user.id}`);
+  assert(user.entryTask === entryTask, `${id} should use ${entryTask}`);
+  assert(user.entryLabel === entryLabel, `${id} should label ${entryLabel}`);
+  assert(user.hasMessage, `${id} should have tester copy`);
 }
