@@ -411,7 +411,7 @@ function getCompletionCriteria(scope) {
     "生产 H5 入口烟测：npm run release:product:smoke 会用移动端视口验证发现新菜打开完整菜品页、菜品卡片数量充足、我的家问问大家进入征集单而不是跳回首页。",
     "单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。",
     "单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。",
-    "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、每个 U 的已发送登记命令、回填模板和日结命令放进同一个可复制页面；它不会发送消息或自动标记邀请。",
+    "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、每个 U 的已发送登记命令、回填模板和日结命令放进同一个可复制页面；它会显示待邀请/已邀请/已体验状态，并在部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不会发送消息或自动标记邀请。",
     "单人/批量反馈回填：npm run release:candidate:record 写入前会做 PII 写入前阻断；P0/P1 会自动追加到 issue-triage.csv。",
     "真实体验复盘：npm run release:candidate:review 必须达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
     "隐私扫描：npm run release:candidate:privacy:check 必须确认最新私有候选包没有手机号、邮箱、微信号或真实姓名；发现问题时只报文件/类型/行号，不回显敏感值。",
