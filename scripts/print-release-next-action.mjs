@@ -19,6 +19,7 @@ const submitEvidenceState = await getLatestSubmitEvidenceState();
 const nextStage = getNextEvidenceStage(missingSections, submitEvidenceState);
 const openHardeningItems = status.release?.preReviewHardeningOpenItems ?? [];
 const candidateAction = await getCandidateActionState();
+let stageScope = "blocked";
 
 const lines = [];
 lines.push("Humi 1.1 当前行动卡");
@@ -29,6 +30,7 @@ lines.push(`小程序版本：${status.release?.miniProgramUploadedVersion ?? "u
 lines.push("");
 
 if (openHardeningItems.length) {
+  stageScope = "hardening";
   lines.push("当前阶段：提审前产品打磨。");
   lines.push("");
   lines.push("现在该做：");
@@ -46,9 +48,11 @@ if (openHardeningItems.length) {
   }
   lines.push(`${shareEvidence?.missingFiles?.length ? 9 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入生产候选完善与内测验证阶段。`);
 } else if (status.release?.releaseComplete) {
+  stageScope = "complete";
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
 } else if (status.release?.engineeringGatesReady && !status.release?.candidateValidationReady) {
+  stageScope = "candidate";
   lines.push("当前阶段：1.1 生产候选完善与内测验证，暂不进入微信审核。");
   lines.push("");
   if (candidateAction.dispatch) {
@@ -123,6 +127,7 @@ if (openHardeningItems.length) {
   lines.push("- 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
   lines.push("- 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
 } else if (wechat?.ok) {
+  stageScope = "external";
   lines.push(`当前阶段：${nextStage.title}`);
   lines.push("");
   lines.push("现在该做：");
@@ -130,6 +135,7 @@ if (openHardeningItems.length) {
     lines.push(`${index + 1}. ${action}`);
   });
 } else {
+  stageScope = "blocked";
   lines.push("当前阶段：还不能提交微信审核。");
   lines.push("");
   lines.push("先修这些：");
@@ -140,98 +146,24 @@ if (openHardeningItems.length) {
 
 lines.push("");
 lines.push("要打开的材料：");
-lines.push("- docs/humi-1.1-closure-map.md");
-lines.push("- npm run release:map");
-lines.push("- docs/humi-1.1-pre-review-hardening.md");
-lines.push("- docs/wechat-submit-copy-packet.md");
-lines.push("- docs/humi-1.1-miniprogram-share-card-qa.md");
-lines.push("- docs/miniprogram-platform-submit-runbook.md");
-lines.push("- docs/humi-1.1-release-evidence-log.md");
-lines.push("- docs/launch-day-runbook.md");
-lines.push("- docs/humi-1.1-candidate-validation-forms.md");
-lines.push("- npm run release:evidence:commands");
-lines.push("- npm run release:pre-review:evidence");
-lines.push("- npm run release:product:review");
-lines.push("- npm run release:candidate:check");
-lines.push("- npm run release:candidate:prepare");
-lines.push("- npm run release:candidate:prepare:selftest");
-lines.push("- npm run release:candidate:forms:preview");
-lines.push("- npm run release:candidate:forms:preview:selftest");
-lines.push("- npm run release:candidate:doctor");
-lines.push("- npm run release:candidate:plan");
-lines.push("- npm run release:candidate:plan:selftest");
-lines.push("- npm run release:candidate:dispatch");
-lines.push("- npm run release:candidate:dispatch:selftest");
-lines.push("- npm run release:candidate:dispatch:workbench");
-lines.push("- npm run release:candidate:dispatch:workbench:selftest");
-lines.push("- npm run release:candidate:invite");
-lines.push("- npm run release:candidate:invite:selftest");
-lines.push("- npm run release:candidate:desk");
-lines.push("- npm run release:candidate:desk:selftest");
-lines.push("- npm run release:candidate:record");
-lines.push("- npm run release:candidate:record:selftest");
-lines.push("- npm run release:candidate:daily");
-lines.push("- npm run release:candidate:daily:selftest");
-lines.push("- npm run release:candidate:day:close");
-lines.push("- npm run release:candidate:day:close:selftest");
-lines.push("- npm run release:candidate:privacy:check");
-lines.push("- npm run release:candidate:privacy:selftest");
-lines.push("- npm run release:candidate:review");
-lines.push("- npm run release:candidate:review:selftest");
-lines.push("- npm run release:spec:audit");
-lines.push("- npm run release:wechat:share:doctor");
-lines.push("- npm run release:closure");
+for (const item of getMaterialList(stageScope)) {
+  lines.push(`- ${item}`);
+}
 lines.push("");
-lines.push("完成判定：");
-lines.push("- 提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须全部勾完。");
-lines.push("- 提交审核前：npm run release:wechat:check 必须 ok=true。");
-lines.push("- 工程状态：npm run release:status 里的 release.engineeringGatesReady 必须为 true；真实候选复盘也通过后，release:status 才会 ok=true。");
-lines.push("- 每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。");
-lines.push("- 小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。");
-lines.push("- 小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");
-lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇总征集单视觉图、H5 落地页图和微信原生 card 缺口。");
-lines.push("- 产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。");
-lines.push("- 生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。");
-lines.push("- 生成内测执行包：npm run release:candidate:prepare 会在私有目录生成匿名名单 CSV、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息不得进仓库。");
-lines.push("- 执行包生成自测：npm run release:candidate:prepare:selftest 会用临时私有目录确认候选包文件、权限、README 步骤、U001-U020 和空模板复盘状态。");
-lines.push("- 批量邀请清单：release:candidate:prepare 会生成 outreach-batch.md，可直接复制 U001-U020 的匿名邀请消息。");
-lines.push("- 候选反馈单据：release:candidate:prepare 还会生成 tester-feedback-form.md 和 host-run-sheet.md，用来分别收体验者原话和执行人观察。");
-lines.push("- 单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。");
-lines.push("- 单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。");
-lines.push("- 候选日计划：npm run release:candidate:plan 会在私有包生成 candidate-day-plan.md，列出今天建议邀请、需要追问、必跑【今晚】/清单和优先协作的 U 编号。");
-lines.push("- 候选日计划自测：npm run release:candidate:plan:selftest 会用临时私有包确认日计划能选出追问用户、下一批邀请用户和协作目标。");
-lines.push("- 今日分发单：npm run release:candidate:dispatch -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-YYYY-MM-DD.md/json，只抽今天计划里的 U 编号、对应邀请文案、反馈摘要和回填模板。");
-lines.push("- 今日分发单自测：npm run release:candidate:dispatch:selftest 会用临时私有包确认分发单能按日计划抽取文案且保留隐私/审核护栏。");
-lines.push("- 今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、回填模板和日结命令放进同一个可复制页面；它不会发送消息或标记邀请。");
-lines.push("- 今日分发工作台自测：npm run release:candidate:dispatch:workbench:selftest 会用临时私有包确认 HTML 工作台可生成、权限为 600 且保留隐私/审核护栏。");
-lines.push("- 邀请状态标记：npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed 会把当天分发单中的匿名 U 编号标为已邀请，不记录真实联系人，也不生成体验反馈。");
-lines.push("- 邀请状态标记自测：npm run release:candidate:invite:selftest 会用临时私有包确认 dry-run 不写入、未确认真实发送会拒绝、带 --sent-confirmed 才更新匿名邀请状态。");
-lines.push("- 候选执行台：npm run release:candidate:desk 会把今天要打开的私有包文件、回填命令和不要做的事打印成一张执行卡。");
-lines.push("- 候选执行台自测：npm run release:candidate:desk:selftest 会用临时私有执行包确认执行台可读包、可打印今日动作和隐私/审核护栏。");
-lines.push("- 单人反馈回填：替换分发单里的 npm run release:candidate:record 模板后运行，会把真实匿名汇总写回最新私有执行包，并在写入前拒绝手机号、邮箱、微信号和真实姓名。");
-lines.push("- 批量反馈导入：填好私有包里的 candidate-feedback-import.csv 后，npm run release:candidate:record -- --import candidate-feedback-import.csv 会一次回填多位匿名用户；P0/P1 会自动追加到 issue-triage.csv。");
-lines.push("- 回填工具自测：npm run release:candidate:record:selftest 会用临时私有执行包确认 anonymous-users.csv、feedback-template.csv、issue-triage.csv 写入逻辑和 PII 写入前阻断。");
-lines.push("- 每日复盘回填：npm run release:candidate:daily -- --date YYYY-MM-DD 会按当天匿名反馈自动写入 daily-review.csv。");
-lines.push("- 每日复盘自测：npm run release:candidate:daily:selftest 会用临时私有执行包确认 daily-review.csv 写入逻辑。");
-lines.push("- 每日收尾：npm run release:candidate:day:close -- --date YYYY-MM-DD 会在私有包写入 candidate-day-close-YYYY-MM-DD.md/json，并串起隐私扫描、daily-review、doctor 和 candidate review。");
-lines.push("- 每日收尾自测：npm run release:candidate:day:close:selftest 会确认收尾报告不会伪造 candidateValidationReady。");
-lines.push("- 隐私扫描：npm run release:candidate:privacy:check 会扫描最新私有候选包，发现手机号、邮箱、微信号或真实姓名时只报文件/类型/行号，不回显敏感值。");
-lines.push("- 隐私扫描自测：npm run release:candidate:privacy:selftest 会确认匿名包可通过、含敏感值的临时包会失败且输出不泄露敏感值。");
-lines.push("- 查看内测缺口：npm run release:candidate:doctor 会把真实样本、今晚菜单、清单和协作样本的当前进度与缺口打印成人能读的行动卡。");
-lines.push("- 复盘内测结果：npm run release:candidate:review 会读取最新私有执行包，汇总 P0/P1、核心链路完成和是否可继续审核准备。");
-lines.push("- 复盘工具自测：npm run release:candidate:review:selftest 会用临时 CSV 覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。");
-lines.push("- 小程序卡片收口：npm run release:wechat:share:complete 会在人工视觉确认后勾选提审前 P1。");
-lines.push("- 补小程序截图前：npm run release:wechat:share:prepare 会打开预览二维码和私有证据目录。");
-lines.push("- 补 H5 落地页截图：npm run release:wechat:share:landings 会自动生成 crave/invite/grocery 三张 landing 图。");
-lines.push("- 打开开发者工具 QA：npm run release:wechat:share:devtools 会打开小程序项目、预览二维码和核对清单。");
-lines.push("- 生成直达原生确认页二维码：npm run release:wechat:share:direct-previews 会生成 crave/invite/grocery 三张 direct-preview 二维码。");
-lines.push("- 补微信原生卡片截图：npm run release:wechat:share:cards:capture -- --interactive 会逐项等待卡片预览，并让你框选卡片区域保存正确文件名。");
-lines.push("- 导入已有卡片截图：npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots 会复制并校验三张 card 图。");
-lines.push("- 1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。");
+lines.push(stageScope === "candidate" ? "候选阶段完成判定：" : "完成判定：");
+for (const item of getCompletionCriteria(stageScope)) {
+  lines.push(`- ${item}`);
+}
 lines.push("");
 
-if (missingSections.length) {
+if (missingSections.length && stageScope !== "candidate") {
   lines.push("当前还缺的证据区块：");
+  for (const section of missingSections) {
+    lines.push(`- ${section}`);
+  }
+  lines.push("");
+} else if (missingSections.length) {
+  lines.push("候选通过后才处理的外部证据区块：");
   for (const section of missingSections) {
     lines.push(`- ${section}`);
   }
@@ -398,6 +330,106 @@ function parseLastJson(output) {
   } catch {
     return null;
   }
+}
+
+function getMaterialList(scope) {
+  if (scope === "candidate") {
+    return [
+      "docs/humi-1.1-candidate-validation-forms.md",
+      "docs/humi-1.1-pre-review-hardening.md",
+      "npm run release:status",
+      "npm run release:next",
+      "npm run release:product:review",
+      "npm run release:candidate:check",
+      "npm run release:candidate:forms:preview",
+      "npm run release:candidate:doctor",
+      "npm run release:candidate:plan",
+      "npm run release:candidate:dispatch",
+      "npm run release:candidate:dispatch:workbench",
+      "npm run release:candidate:invite",
+      "npm run release:candidate:record",
+      "npm run release:candidate:record:selftest",
+      "npm run release:candidate:daily",
+      "npm run release:candidate:day:close",
+      "npm run release:candidate:privacy:check",
+      "npm run release:candidate:privacy:selftest",
+      "npm run release:candidate:review",
+    ];
+  }
+
+  return [
+    "docs/humi-1.1-closure-map.md",
+    "npm run release:map",
+    "docs/humi-1.1-pre-review-hardening.md",
+    "docs/wechat-submit-copy-packet.md",
+    "docs/humi-1.1-miniprogram-share-card-qa.md",
+    "docs/miniprogram-platform-submit-runbook.md",
+    "docs/humi-1.1-release-evidence-log.md",
+    "docs/launch-day-runbook.md",
+    "docs/humi-1.1-candidate-validation-forms.md",
+    "npm run release:evidence:commands",
+    "npm run release:pre-review:evidence",
+    "npm run release:product:review",
+    "npm run release:candidate:check",
+    "npm run release:candidate:prepare",
+    "npm run release:candidate:prepare:selftest",
+    "npm run release:candidate:forms:preview",
+    "npm run release:candidate:forms:preview:selftest",
+    "npm run release:candidate:doctor",
+    "npm run release:candidate:plan",
+    "npm run release:candidate:plan:selftest",
+    "npm run release:candidate:dispatch",
+    "npm run release:candidate:dispatch:selftest",
+    "npm run release:candidate:dispatch:workbench",
+    "npm run release:candidate:dispatch:workbench:selftest",
+    "npm run release:candidate:invite",
+    "npm run release:candidate:invite:selftest",
+    "npm run release:candidate:desk",
+    "npm run release:candidate:desk:selftest",
+    "npm run release:candidate:record",
+    "npm run release:candidate:record:selftest",
+    "npm run release:candidate:daily",
+    "npm run release:candidate:daily:selftest",
+    "npm run release:candidate:day:close",
+    "npm run release:candidate:day:close:selftest",
+    "npm run release:candidate:privacy:check",
+    "npm run release:candidate:privacy:selftest",
+    "npm run release:candidate:review",
+    "npm run release:candidate:review:selftest",
+    "npm run release:spec:audit",
+    "npm run release:wechat:share:doctor",
+    "npm run release:closure",
+  ];
+}
+
+function getCompletionCriteria(scope) {
+  const candidateCriteria = [
+    "工程状态：npm run release:status 里的 release.engineeringGatesReady 必须为 true；真实候选复盘也通过后，release:status 才会 ok=true。",
+    "生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。",
+    "单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。",
+    "单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。",
+    "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、回填模板和日结命令放进同一个可复制页面；它不会发送消息或标记邀请。",
+    "单人/批量反馈回填：npm run release:candidate:record 写入前会做 PII 写入前阻断；P0/P1 会自动追加到 issue-triage.csv。",
+    "真实体验复盘：npm run release:candidate:review 必须达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
+    "隐私扫描：npm run release:candidate:privacy:check 必须确认最新私有候选包没有手机号、邮箱、微信号或真实姓名；发现问题时只报文件/类型/行号，不回显敏感值。",
+    "候选复盘达标前只做功能完善、真实内测和问题修复，不进入微信公众平台审核。",
+  ];
+
+  if (scope === "candidate") {
+    return candidateCriteria;
+  }
+
+  return [
+    "提审前：docs/humi-1.1-pre-review-hardening.md 里 P0/P1 必须全部勾完。",
+    "提交审核前：npm run release:wechat:check 必须 ok=true。",
+    ...candidateCriteria.slice(0, 7),
+    "每个外部阶段完成后：按 npm run release:evidence:commands 打印的模板登记证据。",
+    "小程序卡片复核：npm run release:wechat:share:evidence 必须确认私有截图齐全。",
+    "小程序卡片 QA 体检：npm run release:wechat:share:doctor 会确认微信开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。",
+    "提审前证据总览：npm run release:pre-review:evidence 会汇总征集单视觉图、H5 落地页图和微信原生 card 缺口。",
+    "产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。",
+    "1.1 真正完成：npm run release:evidence:check 必须 ok=true，且 release:status 里 releaseComplete=true。",
+  ];
 }
 
 function getNextEvidenceStage(missing, submitEvidence) {

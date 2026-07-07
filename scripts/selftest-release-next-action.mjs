@@ -17,7 +17,13 @@ try {
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("运行 `npm run release:candidate:dispatch:workbench");
+  await assertNext("运行 `npm run release:candidate:dispatch:workbench", {
+    forbidden: [
+      "- docs/wechat-submit-copy-packet.md",
+      "- docs/miniprogram-platform-submit-runbook.md",
+      "- npm run release:wechat:share:doctor",
+    ],
+  });
   await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
   await assertNext("只发送今日分发单里尚未标记已邀请的 U 编号");
   await writePendingCandidatePacket(tempDir, "已邀请");
@@ -111,6 +117,11 @@ async function assertNext(expected, options = {}) {
 
   if (!stdout.includes(expected) && (!options.alternative || !stdout.includes(options.alternative))) {
     throw new Error(`release:next did not include expected stage: ${expected}\n\n${stdout}`);
+  }
+  for (const forbidden of options.forbidden ?? []) {
+    if (stdout.includes(forbidden)) {
+      throw new Error(`release:next included forbidden candidate-stage text: ${forbidden}\n\n${stdout}`);
+    }
   }
 }
 
