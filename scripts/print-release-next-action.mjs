@@ -52,10 +52,11 @@ if (openHardeningItems.length) {
   lines.push("2. 运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成或复用私有内测执行包。");
   lines.push("3. 运行 npm run release:candidate:doctor，看当前 U001-U020 真实反馈、核心路径完成和协作样本还差多少。");
   lines.push("4. 收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总，真实姓名、微信号、手机号和截图继续留在仓库外。");
-  lines.push("5. 运行 npm run release:candidate:record:selftest，确认回填工具仍能写入临时私有执行包。");
-  lines.push("6. 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
-  lines.push("7. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
-  lines.push("8. 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
+  lines.push("5. 一天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD，自动把当天复盘写入 daily-review.csv。");
+  lines.push("6. 运行 npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest，确认回填工具仍能写入临时私有执行包。");
+  lines.push("7. 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
+  lines.push("8. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+  lines.push("9. 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
 } else if (wechat?.ok) {
   lines.push(`当前阶段：${nextStage.title}`);
   lines.push("");
@@ -90,6 +91,8 @@ lines.push("- npm run release:candidate:prepare");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:record");
 lines.push("- npm run release:candidate:record:selftest");
+lines.push("- npm run release:candidate:daily");
+lines.push("- npm run release:candidate:daily:selftest");
 lines.push("- npm run release:candidate:review");
 lines.push("- npm run release:candidate:review:selftest");
 lines.push("- npm run release:spec:audit");
@@ -112,6 +115,8 @@ lines.push("- 候选反馈单据：release:candidate:prepare 还会生成 tester
 lines.push("- 单人反馈回填：npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\" 会把匿名汇总写回最新私有执行包。");
 lines.push("- 批量反馈导入：填好私有包里的 candidate-feedback-import.csv 后，npm run release:candidate:record -- --import candidate-feedback-import.csv 会一次回填多位匿名用户。");
 lines.push("- 回填工具自测：npm run release:candidate:record:selftest 会用临时私有执行包确认 anonymous-users.csv 和 feedback-template.csv 写入逻辑。");
+lines.push("- 每日复盘回填：npm run release:candidate:daily -- --date YYYY-MM-DD 会按当天匿名反馈自动写入 daily-review.csv。");
+lines.push("- 每日复盘自测：npm run release:candidate:daily:selftest 会用临时私有执行包确认 daily-review.csv 写入逻辑。");
 lines.push("- 查看内测缺口：npm run release:candidate:doctor 会把真实样本、今晚菜单、清单和协作样本的当前进度与缺口打印成人能读的行动卡。");
 lines.push("- 复盘内测结果：npm run release:candidate:review 会读取最新私有执行包，汇总 P0/P1、核心链路完成和是否可继续审核准备。");
 lines.push("- 复盘工具自测：npm run release:candidate:review:selftest 会用临时 CSV 覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。");
@@ -187,7 +192,8 @@ function getNextEvidenceStage(missing, submitEvidence) {
         "运行 npm run release:product:review、npm run release:candidate:check 和 npm run release:spec:audit，确认发现新菜、我的家问问大家、征集单模板、小程序卡片、内测准备和三份策划书矩阵仍然闭环。",
         "运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成私有内测执行包；要直接打开目录时去掉该环境变量。",
         "运行 npm run release:candidate:doctor，把当前真实样本、今晚菜单、清单和协作样本缺口看清楚。",
-        "收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总；运行 npm run release:candidate:record:selftest 确认工具可用。",
+        "收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总；一天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD 自动写 daily-review.csv。",
+        "运行 npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest 确认工具可用。",
         "内测结果写入私有执行包后，运行 npm run release:candidate:review 判断是否达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
         "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录仍可用。",
         "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",

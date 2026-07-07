@@ -35,6 +35,7 @@ npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:doctor
 npm run release:candidate:record:selftest
+npm run release:candidate:daily:selftest
 npm run release:candidate:review
 npm run release:candidate:review:selftest
 ```
@@ -50,6 +51,8 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:record -- --user U001 ...` 可把单个体验者的匿名结果回填到最新私有执行包，减少手改 CSV；真实姓名、微信号、手机号、截图和录屏仍只保留在仓库外。
 - `npm run release:candidate:record -- --import candidate-feedback-import.csv` 可从最新私有执行包批量导入多位体验者结果，适合一天内集中回填 U001-U020。
 - `npm run release:candidate:record:selftest` 可用临时私有执行包验证单人反馈回填命令能正确更新 `anonymous-users.csv` 并追加 `feedback-template.csv`。
+- `npm run release:candidate:daily -- --date YYYY-MM-DD` 可按当天匿名反馈自动写入 `daily-review.csv`，减少每日手算新增人数、P0/P1 和核心路径完成数。
+- `npm run release:candidate:daily:selftest` 可用临时私有执行包验证每日复盘回填命令。
 - `npm run release:candidate:review` 可复盘最新私有内测执行包；如果仍是模板、样本不足或出现 P0/P1，会阻止进入审核准备；默认最低标准是 10 个真实体验、8 个完成今晚菜单、8 个完成清单、3 个尝试协作。
 - `npm run release:candidate:review:selftest` 可用临时 CSV 验证复盘脚本本身，覆盖空模板、样本不足、P1 阻断和有效反馈通过四种路径。
 - 用户确认关键体验，尤其是【今晚菜单】选菜发现、【我的家】问问大家、征集单模板和小程序卡片分享。
@@ -111,6 +114,7 @@ Owner：用户，Codex 提供材料。
 ```bash
 npm run release:candidate:doctor
 npm run release:candidate:record:selftest
+npm run release:candidate:daily:selftest
 npm run release:candidate:review
 npm run release:wechat:check
 ```

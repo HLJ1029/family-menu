@@ -87,16 +87,20 @@ const checks = [
       && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:record")
       && packageJson.includes("release:candidate:record:selftest")
+      && packageJson.includes("release:candidate:daily")
+      && packageJson.includes("release:candidate:daily:selftest")
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:record")
       && nextAction.includes("release:candidate:record:selftest")
+      && nextAction.includes("release:candidate:daily")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:record")
       && handoff.includes("release:candidate:record:selftest")
+      && handoff.includes("release:candidate:daily")
       && handoff.includes("release:candidate:review"),
   },
   {
