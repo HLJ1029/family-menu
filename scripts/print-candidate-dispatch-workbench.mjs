@@ -67,6 +67,7 @@ const result = {
     collaborationTarget: user.collaborationTarget,
     inviteStatus: user.inviteStatus,
     hasTesterMessage: Boolean(user.testerMessage),
+    hasDraftCommand: Boolean(user.draftCommand),
     hasRecordCommand: Boolean(user.recordCommand),
   })),
   nextActions: [
@@ -74,7 +75,7 @@ const result = {
     pendingUsers.length
       ? `After the pending messages or mini program cards are actually sent, run ${batchInviteCommand}.`
       : "All users in this dispatch are already marked sent/experienced; wait for feedback and avoid resending.",
-    "After feedback arrives, copy the record command template, replace every placeholder with real anonymous feedback, then run it.",
+    "After feedback arrives, copy the record draft command for that U id, fill the private draft, then replace the record template with real anonymous feedback.",
     `End the day with npm run release:candidate:day:close -- --date ${date}.`,
   ],
 };
@@ -102,7 +103,7 @@ if (args.json) {
   ].join("\n"));
 }
 
-if (users.some((user) => !user.testerMessage || !user.recordCommand)) process.exit(1);
+if (users.some((user) => !user.testerMessage || !user.draftCommand || !user.recordCommand)) process.exit(1);
 
 async function ensureDispatchExists() {
   try {
@@ -181,6 +182,7 @@ function parseDispatchUsers(markdown) {
       entryLabel,
       instruction: fences[0] || "",
       testerMessage: fences[1] || "",
+      draftCommand: `npm run release:candidate:record:draft -- --user ${id} --date ${dispatchDateFromMarkdownOrToday()} --entry ${quoteCliValue(entryLabel)}`,
       recordCommand: fences[2] || "",
     });
   }
@@ -391,7 +393,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
         <li>这个工作台不会发送微信消息，不记录真实联系人，也不会标记已邀请。</li>
         <li>只给“待邀请/候补/待确认”的 U 编号发送；已邀请或已体验的 U 编号等待反馈，避免重复打扰。</li>
         <li>消息或小程序卡片真实发出后，才运行带 <code>--sent-confirmed</code> 的 invite 命令。</li>
-        <li>回填命令必须替换 <code>yes|no</code>、<code>1-5|没试</code>、问题等级和真实匿名摘要；不要原样运行模板。</li>
+        <li>收到反馈后先生成回填草稿，再替换 <code>yes|no</code>、<code>1-5|没试</code>、问题等级和真实匿名摘要；不要原样运行模板。</li>
         <li>手机号、邮箱、微信号、真实姓名、截图和录屏只放在仓库外私有位置。</li>
         <li>候选复盘达标并由用户当下确认前，不进入微信公众平台审核动作。</li>
       </ul>
@@ -457,12 +459,27 @@ function renderUser(user, date) {
   </div>
   <div class="copy-block">
     <div class="copy-head">
-      <h3>收到反馈后的回填模板</h3>
+      <h3>收到反馈后先生成草稿</h3>
+      <button class="secondary" data-copy="${escapeAttribute(user.draftCommand)}">复制回填草稿命令</button>
+    </div>
+    <pre>${escapeHtml(user.draftCommand)}</pre>
+  </div>
+  <div class="copy-block">
+    <div class="copy-head">
+      <h3>草稿确认后的回填模板</h3>
       <button class="secondary" data-copy="${escapeAttribute(user.recordCommand)}">复制回填模板</button>
     </div>
     <pre>${escapeHtml(user.recordCommand)}</pre>
   </div>
 </article>`;
+}
+
+function dispatchDateFromMarkdownOrToday() {
+  return args.date || new Date().toISOString().slice(0, 10);
+}
+
+function quoteCliValue(value) {
+  return `"${String(value ?? "").replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
 }
 
 function isAlreadySent(status) {

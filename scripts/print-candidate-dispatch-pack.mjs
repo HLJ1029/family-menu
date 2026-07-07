@@ -211,7 +211,7 @@ function buildRecordCommand(userId, { collaboration, entry }) {
     collaboration,
     ...collaborationValues.filter((value) => value !== collaboration),
   ].join("|");
-  return `npm run release:candidate:record -- --user ${userId} --entry "${entry}" --tonight yes|no --grocery yes|no --collaboration ${collaborationChoices} --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --severity P0|P1|P2|建议|通过 --note "替换成真实匿名摘要"`;
+  return `npm run release:candidate:record -- --user ${userId} --entry "${entry}" --tonight "yes|no" --grocery "yes|no" --collaboration "${collaborationChoices}" --recommendation "1-5|没试" --grocery-score "1-5|没试" --share-score "1-5|没试" --severity "P0|P1|P2|建议|通过" --note "替换成真实匿名摘要"`;
 }
 
 function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {

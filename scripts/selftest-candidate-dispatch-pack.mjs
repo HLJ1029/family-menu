@@ -28,10 +28,10 @@ assert(dispatch.includes("0. 入口任务：邀请家人小程序卡片"), "test
 assert(dispatch.includes("点卡片进入后"), "dispatch should tell testers to enter from mini program cards");
 assert(dispatch.includes("我给你留了一个 Humi 内测编号：U001。"), "dispatch missing U001 message");
 assert(dispatch.includes("npm run release:candidate:record -- --user U001 --entry \"分享卡片\""), "dispatch missing record command with share-card entry");
-assert(dispatch.includes("--collaboration ask|none|grocery|invite"), "dispatch should put the assigned collaboration command first without duplicates");
+assert(dispatch.includes("--collaboration \"ask|none|grocery|invite\""), "dispatch should put the assigned collaboration command first without duplicates");
 assert(dispatch.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "dispatch missing confirmed invite mark command");
 assert(dispatch.includes("不要原样运行这条模板"), "dispatch should warn against running placeholder command as-is");
-assert(dispatch.includes("--recommendation 1-5|没试"), "dispatch should require real recommendation score replacement");
+assert(dispatch.includes("--recommendation \"1-5|没试\""), "dispatch should require real recommendation score replacement");
 assert(dispatch.includes("--note \"替换成真实匿名摘要\""), "dispatch should require real anonymous note replacement");
 assert(!dispatch.includes("--recommendation 5 --grocery-score 5"), "dispatch should not default to positive feedback scores");
 assert(!dispatch.includes("--note \"清单有用\""), "dispatch should not default to positive feedback notes");

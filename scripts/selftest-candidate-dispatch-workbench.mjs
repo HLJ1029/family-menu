@@ -38,6 +38,7 @@ assert(result.users[0].entryLabel === "问问大家小程序卡片", "workbench 
 assert(result.users[0].inviteStatus === "已邀请", "workbench should read U001 invite status");
 assert(result.users[1].inviteStatus === "待邀请", "workbench should read U002 invite status");
 assert(result.users[0].hasTesterMessage, "workbench should include tester message");
+assert(result.users[0].hasDraftCommand, "workbench should include record draft command");
 assert(result.users[0].hasRecordCommand, "workbench should include record command");
 assert(mode === 0o600, `workbench mode expected 600, got ${mode.toString(8)}`);
 assert(html.includes('data-workbench-kind="humi-candidate-dispatch"'), "workbench missing stable marker");
@@ -51,6 +52,8 @@ assert(html.includes("npm run release:candidate:invite -- --users U001 --date 20
 assert(html.includes("npm run release:candidate:invite -- --users U002 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U002 invite command");
 assert(html.includes("npm run release:candidate:invite -- --users U002 --date 2026-07-07 --sent-confirmed"), "workbench missing pending-only batch invite command");
 assert(!html.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "workbench should not expose all-dispatch command when some users are already invited");
+assert(html.includes("复制回填草稿命令"), "workbench should expose copy buttons for record draft commands");
+assert(html.includes("npm run release:candidate:record:draft -- --user U001 --date 2026-07-07 --entry &quot;问问大家小程序卡片&quot;"), "workbench missing U001 record draft command");
 assert(html.includes("复制回填模板"), "workbench should expose copy buttons for record templates");
 assert(html.includes("npm run release:candidate:day:close -- --date 2026-07-07"), "workbench missing day close command");
 assert(html.includes("不会发送微信消息"), "workbench should state it does not send messages");

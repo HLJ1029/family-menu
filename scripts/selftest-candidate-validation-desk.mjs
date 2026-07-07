@@ -43,6 +43,8 @@ const requiredText = [
   "candidate-feedback-import.csv",
   "docs/humi-1.1-candidate-validation-forms.md",
   "npm run release:candidate:day:close",
+  "release:candidate:record:draft -- --user U00X --date YYYY-MM-DD",
+  "npm run release:candidate:record:draft -- --user U001 --date 2026-07-07 --entry \"问问大家小程序卡片\"",
   "npm run release:candidate:record -- --import candidate-feedback-import.csv",
   "达标后仍需用户动作当下确认",
 ];
