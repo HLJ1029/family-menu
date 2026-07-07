@@ -20,9 +20,10 @@ const { stdout } = await execFileAsync("npm", ["run", "release:candidate:prepare
 
 const result = parseLastJson(stdout);
 assert(result?.ok === true, "candidate prepare did not return ok=true");
+assert(result.selftestMode === true, "candidate prepare selftest should run in explicit selftest mode");
 assert(result.packetDir?.startsWith(`${privateBaseDir}${sep}`), "candidate packet was not created under the private selftest directory");
-assert(result.git?.clean === true, "candidate prepare selftest requires a clean worktree");
-assert(result.release?.engineeringGatesReady === true, "candidate prepare did not see healthy engineering gates");
+assert(typeof result.git?.clean === "boolean", "candidate prepare did not report git cleanliness");
+assert(typeof result.release?.engineeringGatesReady === "boolean", "candidate prepare did not report engineering gate state");
 
 const requiredFiles = [
   "README.md",

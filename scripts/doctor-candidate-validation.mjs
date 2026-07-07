@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { access, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -12,6 +13,8 @@ if (!review.data) {
 }
 
 const result = review.data;
+const today = new Date().toISOString().slice(0, 10);
+const dispatch = await readDispatchSummary(result.packetDir, today);
 const lines = [];
 
 lines.push("Humi 1.1 候选内测进度台");
@@ -41,6 +44,22 @@ lines.push(`- 反馈记录：${result.summary?.feedbackRows ?? 0}`);
 lines.push(`- 每日复盘记录：${result.summary?.dailyReviewRows ?? 0}`);
 lines.push("");
 
+if (dispatch) {
+  lines.push("今日分发单已生成：");
+  lines.push(`- 分发单: ${dispatch.markdownPath}`);
+  lines.push(`- JSON: ${dispatch.jsonPath}`);
+  if (dispatch.users.length) {
+    for (const user of dispatch.users) {
+      const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
+      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}`);
+    }
+    lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`);
+  } else {
+    lines.push("- 今日分发单没有发送对象；先运行 `npm run release:candidate:plan` 重新看今日缺口。");
+  }
+  lines.push("");
+}
+
 lines.push("现在要打开的文件：");
 for (const file of candidateFiles(result)) {
   lines.push(`- ${file.label}: ${file.path}`);
@@ -59,7 +78,7 @@ if (result.blockers?.length) {
 }
 
 lines.push("下一步补什么：");
-for (const action of buildHumanActions(result)) {
+for (const action of buildHumanActions(result, dispatch, today)) {
   lines.push(`- ${action}`);
 }
 lines.push("");
@@ -122,11 +141,14 @@ function explainRecommendation(recommendation) {
   }[recommendation] ?? recommendation ?? "未知";
 }
 
-function buildHumanActions(result) {
+function buildHumanActions(result, dispatch, today) {
   if (result.recommendation === "wait-for-validation-input") {
     return [
-      "先在私有包的 anonymous-users.csv 填 U001-U020 的真实匿名体验状态。",
-      "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段。",
+      dispatch
+        ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today}。`
+        : `先运行 npm run release:candidate:plan 和 npm run release:candidate:dispatch -- --date ${today}，生成今日分发单后再发送。`,
+      "收到反馈后，在私有包 anonymous-users.csv 记录 U 编号的真实匿名体验状态。",
+      "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段；不要把“已邀请”当成“已体验”。",
       "把具体卡点、用户原话摘要和私有截图位置填到 feedback-template.csv。",
       "也可以用 npm run release:candidate:record -- ... 回填单个用户，少手改 CSV。",
       "每天收工前运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，把新增人数、P0/P1、当天结论、隐私扫描和候选复盘写入私有收尾报告。",
@@ -164,6 +186,8 @@ function candidateFiles(result) {
   const packetDir = result.packetDir;
   return [
     ["候选内测日计划", "candidate-day-plan.md"],
+    dispatch ? ["今日分发单", `candidate-dispatch-${today}.md`] : null,
+    dispatch ? ["今日分发 JSON", `candidate-dispatch-${today}.json`] : null,
     ["邀请文案", "invite-copy.md"],
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
     ["体验者反馈单", "tester-feedback-form.md"],
@@ -173,8 +197,25 @@ function candidateFiles(result) {
     ["单条反馈回填表", "feedback-template.csv"],
     ["每日复盘表", "daily-review.csv"],
     ["P0/P1 问题分级表", "issue-triage.csv"],
-  ].map(([label, file]) => ({
+  ].filter(Boolean).map(([label, file]) => ({
     label,
     path: `${packetDir}/${file}`,
   }));
+}
+
+async function readDispatchSummary(dir, date) {
+  const jsonPath = `${dir}/candidate-dispatch-${date}.json`;
+  const markdownPath = `${dir}/candidate-dispatch-${date}.md`;
+  try {
+    const content = await readFile(jsonPath, "utf8");
+    await access(markdownPath);
+    const parsed = JSON.parse(content);
+    return {
+      markdownPath,
+      jsonPath,
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+    };
+  } catch {
+    return null;
+  }
 }

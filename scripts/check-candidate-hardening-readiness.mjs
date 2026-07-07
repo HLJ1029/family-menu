@@ -8,6 +8,8 @@ const files = {
   packageJson: "package.json",
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
+  candidateDoctor: "scripts/doctor-candidate-validation.mjs",
+  candidateDoctorSelftest: "scripts/selftest-candidate-validation-doctor.mjs",
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
   candidateDeskSelftest: "scripts/selftest-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
@@ -19,7 +21,7 @@ const files = {
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -96,6 +98,7 @@ const checks = [
     ok: packageJson.includes("release:candidate:prepare")
       && packageJson.includes("release:candidate:prepare:selftest")
       && packageJson.includes("release:candidate:doctor")
+      && packageJson.includes("release:candidate:doctor:selftest")
       && packageJson.includes("release:candidate:plan")
       && packageJson.includes("release:candidate:plan:selftest")
       && packageJson.includes("release:candidate:dispatch")
@@ -190,6 +193,27 @@ const checks = [
       "npm run release:candidate:privacy:check",
       "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
     ].every((text) => candidateForms.includes(text)),
+  },
+  {
+    key: "candidate-doctor-dispatch-focus",
+    title: "候选 doctor 会直接提示今日分发单和真实发送后的登记动作",
+    path: `${files.packageJson}, ${files.candidateDoctor}, ${files.candidateDoctorSelftest}`,
+    ok: packageJson.includes("release:candidate:doctor:selftest")
+      && [
+        "今日分发单已生成",
+        "candidate-dispatch-",
+        "真实发送后再运行",
+        "只标记已邀请，不会生成体验反馈",
+        "先发今天分发单里的 U 编号",
+        "不要把“已邀请”当成“已体验”",
+      ].every((text) => candidateDoctor.includes(text))
+      && [
+        "doctor-surfaces-current-dispatch-and-invite-guard",
+        "今日分发单已生成",
+        "U001: 问问大家小程序卡片（优先跑协作）",
+        "真实发送后再运行",
+        "不要把“已邀请”当成“已体验”",
+      ].every((text) => candidateDoctorSelftest.includes(text)),
   },
   {
     key: "candidate-execution-desk",

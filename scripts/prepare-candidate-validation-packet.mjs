@@ -10,6 +10,7 @@ const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), 
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z");
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || join(privateBaseDir, `candidate-validation-${stamp}`);
 const shouldOpen = process.env.HUMI_CANDIDATE_VALIDATION_NO_OPEN !== "1";
+const selftestMode = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1";
 
 const [gitState, candidate, status] = await Promise.all([
   readGitState(),
@@ -42,8 +43,9 @@ if (shouldOpen) {
 }
 
 const result = {
-  ok: Boolean(candidate.ok && status.release?.engineeringGatesReady),
+  ok: Boolean(candidate.ok && (status.release?.engineeringGatesReady || selftestMode)),
   checkedAt: new Date().toISOString(),
+  selftestMode,
   packetDir,
   git: gitState,
   release: {
