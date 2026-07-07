@@ -16,6 +16,7 @@ try {
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
+  await writeValidCandidatePacket(tempDir);
 
   const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
   await mkdir(tempSubmitDir, { recursive: true });
@@ -119,4 +120,66 @@ async function run(script, extraEnv) {
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
   });
+}
+
+async function writeValidCandidatePacket(baseDir) {
+  const packetDir = join(baseDir, "candidate-validation-20990101T000000Z");
+  await mkdir(packetDir, { recursive: true });
+  const users = Array.from({ length: 10 }, (_, index) => candidateUser(index + 1));
+  await Promise.all([
+    writeFile(join(packetDir, "anonymous-users.csv"), csv([
+      anonymousHeader(),
+      ...users.map((user) => user.anonymous),
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "feedback-template.csv"), csv([
+      feedbackHeader(),
+      ...users.map((user) => user.feedback),
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "daily-review.csv"), csv([
+      dailyHeader(),
+      ["Day 1", "10", "10", "10", "3", "0", "0", "候选复盘自测通过", "继续外部证据阶段"],
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "issue-triage.csv"), csv([
+      issueHeader(),
+      ["SUG-001", "希望菜更多", "U001", "建议", "是", "否", "否", "codex@mbp-m5pro", "不处理", "不阻塞"],
+    ]), { mode: 0o600 }),
+  ]);
+}
+
+function candidateUser(index) {
+  const id = `U${String(index).padStart(3, "0")}`;
+  const collaboration = index <= 3 ? ["问问大家", "邀请家人", "买菜认领"][index - 1] : "没有";
+  const device = index % 2 === 0 ? "iPhone 14 / WeChat 9" : "iPhone 15 / WeChat 9";
+  return {
+    anonymous: [id, index % 2 === 0 ? "三人家庭" : "两人家庭", device, "已体验", "2026-07-06", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", index <= 4 ? "已复访" : "待观察", "通过", `private://candidate/${id}`, "流程顺"],
+    feedback: [id, device, "2026-07-06", index % 2 === 0 ? "清单" : "今晚", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", "无", index % 2 === 0 ? "清单能看懂" : "推荐能直接做", `private://candidate/${id}`, "建议", "否", "不处理"],
+  };
+}
+
+function anonymousHeader() {
+  return ["用户编号", "家庭类型", "设备/微信版本", "邀请状态", "首次体验日期", "完成今晚菜单", "完成清单", "尝试协作", "推荐评分", "清单评分", "分享评分", "复访状态", "当前等级", "私有证据位置", "备注"];
+}
+
+function feedbackHeader() {
+  return ["用户编号", "设备与微信版本", "体验日期", "入口", "完成今晚菜单", "完成清单", "协作类型", "推荐评分", "清单评分", "分享评分", "卡住的位置", "用户原话摘要", "私有截图/录屏位置", "问题等级", "是否进入1.1.x", "处理状态"];
+}
+
+function dailyHeader() {
+  return ["日期", "新体验人数", "完成今晚菜单", "完成清单", "尝试协作", "P0数", "P1数", "今日结论", "下一步"];
+}
+
+function issueHeader() {
+  return ["编号", "问题", "来源用户编号", "等级", "是否复现", "是否阻塞审核", "是否进入1.1.x", "Owner", "处理状态", "结论"];
+}
+
+function csv(rows) {
+  return `${rows.map((row) => row.map(csvCell).join(",")).join("\n")}\n`;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 }
