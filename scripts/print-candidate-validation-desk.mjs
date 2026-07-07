@@ -29,12 +29,13 @@ if (result?.summary) {
 lines.push("");
 
 lines.push("今天先做：");
-lines.push("1. 打开 `outreach-batch.md`，从 U001-U020 里挑今天要邀请的人，逐条复制发送。");
-lines.push("2. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
-lines.push("3. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
-lines.push("4. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
-lines.push(`5. 今天结束运行 \`npm run release:candidate:daily -- --date ${today}\` 写入每日复盘。`);
-lines.push("6. 每轮回填后运行 `npm run release:candidate:doctor` 看还差多少样本。");
+lines.push("1. 先运行 `npm run release:candidate:plan`，再打开 `candidate-day-plan.md` 看今天建议邀请、追问和优先协作的 U 编号。");
+lines.push("2. 打开 `outreach-batch.md`，只复制今天建议编号的邀请文案，逐条发送。");
+lines.push("3. 给体验者发 `tester-feedback-form.md`，只让对方按轻量问题回答，不暴露工程门禁。");
+lines.push("4. 执行人自己用 `host-run-sheet.md` 记录观察，尤其看发现新菜、今晚菜单、清单和协作路径。");
+lines.push("5. 收到反馈后优先用 `release:candidate:record` 或 `candidate-feedback-import.csv` 回填匿名结果。");
+lines.push(`6. 今天结束运行 \`npm run release:candidate:daily -- --date ${today}\` 写入每日复盘。`);
+lines.push("7. 每轮回填后运行 `npm run release:candidate:privacy:check` 和 `npm run release:candidate:doctor`。");
 lines.push("");
 
 lines.push("今天不要做：");
@@ -55,6 +56,7 @@ lines.push("");
 
 lines.push("可复制命令：");
 lines.push("- HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare");
+lines.push("- npm run release:candidate:plan");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"");
 lines.push("- npm run release:candidate:record -- --import candidate-feedback-import.csv");
@@ -107,10 +109,20 @@ function parseLastJson(output) {
 }
 
 async function assertPacketFiles(dir) {
-  await Promise.all(candidateFiles(dir).map((item) => access(item.path)));
+  await Promise.all(requiredCandidateFiles(dir).map((item) => access(item.path)));
 }
 
 function candidateFiles(dir) {
+  return [
+    ["候选内测日计划", "candidate-day-plan.md"],
+    ...requiredCandidateFiles(dir).map((item) => [item.label, item.file]),
+  ].map(([label, file]) => ({
+    label,
+    path: `${dir}/${file}`,
+  }));
+}
+
+function requiredCandidateFiles(dir) {
   return [
     ["邀请文案", "invite-copy.md"],
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
@@ -123,6 +135,7 @@ function candidateFiles(dir) {
     ["P0/P1 问题分级表", "issue-triage.csv"],
   ].map(([label, file]) => ({
     label,
+    file,
     path: `${dir}/${file}`,
   }));
 }

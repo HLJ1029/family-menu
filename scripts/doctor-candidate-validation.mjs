@@ -161,6 +161,7 @@ function buildHumanActions(result) {
 function candidateFiles(result) {
   const packetDir = result.packetDir;
   return [
+    ["候选内测日计划", "candidate-day-plan.md"],
     ["邀请文案", "invite-copy.md"],
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
     ["体验者反馈单", "tester-feedback-form.md"],

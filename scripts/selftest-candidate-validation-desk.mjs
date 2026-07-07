@@ -25,6 +25,8 @@ const requiredText = [
   "完成清单：0/8",
   "尝试协作：0/3",
   "今天先做",
+  "candidate-day-plan.md",
+  "npm run release:candidate:plan",
   "今天不要做",
   "outreach-batch.md",
   "tester-feedback-form.md",
@@ -56,6 +58,7 @@ async function writePacket(dir) {
   await Promise.all([
     writeFile(join(dir, "invite-copy.md"), "# Humi 1.1 候选邀请文案\n\n请体验 5 分钟。\n", { mode: 0o600 }),
     writeFile(join(dir, "outreach-batch.md"), "# U001-U020 批量邀请清单\n\n- U001：请体验 5 分钟。\n", { mode: 0o600 }),
+    writeFile(join(dir, "candidate-day-plan.md"), "# Humi 1.1 候选内测日计划\n\n- 建议新邀请：U001、U002\n", { mode: 0o600 }),
     writeFile(join(dir, "tester-feedback-form.md"), "# Humi 1.1 体验者反馈单\n\n请不要写真实姓名、手机号或微信号。\n", { mode: 0o600 }),
     writeFile(join(dir, "host-run-sheet.md"), "# Humi 1.1 主厨记录单\n\n观察发现新菜、今晚菜单、清单和协作路径。\n", { mode: 0o600 }),
     writeFile(join(dir, "candidate-feedback-import.csv"), [

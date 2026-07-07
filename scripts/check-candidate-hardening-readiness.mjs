@@ -175,6 +175,8 @@ const checks = [
       "Humi 1.1 候选内测执行台",
       "今天先做",
       "今天不要做",
+      "candidate-day-plan.md",
+      "release:candidate:plan",
       "outreach-batch.md",
       "tester-feedback-form.md",
       "host-run-sheet.md",
