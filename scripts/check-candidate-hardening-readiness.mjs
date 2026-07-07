@@ -106,9 +106,11 @@ const checks = [
     ok: [
       "tester-feedback-form.md",
       "host-run-sheet.md",
+      "candidate-feedback-import.csv",
       "outreach-batch.md",
       "U001-U020 批量邀请清单",
       "release:candidate:record",
+      "--import candidate-feedback-import.csv",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",

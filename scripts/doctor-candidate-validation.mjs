@@ -165,6 +165,7 @@ function candidateFiles(result) {
     ["U001-U020 批量邀请清单", "outreach-batch.md"],
     ["体验者反馈单", "tester-feedback-form.md"],
     ["主厨记录单", "host-run-sheet.md"],
+    ["批量反馈导入模板", "candidate-feedback-import.csv"],
     ["匿名用户进度表", "anonymous-users.csv"],
     ["单条反馈回填表", "feedback-template.csv"],
     ["每日复盘表", "daily-review.csv"],

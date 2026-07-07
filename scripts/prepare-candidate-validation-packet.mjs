@@ -23,6 +23,7 @@ const files = [
   ["README.md", buildReadme({ git: gitState, candidate, status })],
   ["anonymous-users.csv", buildAnonymousUsersCsv()],
   ["feedback-template.csv", buildFeedbackTemplateCsv()],
+  ["candidate-feedback-import.csv", buildCandidateFeedbackImportCsv()],
   ["daily-review.csv", buildDailyReviewCsv()],
   ["issue-triage.csv", buildIssueTriageCsv()],
   ["invite-copy.md", buildInviteCopy()],
@@ -60,6 +61,7 @@ const result = {
     "Use outreach-batch.md to copy one anonymous U001-U020 message per tester.",
     "Use tester-feedback-form.md for user-facing feedback and host-run-sheet.md for operator notes.",
     "Use npm run release:candidate:record -- ... to transfer summarized results into anonymous-users.csv and feedback-template.csv.",
+    "Use candidate-feedback-import.csv with npm run release:candidate:record -- --import candidate-feedback-import.csv when importing several users at once.",
     "Update daily-review.csv at the end of each validation day.",
     "Run npm run release:candidate:doctor to inspect missing validation counts before rerunning release:candidate:review.",
     "Record P0/P1 findings in docs/humi-1.1-pre-review-hardening.md before WeChat review.",
@@ -131,6 +133,7 @@ function buildReadme({ git, candidate, status }) {
     "",
     "- `anonymous-users.csv`：U001-U020 匿名名单和完成状态。",
     "- `feedback-template.csv`：单次用户反馈记录。",
+    "- `candidate-feedback-import.csv`：批量回填多位用户的导入模板，字段名与 `release:candidate:record` 参数一致。",
     "- `daily-review.csv`：Day 1-Day 3 每日复盘。",
     "- `issue-triage.csv`：P0/P1/P2/建议分级和是否进入 1.1.x。",
     "- `invite-copy.md`：可以手动发给内测用户的邀请文案。",
@@ -147,6 +150,7 @@ function buildReadme({ git, candidate, status }) {
     "4. 每个用户至少跑一次【今晚】推荐、今晚菜单、清单，尽量再跑一次问问大家/邀请家人/买菜认领。",
     "5. 把单个用户结果汇总到 `feedback-template.csv`，用 `daily-review.csv` 做每天汇总。",
     "   推荐用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"` 回填。",
+    "   多位用户一起回填时，先填 `candidate-feedback-import.csv`，再运行 `npm run release:candidate:record -- --import candidate-feedback-import.csv`。",
     "6. 任一 P0 或多个用户同一核心链路卡住，先暂停审核准备，进入修复。",
     "7. 每轮回填后运行 `npm run release:candidate:doctor` 看还差哪些样本。",
     "8. 内测无 P0/P1 且 `npm run release:candidate:review` 通过后，再由用户明确确认是否进入微信审核。",
@@ -184,6 +188,12 @@ function buildFeedbackTemplateCsv() {
   return toCsv([
     ["用户编号", "设备与微信版本", "体验日期", "入口", "完成今晚菜单", "完成清单", "协作类型", "推荐评分", "清单评分", "分享评分", "卡住的位置", "用户原话摘要", "私有截图/录屏位置", "问题等级", "是否进入1.1.x", "处理状态"],
     ["U001", "待填", "待填", "今晚/自己挑/想连排几天/清单/我的家/分享卡片", "是/否", "是/否", "问问大家/邀请家人/买菜认领/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
+  ]);
+}
+
+function buildCandidateFeedbackImportCsv() {
+  return toCsv([
+    ["user", "date", "device", "entry", "tonight", "grocery", "collaboration", "recommendation", "grocery-score", "share-score", "stuck", "note", "severity", "evidence", "revisit"],
   ]);
 }
 

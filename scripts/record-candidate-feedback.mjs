@@ -1,6 +1,6 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
 const args = parseArgs(process.argv.slice(2));
@@ -11,25 +11,6 @@ if (args.help) {
 }
 
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || await findLatestPacketDir();
-const userId = String(args.user || "").trim().toUpperCase();
-if (!/^U\d{3}$/.test(userId)) {
-  throw new Error("Missing or invalid --user. Example: --user U001");
-}
-
-const today = args.date || new Date().toISOString().slice(0, 10);
-const completedTonight = yesNo(args.tonight);
-const completedGrocery = yesNo(args.grocery);
-const collaboration = normalizeCollaboration(args.collaboration);
-const recommendationScore = normalizeScore(args.recommendation, "recommendation");
-const groceryScore = normalizeScore(args.groceryScore, "grocery-score");
-const shareScore = normalizeScore(args.shareScore, "share-score", { allowSkipped: true });
-const severity = normalizeSeverity(args.severity || "建议");
-const note = String(args.note || "").trim();
-const stuck = String(args.stuck || "无").trim();
-const evidence = String(args.evidence || "private://").trim() || "private://";
-const device = String(args.device || "待填").trim() || "待填";
-const entry = String(args.entry || "今晚").trim() || "今晚";
-const revisit = String(args.revisit || "待观察").trim() || "待观察";
 const dryRun = Boolean(args.dryRun);
 
 const files = {
@@ -39,60 +20,22 @@ const files = {
 
 const anonymous = await readCsv(files.anonymousUsers);
 const feedback = await readCsv(files.feedback);
+const records = args.import
+  ? await readImportRecords(args.import)
+  : [buildRecordFromInput(args)];
 
-const userIndex = anonymous.rows.findIndex((row) => row["用户编号"] === userId);
-if (userIndex < 0) {
-  throw new Error(`${userId} is not present in ${files.anonymousUsers}`);
-}
-
-const userRow = {
-  ...anonymous.rows[userIndex],
-  "设备/微信版本": device,
-  "邀请状态": "已体验",
-  "首次体验日期": today,
-  "完成今晚菜单": completedTonight,
-  "完成清单": completedGrocery,
-  "尝试协作": collaboration,
-  "推荐评分": recommendationScore,
-  "清单评分": groceryScore,
-  "分享评分": shareScore,
-  "复访状态": revisit,
-  "当前等级": severity === "建议" ? "建议" : severity,
-  "私有证据位置": evidence,
-  "备注": note,
-};
-anonymous.rows[userIndex] = userRow;
-
-const shouldAppendFeedback = Boolean(note || stuck !== "无" || severity !== "建议" || args.forceFeedback);
-if (shouldAppendFeedback) {
-  feedback.rows.push({
-    "用户编号": userId,
-    "设备与微信版本": device,
-    "体验日期": today,
-    "入口": entry,
-    "完成今晚菜单": completedTonight,
-    "完成清单": completedGrocery,
-    "协作类型": collaboration,
-    "推荐评分": recommendationScore,
-    "清单评分": groceryScore,
-    "分享评分": shareScore,
-    "卡住的位置": stuck,
-    "用户原话摘要": note || "无",
-    "私有截图/录屏位置": evidence,
-    "问题等级": severity,
-    "是否进入1.1.x": severity === "P0" || severity === "P1" ? "待观察" : "否",
-    "处理状态": "新反馈",
-  });
-}
+const applied = records.map((record) => applyRecord({ anonymous, feedback, record }));
 
 const result = {
   ok: true,
   dryRun,
   checkedAt: new Date().toISOString(),
   packetDir,
-  user: userId,
+  user: applied.length === 1 ? applied[0].user : undefined,
+  importedRecords: applied.length,
+  users: applied.map((item) => item.user),
   updatedAnonymousUsers: files.anonymousUsers,
-  appendedFeedback: shouldAppendFeedback,
+  appendedFeedback: applied.some((item) => item.appendedFeedback),
   feedbackFile: files.feedback,
   nextActions: [
     "Run npm run release:candidate:doctor to inspect updated thresholds.",
@@ -130,6 +73,101 @@ async function readCsv(path) {
     rows: data
       .filter((row) => row.some((cell) => String(cell || "").trim()))
       .map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]))),
+  };
+}
+
+async function readImportRecords(importArg) {
+  const importPath = isAbsolute(importArg) ? importArg : join(packetDir, importArg);
+  const imported = await readCsv(importPath);
+  const rows = imported.rows.filter((row) => String(row.user || row["用户编号"] || "").trim());
+  if (!rows.length) {
+    throw new Error(`${importPath} does not contain any feedback rows.`);
+  }
+  return rows.map((row) => buildRecordFromInput(row));
+}
+
+function buildRecordFromInput(input) {
+  const userId = String(field(input, "user", "用户编号") || "").trim().toUpperCase();
+  if (!/^U\d{3}$/.test(userId)) {
+    throw new Error("Missing or invalid --user. Example: --user U001");
+  }
+  return {
+    userId,
+    today: field(input, "date", "体验日期") || new Date().toISOString().slice(0, 10),
+    completedTonight: yesNo(field(input, "tonight", "完成今晚菜单")),
+    completedGrocery: yesNo(field(input, "grocery", "完成清单")),
+    collaboration: normalizeCollaboration(field(input, "collaboration", "协作类型")),
+    recommendationScore: normalizeScore(field(input, "recommendation", "推荐评分"), "recommendation"),
+    groceryScore: normalizeScore(field(input, "groceryScore", "grocery-score", "清单评分"), "grocery-score"),
+    shareScore: normalizeScore(field(input, "shareScore", "share-score", "分享评分"), "share-score", { allowSkipped: true }),
+    severity: normalizeSeverity(field(input, "severity", "问题等级") || "建议"),
+    note: String(field(input, "note", "用户原话摘要") || "").trim(),
+    stuck: String(field(input, "stuck", "卡住的位置") || "无").trim(),
+    evidence: String(field(input, "evidence", "私有截图/录屏位置") || "private://").trim() || "private://",
+    device: String(field(input, "device", "设备与微信版本") || "待填").trim() || "待填",
+    entry: String(field(input, "entry", "入口") || "今晚").trim() || "今晚",
+    revisit: String(field(input, "revisit", "复访状态") || "待观察").trim() || "待观察",
+    forceFeedback: Boolean(input.forceFeedback || input["force-feedback"] || input["强制追加反馈"]),
+  };
+}
+
+function field(input, ...keys) {
+  for (const key of keys) {
+    if (Object.hasOwn(input, key) && String(input[key] ?? "").trim() !== "") {
+      return input[key];
+    }
+  }
+  return "";
+}
+
+function applyRecord({ anonymous, feedback, record }) {
+  const userIndex = anonymous.rows.findIndex((row) => row["用户编号"] === record.userId);
+  if (userIndex < 0) {
+    throw new Error(`${record.userId} is not present in ${files.anonymousUsers}`);
+  }
+
+  anonymous.rows[userIndex] = {
+    ...anonymous.rows[userIndex],
+    "设备/微信版本": record.device,
+    "邀请状态": "已体验",
+    "首次体验日期": record.today,
+    "完成今晚菜单": record.completedTonight,
+    "完成清单": record.completedGrocery,
+    "尝试协作": record.collaboration,
+    "推荐评分": record.recommendationScore,
+    "清单评分": record.groceryScore,
+    "分享评分": record.shareScore,
+    "复访状态": record.revisit,
+    "当前等级": record.severity === "建议" ? "建议" : record.severity,
+    "私有证据位置": record.evidence,
+    "备注": record.note,
+  };
+
+  const shouldAppendFeedback = Boolean(record.note || record.stuck !== "无" || record.severity !== "建议" || record.forceFeedback);
+  if (shouldAppendFeedback) {
+    feedback.rows.push({
+      "用户编号": record.userId,
+      "设备与微信版本": record.device,
+      "体验日期": record.today,
+      "入口": record.entry,
+      "完成今晚菜单": record.completedTonight,
+      "完成清单": record.completedGrocery,
+      "协作类型": record.collaboration,
+      "推荐评分": record.recommendationScore,
+      "清单评分": record.groceryScore,
+      "分享评分": record.shareScore,
+      "卡住的位置": record.stuck,
+      "用户原话摘要": record.note || "无",
+      "私有截图/录屏位置": record.evidence,
+      "问题等级": record.severity,
+      "是否进入1.1.x": record.severity === "P0" || record.severity === "P1" ? "待观察" : "否",
+      "处理状态": "新反馈",
+    });
+  }
+
+  return {
+    user: record.userId,
+    appendedFeedback: shouldAppendFeedback,
   };
 }
 
@@ -245,6 +283,7 @@ function helpText() {
   return [
     "Usage:",
     "  npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note \"清单有用\"",
+    "  npm run release:candidate:record -- --import candidate-feedback-import.csv",
     "",
     "Options:",
     "  --user U001",
@@ -262,6 +301,7 @@ function helpText() {
     "  --note \"用户原话摘要\"",
     "  --severity P0|P1|P2|建议|通过|待观察",
     "  --evidence private://...",
+    "  --import candidate-feedback-import.csv",
     "  --dry-run",
   ].join("\n");
 }
