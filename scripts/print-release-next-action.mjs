@@ -55,9 +55,9 @@ if (openHardeningItems.length) {
     if (candidateAction.dispatch.allUsersInvited) {
       lines.push("下一步一句话：今天分发单里的 U 编号已标记为已邀请；等待今天这批 U 编号的真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
     } else if (candidateAction.dispatch.someUsersInvited) {
-      lines.push("下一步一句话：继续发送今日分发单里尚未标记已邀请的 U 编号；已邀请的 U 编号等待真实反馈并准备回填。");
+      lines.push(`下一步一句话：运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，只发送今日分发单里尚未标记已邀请的 U 编号；已邀请的 U 编号等待真实反馈并准备回填。`);
     } else {
-      lines.push(`下一步一句话：打开 ${candidateAction.dispatch.markdownPath}，发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
+      lines.push(`下一步一句话：运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，打开私有 HTML 工作台发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
     }
     lines.push("");
     if (candidateAction.dispatch.someUsersInvited) {
@@ -269,6 +269,7 @@ async function getCandidateActionState() {
 
   const markdownPath = join(packetDir, `candidate-dispatch-${date}.md`);
   const jsonPath = join(packetDir, `candidate-dispatch-${date}.json`);
+  const workbenchPath = join(packetDir, `candidate-dispatch-workbench-${date}.html`);
   try {
     const content = await readFile(jsonPath, "utf8");
     await access(markdownPath);
@@ -292,6 +293,7 @@ async function getCandidateActionState() {
       dispatch: {
         markdownPath,
         jsonPath,
+        workbenchPath,
         users,
         invitedUsers,
         pendingUsers,

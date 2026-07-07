@@ -17,9 +17,9 @@ try {
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("发送今天这些 U 编号");
+  await assertNext("运行 `npm run release:candidate:dispatch:workbench");
   await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
-  await assertNext("继续发送今日分发单里尚未标记已邀请的 U 编号");
+  await assertNext("只发送今日分发单里尚未标记已邀请的 U 编号");
   await writePendingCandidatePacket(tempDir, "已邀请");
   await assertNext("今天分发单里的 U 编号已标记为已邀请");
   await writeValidCandidatePacket(tempDir);
