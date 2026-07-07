@@ -32,6 +32,22 @@ const cases = [
     },
   },
   {
+    name: "skipped-attempt-not-experienced",
+    files: skippedAttemptPacket(),
+    expect: {
+      ok: false,
+      recommendation: "wait-for-more-validation",
+      blocker: "insufficient-validation-sample",
+      summary: {
+        experiencedUsers: 0,
+        completedTonight: 0,
+        completedGrocery: 0,
+        triedCollaboration: 0,
+        feedbackRows: 1,
+      },
+    },
+  },
+  {
     name: "p1-blocker",
     files: p1Packet(),
     expect: {
@@ -188,6 +204,29 @@ function validPacket() {
   return buildPacket(Array.from({ length: 10 }, (_, index) => userRow(index + 1, {
     collaboration: index < 3 ? ["问问大家", "邀请家人", "买菜认领"][index] : "没有",
   })));
+}
+
+function skippedAttemptPacket() {
+  const id = "U001";
+  const device = "iPhone 15 / WeChat 9";
+  return {
+    "anonymous-users.csv": csv([
+      anonymousHeader(),
+      [id, "两人家庭", device, "已体验", "2026-07-06", "否", "否", "没有", "没试", "没试", "没试", "待观察", "P2", `private://candidate/${id}`, "没打开成功"],
+    ]),
+    "feedback-template.csv": csv([
+      feedbackHeader(),
+      [id, device, "2026-07-06", "今晚", "否", "否", "没有", "没试", "没试", "没试", "没打开成功", "入口卡住，未走完核心路径", `private://candidate/${id}`, "P2", "待观察", "新反馈"],
+    ]),
+    "daily-review.csv": csv([
+      dailyHeader(),
+      ["Day 1", "0", "0", "0", "0", "0", "0", "入口卡住，继续修", "补测 U001"],
+    ]),
+    "issue-triage.csv": csv([
+      issueHeader(),
+      ["SUG-001", "入口卡住", id, "P2", "待判断", "否", "待观察", "codex@mbp-m5pro", "新反馈", "不计入真实体验样本"],
+    ]),
+  };
 }
 
 function buildPacket(users) {

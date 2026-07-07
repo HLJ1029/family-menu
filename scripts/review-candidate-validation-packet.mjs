@@ -28,7 +28,7 @@ const [anonymousUsers, feedback, dailyReview, issueTriage] = await Promise.all([
 
 const userRows = anonymousUsers.rows.filter((row) => isRealUserRow(row["用户编号"]));
 const activeUsers = userRows.filter((row) => !isPlaceholder(row["首次体验日期"]) || ["已体验", "已邀请", "未响应"].includes(row["邀请状态"]));
-const experiencedUsers = userRows.filter((row) => row["邀请状态"] === "已体验" || !isPlaceholder(row["首次体验日期"]));
+const experiencedUsers = userRows.filter((row) => hasCompletedExperience(row));
 const completedTonight = experiencedUsers.filter((row) => isYes(row["完成今晚菜单"]));
 const completedGrocery = experiencedUsers.filter((row) => isYes(row["完成清单"]));
 const triedCollaboration = experiencedUsers.filter((row) => !isPlaceholder(row["尝试协作"]) && row["尝试协作"] !== "没有");
@@ -219,6 +219,21 @@ function isRealFeedbackRow(row) {
 function isPlaceholder(value) {
   const text = String(value || "").trim();
   return !text || ["待填", "待观察", "待判断", "P0/P1/P2/建议", "是/否", "是/否/待观察", "1-5", "private://", "待收集"].includes(text);
+}
+
+function hasCompletedExperience(row) {
+  if (isYes(row["完成今晚菜单"]) || isYes(row["完成清单"])) return true;
+  if (isValidScore(row["推荐评分"]) || isValidScore(row["清单评分"]) || isValidScore(row["分享评分"])) return true;
+  return hasTriedCollaboration(row["尝试协作"]);
+}
+
+function hasTriedCollaboration(value) {
+  const text = String(value || "").trim();
+  return !isPlaceholder(text) && !["没有", "没试"].includes(text);
+}
+
+function isValidScore(value) {
+  return /^[1-5]$/.test(String(value || "").trim());
 }
 
 function isYes(value) {
