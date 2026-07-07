@@ -169,6 +169,31 @@ export function buildCandidateFormsPreviewHtml({
     .pill.alt { background: var(--warm); }
     .pill.ok { background: var(--green); }
     .wide { grid-column: 1 / -1; }
+    .confirm-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 18px 0 0;
+    }
+    .confirm-item {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+    .confirm-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+    .confirm-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
     .ops-list {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -192,7 +217,7 @@ export function buildCandidateFormsPreviewHtml({
     @media (max-width: 760px) {
       main { width: min(100% - 20px, 520px); padding-top: 18px; }
       h1 { font-size: 28px; }
-      .meta, .grid, .ops-list { grid-template-columns: 1fr; }
+      .meta, .grid, .confirm-grid, .ops-list { grid-template-columns: 1fr; }
       .sheet-body, .sheet-head { padding-left: 14px; padding-right: 14px; }
     }
     @media print {
@@ -212,6 +237,24 @@ export function buildCandidateFormsPreviewHtml({
         <span>生成时间：${escapeHtml(generatedAt)}</span>
         <span>私有包：${escapeHtml(packetDir || "未指定")}</span>
         <span>状态：生产候选内测，不进入微信审核</span>
+      </div>
+      <div class="confirm-grid" data-form="send-checklist">
+        <div class="confirm-item">
+          <strong>体验者只看反馈单</strong>
+          <span>发送前只复制体验者反馈问题和入口任务，不暴露发布、审核或门禁语言。</span>
+        </div>
+        <div class="confirm-item">
+          <strong>执行人保留记录单</strong>
+          <span>主厨记录单用于把现场观察回填成匿名 U 编号、核心路径和问题等级。</span>
+        </div>
+        <div class="confirm-item">
+          <strong>隐私留在仓库外</strong>
+          <span>真实联系人、截图和录屏只放私有位置；回填前跑隐私扫描。</span>
+        </div>
+        <div class="confirm-item">
+          <strong>未达标不审核</strong>
+          <span>10/8/8/3 候选复盘达标且用户确认后，才进入微信审核动作。</span>
+        </div>
       </div>
     </div>
 

@@ -8,6 +8,7 @@ const files = {
   packageJson: "package.json",
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
   candidateFormsPreview: "scripts/print-candidate-forms-preview.mjs",
+  candidateFormsPreviewLib: "scripts/lib/candidate-forms-preview.mjs",
   candidateFormsPreviewSelftest: "scripts/selftest-candidate-forms-preview.mjs",
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDoctor: "scripts/doctor-candidate-validation.mjs",
@@ -27,7 +28,7 @@ const files = {
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewLib, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -214,7 +215,7 @@ const checks = [
   {
     key: "candidate-form-preview",
     title: "候选单据可生成 HTML 设计预览",
-    path: `${files.packageJson}, ${files.prepareScript}, ${files.candidateFormsPreview}, ${files.candidateFormsPreviewSelftest}, ${files.candidateForms}`,
+    path: `${files.packageJson}, ${files.prepareScript}, ${files.candidateFormsPreview}, ${files.candidateFormsPreviewLib}, ${files.candidateFormsPreviewSelftest}, ${files.candidateForms}`,
     ok: packageJson.includes("release:candidate:forms:preview")
       && packageJson.includes("release:candidate:forms:preview:selftest")
       && prepareScript.includes("candidate-forms-preview.html")
@@ -224,7 +225,15 @@ const checks = [
       && candidateFormsPreview.includes("host-run-sheet.md")
       && candidateFormsPreview.includes("candidate-feedback-import.csv")
       && candidateFormsPreview.includes("daily-review.csv")
+      && candidateFormsPreviewLib.includes("data-form=\"send-checklist\"")
+      && candidateFormsPreviewLib.includes("体验者只看反馈单")
+      && candidateFormsPreviewLib.includes("执行人保留记录单")
+      && candidateFormsPreviewLib.includes("隐私留在仓库外")
+      && candidateFormsPreviewLib.includes("未达标不审核")
       && candidateFormsPreviewSelftest.includes("data-preview-kind=\"humi-candidate-forms\"")
+      && candidateFormsPreviewSelftest.includes("data-form=\"send-checklist\"")
+      && candidateFormsPreviewSelftest.includes("体验者只看反馈单")
+      && candidateFormsPreviewSelftest.includes("未达标不审核")
       && candidateFormsPreviewSelftest.includes("批量导入字段")
       && candidateFormsPreviewSelftest.includes("每日复盘字段")
       && candidateForms.includes("candidate-forms-preview.html"),
