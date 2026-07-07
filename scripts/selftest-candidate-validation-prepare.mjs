@@ -48,6 +48,8 @@ for (const file of requiredFiles) {
 }
 
 assert(contents["README.md"].includes("release:candidate:desk:selftest"), "README does not mention release:candidate:desk:selftest");
+assert(contents["README.md"].includes("release:candidate:plan"), "README does not mention release:candidate:plan");
+assert(contents["README.md"].includes("candidate-day-plan.md"), "README does not mention candidate-day-plan.md");
 assert(contents["README.md"].includes("真实姓名、手机号、微信号、截图和录屏"), "README does not state privacy boundaries");
 assert(contents["README.md"].includes("暂不进入微信审核"), "README does not state the no-review boundary");
 assert(contents["anonymous-users.csv"].match(/^U\d{3},/gm)?.length === 20, "anonymous-users.csv does not contain U001-U020 rows");

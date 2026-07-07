@@ -43,6 +43,7 @@ const checks = [
     required: [
       "release.candidateValidationReady=false",
       "npm run release:candidate:review",
+      "npm run release:candidate:plan",
       "npm run release:candidate:privacy:check",
       "候选复盘达标前",
       "不能把微信审核准备视为可执行",
@@ -93,6 +94,7 @@ const checks = [
       "Humi 1.1 主厨记录单",
       "candidate-feedback-import.csv",
       "daily-review.csv",
+      "npm run release:candidate:plan",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
     ],
@@ -152,6 +154,18 @@ if (!releaseNext.includes("release:candidate:doctor")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
     phrase: "missing release:candidate:doctor in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:plan")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:plan in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:plan:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:plan:selftest in candidate-stage action card",
   });
 }
 if (!releaseNext.includes("release:candidate:desk")) {
@@ -220,6 +234,12 @@ if (!releaseStatus.includes("candidatePrepareSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidatePrepareSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidatePlanSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidatePlanSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidatePrivacyReady")) {

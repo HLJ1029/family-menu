@@ -35,6 +35,8 @@ npm run release:candidate:check
 cat docs/humi-1.1-candidate-validation-forms.md
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
 npm run release:candidate:prepare:selftest
+npm run release:candidate:plan
+npm run release:candidate:plan:selftest
 npm run release:candidate:desk
 npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
@@ -55,6 +57,8 @@ npm run release:candidate:review:selftest
 - `docs/humi-1.1-candidate-validation-forms.md` 已固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则，避免候选内测只存在私有包里、执行人不知道该给用户看哪张单。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含 U001-U020 匿名名单、反馈表、批量导入模板 `candidate-feedback-import.csv`、每日复盘、问题分级表、邀请文案、U001-U020 批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md` 和主厨记录单 `host-run-sheet.md`；真实用户信息仍不得进仓库。
 - `npm run release:candidate:prepare:selftest` 可用临时私有目录验证候选执行包文件、权限、README 步骤、U001-U020 和空模板复盘状态。
+- `npm run release:candidate:plan` 可在私有执行包生成 `candidate-day-plan.md`，按当前缺口列出今天建议邀请、需要追问、必跑【今晚】/清单和优先协作的 U 编号。
+- `npm run release:candidate:plan:selftest` 可用临时私有执行包验证日计划能选出追问用户、下一批邀请用户和协作目标。
 - `npm run release:candidate:desk` 可把最新私有包、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:desk:selftest` 可用临时私有执行包验证执行台能读取包、打印今日动作和隐私/审核护栏。
@@ -126,6 +130,8 @@ Owner：用户，Codex 提供材料。
 ```bash
 npm run release:candidate:doctor
 npm run release:candidate:prepare:selftest
+npm run release:candidate:plan
+npm run release:candidate:plan:selftest
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
@@ -135,7 +141,7 @@ npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；收到单个体验者反馈后，用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"` 回填匿名汇总；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；收到单个体验者反馈后，用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"` 回填匿名汇总；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
@@ -227,6 +233,8 @@ npm run release:candidate:check
 npm run release:candidate:desk
 npm run release:candidate:prepare:selftest
 npm run release:candidate:doctor
+npm run release:candidate:plan
+npm run release:candidate:plan:selftest
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest

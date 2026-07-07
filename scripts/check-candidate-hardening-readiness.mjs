@@ -10,9 +10,10 @@ const files = {
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
+  candidatePlan: "scripts/plan-candidate-validation-day.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -89,6 +90,8 @@ const checks = [
     ok: packageJson.includes("release:candidate:prepare")
       && packageJson.includes("release:candidate:prepare:selftest")
       && packageJson.includes("release:candidate:doctor")
+      && packageJson.includes("release:candidate:plan")
+      && packageJson.includes("release:candidate:plan:selftest")
       && packageJson.includes("release:candidate:desk")
       && packageJson.includes("release:candidate:desk:selftest")
       && packageJson.includes("release:candidate:record")
@@ -101,6 +104,8 @@ const checks = [
       && nextAction.includes("release:candidate:prepare")
       && nextAction.includes("release:candidate:prepare:selftest")
       && nextAction.includes("release:candidate:doctor")
+      && nextAction.includes("release:candidate:plan")
+      && nextAction.includes("release:candidate:plan:selftest")
       && nextAction.includes("release:candidate:desk")
       && nextAction.includes("release:candidate:desk:selftest")
       && nextAction.includes("release:candidate:record")
@@ -112,6 +117,8 @@ const checks = [
       && handoff.includes("release:candidate:prepare")
       && handoff.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:doctor")
+      && handoff.includes("release:candidate:plan")
+      && handoff.includes("release:candidate:plan:selftest")
       && handoff.includes("release:candidate:desk")
       && handoff.includes("release:candidate:desk:selftest")
       && handoff.includes("release:candidate:record")
@@ -130,6 +137,8 @@ const checks = [
       "host-run-sheet.md",
       "candidate-feedback-import.csv",
       "outreach-batch.md",
+      "candidate-day-plan.md",
+      "release:candidate:plan",
       "U001-U020 批量邀请清单",
       "release:candidate:record",
       "--import candidate-feedback-import.csv",
@@ -152,6 +161,7 @@ const checks = [
       "是否能发现新菜并补进今晚",
       "candidate-feedback-import.csv",
       "daily-review.csv",
+      "npm run release:candidate:plan",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
       "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
@@ -172,6 +182,19 @@ const checks = [
       "release:candidate:daily -- --date",
       "docs/humi-1.1-candidate-validation-forms.md",
     ].every((text) => candidateDesk.includes(text)),
+  },
+  {
+    key: "candidate-day-plan",
+    title: "候选日计划可按缺口生成当日邀请和协作目标",
+    path: `${files.packageJson}, ${files.candidatePlan}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:plan")
+      && packageJson.includes("release:candidate:plan:selftest")
+      && candidatePlan.includes("candidate-day-plan.md")
+      && candidatePlan.includes("recommendedInviteUsers")
+      && candidatePlan.includes("collaborationUsers")
+      && nextAction.includes("candidate-day-plan.md")
+      && handoff.includes("release:candidate:plan")
+      && candidateForms.includes("release:candidate:plan"),
   },
   {
     key: "candidate-prepare-selftest",

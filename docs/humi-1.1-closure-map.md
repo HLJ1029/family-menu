@@ -39,6 +39,8 @@ npm run release:candidate:prepare:selftest
 npm run release:candidate:desk
 npm run release:candidate:desk:selftest
 npm run release:candidate:doctor
+npm run release:candidate:plan
+npm run release:candidate:plan:selftest
 npm run release:candidate:privacy:check
 npm run release:candidate:privacy:selftest
 npm run release:candidate:review
@@ -56,7 +58,7 @@ docs/humi-1.1-candidate-validation-forms.md
 
 | 阶段 | 当前状态 | 完成证据 |
 | --- | --- | --- |
-| 10-20 家灰度反馈 | 待真实名单与反馈 | 私有候选执行包、`docs/humi-1.1-gray-release-tracker.md`、`npm run release:candidate:privacy:check`、`npm run release:candidate:review` |
+| 10-20 家灰度反馈 | 待真实名单与反馈 | 私有候选执行包、`docs/humi-1.1-gray-release-tracker.md`、`npm run release:candidate:plan`、`npm run release:candidate:privacy:check`、`npm run release:candidate:review` |
 | 微信公众平台提交审核 | 待候选复盘达标后用户确认 | `docs/humi-1.1-release-evidence-log.md` 第 4 节 |
 | 微信审核结果 | 待平台返回 | `docs/humi-1.1-release-evidence-log.md` 第 5 节 |
 | 审核通过后发布 | 待审核通过与用户确认 | `docs/humi-1.1-release-evidence-log.md` 第 6 节 |
