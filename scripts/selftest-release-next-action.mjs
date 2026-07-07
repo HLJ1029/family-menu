@@ -17,7 +17,7 @@ try {
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("运行 `npm run release:candidate:dispatch:workbench", {
+  await assertNext("运行 `npm run release:candidate:today", {
     forbidden: [
       "- docs/wechat-submit-copy-packet.md",
       "- docs/miniprogram-platform-submit-runbook.md",

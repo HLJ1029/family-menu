@@ -41,6 +41,8 @@
     "release:candidate:forms:preview:selftest": "node scripts/selftest-candidate-forms-preview.mjs",
     "release:candidate:doctor": "node scripts/doctor-candidate-validation.mjs",
     "release:candidate:doctor:selftest": "node scripts/selftest-candidate-validation-doctor.mjs",
+    "release:candidate:today": "node scripts/prepare-candidate-today.mjs",
+    "release:candidate:today:selftest": "node scripts/selftest-candidate-today.mjs",
     "release:candidate:plan": "node scripts/plan-candidate-validation-day.mjs",
     "release:candidate:plan:selftest": "node scripts/selftest-candidate-day-plan.mjs",
     "release:candidate:dispatch": "node scripts/print-candidate-dispatch-pack.mjs",

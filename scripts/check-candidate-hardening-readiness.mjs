@@ -13,6 +13,8 @@ const files = {
   candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
   candidateDoctor: "scripts/doctor-candidate-validation.mjs",
   candidateDoctorSelftest: "scripts/selftest-candidate-validation-doctor.mjs",
+  candidateToday: "scripts/prepare-candidate-today.mjs",
+  candidateTodaySelftest: "scripts/selftest-candidate-today.mjs",
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
   candidateDeskSelftest: "scripts/selftest-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
@@ -28,7 +30,7 @@ const files = {
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewLib, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewLib, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateToday, candidateTodaySelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -108,6 +110,8 @@ const checks = [
       && packageJson.includes("release:candidate:forms:preview:selftest")
       && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:doctor:selftest")
+      && packageJson.includes("release:candidate:today")
+      && packageJson.includes("release:candidate:today:selftest")
       && packageJson.includes("release:candidate:plan")
       && packageJson.includes("release:candidate:plan:selftest")
       && packageJson.includes("release:candidate:dispatch")
@@ -131,6 +135,7 @@ const checks = [
       && nextAction.includes("release:candidate:prepare:selftest")
       && nextAction.includes("release:candidate:forms:preview")
       && nextAction.includes("release:candidate:doctor")
+      && nextAction.includes("release:candidate:today")
       && nextAction.includes("release:candidate:plan")
       && nextAction.includes("release:candidate:dispatch")
       && nextAction.includes("release:candidate:dispatch:workbench")
@@ -149,6 +154,7 @@ const checks = [
       && handoff.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:forms:preview")
       && handoff.includes("release:candidate:doctor")
+      && handoff.includes("release:candidate:today")
       && handoff.includes("release:candidate:plan")
       && handoff.includes("release:candidate:dispatch")
       && handoff.includes("release:candidate:dispatch:workbench")
@@ -263,6 +269,40 @@ const checks = [
         "单据设计预览",
         "candidate-forms-preview.html",
       ].every((text) => candidateDoctorSelftest.includes(text)),
+  },
+  {
+    key: "candidate-today-panel",
+    title: "候选每日开工入口可一键刷新今日材料和扫码工作台",
+    path: `${files.packageJson}, ${files.candidateToday}, ${files.candidateTodaySelftest}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:today")
+      && packageJson.includes("release:candidate:today:selftest")
+      && [
+        "Humi 1.1 候选内测今日开工面板",
+        "candidate-day-plan.md",
+        "formsPreview",
+        "candidate-dispatch-",
+        "workbench",
+        "check-candidate-privacy.mjs",
+        "doctor-candidate-validation.mjs",
+        "shareCardQrReadyUsers",
+        "不会发送消息",
+        "不会标记邀请",
+        "不会写反馈",
+        "不会提交审核",
+      ].every((text) => candidateToday.includes(text))
+      && [
+        "candidate-today-generates-current-private-materials",
+        "release:candidate:today",
+        "shareCardQrReadyUsers",
+        "data-share-qr=\"ready\"",
+        "不会发送微信消息",
+      ].every((text) => candidateTodaySelftest.includes(text))
+      && nextAction.includes("release:candidate:today")
+      && nextAction.includes("今日开工面板")
+      && handoff.includes("release:candidate:today")
+      && handoff.includes("每天开工入口")
+      && candidateForms.includes("release:candidate:today")
+      && candidateForms.includes("每天开工入口"),
   },
   {
     key: "candidate-execution-desk",
