@@ -17,6 +17,7 @@ const users = await resolveUsers();
 const file = join(packetDir, "anonymous-users.csv");
 const csv = await readCsv(file);
 const missing = users.filter((user) => !csv.rows.some((row) => row["用户编号"] === user));
+const sentConfirmed = Boolean(args.sentConfirmed) || process.env.HUMI_CANDIDATE_INVITE_SENT_CONFIRMED === "1";
 
 if (!users.length) {
   throw new Error("No users provided. Use --users U001,U002 or --from-dispatch YYYY-MM-DD.");
@@ -24,6 +25,10 @@ if (!users.length) {
 
 if (missing.length) {
   throw new Error(`Unknown candidate user(s): ${missing.join(", ")}`);
+}
+
+if (!dryRun && !sentConfirmed) {
+  throw new Error("Refusing to mark invitations without confirmation. Re-run only after real messages/cards were sent, adding --sent-confirmed.");
 }
 
 const updated = [];
@@ -43,13 +48,16 @@ console.log(JSON.stringify({
   ok: true,
   checkedAt: new Date().toISOString(),
   dryRun,
+  sentConfirmed,
   packetDir,
   date: inviteDate,
   users: updated,
   updatedAnonymousUsers: file,
   fromDispatch: args.fromDispatch ? join(packetDir, `candidate-dispatch-${args.fromDispatch}.json`) : undefined,
   nextActions: [
-    "Send only the anonymous invitation messages; keep real contacts outside this packet.",
+    dryRun
+      ? "Dry-run only: after real messages/cards are sent, re-run with --sent-confirmed to write invite status."
+      : "Invite status was marked only after explicit sent confirmation; keep real contacts outside this packet.",
     "After feedback arrives, replace placeholders in release:candidate:record templates with real anonymous results.",
     "Run npm run release:candidate:doctor to inspect current invitation and validation gaps.",
   ],
@@ -164,7 +172,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (!arg.startsWith("--")) continue;
     const key = camelCase(arg.slice(2));
-    if (key === "dryRun" || key === "help") {
+    if (key === "dryRun" || key === "help" || key === "sentConfirmed") {
       parsed[key] = true;
     } else {
       parsed[key] = argv[index + 1];
@@ -181,10 +189,12 @@ function camelCase(value) {
 function helpText() {
   return [
     "Usage:",
-    "  npm run release:candidate:invite -- --from-dispatch 2026-07-07",
-    "  npm run release:candidate:invite -- --users U001,U002,U003 --date 2026-07-07",
+    "  npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed",
+    "  npm run release:candidate:invite -- --users U001,U002,U003 --date 2026-07-07 --sent-confirmed",
+    "  npm run release:candidate:invite -- --from-dispatch 2026-07-07 --dry-run",
     "",
     "Marks anonymous U ids as 已邀请 in the latest private candidate packet.",
+    "Non-dry writes require --sent-confirmed after the real messages/cards were sent.",
     "This command does not store real contacts and does not create validation feedback.",
   ].join("\n");
 }

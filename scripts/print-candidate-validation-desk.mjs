@@ -77,7 +77,7 @@ lines.push("可复制命令：");
 lines.push("- HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare");
 lines.push("- npm run release:candidate:plan");
 lines.push(`- npm run release:candidate:dispatch -- --date ${today}`);
-lines.push(`- npm run release:candidate:invite -- --from-dispatch ${today}`);
+lines.push(`- npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed`);
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:record -- --user U001 ...  # 先替换分发单模板里的真实匿名反馈");
 lines.push("- npm run release:candidate:record -- --import candidate-feedback-import.csv");

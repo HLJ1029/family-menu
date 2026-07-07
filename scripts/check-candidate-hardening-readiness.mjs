@@ -301,11 +301,14 @@ const checks = [
       && candidateInvite.includes("candidate-dispatch-")
       && candidateInvite.includes("anonymous-users.csv")
       && candidateInvite.includes("已邀请")
+      && candidateInvite.includes("--sent-confirmed")
+      && candidateInvite.includes("Refusing to mark invitations without confirmation")
       && candidateInvite.includes("does not create validation feedback")
       && candidateInvite.includes("does not store real contacts")
+      && nextAction.includes("--sent-confirmed")
       && nextAction.includes("release:candidate:invite")
       && handoff.includes("release:candidate:invite")
-      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD"),
+      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed"),
   },
   {
     key: "candidate-day-close",
@@ -352,7 +355,7 @@ const checks = [
       && handoff.includes("release:candidate:prepare:selftest")
       && prepareScript.includes("release:candidate:desk:selftest")
       && prepareScript.includes("release:candidate:dispatch -- --date YYYY-MM-DD")
-      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD")
+      && prepareScript.includes("release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed")
       && prepareScript.includes("candidate-dispatch-YYYY-MM-DD.md/json")
       && prepareScript.includes("不能原样运行")
       && prepareScript.includes("1-5|没试")

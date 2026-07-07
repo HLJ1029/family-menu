@@ -180,7 +180,7 @@ function buildMarkdown(data) {
   lines.push("## 执行顺序");
   lines.push("");
   lines.push("1. 运行 `npm run release:candidate:dispatch -- --date YYYY-MM-DD`，只抽今天建议编号的邀请文案。");
-  lines.push("2. 发送后运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD`，把匿名 U 编号标为已邀请。");
+  lines.push("2. 发送后运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`，把匿名 U 编号标为已邀请。");
   lines.push("3. 给每位体验者发 `tester-feedback-form.md`，让对方只按轻量问题回答。");
   lines.push("4. 执行人用 `host-run-sheet.md` 记录是否能发现新菜、完成今晚菜单、生成清单和走完协作。");
   lines.push("5. 收到反馈后，替换分发单里的 record 模板，或用 `candidate-feedback-import.csv` 回填真实匿名汇总。");
@@ -197,7 +197,7 @@ function buildMarkdown(data) {
   lines.push("");
   lines.push("```bash");
   lines.push(`npm run release:candidate:dispatch -- --date ${data.date}`);
-  lines.push(`npm run release:candidate:invite -- --from-dispatch ${data.date}`);
+  lines.push(`npm run release:candidate:invite -- --from-dispatch ${data.date} --sent-confirmed`);
   lines.push("npm run release:candidate:record -- --import candidate-feedback-import.csv");
   lines.push("npm run release:candidate:privacy:check");
   lines.push(`npm run release:candidate:day:close -- --date ${data.date}`);

@@ -96,7 +96,7 @@ const checks = [
       "daily-review.csv",
       "npm run release:candidate:plan",
       "npm run release:candidate:dispatch -- --date YYYY-MM-DD",
-      "npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD",
+      "npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",

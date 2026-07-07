@@ -67,7 +67,7 @@ if (dispatch) {
     if (dispatch.allUsersInvited) {
       lines.push("- 今天这批已标记已邀请；等待真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
     } else if (!dispatch.someUsersInvited) {
-      lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`);
+      lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`);
     }
   } else {
     lines.push("- 今日分发单没有发送对象；先运行 `npm run release:candidate:plan` 重新看今日缺口。");
@@ -164,7 +164,7 @@ function buildHumanActions(result, dispatch, today) {
         : dispatch?.someUsersInvited
         ? `继续只发送还没发的 U 编号：${dispatch.pendingUsers.map((user) => user.id).join("、")}；已发的 U 编号等待真实反馈。`
         : dispatch
-        ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today}。`
+        ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed。`
         : `先运行 npm run release:candidate:plan 和 npm run release:candidate:dispatch -- --date ${today}，生成今日分发单后再发送。`,
       "收到反馈后，在私有包 anonymous-users.csv 记录 U 编号的真实匿名体验状态。",
       "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段；不要把“已邀请”当成“已体验”。",

@@ -18,7 +18,7 @@ const requiredText = [
   `${packetDir}/candidate-dispatch-${today}.md`,
   "U001: 问问大家小程序卡片（优先跑协作）",
   "U002: 邀请家人小程序卡片",
-  `真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`,
+  `真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`,
   "先发今天分发单里的 U 编号",
   "不要把“已邀请”当成“已体验”",
   "体验者反馈单",

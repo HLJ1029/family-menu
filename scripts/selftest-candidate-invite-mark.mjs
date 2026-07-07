@@ -14,7 +14,13 @@ let anonymous = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
 assert(dryRun.users.length === 2, "dry-run should select two dispatch users");
 assert(anonymous.includes("U001,待定,待填,待邀请,"), "dry-run should not update U001");
 
-const result = await runInvite(packetDir, ["--from-dispatch", "2026-07-07"]);
+const unconfirmed = await runInviteRaw(packetDir, ["--from-dispatch", "2026-07-07"]);
+anonymous = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
+assert(unconfirmed.failed, "non-dry invite should require sent confirmation");
+assert(unconfirmed.stderr.includes("--sent-confirmed") || unconfirmed.stdout.includes("--sent-confirmed"), "unconfirmed failure should mention --sent-confirmed");
+assert(anonymous.includes("U001,待定,待填,待邀请,"), "unconfirmed invite should not update U001");
+
+const result = await runInvite(packetDir, ["--from-dispatch", "2026-07-07", "--sent-confirmed"]);
 anonymous = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
 
 assert(result.ok, "invite command did not return ok=true");
@@ -30,6 +36,10 @@ console.log(JSON.stringify({
   packetDir,
   cases: [
     {
+      name: "rejects-unconfirmed-invite-write",
+      ok: true,
+    },
+    {
       name: "mark-invites-from-dispatch",
       ok: true,
       users: result.users,
@@ -38,18 +48,34 @@ console.log(JSON.stringify({
 }, null, 2));
 
 async function runInvite(dir, args) {
-  const { stdout } = await execFileAsync("node", [
-    "scripts/mark-candidate-invites.mjs",
-    ...args,
-  ], {
-    env: {
-      ...process.env,
-      HUMI_CANDIDATE_VALIDATION_DIR: dir,
-    },
-    timeout: 60_000,
-    maxBuffer: 1024 * 1024,
-  });
-  return JSON.parse(stdout);
+  const result = await runInviteRaw(dir, args);
+  if (result.failed) {
+    throw new Error(`invite command failed unexpectedly: ${result.stderr || result.stdout}`);
+  }
+  return JSON.parse(result.stdout);
+}
+
+async function runInviteRaw(dir, args) {
+  try {
+    const { stdout, stderr } = await execFileAsync("node", [
+      "scripts/mark-candidate-invites.mjs",
+      ...args,
+    ], {
+      env: {
+        ...process.env,
+        HUMI_CANDIDATE_VALIDATION_DIR: dir,
+      },
+      timeout: 60_000,
+      maxBuffer: 1024 * 1024,
+    });
+    return { stdout, stderr, failed: false };
+  } catch (error) {
+    return {
+      stdout: error.stdout || "",
+      stderr: error.stderr || "",
+      failed: true,
+    };
+  }
 }
 
 async function writePacket(dir) {
