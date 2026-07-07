@@ -68,7 +68,8 @@ if (dispatch) {
       lines.push("- 今天这批已标记已邀请；等待真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
     } else if (!dispatch.someUsersInvited) {
       lines.push(`- 发送前可运行 \`npm run release:candidate:dispatch:workbench -- --date ${today}\`，打开私有 HTML 工作台逐个复制文案和回填模板。`);
-      lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`);
+      lines.push(`- 每发完一个 U，就复制工作台里该卡片的“本 U 已发送登记命令”；整批都发完时也可运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`。`);
+      lines.push("- 这些命令只标记已邀请，不会生成体验反馈，也不会记录真实联系人。");
     }
   } else {
     lines.push("- 今日分发单没有发送对象；先运行 `npm run release:candidate:plan` 重新看今日缺口。");
@@ -163,9 +164,9 @@ function buildHumanActions(result, dispatch, today) {
       dispatch?.allUsersInvited
         ? "等待今天这批 U 编号的真实反馈；收到后替换分发单里的 record 模板并回填匿名结果。"
         : dispatch?.someUsersInvited
-        ? `继续只发送还没发的 U 编号：${dispatch.pendingUsers.map((user) => user.id).join("、")}；已发的 U 编号等待真实反馈。`
+        ? `继续只发送还没发的 U 编号：${dispatch.pendingUsers.map((user) => user.id).join("、")}；每发完一个 U 就复制工作台里的本 U 已发送登记命令；已发的 U 编号等待真实反馈。`
         : dispatch
-        ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed。`
+        ? `先发今天分发单里的 U 编号；每发完一个 U 就复制工作台里的本 U 已发送登记命令，整批都发完也可运行 npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed。`
         : `先运行 npm run release:candidate:plan 和 npm run release:candidate:dispatch -- --date ${today}，生成今日分发单后再发送。`,
       "收到反馈后，在私有包 anonymous-users.csv 记录 U 编号的真实匿名体验状态。",
       "至少记录首次体验日期、完成今晚菜单、完成清单、尝试协作这四类字段；不要把“已邀请”当成“已体验”。",

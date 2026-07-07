@@ -20,7 +20,9 @@ const requiredText = [
   "U001: 问问大家小程序卡片（优先跑协作）",
   "U002: 邀请家人小程序卡片",
   `发送前可运行 \`npm run release:candidate:dispatch:workbench -- --date ${today}\``,
-  `真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\`，只标记已邀请，不会生成体验反馈。`,
+  "每发完一个 U，就复制工作台里该卡片的“本 U 已发送登记命令”",
+  `整批都发完时也可运行 \`npm run release:candidate:invite -- --from-dispatch ${today} --sent-confirmed\``,
+  "这些命令只标记已邀请，不会生成体验反馈，也不会记录真实联系人。",
   "先发今天分发单里的 U 编号",
   "不要把“已邀请”当成“已体验”",
   "单据设计预览",
@@ -54,6 +56,7 @@ const partialRequiredText = [
   "已发待回收",
   "U001: 问问大家小程序卡片（优先跑协作） / 已邀请",
   "继续只发送“还没发”的 U 编号",
+  "每发完一个 U 就复制工作台里的本 U 已发送登记命令",
 ];
 for (const text of partialRequiredText) {
   assert(partialStdout.includes(text), `doctor partial output missing: ${text}`);

@@ -235,8 +235,10 @@ const checks = [
       && [
         "今日分发单已生成",
         "candidate-dispatch-",
-        "真实发送后再运行",
+        "每发完一个 U",
+        "本 U 已发送登记命令",
         "只标记已邀请，不会生成体验反馈",
+        "不会记录真实联系人",
         "先发今天分发单里的 U 编号",
         "不要把“已邀请”当成“已体验”",
       ].every((text) => candidateDoctor.includes(text))
@@ -244,7 +246,8 @@ const checks = [
         "doctor-surfaces-current-dispatch-and-invite-guard",
         "今日分发单已生成",
         "U001: 问问大家小程序卡片（优先跑协作）",
-        "真实发送后再运行",
+        "每发完一个 U",
+        "本 U 已发送登记命令",
         "不要把“已邀请”当成“已体验”",
         "单据设计预览",
         "candidate-forms-preview.html",
@@ -371,6 +374,7 @@ const checks = [
       && candidateInvite.includes("Refusing to mark invitations without confirmation")
       && candidateInvite.includes("does not create validation feedback")
       && candidateInvite.includes("does not store real contacts")
+      && nextAction.includes("本 U 已发送登记命令")
       && nextAction.includes("--sent-confirmed")
       && nextAction.includes("release:candidate:invite")
       && handoff.includes("release:candidate:invite")

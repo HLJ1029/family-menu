@@ -61,7 +61,7 @@ if (openHardeningItems.length) {
     } else if (candidateAction.dispatch.someUsersInvited) {
       lines.push(`下一步一句话：运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，只发送今日分发单里尚未标记已邀请的 U 编号；已邀请的 U 编号等待真实反馈并准备回填。`);
     } else {
-      lines.push(`下一步一句话：运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，打开私有 HTML 工作台发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
+      lines.push(`下一步一句话：运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，打开私有 HTML 工作台发送今天这些 U 编号；每发完一个 U 就复制该卡片里的“本 U 已发送登记命令”，整批都发完也可运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
     }
     lines.push("");
     if (candidateAction.dispatch.someUsersInvited) {
@@ -98,14 +98,14 @@ if (openHardeningItems.length) {
       lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
     } else if (candidateAction.dispatch.someUsersInvited) {
       lines.push(`1. 只发送“还没发”里的 U 编号：${candidateAction.dispatch.pendingUsers.map((user) => user.id).join("、")}。`);
-      lines.push(`2. 发送后运行 \`npm run release:candidate:invite -- --users ${candidateAction.dispatch.pendingUsers.map((user) => user.id).join(",")} --date ${candidateAction.date} --sent-confirmed\`，只补标这批匿名 U 编号。`);
+      lines.push(`2. 每发完一个 U，就从工作台对应卡片复制“本 U 已发送登记命令”；一次发完这批时也可运行 \`npm run release:candidate:invite -- --users ${candidateAction.dispatch.pendingUsers.map((user) => user.id).join(",")} --date ${candidateAction.date} --sent-confirmed\`。`);
       lines.push("3. 已发待回收的 U 编号继续等待真实反馈；不要用已邀请状态当作已体验。");
       lines.push("4. 收到反馈后，替换分发单里的 `release:candidate:record` 模板或填 `candidate-feedback-import.csv`，再回填匿名汇总。");
       lines.push(`5. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
     } else {
       lines.push(`1. 运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，打开私有 HTML 工作台逐条复制 U 编号对应的入口任务和体验者文案。`);
       lines.push(`2. 需要纯文本时再打开 \`${candidateAction.dispatch.markdownPath}\` 作为来源分发单。`);
-      lines.push(`3. 真实发送后运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`，只标记匿名 U 编号，不记录真实联系人。`);
+      lines.push(`3. 每发完一个 U，就复制工作台里该卡片的“本 U 已发送登记命令”；整批都真实发完时也可运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
       lines.push("4. 收到反馈后，从工作台复制 `release:candidate:record` 模板，替换真实匿名结果再回填；不要原样运行占位模板。");
       lines.push(`5. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
       lines.push("6. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
@@ -408,7 +408,7 @@ function getCompletionCriteria(scope) {
     "生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。",
     "单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。",
     "单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。",
-    "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、回填模板和日结命令放进同一个可复制页面；它不会发送消息或标记邀请。",
+    "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、每个 U 的已发送登记命令、回填模板和日结命令放进同一个可复制页面；它不会发送消息或自动标记邀请。",
     "单人/批量反馈回填：npm run release:candidate:record 写入前会做 PII 写入前阻断；P0/P1 会自动追加到 issue-triage.csv。",
     "真实体验复盘：npm run release:candidate:review 必须达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
     "隐私扫描：npm run release:candidate:privacy:check 必须确认最新私有候选包没有手机号、邮箱、微信号或真实姓名；发现问题时只报文件/类型/行号，不回显敏感值。",
