@@ -38,6 +38,8 @@ assert(result.users[0].entryLabel === "问问大家小程序卡片", "workbench 
 assert(result.users[0].inviteStatus === "已邀请", "workbench should read U001 invite status");
 assert(result.users[1].inviteStatus === "待邀请", "workbench should read U002 invite status");
 assert(result.users[0].hasTesterMessage, "workbench should include tester message");
+assert(result.users[0].hasShareCardGuide, "workbench should include share card guide for card tasks");
+assert(!result.users[1].hasShareCardGuide, "workbench should not show share card guide for non-card tasks");
 assert(result.users[0].hasDraftCommand, "workbench should include record draft command");
 assert(result.users[0].hasRecordCommand, "workbench should include record command");
 assert(mode === 0o600, `workbench mode expected 600, got ${mode.toString(8)}`);
@@ -46,6 +48,11 @@ assert(html.includes("发送状态：<strong>1</strong> 已发送/已体验，<s
 assert(html.includes("问问大家小程序卡片 / 优先跑协作 / 已邀请"), "workbench should show invited status in summary");
 assert(html.includes("今晚发现新菜 / 普通路径 / 待邀请"), "workbench should show pending status in summary");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
+assert(html.includes("小程序卡片发送确认"), "workbench should expose mini program share card send guidance");
+assert(html.includes("pages/share/index?type=crave&amp;token=&lt;真实征集token&gt;&amp;householdName=&lt;家庭名&gt;"), "workbench should show crave share confirmation path template");
+assert(html.includes("/pages/index/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");
+assert(html.includes("npm run release:wechat:share:direct-previews"), "workbench should expose DevTools direct-preview command");
+assert(html.includes("direct-preview/crave-preview-qr.png"), "workbench should show crave direct-preview QR file");
 assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
 assert(html.includes("复制待发送标记命令"), "workbench should expose pending-only batch command when some users were already invited");
 assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");

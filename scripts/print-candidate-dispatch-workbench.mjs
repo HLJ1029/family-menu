@@ -27,9 +27,14 @@ const [markdown, dispatchJson] = await Promise.all([
   readDispatchJson(),
 ]);
 const inviteStatuses = await readInviteStatuses(packetDir);
+const dispatchUsersById = buildDispatchUsersById(dispatchJson);
 const users = parseDispatchUsers(markdown).map((user) => ({
   ...user,
+  ...dispatchUsersById.get(user.id),
   inviteStatus: inviteStatuses.get(user.id) || "待确认",
+})).map((user) => ({
+  ...user,
+  shareCardGuide: buildShareCardGuide(user),
 }));
 const pendingUsers = users.filter((user) => !isAlreadySent(user.inviteStatus));
 const batchInviteCommand = pendingUsers.length === 0
@@ -67,6 +72,7 @@ const result = {
     collaborationTarget: user.collaborationTarget,
     inviteStatus: user.inviteStatus,
     hasTesterMessage: Boolean(user.testerMessage),
+    hasShareCardGuide: Boolean(user.shareCardGuide),
     hasDraftCommand: Boolean(user.draftCommand),
     hasRecordCommand: Boolean(user.recordCommand),
   })),
@@ -332,6 +338,18 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       display: grid;
       gap: 8px;
     }
+    .guide-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .guide-list code {
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
     .copy-head {
       display: flex;
       flex-wrap: wrap;
@@ -450,6 +468,7 @@ function renderUser(user, date) {
     </div>
     <pre>${escapeHtml(user.testerMessage)}</pre>
   </div>
+  ${renderShareCardGuide(user.shareCardGuide)}
   <div class="copy-block">
     <div class="copy-head">
       <h3>${sent ? "已发送，等待反馈" : "真实发送后登记"}</h3>
@@ -472,6 +491,73 @@ function renderUser(user, date) {
     <pre>${escapeHtml(user.recordCommand)}</pre>
   </div>
 </article>`;
+}
+
+function renderShareCardGuide(guide) {
+  if (!guide) return "";
+  return `<div class="copy-block">
+    <div class="copy-head">
+      <h3>小程序卡片发送确认</h3>
+      <button class="secondary" data-copy="${escapeAttribute(guide.devtoolsCommand)}">复制 DevTools 连调命令</button>
+    </div>
+    <ul class="guide-list">
+      <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生确认页后点「发送给家人」。</li>
+      <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
+      <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
+      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewFile)}</code> 后再点「发送给家人」。</li>
+      <li>卡片真实发出后，才运行本 U 的已发送登记命令；工作台不会替你发送或标记。</li>
+    </ul>
+  </div>`;
+}
+
+function buildDispatchUsersById(dispatchJson) {
+  const users = Array.isArray(dispatchJson?.users) ? dispatchJson.users : [];
+  return new Map(users.map((user) => {
+    const id = String(user.id || "").trim().toUpperCase();
+    return [id, {
+      entryTaskKey: user.entryTask,
+      entryLabel: user.entryLabel,
+      collaborationTarget: Boolean(user.collaborationTarget),
+    }];
+  }).filter(([id]) => /^U\d{3}$/.test(id)));
+}
+
+function buildShareCardGuide(user) {
+  const key = user.entryTaskKey || inferEntryTaskKey(user.entryLabel);
+  const guides = {
+    "crave-card": {
+      actionLabel: "问问大家",
+      sharePageTemplate: "pages/share/index?type=crave&token=<真实征集token>&householdName=<家庭名>",
+      landingPathTemplate: "/pages/index/index?crave=<真实征集token>",
+      directPreviewFile: "direct-preview/crave-preview-qr.png",
+    },
+    "invite-card": {
+      actionLabel: "邀请家人",
+      sharePageTemplate: "pages/share/index?type=invite&token=<真实邀请token>&householdName=<家庭名>&inviterName=<邀请人>",
+      landingPathTemplate: "/pages/index/index?invite=<真实邀请token>",
+      directPreviewFile: "direct-preview/invite-preview-qr.png",
+    },
+    "grocery-card": {
+      actionLabel: "买菜清单",
+      sharePageTemplate: "pages/share/index?type=grocery&token=<真实清单token>&householdName=<家庭名>&initiatorName=<发起人>&itemCount=<清单项数>",
+      landingPathTemplate: "/pages/index/index?grocery=<真实清单token>",
+      directPreviewFile: "direct-preview/grocery-preview-qr.png",
+    },
+  };
+  const guide = guides[key];
+  if (!guide) return null;
+  return {
+    ...guide,
+    devtoolsCommand: "npm run release:wechat:share:direct-previews",
+  };
+}
+
+function inferEntryTaskKey(label) {
+  const text = String(label || "");
+  if (text.includes("问问大家")) return "crave-card";
+  if (text.includes("邀请家人")) return "invite-card";
+  if (text.includes("买菜清单小程序卡片")) return "grocery-card";
+  return "";
 }
 
 function dispatchDateFromMarkdownOrToday() {
