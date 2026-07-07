@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, chmod, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, chmod, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -29,13 +29,16 @@ const [markdown, dispatchJson] = await Promise.all([
 ]);
 const inviteStatuses = await readInviteStatuses(packetDir);
 const dispatchUsersById = buildDispatchUsersById(dispatchJson);
-const users = parseDispatchUsers(markdown).map((user) => ({
-  ...user,
-  ...dispatchUsersById.get(user.id),
-  inviteStatus: inviteStatuses.get(user.id) || "待确认",
-})).map((user) => ({
-  ...user,
-  shareCardGuide: buildShareCardGuide(user, shareEvidenceDir),
+const users = await Promise.all(parseDispatchUsers(markdown).map(async (user) => {
+  const mergedUser = {
+    ...user,
+    ...dispatchUsersById.get(user.id),
+    inviteStatus: inviteStatuses.get(user.id) || "待确认",
+  };
+  return {
+    ...mergedUser,
+    shareCardGuide: await buildShareCardGuide(mergedUser, shareEvidenceDir),
+  };
 }));
 const pendingUsers = users.filter((user) => !isAlreadySent(user.inviteStatus));
 const batchInviteCommand = pendingUsers.length === 0
@@ -76,6 +79,7 @@ const result = {
     inviteStatus: user.inviteStatus,
     hasTesterMessage: Boolean(user.testerMessage),
     hasShareCardGuide: Boolean(user.shareCardGuide),
+    shareCardQrReady: user.shareCardGuide?.directPreviewOk ?? null,
     hasDraftCommand: Boolean(user.draftCommand),
     hasRecordCommand: Boolean(user.recordCommand),
   })),
@@ -523,6 +527,7 @@ function renderShareCardGuide(guide) {
       <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生确认页后点「发送给家人」。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
       <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
+      <li>直达二维码状态：${guide.directPreviewOk ? `<strong>已找到</strong>（${escapeHtml(String(guide.directPreviewSize))} bytes）` : `<strong>未找到</strong>，先运行 <code>${escapeHtml(guide.devtoolsCommand)}</code>`}</li>
       <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewPath)}</code> 后再点「发送给家人」。</li>
       <li>卡片真实发出后，才运行本 U 的已发送登记命令；工作台不会替你发送或标记。</li>
     </ul>
@@ -541,7 +546,7 @@ function buildDispatchUsersById(dispatchJson) {
   }).filter(([id]) => /^U\d{3}$/.test(id)));
 }
 
-function buildShareCardGuide(user, shareEvidenceDir) {
+async function buildShareCardGuide(user, shareEvidenceDir) {
   const key = user.entryTaskKey || inferEntryTaskKey(user.entryLabel);
   const guides = {
     "crave-card": {
@@ -565,11 +570,30 @@ function buildShareCardGuide(user, shareEvidenceDir) {
   };
   const guide = guides[key];
   if (!guide) return null;
+  const directPreviewPath = shareEvidenceDir ? join(shareEvidenceDir, guide.directPreviewFile) : guide.directPreviewFile;
+  const directPreview = await inspectDirectPreviewFile(directPreviewPath);
   return {
     ...guide,
     devtoolsCommand: "npm run release:wechat:share:direct-previews",
-    directPreviewPath: shareEvidenceDir ? join(shareEvidenceDir, guide.directPreviewFile) : guide.directPreviewFile,
+    directPreviewPath,
+    directPreviewOk: directPreview.ok,
+    directPreviewSize: directPreview.size,
   };
+}
+
+async function inspectDirectPreviewFile(path) {
+  try {
+    const fileStat = await stat(path);
+    return {
+      ok: fileStat.isFile() && fileStat.size > 0,
+      size: fileStat.size,
+    };
+  } catch {
+    return {
+      ok: false,
+      size: 0,
+    };
+  }
 }
 
 function inferEntryTaskKey(label) {

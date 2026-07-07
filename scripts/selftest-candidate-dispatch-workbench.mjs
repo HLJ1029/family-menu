@@ -41,7 +41,9 @@ assert(result.users[0].inviteStatus === "已邀请", "workbench should read U001
 assert(result.users[1].inviteStatus === "待邀请", "workbench should read U002 invite status");
 assert(result.users[0].hasTesterMessage, "workbench should include tester message");
 assert(result.users[0].hasShareCardGuide, "workbench should include share card guide for card tasks");
+assert(result.users[0].shareCardQrReady === true, "workbench should mark existing share QR ready for card tasks");
 assert(!result.users[1].hasShareCardGuide, "workbench should not show share card guide for non-card tasks");
+assert(result.users[1].shareCardQrReady === null, "workbench should not report QR readiness for non-card tasks");
 assert(result.users[0].hasDraftCommand, "workbench should include record draft command");
 assert(result.users[0].hasRecordCommand, "workbench should include record command");
 assert(mode === 0o600, `workbench mode expected 600, got ${mode.toString(8)}`);
@@ -58,6 +60,8 @@ assert(html.includes("npm run release:wechat:share:direct-previews"), "workbench
 assert(html.includes("direct-preview/crave-preview-qr.png"), "workbench should show crave direct-preview QR file");
 assert(html.includes("复制直达二维码路径"), "workbench should expose copy buttons for direct-preview QR paths");
 assert(html.includes(`${packetDir}/miniprogram-share-card-preview-20260707T000000/direct-preview/crave-preview-qr.png`), "workbench should show absolute crave direct-preview QR path");
+assert(html.includes("直达二维码状态"), "workbench should show direct-preview QR readiness status");
+assert(html.includes("<strong>已找到</strong>"), "workbench should show existing direct-preview QR as ready");
 assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
 assert(html.includes("复制待发送标记命令"), "workbench should expose pending-only batch command when some users were already invited");
 assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");
@@ -93,6 +97,7 @@ console.log(JSON.stringify({
 async function writePacket(dir) {
   await mkdir(join(dir, "miniprogram-share-card-preview-20260707T000000", "direct-preview"), { recursive: true, mode: 0o700 });
   await Promise.all([
+    writeFile(join(dir, "miniprogram-share-card-preview-20260707T000000", "direct-preview", "crave-preview-qr.png"), "fake-png-bytes", { mode: 0o600 }),
     writeFile(join(dir, "anonymous-users.csv"), [
       "用户编号,家庭类型,设备/微信版本,邀请状态,首次体验日期,完成今晚菜单,完成清单,尝试协作,推荐评分,清单评分,分享评分,复访状态,当前等级,私有证据位置,备注",
       "U001,待定,待填,已邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
