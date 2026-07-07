@@ -12,12 +12,13 @@ const files = {
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
   candidateDispatch: "scripts/print-candidate-dispatch-pack.mjs",
+  candidateDispatchSelftest: "scripts/selftest-candidate-dispatch-pack.mjs",
   candidateInvite: "scripts/mark-candidate-invites.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -224,7 +225,7 @@ const checks = [
   {
     key: "candidate-dispatch-pack",
     title: "候选今日分发单可按日计划抽取发送对象和文案",
-    path: `${files.packageJson}, ${files.candidateDispatch}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    path: `${files.packageJson}, ${files.candidateDispatch}, ${files.candidateDispatchSelftest}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
     ok: packageJson.includes("release:candidate:dispatch")
       && packageJson.includes("release:candidate:dispatch:selftest")
       && candidateDispatch.includes("candidate-dispatch-")
@@ -244,6 +245,15 @@ const checks = [
       && candidateDispatch.includes("--recommendation 1-5|没试")
       && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")
       && !candidateDispatch.includes("--note \"清单有用\"")
+      && candidateDispatchSelftest.includes("dispatch-pack-covers-six-entry-tasks")
+      && candidateDispatchSelftest.includes("U001\", \"crave-card\"")
+      && candidateDispatchSelftest.includes("U002\", \"invite-card\"")
+      && candidateDispatchSelftest.includes("U003\", \"grocery-card\"")
+      && candidateDispatchSelftest.includes("U004\", \"normal-open\"")
+      && candidateDispatchSelftest.includes("U005\", \"today-discovery\"")
+      && candidateDispatchSelftest.includes("U006\", \"grocery-list\"")
+      && candidateDispatchSelftest.includes("重点看是否能找到完整菜品页和愿意做的新菜")
+      && candidateDispatchSelftest.includes("重点看食材、已有项和谁在买是否容易理解")
       && nextAction.includes("release:candidate:dispatch")
       && nextAction.includes("release:candidate:invite")
       && handoff.includes("release:candidate:dispatch")
