@@ -7,9 +7,10 @@ const files = {
   nextAction: "scripts/print-release-next-action.mjs",
   packageJson: "package.json",
   prepareScript: "scripts/prepare-candidate-validation-packet.mjs",
+  candidateForms: "docs/humi-1.1-candidate-validation-forms.md",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -106,7 +107,7 @@ const checks = [
   {
     key: "candidate-feedback-forms",
     title: "候选执行包包含批量邀请清单、体验者反馈单和主厨记录单",
-    path: files.prepareScript,
+    path: `${files.prepareScript}, ${files.candidateForms}`,
     ok: [
       "tester-feedback-form.md",
       "host-run-sheet.md",
@@ -119,6 +120,23 @@ const checks = [
       "Humi 1.1 主厨记录单",
       "release:candidate:doctor",
     ].every((text) => prepareScript.includes(text)),
+  },
+  {
+    key: "candidate-form-design-anchor",
+    title: "候选单据模板和设计验收锚点已入仓库",
+    path: files.candidateForms,
+    ok: [
+      "Humi 1.1 候选内测单据模板",
+      "单据设计原则",
+      "Humi 1.1 体验者反馈单",
+      "Humi 1.1 主厨记录单",
+      "问问大家、邀请家人或清单分享顺不顺",
+      "是否能发现新菜并补进今晚",
+      "candidate-feedback-import.csv",
+      "daily-review.csv",
+      "npm run release:candidate:daily -- --date YYYY-MM-DD",
+      "真实姓名、手机号、微信号、截图和录屏仍只放在仓库外",
+    ].every((text) => candidateForms.includes(text)),
   },
 ];
 

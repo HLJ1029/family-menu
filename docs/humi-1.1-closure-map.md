@@ -41,6 +41,12 @@ npm run release:closure
 npm run release:wechat:check
 ```
 
+候选单据模板和设计验收锚点：
+
+```text
+docs/humi-1.1-candidate-validation-forms.md
+```
+
 ## 完整上线还差什么
 
 | 阶段 | 当前状态 | 完成证据 |
@@ -56,4 +62,4 @@ npm run release:wechat:check
 
 - 不再重做 1.1 策划书主体功能，除非新测试发现 P0/P1 问题。
 - 不再把“问问大家”“发现新菜”“征集单模板”“三类小程序分享卡片”作为开放项。
-- 不再用聊天记录判断下一步；以 `npm run release:next`、`npm run release:product:review`、`npm run release:candidate:check`、`npm run release:closure` 和本文件为准。
+- 不再用聊天记录判断下一步；以 `npm run release:next`、`npm run release:product:review`、`npm run release:candidate:check`、`docs/humi-1.1-candidate-validation-forms.md`、`npm run release:closure` 和本文件为准。

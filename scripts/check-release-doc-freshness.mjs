@@ -80,6 +80,21 @@ const checks = [
       "npm run release:candidate:review",
     ],
   },
+  {
+    path: "docs/humi-1.1-candidate-validation-forms.md",
+    forbidden: [
+      "真实姓名、手机号、微信号、截图和录屏可以放进仓库",
+      "跳过候选内测直接进入微信审核",
+    ],
+    required: [
+      "Humi 1.1 候选内测单据模板",
+      "Humi 1.1 体验者反馈单",
+      "Humi 1.1 主厨记录单",
+      "candidate-feedback-import.csv",
+      "daily-review.csv",
+      "npm run release:candidate:daily -- --date YYYY-MM-DD",
+    ],
+  },
 ];
 
 const failures = [];
@@ -141,6 +156,12 @@ if (!releaseNext.includes("release:candidate:review:selftest")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
     phrase: "missing release:candidate:review:selftest in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("docs/humi-1.1-candidate-validation-forms.md")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing candidate validation forms doc in candidate-stage action card",
   });
 }
 
