@@ -174,6 +174,8 @@ const checks = [
       "不计入真实体验样本",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
+      "入口任务：普通打开小程序 / 问问大家小程序卡片 / 邀请家人小程序卡片 / 买菜清单小程序卡片",
+      "小程序卡片进入后是否知道自己在帮家里做什么",
       "问问大家、邀请家人或清单分享顺不顺",
       "是否能发现新菜并补进今晚",
       "candidate-feedback-import.csv",
@@ -232,6 +234,10 @@ const checks = [
       && candidateDispatch.includes("release:candidate:record")
       && candidateDispatch.includes("release:candidate:invite")
       && candidateDispatch.includes("release:candidate:day:close")
+      && candidateDispatch.includes("问问大家小程序卡片")
+      && candidateDispatch.includes("邀请家人小程序卡片")
+      && candidateDispatch.includes("买菜清单小程序卡片")
+      && candidateDispatch.includes("recordEntry: \"分享卡片\"")
       && candidateDispatch.includes("不要原样运行")
       && candidateDispatch.includes("--recommendation 1-5|没试")
       && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")

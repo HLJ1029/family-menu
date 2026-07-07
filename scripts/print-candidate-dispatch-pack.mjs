@@ -24,12 +24,22 @@ const hostRunSheet = await readFile(join(packetDir, "host-run-sheet.md"), "utf8"
 const inviteIds = plan.plan?.recommendedInviteUsers ?? [];
 const collaborationIds = new Set(plan.plan?.collaborationUsers ?? []);
 
-const users = inviteIds.map((id) => ({
-  id,
-  collaborationTarget: collaborationIds.has(id),
-  message: extractOutreachMessage(outreach, id),
-  recordCommand: buildRecordCommand(id, { collaboration: collaborationIds.has(id) ? "ask" : "none" }),
-}));
+let collaborationTaskIndex = 0;
+const users = inviteIds.map((id, index) => {
+  const collaborationTarget = collaborationIds.has(id);
+  const entryTask = assignEntryTask({ index, collaborationTarget, collaborationTaskIndex });
+  if (collaborationTarget) collaborationTaskIndex += 1;
+  return {
+    id,
+    collaborationTarget,
+    entryTask,
+    message: extractOutreachMessage(outreach, id),
+    recordCommand: buildRecordCommand(id, {
+      collaboration: collaborationTarget ? entryTask.collaborationCommand : "none",
+      entry: entryTask.recordEntry,
+    }),
+  };
+});
 
 const result = {
   ok: true,
@@ -43,6 +53,8 @@ const result = {
   users: users.map((user) => ({
     id: user.id,
     collaborationTarget: user.collaborationTarget,
+    entryTask: user.entryTask.key,
+    entryLabel: user.entryTask.label,
     hasMessage: Boolean(user.message),
   })),
   missingMessages: users.filter((user) => !user.message).map((user) => user.id),
@@ -117,9 +129,66 @@ function extractOutreachMessage(markdown, userId) {
   return match ? match[1].trim() : "";
 }
 
-function buildRecordCommand(userId, { collaboration }) {
-  const collaborationChoices = collaboration === "ask" ? "ask|grocery|invite|none" : "none|ask|grocery|invite";
-  return `npm run release:candidate:record -- --user ${userId} --tonight yes|no --grocery yes|no --collaboration ${collaborationChoices} --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --severity P0|P1|P2|建议|通过 --note "替换成真实匿名摘要"`;
+function assignEntryTask({ index, collaborationTarget, collaborationTaskIndex }) {
+  const collaborationTasks = [
+    {
+      key: "crave-card",
+      label: "问问大家小程序卡片",
+      instruction: "我会把【问问大家】小程序卡片发给你；点卡片进入后，帮忙看能不能免登录表达今晚想吃什么。",
+      recordEntry: "分享卡片",
+      collaborationCommand: "ask",
+    },
+    {
+      key: "invite-card",
+      label: "邀请家人小程序卡片",
+      instruction: "我会把【邀请家人】小程序卡片发给你；点卡片进入后，帮忙看加入这个家、看到家庭菜单和清单是否顺。",
+      recordEntry: "分享卡片",
+      collaborationCommand: "invite",
+    },
+    {
+      key: "grocery-card",
+      label: "买菜清单小程序卡片",
+      instruction: "我会把【买菜清单】小程序卡片发给你；点卡片进入后，帮忙看认领/标记买到是否看得懂。",
+      recordEntry: "分享卡片",
+      collaborationCommand: "grocery",
+    },
+  ];
+  if (collaborationTarget) {
+    return collaborationTasks[collaborationTaskIndex % collaborationTasks.length];
+  }
+  const normalTasks = [
+    {
+      key: "normal-open",
+      label: "普通打开小程序",
+      instruction: "请从微信里直接打开 Humi 小程序，重点看【今晚】推荐、发现新菜和清单是否自然。",
+      recordEntry: "今晚",
+      collaborationCommand: "none",
+    },
+    {
+      key: "today-discovery",
+      label: "今晚发现新菜",
+      instruction: "请从【今晚】进入选菜/发现新菜，重点看是否能找到完整菜品页和愿意做的新菜。",
+      recordEntry: "今晚",
+      collaborationCommand: "none",
+    },
+    {
+      key: "grocery-list",
+      label: "清单理解",
+      instruction: "请从【清单】看今晚要买什么，重点看食材、已有项和谁在买是否容易理解。",
+      recordEntry: "清单",
+      collaborationCommand: "none",
+    },
+  ];
+  return normalTasks[index % normalTasks.length];
+}
+
+function buildRecordCommand(userId, { collaboration, entry }) {
+  const collaborationValues = ["none", "ask", "grocery", "invite"];
+  const collaborationChoices = [
+    collaboration,
+    ...collaborationValues.filter((value) => value !== collaboration),
+  ].join("|");
+  return `npm run release:candidate:record -- --user ${userId} --entry "${entry}" --tonight yes|no --grocery yes|no --collaboration ${collaborationChoices} --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --severity P0|P1|P2|建议|通过 --note "替换成真实匿名摘要"`;
 }
 
 function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
@@ -134,7 +203,7 @@ function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
   lines.push("");
   if (users.length) {
     for (const user of users) {
-      lines.push(`- ${user.id}${user.collaborationTarget ? "（优先跑协作）" : ""}`);
+      lines.push(`- ${user.id}：${user.entryTask.label}${user.collaborationTarget ? "（优先跑协作）" : ""}`);
     }
   } else {
     lines.push("- 暂无。");
@@ -144,6 +213,12 @@ function buildMarkdown({ result, users, feedbackForm, hostRunSheet }) {
   lines.push("");
   for (const user of users) {
     lines.push(`### ${user.id}${user.collaborationTarget ? " / 协作目标" : ""}`);
+    lines.push("");
+    lines.push(`入口任务：${user.entryTask.label}`);
+    lines.push("");
+    lines.push("```text");
+    lines.push(user.entryTask.instruction);
+    lines.push("```");
     lines.push("");
     lines.push("复制给体验者：");
     lines.push("");
