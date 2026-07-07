@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { access, readFile, readdir } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import {
   findLatestWechatSubmitDir,
@@ -15,6 +18,7 @@ const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section
 const submitEvidenceState = await getLatestSubmitEvidenceState();
 const nextStage = getNextEvidenceStage(missingSections, submitEvidenceState);
 const openHardeningItems = status.release?.preReviewHardeningOpenItems ?? [];
+const candidateAction = await getCandidateActionState();
 
 const lines = [];
 lines.push("Humi 1.1 当前行动卡");
@@ -47,22 +51,43 @@ if (openHardeningItems.length) {
 } else if (status.release?.engineeringGatesReady && !status.release?.candidateValidationReady) {
   lines.push("当前阶段：1.1 生产候选完善与内测验证，暂不进入微信审核。");
   lines.push("");
+  if (candidateAction.dispatch) {
+    lines.push(`下一步一句话：打开 ${candidateAction.dispatch.markdownPath}，发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`。`);
+    lines.push("");
+    lines.push("今天要发：");
+    for (const user of candidateAction.dispatch.users) {
+      const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
+      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}`);
+    }
+    lines.push("");
+  } else if (candidateAction.packetDir) {
+    lines.push(`下一步一句话：已找到私有候选包 ${candidateAction.packetDir}，先运行 \`npm run release:candidate:dispatch -- --date ${candidateAction.date}\` 生成今日分发单。`);
+    lines.push("");
+  } else {
+    lines.push("下一步一句话：先运行 `HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare` 生成私有候选包。");
+    lines.push("");
+  }
   lines.push("现在该做：");
-  lines.push("1. 继续把 1.1 当作生产候选版本做真实内测和细节完善；当前不直接进入微信公众平台提交审核。");
-  lines.push("2. 运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成或复用私有内测执行包。");
-  lines.push("3. 运行 npm run release:candidate:plan，生成 candidate-day-plan.md，明确今天邀哪些 U 编号、哪些人优先跑协作。");
-  lines.push("4. 运行 npm run release:candidate:dispatch -- --date YYYY-MM-DD，生成只包含今天 U 编号的私有分发单。");
-  lines.push("5. 发送当天邀请后运行 npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD，把匿名 U 编号标为已邀请，不记录真实联系人。");
-  lines.push("6. 运行 npm run release:candidate:desk，直接查看今天该打开哪些私有单据、发什么、回填什么。");
-  lines.push("7. 运行 npm run release:candidate:doctor，看当前 U001-U020 真实反馈、核心路径完成和协作样本还差多少。");
-  lines.push("8. 收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总，真实姓名、微信号、手机号和截图继续留在仓库外；分发单模板不能原样运行。");
-  lines.push("9. 一天结束时运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。");
-  lines.push("10. 需要单独补每日复盘时运行 npm run release:candidate:daily -- --date YYYY-MM-DD，自动把当天复盘写入 daily-review.csv。");
-  lines.push("11. 运行 npm run release:candidate:privacy:check，确认私有候选包没有手机号、邮箱、微信号或真实姓名。");
-  lines.push("12. 运行 npm run release:candidate:prepare:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest，确认执行包、日计划、分发单、邀请标记、执行台、回填工具、每日收尾和隐私扫描仍能读写临时私有执行包。");
-  lines.push("13. 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
-  lines.push("14. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
-  lines.push("15. 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
+  if (candidateAction.dispatch) {
+    lines.push(`1. 打开 \`${candidateAction.dispatch.markdownPath}\`，逐条复制 U 编号对应的入口任务和体验者文案。`);
+    lines.push(`2. 真实发送后运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`，只标记匿名 U 编号，不记录真实联系人。`);
+    lines.push("3. 收到反馈后，替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总；不要原样运行占位模板。");
+    lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
+    lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+  } else {
+    lines.push("1. 继续把 1.1 当作生产候选版本做真实内测和细节完善；当前不直接进入微信公众平台提交审核。");
+    lines.push("2. 运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成或复用私有内测执行包。");
+    lines.push("3. 运行 npm run release:candidate:plan，生成 candidate-day-plan.md，明确今天邀哪些 U 编号、哪些人优先跑协作。");
+    lines.push("4. 运行 npm run release:candidate:dispatch -- --date YYYY-MM-DD，生成只包含今天 U 编号的私有分发单。");
+    lines.push("5. 运行 npm run release:candidate:desk，直接查看今天该打开哪些私有单据、发什么、回填什么。");
+  }
+  lines.push("");
+  lines.push("固定护栏：");
+  lines.push("- 运行 npm run release:candidate:doctor，看当前 U001-U020 真实反馈、核心路径完成和协作样本还差多少。");
+  lines.push("- 运行 npm run release:candidate:privacy:check，确认私有候选包没有手机号、邮箱、微信号或真实姓名。");
+  lines.push("- 工具回归用 npm run release:candidate:prepare:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest。");
+  lines.push("- 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
+  lines.push("- 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
 } else if (wechat?.ok) {
   lines.push(`当前阶段：${nextStage.title}`);
   lines.push("");
@@ -192,6 +217,46 @@ async function runJsonScript(scriptName, { allowFailure }) {
   } catch (error) {
     if (!allowFailure) throw error;
     return parseLastJson(error.stdout || "");
+  }
+}
+
+async function getCandidateActionState() {
+  const date = new Date().toISOString().slice(0, 10);
+  const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
+  const packetDir = await findLatestCandidatePacketDir(privateBaseDir);
+  if (!packetDir) return { date, packetDir: null, dispatch: null };
+
+  const markdownPath = join(packetDir, `candidate-dispatch-${date}.md`);
+  const jsonPath = join(packetDir, `candidate-dispatch-${date}.json`);
+  try {
+    const content = await readFile(jsonPath, "utf8");
+    await access(markdownPath);
+    const parsed = JSON.parse(content);
+    return {
+      date,
+      packetDir,
+      dispatch: {
+        markdownPath,
+        jsonPath,
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+      },
+    };
+  } catch {
+    return { date, packetDir, dispatch: null };
+  }
+}
+
+async function findLatestCandidatePacketDir(privateBaseDir) {
+  try {
+    const entries = await readdir(privateBaseDir, { withFileTypes: true });
+    const latest = entries
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith("candidate-validation-"))
+      .map((entry) => entry.name)
+      .sort()
+      .at(-1);
+    return latest ? join(privateBaseDir, latest) : null;
+  } catch {
+    return null;
   }
 }
 
