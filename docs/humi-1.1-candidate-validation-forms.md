@@ -160,6 +160,7 @@ npm run release:candidate:daily -- --date YYYY-MM-DD
 ```bash
 npm run release:candidate:check
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
+npm run release:candidate:prepare:selftest
 npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest

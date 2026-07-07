@@ -86,6 +86,7 @@ const checks = [
     title: "候选内测私有执行包命令可用",
     path: `${files.packageJson}, ${files.nextAction}, ${files.handoff}`,
     ok: packageJson.includes("release:candidate:prepare")
+      && packageJson.includes("release:candidate:prepare:selftest")
       && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:desk")
       && packageJson.includes("release:candidate:desk:selftest")
@@ -95,6 +96,7 @@ const checks = [
       && packageJson.includes("release:candidate:daily:selftest")
       && packageJson.includes("release:candidate:review")
       && nextAction.includes("release:candidate:prepare")
+      && nextAction.includes("release:candidate:prepare:selftest")
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:desk")
       && nextAction.includes("release:candidate:desk:selftest")
@@ -103,6 +105,7 @@ const checks = [
       && nextAction.includes("release:candidate:daily")
       && nextAction.includes("release:candidate:review")
       && handoff.includes("release:candidate:prepare")
+      && handoff.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:desk")
       && handoff.includes("release:candidate:desk:selftest")
@@ -161,6 +164,15 @@ const checks = [
       "release:candidate:daily -- --date",
       "docs/humi-1.1-candidate-validation-forms.md",
     ].every((text) => candidateDesk.includes(text)),
+  },
+  {
+    key: "candidate-prepare-selftest",
+    title: "候选执行包生成自测可验证文件和权限",
+    path: `${files.packageJson}, ${files.prepareScript}, ${files.nextAction}, ${files.handoff}`,
+    ok: packageJson.includes("release:candidate:prepare:selftest")
+      && nextAction.includes("release:candidate:prepare:selftest")
+      && handoff.includes("release:candidate:prepare:selftest")
+      && prepareScript.includes("release:candidate:desk:selftest"),
   },
 ];
 

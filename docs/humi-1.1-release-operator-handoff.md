@@ -34,6 +34,7 @@ npm run release:product:review
 npm run release:candidate:check
 cat docs/humi-1.1-candidate-validation-forms.md
 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare
+npm run release:candidate:prepare:selftest
 npm run release:candidate:desk
 npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
@@ -51,6 +52,7 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:check` 通过，确认匿名灰度名单、反馈字段、P0/P1/P2 分级、每日复盘、1.1.x 判断标准和“生产候选完善与内测验证”口径齐全。
 - `docs/humi-1.1-candidate-validation-forms.md` 已固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则，避免候选内测只存在私有包里、执行人不知道该给用户看哪张单。
 - `npm run release:candidate:prepare` 可生成私有内测执行包，包含 U001-U020 匿名名单、反馈表、批量导入模板 `candidate-feedback-import.csv`、每日复盘、问题分级表、邀请文案、U001-U020 批量邀请清单 `outreach-batch.md`、体验者反馈单 `tester-feedback-form.md` 和主厨记录单 `host-run-sheet.md`；真实用户信息仍不得进仓库。
+- `npm run release:candidate:prepare:selftest` 可用临时私有目录验证候选执行包文件、权限、README 步骤、U001-U020 和空模板复盘状态。
 - `npm run release:candidate:desk` 可把最新私有包、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:desk:selftest` 可用临时私有执行包验证执行台能读取包、打印今日动作和隐私/审核护栏。
@@ -119,6 +121,7 @@ Owner：用户，Codex 提供材料。
 
 ```bash
 npm run release:candidate:doctor
+npm run release:candidate:prepare:selftest
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
@@ -216,6 +219,7 @@ npm run release:next
 npm run release:closure
 npm run release:candidate:check
 npm run release:candidate:desk
+npm run release:candidate:prepare:selftest
 npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
 npm run release:candidate:record:selftest

@@ -35,6 +35,7 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 npm run release:next
 npm run release:product:review
 npm run release:candidate:check
+npm run release:candidate:prepare:selftest
 npm run release:candidate:desk
 npm run release:candidate:desk:selftest
 npm run release:candidate:doctor

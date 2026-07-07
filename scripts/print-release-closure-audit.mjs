@@ -46,6 +46,7 @@ const report = {
     productReviewReady: Boolean(release.productReviewReady),
     candidateHardeningReady: Boolean(release.candidateHardeningReady),
     candidateValidationReady: Boolean(release.candidateValidationReady),
+    candidatePrepareSelftestReady: Boolean(release.candidatePrepareSelftestReady),
     candidateDeskSelftestReady: Boolean(release.candidateDeskSelftestReady),
     candidateRecordSelftestReady: Boolean(release.candidateRecordSelftestReady),
     candidateDailySelftestReady: Boolean(release.candidateDailySelftestReady),
@@ -129,6 +130,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:product:review",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
+        "npm run release:candidate:prepare:selftest",
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
@@ -155,6 +157,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:product:review",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
+        "npm run release:candidate:prepare:selftest",
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
@@ -181,6 +184,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:product:review",
         "npm run release:candidate:check",
         "npm run release:candidate:prepare",
+        "npm run release:candidate:prepare:selftest",
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
@@ -311,6 +315,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "candidate-review-selftest",
       title: "候选内测复盘自测未通过",
       details: ["Run npm run release:candidate:review:selftest for details."],
+    });
+  }
+  if (!release.candidatePrepareSelftestReady) {
+    blockers.push({
+      key: "candidate-prepare-selftest",
+      title: "候选内测执行包生成自测未通过",
+      details: ["Run npm run release:candidate:prepare:selftest for details."],
     });
   }
   if (!release.candidateDeskSelftestReady) {

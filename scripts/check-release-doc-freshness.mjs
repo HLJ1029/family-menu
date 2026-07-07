@@ -140,6 +140,12 @@ if (!releaseNext.includes("release:candidate:prepare")) {
     phrase: "missing release:candidate:prepare in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:prepare:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:prepare:selftest in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("release:candidate:doctor")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
@@ -194,6 +200,12 @@ if (!releaseStatus.includes("candidateDeskSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidateDeskSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidatePrepareSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidatePrepareSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidateValidationReady")) {

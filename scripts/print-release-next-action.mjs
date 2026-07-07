@@ -54,7 +54,7 @@ if (openHardeningItems.length) {
   lines.push("4. 运行 npm run release:candidate:doctor，看当前 U001-U020 真实反馈、核心路径完成和协作样本还差多少。");
   lines.push("5. 收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总，真实姓名、微信号、手机号和截图继续留在仓库外。");
   lines.push("6. 一天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD，自动把当天复盘写入 daily-review.csv。");
-  lines.push("7. 运行 npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest，确认执行台和回填工具仍能读写临时私有执行包。");
+  lines.push("7. 运行 npm run release:candidate:prepare:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest，确认执行包、执行台和回填工具仍能读写临时私有执行包。");
   lines.push("8. 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
   lines.push("9. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
   lines.push("10. 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
@@ -90,6 +90,7 @@ lines.push("- npm run release:pre-review:evidence");
 lines.push("- npm run release:product:review");
 lines.push("- npm run release:candidate:check");
 lines.push("- npm run release:candidate:prepare");
+lines.push("- npm run release:candidate:prepare:selftest");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:desk");
 lines.push("- npm run release:candidate:desk:selftest");
@@ -114,6 +115,7 @@ lines.push("- 提审前证据总览：npm run release:pre-review:evidence 会汇
 lines.push("- 产品复核锚点：npm run release:product:review 会检查发现新菜、我的家问问大家、征集单模板、小程序卡片证据和微信审核确认护栏。");
 lines.push("- 生产候选内测：npm run release:candidate:check 会检查匿名灰度名单模板、反馈字段、P0/P1/P2 分级、1.1.x 判断标准和当前候选阶段口径。");
 lines.push("- 生成内测执行包：npm run release:candidate:prepare 会在私有目录生成匿名名单 CSV、反馈表、每日复盘、问题分级表和邀请文案；真实用户信息不得进仓库。");
+lines.push("- 执行包生成自测：npm run release:candidate:prepare:selftest 会用临时私有目录确认候选包文件、权限、README 步骤、U001-U020 和空模板复盘状态。");
 lines.push("- 批量邀请清单：release:candidate:prepare 会生成 outreach-batch.md，可直接复制 U001-U020 的匿名邀请消息。");
 lines.push("- 候选反馈单据：release:candidate:prepare 还会生成 tester-feedback-form.md 和 host-run-sheet.md，用来分别收体验者原话和执行人观察。");
 lines.push("- 单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。");
@@ -200,7 +202,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
         "运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成私有内测执行包；要直接打开目录时去掉该环境变量。",
         "运行 npm run release:candidate:doctor，把当前真实样本、今晚菜单、清单和协作样本缺口看清楚。",
         "收到单个体验者反馈后，用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总；一天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD 自动写 daily-review.csv。",
-        "运行 npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest 确认工具可用。",
+        "运行 npm run release:candidate:prepare:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest 和 npm run release:candidate:daily:selftest 确认工具可用。",
         "内测结果写入私有执行包后，运行 npm run release:candidate:review 判断是否达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
         "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录仍可用。",
         "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",

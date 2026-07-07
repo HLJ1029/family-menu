@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
+const skipCandidatePrepareSelftest = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1" || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1";
 
 async function runNpmScript(scriptName) {
   const startedAt = Date.now();
@@ -31,6 +32,25 @@ async function runNpmScript(scriptName) {
       data: parseLastJson(error.stdout || ""),
     };
   }
+}
+
+async function runOptionalNpmScript(scriptName, { skip, reason }) {
+  if (skip) {
+    return {
+      name: scriptName,
+      ok: true,
+      ms: 0,
+      stdout: "",
+      stderr: "",
+      skipped: true,
+      data: {
+        ok: true,
+        skipped: true,
+        reason,
+      },
+    };
+  }
+  return runNpmScript(scriptName);
 }
 
 async function gitInfo() {
@@ -83,6 +103,7 @@ const [
   productReview,
   candidateHardening,
   candidateValidationReview,
+  candidatePrepareSelftest,
   candidateDeskSelftest,
   candidateRecordSelftest,
   candidateDailySelftest,
@@ -100,6 +121,10 @@ const [
   runNpmScript("release:product:review"),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
+  runOptionalNpmScript("release:candidate:prepare:selftest", {
+    skip: skipCandidatePrepareSelftest,
+    reason: "skip candidate prepare selftest while candidate prepare is calling release:status",
+  }),
   runNpmScript("release:candidate:desk:selftest"),
   runNpmScript("release:candidate:record:selftest"),
   runNpmScript("release:candidate:daily:selftest"),
@@ -121,6 +146,7 @@ const docsFreshnessOk = docsFreshness.ok;
 const productReviewOk = productReview.ok;
 const candidateHardeningOk = candidateHardening.ok;
 const candidateValidationReady = candidateValidationReview.ok;
+const candidatePrepareSelftestOk = candidatePrepareSelftest.ok;
 const candidateDeskSelftestOk = candidateDeskSelftest.ok;
 const candidateRecordSelftestOk = candidateRecordSelftest.ok;
 const candidateDailySelftestOk = candidateDailySelftest.ok;
@@ -128,7 +154,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -155,6 +181,9 @@ if (!productReviewOk) {
 }
 if (!candidateHardeningOk) {
   nextActions.push("Fix release:candidate:check failures before claiming the 1.1 production candidate is ready for internal validation.");
+}
+if (!candidatePrepareSelftestOk) {
+  nextActions.push("Fix release:candidate:prepare:selftest before relying on private candidate packet generation.");
 }
 if (!candidateDeskSelftestOk) {
   nextActions.push("Fix release:candidate:desk:selftest before relying on the private candidate execution desk.");
@@ -221,6 +250,7 @@ console.log(JSON.stringify({
     productReviewReady: productReviewOk,
     candidateHardeningReady: candidateHardeningOk,
     candidateValidationReady,
+    candidatePrepareSelftestReady: candidatePrepareSelftestOk,
     candidateDeskSelftestReady: candidateDeskSelftestOk,
     candidateRecordSelftestReady: candidateRecordSelftestOk,
     candidateDailySelftestReady: candidateDailySelftestOk,
@@ -246,6 +276,7 @@ console.log(JSON.stringify({
     summarizeCheck(productReview),
     summarizeCheck(candidateHardening),
     summarizeCheck(candidateValidationReview),
+    summarizeCheck(candidatePrepareSelftest),
     summarizeCheck(candidateDeskSelftest),
     summarizeCheck(candidateRecordSelftest),
     summarizeCheck(candidateDailySelftest),
