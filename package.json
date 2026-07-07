@@ -51,6 +51,8 @@
     "release:candidate:invite:selftest": "node scripts/selftest-candidate-invite-mark.mjs",
     "release:candidate:desk": "node scripts/print-candidate-validation-desk.mjs",
     "release:candidate:desk:selftest": "node scripts/selftest-candidate-validation-desk.mjs",
+    "release:candidate:record:draft": "node scripts/prepare-candidate-record-draft.mjs",
+    "release:candidate:record:draft:selftest": "node scripts/selftest-candidate-record-draft.mjs",
     "release:candidate:record": "node scripts/record-candidate-feedback.mjs",
     "release:candidate:record:selftest": "node scripts/selftest-candidate-feedback-record.mjs",
     "release:candidate:daily": "node scripts/record-candidate-daily-review.mjs",

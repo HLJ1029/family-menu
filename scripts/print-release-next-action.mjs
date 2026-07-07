@@ -92,7 +92,7 @@ if (openHardeningItems.length) {
   if (candidateAction.dispatch) {
     if (candidateAction.dispatch.allUsersInvited) {
       lines.push("1. 等待今天这批 U 编号的真实反馈，不要用已邀请状态当作已体验。");
-      lines.push("2. 收到单个用户反馈后，替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总；不要原样运行占位模板。");
+      lines.push("2. 收到单个用户反馈后，先运行 `release:candidate:record:draft -- --user U00X --date YYYY-MM-DD --entry \"入口任务\"` 生成私有回填草稿，再替换真实匿名结果并回填；不要原样运行占位模板。");
       lines.push("3. 批量收齐后，优先填 `candidate-feedback-import.csv`，再运行 `npm run release:candidate:record -- --import candidate-feedback-import.csv`。");
       lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
       lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
@@ -100,13 +100,13 @@ if (openHardeningItems.length) {
       lines.push(`1. 只发送“还没发”里的 U 编号：${candidateAction.dispatch.pendingUsers.map((user) => user.id).join("、")}。`);
       lines.push(`2. 每发完一个 U，就从工作台对应卡片复制“本 U 已发送登记命令”；一次发完这批时也可运行 \`npm run release:candidate:invite -- --users ${candidateAction.dispatch.pendingUsers.map((user) => user.id).join(",")} --date ${candidateAction.date} --sent-confirmed\`。`);
       lines.push("3. 已发待回收的 U 编号继续等待真实反馈；不要用已邀请状态当作已体验。");
-      lines.push("4. 收到反馈后，替换分发单里的 `release:candidate:record` 模板或填 `candidate-feedback-import.csv`，再回填匿名汇总。");
+      lines.push("4. 收到反馈后，先运行 `release:candidate:record:draft` 生成私有回填草稿，再替换 record 模板或填 `candidate-feedback-import.csv` 回填匿名汇总。");
       lines.push(`5. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
     } else {
       lines.push(`1. 运行 \`npm run release:candidate:dispatch:workbench -- --date ${candidateAction.date}\`，打开私有 HTML 工作台逐条复制 U 编号对应的入口任务和体验者文案。`);
       lines.push(`2. 需要纯文本时再打开 \`${candidateAction.dispatch.markdownPath}\` 作为来源分发单。`);
       lines.push(`3. 每发完一个 U，就复制工作台里该卡片的“本 U 已发送登记命令”；整批都真实发完时也可运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date} --sent-confirmed\`。`);
-      lines.push("4. 收到反馈后，从工作台复制 `release:candidate:record` 模板，替换真实匿名结果再回填；不要原样运行占位模板。");
+      lines.push("4. 收到反馈后，先运行 `release:candidate:record:draft` 生成私有回填草稿，再从工作台复制 `release:candidate:record` 模板替换真实匿名结果；不要原样运行占位模板。");
       lines.push(`5. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
       lines.push("6. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
     }
@@ -123,7 +123,7 @@ if (openHardeningItems.length) {
   lines.push("固定护栏：");
   lines.push("- 运行 npm run release:candidate:doctor，看当前 U001-U020 真实反馈、核心路径完成和协作样本还差多少。");
   lines.push("- 运行 npm run release:candidate:privacy:check，确认私有候选包没有手机号、邮箱、微信号或真实姓名。");
-  lines.push("- 工具回归用 npm run release:candidate:prepare:selftest、npm run release:candidate:forms:preview:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:dispatch:workbench:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest。");
+  lines.push("- 工具回归用 npm run release:candidate:prepare:selftest、npm run release:candidate:forms:preview:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:dispatch:workbench:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:draft:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest。");
   lines.push("- 运行 npm run release:candidate:review，确认达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。");
   lines.push("- 候选复盘达标后，再由用户动作当下确认是否进入微信审核准备。");
 } else if (wechat?.ok) {
@@ -348,6 +348,7 @@ function getMaterialList(scope) {
       "npm run release:candidate:dispatch",
       "npm run release:candidate:dispatch:workbench",
       "npm run release:candidate:invite",
+      "npm run release:candidate:record:draft",
       "npm run release:candidate:record",
       "npm run release:candidate:record:selftest",
       "npm run release:candidate:daily",
@@ -388,6 +389,8 @@ function getMaterialList(scope) {
     "npm run release:candidate:invite:selftest",
     "npm run release:candidate:desk",
     "npm run release:candidate:desk:selftest",
+    "npm run release:candidate:record:draft",
+    "npm run release:candidate:record:draft:selftest",
     "npm run release:candidate:record",
     "npm run release:candidate:record:selftest",
     "npm run release:candidate:daily",
@@ -412,6 +415,7 @@ function getCompletionCriteria(scope) {
     "单据模板确认：docs/humi-1.1-candidate-validation-forms.md 固化体验者反馈单、主厨记录单、批量导入字段、每日复盘表和单据设计规则。",
     "单据设计预览：npm run release:candidate:forms:preview 会在私有包生成并打开 candidate-forms-preview.html，用来确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。",
     "今日分发工作台：npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD 会在私有包生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、每个 U 的已发送登记命令、回填模板和日结命令放进同一个可复制页面；它会显示待邀请/已邀请/已体验状态，并在部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不会发送消息或自动标记邀请。",
+    "反馈回填草稿：npm run release:candidate:record:draft -- --user U00X --date YYYY-MM-DD 会在私有包生成 candidate-record-draft-U00X-YYYY-MM-DD.md，先把必填字段、占位符和 record 命令整理出来；它不会写入反馈 CSV。",
     "单人/批量反馈回填：npm run release:candidate:record 写入前会做 PII 写入前阻断；P0/P1 会自动追加到 issue-triage.csv。",
     "真实体验复盘：npm run release:candidate:review 必须达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
     "隐私扫描：npm run release:candidate:privacy:check 必须确认最新私有候选包没有手机号、邮箱、微信号或真实姓名；发现问题时只报文件/类型/行号，不回显敏感值。",
@@ -460,9 +464,9 @@ function getNextEvidenceStage(missing, submitEvidence) {
         "运行 npm run release:candidate:dispatch -- --date YYYY-MM-DD，生成只包含今天 U 编号的私有分发单，逐个复制给体验者。",
         "运行 npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD，生成私有 HTML 工作台，把逐个发送文案、回填模板和日结命令放在同一页。",
         "发送后运行 npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed，把匿名 U 编号标为已邀请，不记录真实联系人。",
-        "收到单个体验者反馈后，替换分发单里的 record 模板并用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总；一天结束时运行 npm run release:candidate:day:close -- --date YYYY-MM-DD 写入 daily-review.csv 和私有收尾报告。",
+        "收到单个体验者反馈后，先运行 npm run release:candidate:record:draft -- --user U001 --date YYYY-MM-DD 生成私有回填草稿，再替换真实匿名结果并用 npm run release:candidate:record -- --user U001 ... 回填匿名汇总；一天结束时运行 npm run release:candidate:day:close -- --date YYYY-MM-DD 写入 daily-review.csv 和私有收尾报告。",
         "运行 npm run release:candidate:privacy:check，确认最新私有候选包没有手机号、邮箱、微信号或真实姓名。",
-        "运行 npm run release:candidate:prepare:selftest、npm run release:candidate:forms:preview:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:dispatch:workbench:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest 确认工具可用。",
+        "运行 npm run release:candidate:prepare:selftest、npm run release:candidate:forms:preview:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:dispatch:workbench:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:draft:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest 确认工具可用。",
         "内测结果写入私有执行包后，运行 npm run release:candidate:review 判断是否达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
         "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.59、域名、隐私保护指引、审核备注和证据目录仍可用。",
         "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",

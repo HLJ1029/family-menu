@@ -22,10 +22,12 @@ const files = {
   candidateDispatchWorkbenchSelftest: "scripts/selftest-candidate-dispatch-workbench.mjs",
   candidateInvite: "scripts/mark-candidate-invites.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
+  candidateRecordDraft: "scripts/prepare-candidate-record-draft.mjs",
+  candidateRecordDraftSelftest: "scripts/selftest-candidate-record-draft.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -405,9 +407,18 @@ const checks = [
   {
     key: "candidate-record-guards",
     title: "候选反馈回填会阻断 PII 并自动同步 P0/P1 到问题表",
-    path: `${files.packageJson}, ${files.candidateRecord}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    path: `${files.packageJson}, ${files.candidateRecordDraft}, ${files.candidateRecordDraftSelftest}, ${files.candidateRecord}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
     ok: packageJson.includes("release:candidate:record")
       && packageJson.includes("release:candidate:record:selftest")
+      && packageJson.includes("release:candidate:record:draft")
+      && packageJson.includes("release:candidate:record:draft:selftest")
+      && candidateRecordDraft.includes("candidate-record-draft-")
+      && candidateRecordDraft.includes("这份草稿不会写入")
+      && candidateRecordDraft.includes("--tonight \\\"yes|no\\\"")
+      && candidateRecordDraft.includes("--recommendation \\\"1-5|没试\\\"")
+      && candidateRecordDraftSelftest.includes("candidate-record-draft")
+      && candidateRecordDraftSelftest.includes("should not mutate anonymous-users.csv")
+      && candidatePrivacy.includes("candidate-record-draft-U")
       && candidateRecord.includes("issue-triage.csv")
       && candidateRecord.includes("appendedIssues")
       && candidateRecord.includes("scanRecordForPii")
@@ -418,8 +429,11 @@ const checks = [
       && candidateRecord.includes("--recommendation 1-5|没试")
       && candidateRecord.includes("--grocery-score 1-5|没试")
       && nextAction.includes("issue-triage.csv")
+      && nextAction.includes("release:candidate:record:draft")
       && nextAction.includes("PII 写入前阻断")
+      && handoff.includes("release:candidate:record:draft")
       && handoff.includes("P0/P1 会自动追加到 `issue-triage.csv`")
+      && candidateForms.includes("release:candidate:record:draft")
       && candidateForms.includes("写入前会拒绝手机号、邮箱、微信号或真实姓名"),
   },
   {

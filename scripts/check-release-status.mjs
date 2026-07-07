@@ -112,6 +112,7 @@ const [
   candidateDispatchWorkbenchSelftest,
   candidateInviteSelftest,
   candidateDeskSelftest,
+  candidateRecordDraftSelftest,
   candidateRecordSelftest,
   candidateDailySelftest,
   candidateDayCloseSelftest,
@@ -145,6 +146,7 @@ const [
   runNpmScript("release:candidate:dispatch:workbench:selftest"),
   runNpmScript("release:candidate:invite:selftest"),
   runNpmScript("release:candidate:desk:selftest"),
+  runNpmScript("release:candidate:record:draft:selftest"),
   runNpmScript("release:candidate:record:selftest"),
   runNpmScript("release:candidate:daily:selftest"),
   runNpmScript("release:candidate:day:close:selftest"),
@@ -176,6 +178,7 @@ const candidateDispatchSelftestOk = candidateDispatchSelftest.ok;
 const candidateDispatchWorkbenchSelftestOk = candidateDispatchWorkbenchSelftest.ok;
 const candidateInviteSelftestOk = candidateInviteSelftest.ok;
 const candidateDeskSelftestOk = candidateDeskSelftest.ok;
+const candidateRecordDraftSelftestOk = candidateRecordDraftSelftest.ok;
 const candidateRecordSelftestOk = candidateRecordSelftest.ok;
 const candidateDailySelftestOk = candidateDailySelftest.ok;
 const candidateDayCloseSelftestOk = candidateDayCloseSelftest.ok;
@@ -185,7 +188,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && productSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && productSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -236,6 +239,9 @@ if (!candidateInviteSelftestOk) {
 }
 if (!candidateDeskSelftestOk) {
   nextActions.push("Fix release:candidate:desk:selftest before relying on the private candidate execution desk.");
+}
+if (!candidateRecordDraftSelftestOk) {
+  nextActions.push("Fix release:candidate:record:draft:selftest before relying on private candidate feedback draft generation.");
 }
 if (!candidateRecordSelftestOk) {
   nextActions.push("Fix release:candidate:record:selftest before relying on private candidate feedback writeback.");
@@ -316,6 +322,7 @@ console.log(JSON.stringify({
     candidateDispatchWorkbenchSelftestReady: candidateDispatchWorkbenchSelftestOk,
     candidateInviteSelftestReady: candidateInviteSelftestOk,
     candidateDeskSelftestReady: candidateDeskSelftestOk,
+    candidateRecordDraftSelftestReady: candidateRecordDraftSelftestOk,
     candidateRecordSelftestReady: candidateRecordSelftestOk,
     candidateDailySelftestReady: candidateDailySelftestOk,
     candidateDayCloseSelftestReady: candidateDayCloseSelftestOk,
@@ -351,6 +358,7 @@ console.log(JSON.stringify({
     summarizeCheck(candidateDispatchWorkbenchSelftest),
     summarizeCheck(candidateInviteSelftest),
     summarizeCheck(candidateDeskSelftest),
+    summarizeCheck(candidateRecordDraftSelftest),
     summarizeCheck(candidateRecordSelftest),
     summarizeCheck(candidateDailySelftest),
     summarizeCheck(candidateDayCloseSelftest),

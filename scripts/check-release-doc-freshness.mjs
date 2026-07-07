@@ -98,6 +98,7 @@ const checks = [
       "npm run release:candidate:plan",
       "npm run release:candidate:dispatch -- --date YYYY-MM-DD",
       "npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD",
+      "npm run release:candidate:record:draft",
       "npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
@@ -222,6 +223,18 @@ if (!releaseNext.includes("release:candidate:desk:selftest")) {
     phrase: "missing release:candidate:desk:selftest in candidate-stage action card",
   });
 }
+if (!releaseNext.includes("release:candidate:record:draft")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:record:draft in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:record:draft:selftest")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:record:draft:selftest in candidate-stage action card",
+  });
+}
 if (!releaseNext.includes("release:candidate:review")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
@@ -276,6 +289,12 @@ if (!releaseStatus.includes("candidateDeskSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidateDeskSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateRecordDraftSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateRecordDraftSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidatePrepareSelftestReady")) {

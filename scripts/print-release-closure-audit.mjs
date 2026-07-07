@@ -53,6 +53,7 @@ const report = {
     candidateDispatchSelftestReady: Boolean(release.candidateDispatchSelftestReady),
     candidateInviteSelftestReady: Boolean(release.candidateInviteSelftestReady),
     candidateDeskSelftestReady: Boolean(release.candidateDeskSelftestReady),
+    candidateRecordDraftSelftestReady: Boolean(release.candidateRecordDraftSelftestReady),
     candidateRecordSelftestReady: Boolean(release.candidateRecordSelftestReady),
     candidateDailySelftestReady: Boolean(release.candidateDailySelftestReady),
     candidateDayCloseSelftestReady: Boolean(release.candidateDayCloseSelftestReady),
@@ -151,6 +152,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
+        "npm run release:candidate:record:draft:selftest",
         "npm run release:candidate:record:selftest",
         "npm run release:candidate:daily:selftest",
         "npm run release:candidate:day:close",
@@ -191,6 +193,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
+        "npm run release:candidate:record:draft:selftest",
         "npm run release:candidate:record:selftest",
         "npm run release:candidate:daily:selftest",
         "npm run release:candidate:day:close",
@@ -231,6 +234,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:candidate:desk",
         "npm run release:candidate:doctor",
         "npm run release:candidate:desk:selftest",
+        "npm run release:candidate:record:draft:selftest",
         "npm run release:candidate:record:selftest",
         "npm run release:candidate:daily:selftest",
         "npm run release:candidate:day:close",
@@ -404,6 +408,13 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
       key: "candidate-desk-selftest",
       title: "候选内测执行台自测未通过",
       details: ["Run npm run release:candidate:desk:selftest for details."],
+    });
+  }
+  if (!release.candidateRecordDraftSelftestReady) {
+    blockers.push({
+      key: "candidate-record-draft-selftest",
+      title: "候选反馈回填草稿自测未通过",
+      details: ["Run npm run release:candidate:record:draft:selftest for details."],
     });
   }
   if (!release.candidateRecordSelftestReady) {

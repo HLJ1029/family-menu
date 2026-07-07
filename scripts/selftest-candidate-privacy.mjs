@@ -13,6 +13,7 @@ await writePacket(cleanDir, {
   "tester-feedback-form.md": "请不要写手机号、微信号、真实姓名或家庭隐私。\n",
   "candidate-forms-preview.html": "<!doctype html><title>Humi 1.1 候选内测单据预览</title><main>只记录 U001 匿名反馈。</main>\n",
   "candidate-dispatch-workbench-2026-07-07.html": "<!doctype html><main>U001 匿名分发工作台。</main>\n",
+  "candidate-record-draft-U001-2026-07-07.md": "# 草稿\n\n匿名摘要：推荐能直接做。\n私有证据：private://candidate/U001\n",
 });
 
 const clean = await runPrivacy(cleanDir);
@@ -28,12 +29,13 @@ await writePacket(dirtyDir, {
   "candidate-dispatch-2026-07-07.md": "姓名：王五\n",
   "candidate-forms-preview.html": "<!doctype html><main>邮箱：tester@example.com</main>\n",
   "candidate-dispatch-workbench-2026-07-07.html": "<!doctype html><main>手机号：13900139000</main>\n",
+  "candidate-record-draft-U001-2026-07-07.md": "真实姓名：赵六\n",
 });
 
 const dirty = await runPrivacy(dirtyDir);
 assert(dirty.exitCode !== 0, "dirty packet should fail privacy scan");
 assert(dirty.data?.ok === false, "dirty packet did not return ok=false");
-assert(dirty.data?.findings?.length === 7, "dirty packet should report seven finding locations");
+assert(dirty.data?.findings?.length === 8, "dirty packet should report eight finding locations");
 assert(dirty.stdout && !dirty.stdout.includes("13800138000"), "privacy output must not echo phone values");
 assert(dirty.stdout && !dirty.stdout.includes("humi_test_001"), "privacy output must not echo WeChat ID values");
 assert(dirty.stdout && !dirty.stdout.includes("张三"), "privacy output must not echo real names");
@@ -41,6 +43,7 @@ assert(dirty.stdout && !dirty.stdout.includes("李四"), "privacy output must no
 assert(dirty.stdout && !dirty.stdout.includes("王五"), "privacy output must not echo dispatch real names");
 assert(dirty.stdout && !dirty.stdout.includes("tester@example.com"), "privacy output must not echo preview email values");
 assert(dirty.stdout && !dirty.stdout.includes("13900139000"), "privacy output must not echo workbench phone values");
+assert(dirty.stdout && !dirty.stdout.includes("赵六"), "privacy output must not echo record draft real names");
 
 console.log(JSON.stringify({
   ok: true,

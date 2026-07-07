@@ -49,6 +49,8 @@ npm run release:candidate:invite:selftest
 npm run release:candidate:desk
 npm run release:candidate:doctor
 npm run release:candidate:desk:selftest
+npm run release:candidate:record:draft
+npm run release:candidate:record:draft:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
 npm run release:candidate:day:close:selftest
@@ -78,6 +80,8 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:dispatch:workbench:selftest` 可用临时私有执行包验证 HTML 工作台能生成、权限为 600 且保留隐私/审核护栏。
 - `npm run release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 可在单个 U 的消息或小程序卡片真实发出后，把该匿名 U 编号标为已邀请；整批都已真实发出时也可运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`。它不记录真实联系人，也不会生成体验反馈；未带确认参数时不会写入。
 - `npm run release:candidate:invite:selftest` 可用临时私有执行包验证邀请状态标记只更新匿名邀请状态，dry-run 不写入。
+- `npm run release:candidate:record:draft -- --user U00X --date YYYY-MM-DD --entry "入口任务"` 可在收到反馈后先生成私有 `candidate-record-draft-U00X-YYYY-MM-DD.md`，把必填字段、占位符、隐私护栏和可复制回填命令整理成一张草稿；它不写 CSV、不生成体验样本。
+- `npm run release:candidate:record:draft:selftest` 可用临时私有执行包验证回填草稿文件、权限、占位符和“不写反馈”护栏。
 - `npm run release:candidate:desk` 可把最新私有包、当天 `candidate-dispatch-YYYY-MM-DD.md/json`、U 编号入口任务、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:desk:selftest` 可用临时私有执行包验证执行台能读取包、打印今日动作和隐私/审核护栏。
@@ -162,6 +166,8 @@ npm run release:candidate:dispatch:workbench:selftest
 npm run release:candidate:invite
 npm run release:candidate:invite:selftest
 npm run release:candidate:desk:selftest
+npm run release:candidate:record:draft
+npm run release:candidate:record:draft:selftest
 npm run release:candidate:record:selftest
 npm run release:candidate:daily:selftest
 npm run release:candidate:day:close:selftest
@@ -171,7 +177,7 @@ npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:forms:preview` 先打开私有包里的单据设计预览，确认体验者反馈单和主厨记录单可读；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；`release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 会生成私有 HTML 工作台，便于逐个复制体验者文案、本 U 已发送登记命令和回填模板，并直接显示每个 U 当前是待邀请、已邀请还是已体验，避免重复发送；每发完一个 U 后，优先复制该卡片里的 `release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；整批都已真实发出时，也可运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`；收到单个体验者反馈后，先替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:forms:preview` 先打开私有包里的单据设计预览，确认体验者反馈单和主厨记录单可读；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；`release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 会生成私有 HTML 工作台，便于逐个复制体验者文案、本 U 已发送登记命令和回填模板，并直接显示每个 U 当前是待邀请、已邀请还是已体验，避免重复发送；每发完一个 U 后，优先复制该卡片里的 `release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；整批都已真实发出时，也可运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`；收到单个体验者反馈后，先运行 `release:candidate:record:draft -- --user U00X --date YYYY-MM-DD --entry "入口任务"` 生成私有回填草稿，再把真实匿名结果填进 `release:candidate:record` 命令，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 
