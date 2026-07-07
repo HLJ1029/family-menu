@@ -16,6 +16,10 @@ try {
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
   await assertNext("提审前产品打磨");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
+  await writePendingCandidatePacket(tempDir, "待邀请");
+  await assertNext("发送今天这些 U 编号");
+  await writePendingCandidatePacket(tempDir, "已邀请");
+  await assertNext("今天分发单里的 U 编号已标记为已邀请");
   await writeValidCandidatePacket(tempDir);
 
   const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
@@ -120,6 +124,52 @@ async function run(script, extraEnv) {
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
   });
+}
+
+async function writePendingCandidatePacket(baseDir, inviteStatus) {
+  const packetDir = join(baseDir, "candidate-validation-20990101T000000Z");
+  const today = new Date().toISOString().slice(0, 10);
+  await mkdir(packetDir, { recursive: true });
+  await Promise.all([
+    writeFile(join(packetDir, "anonymous-users.csv"), csv([
+      anonymousHeader(),
+      ["U001", "两人家庭", "iPhone 15 / WeChat 9", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U001", ""],
+      ["U002", "三人家庭", "iPhone 14 / WeChat 9", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://candidate/U002", ""],
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "feedback-template.csv"), csv([
+      feedbackHeader(),
+      ["U001", "待填", "待填", "今晚/自己挑/想连排几天/清单/我的家/分享卡片", "是/否", "是/否", "问问大家/邀请家人/买菜认领/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "daily-review.csv"), csv([
+      dailyHeader(),
+      ["Day 1", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待填"],
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, "issue-triage.csv"), csv([
+      issueHeader(),
+      ["SUG-001", "待收集", "U000", "建议", "待判断", "否", "否", "codex@mbp-m5pro", "新反馈", ""],
+    ]), { mode: 0o600 }),
+    writeFile(join(packetDir, `candidate-dispatch-${today}.md`), "# Humi 1.1 候选内测今日分发单\n\n- U001：问问大家小程序卡片\n- U002：邀请家人小程序卡片\n", { mode: 0o600 }),
+    writeFile(join(packetDir, `candidate-dispatch-${today}.json`), JSON.stringify({
+      ok: true,
+      date: today,
+      users: [
+        {
+          id: "U001",
+          collaborationTarget: true,
+          entryTask: "crave-card",
+          entryLabel: "问问大家小程序卡片",
+          hasMessage: true,
+        },
+        {
+          id: "U002",
+          collaborationTarget: false,
+          entryTask: "invite-card",
+          entryLabel: "邀请家人小程序卡片",
+          hasMessage: true,
+        },
+      ],
+    }, null, 2), { mode: 0o600 }),
+  ]);
 }
 
 async function writeValidCandidatePacket(baseDir) {

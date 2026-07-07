@@ -51,9 +51,14 @@ if (dispatch) {
   if (dispatch.users.length) {
     for (const user of dispatch.users) {
       const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
-      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}`);
+      const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
+      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}${status}`);
     }
-    lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`);
+    if (dispatch.allUsersInvited) {
+      lines.push("- 今天这批已标记已邀请；等待真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
+    } else {
+      lines.push(`- 真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${today}\`，只标记已邀请，不会生成体验反馈。`);
+    }
   } else {
     lines.push("- 今日分发单没有发送对象；先运行 `npm run release:candidate:plan` 重新看今日缺口。");
   }
@@ -144,7 +149,9 @@ function explainRecommendation(recommendation) {
 function buildHumanActions(result, dispatch, today) {
   if (result.recommendation === "wait-for-validation-input") {
     return [
-      dispatch
+      dispatch?.allUsersInvited
+        ? "等待今天这批 U 编号的真实反馈；收到后替换分发单里的 record 模板并回填匿名结果。"
+        : dispatch
         ? `先发今天分发单里的 U 编号；真实发送后运行 npm run release:candidate:invite -- --from-dispatch ${today}。`
         : `先运行 npm run release:candidate:plan 和 npm run release:candidate:dispatch -- --date ${today}，生成今日分发单后再发送。`,
       "收到反馈后，在私有包 anonymous-users.csv 记录 U 编号的真实匿名体验状态。",
@@ -210,12 +217,82 @@ async function readDispatchSummary(dir, date) {
     const content = await readFile(jsonPath, "utf8");
     await access(markdownPath);
     const parsed = JSON.parse(content);
+    const statuses = await readCandidateInviteStatuses(dir);
+    const users = (Array.isArray(parsed.users) ? parsed.users : []).map((user) => {
+      const id = String(user.id || "").trim().toUpperCase();
+      return {
+        ...user,
+        id,
+        inviteStatus: statuses.get(id) || "",
+      };
+    });
     return {
       markdownPath,
       jsonPath,
-      users: Array.isArray(parsed.users) ? parsed.users : [],
+      users,
+      allUsersInvited: users.length > 0
+        && users.every((user) => ["已邀请", "已体验"].includes(user.inviteStatus)),
     };
   } catch {
     return null;
   }
+}
+
+async function readCandidateInviteStatuses(dir) {
+  try {
+    const content = await readFile(`${dir}/anonymous-users.csv`, "utf8");
+    const rows = parseCsv(content);
+    const [headers, ...data] = rows;
+    const idIndex = headers.indexOf("用户编号");
+    const statusIndex = headers.indexOf("邀请状态");
+    const statuses = new Map();
+    if (idIndex < 0 || statusIndex < 0) return statuses;
+    for (const row of data) {
+      const id = String(row[idIndex] || "").trim().toUpperCase();
+      if (/^U\d{3}$/.test(id)) {
+        statuses.set(id, String(row[statusIndex] || "").trim());
+      }
+    }
+    return statuses;
+  } catch {
+    return new Map();
+  }
+}
+
+function parseCsv(content) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+    if (quoted) {
+      if (char === "\"" && next === "\"") {
+        cell += "\"";
+        index += 1;
+      } else if (char === "\"") {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === "\"") {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (char !== "\r") {
+      cell += char;
+    }
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows;
 }

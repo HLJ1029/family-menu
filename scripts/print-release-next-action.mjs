@@ -52,12 +52,17 @@ if (openHardeningItems.length) {
   lines.push("当前阶段：1.1 生产候选完善与内测验证，暂不进入微信审核。");
   lines.push("");
   if (candidateAction.dispatch) {
-    lines.push(`下一步一句话：打开 ${candidateAction.dispatch.markdownPath}，发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`。`);
+    if (candidateAction.dispatch.allUsersInvited) {
+      lines.push("下一步一句话：今天分发单里的 U 编号已标记为已邀请；等待今天这批 U 编号的真实反馈，收到后替换分发单里的 record 模板并回填匿名结果。");
+    } else {
+      lines.push(`下一步一句话：打开 ${candidateAction.dispatch.markdownPath}，发送今天这些 U 编号；真实发送后再运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`。`);
+    }
     lines.push("");
-    lines.push("今天要发：");
+    lines.push(candidateAction.dispatch.allUsersInvited ? "今天已发，待回收：" : "今天要发：");
     for (const user of candidateAction.dispatch.users) {
       const suffix = user.collaborationTarget ? "（优先跑协作）" : "";
-      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}`);
+      const status = user.inviteStatus ? ` / ${user.inviteStatus}` : "";
+      lines.push(`- ${user.id}: ${user.entryLabel}${suffix}${status}`);
     }
     lines.push("");
   } else if (candidateAction.packetDir) {
@@ -69,11 +74,19 @@ if (openHardeningItems.length) {
   }
   lines.push("现在该做：");
   if (candidateAction.dispatch) {
-    lines.push(`1. 打开 \`${candidateAction.dispatch.markdownPath}\`，逐条复制 U 编号对应的入口任务和体验者文案。`);
-    lines.push(`2. 真实发送后运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`，只标记匿名 U 编号，不记录真实联系人。`);
-    lines.push("3. 收到反馈后，替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总；不要原样运行占位模板。");
-    lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
-    lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+    if (candidateAction.dispatch.allUsersInvited) {
+      lines.push("1. 等待今天这批 U 编号的真实反馈，不要用已邀请状态当作已体验。");
+      lines.push("2. 收到单个用户反馈后，替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总；不要原样运行占位模板。");
+      lines.push("3. 批量收齐后，优先填 `candidate-feedback-import.csv`，再运行 `npm run release:candidate:record -- --import candidate-feedback-import.csv`。");
+      lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
+      lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+    } else {
+      lines.push(`1. 打开 \`${candidateAction.dispatch.markdownPath}\`，逐条复制 U 编号对应的入口任务和体验者文案。`);
+      lines.push(`2. 真实发送后运行 \`npm run release:candidate:invite -- --from-dispatch ${candidateAction.date}\`，只标记匿名 U 编号，不记录真实联系人。`);
+      lines.push("3. 收到反馈后，替换分发单里的 `release:candidate:record` 模板，再回填匿名汇总；不要原样运行占位模板。");
+      lines.push(`4. 一天结束运行 \`npm run release:candidate:day:close -- --date ${candidateAction.date}\`，一次完成隐私扫描、每日复盘、候选复盘和私有收尾报告。`);
+      lines.push("5. 若出现 P0/P1，先修复或明确进入 1.1.x，再回到候选复盘；不要绕过内测直接审核。");
+    }
   } else {
     lines.push("1. 继续把 1.1 当作生产候选版本做真实内测和细节完善；当前不直接进入微信公众平台提交审核。");
     lines.push("2. 运行 HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare 生成或复用私有内测执行包。");
@@ -232,18 +245,89 @@ async function getCandidateActionState() {
     const content = await readFile(jsonPath, "utf8");
     await access(markdownPath);
     const parsed = JSON.parse(content);
+    const statuses = await readCandidateInviteStatuses(packetDir);
+    const users = (Array.isArray(parsed.users) ? parsed.users : []).map((user) => {
+      const id = String(user.id || "").trim().toUpperCase();
+      return {
+        ...user,
+        id,
+        inviteStatus: statuses.get(id) || "",
+      };
+    });
+    const allUsersInvited = users.length > 0
+      && users.every((user) => ["已邀请", "已体验"].includes(user.inviteStatus));
     return {
       date,
       packetDir,
       dispatch: {
         markdownPath,
         jsonPath,
-        users: Array.isArray(parsed.users) ? parsed.users : [],
+        users,
+        allUsersInvited,
       },
     };
   } catch {
     return { date, packetDir, dispatch: null };
   }
+}
+
+async function readCandidateInviteStatuses(packetDir) {
+  try {
+    const content = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
+    const rows = parseCsv(content);
+    const [headers, ...data] = rows;
+    const idIndex = headers.indexOf("用户编号");
+    const statusIndex = headers.indexOf("邀请状态");
+    const statuses = new Map();
+    if (idIndex < 0 || statusIndex < 0) return statuses;
+    for (const row of data) {
+      const id = String(row[idIndex] || "").trim().toUpperCase();
+      if (/^U\d{3}$/.test(id)) {
+        statuses.set(id, String(row[statusIndex] || "").trim());
+      }
+    }
+    return statuses;
+  } catch {
+    return new Map();
+  }
+}
+
+function parseCsv(content) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+    if (quoted) {
+      if (char === "\"" && next === "\"") {
+        cell += "\"";
+        index += 1;
+      } else if (char === "\"") {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === "\"") {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (char !== "\r") {
+      cell += char;
+    }
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows;
 }
 
 async function findLatestCandidatePacketDir(privateBaseDir) {

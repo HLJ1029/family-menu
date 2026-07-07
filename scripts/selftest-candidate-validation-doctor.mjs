@@ -9,14 +9,7 @@ const today = new Date().toISOString().slice(0, 10);
 const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-doctor-"));
 await writePacket(packetDir);
 
-const { stdout } = await execFileAsync("node", ["scripts/doctor-candidate-validation.mjs"], {
-  env: {
-    ...process.env,
-    HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
-  },
-  timeout: 30_000,
-  maxBuffer: 1024 * 1024,
-});
+const stdout = await runDoctor(packetDir);
 
 const requiredText = [
   "Humi 1.1 候选内测进度台",
@@ -37,6 +30,18 @@ for (const text of requiredText) {
   assert(stdout.includes(text), `doctor output missing: ${text}`);
 }
 
+await writeAnonymousUsers(packetDir, "已邀请");
+const invitedStdout = await runDoctor(packetDir);
+const invitedRequiredText = [
+  "今天这批已标记已邀请",
+  "等待今天这批 U 编号的真实反馈",
+  "U001: 问问大家小程序卡片（优先跑协作） / 已邀请",
+  "U002: 邀请家人小程序卡片 / 已邀请",
+];
+for (const text of invitedRequiredText) {
+  assert(invitedStdout.includes(text), `doctor invited output missing: ${text}`);
+}
+
 console.log(JSON.stringify({
   ok: true,
   checkedAt: new Date().toISOString(),
@@ -47,8 +52,25 @@ console.log(JSON.stringify({
       ok: true,
       requiredText,
     },
+    {
+      name: "doctor-switches-to-feedback-after-invite-mark",
+      ok: true,
+      requiredText: invitedRequiredText,
+    },
   ],
 }, null, 2));
+
+async function runDoctor(dir) {
+  const { stdout } = await execFileAsync("node", ["scripts/doctor-candidate-validation.mjs"], {
+    env: {
+      ...process.env,
+      HUMI_CANDIDATE_VALIDATION_DIR: dir,
+    },
+    timeout: 30_000,
+    maxBuffer: 1024 * 1024,
+  });
+  return stdout;
+}
 
 async function writePacket(dir) {
   await Promise.all([
@@ -83,11 +105,7 @@ async function writePacket(dir) {
       "user,date,device,entry,tonight,grocery,collaboration,recommendation,grocery-score,share-score,stuck,note,severity,evidence,revisit",
       "",
     ].join("\n"), { mode: 0o600 }),
-    writeFile(join(dir, "anonymous-users.csv"), csv([
-      anonymousHeader(),
-      ["U001", "待定", "待填", "待邀请", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
-      ["U002", "待定", "待填", "待邀请", "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
-    ]), { mode: 0o600 }),
+    writeAnonymousUsers(dir, "待邀请"),
     writeFile(join(dir, "feedback-template.csv"), csv([
       feedbackHeader(),
       ["U001", "待填", "待填", "今晚/自己挑/想连排几天/清单/我的家/分享卡片", "是/否", "是/否", "问问大家/邀请家人/买菜认领/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
@@ -101,6 +119,14 @@ async function writePacket(dir) {
       ["P0-001", "待收集", "U000", "P0/P1/P2/建议", "待判断", "待判断", "待观察", "codex@mbp-m5pro", "新反馈", ""],
     ]), { mode: 0o600 }),
   ]);
+}
+
+async function writeAnonymousUsers(dir, inviteStatus) {
+  await writeFile(join(dir, "anonymous-users.csv"), csv([
+    anonymousHeader(),
+    ["U001", "待定", "待填", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
+    ["U002", "待定", "待填", inviteStatus, "待填", "待填", "待填", "待填", "待填", "待填", "待填", "待观察", "待观察", "private://", ""],
+  ]), { mode: 0o600 });
 }
 
 function anonymousHeader() {
