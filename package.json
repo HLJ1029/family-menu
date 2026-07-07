@@ -40,6 +40,8 @@
     "release:candidate:doctor": "node scripts/doctor-candidate-validation.mjs",
     "release:candidate:plan": "node scripts/plan-candidate-validation-day.mjs",
     "release:candidate:plan:selftest": "node scripts/selftest-candidate-day-plan.mjs",
+    "release:candidate:dispatch": "node scripts/print-candidate-dispatch-pack.mjs",
+    "release:candidate:dispatch:selftest": "node scripts/selftest-candidate-dispatch-pack.mjs",
     "release:candidate:desk": "node scripts/print-candidate-validation-desk.mjs",
     "release:candidate:desk:selftest": "node scripts/selftest-candidate-validation-desk.mjs",
     "release:candidate:record": "node scripts/record-candidate-feedback.mjs",

@@ -95,6 +95,7 @@ const checks = [
       "candidate-feedback-import.csv",
       "daily-review.csv",
       "npm run release:candidate:plan",
+      "npm run release:candidate:dispatch -- --date YYYY-MM-DD",
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
@@ -168,6 +169,12 @@ if (!releaseNext.includes("release:candidate:plan:selftest")) {
   failures.push({
     path: "scripts/print-release-next-action.mjs",
     phrase: "missing release:candidate:plan:selftest in candidate-stage action card",
+  });
+}
+if (!releaseNext.includes("release:candidate:dispatch")) {
+  failures.push({
+    path: "scripts/print-release-next-action.mjs",
+    phrase: "missing release:candidate:dispatch in candidate-stage action card",
   });
 }
 if (!releaseNext.includes("release:candidate:desk")) {
@@ -248,6 +255,12 @@ if (!releaseStatus.includes("candidatePlanSelftestReady")) {
   failures.push({
     path: "scripts/check-release-status.mjs",
     phrase: "missing candidatePlanSelftestReady in release status",
+  });
+}
+if (!releaseStatus.includes("candidateDispatchSelftestReady")) {
+  failures.push({
+    path: "scripts/check-release-status.mjs",
+    phrase: "missing candidateDispatchSelftestReady in release status",
   });
 }
 if (!releaseStatus.includes("candidateDayCloseSelftestReady")) {

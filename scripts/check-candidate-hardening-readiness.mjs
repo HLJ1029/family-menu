@@ -11,11 +11,12 @@ const files = {
   candidateDesk: "scripts/print-candidate-validation-desk.mjs",
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
+  candidateDispatch: "scripts/print-candidate-dispatch-pack.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDayClose, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDispatch, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -94,6 +95,8 @@ const checks = [
       && packageJson.includes("release:candidate:doctor")
       && packageJson.includes("release:candidate:plan")
       && packageJson.includes("release:candidate:plan:selftest")
+      && packageJson.includes("release:candidate:dispatch")
+      && packageJson.includes("release:candidate:dispatch:selftest")
       && packageJson.includes("release:candidate:desk")
       && packageJson.includes("release:candidate:desk:selftest")
       && packageJson.includes("release:candidate:record")
@@ -109,6 +112,7 @@ const checks = [
       && nextAction.includes("release:candidate:prepare:selftest")
       && nextAction.includes("release:candidate:doctor")
       && nextAction.includes("release:candidate:plan")
+      && nextAction.includes("release:candidate:dispatch")
       && nextAction.includes("release:candidate:plan:selftest")
       && nextAction.includes("release:candidate:desk")
       && nextAction.includes("release:candidate:desk:selftest")
@@ -123,6 +127,7 @@ const checks = [
       && handoff.includes("release:candidate:prepare:selftest")
       && handoff.includes("release:candidate:doctor")
       && handoff.includes("release:candidate:plan")
+      && handoff.includes("release:candidate:dispatch")
       && handoff.includes("release:candidate:plan:selftest")
       && handoff.includes("release:candidate:desk")
       && handoff.includes("release:candidate:desk:selftest")
@@ -209,6 +214,22 @@ const checks = [
       && candidateForms.includes("release:candidate:plan"),
   },
   {
+    key: "candidate-dispatch-pack",
+    title: "候选今日分发单可按日计划抽取发送对象和文案",
+    path: `${files.packageJson}, ${files.candidateDispatch}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:dispatch")
+      && packageJson.includes("release:candidate:dispatch:selftest")
+      && candidateDispatch.includes("candidate-dispatch-")
+      && candidateDispatch.includes("outreach-batch.md")
+      && candidateDispatch.includes("tester-feedback-form.md")
+      && candidateDispatch.includes("host-run-sheet.md")
+      && candidateDispatch.includes("release:candidate:record")
+      && candidateDispatch.includes("release:candidate:day:close")
+      && nextAction.includes("release:candidate:dispatch")
+      && handoff.includes("release:candidate:dispatch")
+      && candidateForms.includes("release:candidate:dispatch"),
+  },
+  {
     key: "candidate-day-close",
     title: "候选每日收尾可生成私有日结报告且不伪造通过",
     path: `${files.packageJson}, ${files.candidateDayClose}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
@@ -262,6 +283,7 @@ const checks = [
       && candidatePrivacy.includes("wechat-id")
       && candidatePrivacy.includes("real-name")
       && candidatePrivacy.includes("candidate-day-close-")
+      && candidatePrivacy.includes("candidate-dispatch-")
       && candidatePrivacy.includes("Do not paste the sensitive values into chat or commits")
       && nextAction.includes("release:candidate:privacy:check")
       && nextAction.includes("只报文件/类型/行号，不回显敏感值")

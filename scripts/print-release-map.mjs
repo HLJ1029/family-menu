@@ -33,6 +33,8 @@ lines.push("- npm run release:candidate:prepare");
 lines.push("- npm run release:candidate:doctor");
 lines.push("- npm run release:candidate:plan");
 lines.push("- npm run release:candidate:plan:selftest");
+lines.push("- npm run release:candidate:dispatch");
+lines.push("- npm run release:candidate:dispatch:selftest");
 lines.push("- npm run release:candidate:day:close");
 lines.push("- npm run release:candidate:day:close:selftest");
 lines.push("- npm run release:candidate:review");

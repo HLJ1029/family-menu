@@ -105,6 +105,7 @@ const [
   candidateValidationReview,
   candidatePrepareSelftest,
   candidatePlanSelftest,
+  candidateDispatchSelftest,
   candidateDeskSelftest,
   candidateRecordSelftest,
   candidateDailySelftest,
@@ -130,6 +131,7 @@ const [
     reason: "skip candidate prepare selftest while candidate prepare is calling release:status",
   }),
   runNpmScript("release:candidate:plan:selftest"),
+  runNpmScript("release:candidate:dispatch:selftest"),
   runNpmScript("release:candidate:desk:selftest"),
   runNpmScript("release:candidate:record:selftest"),
   runNpmScript("release:candidate:daily:selftest"),
@@ -156,6 +158,7 @@ const candidateHardeningOk = candidateHardening.ok;
 const candidateValidationReady = candidateValidationReview.ok;
 const candidatePrepareSelftestOk = candidatePrepareSelftest.ok;
 const candidatePlanSelftestOk = candidatePlanSelftest.ok;
+const candidateDispatchSelftestOk = candidateDispatchSelftest.ok;
 const candidateDeskSelftestOk = candidateDeskSelftest.ok;
 const candidateRecordSelftestOk = candidateRecordSelftest.ok;
 const candidateDailySelftestOk = candidateDailySelftest.ok;
@@ -166,7 +169,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidatePrepareSelftestOk && candidatePlanSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && candidateHardeningOk && candidatePrepareSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDeskSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -199,6 +202,9 @@ if (!candidatePrepareSelftestOk) {
 }
 if (!candidatePlanSelftestOk) {
   nextActions.push("Fix release:candidate:plan:selftest before relying on candidate day planning.");
+}
+if (!candidateDispatchSelftestOk) {
+  nextActions.push("Fix release:candidate:dispatch:selftest before relying on candidate daily dispatch packs.");
 }
 if (!candidateDeskSelftestOk) {
   nextActions.push("Fix release:candidate:desk:selftest before relying on the private candidate execution desk.");
@@ -276,6 +282,7 @@ console.log(JSON.stringify({
     candidateValidationReady,
     candidatePrepareSelftestReady: candidatePrepareSelftestOk,
     candidatePlanSelftestReady: candidatePlanSelftestOk,
+    candidateDispatchSelftestReady: candidateDispatchSelftestOk,
     candidateDeskSelftestReady: candidateDeskSelftestOk,
     candidateRecordSelftestReady: candidateRecordSelftestOk,
     candidateDailySelftestReady: candidateDailySelftestOk,
@@ -306,6 +313,7 @@ console.log(JSON.stringify({
     summarizeCheck(candidateValidationReview),
     summarizeCheck(candidatePrepareSelftest),
     summarizeCheck(candidatePlanSelftest),
+    summarizeCheck(candidateDispatchSelftest),
     summarizeCheck(candidateDeskSelftest),
     summarizeCheck(candidateRecordSelftest),
     summarizeCheck(candidateDailySelftest),
