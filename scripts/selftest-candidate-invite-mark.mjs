@@ -20,6 +20,12 @@ assert(unconfirmed.failed, "non-dry invite should require sent confirmation");
 assert(unconfirmed.stderr.includes("--sent-confirmed") || unconfirmed.stdout.includes("--sent-confirmed"), "unconfirmed failure should mention --sent-confirmed");
 assert(anonymous.includes("U001,待定,待填,待邀请,"), "unconfirmed invite should not update U001");
 
+const outOfDispatch = await runInviteRaw(packetDir, ["--users", "U003", "--date", "2026-07-07", "--sent-confirmed"]);
+anonymous = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
+assert(outOfDispatch.failed, "manual invite should stay inside the dispatch list");
+assert(outOfDispatch.stderr.includes("outside candidate-dispatch-2026-07-07.json") || outOfDispatch.stdout.includes("outside candidate-dispatch-2026-07-07.json"), "out-of-dispatch failure should name the dispatch guard");
+assert(anonymous.includes("U003,待定,待填,待邀请,"), "out-of-dispatch invite should not update U003");
+
 const result = await runInvite(packetDir, ["--from-dispatch", "2026-07-07", "--sent-confirmed"]);
 anonymous = await readFile(join(packetDir, "anonymous-users.csv"), "utf8");
 
@@ -37,6 +43,10 @@ console.log(JSON.stringify({
   cases: [
     {
       name: "rejects-unconfirmed-invite-write",
+      ok: true,
+    },
+    {
+      name: "rejects-out-of-dispatch-manual-user",
       ok: true,
     },
     {

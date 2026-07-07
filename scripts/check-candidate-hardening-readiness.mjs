@@ -302,6 +302,8 @@ const checks = [
       && candidateInvite.includes("anonymous-users.csv")
       && candidateInvite.includes("已邀请")
       && candidateInvite.includes("--sent-confirmed")
+      && candidateInvite.includes("--allow-out-of-dispatch")
+      && candidateInvite.includes("outside candidate-dispatch-")
       && candidateInvite.includes("Refusing to mark invitations without confirmation")
       && candidateInvite.includes("does not create validation feedback")
       && candidateInvite.includes("does not store real contacts")

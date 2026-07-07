@@ -13,11 +13,13 @@ if (args.help) {
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || await findLatestPacketDir();
 const dryRun = Boolean(args.dryRun);
 const inviteDate = args.date || args.fromDispatch || new Date().toISOString().slice(0, 10);
+const explicitUsers = parseUsers(args.users);
 const users = await resolveUsers();
 const file = join(packetDir, "anonymous-users.csv");
 const csv = await readCsv(file);
 const missing = users.filter((user) => !csv.rows.some((row) => row["用户编号"] === user));
 const sentConfirmed = Boolean(args.sentConfirmed) || process.env.HUMI_CANDIDATE_INVITE_SENT_CONFIRMED === "1";
+const allowOutOfDispatch = Boolean(args.allowOutOfDispatch);
 
 if (!users.length) {
   throw new Error("No users provided. Use --users U001,U002 or --from-dispatch YYYY-MM-DD.");
@@ -25,6 +27,10 @@ if (!users.length) {
 
 if (missing.length) {
   throw new Error(`Unknown candidate user(s): ${missing.join(", ")}`);
+}
+
+if (explicitUsers.length && !allowOutOfDispatch) {
+  await assertUsersInDispatch({ users, date: inviteDate });
 }
 
 if (!dryRun && !sentConfirmed) {
@@ -49,6 +55,7 @@ console.log(JSON.stringify({
   checkedAt: new Date().toISOString(),
   dryRun,
   sentConfirmed,
+  allowOutOfDispatch,
   packetDir,
   date: inviteDate,
   users: updated,
@@ -64,7 +71,6 @@ console.log(JSON.stringify({
 }, null, 2));
 
 async function resolveUsers() {
-  const explicitUsers = parseUsers(args.users);
   if (explicitUsers.length) return explicitUsers;
   if (!args.fromDispatch) return [];
 
@@ -73,6 +79,23 @@ async function resolveUsers() {
   return (dispatch.users || [])
     .map((user) => String(user.id || "").trim().toUpperCase())
     .filter(Boolean);
+}
+
+async function assertUsersInDispatch({ users, date }) {
+  const path = join(packetDir, `candidate-dispatch-${date}.json`);
+  let dispatch;
+  try {
+    dispatch = JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    throw new Error(`No candidate dispatch found for ${date}. Use --from-dispatch ${date}, generate the dispatch first, or pass --allow-out-of-dispatch for an explicit manual exception.`);
+  }
+  const dispatchUsers = new Set((dispatch.users || [])
+    .map((user) => String(user.id || "").trim().toUpperCase())
+    .filter(Boolean));
+  const outOfDispatch = users.filter((user) => !dispatchUsers.has(user));
+  if (outOfDispatch.length) {
+    throw new Error(`Refusing to mark user(s) outside candidate-dispatch-${date}.json: ${outOfDispatch.join(", ")}. Use --allow-out-of-dispatch only for a deliberate manual exception.`);
+  }
 }
 
 function parseUsers(value) {
@@ -172,7 +195,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (!arg.startsWith("--")) continue;
     const key = camelCase(arg.slice(2));
-    if (key === "dryRun" || key === "help" || key === "sentConfirmed") {
+    if (key === "dryRun" || key === "help" || key === "sentConfirmed" || key === "allowOutOfDispatch") {
       parsed[key] = true;
     } else {
       parsed[key] = argv[index + 1];
@@ -191,10 +214,12 @@ function helpText() {
     "Usage:",
     "  npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed",
     "  npm run release:candidate:invite -- --users U001,U002,U003 --date 2026-07-07 --sent-confirmed",
+    "  npm run release:candidate:invite -- --users U009 --date 2026-07-07 --sent-confirmed --allow-out-of-dispatch",
     "  npm run release:candidate:invite -- --from-dispatch 2026-07-07 --dry-run",
     "",
     "Marks anonymous U ids as 已邀请 in the latest private candidate packet.",
     "Non-dry writes require --sent-confirmed after the real messages/cards were sent.",
+    "--users with --date must stay inside candidate-dispatch-YYYY-MM-DD.json unless --allow-out-of-dispatch is explicitly passed.",
     "This command does not store real contacts and does not create validation feedback.",
   ].join("\n");
 }
