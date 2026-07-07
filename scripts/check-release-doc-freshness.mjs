@@ -98,6 +98,7 @@ const checks = [
       "npm run release:candidate:daily -- --date YYYY-MM-DD",
       "npm run release:candidate:day:close -- --date YYYY-MM-DD",
       "npm run release:candidate:privacy:check",
+      "写入前会拒绝手机号、邮箱、微信号或真实姓名",
     ],
   },
 ];

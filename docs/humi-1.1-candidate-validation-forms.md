@@ -104,8 +104,9 @@
 ```text
 真实体验后，把 anonymous-users.csv 的邀请状态改为已体验。
 完成【今晚】菜单和完成清单只填 是 或 否。
-用户说了明确卡点或建议，就在 feedback-template.csv 增加一行。
-P0/P1 同步写入 issue-triage.csv，并回到产品修复，不进入审核。
+用户说了明确卡点或建议，就通过 `release:candidate:record` 写入 feedback-template.csv。
+P0/P1 会由 `release:candidate:record` 自动同步写入 issue-triage.csv，并回到产品修复，不进入审核。
+`release:candidate:record` 写入前会拒绝手机号、邮箱、微信号或真实姓名；只写 U 编号和 private:// 证据位置。
 每天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD。
 每天收工前优先运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，一次完成隐私扫描、daily-review、doctor、candidate review 和私有收尾报告。
 每轮回填后运行 npm run release:candidate:doctor。
@@ -129,6 +130,7 @@ user,date,device,entry,tonight,grocery,collaboration,recommendation,grocery-scor
 - `recommendation` / `grocery-score` / `share-score`：填 1-5；没试分享时 `share-score` 可留空。
 - `severity`：填 `P0`、`P1`、`P2`、`建议` 或留空。
 - `evidence`：只填私有位置，例如 `private://wechat/U001-001`。
+- 导入时如果 `severity` 是 `P0` 或 `P1`，回填工具会自动新增 `issue-triage.csv` 行。
 
 导入命令：
 

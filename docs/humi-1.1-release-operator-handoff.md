@@ -63,9 +63,9 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:desk` 可把最新私有包、今天要打开的单据、可复制回填命令和“不要做”的审核/隐私动作打印成一张执行台。
 - `npm run release:candidate:doctor` 可把真实体验、【今晚】菜单、清单和协作样本的进度与缺口打印成候选阶段行动卡，方便先完善功能和内测而不是直接审核。
 - `npm run release:candidate:desk:selftest` 可用临时私有执行包验证执行台能读取包、打印今日动作和隐私/审核护栏。
-- `npm run release:candidate:record -- --user U001 ...` 可把单个体验者的匿名结果回填到最新私有执行包，减少手改 CSV；真实姓名、微信号、手机号、截图和录屏仍只保留在仓库外。
-- `npm run release:candidate:record -- --import candidate-feedback-import.csv` 可从最新私有执行包批量导入多位体验者结果，适合一天内集中回填 U001-U020。
-- `npm run release:candidate:record:selftest` 可用临时私有执行包验证单人反馈回填命令能正确更新 `anonymous-users.csv` 并追加 `feedback-template.csv`。
+- `npm run release:candidate:record -- --user U001 ...` 可把单个体验者的匿名结果回填到最新私有执行包，减少手改 CSV；写入前会拒绝手机号、邮箱、微信号和真实姓名，真实姓名、微信号、手机号、截图和录屏仍只保留在仓库外。
+- `npm run release:candidate:record -- --import candidate-feedback-import.csv` 可从最新私有执行包批量导入多位体验者结果，适合一天内集中回填 U001-U020；P0/P1 会自动追加到 `issue-triage.csv`。
+- `npm run release:candidate:record:selftest` 可用临时私有执行包验证单人反馈回填、批量导入、P1 自动入问题分级表和 PII 写入前阻断。
 - `npm run release:candidate:daily -- --date YYYY-MM-DD` 可按当天匿名反馈自动写入 `daily-review.csv`，减少每日手算新增人数、P0/P1 和核心路径完成数。
 - `npm run release:candidate:daily:selftest` 可用临时私有执行包验证每日复盘回填命令。
 - `npm run release:candidate:day:close -- --date YYYY-MM-DD` 可在每天收工前串起隐私扫描、每日复盘、doctor 和 candidate review，并在私有包写入 `candidate-day-close-YYYY-MM-DD.md/json`，让当天结论和剩余缺口有一张收尾单。
@@ -145,7 +145,7 @@ npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；收到单个体验者反馈后，用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"` 回填匿名汇总；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；收到单个体验者反馈后，用 `npm run release:candidate:record -- --user U001 --tonight yes --grocery yes --collaboration ask --recommendation 5 --grocery-score 5 --share-score 4 --note "清单有用"` 回填匿名汇总；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 

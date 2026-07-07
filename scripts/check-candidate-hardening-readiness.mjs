@@ -12,9 +12,10 @@ const files = {
   candidatePrivacy: "scripts/check-candidate-privacy.mjs",
   candidatePlan: "scripts/plan-candidate-validation-day.mjs",
   candidateDayClose: "scripts/close-candidate-validation-day.mjs",
+  candidateRecord: "scripts/record-candidate-feedback.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDayClose] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateForms, candidateDesk, candidatePrivacy, candidatePlan, candidateDayClose, candidateRecord] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -165,6 +166,8 @@ const checks = [
       "问问大家、邀请家人或清单分享顺不顺",
       "是否能发现新菜并补进今晚",
       "candidate-feedback-import.csv",
+      "issue-triage.csv",
+      "P0/P1 会由 `release:candidate:record` 自动同步写入 issue-triage.csv",
       "daily-review.csv",
       "release:candidate:day:close",
       "npm run release:candidate:plan",
@@ -220,6 +223,24 @@ const checks = [
       && nextAction.includes("release:candidate:day:close")
       && handoff.includes("release:candidate:day:close")
       && candidateForms.includes("release:candidate:day:close"),
+  },
+  {
+    key: "candidate-record-guards",
+    title: "候选反馈回填会阻断 PII 并自动同步 P0/P1 到问题表",
+    path: `${files.packageJson}, ${files.candidateRecord}, ${files.nextAction}, ${files.handoff}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:record")
+      && packageJson.includes("release:candidate:record:selftest")
+      && candidateRecord.includes("issue-triage.csv")
+      && candidateRecord.includes("appendedIssues")
+      && candidateRecord.includes("scanRecordForPii")
+      && candidateRecord.includes("phone")
+      && candidateRecord.includes("wechat-id")
+      && candidateRecord.includes("real-name")
+      && candidateRecord.includes("nextIssueId")
+      && nextAction.includes("issue-triage.csv")
+      && nextAction.includes("PII 写入前阻断")
+      && handoff.includes("P0/P1 会自动追加到 `issue-triage.csv`")
+      && candidateForms.includes("写入前会拒绝手机号、邮箱、微信号或真实姓名"),
   },
   {
     key: "candidate-prepare-selftest",

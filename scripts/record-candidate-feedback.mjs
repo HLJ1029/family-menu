@@ -16,15 +16,33 @@ const dryRun = Boolean(args.dryRun);
 const files = {
   anonymousUsers: join(packetDir, "anonymous-users.csv"),
   feedback: join(packetDir, "feedback-template.csv"),
+  issueTriage: join(packetDir, "issue-triage.csv"),
 };
 
 const anonymous = await readCsv(files.anonymousUsers);
 const feedback = await readCsv(files.feedback);
+const issueTriage = await readCsv(files.issueTriage);
 const records = args.import
   ? await readImportRecords(args.import)
   : [buildRecordFromInput(args)];
 
-const applied = records.map((record) => applyRecord({ anonymous, feedback, record }));
+const piiFindings = records.flatMap((record) => scanRecordForPii(record));
+if (piiFindings.length) {
+  console.log(JSON.stringify({
+    ok: false,
+    checkedAt: new Date().toISOString(),
+    packetDir,
+    findings: piiFindings,
+    nextActions: [
+      "Remove phone numbers, email addresses, WeChat IDs, and real names before writing candidate feedback.",
+      "Keep real contacts and screenshots outside candidate CSV files; use U001-U020 and private:// evidence pointers only.",
+      "Do not paste sensitive values into chat or commits.",
+    ],
+  }, null, 2));
+  process.exit(1);
+}
+
+const applied = records.map((record) => applyRecord({ anonymous, feedback, issueTriage, record }));
 
 const result = {
   ok: true,
@@ -36,7 +54,9 @@ const result = {
   users: applied.map((item) => item.user),
   updatedAnonymousUsers: files.anonymousUsers,
   appendedFeedback: applied.some((item) => item.appendedFeedback),
+  appendedIssues: applied.filter((item) => item.appendedIssue).length,
   feedbackFile: files.feedback,
+  issueTriageFile: files.issueTriage,
   nextActions: [
     "Run npm run release:candidate:doctor to inspect updated thresholds.",
     "If severity is P0/P1, triage before WeChat review.",
@@ -47,6 +67,7 @@ const result = {
 if (!dryRun) {
   await writeFile(files.anonymousUsers, toCsv(anonymous.headers, anonymous.rows), { mode: 0o600 });
   await writeFile(files.feedback, toCsv(feedback.headers, feedback.rows), { mode: 0o600 });
+  await writeFile(files.issueTriage, toCsv(issueTriage.headers, issueTriage.rows), { mode: 0o600 });
 }
 
 console.log(JSON.stringify(result, null, 2));
@@ -120,7 +141,7 @@ function field(input, ...keys) {
   return "";
 }
 
-function applyRecord({ anonymous, feedback, record }) {
+function applyRecord({ anonymous, feedback, issueTriage, record }) {
   const userIndex = anonymous.rows.findIndex((row) => row["用户编号"] === record.userId);
   if (userIndex < 0) {
     throw new Error(`${record.userId} is not present in ${files.anonymousUsers}`);
@@ -165,9 +186,27 @@ function applyRecord({ anonymous, feedback, record }) {
     });
   }
 
+  let appendedIssue = false;
+  if (record.severity === "P0" || record.severity === "P1") {
+    issueTriage.rows.push({
+      "编号": nextIssueId(issueTriage.rows, record.severity),
+      "问题": record.stuck === "无" ? record.note || "候选反馈需复核" : record.stuck,
+      "来源用户编号": record.userId,
+      "等级": record.severity,
+      "是否复现": "待判断",
+      "是否阻塞审核": "是",
+      "是否进入1.1.x": "待判断",
+      "Owner": "codex@mbp-m5pro",
+      "处理状态": "新反馈",
+      "结论": "",
+    });
+    appendedIssue = true;
+  }
+
   return {
     user: record.userId,
     appendedFeedback: shouldAppendFeedback,
+    appendedIssue,
   };
 }
 
@@ -277,6 +316,65 @@ function normalizeSeverity(value) {
   const text = String(value || "").trim();
   if (["P0", "P1", "P2", "建议", "通过", "待观察"].includes(text)) return text;
   throw new Error("Expected --severity as P0, P1, P2, 建议, 通过, or 待观察.");
+}
+
+function nextIssueId(rows, severity) {
+  const prefix = `${severity}-`;
+  const next = rows
+    .map((row) => String(row["编号"] || ""))
+    .filter((id) => id.startsWith(prefix))
+    .map((id) => Number(id.slice(prefix.length)))
+    .filter((number) => Number.isInteger(number))
+    .reduce((max, number) => Math.max(max, number), 0) + 1;
+  return `${prefix}${String(next).padStart(3, "0")}`;
+}
+
+function scanRecordForPii(record) {
+  const fields = [
+    ["device", record.device],
+    ["entry", record.entry],
+    ["note", record.note],
+    ["stuck", record.stuck],
+    ["evidence", record.evidence],
+    ["revisit", record.revisit],
+  ];
+  const findings = [];
+  for (const [fieldName, value] of fields) {
+    findings.push(...scanText(fieldName, value));
+  }
+  return findings.map((item) => ({
+    user: record.userId,
+    ...item,
+  }));
+}
+
+function scanText(fieldName, value) {
+  const text = String(value || "");
+  const checks = [
+    {
+      type: "phone",
+      pattern: /(?<!\d)1[3-9]\d{9}(?!\d)/g,
+    },
+    {
+      type: "email",
+      pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+    },
+    {
+      type: "wechat-id",
+      pattern: /(?:微信号|微信ID|wechat id|wechat_id)\s*[:：]\s*[A-Za-z][A-Za-z0-9_-]{5,19}/gi,
+    },
+    {
+      type: "real-name",
+      pattern: /(?:真实姓名|姓名|联系人)\s*[:：]\s*[\u4e00-\u9fa5]{2,4}/g,
+    },
+  ];
+  const findings = [];
+  for (const check of checks) {
+    if (check.pattern.test(text)) {
+      findings.push({ field: fieldName, type: check.type });
+    }
+  }
+  return findings;
 }
 
 function helpText() {
