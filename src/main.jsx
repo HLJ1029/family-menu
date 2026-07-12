@@ -141,6 +141,8 @@ function App() {
   const [craveLandingToken, setCraveLandingToken] = useState(() => getCraveTokenFromUrl());
   const [householdInviteToken, setHouseholdInviteToken] = useState(() => getHouseholdInviteTokenFromUrl());
   const [groceryShareToken, setGroceryShareToken] = useState(() => getGroceryShareTokenFromUrl());
+  const [libraryMealSlot, setLibraryMealSlot] = useState(null);
+  const [libraryParentLabel, setLibraryParentLabel] = useState("今晚菜单");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
@@ -232,6 +234,10 @@ function App() {
     [],
   );
   const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
+  const libraryMenuQuantities = useMemo(
+    () => libraryMealSlot && libraryMealSlot !== "dinner" ? todayMeals[libraryMealSlot] ?? [] : todayMenu,
+    [libraryMealSlot, todayMeals, todayMenu],
+  );
   const humiStateSnapshot = useMemo(() => ({
     todayMenu,
     weekPlan,
@@ -1055,7 +1061,12 @@ function App() {
   }
 
   async function startCraveRequest(feelingTag) {
-    if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("登录主厨账号后，就能把征集卡片分享给家人。");
+      navigateTo("user");
+      return null;
+    }
+    if (family?.role && family.role !== "owner") {
       showNotice("这个家的征集需要主厨发起；家人可以直接点感觉或丢想吃。");
       return null;
     }
@@ -1068,7 +1079,7 @@ function App() {
         initiatorName: displaySession?.user?.displayName || "主厨",
         mealType: "dinner",
         initialFeelingTag: safeFeeling,
-      }, isHumiApiSession(humiSession) ? humiSession : null);
+      }, humiSession);
       const request = data.request;
       if (request?.token) {
         createdShareRequest = true;
@@ -1260,35 +1271,12 @@ function App() {
   }
   function pickForMeal(slotId) {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
-    const currentRecipeIds = new Set((todayMeals[slotId] ?? []).map((entry) => entry.recipeId));
-    const preferredRecipe = getPreferredMealRecipe(slotId, currentRecipeIds);
-    if (!preferredRecipe) {
-      showNotice(`${slotLabel}先不用安排`);
-      return;
-    }
-    if (slotId === "breakfast") {
-      const consumedEntries = [{ recipeId: preferredRecipe.id, quantity: 1 }];
-      updateMealPlanSlot(todayDateKey, "breakfast", () => [{ recipeId: preferredRecipe.id, quantity: 1 }]);
-      recordMealSlot("breakfast", {
-        source: "home",
-        consumedEntries,
-        quickRecordedAt: new Date().toISOString(),
-      });
-      consumePantryForEntries(consumedEntries);
-      showNotice(`${preferredRecipe.name} 已换到早餐`);
-      return;
-    }
-    assignMealRecipe(todayDateKey, slotId, preferredRecipe.id, 1, { silent: slotId === "breakfast" || slotId === "lunch" });
-    if (slotId === "lunch") {
-      const consumedEntries = getMealSlotEntriesAfterAdd("lunch", preferredRecipe.id);
-      recordMealSlot("lunch", {
-        source: "home",
-        consumedEntries,
-        quickRecordedAt: new Date().toISOString(),
-      });
-      consumePantryForEntries(consumedEntries);
-    }
-    showNotice(`${preferredRecipe.name} 已记到${slotLabel}`);
+    setLibraryMealSlot(slotId);
+    setLibraryParentLabel("今晚");
+    setQuery("");
+    setCategory("全部");
+    navigateTo("library");
+    showNotice(`选择${slotLabel}吃什么`);
   }
 
   function updateTodayMealLog(patch) {
@@ -1325,66 +1313,14 @@ function App() {
     });
   }
 
-  function getPreferredMealRecipe(slotId, excludedRecipeIds = new Set()) {
-    const slotLabel = slotLabelsById[slotId] ?? "这一餐";
-    const isAvailable = (recipe) => recipe && !excludedRecipeIds.has(recipe.id);
-    return recipes.find((recipe) => isAvailable(recipe) && (recipe.tags?.includes(slotLabel) || recipe.categories?.includes(slotLabel)))
-      ?? recipes.find((recipe) => isAvailable(recipe) && slotId === "breakfast" && (recipe.tags?.includes("早餐") || recipe.categories?.includes("早餐")))
-      ?? recipes.find((recipe) => isAvailable(recipe) && slotId === "lunch" && (recipe.tags?.includes("午餐") || recipe.categories?.includes("午餐")))
-      ?? displayedRecommendation.recipes.find(isAvailable)
-      ?? displayedRecommendation.recipes[0];
-  }
-
-  function getMealSlotEntriesAfterAdd(slotId, recipeId) {
-    return upsertMealEntry(todayMeals[slotId] ?? [], recipeId, 1);
-  }
-
   function recordBreakfast() {
-    const recipe = getPreferredMealRecipe("breakfast");
-    if (!recipe) {
-      showNotice("早餐先不用记录");
-      return;
-    }
-    assignMealRecipe(todayDateKey, "breakfast", recipe.id, 1, { silent: true });
-    const consumedEntries = getMealSlotEntriesAfterAdd("breakfast", recipe.id);
-    recordMealSlot("breakfast", {
-      source: "home",
-      consumedEntries,
-      quickRecordedAt: new Date().toISOString(),
-    });
-    consumePantryForEntries(consumedEntries);
-    trackValidationEvent(validationEvents.mealSourceSelected, {
-      mealSlot: "breakfast",
-      source: "home",
-      recipeIds: consumedEntries.map((item) => item.recipeId),
-      dateKey: todayDateKey,
-    });
-    showNotice(`${recipe.name} 已记到早餐`);
+    pickForMeal("breakfast");
   }
 
   function setLunchSource(source) {
     const now = new Date().toISOString();
     if (source === "home") {
-      const recipe = getPreferredMealRecipe("lunch");
-      if (!recipe) {
-        showNotice("午餐先不用安排");
-        return;
-      }
-      assignMealRecipe(todayDateKey, "lunch", recipe.id, 1, { silent: true });
-      const consumedEntries = getMealSlotEntriesAfterAdd("lunch", recipe.id);
-      recordMealSlot("lunch", {
-        source,
-        consumedEntries,
-        quickRecordedAt: now,
-      });
-      consumePantryForEntries(consumedEntries);
-      trackValidationEvent(validationEvents.mealSourceSelected, {
-        mealSlot: "lunch",
-        source,
-        recipeIds: consumedEntries.map((item) => item.recipeId),
-        dateKey: todayDateKey,
-      });
-      showNotice(`${recipe.name} 已记到午餐，食材会汇入清单`);
+      pickForMeal("lunch");
       return;
     }
     updateMealPlanSlot(todayDateKey, "lunch", () => []);
@@ -2110,13 +2046,17 @@ function App() {
 
   async function shareGroceryList() {
     const text = formatShareText(visibleGroceryGroups, customItems);
-    if (isHumiApiSession(humiSession)) {
-      if (family?.role && family.role !== "owner") {
-        showNotice("这个家的买菜卡片需要主厨分享；家人可以认领和标记买到。");
-        return;
-      }
-      try {
-        const data = await createGroceryShare(humiSession, {
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("登录主厨账号后，就能分享可认领的买菜卡片。");
+      navigateTo("user");
+      return;
+    }
+    if (family?.role && family.role !== "owner") {
+      showNotice("这个家的买菜卡片需要主厨分享；家人可以认领和标记买到。");
+      return;
+    }
+    try {
+      const data = await createGroceryShare(humiSession, {
           householdName: family?.name || familyName || "我家",
           initiatorName: displaySession?.user?.displayName || humiSession.user?.displayName || "主厨",
           items: [
@@ -2135,14 +2075,13 @@ function App() {
               source: "顺手买",
             })),
           ],
-        });
-        if (data.share?.token && postGroceryShareToMiniProgram(data.share)) {
-          showNotice("已打开买菜分享卡片");
-          return;
-        }
-      } catch (error) {
-        showNotice(error.message || "买菜卡片暂时没生成成功，先给你海报");
+      });
+      if (data.share?.token && postGroceryShareToMiniProgram(data.share)) {
+        showNotice("已打开买菜分享卡片");
+        return;
       }
+    } catch (error) {
+      showNotice(error.message || "买菜卡片暂时没生成成功，先给你海报");
     }
     await openPosterPreview({
       type: "grocery_list",
@@ -3034,7 +2973,9 @@ function App() {
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
   }
 
-  function openFullRecipeLibrary() {
+  function openFullRecipeLibrary(parentLabel = "今晚菜单") {
+    setLibraryMealSlot(null);
+    setLibraryParentLabel(parentLabel);
     setQuery("");
     setCategory("全部");
     if (activeView === "library") {
@@ -3042,6 +2983,44 @@ function App() {
       return;
     }
     navigateTo("library");
+  }
+
+  function addRecipeFromLibrary(recipeId) {
+    if (!libraryMealSlot || libraryMealSlot === "dinner") {
+      addToday(recipeId);
+      return;
+    }
+    const nextEntries = upsertMealEntry(todayMeals[libraryMealSlot] ?? [], recipeId, 1);
+    assignMealRecipe(todayDateKey, libraryMealSlot, recipeId, 1, { silent: true });
+    recordMealSlot(libraryMealSlot, {
+      source: "home",
+      consumedEntries: nextEntries,
+      quickRecordedAt: new Date().toISOString(),
+    });
+    consumePantryForEntries(nextEntries);
+    trackValidationEvent(validationEvents.mealSourceSelected, {
+      mealSlot: libraryMealSlot,
+      source: "home",
+      recipeIds: nextEntries.map((item) => item.recipeId),
+      dateKey: todayDateKey,
+    });
+    showNotice(`${getRecipe(recipeId)?.name ?? "菜品"} 已记到${slotLabelsById[libraryMealSlot] ?? "这一餐"}`);
+  }
+
+  function updateLibraryQuantity(recipeId, delta) {
+    if (!libraryMealSlot || libraryMealSlot === "dinner") {
+      updateTodayQuantity(recipeId, delta);
+      return;
+    }
+    const nextEntries = (todayMeals[libraryMealSlot] ?? [])
+      .map((entry) => entry.recipeId === recipeId ? { ...entry, quantity: Math.max(0, entry.quantity + delta) } : entry)
+      .filter((entry) => entry.quantity > 0);
+    updateMealPlanSlot(todayDateKey, libraryMealSlot, () => nextEntries);
+    recordMealSlot(libraryMealSlot, {
+      source: nextEntries.length > 0 ? "home" : undefined,
+      consumedEntries: nextEntries,
+      quickRecordedAt: new Date().toISOString(),
+    });
   }
 
   function askFamilyFromHome() {
@@ -3231,7 +3210,6 @@ function App() {
                 onCopyCraveLink={copyCraveLink}
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
-                onPickForMeal={pickForMeal}
                 onRecordBreakfast={recordBreakfast}
                 onSetLunchSource={setLunchSource}
                 session={displaySession}
@@ -3256,9 +3234,14 @@ function App() {
                 category={category}
                 setCategory={setCategory}
                 recipes={filteredRecipes}
-                onAdd={addToday}
-                onUpdateQuantity={updateTodayQuantity}
-                menuQuantities={todayMenu}
+                allRecipes={recipes}
+                onAdd={addRecipeFromLibrary}
+                onUpdateQuantity={updateLibraryQuantity}
+                menuQuantities={libraryMenuQuantities}
+                parentLabel={libraryParentLabel}
+                targetMealSlot={libraryMealSlot}
+                targetMealLabel={libraryMealSlot ? slotLabelsById[libraryMealSlot] : ""}
+                onClearTargetMeal={() => setLibraryMealSlot(null)}
                 onOpenRecipe={openRecipe}
                 onDragStart={setDraggedRecipeId}
               />
@@ -3310,7 +3293,7 @@ function App() {
                 onUpdateQuantity={updateTodayQuantity}
                 onOpenRecipe={openRecipe}
                 onViewChange={navigateTo}
-                onOpenLibraryDiscovery={openFullRecipeLibrary}
+                onOpenLibraryDiscovery={() => openFullRecipeLibrary("今晚菜单")}
                 onShare={shareTodayMenu}
                 mealLog={todayMealLog}
                 mealLogs={mealLogs}
@@ -3431,6 +3414,7 @@ function App() {
                 onShareHouseholdInvite={() => activeHouseholdInvite && postHouseholdInviteShareToMiniProgram(activeHouseholdInvite)}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
+                onOpenRecipeLibrary={() => openFullRecipeLibrary("我的家")}
                 onAskFamily={askFamilyFromHome}
                 onAddWantToEat={addWantToEatItem}
                 onAddWantRecipe={addWantRecipe}

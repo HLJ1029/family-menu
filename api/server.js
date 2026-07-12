@@ -468,10 +468,10 @@ async function handleExplain(request, response) {
 }
 
 async function handleCreateCraveRequest(request, response) {
-  const auth = await getOptionalAuth(request);
+  const auth = await requireAuth(request);
   const body = await readJson(request);
   try {
-    const craveRequest = await store.createCraveRequest(body, auth?.userId ?? null);
+    const craveRequest = await store.createCraveRequest(body, auth.userId);
     sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
   } catch (error) {
     if (error.code === "forbidden") {

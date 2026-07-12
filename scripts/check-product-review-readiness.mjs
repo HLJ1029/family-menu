@@ -11,11 +11,11 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "library-card-browsing",
-    title: "完整菜品页仍是图片卡片浏览",
+    title: "完整菜品库与已安排菜置顶",
     path: "src/components/Library.jsx",
-    required: ["发现新菜", "像刷菜谱卡片一样慢慢逛", "补进今晚"],
+    required: ["全部菜品库", "selected-recipes-panel", "今晚已安排", "未安排的新菜", "补进今晚", "allRecipes"],
     evidence: "docs/humi-1.1-spec-acceptance-audit.md",
-    evidenceRequired: ["发现/自己挑降为辅助页", "小红书式图片卡片", "补进今晚"],
+    evidenceRequired: ["推荐外提供完整菜品库子页面", "138 道菜", "已安排菜置顶"],
   },
   {
     key: "family-ask-feedback",
@@ -40,7 +40,7 @@ const REQUIRED_CHECKS = [
     path: "package.json",
     required: ["release:product:smoke"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["www.humi-home.com", "发现新菜", "查看征集单", "**/crave-requests", "product-entrypoint-smoke"],
+    evidenceRequired: ["www.humi-home.com", "全部菜品库", "查看征集单", "breakfast-does-not-default-to-seaweed-soup", "grocery-share-opens-native-share-page", "crave-share-opens-native-share-page"],
   },
   {
     key: "native-share-cards",
@@ -56,7 +56,7 @@ const REQUIRED_CHECKS = [
     path: "scripts/prepare-wechat-submit-workspace.mjs",
     required: ["HUMI_WECHAT_REVIEW_ACTION_CONFIRMED", "Humi 1.1 微信提审工作台未打开"],
     evidence: "docs/humi-1.1-closure-map.md",
-    evidenceRequired: ["生产候选完善与内测验证", "不自动提交微信审核", "待候选复盘达标后用户确认"],
+    evidenceRequired: ["先完成产品功能，再谈审核", "不要自动提交审核", "再讨论候选内测与审核"],
   },
 ];
 

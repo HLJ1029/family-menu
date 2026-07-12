@@ -67,16 +67,10 @@ export async function logoutHumiSession(session) {
   });
 }
 
-export async function createCraveRequest(payload, session = null) {
-  if (isHumiApiSession(session)) {
-    return humiApiRequest("/crave-requests", {
-      method: "POST",
-      session,
-      body: payload,
-    });
-  }
-  return humiPublicRequest("/crave-requests", {
+export async function createCraveRequest(payload, session) {
+  return humiApiRequest("/crave-requests", {
     method: "POST",
+    session,
     body: payload,
   });
 }

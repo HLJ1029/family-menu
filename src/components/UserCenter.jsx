@@ -48,6 +48,7 @@ export function UserCenter({
   onShareHouseholdInvite,
   onExportValidationData,
   onViewChange,
+  onOpenRecipeLibrary,
   onAskFamily,
   onAddWantToEat,
   onAddWantRecipe,
@@ -460,7 +461,7 @@ export function UserCenter({
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
-            <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
+            <UtilityButton icon={ChefHat} label="全部菜品库" onClick={onOpenRecipeLibrary} />
           </div>
         </section>
 

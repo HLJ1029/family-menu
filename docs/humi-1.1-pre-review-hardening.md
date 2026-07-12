@@ -1,6 +1,6 @@
 # Humi 1.1 提审前产品打磨清单
 
-更新日期：2026-07-04
+更新日期：2026-07-13
 执行设备：codex@mbp-m5pro
 
 本文档是 1.1 进入微信审核前的产品收口单。当前策略是先把功能、体验和证据逐步完善，再进入微信公众平台审核；不再把“立即提审”作为默认下一步。
@@ -18,6 +18,17 @@
 
 ## P0/P1 收口项
 
+- [x] P1 完整菜品库与三餐手选：推荐外子页面展示全部菜品，今晚已安排菜固定在最上方；早餐和午餐在家做必须由用户选菜后才记录。
+  - 完成标准：正常入口显示 138 道菜；已安排菜不混在卡片流底部；早餐/午餐不默认选择任何菜。
+  - 验证：`npm run release:product:smoke`，查看 `discovery-mobile.png` 与 smoke manifest 的 breakfast checks。
+  - 证据：`src/components/Library.jsx`、`src/main.jsx`、`src/components/Dashboard.jsx`、`scripts/smoke-product-entrypoints.mjs`。
+- [x] P1 主厨发起与家人参与边界：发起感觉征集、创建可认领清单要求主厨登录；分享落地页上的感觉投票和买菜认领保持免登录。
+  - 完成标准：匿名创建 401、普通家人创建 403、主厨创建成功；公开 vote/claim 成功。
+  - 验证：`npm run validate:api`，`npm run release:product:smoke`。
+  - 证据：`api/server.js`、`api/store.js`、`scripts/smoke-humi-api.mjs`。
+- [ ] P1 家庭订阅结算范围：确认 1.1 是否接入真实微信支付，或明确列入 1.2。
+  - 当前已有：基础推荐无限、3 次精准尝鲜、Plus 权益状态、API 鉴权/402 和缓存复用。
+  - 当前缺口：没有支付下单、回调验签、订单与权益发放闭环；未确认前不能宣称三份策划书全部完成。
 - [x] P1 自己挑/今晚菜单选菜：从【今晚菜单】进入选菜时，必须保留小红书式图片卡片，并提供清晰入口打开完整【自己挑】菜品页，用于发现新菜。
   - 完成标准：`TodayMenu` 内嵌选菜区有完整菜品页入口；空搜索结果有回退动作；移动端不被底部导航遮挡。
   - 验证：`npm run build`，`npm run release:product:smoke`，并用移动端视口查看【今晚菜单】加菜区。

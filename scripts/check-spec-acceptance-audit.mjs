@@ -82,7 +82,7 @@ async function inspectAudit() {
     const currentOrder = inspectCurrentOrder(content);
     const unexpectedOpenRows = externalRows.filter((row) => {
       if (row.item === "生产 API 补部署") return row.status !== "已完成";
-      return !["进行中", "暂缓", "模板已准备，待填真实名单", "待小程序发布后验证"].includes(row.status);
+      return !["进行中", "暂缓", "待用户确认", "模板已准备，待填真实名单", "待小程序发布后验证"].includes(row.status);
     });
 
     return {

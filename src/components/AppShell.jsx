@@ -25,7 +25,7 @@ export function IcpFooter({ compact = false }) {
 
 export function Sidebar({ activeView, onChange }) {
   const quickLinks = [
-    { id: "library", label: "自己挑", icon: Sparkles },
+    { id: "library", label: "全部菜品库", icon: Sparkles },
     { id: "planner", label: "想连排几天", icon: CalendarDays },
   ];
 

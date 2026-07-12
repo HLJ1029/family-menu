@@ -56,7 +56,6 @@ export function Dashboard({
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
-  onPickForMeal,
   onRecordBreakfast,
   onSetLunchSource,
   session,
@@ -200,7 +199,6 @@ export function Dashboard({
               lunchLog={lunchLog}
               onRecordBreakfast={onRecordBreakfast}
               onSetLunchSource={onSetLunchSource}
-              onPickForMeal={onPickForMeal}
             />
             </div>
             <div className="justify-self-center md:justify-self-end">
@@ -506,7 +504,6 @@ function MealRhythmPanel({
   lunchLog,
   onRecordBreakfast,
   onSetLunchSource,
-  onPickForMeal,
 }) {
   const breakfastNames = breakfastSummary?.recipes?.map((recipe) => recipe.name).join("、");
   const lunchNames = lunchSummary?.recipes?.map((recipe) => recipe.name).join("、");
@@ -531,20 +528,13 @@ function MealRhythmPanel({
             <span className="shrink-0 rounded-full bg-canvas px-2 py-1 text-[11px] font-black text-ink/45">已记</span>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => onRecordBreakfast?.()}
-            className="min-h-9 rounded-full bg-ink px-3 text-xs font-black text-white"
+            className="min-h-9 w-full rounded-full bg-ink px-3 text-xs font-black text-white"
           >
-            {breakfastSummary?.count > 0 ? "再记一份" : "记早餐"}
-          </button>
-          <button
-            type="button"
-            onClick={() => onPickForMeal?.("breakfast")}
-            className="min-h-9 rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink/58"
-          >
-            换一个
+            {breakfastSummary?.count > 0 ? "换早餐" : "选早餐吃什么"}
           </button>
         </div>
       </div>

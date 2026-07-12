@@ -1,6 +1,6 @@
 # Humi 1.1 Spec Acceptance Audit
 
-更新日期：2026-07-05
+更新日期：2026-07-13
 执行设备：codex@mbp-m5pro
 
 本文档把三份 1.1 策划书收敛成验收清单：
@@ -9,11 +9,12 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-当前结论：1.1 主体闭环已经具备，提审前 P0/P1 功能、体验和证据确认已完成；现在不自动提交微信审核，当前状态应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”。
+当前结论：1.1 正在最新 `main` 基线的 `codex/humi-1.1-spec-closure` 分支做功能收口。菜品库、三餐选择、协作发起权限和小程序原生分享动作已有本地点击级证据；支付结算范围仍待产品确认。现在不提交微信审核，也不把历史上传版本当作本轮功能验收结果。
 
 ## 1. 当前发布事实
 
 - 当前 `main`、GitHub Pages、线上 readiness 和下一步动作以 `npm run release:status` 输出为准。
+- 本轮可验收工作区：`/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure`；本地地址：`http://127.0.0.1:4174/`。
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
@@ -27,16 +28,19 @@
 | --- | --- | --- |
 | 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
 | 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片，主动作是 `补进今晚`；`navigation.js` 把 `library` 放在 `auxiliaryNavItems` |
+| 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
 | 【今晚菜单】加菜不降级为列表 | 已完成 | `src/components/TodayMenu.jsx` 的内嵌选菜区保留图片卡片，并提供 `发现新菜` 入口进入完整【自己挑】菜品页 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 首屏标题来自晚饭推荐/今日菜单，主按钮为 `今晚就做` 或 `查看今晚菜单` |
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 的 `MealRhythmPanel` 处理早餐轻记录、午餐来源；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
+| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | `src/main.jsx` 将早餐和午餐在家做入口带到完整菜品库；产品 smoke 证明点选前早餐为空、点选后只写入用户选择的菜，且不会默认写紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
 | 不做独立库存维护页 | 已完成 | `src/components/InventoryPage.jsx` 已删除；`navigation.js` 无 `inventory`；界面使用“后台已有”轻确认 |
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | `src/main.jsx` 维护 `pantryItems`；`Dashboard.jsx` 提供“家里还有 X 吗”轻确认；AI-HQ 状态记录 1.1.29 闭环 |
 | 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`UserCenter.jsx` 保留忌口/画像编辑，不再暴露软口味偏好表 |
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 首屏为“家里的饭线索”，包含家庭动态、问问大家、想吃池子、推荐权益 |
 | 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403 |
+| 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
 | 家人打开分享卡片先免登录参与 | 已完成 | `src/components/CraveLanding.jsx` 与 `GroceryShareLanding.jsx` 支持公开 token 落地与临时参与 |
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
@@ -50,6 +54,7 @@
 | 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
 | 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery` | 已完成 | `miniprogram/pages/index/index.js` 与 H5 落地页组件覆盖三类 token |
+| 清单分享与感觉征集确实唤起小程序原生分享页 | 已完成 | `release:product:smoke` 模拟 `wx.miniProgram`，点击验证 `postMessage` 与 `/pages/share/index?type=grocery|crave` 两个动作 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
 | 发布材料去除旧“首页/周计划/库存管理”主路径口径 | 已完成 | `docs/miniprogram-launch-readiness.md`、`docs/launch-day-runbook.md`、`docs/miniprogram-review-materials.md` 已更新为 1.1 三 tab 口径 |
 
@@ -57,6 +62,7 @@
 
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
+| 家庭订阅真实支付结算 | 待用户确认 | 确认 1.1 接入微信支付，或明确将结算列入 1.2；当前已完成精准尝鲜、Plus 权益和 API 成本闸门，但没有支付下单闭环 |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |

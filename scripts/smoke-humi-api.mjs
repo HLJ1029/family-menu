@@ -11,6 +11,15 @@ try {
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
 
+  await assertUnauthorizedCreate(`${baseUrl}/crave-requests`, {
+    householdName: "匿名测试家",
+    initiatorName: "匿名用户",
+  }, "anonymous crave request creation");
+  await assertUnauthorizedCreate(`${baseUrl}/grocery-shares`, {
+    initiatorName: "匿名用户",
+    items: [{ key: "custom:milk", name: "牛奶", amount: "1盒", type: "custom" }],
+  }, "anonymous grocery share creation");
+
   const login = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `smoke-${runId}` },
@@ -480,6 +489,15 @@ async function request(url, options = {}) {
     throw new Error(`${response.status} ${JSON.stringify(data)}`);
   }
   return data;
+}
+
+async function assertUnauthorizedCreate(url, body, label) {
+  try {
+    await request(url, { method: "POST", body });
+    throw new Error(`${label} should require auth`);
+  } catch (error) {
+    assert(String(error.message).startsWith("401 "), `${label} should return 401`);
+  }
 }
 
 function assert(condition, message) {
