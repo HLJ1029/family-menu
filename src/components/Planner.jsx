@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Plus, Search, X } from "lucide-react";
+import { Plus, Search, ShoppingBasket, X } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
 import { getCurrentPlanDay } from "../lib/date";
 import { getDayMeals, mealSlots } from "../lib/mealPlan";
@@ -46,6 +46,10 @@ export function Planner({
   const selectedDateKey = weekDateKeys[selectedDay];
   const selectedMeals = getDayMeals(mealPlan, selectedDateKey);
   const selectedRecipeCount = mealSlots.reduce((total, slot) => total + (selectedMeals[slot.id]?.length ?? 0), 0);
+  const weekMealCount = [...new Set(Object.values(weekDateKeys).filter(Boolean))].reduce((total, dateKey) => {
+    const dayMeals = getDayMeals(mealPlan, dateKey);
+    return total + mealSlots.reduce((dayTotal, slot) => dayTotal + (dayMeals[slot.id]?.length ?? 0), 0);
+  }, 0);
 
   const pickerRecipes = recipes.filter((recipe) => {
     const keyword = pickerQuery.trim().toLowerCase();
@@ -78,22 +82,6 @@ export function Planner({
 
   return (
     <section className="grid gap-5">
-      <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">Week plan</p>
-            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">
-              想连排几天
-            </h2>
-          </div>
-        </div>
-        <div>
-          <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-ink/52">
-            只给愿意提前排的人用；不排也不影响每天安排今晚。
-          </p>
-        </div>
-      </div>
-
       {/* Week date strip */}
       <Card>
         <div className="flex justify-between">
@@ -200,27 +188,29 @@ export function Planner({
         </div>
       </Card>
 
+      {weekMealCount > 0 && (
+        <button
+          type="button"
+          data-testid="planner-grocery-summary"
+          onClick={() => onViewChange("grocery")}
+          className="flex min-h-14 items-center justify-between gap-4 rounded-full bg-ink px-6 text-left text-white shadow-card transition hover:-translate-y-0.5"
+        >
+          <span>
+            <span className="block text-sm font-black">查看汇总清单</span>
+            <span className="mt-1 block text-xs font-bold text-white/58">本周已安排 {weekMealCount} 道菜</span>
+          </span>
+          <ShoppingBasket size={19} className="shrink-0 text-white" />
+        </button>
+      )}
+
       <CloudInlineStatus
         {...cloudSync}
+        primaryAction={false}
         localLabel="本地连排计划"
         pendingLabel="连排计划待保存"
         enabledLabel="已保存连排计划"
         migrateLabel={cloudSync?.enabled ? "重新保存本机计划" : "保存连排计划"}
       />
-
-      <button
-        type="button"
-        onClick={() => onViewChange("calendar")}
-        className="flex items-center justify-between rounded-[24px] border border-line bg-white p-5 shadow-card transition hover:border-ink/20"
-      >
-        <div className="text-left">
-          <p className="text-sm font-black">营养日历</p>
-          <p className="mt-0.5 text-xs font-bold text-ink/45">按日期查看菜单、营养环和饮食记录</p>
-        </div>
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-canvas text-ink">
-          <CalendarDays size={18} />
-        </span>
-      </button>
 
       {/* Recipe picker modal */}
       {pickerTarget && (

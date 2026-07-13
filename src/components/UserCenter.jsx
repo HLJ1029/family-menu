@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
-import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
-import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
+import { BarChart3, Check, ChefHat, Cloud, LogOut, Phone, Plus, Share2, ShieldAlert, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
+import { formatProfileSummary, profileOptions } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
@@ -29,8 +28,6 @@ export function UserCenter({
   familyProfile,
   setFamilyProfile,
   mealLogs = {},
-  nutritionGoals,
-  setNutritionGoals,
   recommendationFeedback = [],
   recommendationAccess,
   wantToEatItems = [],
@@ -541,32 +538,22 @@ export function UserCenter({
               <p className="eyebrow">设置</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">需要改时再进入</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                家庭画像和营养目标会自动保存。我的家默认展示结果，不把表单一直摊开。
+                这里只改家里不能吃的东西。其他口味由感觉征集和做饭确认慢慢学，不需要维护。
               </p>
             </div>
             <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/45">
               {formatProfileSummary(familyProfile)}
             </span>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <UtilityButton icon={UserRound} label="修改家庭画像" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
-            <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
+          <div className="mt-4 grid gap-2">
+            <UtilityButton icon={ShieldAlert} label="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
           </div>
         </section>
 
         {activeSettings === "profile" && (
           <FamilyProfilePanel
-            session={session}
-            signedIn={signedIn}
             profile={familyProfile}
             setProfile={setFamilyProfile}
-          />
-        )}
-        {activeSettings === "goals" && (
-          <NutritionGoalsPanel
-            profile={familyProfile}
-            goals={nutritionGoals}
-            setGoals={setNutritionGoals}
           />
         )}
         <CloudSyncPanel {...cloudMenuProps} />
@@ -992,14 +979,9 @@ function extractCraveFeelingEntries(craveSignals = []) {
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
-function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
+function FamilyProfilePanel({ profile, setProfile }) {
   const [draft, setDraft] = useState(profile);
   const [status, setStatus] = useState("");
-  const completedCount = useMemo(() => getProfileCompletedCount(profile), [profile]);
-
-  function updateValue(key, value) {
-    setDraft((current) => ({ ...current, [key]: value }));
-  }
 
   function toggleListValue(key, value) {
     setDraft((current) => {
@@ -1012,84 +994,24 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
   function saveProfile() {
     setProfile(draft);
-    setStatus("家庭画像已保存。之后推荐会优先参考这些习惯。");
+    setStatus("忌口已保存，之后推荐会把这些当成硬约束避开。");
   }
 
   return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="diet-constraints-panel" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="eyebrow">家庭画像</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">让 Humi 更懂你家</h3>
+          <p className="eyebrow">硬约束</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家里不能吃什么</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            先选几个常用习惯，推荐时会压缩成一份简短画像，少传废话，也更贴近你家。
+            只维护会让推荐直接出错的忌口和过敏。其他口味会从家人的自然动作里学习。
           </p>
         </div>
-        <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
-          {completedCount}/5 已完成
-        </span>
+        <span className="w-fit rounded-full bg-ink px-3 py-1 text-xs font-black text-white">只填一次</span>
       </div>
 
-      {!session?.user && !signedIn && (
-        <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；创建我的家后，菜单、食材清单和画像会一起保存。
-        </div>
-      )}
-
       <div className="mt-5 grid gap-4">
-        <ProfileStep icon={Sparkles} title="这次主要想规划什么">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {planningModes.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => setDraft((current) => withPlanningModeDefaults(current, mode.id))}
-                className={`rounded-[20px] border p-4 text-left transition ${
-                  draft.planningMode === mode.id
-                    ? "border-ink bg-ink text-white"
-                    : "border-line bg-white text-ink/58 hover:text-ink"
-                }`}
-              >
-                <p className="text-sm font-black">{mode.label}</p>
-                <p className={`mt-1 text-xs font-bold leading-5 ${draft.planningMode === mode.id ? "text-white/58" : "text-ink/40"}`}>
-                  {mode.description}
-                </p>
-              </button>
-            ))}
-          </div>
-        </ProfileStep>
-
-        <ProfileStep icon={Users} title="家里几个人吃饭">
-          <div className="grid grid-cols-4 gap-2">
-            {[1, 2, 3, 4].map((size) => (
-              <ChoiceButton
-                key={size}
-                active={Number(draft.familySize) === size}
-                label={size === 4 ? "4人+" : `${size}人`}
-                onClick={() => updateValue("familySize", size)}
-              />
-            ))}
-          </div>
-          <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-between rounded-[18px] bg-canvas px-4">
-            <span className="text-sm font-black">有孩子一起吃</span>
-            <input
-              type="checkbox"
-              checked={Boolean(draft.hasChildren)}
-              onChange={(event) => updateValue("hasChildren", event.target.checked)}
-              className="h-5 w-5 accent-black"
-            />
-          </label>
-        </ProfileStep>
-
-        <ProfileStep icon={SlidersHorizontal} title="晚饭最在意什么">
-          <TagChoices
-            options={profileOptions.goals}
-            values={draft.goals}
-            onToggle={(value) => toggleListValue("goals", value)}
-          />
-        </ProfileStep>
-
-        <ProfileStep icon={ShieldAlert} title="不想吃 / 不能吃">
+        <ProfileStep icon={ShieldAlert} title="忌口与过敏">
           <p className="mb-2 text-xs font-bold text-ink/42">这些会作为硬约束避开</p>
           <TagChoices
             options={profileOptions.dislikes}
@@ -1104,33 +1026,11 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
           />
         </ProfileStep>
 
-        <ProfileStep icon={Database} title="买菜接受度">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <ChoiceButton
-              active={draft.shoppingTolerance === "low"}
-              label="少买菜"
-              note="优先用家里现有"
-              onClick={() => updateValue("shoppingTolerance", "low")}
-            />
-            <ChoiceButton
-              active={draft.shoppingTolerance === "medium"}
-              label="可以买几样"
-              note="2-3样主食材"
-              onClick={() => updateValue("shoppingTolerance", "medium")}
-            />
-            <ChoiceButton
-              active={draft.shoppingTolerance === "high"}
-              label="愿意专门买"
-              note="好吃优先"
-              onClick={() => updateValue("shoppingTolerance", "high")}
-            />
-          </div>
-        </ProfileStep>
       </div>
 
       <div className="mt-5 rounded-[20px] bg-canvas p-4">
-        <p className="text-xs font-black text-ink/38">画像摘要</p>
-        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatProfileSummary(draft)}</p>
+        <p className="text-xs font-black text-ink/38">软口味自动学习</p>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">感觉征集、想吃池子和确认做过的菜会慢慢形成画像，无需手动填写。</p>
       </div>
 
       {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
@@ -1141,128 +1041,9 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
         <Check size={17} className="text-white" />
-        保存家庭画像
+        保存忌口
       </button>
     </section>
-  );
-}
-
-function NutritionGoalsPanel({ profile, goals, setGoals }) {
-  const normalizedGoals = normalizeNutritionGoals(profile, goals);
-  const [draft, setDraft] = useState(normalizedGoals);
-  const [status, setStatus] = useState("");
-
-  function updateNumber(key, value) {
-    setDraft((current) => ({ ...current, [key]: Number(value) }));
-  }
-
-  function resetToModeDefaults() {
-    const defaults = getDefaultNutritionGoals(profile);
-    setDraft(defaults);
-    setGoals(defaults);
-    setStatus("已恢复当前规划模式的默认目标。");
-  }
-
-  function saveGoals() {
-    const nextGoals = {
-      ...draft,
-      caloriesKcalMax: Number(draft.caloriesKcalMax),
-      proteinGMin: Number(draft.proteinGMin),
-      fatGMax: Number(draft.fatGMax),
-      carbsGMax: Number(draft.carbsGMax),
-      vegetableRatioMin: Number(draft.vegetableRatioMin),
-      proteinRatioMin: Number(draft.proteinRatioMin),
-      quickRatioMin: Number(draft.quickRatioMin),
-      homeCookRatioMin: Number(draft.homeCookRatioMin),
-    };
-    setGoals(nextGoals);
-    setStatus("营养目标已保存在本机。");
-  }
-
-  return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">营养目标</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">每顿晚餐参考目标</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            这里只管理晚餐估算目标，不代表全天摄入，也不替代专业营养建议。
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={resetToModeDefaults}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink"
-        >
-          使用模式默认
-        </button>
-      </div>
-
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <GoalInput label="热量上限" value={draft.caloriesKcalMax} unit="kcal" min={300} max={900} step={10} onChange={(value) => updateNumber("caloriesKcalMax", value)} />
-        <GoalInput label="蛋白质下限" value={draft.proteinGMin} unit="g" min={8} max={50} step={1} onChange={(value) => updateNumber("proteinGMin", value)} />
-        <GoalInput label="脂肪上限" value={draft.fatGMax} unit="g" min={8} max={45} step={1} onChange={(value) => updateNumber("fatGMax", value)} />
-        <GoalInput label="碳水上限" value={draft.carbsGMax} unit="g" min={30} max={120} step={1} onChange={(value) => updateNumber("carbsGMax", value)} />
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <RatioInput label="蔬菜比例" value={draft.vegetableRatioMin} onChange={(value) => updateNumber("vegetableRatioMin", value)} />
-        <RatioInput label="蛋白类比例" value={draft.proteinRatioMin} onChange={(value) => updateNumber("proteinRatioMin", value)} />
-        <RatioInput label="省时菜比例" value={draft.quickRatioMin} onChange={(value) => updateNumber("quickRatioMin", value)} />
-        <RatioInput label="在家做比例" value={draft.homeCookRatioMin} onChange={(value) => updateNumber("homeCookRatioMin", value)} />
-      </div>
-
-      {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
-
-      <button
-        type="button"
-        onClick={saveGoals}
-        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
-      >
-        <Check size={17} className="text-white" />
-        保存营养目标
-      </button>
-    </section>
-  );
-}
-
-function GoalInput({ label, value, unit, min, max, step, onChange }) {
-  return (
-    <label className="rounded-[20px] bg-canvas p-4">
-      <span className="flex items-center justify-between gap-3 text-sm font-black">
-        <span>{label}</span>
-        <span className="text-ink/48">{Math.round(value)}{unit}</span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-3 w-full accent-black"
-      />
-    </label>
-  );
-}
-
-function RatioInput({ label, value, onChange }) {
-  return (
-    <label className="rounded-[20px] bg-canvas p-4">
-      <span className="flex items-center justify-between gap-3 text-sm font-black">
-        <span>{label}</span>
-        <span className="text-ink/48">{Math.round(value * 100)}%</span>
-      </span>
-      <input
-        type="range"
-        min={0.1}
-        max={0.8}
-        step={0.05}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-3 w-full accent-black"
-      />
-    </label>
   );
 }
 

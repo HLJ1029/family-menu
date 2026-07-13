@@ -11,6 +11,7 @@ export function CloudInlineStatus({
   enabledLabel,
   migrateLabel,
   refreshLabel = "从云端刷新",
+  primaryAction = true,
   onMigrate,
   onRefresh,
   onOpenUserCenter,
@@ -38,9 +39,11 @@ export function CloudInlineStatus({
             type="button"
             onClick={onMigrate}
             disabled={loading}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45 ${
+              primaryAction ? "bg-ink text-white" : "border border-line bg-canvas text-ink/62"
+            }`}
           >
-            <UploadCloud size={16} />
+            <UploadCloud size={16} className={primaryAction ? "text-white" : ""} />
             {migrateLabel}
           </button>
           <button

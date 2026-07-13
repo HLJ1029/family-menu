@@ -21,6 +21,7 @@ const REQUIRED_MATRIX_ITEMS = [
   "库存完全隐形",
   "清单勾选反推后台已有",
   "忌口是硬约束",
+  "用户唯一主动维护的是忌口",
   "【我的家】从资料页升级为协作主场",
   "协作动态沉淀认领",
   "主厨/家人角色边界",
@@ -149,7 +150,7 @@ async function inspectHardening() {
 
 async function inspectLedger() {
   const requiredIds = [
-    "STR-01", "STR-07", "MEAL-01", "MEAL-05", "LIST-01", "LIST-06",
+    "STR-01", "STR-07", "MEAL-01", "MEAL-05", "LIST-01", "LIST-06", "PROFILE-01",
     "COL-01", "COL-10", "CRV-A1", "CRV-B3", "CRV-D2", "CRV-D5", "CRV-F1",
     "REC-01", "REC-05", "REC-06", "PAY-01", "WX-01", "UI-04", "EXT-01", "EXT-03",
   ];

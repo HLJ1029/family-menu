@@ -58,7 +58,7 @@ import {
 } from "./lib/recipes";
 import { buildRecommendationItems, buildTodayRecommendation, recipeViolatesHardAvoid } from "./lib/recommendation/rules";
 import { collectLearnedCraveVotes } from "./lib/collaboration";
-import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
+import { buildCompactFamilyPrompt, getPlanningMode } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import {
   closeCraveRequest,
@@ -2959,12 +2959,9 @@ function App() {
     setNutritionGoals((current) => (
       current?.modeId === normalizedProfile.planningMode ? current : getDefaultNutritionGoals(normalizedProfile)
     ));
-    if (signedIn && getProfileCompletedCount(normalizedProfile) >= 4) {
-      setProfileOnboardingComplete(true);
-    }
     trackProductEvent(appEvents.profileSaved, {
-      type: "family_profile",
-      completedCount: getProfileCompletedCount(normalizedProfile),
+      type: "diet_constraints",
+      constraintCount: (normalizedProfile.dislikes?.length ?? 0) + (normalizedProfile.allergies?.length ?? 0),
     });
   }
 
@@ -2979,17 +2976,8 @@ function App() {
     if (!options.stayOnboarding) {
       setProfileOnboardingComplete(true);
       setActiveView("dashboard");
-      showNotice("画像已保存，开始安排菜单");
+      showNotice("忌口已保存，开始安排今晚");
     }
-  }
-
-  function selectPlanningMode(modeId) {
-    const nextProfile = withPlanningModeDefaults(familyProfile, modeId);
-    setFamilyProfile(nextProfile);
-    setNutritionGoals(getDefaultNutritionGoals(nextProfile));
-    setAiRecommendation(null);
-    setAiRecommendationStatus(`${getPlanningMode(modeId).label}模式已切换，推荐会按这个场景来。`);
-    showNotice(`已切换到${getPlanningMode(modeId).label}`);
   }
 
   function navigateTo(nextView, options = {}) {
@@ -3224,7 +3212,6 @@ function App() {
               <Dashboard
                 todayRecipes={todayRecipes}
                 todayMeals={todayMeals}
-                weekPlan={weekPlan}
                 recommendation={displayedRecommendation}
                 recommendationAccess={normalizeRecommendationAccess(recommendationAccess)}
                 aiRecommendationStatus={aiRecommendationStatus}
@@ -3255,8 +3242,6 @@ function App() {
                 canManageHousehold={!isHumiApiSession(humiSession) || family?.role === "owner"}
                 familyProfile={familyProfile}
                 groceryItemCount={visibleGroceryItems.length}
-                onSelectPlanningMode={selectPlanningMode}
-                onPlanRecommendedWeek={planRecommendedWeek}
                 mealLog={todayMealLog}
                 mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
@@ -3412,8 +3397,6 @@ function App() {
                 familyProfile={familyProfile}
                 setFamilyProfile={saveFamilyProfile}
                 mealLogs={mealLogs}
-                nutritionGoals={nutritionGoals}
-                setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
                 recommendationAccess={normalizeRecommendationAccess(recommendationAccess)}
                 wantToEatItems={wantToEatItems}

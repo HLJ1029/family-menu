@@ -166,6 +166,19 @@ try {
   await page.getByRole("heading", { name: "午餐已选择" }).waitFor({ timeout: 15_000 });
   const lunchAfterPick = await readTodayMealSlot(page, "lunch");
 
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+  const plannerEntry = page.getByTestId("dashboard-planner-entry");
+  await plannerEntry.click();
+  await page.getByRole("heading", { name: "想连排几天" }).first().waitFor({ timeout: 15_000 });
+  const dashboardPlannerOpened = await page.getByRole("heading", { name: "想连排几天" }).first().isVisible();
+  const plannerGrocerySummary = page.getByTestId("planner-grocery-summary");
+  const plannerGrocerySummaryVisible = await plannerGrocerySummary.isVisible();
+  const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
+  await page.screenshot({ path: plannerScreenshot, fullPage: true });
+  await plannerGrocerySummary.click();
+  await page.getByRole("button", { name: "分享买菜清单" }).waitFor({ timeout: 15_000 });
+  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: "分享买菜清单" }).isVisible();
+
   await page.getByRole("button", { name: "清单", exact: true }).click();
   await waitForTransientUi(page);
   const inventoryMaintenanceHidden = await page.getByText("后台已有", { exact: true }).count() === 0;
@@ -180,6 +193,9 @@ try {
   const dinnerActivityVisible = await page.getByText("主厨确认今晚已做饭").isVisible();
   const wantActivityVisible = await page.getByText("家人小林想吃 冬瓜排骨汤").isVisible();
   const craveStarterCollapsed = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
+  const dietSettingsButton = page.getByRole("button", { name: "修改忌口" });
+  const dietSettingsVisible = await dietSettingsButton.isVisible();
+  const legacyProfileControlsHidden = await page.getByRole("button", { name: /修改家庭画像|调整营养目标/ }).count() === 0;
   const activityBeforeAccountSettings = await page.evaluate(() => {
     const activity = document.querySelector('[data-testid="family-activity-section"]');
     const account = document.querySelector('[data-testid="cloud-account-section"]');
@@ -188,6 +204,13 @@ try {
   });
   const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
   await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
+  await dietSettingsButton.click();
+  await page.getByRole("heading", { name: "家里不能吃什么" }).waitFor({ timeout: 15_000 });
+  const dietConstraintPanel = page.getByTestId("diet-constraints-panel");
+  const dietConstraintPanelVisible = await dietConstraintPanel.isVisible();
+  const softPreferenceFormsHidden = await page.getByText(/晚饭最在意什么|买菜接受度|保存营养目标/).count() === 0;
+  const dietConstraintScreenshot = join(evidenceDir, "diet-constraints-mobile.png");
+  await dietConstraintPanel.screenshot({ path: dietConstraintScreenshot });
   await page.getByRole("button", { name: "问问大家" }).first().click();
   await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
@@ -207,6 +230,7 @@ try {
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
   const pantryPipeline = await verifyImplicitPantryPipeline(browser, baseUrl);
+  const hardConstraintOnboarding = await verifyHardConstraintOnboarding(browser, baseUrl, evidenceDir);
 
   const checks = [
     { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
@@ -226,6 +250,9 @@ try {
     { key: "lunch-empty-before-user-pick", ok: lunchBeforePick.length === 0, actual: lunchBeforePick },
     { key: "lunch-home-saves-user-picked-dish", ok: lunchAfterPick.some((entry) => entry.recipeId === "potato-shreds"), actual: lunchAfterPick },
     { key: "lunch-does-not-default-to-seaweed-soup", ok: !lunchAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: lunchAfterPick },
+    { key: "dashboard-planner-entry-opens-optional-week-plan", ok: dashboardPlannerOpened },
+    { key: "week-plan-shows-grocery-summary-action", ok: plannerGrocerySummaryVisible },
+    { key: "week-plan-grocery-summary-opens-shared-list", ok: plannerSummaryOpenedGrocery },
     { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
@@ -241,6 +268,8 @@ try {
     { key: "family-activity-shows-want-item", ok: wantActivityVisible },
     { key: "family-activity-precedes-account-settings", ok: activityBeforeAccountSettings },
     { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
+    { key: "my-home-exposes-diet-constraints-only", ok: dietSettingsVisible && dietConstraintPanelVisible },
+    { key: "soft-profile-maintenance-is-not-exposed", ok: legacyProfileControlsHidden && softPreferenceFormsHidden },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
@@ -259,6 +288,10 @@ try {
     { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
     { key: "dinner-confirmation-writes-meal-log", ok: pantryPipeline.mealLogged, actual: pantryPipeline.mealLog },
     { key: "implicit-pantry-pipeline-page-errors", ok: pantryPipeline.pageErrors.length === 0, errors: pantryPipeline.pageErrors },
+    { key: "signed-in-onboarding-only-asks-hard-constraints", ok: hardConstraintOnboarding.onlyHardConstraints },
+    { key: "signed-in-onboarding-can-skip-without-diet-tags", ok: hardConstraintOnboarding.canSkip },
+    { key: "signed-in-onboarding-saves-diet-constraint", ok: hardConstraintOnboarding.savedConstraint, actual: hardConstraintOnboarding.savedProfile },
+    { key: "signed-in-onboarding-page-errors", ok: hardConstraintOnboarding.pageErrors.length === 0, errors: hardConstraintOnboarding.pageErrors },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
   ];
   const manifest = {
@@ -273,8 +306,11 @@ try {
       userCraveMobile: userCraveScreenshot,
       groceryMobile: groceryScreenshot,
       familyActivityMobile: familyActivityScreenshot,
+      plannerMobile: plannerScreenshot,
+      dietConstraintsMobile: dietConstraintScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
       persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
+      profileOnboardingMobile: hardConstraintOnboarding.screenshot,
     },
     checks,
     nextActions: [
@@ -647,8 +683,8 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
-      accessToken: "persisted-crave-owner-token",
-      refreshToken: "persisted-crave-owner-token",
+      accessToken: "crave-test-token",
+      refreshToken: "crave-test-token",
       user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
     }));
     localStorage.setItem("family-menu:today-menu", "[]");
@@ -675,7 +711,7 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
   const generated = await page.getByText("已揉合家人的感觉").isVisible();
   const initiatorFeelingApplied = await page.getByText("照顾到：想喝汤").count() > 0;
   await page.waitForTimeout(300);
-  const closeAuthorized = closeAuthorization === "Bearer persisted-crave-owner-token";
+  const closeAuthorized = closeAuthorization === "Bearer crave-test-token";
   const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");
   await page.screenshot({ path: screenshot });
   const convergeButton = page.getByRole("button", { name: "就做选中的 2 道" });
@@ -777,6 +813,68 @@ async function verifyImplicitPantryPipeline(browser, base) {
     pantryAfterDinner: result.pantry,
     mealLog,
     pageErrors,
+  };
+}
+
+async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const family = buildSmokeFamily();
+  const state = buildSmokeHouseholdState();
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(false));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "hard-constraint-onboarding-token",
+      refreshToken: "hard-constraint-onboarding-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    const request = route.request();
+    if (request.method() === "PUT" || request.method() === "POST") {
+      const payload = request.postDataJSON();
+      await fulfillJson(route, { state: payload.state, family, households: [family] });
+      return;
+    }
+    await fulfillJson(route, { state, family, households: [family] });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "先记住家里不能吃的。" }).waitFor({ timeout: 15_000 });
+  const onboardingText = await page.locator("body").innerText();
+  const legacyControlLabels = ["这次主要想规划什么", "晚饭目标", "买菜接受度", "营养目标"];
+  const skipButton = page.getByRole("button", { name: "没有忌口，直接开始" });
+  const onlyHardConstraints = legacyControlLabels.every((label) => !onboardingText.includes(label))
+    && await page.getByText("家里不能吃什么", { exact: true }).isVisible();
+  const canSkip = await skipButton.isVisible();
+  const screenshot = join(evidenceDir, "profile-onboarding-mobile.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+
+  await page.getByRole("button", { name: "香菜", exact: true }).click();
+  await page.getByRole("button", { name: "保存忌口，开始使用" }).click();
+  await page.getByTestId("tonight-primary-action").waitFor({ timeout: 15_000 });
+  const savedProfile = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:family-profile") || "{}"));
+  const savedConstraint = savedProfile.dislikes?.includes("香菜") === true;
+  await context.close();
+  return {
+    onlyHardConstraints,
+    canSkip,
+    savedConstraint,
+    savedProfile,
+    pageErrors,
+    screenshot,
   };
 }
 

@@ -1,6 +1,6 @@
-import { Check, ShieldAlert, SlidersHorizontal, Sparkles, Users } from "lucide-react";
-import { formatProfileSummary, getPlanningMode, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
-import { HumiBrandCallout, HumiBrandIllustration } from "./ui/HumiBrandIllustration";
+import { Check, ShieldAlert } from "lucide-react";
+import { getPlanningMode, profileOptions } from "../lib/profile";
+import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
   const draft = {
@@ -26,10 +26,6 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
     updateProfile({ [key]: [...values] });
   }
 
-  function chooseMode(modeId) {
-    onComplete(withPlanningModeDefaults(draft, modeId), { stayOnboarding: true });
-  }
-
   function finish() {
     onComplete({
       ...draft,
@@ -40,11 +36,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
   const hasAvoidRules = draft.allergies.length > 0 || draft.dislikes.length > 0;
   const buddyText = hasAvoidRules
     ? "这些会作为硬约束避开，先保证家里人不能吃的别被推上桌。"
-    : draft.hasChildren
-    ? "孩子爱吃和大人省心会一起进入推荐条件。"
-    : draft.goals.length > 0
-      ? `先按“${draft.goals[0]}”来安排，后面还能随时改。`
-      : "先点不能吃的，其他口味 Humi 会从以后每顿饭里慢慢学。";
+    : "没有忌口也可以直接开始。其他口味会从感觉征集和做饭记录里慢慢学。";
 
   return (
     <main className="min-h-screen bg-canvas px-4 py-5 text-ink">
@@ -55,10 +47,10 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">HUMI</p>
                 <h1 className="mt-5 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                  先告诉 Humi 怎么为你安排菜单。
+                  先记住家里不能吃的。
                 </h1>
                 <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                  先点家里不能吃的，Humi 会把它当成硬约束避开。其他口味以后会从每顿饭里慢慢学。
+                  忌口会作为硬约束避开；没有也可以直接开始。其他口味以后从自然使用里慢慢学。
                 </p>
               </div>
               <button
@@ -85,51 +77,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
 
         <section className="rounded-[32px] border border-line bg-white p-5 shadow-card md:p-6">
           <div className="grid gap-5">
-            <ProfileBlock icon={Sparkles} title="这次主要想规划什么">
-              <div className="grid gap-3 md:grid-cols-2">
-                {planningModes.map((mode) => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => chooseMode(mode.id)}
-                    className={`rounded-[22px] border p-4 text-left transition ${
-                      draft.planningMode === mode.id
-                        ? "border-ink bg-ink text-white"
-                        : "border-line bg-canvas text-ink hover:border-ink/20"
-                    }`}
-                  >
-                    <p className="text-base font-black">{mode.label}</p>
-                    <p className={`mt-2 text-xs font-bold leading-5 ${draft.planningMode === mode.id ? "text-white/58" : "text-ink/45"}`}>
-                      {mode.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </ProfileBlock>
-
-            <ProfileBlock icon={Users} title="家里几个人吃饭">
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((size) => (
-                  <ChoiceButton
-                    key={size}
-                    active={Number(draft.familySize) === size}
-                    label={size === 4 ? "4人+" : `${size}人`}
-                    onClick={() => updateProfile({ familySize: size })}
-                  />
-                ))}
-              </div>
-              <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-between rounded-[18px] bg-canvas px-4">
-                <span className="text-sm font-black">有孩子一起吃</span>
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.hasChildren)}
-                  onChange={(event) => updateProfile({ hasChildren: event.target.checked })}
-                  className="h-5 w-5 accent-black"
-                />
-              </label>
-            </ProfileBlock>
-
-            <ProfileBlock icon={ShieldAlert} title="不想吃 / 不能吃">
+            <ProfileBlock icon={ShieldAlert} title="家里不能吃什么">
               <p className="mb-2 text-xs font-bold text-ink/42">这些会被 Humi 当成硬约束避开</p>
               <TagChoices
                 options={profileOptions.dislikes}
@@ -144,29 +92,14 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
               />
             </ProfileBlock>
 
-            <ProfileBlock icon={SlidersHorizontal} title="晚饭目标">
-              <p className="mb-2 text-xs font-bold text-ink/42">这次更在意</p>
-              <TagChoices
-                options={profileOptions.goals}
-                values={draft.goals}
-                onToggle={(value) => toggleListValue("goals", value)}
-              />
-            </ProfileBlock>
           </div>
 
           <div className="mt-5 rounded-[22px] bg-canvas p-4">
-            <p className="text-xs font-black text-ink/38">当前画像</p>
-            <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatProfileSummary(draft)}</p>
+            <p className="text-xs font-black text-ink/38">其他口味不用填</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/62">
+              Humi 会从家人点的感觉、真正做过的菜和想吃池子里慢慢学，不需要维护口味表。
+            </p>
           </div>
-
-          <HumiBrandCallout
-            variant={hasAvoidRules ? "profile-preferences" : "weekly"}
-            title={hasAvoidRules ? "我会避开这些" : "画像快好了"}
-            text={buddyText}
-            className="mt-4"
-            compact
-            contextKey={hasAvoidRules ? "profile-avoid-callout" : "profile-ready-callout"}
-          />
 
           <button
             type="button"
@@ -174,7 +107,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
             className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
           >
             <Check size={18} />
-            开始使用 Humi
+            {hasAvoidRules ? "保存忌口，开始使用" : "没有忌口，直接开始"}
           </button>
         </section>
       </div>

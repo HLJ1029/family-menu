@@ -23,7 +23,7 @@
 | STR-02 | 完整菜品库是推荐外的辅助子页，手机端可从【今晚】发现并直接补菜 | 已完成 | 【今晚】首屏提供 `自己挑` 次级入口；`release:product:smoke` 从该入口真实进入双列菜品库，检测 138 道菜，并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
 | STR-03 | 今晚已安排菜固定在新菜流上方 | 已完成 | `selected-recipes-panel`；`arranged-dishes-before-library-filters` |
 | STR-04 | `今晚就做`/补菜后自动进今晚计划与清单 | 已完成 | 产品 smoke 真实点击 `今晚就做`，验证两道推荐同时写入 `todayMenu`、当日晚餐 `mealPlan`，并自动生成 24 个清单勾选项 |
-| STR-05 | 周计划降为“想连排几天”辅助入口 | 已完成 | `navigation.js`、`Dashboard.jsx` |
+| STR-05 | 周计划降为“想连排几天”辅助入口，并可查看三餐汇总清单 | 已完成 | 【今晚】手机端 `dashboard-planner-entry`；周计划 `planner-grocery-summary`；产品 smoke 真实点击两级入口并打开清单 |
 | STR-06 | 搜索默认收起，需要时再展开 | 已完成 | `AppShell.jsx` 的 `searchOpen` |
 | STR-07 | 页级标题不抢主角 Display | 已完成 | `AppShell.jsx` 标题降为 24/30px |
 
@@ -42,6 +42,7 @@
 | LIST-04 | 仅在用到时轻问“家里还有 X 吗” | 已完成 | `Dashboard.jsx` 的 `pantryCheckItem` |
 | LIST-05 | 营养视图归【我的家】，不占清单入口 | 已完成 | `nutrition-entry-is-not-on-grocery-tab`；`UserCenter.jsx` |
 | LIST-06 | 清单空状态中性、无大插图 | 已完成 | `NeutralEmptyState`；`GroceryList.jsx` |
+| PROFILE-01 | 用户只主动维护忌口/过敏，不填写软口味、规划目标或营养目标表 | 已完成 | `ProfileOnboarding.jsx` 首次只问硬约束且可无忌口直接开始；【我的家】只暴露“修改忌口”；产品 smoke 与产品审查禁止旧软画像控件回归 |
 
 ## 3. 家庭协作与身份
 

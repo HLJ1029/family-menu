@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getExpiryState } from "../lib/pantry";
-import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
+import { formatProfileSummary } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
 import { formatCraveReason, summarizeCraveVotes } from "../lib/collaboration";
@@ -36,7 +36,6 @@ const dinnerConfirmations = [
 export function Dashboard({
   todayRecipes,
   todayMeals = {},
-  weekPlan,
   recommendation,
   recommendationAccess,
   aiRecommendationStatus,
@@ -88,7 +87,6 @@ export function Dashboard({
     member?.memberId && member.memberId !== currentMemberId && member.status !== "temporary"
   ));
   const askableMemberKey = askableMembers.map((member) => member.memberId).join("|");
-  const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
 
   useEffect(() => {
@@ -499,16 +497,6 @@ export function Dashboard({
                   “换一组”走基础规则，不限次数；“精准推荐”才会调用高成本 API，缓存命中不消耗尝鲜额度。
                 </p>
               )}
-              {!profileReady && (
-                <button
-                  type="button"
-                  onClick={onOpenUserCenter}
-                  className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-xs font-black text-ink transition hover:-translate-y-0.5"
-                >
-                  <Sparkles size={15} className="text-white" />
-                  设置忌口
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -533,6 +521,21 @@ export function Dashboard({
         onRecordBreakfast={onRecordBreakfast}
         onSetLunchSource={onSetLunchSource}
       />
+      <button
+        type="button"
+        data-testid="dashboard-planner-entry"
+        onClick={() => onViewChange("planner")}
+        className="flex min-h-14 items-center justify-between gap-4 rounded-[20px] border border-line bg-white px-5 text-left shadow-card transition hover:border-ink/20"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <CalendarDays size={19} className="shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-sm font-black">想连排几天？</span>
+            <span className="mt-1 block text-xs font-bold text-ink/45">可选，排好的三餐会自动汇总进清单</span>
+          </span>
+        </span>
+        <span className="shrink-0 text-lg font-black text-ink/38" aria-hidden="true">›</span>
+      </button>
     </div>
   );
 }

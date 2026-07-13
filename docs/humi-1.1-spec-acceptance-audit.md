@@ -38,7 +38,8 @@
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
 | 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | 产品 smoke 在独立手机会话真实勾选西红柿，验证隐藏 `pantryItems` 写入；随后点“做了”，验证西红柿扣减且晚饭 `mealLogs` 写入 |
-| 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`UserCenter.jsx` 保留忌口/画像编辑，不再暴露软口味偏好表 |
+| 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`ProfileOnboarding.jsx` 与 `UserCenter.jsx` 只暴露忌口/过敏硬约束，不再要求填写规划模式、晚饭目标、买菜接受度或营养目标 |
+| 用户唯一主动维护的是忌口，不填写软口味/规划/营养目标表 | 已完成 | 首次引导允许“没有忌口，直接开始”；【我的家】只暴露“修改忌口”，口味与营养继续作为行为回馈；产品 smoke 验证旧软画像控件不存在 |
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 账号/成员设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
 | 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
 | 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；`release:product:smoke` 验证家人点“今晚就做”不会改写菜单 |
