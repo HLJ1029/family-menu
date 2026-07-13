@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -46,6 +47,7 @@ export function Dashboard({
   onRequestAiRecommendation,
   onRequestPreciseRecommendation,
   onOpenRecommendationFeedback,
+  onOpenRecipeLibrary,
   feedbackOpen,
   onSubmitRecommendationFeedback,
   onCloseRecommendationFeedback,
@@ -171,13 +173,13 @@ export function Dashboard({
   }
 
   const dinnerActions = (
-    <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
+    <div className="mt-6 grid min-w-0 grid-cols-6 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
       <button
         type="button"
         data-testid="tonight-primary-action"
         onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
         disabled={craveSelectionMode && selectedCraveCount === 0}
-        className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
+        className="tonight-arrange-button col-span-6 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
       >
         {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
         {dinnerReady
@@ -192,7 +194,7 @@ export function Dashboard({
         type="button"
         onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
         disabled={!dinnerReady && aiRecommendationLoading}
-        className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
+        className={`${dinnerReady ? "col-span-3" : "col-span-2"} inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-3 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:col-span-1 sm:px-7 sm:text-base`}
       >
         {dinnerReady ? (
           <ShoppingBasket size={18} />
@@ -201,13 +203,22 @@ export function Dashboard({
         )}
         {dinnerReady ? "查看清单" : "换一组"}
       </button>
+      <button
+        type="button"
+        data-testid="dashboard-library-entry"
+        onClick={onOpenRecipeLibrary}
+        className={`${dinnerReady ? "col-span-3" : "col-span-2"} inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-3 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base`}
+      >
+        <BookOpen size={18} />
+        自己挑
+      </button>
       {!dinnerReady && (
         <button
           type="button"
           onClick={craveSelectionMode
             ? () => onRequestAiRecommendation({ id: "crave_reject_all", label: "都不想吃" })
             : onOpenRecommendationFeedback}
-          className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:px-7 sm:text-base"
+          className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-3 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
         >
           {craveSelectionMode ? "都不想吃" : "不想吃"}
         </button>
@@ -217,7 +228,7 @@ export function Dashboard({
           type="button"
           onClick={onRequestPreciseRecommendation}
           disabled={aiRecommendationLoading || !preciseEnabled}
-          className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
+          className="col-span-6 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
         >
           <Sparkles size={18} />
           {recommendationAccess?.plan === "plus"
@@ -231,7 +242,7 @@ export function Dashboard({
         <button
           type="button"
           onClick={() => setCraveOpen((current) => !current)}
-          className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+          className="col-span-6 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
         >
           <MessageCircleHeart size={18} />
           问问大家想吃啥
@@ -246,8 +257,8 @@ export function Dashboard({
         <div className="absolute left-5 top-5 z-10">
           <p className="text-sm font-black uppercase tracking-[0.16em] text-ink">HUMI</p>
         </div>
-        <div className="absolute right-5 top-5 z-10">
-          <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
+        <div className="absolute right-5 top-5 z-30">
+          <AccountAvatar session={session} onClick={onOpenUserCenter} compact label="打开我的家" />
         </div>
         {arranging && (
           <div className="arrange-flight-layer pointer-events-none absolute inset-0 z-20">

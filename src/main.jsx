@@ -3235,6 +3235,7 @@ function App() {
                 onRequestAiRecommendation={requestAiRecommendation}
                 onRequestPreciseRecommendation={() => requestAiRecommendation(null, "precise")}
                 onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
+                onOpenRecipeLibrary={() => openFullRecipeLibrary("今晚")}
                 feedbackOpen={recommendationFeedbackOpen}
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
@@ -3248,7 +3249,7 @@ function App() {
                 onRecordBreakfast={recordBreakfast}
                 onSetLunchSource={setLunchSource}
                 session={displaySession}
-                onOpenUserCenter={() => navigateTo("dashboard")}
+                onOpenUserCenter={() => navigateTo("user")}
                 householdMembers={family?.members ?? []}
                 currentMemberId={humiSession?.user?.id || displaySession?.user?.id || ""}
                 canManageHousehold={!isHumiApiSession(humiSession) || family?.role === "owner"}

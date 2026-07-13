@@ -20,7 +20,7 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | STR-01 | 底部只有【今晚】/【清单】/【我的家】三 tab | 已完成 | `src/components/navigation.js`；`release:spec:audit` |
-| STR-02 | 完整菜品库是推荐外的辅助子页，发现后可直接补菜 | 已完成 | `release:product:smoke` 检测 138 道菜，并真实点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
+| STR-02 | 完整菜品库是推荐外的辅助子页，手机端可从【今晚】发现并直接补菜 | 已完成 | 【今晚】首屏提供 `自己挑` 次级入口；`release:product:smoke` 从该入口真实进入双列菜品库，检测 138 道菜，并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
 | STR-03 | 今晚已安排菜固定在新菜流上方 | 已完成 | `selected-recipes-panel`；`arranged-dishes-before-library-filters` |
 | STR-04 | `今晚就做`/补菜后自动进今晚计划与清单 | 已完成 | 产品 smoke 真实点击 `今晚就做`，验证两道推荐同时写入 `todayMenu`、当日晚餐 `mealPlan`，并自动生成 24 个清单勾选项 |
 | STR-05 | 周计划降为“想连排几天”辅助入口 | 已完成 | `navigation.js`、`Dashboard.jsx` |
@@ -55,7 +55,7 @@
 | COL-06 | 临时 vote 登录后合并到正式成员 | 已完成 | `claimCraveVote`；`validate:api` |
 | COL-07 | 买菜认领免登录、可回传、防重复 | 已完成 | `GroceryShareLanding.jsx`；`release:collaboration:smoke`、`validate:api` |
 | COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | `WantToEatRow`、`mergeMemberWritableState`；成员边界 smoke |
-| COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | `family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证买菜、做饭、想吃三类动态和 DOM 顺序 |
+| COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | 今晚页头像可直达【我的家】；`family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证入口、买菜/做饭/想吃三类动态和 DOM 顺序 |
 | COL-10 | 征集状态能跨登录/设备恢复，且不泄露 owner secret | 已完成 | `sanitizeCraveSignal`、`setCraveSignals`；`validate:api` |
 
 ## 4. 感觉征集 A–F

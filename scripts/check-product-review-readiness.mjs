@@ -2,6 +2,14 @@ import { access, readFile } from "node:fs/promises";
 
 const REQUIRED_CHECKS = [
   {
+    key: "dashboard-secondary-entrypoints",
+    title: "今晚首屏可发现完整菜品库与我的家",
+    path: "src/components/Dashboard.jsx",
+    required: ["dashboard-library-entry", "自己挑", "onOpenRecipeLibrary", "label=\"打开我的家\"", "z-30"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["dashboard-self-pick-opens-full-library", "dashboard-avatar-opens-my-home"],
+  },
+  {
     key: "dish-discovery",
     title: "今晚菜单发现新菜入口",
     path: "src/components/TodayMenu.jsx",

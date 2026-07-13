@@ -108,6 +108,19 @@ try {
   await installMiniProgramMock(page);
   const tonightViewport = await verifyTonightPrimaryViewport(browser, baseUrl, evidenceDir);
 
+  const dashboardLibraryEntry = page.getByTestId("dashboard-library-entry");
+  await dashboardLibraryEntry.click();
+  const dashboardLibraryTitle = page.getByRole("heading", { name: "全部菜品库" }).first();
+  await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
+  const dashboardLibraryOpened = await dashboardLibraryTitle.isVisible();
+  await page.getByRole("button", { name: "返回上一页" }).click();
+
+  await page.getByRole("button", { name: "打开我的家" }).click();
+  const dashboardFamilyActivity = page.getByTestId("family-activity-section");
+  await dashboardFamilyActivity.waitFor({ state: "visible", timeout: 15_000 });
+  const dashboardAvatarOpenedFamily = await dashboardFamilyActivity.isVisible();
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+
   await openTodayMenu(page);
   await page.getByRole("button", { name: "发现新菜" }).first().click();
   await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 15_000 });
@@ -200,6 +213,8 @@ try {
     { key: "breakfast-and-lunch-follow-dinner-decision", ok: tonightViewport.mealRhythmAfterPrimary },
     { key: "tonight-do-writes-menu-and-dinner-plan", ok: tonightViewport.menuWritten && tonightViewport.dinnerPlanWritten, actual: tonightViewport.decisionState },
     { key: "tonight-do-auto-generates-grocery", ok: tonightViewport.groceryGenerated, actual: tonightViewport.groceryCheckboxCount },
+    { key: "dashboard-self-pick-opens-full-library", ok: dashboardLibraryOpened },
+    { key: "dashboard-avatar-opens-my-home", ok: dashboardAvatarOpenedFamily },
     { key: "full-library-title", ok: discoveryTitle },
     { key: "full-library-card-count", ok: recipeCards + selectedRecipeCount >= minRecipeCards, actual: recipeCards + selectedRecipeCount, expectedAtLeast: minRecipeCards },
     { key: "arranged-dishes-before-library-filters", ok: arrangedBeforeFilters },

@@ -101,7 +101,7 @@ export function Sidebar({ activeView, onChange }) {
   );
 }
 
-export function AccountAvatar({ session, onClick, compact = false }) {
+export function AccountAvatar({ session, onClick, compact = false, label = "回到 Humi 首页" }) {
   const email = session?.user?.email;
   const displayName = session?.user?.displayName;
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -119,8 +119,8 @@ export function AccountAvatar({ session, onClick, compact = false }) {
       className={`motion-card grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label="回到 Humi 首页"
-      title="回到 Humi 首页"
+      aria-label={label}
+      title={label}
     >
       {avatarSrc ? (
         <img
