@@ -38,7 +38,7 @@ export function AuthLanding({ authProps, onContinueGuest }) {
           <>
             <div className="relative mx-auto grid aspect-square w-full max-w-[360px] place-items-center">
               <div className="absolute inset-8 rounded-full bg-ink/35 blur-3xl" />
-              <div className="absolute inset-1 rounded-full bg-apricot/12 blur-2xl" />
+              <div className="absolute inset-1 rounded-full bg-ink/5 blur-2xl" />
               <DishImage
                 recipe={featuredRecipe}
                 variant="hero"

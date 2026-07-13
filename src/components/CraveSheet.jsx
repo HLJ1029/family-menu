@@ -4,22 +4,27 @@ import { feelingTags, summarizeCraveVotes } from "../lib/collaboration";
 export function CraveStarterSheet({
   selectedFeeling,
   onSelectFeeling,
+  members = [],
+  selectedMemberIds = [],
+  onToggleMember,
   onStart,
   onDecideAlone,
   compact = false,
 }) {
+  const selectionRequired = members.length > 0;
+  const canStart = !selectionRequired || selectedMemberIds.length > 0;
   return (
     <CraveSheetShell
       eyebrow="今晚征集单"
-      title="今晚想问大家什么口味？"
-      subtitle="先替这次征集定一个方向，家人打开卡片后只要点一个感觉。"
+      title="今晚想问谁？"
+      subtitle="选好家人和一个大致方向。卡片发出去后，大家只用点一个感觉。"
       statusLabel="待发送"
       compact={compact}
       footer={(
         <div className="grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={onStart} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+          <button type="button" onClick={onStart} disabled={!canStart} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-35">
             <Send size={16} />
-            生成征集卡片
+            {selectionRequired ? `发给 ${selectedMemberIds.length} 位家人` : "生成征集卡片"}
           </button>
           <button type="button" onClick={onDecideAlone} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-black text-ink">
             <Sparkles size={16} />
@@ -28,7 +33,42 @@ export function CraveStarterSheet({
         </div>
       )}
     >
-      <FeelingWall selectedFeeling={selectedFeeling} onSelectFeeling={onSelectFeeling} />
+      <div className="grid gap-4">
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-black text-ink/45">要问的家人</p>
+            {selectionRequired && <p className="text-xs font-black text-ink/35">默认全选</p>}
+          </div>
+          {selectionRequired ? (
+            <div className="flex flex-wrap gap-2">
+              {members.map((member) => {
+                const selected = selectedMemberIds.includes(member.memberId);
+                const memberName = member.nickname || member.displayName || member.memberName || "家人";
+                return (
+                  <button
+                    key={member.memberId}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onToggleMember?.(member.memberId)}
+                    className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-black transition ${selected ? "border-ink bg-ink text-white" : "border-line bg-white text-ink/55"}`}
+                  >
+                    <CheckCircle2 size={15} />
+                    {memberName}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
+              还没有正式成员也没关系，先生成卡片发给家人，对方仍可免登录参与。
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-black text-ink/45">这次先照顾什么感觉</p>
+          <FeelingWall selectedFeeling={selectedFeeling} onSelectFeeling={onSelectFeeling} />
+        </div>
+      </div>
     </CraveSheetShell>
   );
 }

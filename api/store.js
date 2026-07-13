@@ -416,8 +416,16 @@ export class HumiStore {
   async saveState(userId, state) {
     await this.load();
     const household = await this.ensureHouseholdForUser(userId);
+    const currentState = this.data.householdStates[household.id] ?? {};
+    const writableState = household.ownerId === userId
+      ? state
+      : mergeMemberWritableState(currentState, state, userId);
     const nextState = {
-      ...state,
+      ...writableState,
+      recommendationAccess: mergeClientRecommendationAccess(
+        currentState.recommendationAccess,
+        writableState.recommendationAccess,
+      ),
       householdId: household.id,
       updatedAt: new Date().toISOString(),
     };
@@ -484,6 +492,11 @@ export class HumiStore {
         memberName: payload.initiatorName,
       })
       : null;
+    const householdMemberIds = new Set((household?.members ?? []).map((member) => member.memberId));
+    const recipientIds = [...new Set((Array.isArray(payload.recipientIds) ? payload.recipientIds : [])
+      .map((memberId) => sanitizeText(memberId, "", 80))
+      .filter((memberId) => memberId && memberId !== ownerUserId && householdMemberIds.has(memberId)))]
+      .slice(0, 20);
     const request = {
       id: randomUUID(),
       token,
@@ -492,6 +505,7 @@ export class HumiStore {
       initiatorId: ownerUserId ?? null,
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      recipientIds,
       mealType: sanitizeText(payload.mealType, "dinner", 24),
       status: "open",
       deadlineAt,
@@ -642,6 +656,51 @@ function normalizeRecommendationAccess(access = {}) {
     plan: access.plan === "plus" ? "plus" : "free",
     preciseTrialRemaining: Math.max(0, Math.min(20, Number.isFinite(parsedTrialRemaining) ? parsedTrialRemaining : 3)),
     preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
+  };
+}
+
+function mergeClientRecommendationAccess(currentAccess = {}, clientAccess = {}) {
+  const current = normalizeRecommendationAccess(currentAccess);
+  const incoming = normalizeRecommendationAccess(clientAccess);
+  return {
+    plan: current.plan,
+    preciseTrialRemaining: current.plan === "plus"
+      ? current.preciseTrialRemaining
+      : Math.min(current.preciseTrialRemaining, incoming.preciseTrialRemaining),
+    preciseUsed: Math.max(current.preciseUsed, incoming.preciseUsed),
+  };
+}
+
+function mergeMemberWritableState(currentState = {}, incomingState = {}, userId) {
+  const existingWantItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+  const incomingWantItems = (Array.isArray(incomingState.wantToEatItems) ? incomingState.wantToEatItems : [])
+    .filter((item) => item.memberId === userId);
+  const preservedWantItems = existingWantItems.filter((item) => item.memberId !== userId);
+
+  const existingClaims = currentState.groceryClaims && typeof currentState.groceryClaims === "object"
+    ? currentState.groceryClaims
+    : {};
+  const incomingClaims = incomingState.groceryClaims && typeof incomingState.groceryClaims === "object"
+    ? incomingState.groceryClaims
+    : {};
+  const preservedClaims = Object.fromEntries(
+    Object.entries(existingClaims).filter(([, claim]) => claim?.memberId !== userId),
+  );
+  const ownClaims = Object.fromEntries(
+    Object.entries(incomingClaims).filter(([, claim]) => claim?.memberId === userId),
+  );
+  const completedOwnKeys = Object.values(ownClaims)
+    .filter((claim) => claim?.status === "done" && claim.itemKey)
+    .map((claim) => claim.itemKey);
+
+  return {
+    ...currentState,
+    wantToEatItems: [...preservedWantItems, ...incomingWantItems].slice(0, 200),
+    groceryClaims: { ...preservedClaims, ...ownClaims },
+    checkedItems: {
+      ...(currentState.checkedItems ?? {}),
+      ...Object.fromEntries(completedOwnKeys.map((key) => [key, true])),
+    },
   };
 }
 

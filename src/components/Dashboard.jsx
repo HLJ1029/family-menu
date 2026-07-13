@@ -60,6 +60,8 @@ export function Dashboard({
   onSetLunchSource,
   session,
   onOpenUserCenter,
+  householdMembers = [],
+  currentMemberId = "",
   familyProfile,
   groceryItemCount = 0,
   mealLog,
@@ -77,7 +79,12 @@ export function Dashboard({
   const [dismissedPantryChecks, setDismissedPantryChecks] = useState({});
   const [selectedCraveRecipeIds, setSelectedCraveRecipeIds] = useState([]);
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
+  const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
   const cravePanelRef = useRef(null);
+  const askableMembers = householdMembers.filter((member) => (
+    member?.memberId && member.memberId !== currentMemberId && member.status !== "temporary"
+  ));
+  const askableMemberKey = askableMembers.map((member) => member.memberId).join("|");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
 
@@ -89,6 +96,9 @@ export function Dashboard({
     if (!craveOpen) return;
     window.setTimeout(() => cravePanelRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
   }, [craveOpen]);
+  useEffect(() => {
+    setSelectedCraveMemberIds(askableMembers.map((member) => member.memberId));
+  }, [askableMemberKey]);
   const recommendedItems = getRecommendationItems(recommendation);
   const recommendedRecipes = recommendedItems.map((item) => item.recipe);
   const visibleDinnerItems = dinnerReady
@@ -128,7 +138,13 @@ export function Dashboard({
   }
 
   function submitFeeling() {
-    onStartCraveRequest?.(selectedFeeling);
+    onStartCraveRequest?.(selectedFeeling, selectedCraveMemberIds);
+  }
+
+  function toggleCraveMember(memberId) {
+    setSelectedCraveMemberIds((current) => current.includes(memberId)
+      ? current.filter((id) => id !== memberId)
+      : [...current, memberId]);
   }
 
   function decideAlone() {
@@ -388,6 +404,9 @@ export function Dashboard({
                 <CraveStarterSheet
                   selectedFeeling={selectedFeeling}
                   onSelectFeeling={setSelectedFeeling}
+                  members={askableMembers}
+                  selectedMemberIds={selectedCraveMemberIds}
+                  onToggleMember={toggleCraveMember}
                   onStart={submitFeeling}
                   onDecideAlone={decideAlone}
                 />

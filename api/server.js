@@ -625,6 +625,7 @@ function toPublicCraveRequest(request) {
     householdId: request.householdId,
     householdName: request.householdName,
     initiatorName: request.initiatorName,
+    recipientCount: (request.recipientIds ?? []).length,
     mealType: request.mealType,
     status: request.status,
     deadlineAt: request.deadlineAt,

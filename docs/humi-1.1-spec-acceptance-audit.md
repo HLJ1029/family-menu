@@ -39,7 +39,9 @@
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | `src/main.jsx` 维护 `pantryItems`；`Dashboard.jsx` 提供“家里还有 X 吗”轻确认；AI-HQ 状态记录 1.1.29 闭环 |
 | 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`UserCenter.jsx` 保留忌口/画像编辑，不再暴露软口味偏好表 |
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 首屏为“家里的饭线索”，包含家庭动态、问问大家、想吃池子、推荐权益 |
-| 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403 |
+| 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；`release:product:smoke` 验证家人点“今晚就做”不会改写菜单 |
+| 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
+| 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人也只能维护自己的想吃条目 |
 | 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
 | 家人打开分享卡片先免登录参与 | 已完成 | `src/components/CraveLanding.jsx` 与 `GroceryShareLanding.jsx` 支持公开 token 落地与临时参与 |
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
@@ -53,6 +55,9 @@
 | 想吃池子可由家人/主厨沉淀并参与推荐 | 已完成 | `UserCenter.jsx` 想吃池子入口；`src/lib/recommendation/rules.js` 使用 `wantToEatItems` 排序 |
 | 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
 | 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
+| 推荐权益不可由客户端升级 | 已完成 | `api/store.js` 的 `mergeClientRecommendationAccess` 保持服务端 plan，次数只能消耗不能恢复；`validate:api` 覆盖伪造 Plus 和重置次数 |
+| 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
+| 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请先展示价值后登录，且不会自动发起微信登录 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery` | 已完成 | `miniprogram/pages/index/index.js` 与 H5 落地页组件覆盖三类 token |
 | 清单分享与感觉征集确实唤起小程序原生分享页 | 已完成 | `release:product:smoke` 模拟 `wx.miniProgram`，点击验证 `postMessage` 与 `/pages/share/index?type=grocery|crave` 两个动作 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |

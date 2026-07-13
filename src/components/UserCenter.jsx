@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Check, ChefHat, Cloud, Database, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
 import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
 import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
@@ -67,13 +67,19 @@ export function UserCenter({
   const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
   const [familyCraveStatus, setFamilyCraveStatus] = useState("");
   const [newHouseholdName, setNewHouseholdName] = useState("");
+  const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
   const familyCraveRef = useRef(null);
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
   const currentUserId = humiSession?.user?.id || session?.user?.id || "";
   const currentFamilyMember = family?.members?.find((member) => member.memberId === currentUserId);
   const familyRole = family?.role || currentFamilyMember?.role || (family?.members?.length ? "member" : "owner");
+  const canManageHouseholdMenu = !humiSession || familyRole === "owner";
   const familyMembers = family?.members ?? [];
+  const askableFamilyMembers = familyMembers.filter((member) => (
+    member?.memberId && member.memberId !== currentUserId && member.status !== "temporary"
+  ));
+  const askableMemberKey = askableFamilyMembers.map((member) => member.memberId).join("|");
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
@@ -114,6 +120,10 @@ export function UserCenter({
     sourceSummary,
   });
 
+  useEffect(() => {
+    setSelectedCraveMemberIds(askableFamilyMembers.map((member) => member.memberId));
+  }, [askableMemberKey]);
+
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
       setPhoneBindStatus("手机号绑定只在微信小程序内通过用户主动授权完成。");
@@ -146,7 +156,7 @@ export function UserCenter({
       familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 40);
     if (onStartCraveRequest) {
-      Promise.resolve(onStartCraveRequest(familyFeelingTag)).then((request) => {
+      Promise.resolve(onStartCraveRequest(familyFeelingTag, selectedCraveMemberIds)).then((request) => {
         setFamilyCraveStatus(
           request?.token
             ? "今晚征集单已在我的家展开，点“复制/分享”发给家人。"
@@ -161,6 +171,23 @@ export function UserCenter({
     } else {
       setFamilyCraveStatus("请先回【今晚】发起问问大家。");
     }
+  }
+
+  function openFamilyCraveStarter() {
+    if (activeCraveRequest?.token) {
+      startFamilyCrave();
+      return;
+    }
+    setFamilyCraveStatus("先在下方选好要问的家人和一个感觉，再生成征集卡片。");
+    window.setTimeout(() => {
+      familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+  }
+
+  function toggleCraveMember(memberId) {
+    setSelectedCraveMemberIds((current) => current.includes(memberId)
+      ? current.filter((id) => id !== memberId)
+      : [...current, memberId]);
   }
 
   function decideFamilyAlone() {
@@ -246,7 +273,7 @@ export function UserCenter({
             </div>
             <button
               type="button"
-              onClick={startFamilyCrave}
+              onClick={openFamilyCraveStarter}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
             >
               {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
@@ -272,6 +299,9 @@ export function UserCenter({
             <CraveStarterSheet
               selectedFeeling={familyFeelingTag}
               onSelectFeeling={setFamilyFeelingTag}
+              members={askableFamilyMembers}
+              selectedMemberIds={selectedCraveMemberIds}
+              onToggleMember={toggleCraveMember}
               onStart={startFamilyCrave}
               onDecideAlone={decideFamilyAlone}
               compact
@@ -373,6 +403,8 @@ export function UserCenter({
               <WantToEatRow
                 key={item.id}
                 item={item}
+                canAddToday={canManageHouseholdMenu}
+                canEdit={canManageHouseholdMenu || item.memberId === currentUserId}
                 onAddToday={() => onAddWantToToday?.(item)}
                 onDone={() => onCompleteWantToEat?.(item.id)}
                 onRemove={() => onRemoveWantToEat?.(item.id)}
@@ -602,7 +634,8 @@ export function UserCenter({
 
 function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activeInvite, onCreateInvite, onShareInvite }) {
   const isOwner = role === "owner";
-  const roleLabel = isOwner ? "主厨" : "家人";
+  const isMember = role === "member";
+  const roleLabel = isOwner ? "主厨" : isMember ? "家人" : "身份确认中";
   const memberCount = members.length || (family ? 1 : 0);
 
   return (
@@ -632,7 +665,7 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activ
         <PermissionCard
           icon={Users}
           title="家人能力"
-          active={!isOwner && Boolean(family)}
+          active={isMember && Boolean(family)}
           lines={["点一个感觉", "认领买菜项", "加入想吃池子"]}
         />
       </div>
@@ -776,9 +809,9 @@ function PermissionCard({ icon: Icon, title, active, lines }) {
   );
 }
 
-function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
+function WantToEatRow({ item, canAddToday, canEdit, onAddToday, onDone, onRemove }) {
   return (
-    <div className="rounded-[20px] border border-line bg-canvas p-4">
+    <div data-testid="want-to-eat-row" className="rounded-[20px] border border-line bg-canvas p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-base font-black">{item.title}</p>
@@ -790,19 +823,25 @@ function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
           待安排
         </span>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
-          <Utensils size={14} />
-          今晚就吃
-        </button>
-        <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-          标记安排
-        </button>
-        <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-          <Trash2 size={13} />
-          移除
-        </button>
-      </div>
+      {(canAddToday || canEdit) && <div className={`mt-3 grid gap-2 ${canAddToday && canEdit ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+        {canAddToday && (
+          <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
+            <Utensils size={14} />
+            今晚就吃
+          </button>
+        )}
+        {canEdit && (
+          <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+            标记安排
+          </button>
+        )}
+        {canEdit && (
+          <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+            <Trash2 size={13} />
+            移除
+          </button>
+        )}
+      </div>}
     </div>
   );
 }

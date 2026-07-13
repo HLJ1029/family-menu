@@ -144,6 +144,20 @@ try {
   assert(Array.isArray(loadedStateEnvelope.households), "state envelope should include households");
   assert(loadedStateEnvelope.households?.length === 1, "new user should start with one active household");
 
+  const spoofedAccessEnvelope = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      state: {
+        ...loadedState,
+        recommendationAccess: { plan: "plus", preciseTrialRemaining: 20, preciseUsed: 0 },
+      },
+    },
+  });
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.plan === "free", "client state must not grant plus access");
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.preciseTrialRemaining === 2, "client state must not restore precise trials");
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.preciseUsed === 1, "client state must not reduce precise usage");
+
   const secondHousehold = await request(`${baseUrl}/households`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -233,6 +247,68 @@ try {
   assert(joinedCrave.family?.ownerId === login.user.id, "joined family should keep original owner");
   assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
   assert(joinedCrave.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined crave user should immediately receive shared household state");
+
+  const memberMutation = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      state: {
+        ...joinedCrave.state,
+        todayMenu: [{ recipeId: "mapo-tofu", quantity: 9 }],
+        familyProfile: { familySize: 9, dislikes: [] },
+        recommendationAccess: { plan: "plus", preciseTrialRemaining: 20, preciseUsed: 0 },
+        wantToEatItems: [
+          ...(joinedCrave.state?.wantToEatItems ?? []),
+          {
+            id: "want:member-own",
+            title: "冬瓜排骨汤",
+            recipeId: "wintermelon-rib-soup",
+            memberId: memberLogin.user.id,
+            memberName: "家人",
+            status: "open",
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "want:member-forged",
+            title: "伪造他人想吃",
+            memberId: login.user.id,
+            memberName: "主厨",
+            status: "open",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        groceryClaims: {
+          ...(joinedCrave.state?.groceryClaims ?? {}),
+          "custom:member-milk": {
+            itemKey: "custom:member-milk",
+            itemName: "牛奶",
+            memberId: memberLogin.user.id,
+            memberName: "家人",
+            status: "done",
+            claimedAt: new Date().toISOString(),
+          },
+        },
+      },
+    },
+  });
+  assert(memberMutation.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "member state save must not replace the owner menu");
+  assert(memberMutation.state?.familyProfile?.familySize === 3, "member state save must not replace the family profile");
+  assert(memberMutation.state?.recommendationAccess?.plan === "free", "member state save must not grant plus access");
+  assert(memberMutation.state?.wantToEatItems?.some((item) => item.id === "want:member-own"), "member should add their own want-to-eat item");
+  assert(!memberMutation.state?.wantToEatItems?.some((item) => item.id === "want:member-forged"), "member must not write want-to-eat items for another user");
+  assert(memberMutation.state?.groceryClaims?.["custom:member-milk"]?.status === "done", "member should update their own grocery claim");
+  assert(memberMutation.state?.checkedItems?.["custom:member-milk"] === true, "completed member grocery claim should mark the item checked");
+
+  const targetedCrave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdName: "测试家",
+      initiatorName: "主厨",
+      recipientIds: [memberLogin.user.id, "not-a-household-member", memberLogin.user.id],
+    },
+  });
+  assert(targetedCrave.request?.recipientCount === 1, "crave recipients should keep only unique household members");
   assert(joinedCrave.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined crave user should immediately receive shared want-to-eat pool");
   assert(
     joinedCrave.family?.members?.some((member) => (

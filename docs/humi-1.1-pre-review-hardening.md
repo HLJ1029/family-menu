@@ -26,6 +26,15 @@
   - 完成标准：匿名创建 401、普通家人创建 403、主厨创建成功；公开 vote/claim 成功。
   - 验证：`npm run validate:api`，`npm run release:product:smoke`。
   - 证据：`api/server.js`、`api/store.js`、`scripts/smoke-humi-api.mjs`。
+- [x] P1 征集选人与成员写入边界：发起前先选“今晚想问谁”；家人只能写自己的想吃和买菜认领，不能改菜单、画像或他人数据。
+  - 验证：`npm run validate:api`，`npm run release:product:smoke`。
+  - 证据：`src/components/CraveSheet.jsx`、`src/components/UserCenter.jsx`、`src/main.jsx`、`api/store.js`。
+- [x] P1 精准推荐权益防伪造：客户端不能通过保存 state 把免费版改成 Plus，也不能恢复已消耗的尝鲜次数。
+  - 验证：`npm run validate:api`。
+  - 证据：`api/store.js` 的 `mergeClientRecommendationAccess`。
+- [x] P1 游客协作落地与黑白灰视觉：征集、买菜、邀请三类 token 均用新游客上下文烟测，主界面与小程序壳保持黑白灰。
+  - 验证：`npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4174/`，`npm run validate:palette`。
+  - 证据：`scripts/smoke-collaboration-landings.mjs`、`scripts/validate-neutral-palette.mjs`。
 - [ ] P1 家庭订阅结算范围：确认 1.1 是否接入真实微信支付，或明确列入 1.2。
   - 当前已有：基础推荐无限、3 次精准尝鲜、Plus 权益状态、API 鉴权/402 和缓存复用。
   - 当前缺口：没有支付下单、回调验签、订单与权益发放闭环；未确认前不能宣称三份策划书全部完成。

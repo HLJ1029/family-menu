@@ -101,8 +101,10 @@ const [
   apiDeploy,
   securityAudit,
   docsFreshness,
+  paletteValidation,
   productReview,
   productSmoke,
+  collaborationSmoke,
   candidateHardening,
   candidateValidationReview,
   candidatePrepareSelftest,
@@ -129,10 +131,15 @@ const [
   runNpmScript("deploy:api:check"),
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
+  runNpmScript("validate:palette"),
   runNpmScript("release:product:review"),
   runOptionalNpmScript("release:product:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 Playwright smoke during release completion selftests",
+  }),
+  runOptionalNpmScript("release:collaboration:smoke", {
+    skip: skipProductSmoke,
+    reason: "skip production H5 collaboration landing smoke during release completion selftests",
   }),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
@@ -167,8 +174,10 @@ const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
+const paletteValidationOk = paletteValidation.ok;
 const productReviewOk = productReview.ok;
 const productSmokeOk = productSmoke.ok;
+const collaborationSmokeOk = collaborationSmoke.ok;
 const candidateHardeningOk = candidateHardening.ok;
 const candidateValidationReady = candidateValidationReview.ok;
 const candidatePrepareSelftestOk = candidatePrepareSelftest.ok;
@@ -188,7 +197,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && productReviewOk && productSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && paletteValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -210,11 +219,17 @@ if (!securityAuditOk) {
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
 }
+if (!paletteValidationOk) {
+  nextActions.push("Remove non-neutral UI colors before treating the 1.1 design system as closed.");
+}
 if (!productReviewOk) {
   nextActions.push("Fix release:product:review failures before claiming the 1.1 product review anchors are covered.");
 }
 if (!productSmokeOk) {
   nextActions.push("Fix release:product:smoke failures before relying on the production H5 discovery and user-center collaboration entrypoints.");
+}
+if (!collaborationSmokeOk) {
+  nextActions.push("Fix release:collaboration:smoke failures before relying on guest crave, grocery, and invite landing flows.");
 }
 if (!candidateHardeningOk) {
   nextActions.push("Fix release:candidate:check failures before claiming the 1.1 production candidate is ready for internal validation.");
@@ -310,9 +325,11 @@ console.log(JSON.stringify({
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
+    neutralPaletteReady: paletteValidationOk,
     engineeringGatesReady,
     productReviewReady: productReviewOk,
     productSmokeReady: productSmokeOk,
+    collaborationSmokeReady: collaborationSmokeOk,
     candidateHardeningReady: candidateHardeningOk,
     candidateValidationReady,
     candidatePrepareSelftestReady: candidatePrepareSelftestOk,
@@ -347,8 +364,10 @@ console.log(JSON.stringify({
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
+    summarizeCheck(paletteValidation),
     summarizeCheck(productReview),
     summarizeCheck(productSmoke),
+    summarizeCheck(collaborationSmoke),
     summarizeCheck(candidateHardening),
     summarizeCheck(candidateValidationReview),
     summarizeCheck(candidatePrepareSelftest),

@@ -5,7 +5,7 @@ const POSTER_HEIGHT = 1440;
 const COLORS = {
   acid: "#111111",
   ink: "#111111",
-  canvas: "#F5F4F1",
+  canvas: "#F5F5F5",
   white: "#FFFFFF",
   muted: "rgba(17, 17, 17, 0.54)",
   line: "rgba(17, 17, 17, 0.12)",
@@ -122,7 +122,7 @@ function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
     const horizontalDish = isHorizontalDish(heroRecipe);
     drawRoundedImage(ctx, heroImage, heroBox.x, heroBox.y, heroBox.width, heroBox.height, heroBox.radius, {
       fit: horizontalDish ? "contain" : "cover",
-      background: "#F7F3EA",
+      background: "#F5F5F5",
       padding: horizontalDish ? 26 : 0,
     });
   } else {
@@ -167,8 +167,8 @@ function drawPaperBackground(ctx) {
   ctx.fillStyle = COLORS.canvas;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
   const glow = ctx.createRadialGradient(910, 180, 20, 910, 180, 260);
-  glow.addColorStop(0, "rgba(212, 235, 90, 0.35)");
-  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
+  glow.addColorStop(0, "rgba(17, 17, 17, 0.08)");
+  glow.addColorStop(1, "rgba(17, 17, 17, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 
@@ -243,9 +243,9 @@ function drawMarker(ctx, x, y, width, height) {
 }
 
 function drawDishPlaceholder(ctx, title, box) {
-  ctx.fillStyle = "#F7F3EA";
+  ctx.fillStyle = "#F5F5F5";
   roundRect(ctx, box.x, box.y, box.width, box.height, box.radius, true);
-  drawCircle(ctx, box.x + box.width / 2, box.y + box.height / 2 - 30, 130, "rgba(212, 235, 90, 0.28)");
+  drawCircle(ctx, box.x + box.width / 2, box.y + box.height / 2 - 30, 130, "rgba(17, 17, 17, 0.06)");
   drawText(ctx, title, box.x + 90, box.y + box.height / 2 + 70, {
     size: 54,
     weight: 950,
@@ -364,7 +364,7 @@ function drawWeeklyTape(ctx, x, y, angle) {
   ctx.save();
   ctx.translate(x + 69, y + 17);
   ctx.rotate((angle * Math.PI) / 180);
-  ctx.fillStyle = "rgba(212, 235, 90, 0.78)";
+  ctx.fillStyle = "rgba(17, 17, 17, 0.78)";
   ctx.shadowColor = "rgba(17, 17, 17, 0.08)";
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 10;
@@ -390,7 +390,7 @@ function drawWeeklyCandidatePhoto(ctx, { recipe, image, slot }) {
     const horizontalDish = isHorizontalDish(recipe);
     drawRoundedImage(ctx, image, -slot.width / 2, -slot.height / 2, slot.width, slot.height, slot.radius, {
       fit: horizontalDish ? "contain" : "cover",
-      background: "#F7F3EA",
+      background: "#F5F5F5",
       padding: horizontalDish ? 16 : 0,
     });
   } else {
@@ -496,12 +496,12 @@ function drawPosterBase(ctx, { eyebrow, title, subtitle, style }) {
 
   if (style === "market") {
     drawCircle(ctx, 935, 170, 170, COLORS.acid);
-    drawCircle(ctx, 90, 1180, 230, "rgba(212, 235, 90, 0.38)");
+    drawCircle(ctx, 90, 1180, 230, "rgba(17, 17, 17, 0.08)");
   } else if (style === "receipt") {
     ctx.fillStyle = COLORS.white;
     roundRect(ctx, 66, 250, 948, 980, 46, true);
   } else {
-    drawCircle(ctx, 920, 250, 260, "rgba(212, 235, 90, 0.5)");
+    drawCircle(ctx, 920, 250, 260, "rgba(17, 17, 17, 0.1)");
   }
 
   drawLogo(ctx, 70, 70);
@@ -739,7 +739,7 @@ function drawShoppingThemePoster(ctx, { icon, groups }) {
   drawText(ctx, "周末这一趟，把晚饭的底气带回家。", 90, 558, {
     size: 38,
     weight: 850,
-    color: "rgba(245, 244, 241, 0.64)",
+    color: "rgba(245, 245, 245, 0.64)",
     maxWidth: 820,
   });
 
@@ -755,7 +755,7 @@ function drawShoppingThemePoster(ctx, { icon, groups }) {
   drawText(ctx, "适合周末、火锅、节日前采购。", 90, 1280, {
     size: 34,
     weight: 850,
-    color: "rgba(245, 244, 241, 0.68)",
+    color: "rgba(245, 245, 245, 0.68)",
     maxWidth: 660,
   });
   drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.white, maxWidth: 140 });
@@ -765,9 +765,9 @@ function drawDarkShoppingBackground(ctx) {
   ctx.fillStyle = COLORS.ink;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
   const glow = ctx.createRadialGradient(870, 150, 20, 870, 150, 300);
-  glow.addColorStop(0, "rgba(212, 235, 90, 0.96)");
-  glow.addColorStop(0.58, "rgba(212, 235, 90, 0.9)");
-  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
+  glow.addColorStop(0, "rgba(255, 255, 255, 0.16)");
+  glow.addColorStop(0.58, "rgba(255, 255, 255, 0.08)");
+  glow.addColorStop(1, "rgba(255, 255, 255, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 }

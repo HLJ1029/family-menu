@@ -287,9 +287,13 @@ function App() {
   }, [setOnboardingComplete, setProfileOnboardingComplete]);
 
   useEffect(() => {
-    if (!isHumiApiSession(humiSession) || humiStateLoadedRef.current) return;
+    if (!isHumiApiSession(humiSession)) {
+      humiStateLoadedRef.current = false;
+      humiStateHydratingRef.current = false;
+      return undefined;
+    }
     let active = true;
-    humiStateLoadedRef.current = true;
+    humiStateLoadedRef.current = false;
     humiStateHydratingRef.current = true;
     setFamily(createHumiSessionFamily(humiSession));
     setCloudMenuEnabled(true);
@@ -309,6 +313,7 @@ function App() {
           emptyMenuStatus: "微信账号保存已开启，今晚菜单会自动保存。",
           emptyGroceryStatus: "微信账号保存已开启，清单和后台已有会自动保存。",
         });
+        humiStateLoadedRef.current = true;
       } catch (error) {
         if (active) {
           setCloudSyncStatus(error.message);
@@ -329,28 +334,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [
-    humiSession,
-    setCheckedItems,
-    setCloudGroceryEnabled,
-    setCloudMenuEnabled,
-    setCustomItems,
-    setExcludedGroceryKeys,
-    setFamilyProfile,
-    setMealCalendar,
-    setMealPlan,
-    setMealLogs,
-    setNutritionGoals,
-    setPantryItems,
-    setWantToEatItems,
-    setRecommendationAccess,
-    setRecommendationFeedback,
-    setGroceryClaims,
-    setTodayMenu,
-    setWeekPlan,
-    todayDateKey,
-    weekDateKeys,
-  ]);
+  }, [humiSession?.accessToken]);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !humiStateLoadedRef.current || humiStateHydratingRef.current) return;
@@ -826,6 +810,15 @@ function App() {
     showNotice.timer = window.setTimeout(() => setNotice(null), 1800);
   }
 
+  function requireHouseholdOwnerAction() {
+    if (!isHumiApiSession(humiSession) || family?.role === "owner") return true;
+    showNotice(family?.role === "member"
+      ? "只有主厨能修改菜单和家庭设置；你仍可以点感觉、认领买菜或丢想吃。"
+      : "正在确认你在这个家的身份，请稍后再试。",
+    );
+    return false;
+  }
+
   function trackProductEvent(eventName, payload = {}) {
     trackValidationEvent(eventName, payload);
     void trackAppEvent({
@@ -878,6 +871,7 @@ function App() {
   }
 
   function assignMealRecipe(dateKey, slotId, recipeId, quantity = 1, { silent = false } = {}) {
+    if (!requireHouseholdOwnerAction()) return;
     const recipe = getRecipe(recipeId);
     const slotLabel = slotLabelsById[slotId] ?? "餐次";
     updateMealPlanSlot(dateKey, slotId, (entries) => upsertMealEntry(entries, recipeId, quantity));
@@ -891,6 +885,7 @@ function App() {
   }
 
   function removeMealRecipe(dateKey, slotId, recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
     updateMealPlanSlot(dateKey, slotId, (entries) => removeMealEntry(entries, recipeId));
     if (dateKey === todayDateKey && slotId === "dinner") {
       const nextMenu = todayMenu.filter((item) => item.recipeId !== recipeId);
@@ -900,6 +895,7 @@ function App() {
   }
 
   function addToday(recipeId, quantity = 1) {
+    if (!requireHouseholdOwnerAction()) return;
     const recipe = getRecipe(recipeId);
     const currentDay = getCurrentPlanDay();
     const todayKey = formatDateKey(new Date());
@@ -994,6 +990,7 @@ function App() {
 
   function addWantToToday(item) {
     if (!item) return;
+    if (!requireHouseholdOwnerAction()) return;
     if (item.recipeId) {
       addToday(item.recipeId);
       completeWantToEatItem(item.id);
@@ -1011,6 +1008,7 @@ function App() {
   }
 
   function completeWantToEatItem(itemId) {
+    if (!canManageWantToEatItem(itemId)) return;
     const now = new Date().toISOString();
     setWantToEatItems((current) => current.map((item) => (
       item.id === itemId ? { ...item, status: "done", completedAt: now } : item
@@ -1028,11 +1026,25 @@ function App() {
   }
 
   function removeWantToEatItem(itemId) {
+    if (!canManageWantToEatItem(itemId)) return;
     setWantToEatItems((current) => current.filter((item) => item.id !== itemId));
     showNotice("已从想吃池子移除");
   }
 
+  function canManageWantToEatItem(itemId) {
+    if (!isHumiApiSession(humiSession) || family?.role === "owner") return true;
+    if (family?.role === "pending") {
+      showNotice("正在确认你在这个家的身份，请稍后再试。");
+      return false;
+    }
+    const item = wantToEatItems.find((candidate) => candidate.id === itemId);
+    if (item?.memberId === humiSession.user?.id) return true;
+    showNotice("家人只能维护自己放进想吃池子的内容。");
+    return false;
+  }
+
   function addRecommendedToday(selectedRecipeIds = null) {
+    if (!requireHouseholdOwnerAction()) return;
     const selectedIds = Array.isArray(selectedRecipeIds) ? new Set(selectedRecipeIds) : null;
     const recommendedItems = getRecommendationItems(displayedRecommendation)
       .filter((item) => !selectedIds || selectedIds.has(item.recipe.id))
@@ -1060,7 +1072,7 @@ function App() {
     });
   }
 
-  async function startCraveRequest(feelingTag) {
+  async function startCraveRequest(feelingTag, recipientIds = []) {
     if (!isHumiApiSession(humiSession)) {
       showNotice("登录主厨账号后，就能把征集卡片分享给家人。");
       navigateTo("user");
@@ -1079,6 +1091,7 @@ function App() {
         initiatorName: displaySession?.user?.displayName || "主厨",
         mealType: "dinner",
         initialFeelingTag: safeFeeling,
+        recipientIds,
       }, humiSession);
       const request = data.request;
       if (request?.token) {
@@ -1314,10 +1327,12 @@ function App() {
   }
 
   function recordBreakfast() {
+    if (!requireHouseholdOwnerAction()) return;
     pickForMeal("breakfast");
   }
 
   function setLunchSource(source) {
+    if (!requireHouseholdOwnerAction()) return;
     const now = new Date().toISOString();
     if (source === "home") {
       pickForMeal("lunch");
@@ -1344,6 +1359,7 @@ function App() {
   }
 
   function setDinnerSource(source) {
+    if (!requireHouseholdOwnerAction()) return;
     if (source === "home") {
       const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
       updateTodayMealLog({
@@ -1371,6 +1387,7 @@ function App() {
   }
 
   function setDinnerConfirmation(confirmation) {
+    if (!requireHouseholdOwnerAction()) return;
     const consumedEntries = confirmation === "all"
       ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
       : todayMealLog.consumedEntries ?? [];
@@ -1395,6 +1412,7 @@ function App() {
   }
 
   function quickConfirmDinner(result) {
+    if (!requireHouseholdOwnerAction()) return;
     const now = new Date().toISOString();
     if (result === "done") {
       const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
@@ -1527,6 +1545,7 @@ function App() {
   }
 
   function planRecommendedWeek() {
+    if (!requireHouseholdOwnerAction()) return;
     const currentDay = getCurrentPlanDay();
     const orderedDays = orderPlanDaysFrom(currentDay);
     const existingIds = new Set(Object.values(weekPlan).flat());
@@ -1750,6 +1769,7 @@ function App() {
   }
 
   function updateTodayQuantity(recipeId, delta) {
+    if (!requireHouseholdOwnerAction()) return;
     const nextMenu = todayMenu
       .map((item) =>
         item.recipeId === recipeId
@@ -1788,6 +1808,7 @@ function App() {
   }
 
   function removeFromTodayEverywhere(recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
     const nextMenu = todayMenu.filter((item) => item.recipeId !== recipeId);
     const todayKey = formatDateKey(new Date());
     const currentDay = getCurrentPlanDay();
@@ -1815,6 +1836,7 @@ function App() {
   }
 
   function assignPlan(day, recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
     if ((weekPlan[day] ?? []).includes(recipeId)) {
       showNotice(`已在${day}计划中`);
       return;
@@ -1863,6 +1885,7 @@ function App() {
   }
 
   function removeDatePlan(dateKey, recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
     if (dateKey === formatDateKey(new Date())) {
       removeMealRecipe(dateKey, "dinner", recipeId);
       showNotice("已从今晚安排移除");
@@ -1876,6 +1899,7 @@ function App() {
   }
 
   function addCustomItem(name) {
+    if (!requireHouseholdOwnerAction()) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     setCustomItems((current) => [
@@ -1886,6 +1910,7 @@ function App() {
   }
 
   function removeCustomItem(key) {
+    if (!requireHouseholdOwnerAction()) return;
     setCustomItems((current) => current.filter((item) => item.key !== key));
   }
 
@@ -1949,6 +1974,7 @@ function App() {
   }
 
   function excludeGroceryItem(itemOrKey) {
+    if (!requireHouseholdOwnerAction()) return;
     const key = typeof itemOrKey === "string" ? itemOrKey : itemOrKey?.hiddenKey;
     if (!key) return;
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
@@ -1958,17 +1984,20 @@ function App() {
   }
 
   function restoreGroceryItem(item) {
+    if (!requireHouseholdOwnerAction()) return;
     setExcludedGroceryKeys((current) => current.filter((itemKey) => itemKey !== item.hiddenKey));
     setPantryItems((current) => current.filter((pantryItem) => normalizeName(pantryItem.name) !== normalizeName(item.name)));
   }
 
   function restoreAllGroceryItems() {
+    if (!requireHouseholdOwnerAction()) return;
     const hiddenNames = new Set(excludedGroceryItems.map((item) => normalizeName(item.name)));
     setExcludedGroceryKeys([]);
     setPantryItems((current) => current.filter((item) => !hiddenNames.has(normalizeName(item.name))));
   }
 
   function markPantryItemsOwned() {
+    if (!requireHouseholdOwnerAction()) return;
     const pantryItemsToAdd = visibleGroceryItems.filter((item) => item.pantryItem);
     if (pantryItemsToAdd.length === 0) {
       showNotice("当前没有常备项需要处理");
@@ -2917,6 +2946,7 @@ function App() {
   };
 
   function saveFamilyProfile(nextProfile) {
+    if (!requireHouseholdOwnerAction()) return;
     const normalizedProfile = {
       ...defaultFamilyProfile,
       ...nextProfile,
@@ -2986,6 +3016,7 @@ function App() {
   }
 
   function addRecipeFromLibrary(recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
     if (!libraryMealSlot || libraryMealSlot === "dinner") {
       addToday(recipeId);
       return;
@@ -3008,6 +3039,7 @@ function App() {
   }
 
   function updateLibraryQuantity(recipeId, delta) {
+    if (!requireHouseholdOwnerAction()) return;
     if (!libraryMealSlot || libraryMealSlot === "dinner") {
       updateTodayQuantity(recipeId, delta);
       return;
@@ -3214,6 +3246,8 @@ function App() {
                 onSetLunchSource={setLunchSource}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("dashboard")}
+                householdMembers={family?.members ?? []}
+                currentMemberId={humiSession?.user?.id || displaySession?.user?.id || ""}
                 familyProfile={familyProfile}
                 groceryItemCount={visibleGroceryItems.length}
                 onSelectPlanningMode={selectPlanningMode}
@@ -3858,7 +3892,7 @@ function createHumiSessionFamily(humiSession) {
   return {
     id: `humi:${humiSession.user.id}`,
     name: "我的家",
-    role: "owner",
+    role: "pending",
     provider: "wechat",
   };
 }
