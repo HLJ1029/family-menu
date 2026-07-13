@@ -79,7 +79,7 @@
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
 | 家庭订阅真实支付结算 | 待用户确认 | 确认 1.1 接入微信支付，或明确将结算列入 1.2；当前已完成精准尝鲜、Plus 权益和 API 成本闸门，但没有支付下单闭环 |
-| 三类小程序原生分享发送框视觉复核 | 进行中 | OCR 语义门禁已确认买菜卡片；征集与邀请历史截图无效，待 Mac 解锁后在当前分支重新截取 |
+| 三类小程序原生分享发送框视觉复核 | 进行中 | 当前候选已生成三张 landing、直达二维码和通用预览二维码；未沿用历史卡片，三类发送框都待 Mac 解锁后重新截取并通过 OCR |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |

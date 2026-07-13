@@ -42,6 +42,7 @@
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `117cd3e` / Pages run `28726626647` success / `release:next` 与 `release:closure` 均停在用户确认点 |
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `2527e30` / Pages run `28744383941` success / 新增只读 `npm run release:map` 收口地图命令 |
 | 2026-07-13 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` | 阻止收口 | 新增 Vision OCR 语义门禁后发现历史证据误判：`grocery-card.png` 有虚拟好友发送框并通过；`crave-card.png` 缺发送框，`invite-card.png` 为无关截图，二者必须重截 |
+| 2026-07-13 | codex@mbp-m5pro | `release:wechat:share:landings` / `release:wechat:share:direct-previews` | 当前候选准备完成 | 新建私有目录 `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457`；三张 landing、三张直达确认页二维码和通用预览二维码来自当前分支，未复制历史原生卡片，三类发送框均待重截 |
 
 ## 3. 生产 API 补部署证据
 

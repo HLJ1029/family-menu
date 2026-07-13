@@ -100,7 +100,7 @@
 | WX-01 | `crave`/`invite`/`grocery` 三类小程序卡片路径 | 已完成 | `release:wechat:share:selftest` |
 | WX-02 | 清单与征集按钮真实调用 `postMessage + navigateTo` | 已完成 | `release:product:smoke` |
 | WX-03 | 三类 token 落地页不自动登录 | 已完成 | `release:collaboration:smoke` |
-| WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 进行中 | OCR 语义门禁已验证 `grocery-card.png`；历史 `crave-card.png`、`invite-card.png` 无效，待 Mac 解锁后在当前分支重截 |
+| WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 进行中 | 历史截图已由 OCR 语义门禁纠错；当前候选干净证据目录已生成 landing 与直达二维码，三类原生发送框待 Mac 解锁后在当前分支重截 |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |

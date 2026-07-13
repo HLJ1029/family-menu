@@ -71,7 +71,7 @@
 - [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
   - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:landings`，`npm run release:wechat:share:direct-previews`，`npm run release:pre-review:evidence`，`npm run release:wechat:share:devtools`，`npm run release:wechat:share:cards:capture -- --interactive`，`npm run release:wechat:share:evidence`，`npm run release:wechat:share:complete`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
-  - 当前事实：代码层三类标题、path、token 落地和三张 H5 landing 均已通过；2026-07-13 新增 Vision OCR 语义门禁后，历史 `grocery-card.png` 通过，但 `crave-card.png` 未显示虚拟好友发送框，`invite-card.png` 是无关桌面截图。需在当前分支重新截取征集与邀请原生发送框后，再运行 `npm run release:wechat:share:evidence` 和视觉确认命令勾选本项。
+  - 当前事实：代码层三类标题、path、token 落地和三张 H5 landing 均已通过；2026-07-13 新增 Vision OCR 语义门禁后，历史 `grocery-card.png` 通过，但 `crave-card.png` 未显示虚拟好友发送框，`invite-card.png` 是无关桌面截图。当前候选已新建干净证据目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457`，三张 landing、三张直达确认页二维码和通用预览二维码均来自当前分支；三类原生发送框都需在该目录重新截取，再运行 evidence 与视觉确认命令勾选本项。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：P0/P1 完成后，`release:next` 当前阶段为“1.1 生产候选完善与内测验证，暂不进入微信审核”；AI-HQ 状态同步该策略。
   - 验证：`npm run release:next`，`npm run release:status`，`npm run release:product:review`。
@@ -85,7 +85,7 @@
 
 ## 当前建议顺序
 
-1. 解锁 Mac 后在微信开发者工具重新截取 `crave-card.png` 与 `invite-card.png`，让 OCR 语义门禁和人工视觉复核同时通过。
+1. 解锁 Mac 后在微信开发者工具为当前候选重新截取 `crave-card.png`、`invite-card.png`、`grocery-card.png`，让 OCR 语义门禁和人工视觉复核同时通过。
 2. 运行 `npm run release:product:review`，确认关键产品体验锚点仍可由源码、文档和证据共同证明。
 3. 填写私有 U001-U020 候选反馈后，运行 `npm run release:candidate:review`，确认达到真实样本阈值且无 P0/P1。
 4. 候选复盘达标后，再运行 `npm run release:wechat:check`，确认提交审核前材料与域名/隐私核对项为通过。
