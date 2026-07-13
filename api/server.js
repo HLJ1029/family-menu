@@ -110,6 +110,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const householdInviteWantMatch = url.pathname.match(/^\/household-invites\/([^/]+)\/wants$/);
+      if (request.method === "POST" && householdInviteWantMatch) {
+        await handleAddHouseholdInviteWant(request, response, householdInviteWantMatch[1]);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/state") {
         await handleGetState(request, response);
         return;
@@ -379,6 +385,30 @@ async function handleGetHouseholdInvite(response, token) {
   sendJson(response, 200, { invite: toPublicHouseholdInvite(invite) });
 }
 
+async function handleAddHouseholdInviteWant(request, response, token) {
+  const body = await readJson(request);
+  try {
+    const result = await store.addHouseholdInviteWant(token, {
+      participantKey: stringValue(body.participantKey, 80),
+      memberName: stringValue(body.memberName, 32),
+      title: stringValue(body.title, 40),
+    });
+    if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+    sendJson(response, 201, {
+      invite: toPublicHouseholdInvite(result.invite),
+      want: toPublicWantToEatItem(result.want),
+    });
+  } catch (error) {
+    if (error.code === "invite_closed") {
+      throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    }
+    if (error.code === "missing_participant_key" || error.code === "missing_want_title") {
+      throw httpError(400, error.code, "请写下想吃的菜，再告诉主厨。");
+    }
+    throw error;
+  }
+}
+
 async function handleJoinHouseholdInvite(request, response, token) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
@@ -387,6 +417,7 @@ async function handleJoinHouseholdInvite(request, response, token) {
   try {
     const result = await store.acceptHouseholdInvite(token, user.id, {
       memberName: stringValue(body.memberName, 32) || user.displayName,
+      participantKey: stringValue(body.participantKey, 80),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
     const state = await store.getState(user.id);
@@ -688,6 +719,18 @@ function toPublicHouseholdInvite(invite) {
   };
 }
 
+function toPublicWantToEatItem(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    memberName: item.memberName,
+    status: item.status,
+    temporary: Boolean(item.temporary),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
 async function requireAuth(request) {
   const token = getBearerToken(request);
   if (!token) throw httpError(401, "missing_token", "Authorization bearer token is required.");
@@ -957,7 +1000,10 @@ function sanitizeWantToEatItem(item = {}) {
     memberId: stringValue(item.memberId),
     memberName: stringValue(item.memberName) || "家人",
     status: item.status === "done" ? "done" : "open",
+    temporary: Boolean(item.temporary),
+    source: stringValue(item.source, 40),
     createdAt: stringValue(item.createdAt),
+    updatedAt: stringValue(item.updatedAt),
     completedAt: stringValue(item.completedAt),
   };
 }

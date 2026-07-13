@@ -45,7 +45,7 @@
 | 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
 | 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人也只能维护自己的想吃条目 |
 | 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
-| 家人打开分享卡片先免登录参与 | 已完成 | `src/components/CraveLanding.jsx` 与 `GroceryShareLanding.jsx` 支持公开 token 落地与临时参与 |
+| 家人打开分享卡片先免登录参与 | 已完成 | `CraveLanding.jsx` 可投感觉、`GroceryShareLanding.jsx` 可认领买菜、`InviteLanding.jsx` 可丢想吃；三者都使用公开 token 与临时身份，无需先登录 |
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
 | 主厨可“我自己做主”，单人也能走完 | 已完成 | `Dashboard.jsx` 与 `UserCenter.jsx` 的 `onDecideAlone` 路径；无人参与也可出菜单 |
@@ -56,14 +56,14 @@
 | 每道菜展示“为什么推它” | 已完成 | `Dashboard.jsx` 的 `buildDishReason` 结合家人感觉、后台已有、忌口和推荐来源 |
 | 晚间轻确认包含“不记录” | 已完成 | `Dashboard.jsx` 的 `dinnerSources` 包含 `skip/不记录`，晚饭确认区也有 `不记录` |
 | 买菜认领可回传，且防重复认领/覆盖 | 已完成 | `GroceryShareLanding.jsx` 与 `api/store.js` claims；`validate:api` 覆盖 409 冲突 |
-| 想吃池子可由家人/主厨沉淀并参与推荐 | 已完成 | `UserCenter.jsx` 想吃池子入口；`src/lib/recommendation/rules.js` 使用 `wantToEatItems` 排序 |
+| 想吃池子可由家人/主厨沉淀并参与推荐 | 已完成 | 正式成员在 `UserCenter.jsx` 维护自己的条目；临时家人从邀请卡免登录提交，加入后归并正式身份；`src/lib/recommendation/rules.js` 使用 `wantToEatItems` 排序 |
 | 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
 | 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
 | 推荐参考本家最近饮食且不跨请求污染 | 已完成 | `collectRecentRecipeIds` 每次从本家周计划与 `mealLogs` 建集；`validate:recommendation` 同时验证降重与请求隔离 |
 | 历史感觉和做饭确认会反哺后续推荐 | 已完成 | `collectLearnedCraveVotes` 只读取已结束征集；`collectMealHistoryTaste` 从确认吃过的菜提取常做类型轻加分，同时保留同一道菜近期降权；`validate:recommendation` 覆盖 |
 | 推荐权益不可由客户端升级 | 已完成 | `api/store.js` 的 `mergeClientRecommendationAccess` 保持服务端 plan，次数只能消耗不能恢复；`validate:api` 覆盖伪造 Plus 和重置次数 |
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
-| 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请先展示价值后登录，且不会自动发起微信登录 |
+| 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请免登录丢想吃且先展示价值后登录，并确认不会自动发起微信登录 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery` | 已完成 | `miniprogram/pages/index/index.js` 与 H5 落地页组件覆盖三类 token |
 | 清单分享与感觉征集确实唤起小程序原生分享页 | 已完成 | `release:product:smoke` 模拟 `wx.miniProgram`，点击验证 `postMessage` 与 `/pages/share/index?type=grocery|crave` 两个动作 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |

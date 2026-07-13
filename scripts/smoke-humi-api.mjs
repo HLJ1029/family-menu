@@ -392,6 +392,25 @@ try {
   assert(householdInvite.invite?.householdId === loadedStateEnvelope.family.id, "household invite should attach household");
   const publicInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}`);
   assert(publicInvite.invite?.householdName === loadedStateEnvelope.family.name, "public invite should expose household name");
+  const temporaryInviteWant = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}/wants`, {
+    method: "POST",
+    body: {
+      participantKey: "temporary-invite-want-smoke",
+      memberName: "想吃面的家人",
+      title: "牛肉面",
+    },
+  });
+  assert(temporaryInviteWant.want?.title === "牛肉面", "invite guest should add a want-to-eat item without login");
+  assert(temporaryInviteWant.want?.temporary === true, "invite guest want should remain temporary before joining");
+  const stateWithTemporaryInviteWant = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    stateWithTemporaryInviteWant.state?.wantToEatItems?.some((item) => (
+      item.title === "牛肉面" && item.memberId === "temporary:temporary-invite-want-smoke"
+    )),
+    "invite guest want should persist in the household want-to-eat pool",
+  );
   const invitedLogin = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `invite-member-smoke-${runId}` },
@@ -399,7 +418,7 @@ try {
   const joinedInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${invitedLogin.accessToken}` },
-    body: { memberName: "被邀请的家人" },
+    body: { memberName: "被邀请的家人", participantKey: "temporary-invite-want-smoke" },
   });
   assert(joinedInvite.family?.role === "member", "invite joiner should see member role");
   assert(
@@ -408,7 +427,13 @@ try {
   );
   assert(joinedInvite.households?.some((household) => household.id === loadedStateEnvelope.family.id), "invite joiner should receive households");
   assert(joinedInvite.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "invite joiner should immediately receive shared household state");
-  assert(joinedInvite.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "invite joiner should immediately receive shared want-to-eat pool");
+  assert(joinedInvite.state?.wantToEatItems?.some((item) => item.title === "麻婆豆腐"), "invite joiner should immediately receive shared want-to-eat pool");
+  assert(
+    joinedInvite.state?.wantToEatItems?.some((item) => (
+      item.title === "牛肉面" && item.memberId === invitedLogin.user.id && item.temporary === false
+    )),
+    "joining should merge the invite guest want into the formal member identity",
+  );
   try {
     await request(`${baseUrl}/household-invites`, {
       method: "POST",

@@ -266,6 +266,58 @@ export class HumiStore {
     return this.data.householdInvites.find((item) => item.token === token) ?? null;
   }
 
+  async addHouseholdInviteWant(token, payload = {}) {
+    await this.load();
+    const invite = this.data.householdInvites.find((item) => item.token === token);
+    if (!invite) return null;
+    if (invite.status !== "open") {
+      const error = new Error("Invite is closed.");
+      error.code = "invite_closed";
+      throw error;
+    }
+    const participantKey = sanitizeText(payload.participantKey, "", 80);
+    if (!participantKey) {
+      const error = new Error("Participant key is required.");
+      error.code = "missing_participant_key";
+      throw error;
+    }
+    const title = sanitizeText(payload.title, "", 40);
+    if (!title) {
+      const error = new Error("Want title is required.");
+      error.code = "missing_want_title";
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const temporaryMemberId = `temporary:${participantKey}`;
+    const currentState = this.data.householdStates[invite.householdId] ?? {};
+    const currentItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+    const existing = currentItems.find((item) => item.memberId === temporaryMemberId && item.status !== "done");
+    const want = {
+      id: existing?.id || `want:${randomUUID()}`,
+      title,
+      recipeId: "",
+      note: "",
+      memberId: temporaryMemberId,
+      memberName: sanitizeText(payload.memberName, "家人", 32),
+      status: "open",
+      temporary: true,
+      source: "household_invite",
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      completedAt: "",
+    };
+    this.data.householdStates[invite.householdId] = {
+      ...currentState,
+      householdId: invite.householdId,
+      wantToEatItems: [want, ...currentItems.filter((item) => item.id !== want.id)].slice(0, 200),
+      updatedAt: now,
+    };
+    invite.updatedAt = now;
+    await this.save();
+    return { invite, want };
+  }
+
   async acceptHouseholdInvite(token, userId, options = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
@@ -277,6 +329,26 @@ export class HumiStore {
     }
     const household = await this.addHouseholdMember(invite.householdId, userId, options);
     const now = new Date().toISOString();
+    const participantKey = sanitizeText(options.participantKey, "", 80);
+    if (participantKey) {
+      const temporaryMemberId = `temporary:${participantKey}`;
+      const currentState = this.data.householdStates[invite.householdId] ?? {};
+      this.data.householdStates[invite.householdId] = {
+        ...currentState,
+        wantToEatItems: (Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : []).map((item) => (
+          item.memberId === temporaryMemberId
+            ? {
+                ...item,
+                memberId: userId,
+                memberName: sanitizeText(options.memberName, item.memberName || "家人", 32),
+                temporary: false,
+                updatedAt: now,
+              }
+            : item
+        )),
+        updatedAt: now,
+      };
+    }
     invite.acceptedMemberIds = [...new Set([...(invite.acceptedMemberIds ?? []), userId])];
     invite.acceptedAt = now;
     invite.updatedAt = now;

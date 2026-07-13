@@ -54,7 +54,7 @@
 | COL-05 | 投票后再引导登录加入家庭 | 已完成 | `CraveSubmittedSheet`、`joinCraveRequest`；`validate:api` |
 | COL-06 | 临时 vote 登录后合并到正式成员 | 已完成 | `claimCraveVote`；`validate:api` |
 | COL-07 | 买菜认领免登录、可回传、防重复 | 已完成 | `GroceryShareLanding.jsx`；`release:collaboration:smoke`、`validate:api` |
-| COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | `WantToEatRow`、`mergeMemberWritableState`；成员边界 smoke |
+| COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | 正式成员使用 `WantToEatRow`；临时家人在 `InviteLanding` 免登录提交，`/household-invites/:token/wants` 写入家庭想吃池，加入后归并正式身份；API 与游客 smoke 覆盖 |
 | COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | 今晚页头像可直达【我的家】；`family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证入口、买菜/做饭/想吃三类动态和 DOM 顺序 |
 | COL-10 | 征集状态能跨登录/设备恢复，且不泄露 owner secret | 已完成 | `sanitizeCraveSignal`、`setCraveSignals`；`validate:api` |
 

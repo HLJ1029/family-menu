@@ -50,6 +50,14 @@ export async function loadHouseholdInvite(token) {
   return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}`);
 }
 
+export async function submitHouseholdInviteWant(token, payload = {}) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}/wants`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export async function joinHouseholdInvite(token, session, payload = {}) {
   if (!token) throw new Error("家庭邀请不完整。");
   return humiApiRequest(`/household-invites/${encodeURIComponent(token)}/join`, {

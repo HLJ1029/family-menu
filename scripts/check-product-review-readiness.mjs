@@ -72,7 +72,7 @@ const REQUIRED_CHECKS = [
     path: "package.json",
     required: ["release:collaboration:smoke"],
     evidence: "scripts/smoke-collaboration-landings.mjs",
-    evidenceRequired: ["免登录参与", "不用先做设置", "一家人的饭放在一起", "auth/wechat/login"],
+    evidenceRequired: ["免登录参与", "不用先做设置", "一家人的饭放在一起", "invite-guest-want-posted-without-login", "auth/wechat/login"],
   },
   {
     key: "inventory-is-behavior-not-a-page",

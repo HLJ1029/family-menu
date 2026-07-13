@@ -22,6 +22,7 @@ try {
   const authRequests = [];
   let craveVotePayload = null;
   let groceryClaimPayload = null;
+  let inviteWantPayload = null;
   let craveRequest = buildCraveRequest();
   let groceryShare = buildGroceryShare();
 
@@ -78,6 +79,17 @@ try {
       },
     });
   });
+  await page.route("**/household-invites/invite-guest-smoke/wants", async (route) => {
+    inviteWantPayload = route.request().postDataJSON();
+    await fulfillJson(route, {
+      want: {
+        id: "invite-want-smoke",
+        title: inviteWantPayload.title,
+        memberName: inviteWantPayload.memberName || "家人",
+        temporary: true,
+      },
+    });
+  });
 
   await page.goto(withQuery(baseUrl, "crave", "crave-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "你想吃点啥？" }).waitFor({ timeout: 15_000 });
@@ -107,6 +119,10 @@ try {
   await page.goto(withQuery(baseUrl, "invite", "invite-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "加入 周末小家" }).waitFor({ timeout: 15_000 });
   const inviteValueVisible = await page.getByRole("heading", { name: "一家人的饭放在一起" }).isVisible();
+  await page.getByPlaceholder("例如：牛肉面").fill("牛肉面");
+  await page.getByPlaceholder("怎么称呼你？").fill("想吃面的家人");
+  await page.getByRole("button", { name: "告诉主厨" }).click();
+  await page.getByText("“牛肉面”已放进这个家的想吃池。").waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "加入这个家" }).click();
   await page.getByText("请从微信小程序里打开这个邀请，登录后就能加入。").waitFor({ timeout: 15_000 });
   const inviteScreenshot = join(evidenceDir, "invite-guest-mobile.png");
@@ -120,6 +136,7 @@ try {
     { key: "grocery-first-screen-is-guest-usable", ok: groceryFirstScreen },
     { key: "grocery-claim-posted-without-login", ok: groceryClaimPayload?.itemKey === "custom:milk", actual: groceryClaimPayload },
     { key: "invite-shows-value-before-login", ok: inviteValueVisible },
+    { key: "invite-guest-want-posted-without-login", ok: inviteWantPayload?.title === "牛肉面", actual: inviteWantPayload },
     { key: "landings-do-not-auto-login", ok: authRequests.length === 0, actual: authRequests },
     { key: "page-errors", ok: pageErrors.length === 0, actual: pageErrors },
   ];
