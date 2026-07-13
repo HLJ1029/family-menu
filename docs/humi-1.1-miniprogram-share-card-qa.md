@@ -66,7 +66,7 @@ npm run release:wechat:share:prepare
 npm run release:wechat:share:doctor
 ```
 
-该命令只读检查微信开发者工具 CLI、小程序项目目录、私有证据目录、当前还缺的截图，以及 macOS 是否处于 `UserIsActive=0`。如果屏幕已锁定，请先解锁 Mac，再运行开发者工具和交互截图命令；否则 CLI 可能返回打开成功，但实际窗口无法被继续操作。
+该命令只读检查微信开发者工具 CLI、小程序项目目录、私有证据目录、当前缺失或语义无效的截图，以及 macOS 是否处于 `UserIsActive=0`。它复用 `release:wechat:share:evidence` 的 OCR 语义门禁，不再把“文件存在”误报为卡片有效。如果屏幕已锁定，请先解锁 Mac，再运行开发者工具和交互截图命令；否则 CLI 可能返回打开成功，但实际窗口无法被继续操作。
 
 ## 打开开发者工具与证据目录
 
