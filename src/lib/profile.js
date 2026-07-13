@@ -66,15 +66,8 @@ export function getProfileCompletedCount(profile = {}) {
 }
 
 export function formatProfileSummary(profile = {}) {
-  const mode = getPlanningMode(profile.planningMode);
   const avoid = [...(profile.dislikes ?? []), ...(profile.allergies ?? [])];
-  const parts = [
-    `${profile.familySize ?? 2} 人`,
-    mode.shortLabel,
-    profile.hasChildren ? "有孩子" : "",
-    avoid.length > 0 ? `避开 ${avoid.slice(0, 3).join("、")}` : "",
-  ].filter(Boolean);
-  return parts.join(" · ");
+  return avoid.length > 0 ? `避开 ${avoid.slice(0, 3).join("、")}` : "暂无忌口";
 }
 
 export function buildCompactFamilyPrompt(profile = {}) {

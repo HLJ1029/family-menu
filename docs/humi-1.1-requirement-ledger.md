@@ -32,7 +32,7 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | MEAL-01 | 晚饭仍是首屏主角，主行动在手机首屏内 | 已完成 | `Dashboard.jsx`；`tonight-primary-action-is-in-first-viewport` 实测按钮底部不进入导航遮挡区，早午餐位于晚饭决策之后 |
-| MEAL-02 | 早餐是轻量选择，不擅自记默认菜 | 已完成 | `breakfast-empty-before-user-pick`、`breakfast-does-not-default-to-seaweed-soup` |
+| MEAL-02 | 早餐是轻量选择，不擅自记默认菜 | 已完成 | `BreakfastQuickPicker.jsx` 先展示常吃早餐，`更多早餐选择` 才进入早餐分类；产品 smoke 验证选择前为空、只写入用户点选菜且不默认紫菜蛋花汤 |
 | MEAL-03 | 午餐以来源记录为主，在家做才选菜 | 已完成 | 产品 smoke 真实点击午餐“在家做”，验证选择前为空、用户点青椒土豆丝后才写入，且不会默认紫菜蛋花汤 |
 | MEAL-04 | 三餐食材统一汇总清单 | 已完成 | `mealPlanEntriesForGroceries`；`validate:api` |
 | MEAL-05 | 晚间确认含做了/换了/外食/不记录 | 已完成 | `quickConfirmDinner`、`Dashboard.jsx` |
@@ -43,6 +43,7 @@
 | LIST-05 | 营养视图归【我的家】，不占清单入口 | 已完成 | `nutrition-entry-is-not-on-grocery-tab`；`UserCenter.jsx` |
 | LIST-06 | 清单空状态中性、无大插图 | 已完成 | `NeutralEmptyState`；`GroceryList.jsx` |
 | PROFILE-01 | 用户只主动维护忌口/过敏，不填写软口味、规划目标或营养目标表 | 已完成 | `ProfileOnboarding.jsx` 首次只问硬约束且可无忌口直接开始；【我的家】只暴露“修改忌口”；产品 smoke 与产品审查禁止旧软画像控件回归 |
+| PROFILE-02 | 营养和口味是行为回看层，不要求用户主动维护目标 | 已完成 | `StatsPage.jsx` 只展示近期状态、营养回看和参考范围；产品 smoke 验证不存在目标管理、完成度或修改目标入口 |
 
 ## 3. 家庭协作与身份
 
@@ -50,12 +51,12 @@
 | --- | --- | --- | --- |
 | COL-01 | Household 多成员共享同一份菜单、清单和画像 | 已完成 | `api/store.js`；`validate:api` 的 owner/member 共享状态 |
 | COL-02 | 一人可属于多个家并切换 | 已完成 | `/households`、`/households/active`；`validate:api` |
-| COL-03 | 主厨可发起/定菜单/管理家；家人只参与 | 已完成 | `mergeMemberWritableState`；成员 UI/API 点击边界 smoke |
+| COL-03 | 主厨可发起/定菜单/管理家；家人只参与 | 已完成 | `mergeMemberWritableState`；成员 UI/API 点击边界 smoke；家人只读查看家庭忌口且不显示早午餐编辑按钮 |
 | COL-04 | 家人首次免登录点感觉 | 已完成 | `CraveLanding.jsx`；`release:collaboration:smoke` |
 | COL-05 | 投票后再引导登录加入家庭 | 已完成 | `CraveSubmittedSheet`、`joinCraveRequest`；`validate:api` |
 | COL-06 | 临时 vote 登录后合并到正式成员 | 已完成 | `claimCraveVote`；`validate:api` |
 | COL-07 | 买菜认领免登录、可回传、防重复 | 已完成 | `GroceryShareLanding.jsx`；`release:collaboration:smoke`、`validate:api` |
-| COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | 正式成员使用 `WantToEatRow`；临时家人在 `InviteLanding` 免登录提交，`/household-invites/:token/wants` 写入家庭想吃池，加入后归并正式身份；API 与游客 smoke 覆盖 |
+| COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | 正式成员在完整菜品库使用“加入想吃池子”而不是修改菜单，也可使用 `WantToEatRow`；临时家人在 `InviteLanding` 免登录提交并在加入后归并正式身份；API 与产品/游客 smoke 覆盖 |
 | COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | 今晚页头像可直达【我的家】；`family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证入口、买菜/做饭/想吃三类动态和 DOM 顺序 |
 | COL-10 | 征集状态能跨登录/设备恢复，且不泄露 owner secret | 已完成 | `sanitizeCraveSignal`、`setCraveSignals`；`validate:api` |
 

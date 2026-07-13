@@ -73,7 +73,7 @@ export function UserCenter({
   const currentUserId = humiSession?.user?.id || session?.user?.id || "";
   const currentFamilyMember = family?.members?.find((member) => member.memberId === currentUserId);
   const familyRole = family?.role || currentFamilyMember?.role || (family?.members?.length ? "member" : "owner");
-  const canManageHouseholdMenu = !humiSession || familyRole === "owner";
+  const canManageHouseholdMenu = !family || familyRole === "owner";
   const familyMembers = family?.members ?? [];
   const askableFamilyMembers = familyMembers.filter((member) => (
     member?.memberId && member.memberId !== currentUserId && member.status !== "temporary"
@@ -535,10 +535,14 @@ export function UserCenter({
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="eyebrow">设置</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">需要改时再进入</h3>
+              <p className="eyebrow">{canManageHouseholdMenu ? "设置" : "家庭忌口"}</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+                {canManageHouseholdMenu ? "需要改时再进入" : "主厨统一维护"}
+              </h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                这里只改家里不能吃的东西。其他口味由感觉征集和做饭确认慢慢学，不需要维护。
+                {canManageHouseholdMenu
+                  ? "这里只改家里不能吃的东西。其他口味由感觉征集和做饭确认慢慢学，不需要维护。"
+                  : "这里展示全家共用的忌口和过敏；需要调整时由主厨修改，避免多人同时覆盖。"}
               </p>
             </div>
             <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/45">
@@ -546,11 +550,17 @@ export function UserCenter({
             </span>
           </div>
           <div className="mt-4 grid gap-2">
-            <UtilityButton icon={ShieldAlert} label="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+            {canManageHouseholdMenu ? (
+              <UtilityButton icon={ShieldAlert} label="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+            ) : (
+              <div data-testid="family-constraints-readonly" className="rounded-[18px] border border-line bg-canvas px-4 py-3 text-sm font-black text-ink/58">
+                {formatProfileSummary(familyProfile)}
+              </div>
+            )}
           </div>
         </section>
 
-        {activeSettings === "profile" && (
+        {canManageHouseholdMenu && activeSettings === "profile" && (
           <FamilyProfilePanel
             profile={familyProfile}
             setProfile={setFamilyProfile}
@@ -672,7 +682,7 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activ
             {family ? `${family.name}里的${roleLabel}` : signedIn ? "先创建我的家" : "登录后再加入我的家"}
           </h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            主厨负责发起征集、定菜单和保存画像；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
+            主厨负责发起征集、定菜单和管理家庭忌口；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
           </p>
         </div>
         <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
@@ -685,7 +695,7 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activ
           icon={ChefHat}
           title="主厨能力"
           active={isOwner || !family}
-          lines={["发起问问大家", "定今晚菜单", "维护家庭画像"]}
+          lines={["发起问问大家", "定今晚菜单", "管理家庭忌口"]}
         />
         <PermissionCard
           icon={Users}

@@ -16,6 +16,8 @@ export function Library({
   onClearTargetMeal,
   onOpenRecipe,
   onDragStart,
+  canManageMenu = true,
+  actionLabelOverride,
 }) {
   const quantityByRecipe = Object.fromEntries(menuQuantities.map((item) => [item.recipeId, item.quantity]));
   const recipeSource = allRecipes.length > 0 ? allRecipes : visibleRecipes;
@@ -29,7 +31,7 @@ export function Library({
   const selectedIds = new Set(selectedRecipes.map((recipe) => recipe.id));
   const remainingRecipes = visibleRecipes.filter((recipe) => !selectedIds.has(recipe.id));
   const pickingMeal = Boolean(targetMealSlot && targetMealSlot !== "dinner");
-  const actionLabel = pickingMeal ? `加入${targetMealLabel || "这一餐"}` : "补进今晚";
+  const actionLabel = actionLabelOverride ?? (pickingMeal ? `加入${targetMealLabel || "这一餐"}` : "补进今晚");
 
   return (
     <section>
@@ -39,6 +41,7 @@ export function Library({
           title={pickingMeal ? `${targetMealLabel || "这一餐"}已选择` : "今晚已安排"}
           onOpenRecipe={onOpenRecipe}
           onUpdateQuantity={onUpdateQuantity}
+          canManageMenu={canManageMenu}
         />
       )}
       <div className="mb-4 flex items-end justify-between gap-3">
@@ -90,6 +93,7 @@ export function Library({
             onOpen={onOpenRecipe}
             onDragStart={onDragStart}
             actionLabel={actionLabel}
+            canManageMenu={canManageMenu}
           />
         ))}
       </div>
@@ -112,7 +116,7 @@ export function Library({
   );
 }
 
-function SelectedRecipesPanel({ recipes, title, onOpenRecipe, onUpdateQuantity }) {
+function SelectedRecipesPanel({ recipes, title, onOpenRecipe, onUpdateQuantity, canManageMenu }) {
   return (
     <section data-testid="selected-recipes-panel" className="mb-5 rounded-[24px] border border-line bg-white p-4 shadow-card sm:p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -131,11 +135,11 @@ function SelectedRecipesPanel({ recipes, title, onOpenRecipe, onUpdateQuantity }
             <div className="min-w-0 flex-1">
               <button type="button" onClick={() => onOpenRecipe(recipe.id)} className="block w-full truncate text-left text-base font-black">{recipe.name}</button>
               <p className="mt-1 text-xs font-bold text-ink/45">{recipe.categories[0]} · {recipe.timeMinutes} min</p>
-              <div className="mt-2 flex items-center gap-2">
+              {canManageMenu ? <div className="mt-2 flex items-center gap-2">
                 <button type="button" onClick={() => onUpdateQuantity(recipe.id, -1)} className="grid h-8 w-8 place-items-center rounded-full bg-canvas" aria-label={`减少 ${recipe.name}`}><Minus size={14} /></button>
                 <span className="min-w-8 text-center text-xs font-black">{recipe.menuQuantity ?? 1} 份</span>
                 <button type="button" onClick={() => onUpdateQuantity(recipe.id, 1)} className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white" aria-label={`增加 ${recipe.name}`}><Plus size={14} /></button>
-              </div>
+              </div> : <p className="mt-2 text-xs font-bold text-ink/42">主厨已安排 {recipe.menuQuantity ?? 1} 份</p>}
             </div>
           </article>
         ))}
@@ -144,11 +148,11 @@ function SelectedRecipesPanel({ recipes, title, onOpenRecipe, onUpdateQuantity }
   );
 }
 
-function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragStart, actionLabel }) {
+function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragStart, actionLabel, canManageMenu }) {
   return (
     <article
       data-testid="recipe-card"
-      draggable
+      draggable={canManageMenu}
       onDragStart={() => onDragStart(recipe.id)}
       onClick={() => onOpen(recipe.id)}
       className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
@@ -179,12 +183,14 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
             </span>
           </div>
         </div>
-        <RecipeQuantityControl
-          recipe={recipe}
-          quantity={quantity}
-          onAdd={onAdd}
-          onUpdateQuantity={onUpdateQuantity}
-        />
+        {canManageMenu && (
+          <RecipeQuantityControl
+            recipe={recipe}
+            quantity={quantity}
+            onAdd={onAdd}
+            onUpdateQuantity={onUpdateQuantity}
+          />
+        )}
       </div>
       <div className="grid gap-3 p-3 sm:p-4">
         <p className="line-clamp-2 min-h-10 text-xs font-bold leading-5 text-ink/54 sm:text-sm sm:leading-6">
@@ -194,7 +200,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            if (quantity > 0) {
+            if (canManageMenu && quantity > 0) {
               onOpen(recipe.id);
               return;
             }
@@ -202,7 +208,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           }}
           className="min-h-11 w-full rounded-full border border-ink/10 bg-ink px-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `已选 ${quantity} 份 · 看做法` : actionLabel}
+          {canManageMenu && quantity > 0 ? `已选 ${quantity} 份 · 看做法` : actionLabel}
         </button>
       </div>
     </article>

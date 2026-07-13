@@ -16,6 +16,7 @@ import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
 import { formatCraveReason, summarizeCraveVotes } from "../lib/collaboration";
 import { AccountAvatar } from "./AppShell";
+import { BreakfastQuickPicker } from "./BreakfastQuickPicker";
 import { CraveCollectingSheet, CraveStarterSheet } from "./CraveSheet";
 import { DishImage } from "./ui/DishImage";
 import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
@@ -57,6 +58,8 @@ export function Dashboard({
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
+  breakfastChoices = [],
+  onChooseBreakfast,
   onRecordBreakfast,
   onSetLunchSource,
   session,
@@ -82,6 +85,7 @@ export function Dashboard({
   const [selectedCraveRecipeIds, setSelectedCraveRecipeIds] = useState([]);
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
+  const [breakfastPickerOpen, setBreakfastPickerOpen] = useState(false);
   const cravePanelRef = useRef(null);
   const askableMembers = householdMembers.filter((member) => (
     member?.memberId && member.memberId !== currentMemberId && member.status !== "temporary"
@@ -107,7 +111,7 @@ export function Dashboard({
     : recommendedItems;
   const heroRecipe = dinnerReady ? todayRecipes[0] : recommendedRecipes[0];
   const activeRecipes = dinnerReady ? todayRecipes : recommendedRecipes;
-  const craveSelectionMode = !dinnerReady && recommendation.source === "crave";
+  const craveSelectionMode = canManageHousehold && !dinnerReady && recommendation.source === "crave";
   useEffect(() => {
     if (!craveSelectionMode) {
       setSelectedCraveRecipeIds([]);
@@ -170,7 +174,7 @@ export function Dashboard({
     );
   }
 
-  const dinnerActions = (
+  const dinnerActions = canManageHousehold ? (
     <div className="mt-6 grid min-w-0 grid-cols-6 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
       <button
         type="button"
@@ -246,6 +250,20 @@ export function Dashboard({
           问问大家想吃啥
         </button>
       )}
+    </div>
+  ) : (
+    <div className="mt-6 sm:mt-8">
+      <button
+        type="button"
+        data-testid="tonight-primary-action"
+        onClick={dinnerReady ? () => onViewChange("today") : undefined}
+        disabled={!dinnerReady}
+        className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-black text-white disabled:bg-ink/62"
+      >
+        {dinnerReady ? <CheckCircle2 size={19} /> : <Clock3 size={19} />}
+        {dinnerReady ? "查看今晚菜单" : "等主厨安排"}
+      </button>
+      <p className="mt-3 text-center text-xs font-bold text-ink/42">你仍可以在【我的家】点感觉、认领买菜或丢想吃。</p>
     </div>
   );
 
@@ -354,7 +372,7 @@ export function Dashboard({
             ))}
           </div>
 
-          {!dinnerReady && pantryCheckItem && (
+          {canManageHousehold && !dinnerReady && pantryCheckItem && (
             <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-line bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-black text-ink">家里还有 {pantryCheckItem.name} 吗？</p>
@@ -424,7 +442,7 @@ export function Dashboard({
               )}
             </div>
           )}
-          {!dinnerReady && feedbackOpen && (
+          {canManageHousehold && !dinnerReady && feedbackOpen && (
             <div className="mt-4 rounded-[24px] border border-line bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -512,16 +530,18 @@ export function Dashboard({
         todayRecipes={todayRecipes}
         showConfirmation={dinnerReady}
         dinnerReady={dinnerReady}
+        canManage={canManageHousehold}
         onViewChange={onViewChange}
       />
       <MealRhythmPanel
         breakfastSummary={breakfastSummary}
         lunchSummary={lunchSummary}
         lunchLog={lunchLog}
-        onRecordBreakfast={onRecordBreakfast}
+        canManage={canManageHousehold}
+        onRecordBreakfast={() => setBreakfastPickerOpen(true)}
         onSetLunchSource={onSetLunchSource}
       />
-      <button
+      {canManageHousehold && <button
         type="button"
         data-testid="dashboard-planner-entry"
         onClick={() => onViewChange("planner")}
@@ -535,7 +555,21 @@ export function Dashboard({
           </span>
         </span>
         <span className="shrink-0 text-lg font-black text-ink/38" aria-hidden="true">›</span>
-      </button>
+      </button>}
+      <BreakfastQuickPicker
+        open={breakfastPickerOpen}
+        recipes={breakfastChoices}
+        selectedRecipeIds={(todayMeals.breakfast ?? []).map((entry) => entry.recipeId)}
+        onSelect={(recipeId) => {
+          onChooseBreakfast?.(recipeId);
+          setBreakfastPickerOpen(false);
+        }}
+        onBrowseAll={() => {
+          setBreakfastPickerOpen(false);
+          onRecordBreakfast?.();
+        }}
+        onClose={() => setBreakfastPickerOpen(false)}
+      />
     </div>
   );
 }
@@ -544,6 +578,7 @@ function MealRhythmPanel({
   breakfastSummary,
   lunchSummary,
   lunchLog,
+  canManage,
   onRecordBreakfast,
   onSetLunchSource,
 }) {
@@ -570,7 +605,7 @@ function MealRhythmPanel({
             <span className="shrink-0 rounded-full bg-canvas px-2 py-1 text-[11px] font-black text-ink/45">已记</span>
           )}
         </div>
-        <div className="mt-3">
+        {canManage ? <div className="mt-3">
           <button
             type="button"
             onClick={() => onRecordBreakfast?.()}
@@ -578,7 +613,7 @@ function MealRhythmPanel({
           >
             {breakfastSummary?.count > 0 ? "换早餐" : "选早餐吃什么"}
           </button>
-        </div>
+        </div> : <p className="mt-3 text-xs font-bold text-ink/38">由主厨轻记</p>}
       </div>
 
       <div className="rounded-[20px] border border-line bg-white p-3">
@@ -595,7 +630,7 @@ function MealRhythmPanel({
             </span>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        {canManage ? <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => onSetLunchSource?.("home")}
@@ -632,7 +667,7 @@ function MealRhythmPanel({
           >
             不记录
           </button>
-        </div>
+        </div> : <p className="mt-3 text-xs font-bold text-ink/38">由主厨记录来源</p>}
       </div>
     </section>
   );
@@ -656,10 +691,30 @@ export function DinnerLogPanel({
   todayRecipes = [],
   showConfirmation,
   dinnerReady = false,
+  canManage = true,
   onViewChange,
 }) {
   const sourceStats = buildSourceStats(mealLogs);
   const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady, sourceStats);
+  if (!canManage) {
+    return (
+      <section data-testid="dinner-log-readonly" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <p className="eyebrow">今晚进度</p>
+        <h2 className="mt-2 text-2xl font-black tracking-normal">
+          {dinnerReady ? "主厨已经安排好了" : "等主厨安排今晚"}
+        </h2>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+          {dinnerReady ? "菜单和买菜清单会在这个家里同步。" : "主厨定下菜单后，你会在这里看到结果。"}
+        </p>
+        {sourceResult && (
+          <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
+            <p className="text-xs font-black text-ink/38">最近更新</p>
+            <p className="mt-2 text-sm font-black text-ink">{sourceResult.title}</p>
+          </div>
+        )}
+      </section>
+    );
+  }
   return (
     <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

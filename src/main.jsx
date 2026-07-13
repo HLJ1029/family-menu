@@ -218,6 +218,10 @@ function App() {
   const [entryMotion, setEntryMotion] = useState(false);
   const [flowMotion, setFlowMotion] = useState(null);
   const signedIn = Boolean(session?.user || humiSession?.user);
+  const currentHouseholdRole = family?.role || family?.members?.find((member) => (
+    member.memberId === (humiSession?.user?.id || session?.user?.id)
+  ))?.role;
+  const canManageCurrentHousehold = !family || currentHouseholdRole === "owner";
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
   const todayDateKey = formatDateKey(new Date());
   const weekDateKeys = useMemo(() => {
@@ -231,6 +235,7 @@ function App() {
     [],
   );
   const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
+  const breakfastChoices = useMemo(() => buildBreakfastChoices(mealLogs), [mealLogs]);
   const libraryMenuQuantities = useMemo(
     () => libraryMealSlot && libraryMealSlot !== "dinner" ? todayMeals[libraryMealSlot] ?? [] : todayMenu,
     [libraryMealSlot, todayMeals, todayMenu],
@@ -808,8 +813,8 @@ function App() {
   }
 
   function requireHouseholdOwnerAction() {
-    if (!isHumiApiSession(humiSession) || family?.role === "owner") return true;
-    showNotice(family?.role === "member"
+    if (!isHumiApiSession(humiSession) || canManageCurrentHousehold) return true;
+    showNotice(currentHouseholdRole === "member"
       ? "只有主厨能修改菜单和家庭设置；你仍可以点感觉、认领买菜或丢想吃。"
       : "正在确认你在这个家的身份，请稍后再试。",
     );
@@ -1308,12 +1313,12 @@ function App() {
       navigateTo("dashboard");
     }
   }
-  function pickForMeal(slotId) {
+  function pickForMeal(slotId, initialCategory = "全部") {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
     setLibraryMealSlot(slotId);
     setLibraryParentLabel("今晚");
     setQuery("");
-    setCategory("全部");
+    setCategory(initialCategory);
     navigateTo("library");
     showNotice(`选择${slotLabel}吃什么`);
   }
@@ -1362,7 +1367,27 @@ function App() {
 
   function recordBreakfast() {
     if (!requireHouseholdOwnerAction()) return;
-    pickForMeal("breakfast");
+    pickForMeal("breakfast", "早餐");
+  }
+
+  function chooseBreakfast(recipeId) {
+    if (!requireHouseholdOwnerAction()) return;
+    const entries = [{ recipeId, quantity: 1 }];
+    updateMealPlanSlot(todayDateKey, "breakfast", () => entries);
+    recordMealSlot("breakfast", {
+      source: "home",
+      consumedEntries: entries,
+      quickRecordedAt: new Date().toISOString(),
+    });
+    consumePantryForEntries(entries);
+    trackValidationEvent(validationEvents.mealSourceSelected, {
+      mealSlot: "breakfast",
+      source: "home",
+      recipeIds: [recipeId],
+      dateKey: todayDateKey,
+      interaction: "quick_pick",
+    });
+    showNotice(`${getRecipe(recipeId)?.name ?? "早餐"} 已记为今天早餐`);
   }
 
   function setLunchSource(source) {
@@ -3233,13 +3258,15 @@ function App() {
                 onCopyCraveLink={copyCraveLink}
                 onRefreshCraveRequest={refreshCraveRequest}
                 onGenerateFromCrave={generateFromCraveRequest}
+                breakfastChoices={breakfastChoices}
+                onChooseBreakfast={chooseBreakfast}
                 onRecordBreakfast={recordBreakfast}
                 onSetLunchSource={setLunchSource}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("user")}
                 householdMembers={family?.members ?? []}
                 currentMemberId={humiSession?.user?.id || displaySession?.user?.id || ""}
-                canManageHousehold={!isHumiApiSession(humiSession) || family?.role === "owner"}
+                canManageHousehold={canManageCurrentHousehold}
                 familyProfile={familyProfile}
                 groceryItemCount={visibleGroceryItems.length}
                 mealLog={todayMealLog}
@@ -3259,15 +3286,17 @@ function App() {
                 setCategory={setCategory}
                 recipes={filteredRecipes}
                 allRecipes={recipes}
-                onAdd={addRecipeFromLibrary}
-                onUpdateQuantity={updateLibraryQuantity}
+                onAdd={canManageCurrentHousehold ? addRecipeFromLibrary : addWantRecipe}
+                onUpdateQuantity={canManageCurrentHousehold ? updateLibraryQuantity : undefined}
                 menuQuantities={libraryMenuQuantities}
                 parentLabel={libraryParentLabel}
                 targetMealSlot={libraryMealSlot}
                 targetMealLabel={libraryMealSlot ? slotLabelsById[libraryMealSlot] : ""}
                 onClearTargetMeal={() => setLibraryMealSlot(null)}
                 onOpenRecipe={openRecipe}
-                onDragStart={setDraggedRecipeId}
+                onDragStart={canManageCurrentHousehold ? setDraggedRecipeId : () => {}}
+                canManageMenu={canManageCurrentHousehold}
+                actionLabelOverride={canManageCurrentHousehold ? undefined : "加入想吃池子"}
               />
             )}
             {activeView === "recommendations" && (
@@ -3760,6 +3789,22 @@ function extractWantTitleFromCraveVote(vote) {
 
 function normalizeName(value) {
   return value.trim().toLowerCase();
+}
+
+function buildBreakfastChoices(mealLogs = {}) {
+  const recentRecipeIds = Object.entries(mealLogs)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .flatMap(([, log]) => log?.meals?.breakfast?.consumedEntries ?? [])
+    .map((entry) => entry.recipeId)
+    .filter(Boolean);
+  const quickBreakfastRecipeIds = recipes
+    .filter((recipe) => recipe.categories.includes("早餐"))
+    .sort((left, right) => left.timeMinutes - right.timeMinutes)
+    .map((recipe) => recipe.id);
+  return [...new Set([...recentRecipeIds, ...quickBreakfastRecipeIds])]
+    .map((recipeId) => getRecipe(recipeId))
+    .filter(Boolean)
+    .slice(0, 6);
 }
 
 function validationEventsToCsv(events = []) {

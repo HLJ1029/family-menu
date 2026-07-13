@@ -151,10 +151,22 @@ try {
 
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   await page.getByRole("button", { name: "选早餐吃什么" }).click();
-  await page.getByRole("heading", { name: "给早餐选菜" }).first().waitFor({ timeout: 15_000 });
+  const breakfastQuickPicker = page.getByTestId("breakfast-quick-picker");
+  await breakfastQuickPicker.waitFor({ timeout: 15_000 });
+  const breakfastQuickOptionCount = await page.getByTestId("breakfast-quick-options").getByRole("button").count();
+  const breakfastSkippedDinnerLibrary = await page.getByRole("heading", { name: "全部菜品库" }).count() === 0;
   const breakfastBeforePick = await readTodayMealSlot(page, "breakfast");
-  await page.getByRole("button", { name: "加入 西红柿炒鸡蛋" }).click();
-  await page.getByRole("heading", { name: "早餐已选择" }).waitFor({ timeout: 15_000 });
+  const breakfastQuickScreenshot = join(evidenceDir, "breakfast-quick-picker-mobile.png");
+  await waitForTransientUi(page);
+  await page.screenshot({ path: breakfastQuickScreenshot });
+  await page.getByRole("button", { name: "更多早餐选择" }).click();
+  await page.getByRole("heading", { name: "给早餐选菜" }).first().waitFor({ timeout: 15_000 });
+  const breakfastCategoryButton = page.getByRole("button", { name: "早餐", exact: true });
+  const breakfastBrowseStartsFiltered = (await breakfastCategoryButton.getAttribute("class"))?.includes("bg-ink") === true;
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+  await page.getByRole("button", { name: "选早餐吃什么" }).click();
+  await page.getByRole("button", { name: "早餐选择 阳春面" }).click();
+  await breakfastQuickPicker.waitFor({ state: "hidden", timeout: 15_000 });
   const breakfastAfterPick = await readTodayMealSlot(page, "breakfast");
 
   await page.getByRole("button", { name: "今晚", exact: true }).click();
@@ -211,6 +223,15 @@ try {
   const softPreferenceFormsHidden = await page.getByText(/晚饭最在意什么|买菜接受度|保存营养目标/).count() === 0;
   const dietConstraintScreenshot = join(evidenceDir, "diet-constraints-mobile.png");
   await dietConstraintPanel.screenshot({ path: dietConstraintScreenshot });
+  await page.getByRole("button", { name: "营养分析", exact: true }).click();
+  const nutritionReflectionPage = page.getByTestId("nutrition-reflection-page");
+  await nutritionReflectionPage.waitFor({ timeout: 15_000 });
+  const nutritionReflectionVisible = await page.getByRole("heading", { name: "营养回看" }).isVisible();
+  const nutritionGoalMaintenanceHidden = await page.getByText(/目标管理|目标完成度|营养目标看板|修改目标/).count() === 0;
+  const nutritionReflectionScreenshot = join(evidenceDir, "nutrition-reflection-mobile.png");
+  await waitForTransientUi(page);
+  await page.screenshot({ path: nutritionReflectionScreenshot, fullPage: true });
+  await page.getByRole("button", { name: "我的家", exact: true }).click();
   await page.getByRole("button", { name: "问问大家" }).first().click();
   await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
@@ -244,8 +265,10 @@ try {
     { key: "arranged-dishes-before-library-filters", ok: arrangedBeforeFilters },
     { key: "library-dish-adds-to-tonight-menu", ok: libraryDishAddedToMenu, actual: libraryAddState.todayMenu },
     { key: "library-dish-adds-to-dinner-plan", ok: libraryDishAddedToDinnerPlan, actual: libraryAddState.dinnerPlan },
+    { key: "breakfast-opens-lightweight-quick-picker", ok: breakfastQuickOptionCount >= 4 && breakfastSkippedDinnerLibrary, actual: breakfastQuickOptionCount },
+    { key: "breakfast-more-options-starts-in-breakfast-category", ok: breakfastBrowseStartsFiltered },
     { key: "breakfast-empty-before-user-pick", ok: breakfastBeforePick.length === 0, actual: breakfastBeforePick },
-    { key: "breakfast-saves-user-picked-dish", ok: breakfastAfterPick.some((entry) => entry.recipeId === "tomato-egg"), actual: breakfastAfterPick },
+    { key: "breakfast-saves-user-picked-dish", ok: breakfastAfterPick.some((entry) => entry.recipeId === "scallion-noodle-soup"), actual: breakfastAfterPick },
     { key: "breakfast-does-not-default-to-seaweed-soup", ok: !breakfastAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: breakfastAfterPick },
     { key: "lunch-empty-before-user-pick", ok: lunchBeforePick.length === 0, actual: lunchBeforePick },
     { key: "lunch-home-saves-user-picked-dish", ok: lunchAfterPick.some((entry) => entry.recipeId === "potato-shreds"), actual: lunchAfterPick },
@@ -270,6 +293,7 @@ try {
     { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
     { key: "my-home-exposes-diet-constraints-only", ok: dietSettingsVisible && dietConstraintPanelVisible },
     { key: "soft-profile-maintenance-is-not-exposed", ok: legacyProfileControlsHidden && softPreferenceFormsHidden },
+    { key: "nutrition-is-feedback-not-maintenance", ok: nutritionReflectionVisible && nutritionGoalMaintenanceHidden },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
@@ -277,6 +301,9 @@ try {
     { key: "member-cannot-add-want-item-to-dinner", ok: !memberBoundary.memberCanAddWantToDinner },
     { key: "member-cannot-start-crave-from-user-center", ok: memberBoundary.memberUserCenterAskButtons === 0, actual: memberBoundary.memberUserCenterAskButtons },
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
+    { key: "member-cannot-edit-family-diet-constraints", ok: memberBoundary.memberDietEditButtons === 0 && memberBoundary.memberDietSummaryReadonly, actual: memberBoundary },
+    { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
+    { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
     { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
@@ -303,12 +330,15 @@ try {
       tonightFirstViewportMobile: tonightViewport.screenshot,
       discoveryMobile: discoveryScreenshot,
       discoveryMobileFull: discoveryFullScreenshot,
+      breakfastQuickPickerMobile: breakfastQuickScreenshot,
       userCraveMobile: userCraveScreenshot,
       groceryMobile: groceryScreenshot,
       familyActivityMobile: familyActivityScreenshot,
       plannerMobile: plannerScreenshot,
       dietConstraintsMobile: dietConstraintScreenshot,
+      nutritionReflectionMobile: nutritionReflectionScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
+      memberDietReadonlyMobile: memberBoundary.dietScreenshot,
       persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
       profileOnboardingMobile: hardConstraintOnboarding.screenshot,
     },
@@ -616,6 +646,19 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     const headings = await page.locator("h1, h2, h3").allTextContents();
     throw new Error(`Member family role did not load: ${JSON.stringify(headings)}`);
   }
+  const memberDietEditButtons = await page.getByRole("button", { name: "修改忌口" }).count();
+  const memberDietSummaryReadonly = await page.getByTestId("family-constraints-readonly").isVisible();
+  const dietScreenshot = join(evidenceDir, "member-diet-readonly-mobile.png");
+  await page.getByTestId("family-constraints-readonly").screenshot({ path: dietScreenshot });
+  await page.getByRole("button", { name: "全部菜品库" }).click();
+  await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 15_000 });
+  const memberLibraryWantButton = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" }).getByRole("button", { name: "加入想吃池子" });
+  const memberLibraryUsesWantAction = await memberLibraryWantButton.isVisible();
+  await memberLibraryWantButton.click();
+  await page.getByText("青椒土豆丝 已放进想吃池子").waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "返回上一页" }).click();
+  await page.getByRole("heading", { name: /里的家人$/ }).waitFor({ timeout: 15_000 });
+  const memberWantAddedFromLibrary = await page.getByTestId("want-to-eat-row").filter({ hasText: "青椒土豆丝" }).isVisible();
   const ownerWantRow = page.getByTestId("want-to-eat-row").filter({ hasText: "主厨想吃的菜" });
   const memberWantRow = page.getByTestId("want-to-eat-row").filter({ hasText: "家人想吃的菜" });
   const ownerWantActions = await ownerWantRow.getByRole("button").count();
@@ -625,13 +668,17 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const memberUserCenterAskButtons = await page.getByRole("button", { name: /问问大家/ }).count();
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
+  const memberMealEditingButtons = await page.getByTestId("meal-rhythm-panel").getByRole("button").count();
+  const memberDinnerReadonly = await page.getByTestId("dinner-log-readonly").isVisible()
+    && await page.getByTestId("dinner-log-readonly").getByRole("button").count() === 0;
+  const memberPlannerEntries = await page.getByTestId("dashboard-planner-entry").count();
   const menuBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
-  await page.getByRole("button", { name: /今晚就做|就做选中的/ }).first().click();
-  const ownerNotice = page.getByText("只有主厨能修改菜单和家庭设置；你仍可以点感觉、认领买菜或丢想吃。");
-  await ownerNotice.waitFor({ timeout: 15_000 });
-  const blocked = await ownerNotice.isVisible();
+  const memberPrimaryAction = page.getByTestId("tonight-primary-action");
+  const blocked = await memberPrimaryAction.isDisabled()
+    && await memberPrimaryAction.getByText("等主厨安排").isVisible();
   const menuAfter = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   const screenshot = join(evidenceDir, "member-boundary-mobile.png");
+  await waitForTransientUi(page);
   await page.screenshot({ path: screenshot });
   await context.close();
   return {
@@ -643,8 +690,16 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     memberCanAddWantToDinner,
     memberUserCenterAskButtons,
     memberDashboardAskButtons,
+    memberDietEditButtons,
+    memberDietSummaryReadonly,
+    memberLibraryUsesWantAction,
+    memberWantAddedFromLibrary,
+    memberMealEditingButtons,
+    memberDinnerReadonly,
+    memberPlannerEntries,
     pageErrors,
     screenshot,
+    dietScreenshot,
   };
 }
 

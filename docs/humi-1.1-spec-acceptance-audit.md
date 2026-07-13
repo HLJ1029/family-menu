@@ -34,17 +34,18 @@
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
 | `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
-| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | 产品 smoke 分别验证早餐与午餐选择前为空；早餐只写入用户点选的西红柿炒鸡蛋，午餐“在家做”只写入用户点选的青椒土豆丝，两者都不会默认紫菜蛋花汤 |
+| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | 早餐先打开常吃早餐轻选层，`更多早餐选择` 才进入早餐分类；产品 smoke 分别验证早餐与午餐选择前为空，且只写入用户点选菜，不会默认紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
 | 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | 产品 smoke 在独立手机会话真实勾选西红柿，验证隐藏 `pantryItems` 写入；随后点“做了”，验证西红柿扣减且晚饭 `mealLogs` 写入 |
 | 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`ProfileOnboarding.jsx` 与 `UserCenter.jsx` 只暴露忌口/过敏硬约束，不再要求填写规划模式、晚饭目标、买菜接受度或营养目标 |
 | 用户唯一主动维护的是忌口，不填写软口味/规划/营养目标表 | 已完成 | 首次引导允许“没有忌口，直接开始”；【我的家】只暴露“修改忌口”，口味与营养继续作为行为回馈；产品 smoke 验证旧软画像控件不存在 |
+| 营养分析是行为反馈层，不是目标管理页 | 已完成 | `StatsPage.jsx` 只提供近期状态、营养回看和参考范围，不再出现“目标完成度”“营养目标看板”或“修改目标”；产品 smoke 真实进入该页验证 |
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 账号/成员设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
 | 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
-| 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；`release:product:smoke` 验证家人点“今晚就做”不会改写菜单 |
+| 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；产品 smoke 验证家人不能改菜单、不能编辑家庭忌口，早午餐仅只读展示 |
 | 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
-| 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人也只能维护自己的想吃条目 |
+| 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人逛菜品库时加入想吃池而非补进菜单，也只能维护自己的想吃条目 |
 | 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
 | 家人打开分享卡片先免登录参与 | 已完成 | `CraveLanding.jsx` 可投感觉、`GroceryShareLanding.jsx` 可认领买菜、`InviteLanding.jsx` 可丢想吃；三者都使用公开 token 与临时身份，无需先登录 |
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
