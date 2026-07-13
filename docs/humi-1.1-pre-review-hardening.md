@@ -68,10 +68,10 @@
   - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
   - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`，`npm run release:crave-template:visuals`，`npm run release:pre-review:evidence`。
   - 证据：`src/components/CraveSheet.jsx` 五个状态统一使用“今晚征集单”，按钮统一为“分享征集单/提交征集单/回到 Humi 看今晚”等单据语言；`scripts/check-crave-sheet-template.mjs` 已覆盖关键文案；`scripts/capture-crave-template-visuals.mjs` 会把主厨发起、主厨等待、家人投票、投票完成、征集结束五个真实组件状态截图到私有证据目录并输出 PNG 尺寸/SHA。
-- [x] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
+- [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
   - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:landings`，`npm run release:wechat:share:direct-previews`，`npm run release:pre-review:evidence`，`npm run release:wechat:share:devtools`，`npm run release:wechat:share:cards:capture -- --interactive`，`npm run release:wechat:share:evidence`，`npm run release:wechat:share:complete`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
-  - 证据：`scripts/check-miniprogram-share-cards.mjs` 已覆盖三类卡片标题、path 和落地 URL；微信开发者工具 CLI 预览已生成到私有目录 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522`；`docs/humi-1.1-miniprogram-share-card-qa.md` 规定最终截图文件名、PNG/尺寸/文件大小要求和视觉标准；`npm run release:wechat:share:landings` 已生成三张 token H5 落地页截图；`npm run release:wechat:share:direct-previews` 已生成三张直达 `pages/share/index` 原生确认页二维码；微信开发者工具已调出三类虚拟好友小程序卡片并保存 `crave-card.png`、`invite-card.png`、`grocery-card.png`；`npm run release:wechat:share:evidence` 已校验六张截图的完整 PNG、尺寸、size 和 SHA256；`HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 npm run release:wechat:share:complete` 已完成本 P1 勾选。
+  - 当前事实：代码层三类标题、path、token 落地和三张 H5 landing 均已通过；2026-07-13 新增 Vision OCR 语义门禁后，历史 `grocery-card.png` 通过，但 `crave-card.png` 未显示虚拟好友发送框，`invite-card.png` 是无关桌面截图。需在当前分支重新截取征集与邀请原生发送框后，再运行 `npm run release:wechat:share:evidence` 和视觉确认命令勾选本项。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：P0/P1 完成后，`release:next` 当前阶段为“1.1 生产候选完善与内测验证，暂不进入微信审核”；AI-HQ 状态同步该策略。
   - 验证：`npm run release:next`，`npm run release:status`，`npm run release:product:review`。
@@ -85,7 +85,7 @@
 
 ## 当前建议顺序
 
-1. 运行 `npm run release:closure` 和 `npm run release:next`，确认当前处于生产候选完善与内测验证阶段。
+1. 解锁 Mac 后在微信开发者工具重新截取 `crave-card.png` 与 `invite-card.png`，让 OCR 语义门禁和人工视觉复核同时通过。
 2. 运行 `npm run release:product:review`，确认关键产品体验锚点仍可由源码、文档和证据共同证明。
 3. 填写私有 U001-U020 候选反馈后，运行 `npm run release:candidate:review`，确认达到真实样本阈值且无 P0/P1。
 4. 候选复盘达标后，再运行 `npm run release:wechat:check`，确认提交审核前材料与域名/隐私核对项为通过。

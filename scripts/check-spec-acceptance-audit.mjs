@@ -16,6 +16,7 @@ const REQUIRED_MATRIX_ITEMS = [
   "【今晚菜单】加菜不降级为列表",
   "周计划降级为【今晚】辅助入口",
   "【今晚】首屏主角是晚饭推荐",
+  "【今晚】首屏只有一个实心主操作",
   "早餐/午餐纳入数据但不抢晚饭主线",
   "清单汇总三餐食材",
   "库存完全隐形",
@@ -24,6 +25,7 @@ const REQUIRED_MATRIX_ITEMS = [
   "用户唯一主动维护的是忌口",
   "营养分析是行为反馈层",
   "【我的家】从资料页升级为协作主场",
+  "【我的家】协作内容先于账号设置",
   "协作动态沉淀认领",
   "主厨/家人角色边界",
   "一人多家可见切换",
@@ -154,7 +156,7 @@ async function inspectLedger() {
   const requiredIds = [
     "STR-01", "STR-07", "MEAL-01", "MEAL-05", "LIST-01", "LIST-06", "PROFILE-01", "PROFILE-02",
     "COL-01", "COL-10", "CRV-A1", "CRV-B3", "CRV-D2", "CRV-D5", "CRV-F1",
-    "REC-01", "REC-05", "REC-06", "PAY-01", "WX-01", "UI-04", "EXT-01", "EXT-03",
+    "REC-01", "REC-05", "REC-06", "PAY-01", "WX-01", "WX-04", "UI-04", "UI-05", "UI-06", "EXT-01", "EXT-03",
   ];
   try {
     const content = await readFile(LEDGER_PATH, "utf8");

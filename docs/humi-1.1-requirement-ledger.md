@@ -9,10 +9,11 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-状态只有三种：
+状态分为四种：
 
 - `已完成`：有对应源码和运行/测试证据。
 - `待用户决策`：产品范围未定，不擅自实现。
+- `进行中`：代码路径已完成，但仍缺当前候选的真实运行或视觉证据。
 - `待验收后外部动作`：功能不因此缺失，但线上体验不会在部署/上传前变化。
 
 ## 1. 结构与主线
@@ -20,7 +21,7 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | STR-01 | 底部只有【今晚】/【清单】/【我的家】三 tab | 已完成 | `src/components/navigation.js`；`release:spec:audit` |
-| STR-02 | 完整菜品库是推荐外的辅助子页，手机端可从【今晚】发现并直接补菜 | 已完成 | 【今晚】首屏提供 `自己挑` 次级入口；`release:product:smoke` 从该入口真实进入双列菜品库，检测 138 道菜，并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
+| STR-02 | 完整菜品库是推荐外的辅助子页，手机端可从【今晚】发现并直接补菜 | 已完成 | 【今晚】首屏提供 `全部菜品` 次级入口；`release:product:smoke` 从该入口真实进入双列菜品库，检测 138 道菜，并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
 | STR-03 | 今晚已安排菜固定在新菜流上方 | 已完成 | `selected-recipes-panel`；`arranged-dishes-before-library-filters` |
 | STR-04 | `今晚就做`/补菜后自动进今晚计划与清单 | 已完成 | 产品 smoke 真实点击 `今晚就做`，验证两道推荐同时写入 `todayMenu`、当日晚餐 `mealPlan`，并自动生成 24 个清单勾选项 |
 | STR-05 | 周计划降为“想连排几天”辅助入口，并可查看三餐汇总清单 | 已完成 | 【今晚】手机端 `dashboard-planner-entry`；周计划 `planner-grocery-summary`；产品 smoke 真实点击两级入口并打开清单 |
@@ -31,7 +32,7 @@
 
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
-| MEAL-01 | 晚饭仍是首屏主角，主行动在手机首屏内 | 已完成 | `Dashboard.jsx`；`tonight-primary-action-is-in-first-viewport` 实测按钮底部不进入导航遮挡区，早午餐位于晚饭决策之后 |
+| MEAL-01 | 晚饭仍是首屏主角，主行动在手机首屏内 | 已完成 | `Dashboard.jsx`；产品 smoke 在 390×844 实测主按钮位于首屏上半部，第一道推荐菜也进入首屏，早午餐位于晚饭决策之后 |
 | MEAL-02 | 早餐是轻量选择，不擅自记默认菜 | 已完成 | `BreakfastQuickPicker.jsx` 先展示常吃早餐，`更多早餐选择` 才进入早餐分类；产品 smoke 验证选择前为空、只写入用户点选菜且不默认紫菜蛋花汤 |
 | MEAL-03 | 午餐以来源记录为主，在家做才选菜 | 已完成 | 产品 smoke 真实点击午餐“在家做”，验证选择前为空、用户点青椒土豆丝后才写入，且不会默认紫菜蛋花汤 |
 | MEAL-04 | 三餐食材统一汇总清单 | 已完成 | `mealPlanEntriesForGroceries`；`validate:api` |
@@ -57,7 +58,7 @@
 | COL-06 | 临时 vote 登录后合并到正式成员 | 已完成 | `claimCraveVote`；`validate:api` |
 | COL-07 | 买菜认领免登录、可回传、防重复 | 已完成 | `GroceryShareLanding.jsx`；`release:collaboration:smoke`、`validate:api` |
 | COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | 正式成员在完整菜品库使用“加入想吃池子”而不是修改菜单，也可使用 `WantToEatRow`；临时家人在 `InviteLanding` 免登录提交并在加入后归并正式身份；API 与产品/游客 smoke 覆盖 |
-| COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | 今晚页头像可直达【我的家】；`family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证入口、买菜/做饭/想吃三类动态和 DOM 顺序 |
+| COL-09 | 【我的家】先展示协作动态和想吃池，设置下沉，征集单按需展开 | 已完成 | 今晚页头像可直达【我的家】；`family-activity-section` 与 `want-to-eat-section` 均位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证入口、买菜/做饭/想吃三类动态和 DOM 顺序 |
 | COL-10 | 征集状态能跨登录/设备恢复，且不泄露 owner secret | 已完成 | `sanitizeCraveSignal`、`setCraveSignals`；`validate:api` |
 
 ## 4. 感觉征集 A–F
@@ -99,10 +100,13 @@
 | WX-01 | `crave`/`invite`/`grocery` 三类小程序卡片路径 | 已完成 | `release:wechat:share:selftest` |
 | WX-02 | 清单与征集按钮真实调用 `postMessage + navigateTo` | 已完成 | `release:product:smoke` |
 | WX-03 | 三类 token 落地页不自动登录 | 已完成 | `release:collaboration:smoke` |
+| WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 进行中 | OCR 语义门禁已验证 `grocery-card.png`；历史 `crave-card.png`、`invite-card.png` 无效，待 Mac 解锁后在当前分支重截 |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |
 | UI-04 | 主操作保持唯一黑色实心，重复认领/添加降为次级 | 已完成 | `Dashboard.jsx`、`GroceryList.jsx`；移动端截图复验 |
+| UI-05 | 【今晚】首屏只有一个实心主操作，精准推荐与征集降为弱入口 | 已完成 | `tonight-hero-has-one-solid-primary-action`；最新移动端证据 `product-entrypoint-smoke-20260713T143228Z/tonight-first-viewport-mobile.png` |
+| UI-06 | 页面用过后隐藏常驻自我介绍，不用场景插图挤占今晚首屏 | 已完成 | `used-family-activity-hides-self-introduction`、`tonight-hero-has-no-permanent-scene-illustration`；产品 smoke |
 
 ## 7. 当前不做的外部动作
 

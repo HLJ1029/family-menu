@@ -230,6 +230,88 @@ export function UserCenter({
     onViewChange("dashboard");
   }
 
+  const wantToEatPanel = (
+    <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">想吃池子</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            家人随手写一句，主厨排今晚时可以直接放进菜单。
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+          待安排 {openWantItems.length}
+        </span>
+      </div>
+
+      <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input
+            value={wantTitle}
+            onChange={(event) => setWantTitle(event.target.value)}
+            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="例如：想吃牛肉面"
+          />
+          <input
+            value={wantNote}
+            onChange={(event) => setWantNote(event.target.value)}
+            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="补一句，可不填"
+          />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+            <Plus size={16} />
+            加入
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {quickWantRecipes.map((recipe) => (
+          <button
+            key={recipe.id}
+            type="button"
+            onClick={() => onAddWantRecipe?.(recipe.id)}
+            className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
+          >
+            + {recipe.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {openWantItems.length > 0 ? openWantItems.map((item) => (
+          <WantToEatRow
+            key={item.id}
+            item={item}
+            canAddToday={canManageHouseholdMenu}
+            canEdit={canManageHouseholdMenu || item.memberId === currentUserId}
+            onAddToday={() => onAddWantToToday?.(item)}
+            onDone={() => onCompleteWantToEat?.(item.id)}
+            onRemove={() => onRemoveWantToEat?.(item.id)}
+          />
+        )) : (
+          <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+            可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
+          </div>
+        )}
+      </div>
+
+      {doneWantItems.length > 0 && (
+        <div className="mt-4 rounded-[20px] bg-canvas p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {doneWantItems.map((item) => (
+              <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
+                {item.title}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
@@ -271,9 +353,11 @@ export function UserCenter({
             <div>
               <p className="eyebrow">家庭动态</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">最近大家怎么想吃</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。
-              </p>
+              {familyActivity.length === 0 && (
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                  第一次协作后，大家点过的感觉、买菜认领和晚饭反馈会留在这里。
+                </p>
+              )}
             </div>
             {canManageHouseholdMenu && (
               <button
@@ -332,12 +416,7 @@ export function UserCenter({
             )}
           </div>
         </section>
-        <CloudAccount
-          {...authProps}
-          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-          family={family}
-          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-        />
+        {wantToEatPanel}
         <FamilyRolePanel
           signedIn={signedIn}
           family={family}
@@ -384,85 +463,6 @@ export function UserCenter({
               不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度家庭协调和完整版画像回顾上。
             </p>
           </div>
-        </section>
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="eyebrow">想吃池子</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                不用等发起征集。家人随手写一句，主厨排今晚时可以直接放进菜单。
-              </p>
-            </div>
-            <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
-              待安排 {openWantItems.length}
-            </span>
-          </div>
-
-          <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
-            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <input
-                value={wantTitle}
-                onChange={(event) => setWantTitle(event.target.value)}
-                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-                placeholder="例如：想吃牛肉面"
-              />
-              <input
-                value={wantNote}
-                onChange={(event) => setWantNote(event.target.value)}
-                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-                placeholder="补一句，可不填"
-              />
-              <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-                <Plus size={16} />
-                加入
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {quickWantRecipes.map((recipe) => (
-              <button
-                key={recipe.id}
-                type="button"
-                onClick={() => onAddWantRecipe?.(recipe.id)}
-                className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
-              >
-                + {recipe.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {openWantItems.length > 0 ? openWantItems.map((item) => (
-              <WantToEatRow
-                key={item.id}
-                item={item}
-                canAddToday={canManageHouseholdMenu}
-                canEdit={canManageHouseholdMenu || item.memberId === currentUserId}
-                onAddToday={() => onAddWantToToday?.(item)}
-                onDone={() => onCompleteWantToEat?.(item.id)}
-                onRemove={() => onRemoveWantToEat?.(item.id)}
-              />
-            )) : (
-              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-                池子还是空的。可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
-              </div>
-            )}
-          </div>
-
-          {doneWantItems.length > 0 && (
-            <div className="mt-4 rounded-[20px] bg-canvas p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {doneWantItems.map((item) => (
-                  <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
-                    {item.title}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
           <HumiPeek
@@ -566,6 +566,12 @@ export function UserCenter({
             setProfile={setFamilyProfile}
           />
         )}
+        <CloudAccount
+          {...authProps}
+          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+          family={family}
+          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+        />
         <CloudSyncPanel {...cloudMenuProps} />
       </div>
 

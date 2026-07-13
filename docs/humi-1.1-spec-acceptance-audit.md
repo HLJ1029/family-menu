@@ -29,9 +29,10 @@
 | 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
 | 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片；产品 smoke 在 138 道菜中真实点击青椒土豆丝 `补进今晚`，验证同步进入今晚菜单和当日晚餐计划 |
 | 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
-| 【今晚菜单】加菜不降级为列表 | 已完成 | 【今晚】首屏 `自己挑` 可直接进入完整【自己挑】菜品页；`src/components/TodayMenu.jsx` 的内嵌选菜区也保留图片卡片和 `发现新菜` 入口 |
+| 【今晚菜单】加菜不降级为列表 | 已完成 | 【今晚】首屏 `全部菜品` 可直接进入完整菜品子页；`src/components/TodayMenu.jsx` 的内嵌选菜区也保留图片卡片和 `发现新菜` 入口 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
+| 【今晚】首屏只有一个实心主操作，次级动作不抢主线 | 已完成 | `精准推荐` 与 `问问大家` 已降为文字弱入口，常驻场景插图移除；产品 smoke 验证 `tonight-hero-has-one-solid-primary-action` 和 `tonight-hero-has-no-permanent-scene-illustration`，第一道推荐菜进入手机首屏 |
 | `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
 | 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | 早餐先打开常吃早餐轻选层，`更多早餐选择` 才进入早餐分类；产品 smoke 分别验证早餐与午餐选择前为空，且只写入用户点选菜，不会默认紫菜蛋花汤 |
@@ -41,7 +42,8 @@
 | 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`ProfileOnboarding.jsx` 与 `UserCenter.jsx` 只暴露忌口/过敏硬约束，不再要求填写规划模式、晚饭目标、买菜接受度或营养目标 |
 | 用户唯一主动维护的是忌口，不填写软口味/规划/营养目标表 | 已完成 | 首次引导允许“没有忌口，直接开始”；【我的家】只暴露“修改忌口”，口味与营养继续作为行为回馈；产品 smoke 验证旧软画像控件不存在 |
 | 营养分析是行为反馈层，不是目标管理页 | 已完成 | `StatsPage.jsx` 只提供近期状态、营养回看和参考范围，不再出现“目标完成度”“营养目标看板”或“修改目标”；产品 smoke 真实进入该页验证 |
-| 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 账号/成员设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
+| 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 想吃池 → 成员/账号设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
+| 【我的家】协作内容先于账号设置，使用后隐藏自我介绍 | 已完成 | 产品 smoke 验证 `family-activity-section` 与 `want-to-eat-section` 均位于 `cloud-account-section` 前；有真实动态时不再显示解释性常驻文案 |
 | 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
 | 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；产品 smoke 验证家人不能改菜单、不能编辑家庭忌口，早午餐仅只读展示 |
 | 一人多家可见切换且数据隔离 | 已完成 | 产品 smoke 在【我的家】真实切换“小家 → 爸妈家”，验证 `/households/active` 被调用、当前家标题更新，并载入爸妈家的青椒土豆丝菜单 |
@@ -77,6 +79,7 @@
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
 | 家庭订阅真实支付结算 | 待用户确认 | 确认 1.1 接入微信支付，或明确将结算列入 1.2；当前已完成精准尝鲜、Plus 权益和 API 成本闸门，但没有支付下单闭环 |
+| 三类小程序原生分享发送框视觉复核 | 进行中 | OCR 语义门禁已确认买菜卡片；征集与邀请历史截图无效，待 Mac 解锁后在当前分支重新截取 |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |

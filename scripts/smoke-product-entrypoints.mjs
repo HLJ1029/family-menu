@@ -236,6 +236,16 @@ try {
     if (!activity || !account) return false;
     return Boolean(activity.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
+  const wantPoolBeforeAccountSettings = await page.evaluate(() => {
+    const wantPool = document.querySelector('[data-testid="want-to-eat-section"]');
+    const account = document.querySelector('[data-testid="cloud-account-section"]');
+    if (!wantPool || !account) return false;
+    return Boolean(wantPool.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  const familyActivityIntroHiddenAfterUse = await page.getByText(
+    "感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。",
+    { exact: true },
+  ).count() === 0;
   const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
   await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
   await dietSettingsButton.click();
@@ -284,6 +294,8 @@ try {
 
   const checks = [
     { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
+    { key: "tonight-hero-has-one-solid-primary-action", ok: tonightViewport.heroHierarchy.solidActionCount === 1, actual: tonightViewport.heroHierarchy },
+    { key: "tonight-hero-has-no-permanent-scene-illustration", ok: !tonightViewport.heroHierarchy.hasPermanentSceneIllustration, actual: tonightViewport.heroHierarchy },
     { key: "breakfast-and-lunch-follow-dinner-decision", ok: tonightViewport.mealRhythmAfterPrimary },
     { key: "tonight-do-writes-menu-and-dinner-plan", ok: tonightViewport.menuWritten && tonightViewport.dinnerPlanWritten, actual: tonightViewport.decisionState },
     { key: "tonight-do-auto-generates-grocery", ok: tonightViewport.groceryGenerated, actual: tonightViewport.groceryCheckboxCount },
@@ -321,6 +333,8 @@ try {
     { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
     { key: "family-activity-shows-want-item", ok: wantActivityVisible },
     { key: "family-activity-precedes-account-settings", ok: activityBeforeAccountSettings },
+    { key: "want-pool-precedes-account-settings", ok: wantPoolBeforeAccountSettings },
+    { key: "used-family-activity-hides-self-introduction", ok: familyActivityIntroHiddenAfterUse },
     { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
     { key: "my-home-exposes-diet-constraints-only", ok: dietSettingsVisible && dietConstraintPanelVisible },
     { key: "soft-profile-maintenance-is-not-exposed", ok: legacyProfileControlsHidden && softPreferenceFormsHidden },
@@ -480,6 +494,20 @@ async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
     if (!action || !mealRhythm) return false;
     return Boolean(action.compareDocumentPosition(mealRhythm) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
+  const heroHierarchy = await page.getByTestId("tonight-hero").evaluate((hero) => {
+    const buttons = [...hero.querySelectorAll("button")].filter((button) => {
+      const rect = button.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    const solidButtons = buttons.filter((button) => {
+      const background = getComputedStyle(button).backgroundColor.replaceAll(" ", "");
+      return background === "rgb(17,17,17)" || background === "rgb(26,26,26)";
+    });
+    return {
+      solidActionCount: solidButtons.length,
+      hasPermanentSceneIllustration: Boolean(hero.querySelector('[title="今晚菜单生活场景"]')),
+    };
+  });
   const screenshot = join(evidenceDir, "tonight-first-viewport-mobile.png");
   await page.screenshot({ path: screenshot });
   await primary.click();
@@ -499,6 +527,7 @@ async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
   await context.close();
   return {
     primaryInFirstViewport,
+    heroHierarchy,
     mealRhythmAfterPrimary,
     menuWritten,
     dinnerPlanWritten,

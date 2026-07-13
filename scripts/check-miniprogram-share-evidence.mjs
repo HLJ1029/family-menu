@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const DEFAULT_PRIVATE_DIR = "/Users/honglijie/.humi-release-evidence";
 const EVIDENCE_PREFIX = "miniprogram-share-card-preview-";
@@ -13,6 +17,7 @@ const requiredFiles = [
     minWidth: 240,
     minHeight: 160,
     minBytes: 8_000,
+    visualMarkers: ["征集口味", "今晚征集", "想吃"],
   },
   {
     key: "crave-landing",
@@ -29,6 +34,7 @@ const requiredFiles = [
     minWidth: 240,
     minHeight: 160,
     minBytes: 8_000,
+    visualMarkers: ["邀请你加入", "邀请", "加入"],
   },
   {
     key: "invite-landing",
@@ -45,6 +51,7 @@ const requiredFiles = [
     minWidth: 240,
     minHeight: 160,
     minBytes: 8_000,
+    visualMarkers: ["买菜清单", "买菜", "清单"],
   },
   {
     key: "grocery-landing",
@@ -57,7 +64,9 @@ const requiredFiles = [
 ];
 
 const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
-const files = await Promise.all(requiredFiles.map((item) => inspectEvidenceFile(evidenceDir, item)));
+const inspectedFiles = await Promise.all(requiredFiles.map((item) => inspectEvidenceFile(evidenceDir, item)));
+const cardOcr = await recognizeCardScreenshots(inspectedFiles.filter((item) => item.key.endsWith("-card") && item.ok));
+const files = inspectedFiles.map((item) => applyVisualEvidenceCheck(item, cardOcr.get(item.path)));
 const missing = files.filter((item) => !item.ok);
 const missingCards = missing.filter((item) => item.key.endsWith("-card"));
 const missingLandings = missing.filter((item) => item.key.endsWith("-landing"));
@@ -71,8 +80,8 @@ const result = {
   nextActions: missing.length
     ? buildNextActions({ evidenceDir, missing, missingCards, missingLandings })
     : [
-      "All mini program share card evidence files are present.",
-      "Mark the P1 item in docs/humi-1.1-pre-review-hardening.md as complete if the screenshots visually match the expected card and landing behavior.",
+      "All mini program share card evidence files are present and contain the expected native send-dialog text.",
+      "The three card screenshots show the DevTools virtual recipient, send action, and their crave/invite/grocery semantics.",
     ],
 };
 
@@ -81,7 +90,7 @@ if (!result.ok) process.exit(1);
 
 function buildNextActions({ evidenceDir, missing, missingCards, missingLandings }) {
   const actions = [
-    `Missing evidence files: ${missing.map((item) => item.file).join(", ")}.`,
+    `Missing or invalid evidence files: ${missing.map((item) => item.file).join(", ")}.`,
   ];
   if (missingLandings.length) {
     actions.push("Run npm run release:wechat:share:landings to regenerate missing H5 landing screenshots.");
@@ -96,6 +105,52 @@ function buildNextActions({ evidenceDir, missing, missingCards, missingLandings 
   }
   actions.push("Rerun npm run release:wechat:share:evidence after adding the missing files.");
   return actions;
+}
+
+async function recognizeCardScreenshots(cardFiles) {
+  if (cardFiles.length === 0) return new Map();
+  if (process.platform !== "darwin") {
+    return new Map(cardFiles.map((item) => [item.path, { ok: false, error: "Native screenshot OCR requires macOS Vision." }]));
+  }
+  const helper = resolve("scripts/recognize-screenshot-text.swift");
+  try {
+    const { stdout } = await execFileAsync("swift", [helper, ...cardFiles.map((item) => item.path)], {
+      timeout: 120_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const records = JSON.parse(stdout);
+    return new Map(records.map((record) => [record.path, {
+      ok: !record.error && Boolean(record.text),
+      text: record.text || "",
+      error: record.error || undefined,
+    }]));
+  } catch (error) {
+    return new Map(cardFiles.map((item) => [item.path, { ok: false, text: "", error: error.message }]));
+  }
+}
+
+function applyVisualEvidenceCheck(item, ocr) {
+  if (!item.key.endsWith("-card")) return item;
+  const text = ocr?.text || "";
+  const marker = item.visualMarkers?.find((candidate) => text.includes(candidate));
+  const hasVirtualRecipient = text.includes("虚拟好友");
+  const hasSendAction = text.includes("发送");
+  const visualOk = Boolean(ocr?.ok && marker && hasVirtualRecipient && hasSendAction);
+  return {
+    ...item,
+    ok: item.ok && visualOk,
+    visual: {
+      ok: visualOk,
+      matchedSemanticMarker: marker,
+      hasVirtualRecipient,
+      hasSendAction,
+      recognizedText: text,
+      error: ocr?.error,
+    },
+    error: item.ok && !visualOk
+      ? `${item.file} does not show a DevTools native send dialog with the expected ${item.key.replace("-card", "")} semantics.`
+      : item.error,
+  };
 }
 
 async function findLatestEvidenceDir() {

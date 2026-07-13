@@ -19,7 +19,6 @@ import { AccountAvatar } from "./AppShell";
 import { BreakfastQuickPicker } from "./BreakfastQuickPicker";
 import { CraveCollectingSheet, CraveStarterSheet } from "./CraveSheet";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
 
 const dinnerSources = [
   { id: "home", label: "在家做" },
@@ -212,7 +211,7 @@ export function Dashboard({
         className={`${dinnerReady ? "col-span-3" : "col-span-2"} inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-3 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base`}
       >
         <BookOpen size={18} />
-        自己挑
+        全部菜品
       </button>
       {!dinnerReady && (
         <button
@@ -225,31 +224,31 @@ export function Dashboard({
           {craveSelectionMode ? "都不想吃" : "不想吃"}
         </button>
       )}
-      {!dinnerReady && (
-        <button
-          type="button"
-          onClick={onRequestPreciseRecommendation}
-          disabled={aiRecommendationLoading || !preciseEnabled}
-          className="col-span-6 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
-        >
-          <Sparkles size={18} />
-          {recommendationAccess?.plan === "plus"
-            ? "精准推荐"
-            : preciseTrialRemaining > 0
-              ? `精准推荐 · 余 ${preciseTrialRemaining}`
-              : "精准推荐已用完"}
-        </button>
-      )}
-      {canManageHousehold && (
+      <div className="col-span-6 flex min-h-11 flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-1 sm:min-h-14 sm:flex-1 sm:justify-start sm:pt-0">
+        {!dinnerReady && (
+          <button
+            type="button"
+            onClick={onRequestPreciseRecommendation}
+            disabled={aiRecommendationLoading || !preciseEnabled}
+            className="inline-flex min-h-11 items-center justify-center gap-2 text-sm font-black text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink disabled:cursor-not-allowed disabled:text-ink/35 disabled:no-underline"
+          >
+            <Sparkles size={16} />
+            {recommendationAccess?.plan === "plus"
+              ? "换成精准推荐"
+              : preciseTrialRemaining > 0
+                ? `换成精准推荐 · 余 ${preciseTrialRemaining}`
+                : "精准推荐已用完"}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setCraveOpen((current) => !current)}
-          className="col-span-6 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+          className="inline-flex min-h-11 items-center justify-center gap-2 text-sm font-black text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink"
         >
-          <MessageCircleHeart size={18} />
+          <MessageCircleHeart size={16} />
           问问大家想吃啥
         </button>
-      )}
+      </div>
     </div>
   ) : (
     <div className="mt-6 sm:mt-8">
@@ -269,7 +268,7 @@ export function Dashboard({
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
-      <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
+      <section data-testid="tonight-hero" className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
         <div className="absolute left-5 top-5 z-10">
           <p className="text-sm font-black uppercase tracking-[0.16em] text-ink">HUMI</p>
         </div>
@@ -291,8 +290,7 @@ export function Dashboard({
         )}
 
         <div className="relative z-10 pt-16">
-          <div className="grid gap-4 md:grid-cols-[1fr_180px] md:items-end">
-            <div>
+          <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/42">今晚吃什么</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-0.04em] sm:text-5xl md:text-6xl">
               {dinnerReady ? todayRecipes.map((recipe) => recipe.name).join(" + ") : recommendation.title}
@@ -300,24 +298,14 @@ export function Dashboard({
             <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {coreSummary}
             </p>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-ink/58">
-              {aiRecommendationLoading
-                ? "正在重新核对家里现有、时间和忌口线索。"
-                : dinnerReady
-                  ? "菜单已落位，买菜清单会跟着更新。"
-                  : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
-            </p>
+            {(aiRecommendationLoading || dinnerReady) && (
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-ink/58">
+                {aiRecommendationLoading
+                  ? "正在重新核对家里现有、时间和忌口线索。"
+                  : "菜单已落位，买菜清单会跟着更新。"}
+              </p>
+            )}
             {!craveSelectionMode && dinnerActions}
-            </div>
-            <div className="justify-self-center md:justify-self-end">
-              <HumiBrandIllustration
-                variant={dinnerReady ? "dinner-ready" : aiRecommendationLoading ? "recommendation-loading" : "dashboard-recommendation"}
-                size="2xl"
-                className="shrink-0"
-                title="今晚菜单生活场景"
-                contextKey={dinnerReady ? "dashboard-dinner-ready" : "dashboard-dinner-decision"}
-              />
-            </div>
           </div>
 
           <div className="tonight-card-swap mt-6 grid gap-4 md:mt-8 md:grid-cols-2" key={recommendation.title}>

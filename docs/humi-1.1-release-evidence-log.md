@@ -18,7 +18,7 @@
 | 小程序版本 | `1.1.59` |
 | 小程序描述 | `原生分享确认页` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 生产 API 补部署和提审前 P0/P1 打磨已完成；当前处于 1.1 生产候选完善与内测验证，尚未提交微信审核 |
+| 当前状态 | 产品功能继续在本地候选收口；分享 OCR 语义门禁已重开征集/邀请截图 P1，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -41,6 +41,7 @@
 | 2026-07-05 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` / `npm run release:wechat:share:complete` | 通过 | DevTools 原生分享确认页已复核 `crave`、`invite`、`grocery` 三类虚拟好友小程序卡片；六张截图证据均 OK，private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522` |
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `117cd3e` / Pages run `28726626647` success / `release:next` 与 `release:closure` 均停在用户确认点 |
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `2527e30` / Pages run `28744383941` success / 新增只读 `npm run release:map` 收口地图命令 |
+| 2026-07-13 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` | 阻止收口 | 新增 Vision OCR 语义门禁后发现历史证据误判：`grocery-card.png` 有虚拟好友发送框并通过；`crave-card.png` 缺发送框，`invite-card.png` 为无关截图，二者必须重截 |
 
 ## 3. 生产 API 补部署证据
 

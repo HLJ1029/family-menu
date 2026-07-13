@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || await findLatestPacketDir();
-const today = new Date().toISOString().slice(0, 10);
+const today = process.env.HUMI_CANDIDATE_VALIDATION_DATE || new Date().toISOString().slice(0, 10);
 const review = await runReview();
 const dispatch = await readDispatchSummary(packetDir, today);
 
