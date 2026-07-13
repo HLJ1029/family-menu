@@ -9,7 +9,7 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-当前结论：1.1 正在最新 `main` 基线的 `codex/humi-1.1-spec-closure` 分支做功能收口。菜品库、三餐选择、协作发起权限和小程序原生分享动作已有本地点击级证据；支付结算范围仍待产品确认。现在不提交微信审核，也不把历史上传版本当作本轮功能验收结果。
+当前结论：1.1 正在最新 `main` 基线的 `codex/humi-1.1-spec-closure` 分支做功能收口。当前台账 70 个需求 ID 均存在，可本地实现项全部完成；`release:spec:audit` 会明确输出 `localImplementationReady=true`、`specClosureReady=false`，后者只在 Plus/支付范围确认且当前候选三类原生分享卡片验收后转为 true。现在不提交微信审核，也不把历史上传版本当作本轮功能验收结果。
 
 ## 1. 当前发布事实
 
@@ -29,6 +29,7 @@
 | 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
 | 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片；产品 smoke 在 138 道菜中真实点击青椒土豆丝 `补进今晚`，验证同步进入今晚菜单和当日晚餐计划 |
 | 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
+| 完整菜品库保持【今晚】子页面导航关系 | 已完成 | `getPrimaryNavId` 将菜品库归属【今晚】；产品 smoke 验证三主 tab 等宽可见、【今晚】保持激活、返回键回今晚、顶部头像进入【我的家】 |
 | 【今晚菜单】加菜不降级为列表 | 已完成 | 【今晚】首屏 `全部菜品` 可直接进入完整菜品子页；`src/components/TodayMenu.jsx` 的内嵌选菜区也保留图片卡片和 `发现新菜` 入口 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
@@ -78,7 +79,8 @@
 
 | 项目 | 状态 | 下一步 |
 | --- | --- | --- |
-| 家庭订阅真实支付结算 | 待用户确认 | 确认 1.1 接入微信支付，或明确将结算列入 1.2；当前已完成精准尝鲜、Plus 权益和 API 成本闸门，但没有支付下单闭环 |
+| 家庭订阅真实支付结算 | 待用户确认 | 确认 1.1 接入微信支付，或明确将结算列入 1.2；当前已完成精准推荐尝鲜权益和 API 成本闸门，但没有支付下单闭环 |
+| Plus 深度协调、完整版画像与一周计划打包 | 待用户确认 | 当前精准 API 权益已完成；其余三项只有基础能力，没有 Plus 版差异。需确认 1.1 实现哪些增强能力，或整体明确列入 1.2 |
 | 三类小程序原生分享发送框视觉复核 | 进行中 | 当前候选已生成三张 landing、直达二维码和通用预览二维码；未沿用历史卡片，三类发送框都待 Mac 解锁后重新截取并通过 OCR |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |

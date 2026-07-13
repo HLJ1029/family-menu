@@ -27,6 +27,7 @@
 | STR-05 | 周计划降为“想连排几天”辅助入口，并可查看三餐汇总清单 | 已完成 | 【今晚】手机端 `dashboard-planner-entry`；周计划 `planner-grocery-summary`；产品 smoke 真实点击两级入口并打开清单 |
 | STR-06 | 搜索默认收起，需要时再展开 | 已完成 | `AppShell.jsx` 的 `searchOpen` |
 | STR-07 | 页级标题不抢主角 Display | 已完成 | `AppShell.jsx` 标题降为 24/30px |
+| STR-08 | 菜品库等辅助页保持所属主 tab 关系，返回与头像去向明确 | 已完成 | `getPrimaryNavId`；产品 smoke 验证菜品库保留三主 tab、【今晚】激活、返回今晚，顶部头像进入【我的家】 |
 
 ## 2. 三餐、清单与隐形食材线索
 
@@ -91,6 +92,9 @@
 | REC-04 | 相同推荐上下文缓存复用 | 已完成 | `buildPreciseRecommendationCacheKey`，已包含 candidates/历史/反馈 |
 | REC-05 | 早期数据少也给画像反射 | 已完成 | `buildFamilyReflections` 的感觉/三餐/想吃/初始反射 |
 | REC-06 | 历史感觉与确认做过的菜反哺推荐，但不原菜循环 | 已完成 | `collectLearnedCraveVotes`、`collectMealHistoryTaste`；`validate:recommendation` 验证已结束征集沉淀、常做类型轻加分和近期原菜降权 |
+| REC-07 | Plus 的深度家庭协调：精确忌口、成员权重和阶段偏好 | 待用户决策 | 当前只有家庭硬忌口、感觉揉合和基础历史学习；需确认 1.1 实现，或明确列入 1.2 |
+| REC-08 | Plus 的完整版家庭画像/营养回顾权益边界 | 待用户决策 | 当前基础画像反射和营养回看可用，但没有免费版/完整版区分；需与付费范围一并确认 |
+| REC-09 | Plus 的一周计划打包权益边界 | 待用户决策 | 当前“想连排几天”和汇总清单可用，但没有 Plus 权益区分；需确认是否保持基础免费、仅增强打包付费，或列入 1.2 |
 | PAY-01 | 1.1 是否接入真实微信支付、订单回调和权益发放 | 待用户决策 | 必须在“1.1 接入”与“明确放到 1.2”中选择；未确认前不动支付 |
 
 ## 6. 小程序分享与视觉
@@ -105,8 +109,9 @@
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |
 | UI-04 | 主操作保持唯一黑色实心，重复认领/添加降为次级 | 已完成 | `Dashboard.jsx`、`GroceryList.jsx`；移动端截图复验 |
-| UI-05 | 【今晚】首屏只有一个实心主操作，精准推荐与征集降为弱入口 | 已完成 | `tonight-hero-has-one-solid-primary-action`；最新移动端证据 `product-entrypoint-smoke-20260713T143228Z/tonight-first-viewport-mobile.png` |
+| UI-05 | 【今晚】首屏只有一个实心主操作，精准推荐与征集降为弱入口 | 已完成 | `tonight-hero-has-one-solid-primary-action`；最新移动端证据 `product-entrypoint-smoke-20260713T151135Z/tonight-first-viewport-mobile.png` |
 | UI-06 | 页面用过后隐藏常驻自我介绍，不用场景插图挤占今晚首屏 | 已完成 | `used-family-activity-hides-self-introduction`、`tonight-hero-has-no-permanent-scene-illustration`；产品 smoke |
+| UI-07 | 390px 窄屏主操作文字不被挤成难看的断行 | 已完成 | 【今晚】`全部菜品` 移动端隐藏装饰图标并保持单行；`product-entrypoint-smoke-20260713T151135Z/tonight-first-viewport-mobile.png` 与 `dashboard-library-entry-label-stays-on-one-line` |
 
 ## 7. 当前不做的外部动作
 
@@ -131,7 +136,7 @@ npm run release:product:review
 npm run release:product:smoke -- --base-url http://127.0.0.1:4174/
 npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4174/
 npm run release:wechat:share:selftest
-npm run release:spec:audit
+npm run release:spec:audit # 未确认 Plus/支付范围或未完成当前候选原生卡片时，应明确返回 specClosureReady=false
 npm run release:docs:check
 npm run release:security:audit
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh

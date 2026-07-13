@@ -13,6 +13,7 @@ const LEDGER_PATH = "docs/humi-1.1-requirement-ledger.md";
 const REQUIRED_MATRIX_ITEMS = [
   "三 tab 定版",
   "发现/自己挑降为辅助页",
+  "完整菜品库保持【今晚】子页面导航关系",
   "【今晚菜单】加菜不降级为列表",
   "周计划降级为【今晚】辅助入口",
   "【今晚】首屏主角是晚饭推荐",
@@ -55,21 +56,54 @@ const REQUIRED_MATRIX_ITEMS = [
   "发布材料去除旧",
 ];
 
+const DECISION_LEDGER_IDS = ["REC-07", "REC-08", "REC-09", "PAY-01"];
+const NATIVE_EVIDENCE_LEDGER_IDS = ["WX-04"];
+const EXTERNAL_LEDGER_IDS = ["EXT-01", "EXT-02", "EXT-03"];
+const REQUIRED_LEDGER_IDS = [
+  ...numberedIds("STR", 1, 8),
+  ...numberedIds("MEAL", 1, 5),
+  ...numberedIds("LIST", 1, 6),
+  ...numberedIds("PROFILE", 1, 2),
+  ...numberedIds("COL", 1, 10),
+  "CRV-A1", "CRV-A2", "CRV-B1", "CRV-B2", "CRV-B3", "CRV-C1",
+  "CRV-D1", "CRV-D2", "CRV-D3", "CRV-D4", "CRV-D5", "CRV-D6",
+  "CRV-E1", "CRV-E2", "CRV-F1",
+  ...numberedIds("REC", 1, 9),
+  "PAY-01",
+  ...numberedIds("WX", 1, 4),
+  ...numberedIds("UI", 1, 7),
+  ...EXTERNAL_LEDGER_IDS,
+];
+const LOCAL_IMPLEMENTATION_LEDGER_IDS = REQUIRED_LEDGER_IDS.filter((id) => (
+  !DECISION_LEDGER_IDS.includes(id)
+  && !NATIVE_EVIDENCE_LEDGER_IDS.includes(id)
+  && !EXTERNAL_LEDGER_IDS.includes(id)
+));
+
 const sourceSpecs = await Promise.all(SOURCE_SPECS.map(inspectSourceSpec));
 const audit = await inspectAudit();
 const hardening = await inspectHardening();
 const ledger = await inspectLedger();
 
-const ok = sourceSpecs.every((item) => item.ok) && audit.ok && hardening.ok && ledger.ok;
+const auditIntegrityOk = sourceSpecs.every((item) => item.ok) && audit.ok && hardening.ok && ledger.ok;
+const localImplementationReady = auditIntegrityOk && ledger.localImplementationReady;
+const specClosureReady = localImplementationReady
+  && ledger.decisionScopeResolved
+  && ledger.nativeShareReady
+  && hardening.openP0P1.length === 0;
+const ok = specClosureReady;
 
 console.log(JSON.stringify({
   ok,
+  auditIntegrityOk,
+  localImplementationReady,
+  specClosureReady,
   checkedAt: new Date().toISOString(),
   sourceSpecs,
   audit,
   hardening,
   ledger,
-  nextActions: buildNextActions({ sourceSpecs, audit, hardening }),
+  nextActions: buildNextActions({ sourceSpecs, audit, hardening, ledger }),
 }, null, 2));
 
 if (!ok) process.exit(1);
@@ -153,25 +187,54 @@ async function inspectHardening() {
 }
 
 async function inspectLedger() {
-  const requiredIds = [
-    "STR-01", "STR-07", "MEAL-01", "MEAL-05", "LIST-01", "LIST-06", "PROFILE-01", "PROFILE-02",
-    "COL-01", "COL-10", "CRV-A1", "CRV-B3", "CRV-D2", "CRV-D5", "CRV-F1",
-    "REC-01", "REC-05", "REC-06", "PAY-01", "WX-01", "WX-04", "UI-04", "UI-05", "UI-06", "EXT-01", "EXT-03",
-  ];
   try {
     const content = await readFile(LEDGER_PATH, "utf8");
-    const missingIds = requiredIds.filter((id) => !content.includes(`| ${id} |`));
-    const paymentDecisionOpen = content.includes("| PAY-01 |") && content.includes("待用户决策");
-    const externalActionsDeferred = ["EXT-01", "EXT-02", "EXT-03"].every((id) => (
-      content.includes(`| ${id} |`) && content.includes("待验收后外部动作")
-    ));
+    const rows = parseLedgerRows(content);
+    const rowsById = new Map(rows.map((row) => [row.id, row]));
+    const missingIds = REQUIRED_LEDGER_IDS.filter((id) => !rowsById.has(id));
+    const duplicateIds = rows
+      .map((row) => row.id)
+      .filter((id, index, ids) => ids.indexOf(id) !== index);
+    const incompleteLocalRows = LOCAL_IMPLEMENTATION_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row && row.status !== "已完成");
+    const invalidDecisionRows = DECISION_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row && !["待用户决策", "已完成", "明确列入 1.2"].includes(row.status));
+    const invalidNativeRows = NATIVE_EVIDENCE_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row && !["进行中", "已完成"].includes(row.status));
+    const invalidExternalRows = EXTERNAL_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row && row.status !== "待验收后外部动作");
+    const openDecisionRows = DECISION_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row?.status === "待用户决策");
+    const openNativeRows = NATIVE_EVIDENCE_LEDGER_IDS
+      .map((id) => rowsById.get(id))
+      .filter((row) => row?.status !== "已完成");
+    const localImplementationReady = missingIds.length === 0 && incompleteLocalRows.length === 0;
+    const decisionScopeResolved = missingIds.length === 0 && openDecisionRows.length === 0;
+    const nativeShareReady = missingIds.length === 0 && openNativeRows.length === 0;
     return {
       path: LEDGER_PATH,
-      ok: missingIds.length === 0 && paymentDecisionOpen && externalActionsDeferred && !content.includes("| 未完成 |"),
-      requiredIds: requiredIds.length,
+      ok: missingIds.length === 0
+        && duplicateIds.length === 0
+        && invalidDecisionRows.length === 0
+        && invalidNativeRows.length === 0
+        && invalidExternalRows.length === 0,
+      requiredIds: REQUIRED_LEDGER_IDS.length,
       missingIds,
-      paymentDecisionOpen,
-      externalActionsDeferred,
+      duplicateIds,
+      incompleteLocalRows,
+      invalidDecisionRows,
+      invalidNativeRows,
+      invalidExternalRows,
+      openDecisionRows,
+      openNativeRows,
+      localImplementationReady,
+      decisionScopeResolved,
+      nativeShareReady,
     };
   } catch (error) {
     return { path: LEDGER_PATH, ok: false, error: error.message };
@@ -237,6 +300,25 @@ function parseTableRow(line) {
   };
 }
 
+function parseLedgerRows(content) {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^\| (?:STR|MEAL|LIST|PROFILE|COL|CRV|REC|PAY|WX|UI|EXT)-/.test(line))
+    .map(parseTableRow)
+    .filter((row) => row.cells.length >= 4)
+    .map((row) => ({
+      id: row.cells[0],
+      requirement: row.cells[1],
+      status: row.cells[2],
+      evidence: row.cells[3],
+    }));
+}
+
+function numberedIds(prefix, start, end) {
+  return Array.from({ length: end - start + 1 }, (_, index) => `${prefix}-${String(start + index).padStart(2, "0")}`);
+}
+
 function sliceBetween(content, startMarker, endMarker) {
   const start = content.indexOf(startMarker);
   if (start < 0) return "";
@@ -244,7 +326,7 @@ function sliceBetween(content, startMarker, endMarker) {
   return end < 0 ? content.slice(start) : content.slice(start, end);
 }
 
-function buildNextActions({ sourceSpecs, audit, hardening }) {
+function buildNextActions({ sourceSpecs, audit, hardening, ledger }) {
   const actions = [];
   const missingSources = sourceSpecs.filter((item) => !item.ok);
   if (missingSources.length) actions.push(`Restore missing or empty source specs: ${missingSources.map((item) => item.path).join(", ")}.`);
@@ -252,7 +334,11 @@ function buildNextActions({ sourceSpecs, audit, hardening }) {
   if (audit.missingMatrixItems?.length) actions.push(`Add missing acceptance rows: ${audit.missingMatrixItems.join(", ")}.`);
   if (audit.incompleteRows?.length) actions.push("Resolve incomplete rows in the spec acceptance matrix before claiming 1.1 scope is implemented.");
   if (audit.unexpectedOpenRows?.length) actions.push("Normalize section 3 to only known external/pre-review follow-ups.");
+  if (ledger.missingIds?.length) actions.push(`Add missing requirement-ledger rows: ${ledger.missingIds.join(", ")}.`);
+  if (ledger.incompleteLocalRows?.length) actions.push(`Finish local implementation rows: ${ledger.incompleteLocalRows.map((row) => row.id).join(", ")}.`);
+  if (ledger.openDecisionRows?.length) actions.push(`Confirm or defer the open product/payment scope: ${ledger.openDecisionRows.map((row) => row.id).join(", ")}.`);
+  if (ledger.openNativeRows?.length) actions.push(`Capture and verify current native WeChat evidence: ${ledger.openNativeRows.map((row) => row.id).join(", ")}.`);
   if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
-  if (!actions.length) actions.push("Spec acceptance audit is covered; continue local product acceptance and keep deployment/upload/review deferred until the user accepts.");
+  if (!actions.length) actions.push("All spec rows, product decisions, and current-candidate native evidence are complete; keep deployment/upload/review deferred until the user accepts.");
   return actions;
 }

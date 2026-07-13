@@ -11,7 +11,7 @@
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、三张直达原生分享确认页二维码和三张微信原生 card 图缺口。
 - `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据和微信审核显式确认护栏。
-- `npm run release:spec:audit` 会把三份策划书、验收矩阵和当前 P0/P1 gate 做机器复核，防止文档只存在但没有覆盖要求。
+- `npm run release:spec:audit` 会逐项核对 70 个需求 ID，并分别输出台账完整性、本地实现完成度与当前候选收口状态；付费决策或原生分享证据未完成时必须保持 `specClosureReady=false`。
 - `docs/humi-1.1-requirement-ledger.md` 是逐项台账，区分已完成功能、待用户决策的支付范围和验收后才能做的外部动作。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”，不自动推动平台提交。
 - `npm run release:status` 的 `release.engineeringGatesReady=true` 只代表工程项健康；真实候选复盘也通过后，`release.candidateValidationReady=true` / `release:status ok=true` 才能进入微信审核准备讨论。
@@ -54,6 +54,7 @@
   - 验证：`npm run validate:recommendation`。
   - 证据：`src/lib/recommendation/rules.js`、`scripts/check-recommendation-constraints.mjs`。
 - [ ] P1 家庭订阅结算范围：确认 1.1 是否接入真实微信支付，或明确列入 1.2。
+  - 同一决策必须同时明确：深度家庭协调、完整版画像回顾、一周计划打包在 1.1 的权益边界；当前只有精准 API、尝鲜额度、成本闸门和缓存完成，不能用它们代替其余 Plus 能力。
   - 当前已有：基础推荐无限、3 次精准尝鲜、Plus 权益状态、API 鉴权/402 和缓存复用。
   - 当前缺口：没有支付下单、回调验签、订单与权益发放闭环；未确认前不能宣称三份策划书全部完成。
 - [x] P1 自己挑/今晚菜单选菜：从【今晚菜单】进入选菜时，必须保留小红书式图片卡片，并提供清晰入口打开完整【自己挑】菜品页，用于发现新菜。

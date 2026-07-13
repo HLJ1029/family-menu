@@ -131,11 +131,41 @@ try {
   const tonightViewport = await verifyTonightPrimaryViewport(browser, baseUrl, evidenceDir);
 
   const dashboardLibraryEntry = page.getByTestId("dashboard-library-entry");
+  const dashboardLibraryLabelLines = await page.getByTestId("dashboard-library-entry-label").evaluate((node) => node.getClientRects().length);
   await dashboardLibraryEntry.click();
   const dashboardLibraryTitle = page.getByRole("heading", { name: "全部菜品库" }).first();
   await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
   const dashboardLibraryOpened = await dashboardLibraryTitle.isVisible();
+  const libraryPrimaryNav = page.getByTestId("mobile-primary-navigation");
+  const libraryPrimaryNavCount = await libraryPrimaryNav.getByRole("button").count();
+  const libraryParentNavActive = await page.getByTestId("mobile-nav-dashboard").getAttribute("aria-current");
+  const libraryPrimaryNavLayout = await libraryPrimaryNav.evaluate((nav) => {
+    const navBox = nav.getBoundingClientRect();
+    const items = [...nav.querySelectorAll("button")].map((button) => {
+      const box = button.getBoundingClientRect();
+      return {
+        text: button.textContent?.trim(),
+        visible: box.width > 0 && box.height > 0,
+        width: Math.round(box.width * 100) / 100,
+      };
+    });
+    return {
+      navWidth: Math.round(navBox.width * 100) / 100,
+      items,
+      equalColumns: items.length === 3
+        && Math.max(...items.map((item) => item.width)) - Math.min(...items.map((item) => item.width)) < 2,
+    };
+  });
   await page.getByRole("button", { name: "返回上一页" }).click();
+  const libraryBackReturnsTonight = await page.getByTestId("tonight-hero").isVisible();
+
+  await dashboardLibraryEntry.click();
+  await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "打开我的家" }).click();
+  const childPageFamilyActivity = page.getByTestId("family-activity-section");
+  await childPageFamilyActivity.waitFor({ state: "visible", timeout: 15_000 });
+  const childPageAvatarOpenedFamily = await childPageFamilyActivity.isVisible();
+  await page.getByTestId("mobile-nav-dashboard").click();
 
   await page.getByRole("button", { name: "打开我的家" }).click();
   const dashboardFamilyActivity = page.getByTestId("family-activity-section");
@@ -158,6 +188,7 @@ try {
   });
   const discoveryScreenshot = join(evidenceDir, "discovery-mobile.png");
   const discoveryFullScreenshot = join(evidenceDir, "discovery-mobile-full.png");
+  await waitForTransientUi(page);
   await page.screenshot({ path: discoveryScreenshot });
   await page.screenshot({ path: discoveryFullScreenshot, fullPage: true });
   const potatoCard = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" });
@@ -222,7 +253,7 @@ try {
   await page.getByRole("button", { name: "分享买菜清单" }).click();
   await page.getByText("已打开买菜分享卡片").waitFor({ timeout: 15_000 });
 
-  await page.getByRole("button", { name: "我的家" }).click();
+  await page.getByTestId("mobile-nav-user").click();
   const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
   const dinnerActivityVisible = await page.getByText("主厨确认今晚已做饭").isVisible();
   const wantActivityVisible = await page.getByText("家人小林想吃 冬瓜排骨汤").isVisible();
@@ -263,7 +294,7 @@ try {
   const nutritionReflectionScreenshot = join(evidenceDir, "nutrition-reflection-mobile.png");
   await waitForTransientUi(page);
   await page.screenshot({ path: nutritionReflectionScreenshot, fullPage: true });
-  await page.getByRole("button", { name: "我的家", exact: true }).click();
+  await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("button", { name: "问问大家" }).first().click();
   await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
@@ -300,6 +331,18 @@ try {
     { key: "tonight-do-writes-menu-and-dinner-plan", ok: tonightViewport.menuWritten && tonightViewport.dinnerPlanWritten, actual: tonightViewport.decisionState },
     { key: "tonight-do-auto-generates-grocery", ok: tonightViewport.groceryGenerated, actual: tonightViewport.groceryCheckboxCount },
     { key: "dashboard-self-pick-opens-full-library", ok: dashboardLibraryOpened },
+    { key: "dashboard-library-entry-label-stays-on-one-line", ok: dashboardLibraryLabelLines === 1, actual: dashboardLibraryLabelLines },
+    { key: "library-child-page-keeps-three-primary-tabs", ok: libraryPrimaryNavCount === 3, actual: libraryPrimaryNavCount },
+    { key: "library-child-page-belongs-to-tonight-tab", ok: libraryParentNavActive === "page", actual: libraryParentNavActive },
+    {
+      key: "library-child-page-primary-tabs-are-visible-and-equal",
+      ok: libraryPrimaryNavLayout.equalColumns
+        && libraryPrimaryNavLayout.items.every((item) => item.visible)
+        && libraryPrimaryNavLayout.items.map((item) => item.text).join("|") === "今晚|清单|我的家",
+      actual: libraryPrimaryNavLayout,
+    },
+    { key: "library-child-page-back-returns-tonight", ok: libraryBackReturnsTonight },
+    { key: "child-page-avatar-opens-my-home", ok: childPageAvatarOpenedFamily },
     { key: "dashboard-avatar-opens-my-home", ok: dashboardAvatarOpenedFamily },
     { key: "full-library-title", ok: discoveryTitle },
     { key: "full-library-card-count", ok: recipeCards + selectedRecipeCount >= minRecipeCards, actual: recipeCards + selectedRecipeCount, expectedAtLeast: minRecipeCards },
@@ -639,6 +682,7 @@ async function readTodayMealSlot(page, slotId) {
 
 async function waitForTransientUi(page) {
   await page.locator(".toast-enter").waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+  await page.waitForTimeout(360);
 }
 
 async function verifySoloOwnerFlow(browser, base, evidenceDir) {
@@ -779,7 +823,7 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   });
 
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "我的家", exact: true }).click();
+  await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("heading", { name: "当前用的是 小家" }).waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: /爸妈家/ }).click();
   const switchedHeading = page.getByRole("heading", { name: "当前用的是 爸妈家" });
@@ -870,7 +914,7 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     page.waitForResponse((response) => response.url().endsWith("/state") && response.request().method() === "GET", { timeout: 15_000 }),
     page.goto(base, { waitUntil: "networkidle" }),
   ]);
-  await page.getByRole("button", { name: "我的家", exact: true }).click();
+  await page.getByTestId("mobile-nav-user").click();
   await page.waitForTimeout(1_000);
   const memberRoleHeading = page.getByRole("heading", { name: /里的家人$/ });
   if (!await memberRoleHeading.isVisible().catch(() => false)) {

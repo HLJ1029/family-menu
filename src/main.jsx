@@ -3228,7 +3228,7 @@ function App() {
               query={query}
               setQuery={setQuery}
               session={displaySession}
-              onOpenUserCenter={() => navigateTo("dashboard")}
+              onOpenUserCenter={() => navigateTo("user")}
               onBack={goBack}
             />
           )}

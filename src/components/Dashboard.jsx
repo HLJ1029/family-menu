@@ -210,8 +210,8 @@ export function Dashboard({
         onClick={onOpenRecipeLibrary}
         className={`${dinnerReady ? "col-span-3" : "col-span-2"} inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-3 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base`}
       >
-        <BookOpen size={18} />
-        全部菜品
+        <BookOpen size={18} className="hidden sm:block" />
+        <span data-testid="dashboard-library-entry-label" className="whitespace-nowrap">全部菜品</span>
       </button>
       {!dinnerReady && (
         <button
