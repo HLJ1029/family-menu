@@ -125,6 +125,16 @@ try {
   const discoveryFullScreenshot = join(evidenceDir, "discovery-mobile-full.png");
   await page.screenshot({ path: discoveryScreenshot });
   await page.screenshot({ path: discoveryFullScreenshot, fullPage: true });
+  const potatoCard = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" });
+  if (await potatoCard.count() !== 1) throw new Error("完整菜品库没有唯一展示青椒土豆丝卡片。");
+  await potatoCard.getByRole("button", { name: "补进今晚" }).click();
+  const libraryAddState = await page.evaluate((dateKey) => {
+    const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const mealPlan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    return { todayMenu, dinnerPlan: mealPlan?.[dateKey]?.dinner ?? [] };
+  }, getLocalDateKey());
+  const libraryDishAddedToMenu = libraryAddState.todayMenu.some((entry) => entry.recipeId === "potato-shreds");
+  const libraryDishAddedToDinnerPlan = libraryAddState.dinnerPlan.some((entry) => entry.recipeId === "potato-shreds");
 
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   await page.getByRole("button", { name: "选早餐吃什么" }).click();
@@ -184,6 +194,8 @@ try {
     { key: "full-library-title", ok: discoveryTitle },
     { key: "full-library-card-count", ok: recipeCards + selectedRecipeCount >= minRecipeCards, actual: recipeCards + selectedRecipeCount, expectedAtLeast: minRecipeCards },
     { key: "arranged-dishes-before-library-filters", ok: arrangedBeforeFilters },
+    { key: "library-dish-adds-to-tonight-menu", ok: libraryDishAddedToMenu, actual: libraryAddState.todayMenu },
+    { key: "library-dish-adds-to-dinner-plan", ok: libraryDishAddedToDinnerPlan, actual: libraryAddState.dinnerPlan },
     { key: "breakfast-empty-before-user-pick", ok: breakfastBeforePick.length === 0, actual: breakfastBeforePick },
     { key: "breakfast-saves-user-picked-dish", ok: breakfastAfterPick.some((entry) => entry.recipeId === "tomato-egg"), actual: breakfastAfterPick },
     { key: "breakfast-does-not-default-to-seaweed-soup", ok: !breakfastAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: breakfastAfterPick },

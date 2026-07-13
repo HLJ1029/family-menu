@@ -6,8 +6,8 @@ const REQUIRED_CHECKS = [
     title: "今晚菜单发现新菜入口",
     path: "src/components/TodayMenu.jsx",
     required: ["发现新菜", "补进今晚", "再加一份", "onOpenLibraryDiscovery", "openFullLibrary"],
-    evidence: "docs/humi-1.1-pre-review-hardening.md",
-    evidenceRequired: ["自己挑/今晚菜单选菜", "小红书式图片卡片", "发现新菜", "完整菜品页"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["library-dish-adds-to-tonight-menu", "library-dish-adds-to-dinner-plan", "青椒土豆丝"],
   },
   {
     key: "library-card-browsing",

@@ -27,7 +27,7 @@
 | 规格要求 | 当前状态 | 证据 |
 | --- | --- | --- |
 | 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
-| 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片，主动作是 `补进今晚`；`navigation.js` 把 `library` 放在 `auxiliaryNavItems` |
+| 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片；产品 smoke 在 138 道菜中真实点击青椒土豆丝 `补进今晚`，验证同步进入今晚菜单和当日晚餐计划 |
 | 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
 | 【今晚菜单】加菜不降级为列表 | 已完成 | `src/components/TodayMenu.jsx` 的内嵌选菜区保留图片卡片，并提供 `发现新菜` 入口进入完整【自己挑】菜品页 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
