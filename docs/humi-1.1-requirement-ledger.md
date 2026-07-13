@@ -31,7 +31,7 @@
 
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
-| MEAL-01 | 晚饭仍是首屏主角 | 已完成 | `Dashboard.jsx`；移动端产品 smoke 截图 |
+| MEAL-01 | 晚饭仍是首屏主角，主行动在手机首屏内 | 已完成 | `Dashboard.jsx`；`tonight-primary-action-is-in-first-viewport` 实测按钮底部不进入导航遮挡区，早午餐位于晚饭决策之后 |
 | MEAL-02 | 早餐是轻量选择，不擅自记默认菜 | 已完成 | `breakfast-empty-before-user-pick`、`breakfast-does-not-default-to-seaweed-soup` |
 | MEAL-03 | 午餐以来源记录为主，在家做才选菜 | 已完成 | `setLunchSource`、`pickForMeal("lunch")`；`validate:api` |
 | MEAL-04 | 三餐食材统一汇总清单 | 已完成 | `mealPlanEntriesForGroceries`；`validate:api` |
@@ -69,7 +69,7 @@
 | CRV-B3 | 选填备注默认折叠 | 已完成 | `CraveVoteSheet`；`crave-optional-note-is-collapsed` |
 | CRV-C1 | 提交后立即反馈，可跳过加入 | 已完成 | `CraveSubmittedSheet`；游客协作 smoke |
 | CRV-D1 | 等待态展示回复者和感觉，可手动出菜单 | 已完成 | `CraveCollectingSheet`、`VoteReceiptRow` |
-| CRV-D2 | 没人回/到期也自动出菜单 | 已完成 | `persisted-crave-auto-generates-after-deadline` |
+| CRV-D2 | 没人回/到期也按主厨初始感觉自动出菜单 | 已完成 | API 持久化 `initialFeelingTag`；`persisted-crave-auto-generates-after-deadline` 与 `no-reply-crave-keeps-initiator-feeling` |
 | CRV-D3 | 主厨登录身份可安全收口，家人不能关闭 | 已完成 | `authenticated owner should close`、成员 403 API smoke |
 | CRV-D4 | 推荐优先遵守忌口，再照顾感觉/食材/历史 | 已完成 | `validate:recommendation`；`collectRecentRecipeIds` |
 | CRV-D5 | 历史推荐不跨家庭/请求污染 | 已完成 | `validate:recommendation` 历史隔离回归测试 |
@@ -87,6 +87,7 @@
 | REC-03 | 客户端不能伪造 Plus/恢复额度 | 已完成 | `mergeClientRecommendationAccess`；`validate:api` |
 | REC-04 | 相同推荐上下文缓存复用 | 已完成 | `buildPreciseRecommendationCacheKey`，已包含 candidates/历史/反馈 |
 | REC-05 | 早期数据少也给画像反射 | 已完成 | `buildFamilyReflections` 的感觉/三餐/想吃/初始反射 |
+| REC-06 | 历史感觉与确认做过的菜反哺推荐，但不原菜循环 | 已完成 | `collectLearnedCraveVotes`、`collectMealHistoryTaste`；`validate:recommendation` 验证已结束征集沉淀、常做类型轻加分和近期原菜降权 |
 | PAY-01 | 1.1 是否接入真实微信支付、订单回调和权益发放 | 待用户决策 | 必须在“1.1 接入”与“明确放到 1.2”中选择；未确认前不动支付 |
 
 ## 6. 小程序分享与视觉

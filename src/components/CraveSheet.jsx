@@ -150,7 +150,9 @@ export function CraveVoteSheet({
       <CraveSheetShell
         eyebrow="今晚征集单"
         title="你想吃点啥？"
-        subtitle={`${request?.householdName || "我家"} 正在问今晚口味。不用想菜名，点一个感觉就行。`}
+        subtitle={request?.initiatorName
+          ? `${request.initiatorName}家今晚要做饭。不用想菜名，点一个感觉就行。`
+          : `${request?.householdName || "我家"}今晚要做饭。不用想菜名，点一个感觉就行。`}
         statusLabel="免登录参与"
         footer={(
           <div className="grid gap-3">

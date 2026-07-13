@@ -507,6 +507,7 @@ export class HumiStore {
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
       recipientIds,
       mealType: sanitizeText(payload.mealType, "dinner", 24),
+      initialFeelingTag: sanitizeText(payload.initialFeelingTag, "随便都行", 32),
       status: "open",
       deadlineAt,
       votes: [],

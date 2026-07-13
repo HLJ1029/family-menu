@@ -224,10 +224,11 @@ try {
   const crave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
-    body: { householdName: "测试家", initiatorName: "主厨" },
+    body: { householdName: "测试家", initiatorName: "主厨", initialFeelingTag: "想喝汤" },
   });
   assert(crave.request?.token, "crave request should return token");
   assert(crave.request?.householdId === loadedStateEnvelope.family?.id, "crave request should attach owner household");
+  assert(crave.request?.initialFeelingTag === "想喝汤", "crave request should preserve the initiator feeling for no-reply fallback");
   assert(
     Number.isFinite(Date.parse(crave.request?.deadlineAt)),
     "crave request should return an explicit deadline",

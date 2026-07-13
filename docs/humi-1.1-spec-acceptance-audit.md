@@ -31,8 +31,8 @@
 | 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
 | 【今晚菜单】加菜不降级为列表 | 已完成 | `src/components/TodayMenu.jsx` 的内嵌选菜区保留图片卡片，并提供 `发现新菜` 入口进入完整【自己挑】菜品页 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
-| 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 首屏标题来自晚饭推荐/今日菜单，主按钮为 `今晚就做` 或 `查看今晚菜单` |
-| 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 的 `MealRhythmPanel` 处理早餐轻记录、午餐来源；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
+| 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
+| 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
 | 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | `src/main.jsx` 将早餐和午餐在家做入口带到完整菜品库；产品 smoke 证明点选前早餐为空、点选后只写入用户选择的菜，且不会默认写紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
 | 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
@@ -48,7 +48,7 @@
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
 | 主厨可“我自己做主”，单人也能走完 | 已完成 | `Dashboard.jsx` 与 `UserCenter.jsx` 的 `onDecideAlone` 路径；无人参与也可出菜单 |
-| 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；本地逻辑超时出菜单 |
+| 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；API 持久化主厨 `initialFeelingTag`，产品 smoke 验证无人回复超时后仍按主厨感觉出菜单 |
 | 征集状态跨会话恢复，超时后主厨身份安全收口 | 已完成 | API 安全保存 `craveSignals` 且去除 owner secret；产品 smoke 从过期持久化征集自动出菜单，并用 Bearer 主厨会话关闭 |
 | 家人选填备注默认折叠 | 已完成 | `CraveVoteSheet` 首屏只显示“想补一句？”弱操作；游客 smoke 先确认输入框不存在，展开后仍可提交 |
 | 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | `Dashboard.jsx` 的 `craveSelectionMode` 支持勾选菜卡，按钮 `就做选中的 X 道` |
@@ -59,6 +59,7 @@
 | 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
 | 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
 | 推荐参考本家最近饮食且不跨请求污染 | 已完成 | `collectRecentRecipeIds` 每次从本家周计划与 `mealLogs` 建集；`validate:recommendation` 同时验证降重与请求隔离 |
+| 历史感觉和做饭确认会反哺后续推荐 | 已完成 | `collectLearnedCraveVotes` 只读取已结束征集；`collectMealHistoryTaste` 从确认吃过的菜提取常做类型轻加分，同时保留同一道菜近期降权；`validate:recommendation` 覆盖 |
 | 推荐权益不可由客户端升级 | 已完成 | `api/store.js` 的 `mergeClientRecommendationAccess` 保持服务端 plan，次数只能消耗不能恢复；`validate:api` 覆盖伪造 Plus 和重置次数 |
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请先展示价值后登录，且不会自动发起微信登录 |
@@ -79,13 +80,12 @@
 
 ## 4. 当前建议顺序
 
-1. 运行 `npm run release:next`、`npm run release:product:review`、`npm run release:candidate:check` 和 `npm run release:spec:audit`，确认当前仍处于“1.1 生产候选完善与内测验证”，不是微信审核提交阶段。
-2. 运行 `HUMI_CANDIDATE_VALIDATION_NO_OPEN=1 npm run release:candidate:prepare` 生成或复用私有内测执行包；真实用户信息、截图和联系方式继续留在私有目录，不进仓库。执行包内的 `tester-feedback-form.md` 给体验者回答，`host-run-sheet.md` 给执行人记录观察。
-3. 运行 `npm run release:candidate:doctor` 查看真实体验、【今晚】菜单、清单和协作样本还差多少，先把功能和内测闭环补齐。
-4. 灰度给 10-20 个家庭，反馈统一进私有候选执行包、`docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md`；复盘时运行 `npm run release:candidate:review`。
-5. `release:candidate:review` 默认必须达到 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个尝试协作，且无 P0/P1，才允许进入微信审核准备讨论。
-6. 候选复盘达标后，用户在动作当下明确确认，再按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台提交审核。
-7. 审核通过后按 `docs/launch-day-runbook.md` 发布并做 P0 真机验收；发布后 24 小时监控和真实微信全路径证据登记到 `docs/humi-1.1-release-evidence-log.md`。
+1. 以本台账和本地移动端页面完成全部功能闭环；支付范围只保留为用户决策，不用审核材料替代产品功能。
+2. 用户确认家庭订阅在 1.1 接入真实微信支付，或明确进入 1.2；未确认前不启动支付工程。
+3. 用户在 `http://127.0.0.1:4174/` 验收功能和体验。未通过就继续修，不部署、不上传。
+4. 验收通过后再部署 H5/API，并在微信开发者工具中连调普通启动、征集、邀请和清单三类小程序卡片。
+5. 开发者工具与真机候选体验通过后，再准备 10–20 个家庭灰度；反馈进入私有候选执行包，不把真实身份信息写进仓库。
+6. 灰度无 P0/P1 且用户动作当下确认后，才进入微信公众平台审核；审核通过后发布并登记 24 小时监控与真机证据。
 
 ## 5. 验证命令
 

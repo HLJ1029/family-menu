@@ -628,6 +628,7 @@ function toPublicCraveRequest(request) {
     initiatorName: request.initiatorName,
     recipientCount: (request.recipientIds ?? []).length,
     mealType: request.mealType,
+    initialFeelingTag: request.initialFeelingTag || "随便都行",
     status: request.status,
     deadlineAt: request.deadlineAt,
     resultSummary: request.resultSummary ? {

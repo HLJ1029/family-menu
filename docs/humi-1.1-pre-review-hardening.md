@@ -43,6 +43,8 @@
   - 验证：`npm run validate:api`，`npm run release:product:smoke -- --base-url http://127.0.0.1:4174/`。
   - 证据：`api/server.js`、`api/store.js`、`src/components/UserCenter.jsx`、`persisted-crave-auto-generates-after-deadline`。
 - [x] P1 历史推荐隔离：最近菜品每次从当前家的周计划和三餐记录建集，不使用跨请求的模块级集合。
+- [x] P1 晚饭首屏顺序：手机首屏先展示晚饭推荐与唯一主行动，早午餐下移到晚饭决策/确认之后，并用真实视口断言防回退。
+- [x] P1 软口味反哺：已结束征集的感觉与确认做过的菜会轻量影响后续推荐，同一道近期菜仍降权，硬忌口优先级不变。
   - 验证：`npm run validate:recommendation`。
   - 证据：`src/lib/recommendation/rules.js`、`scripts/check-recommendation-constraints.mjs`。
 - [ ] P1 家庭订阅结算范围：确认 1.1 是否接入真实微信支付，或明确列入 1.2。

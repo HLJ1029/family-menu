@@ -106,6 +106,7 @@ try {
   await seedGuestDinnerState(page);
   await page.reload({ waitUntil: "networkidle" });
   await installMiniProgramMock(page);
+  const tonightViewport = await verifyTonightPrimaryViewport(browser, baseUrl, evidenceDir);
 
   await openTodayMenu(page);
   await page.getByRole("button", { name: "发现新菜" }).first().click();
@@ -168,6 +169,8 @@ try {
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
 
   const checks = [
+    { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
+    { key: "breakfast-and-lunch-follow-dinner-decision", ok: tonightViewport.mealRhythmAfterPrimary },
     { key: "full-library-title", ok: discoveryTitle },
     { key: "full-library-card-count", ok: recipeCards + selectedRecipeCount >= minRecipeCards, actual: recipeCards + selectedRecipeCount, expectedAtLeast: minRecipeCards },
     { key: "arranged-dishes-before-library-filters", ok: arrangedBeforeFilters },
@@ -196,6 +199,7 @@ try {
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
+    { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
     { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
@@ -206,6 +210,7 @@ try {
     baseUrl,
     evidenceDir,
     screenshots: {
+      tonightFirstViewportMobile: tonightViewport.screenshot,
       discoveryMobile: discoveryScreenshot,
       discoveryMobileFull: discoveryFullScreenshot,
       userCraveMobile: userCraveScreenshot,
@@ -262,6 +267,61 @@ async function seedGuestDinnerState(page) {
       },
     }));
   }, today);
+}
+
+async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
+  const viewport = { width: 390, height: 844 };
+  const context = await browser.newContext({
+    viewport,
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const family = buildSmokeFamily();
+  const emptyDinnerState = {
+    ...buildSmokeHouseholdState(),
+    todayMenu: [],
+    mealPlan: {},
+    mealLogs: {},
+  };
+  await page.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "product-smoke-owner-token",
+      refreshToken: "product-smoke-owner-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+    localStorage.setItem("family-menu:today-menu", "[]");
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      const payload = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state: payload.state, family, households: [family] }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state: emptyDinnerState, family, households: [family] }) });
+  });
+  await page.goto(base, { waitUntil: "networkidle" });
+  const primary = page.getByTestId("tonight-primary-action");
+  await primary.waitFor({ timeout: 15_000 });
+  const primaryBox = await primary.boundingBox();
+  const primaryInFirstViewport = Boolean(
+    primaryBox
+    && primaryBox.y >= 0
+    && primaryBox.y + primaryBox.height <= viewport.height - 96,
+  );
+  const mealRhythmAfterPrimary = await page.evaluate(() => {
+    const action = document.querySelector('[data-testid="tonight-primary-action"]');
+    const mealRhythm = document.querySelector('[data-testid="meal-rhythm-panel"]');
+    if (!action || !mealRhythm) return false;
+    return Boolean(action.compareDocumentPosition(mealRhythm) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  const screenshot = join(evidenceDir, "tonight-first-viewport-mobile.png");
+  await page.screenshot({ path: screenshot });
+  await context.close();
+  return { primaryInFirstViewport, mealRhythmAfterPrimary, primaryBox, screenshot };
 }
 
 async function installMiniProgramMock(page) {
@@ -491,7 +551,7 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
       token: "persisted-crave-token",
       householdName: "我家",
       initiatorName: "主厨",
-      feelingTag: "随便都行",
+      feelingTag: "想喝汤",
       status: "open",
       deadlineAt: new Date(Date.now() - 1_000).toISOString(),
       votes: [],
@@ -527,14 +587,18 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
     });
   });
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.getByText("已揉合家人的感觉").waitFor({ timeout: 15_000 });
+  await page.getByText("已揉合家人的感觉").waitFor({ timeout: 15_000 }).catch(async (error) => {
+    const headings = await page.locator("h1, h2, h3").allTextContents();
+    throw new Error(`${error.message}; headings=${JSON.stringify(headings)}; pageErrors=${JSON.stringify(pageErrors)}`);
+  });
   const generated = await page.getByText("已揉合家人的感觉").isVisible();
+  const initiatorFeelingApplied = await page.getByText("照顾到：想喝汤").count() > 0;
   await page.waitForTimeout(300);
   const closeAuthorized = closeAuthorization === "Bearer persisted-crave-owner-token";
   const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");
   await page.screenshot({ path: screenshot });
   await context.close();
-  return { generated, closeAuthorized, closeAuthorization, pageErrors, screenshot };
+  return { generated, initiatorFeelingApplied, closeAuthorized, closeAuthorization, pageErrors, screenshot };
 }
 
 async function fulfillJson(route, body) {

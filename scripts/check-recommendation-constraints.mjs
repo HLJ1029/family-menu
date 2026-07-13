@@ -6,6 +6,8 @@ const vite = await createServer({
 });
 
 const { buildTodayRecommendation } = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
+const { collectLearnedCraveVotes } = await vite.ssrLoadModule("/src/lib/collaboration.js");
+const { recipes } = await vite.ssrLoadModule("/src/lib/recipes.js");
 
 const scenarios = [
   {
@@ -83,6 +85,36 @@ const isolatedBaseline = buildTodayRecommendation({
 });
 if (isolatedBaseline.title !== historyBaseline.title) {
   throw new Error("不同家庭/请求的最近菜品集合不得跨调用污染。");
+}
+
+const learnedVotes = collectLearnedCraveVotes([
+  { token: "closed", status: "closed", votes: [{ feelingTag: "想喝汤" }, { feelingTag: "随便都行" }] },
+  { token: "open", status: "open", votes: [{ feelingTag: "辣一点" }] },
+  { feelingTag: "清淡点" },
+]);
+if (learnedVotes.length !== 2 || !learnedVotes.some((vote) => vote.feelingTag === "想喝汤") || !learnedVotes.some((vote) => vote.feelingTag === "清淡点")) {
+  throw new Error("只有已结束征集和旧本地感觉可以沉淀为后续推荐信号。");
+}
+
+const categoryGroups = new Map();
+recipes.forEach((recipe) => {
+  recipe.categories.forEach((category) => {
+    categoryGroups.set(category, [...(categoryGroups.get(category) ?? []), recipe]);
+  });
+});
+const historyGroup = [...categoryGroups.values()].find((items) => items.length >= 4);
+if (!historyGroup) throw new Error("菜谱数据需要至少一个可用于历史口味验证的公共分类。");
+const historyTasteRecommendation = buildTodayRecommendation({
+  familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+  mealLogs: {
+    "2026-07-02": {
+      confirmation: "all",
+      consumedEntries: historyGroup.slice(0, 2).map((recipe) => ({ recipeId: recipe.id, quantity: 1 })),
+    },
+  },
+});
+if (historyTasteRecommendation.mealHistorySampleCount !== 2 || historyTasteRecommendation.mealHistoryHits <= 0) {
+  throw new Error("确认做过的菜应沉淀为类型偏好，同时由近期重复惩罚避免原菜循环。");
 }
 
 await vite.close();

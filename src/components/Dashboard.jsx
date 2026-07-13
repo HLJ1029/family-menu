@@ -170,6 +170,76 @@ export function Dashboard({
     );
   }
 
+  const dinnerActions = (
+    <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
+      <button
+        type="button"
+        data-testid="tonight-primary-action"
+        onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
+        disabled={craveSelectionMode && selectedCraveCount === 0}
+        className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
+      >
+        {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
+        {dinnerReady
+          ? "查看今晚菜单"
+          : craveSelectionMode
+            ? selectedCraveCount > 0
+              ? `就做选中的 ${selectedCraveCount} 道`
+              : "先勾一道"
+            : "今晚就做"}
+      </button>
+      <button
+        type="button"
+        onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
+        disabled={!dinnerReady && aiRecommendationLoading}
+        className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
+      >
+        {dinnerReady ? (
+          <ShoppingBasket size={18} />
+        ) : (
+          <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
+        )}
+        {dinnerReady ? "查看清单" : "换一组"}
+      </button>
+      {!dinnerReady && (
+        <button
+          type="button"
+          onClick={craveSelectionMode
+            ? () => onRequestAiRecommendation({ id: "crave_reject_all", label: "都不想吃" })
+            : onOpenRecommendationFeedback}
+          className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:px-7 sm:text-base"
+        >
+          {craveSelectionMode ? "都不想吃" : "不想吃"}
+        </button>
+      )}
+      {!dinnerReady && (
+        <button
+          type="button"
+          onClick={onRequestPreciseRecommendation}
+          disabled={aiRecommendationLoading || !preciseEnabled}
+          className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
+        >
+          <Sparkles size={18} />
+          {recommendationAccess?.plan === "plus"
+            ? "精准推荐"
+            : preciseTrialRemaining > 0
+              ? `精准推荐 · 余 ${preciseTrialRemaining}`
+              : "精准推荐已用完"}
+        </button>
+      )}
+      {canManageHousehold && (
+        <button
+          type="button"
+          onClick={() => setCraveOpen((current) => !current)}
+          className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+        >
+          <MessageCircleHeart size={18} />
+          问问大家想吃啥
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
       <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
@@ -210,13 +280,7 @@ export function Dashboard({
                   ? "菜单已落位，买菜清单会跟着更新。"
                   : "先按家里已有食材和今晚时间，给你一组能落地的晚饭。"}
             </p>
-            <MealRhythmPanel
-              breakfastSummary={breakfastSummary}
-              lunchSummary={lunchSummary}
-              lunchLog={lunchLog}
-              onRecordBreakfast={onRecordBreakfast}
-              onSetLunchSource={onSetLunchSource}
-            />
+            {!craveSelectionMode && dinnerActions}
             </div>
             <div className="justify-self-center md:justify-self-end">
               <HumiBrandIllustration
@@ -328,72 +392,7 @@ export function Dashboard({
             </div>
           )}
 
-          <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap">
-            <button
-              type="button"
-              onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
-              disabled={craveSelectionMode && selectedCraveCount === 0}
-              className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
-            >
-              {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
-              {dinnerReady
-                ? "查看今晚菜单"
-                : craveSelectionMode
-                  ? selectedCraveCount > 0
-                    ? `就做选中的 ${selectedCraveCount} 道`
-                    : "先勾一道"
-                  : "今晚就做"}
-            </button>
-            <button
-              type="button"
-              onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
-              disabled={!dinnerReady && aiRecommendationLoading}
-              className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-wait disabled:opacity-60 sm:px-7 sm:text-base"
-            >
-              {dinnerReady ? (
-                <ShoppingBasket size={18} />
-              ) : (
-                <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
-              )}
-              {dinnerReady ? "查看清单" : "换一组"}
-            </button>
-            {!dinnerReady && (
-              <button
-                type="button"
-                onClick={craveSelectionMode
-                  ? () => onRequestAiRecommendation({ id: "crave_reject_all", label: "都不想吃" })
-                  : onOpenRecommendationFeedback}
-                className="inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:px-7 sm:text-base"
-              >
-                {craveSelectionMode ? "都不想吃" : "不想吃"}
-              </button>
-            )}
-            {!dinnerReady && (
-              <button
-                type="button"
-                onClick={onRequestPreciseRecommendation}
-                disabled={aiRecommendationLoading || !preciseEnabled}
-                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-ink/42 sm:col-span-1 sm:px-7 sm:text-base"
-              >
-                <Sparkles size={18} />
-                {recommendationAccess?.plan === "plus"
-                  ? "精准推荐"
-                  : preciseTrialRemaining > 0
-                    ? `精准推荐 · 余 ${preciseTrialRemaining}`
-                    : "精准推荐已用完"}
-              </button>
-            )}
-            {canManageHousehold && (
-              <button
-                type="button"
-                onClick={() => setCraveOpen((current) => !current)}
-                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
-              >
-                <MessageCircleHeart size={18} />
-                问问大家想吃啥
-              </button>
-            )}
-          </div>
+          {craveSelectionMode && dinnerActions}
           {canManageHousehold && craveOpen && (
             <div ref={cravePanelRef} className="mt-5 scroll-mb-32">
               {activeCraveRequest?.token ? (
@@ -516,6 +515,13 @@ export function Dashboard({
         dinnerReady={dinnerReady}
         onViewChange={onViewChange}
       />
+      <MealRhythmPanel
+        breakfastSummary={breakfastSummary}
+        lunchSummary={lunchSummary}
+        lunchLog={lunchLog}
+        onRecordBreakfast={onRecordBreakfast}
+        onSetLunchSource={onSetLunchSource}
+      />
     </div>
   );
 }
@@ -537,7 +543,7 @@ function MealRhythmPanel({
   };
   const lunchSource = lunchLog?.source;
   return (
-    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+    <section data-testid="meal-rhythm-panel" className="grid gap-2 sm:grid-cols-2">
       <div className="rounded-[20px] border border-line bg-white p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -614,7 +620,7 @@ function MealRhythmPanel({
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

@@ -41,6 +41,7 @@ const REQUIRED_MATRIX_ITEMS = [
   "精准推荐走成本闸门",
   "精准推荐缓存复用",
   "推荐参考本家最近饮食",
+  "历史感觉和做饭确认会反哺后续推荐",
   "推荐权益不可由客户端升级",
   "黑白灰调色板",
   "三类分享落地页游客烟测",
@@ -150,7 +151,7 @@ async function inspectLedger() {
   const requiredIds = [
     "STR-01", "STR-07", "MEAL-01", "MEAL-05", "LIST-01", "LIST-06",
     "COL-01", "COL-10", "CRV-A1", "CRV-B3", "CRV-D2", "CRV-D5", "CRV-F1",
-    "REC-01", "REC-05", "PAY-01", "WX-01", "UI-04", "EXT-01", "EXT-03",
+    "REC-01", "REC-05", "REC-06", "PAY-01", "WX-01", "UI-04", "EXT-01", "EXT-03",
   ];
   try {
     const content = await readFile(LEDGER_PATH, "utf8");
@@ -205,17 +206,14 @@ function parseExternalRows(content) {
 function inspectCurrentOrder(content) {
   const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
   const required = [
-    "1.1 生产候选完善与内测验证",
-    "release:product:review",
-    "release:candidate:check",
-    "release:candidate:prepare",
-    "release:candidate:review",
-    "10 个真实体验",
-    "8 个完成【今晚】菜单",
-    "8 个完成清单",
-    "3 个尝试协作",
-    "无 P0/P1",
-    "动作当下明确确认",
+    "http://127.0.0.1:4174/",
+    "家庭订阅在 1.1 接入真实微信支付",
+    "未确认前不启动支付工程",
+    "未通过就继续修",
+    "验收通过后再部署 H5/API",
+    "微信开发者工具中连调",
+    "灰度无 P0/P1",
+    "用户动作当下确认",
   ];
   const missing = required.filter((text) => !section.includes(text));
   return {
@@ -250,6 +248,6 @@ function buildNextActions({ sourceSpecs, audit, hardening }) {
   if (audit.incompleteRows?.length) actions.push("Resolve incomplete rows in the spec acceptance matrix before claiming 1.1 scope is implemented.");
   if (audit.unexpectedOpenRows?.length) actions.push("Normalize section 3 to only known external/pre-review follow-ups.");
   if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
-  if (!actions.length) actions.push("Spec acceptance audit is covered; continue with release:status and pre-review evidence gates.");
+  if (!actions.length) actions.push("Spec acceptance audit is covered; continue local product acceptance and keep deployment/upload/review deferred until the user accepts.");
   return actions;
 }

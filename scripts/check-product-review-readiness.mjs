@@ -89,7 +89,7 @@ const REQUIRED_CHECKS = [
     path: "api/server.js",
     required: ["craveSignals: sanitizeList", "sanitizeCraveSignal", "getOptionalAuth", "auth?.userId"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "persisted-crave-closes-with-owner-session"],
+    evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "no-reply-crave-keeps-initiator-feeling", "persisted-crave-closes-with-owner-session"],
   },
   {
     key: "recommendation-history-isolation",
@@ -99,6 +99,22 @@ const REQUIRED_CHECKS = [
     forbidden: ["const recentRecipeIds = new Set();"],
     evidence: "scripts/check-recommendation-constraints.mjs",
     evidenceRequired: ["推荐应降低最近已吃菜品的排名", "不得跨调用污染"],
+  },
+  {
+    key: "tonight-first-viewport",
+    title: "晚饭主行动在手机首屏且早午餐后置",
+    path: "src/components/Dashboard.jsx",
+    required: ["tonight-primary-action", "meal-rhythm-panel", "!craveSelectionMode && dinnerActions"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["tonight-primary-action-is-in-first-viewport", "breakfast-and-lunch-follow-dinner-decision"],
+  },
+  {
+    key: "learned-taste-feeds-recommendation",
+    title: "历史感觉与确认做饭反哺推荐",
+    path: "src/main.jsx",
+    required: ["collectLearnedCraveVotes", "craveVotes: learnedCraveVotes"],
+    evidence: "scripts/check-recommendation-constraints.mjs",
+    evidenceRequired: ["collectLearnedCraveVotes", "mealHistorySampleCount", "确认做过的菜应沉淀为类型偏好"],
   },
   {
     key: "neutral-palette",
@@ -152,7 +168,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product review anchors are covered. Continue with release:status, release:candidate:review, and release:closure; do not enter WeChat review until candidate validation passes and the user confirms.",
+        "Product anchors are covered. Continue local product acceptance and resolve the payment-scope decision; do not deploy, upload, or enter WeChat review before user acceptance.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",

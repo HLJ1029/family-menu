@@ -82,6 +82,7 @@ try {
   await page.goto(withQuery(baseUrl, "crave", "crave-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "你想吃点啥？" }).waitFor({ timeout: 15_000 });
   const craveFirstScreen = await page.getByText("免登录参与").isVisible();
+  const initiatorContextVisible = await page.getByText("主厨阿杰家今晚要做饭。不用想菜名，点一个感觉就行。").isVisible();
   const craveNoteCollapsed = await page.getByPlaceholder("想补一句？可不填").count() === 0;
   const craveFirstScreenScreenshot = join(evidenceDir, "crave-guest-first-screen-mobile.png");
   await page.screenshot({ path: craveFirstScreenScreenshot });
@@ -112,7 +113,7 @@ try {
   await page.screenshot({ path: inviteScreenshot });
 
   const checks = [
-    { key: "crave-first-screen-is-guest-usable", ok: craveFirstScreen },
+    { key: "crave-first-screen-is-guest-usable", ok: craveFirstScreen && initiatorContextVisible },
     { key: "crave-optional-note-is-collapsed", ok: craveNoteCollapsed },
     { key: "crave-vote-posted-without-login", ok: craveVotePayload?.feelingTag === "辣一点", actual: craveVotePayload },
     { key: "crave-note-can-feed-want-pool", ok: craveVotePayload?.note === "想吃麻婆豆腐", actual: craveVotePayload?.note },

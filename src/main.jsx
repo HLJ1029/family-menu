@@ -57,6 +57,7 @@ import {
   recipes,
 } from "./lib/recipes";
 import { buildRecommendationItems, buildTodayRecommendation, recipeViolatesHardAvoid } from "./lib/recommendation/rules";
+import { collectLearnedCraveVotes } from "./lib/collaboration";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
 import {
@@ -702,6 +703,10 @@ function App() {
     () => groceryItems.filter((item) => isGroceryItemOwned(item)),
     [excludedGrocerySet, groceryItems, pantryNameSet],
   );
+  const learnedCraveVotes = useMemo(
+    () => collectLearnedCraveVotes(craveSignals),
+    [craveSignals],
+  );
   const todayRecommendation = useMemo(
     () =>
       buildTodayRecommendation({
@@ -713,8 +718,9 @@ function App() {
         familyMembers,
         familyProfile,
         wantToEatItems,
+        craveVotes: learnedCraveVotes,
       }),
-    [familyMembers, familyProfile, mealLogs, pantryItems, todayRecipes, visibleGroceryItems, wantToEatItems, weekPlan],
+    [familyMembers, familyProfile, learnedCraveVotes, mealLogs, pantryItems, todayRecipes, visibleGroceryItems, wantToEatItems, weekPlan],
   );
 
   useEffect(() => {
@@ -724,7 +730,7 @@ function App() {
         ? "先给你一组搭配理由；Humi 会继续参考家里的习惯。"
         : "先给你一组搭配理由；Humi 会慢慢记住家里的习惯。",
     );
-    setAiRecommendation(null);
+    setAiRecommendation((current) => current?.source === "crave" ? current : null);
     setAiRecommendationStatus(
       signedIn
         ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、食材线索和晚饭反馈。"
@@ -1103,7 +1109,7 @@ function App() {
             initiatorName: request.initiatorName,
             recipientCount: request.recipientCount,
             mealType: request.mealType || "dinner",
-            feelingTag: safeFeeling,
+            feelingTag: request.initialFeelingTag || safeFeeling,
             status: request.status,
             votes: request.votes ?? [],
             deadlineAt: request.deadlineAt,
@@ -1127,7 +1133,10 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
-      craveVotes: safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }],
+      craveVotes: [
+        ...(safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }]),
+        ...learnedCraveVotes,
+      ],
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     const nextRecommendation = {
@@ -1176,7 +1185,10 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
-      craveVotes: safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }],
+      craveVotes: [
+        ...(safeFeeling === "随便都行" ? [] : [{ feelingTag: safeFeeling }]),
+        ...learnedCraveVotes,
+      ],
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     setAiRecommendation({
@@ -1237,7 +1249,20 @@ function App() {
     syncCraveVotesToWantPool(activeCraveRequest);
     const voteFeeling = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行")?.feelingTag
       ?? activeCraveRequest.feelingTag
+      ?? activeCraveRequest.initialFeelingTag
       ?? "随便都行";
+    const initiatorVote = voteFeeling === "随便都行"
+      ? []
+      : [{
+          memberName: activeCraveRequest.initiatorName || "主厨",
+          feelingTag: voteFeeling,
+          initiator: true,
+        }];
+    const effectiveCraveVotes = [
+      ...initiatorVote,
+      ...votes,
+      ...collectLearnedCraveVotes(craveSignals, { excludeToken: activeCraveRequest.token }),
+    ];
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
     const nextRecommendation = buildTodayRecommendation({
       pantryItems,
@@ -1248,13 +1273,13 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
-      craveVotes: votes,
+      craveVotes: effectiveCraveVotes,
       excludedRecipeIds: voteFeeling === "随便都行" ? [] : currentRecipeIds,
     });
     const nextCraveRecommendation = {
       ...nextRecommendation,
       source: "crave",
-      craveVotes: votes,
+      craveVotes: effectiveCraveVotes,
       reason: votes.length > 0
         ? `${nextRecommendation.reason} 已揉合 ${votes.length} 个家人回复。`
         : `${nextRecommendation.reason} 还没人回复，先让 Humi 做主。`,
@@ -1579,6 +1604,7 @@ function App() {
           familyMembers,
           familyProfile,
           wantToEatItems,
+          craveVotes: learnedCraveVotes,
           excludedRecipeIds: [...existingIds],
         });
         const recipeId = recommendation.recipes.find((recipe) => !existingIds.has(recipe.id))?.id;
@@ -1645,6 +1671,7 @@ function App() {
       familyMembers,
       familyProfile,
       wantToEatItems,
+      craveVotes: learnedCraveVotes,
       excludedRecipeIds: currentRecipeIds,
     });
     trackProductEvent(appEvents.recommendationRequest, {
