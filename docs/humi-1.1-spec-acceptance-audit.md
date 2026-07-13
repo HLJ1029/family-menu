@@ -32,6 +32,7 @@
 | 【今晚菜单】加菜不降级为列表 | 已完成 | `src/components/TodayMenu.jsx` 的内嵌选菜区保留图片卡片，并提供 `发现新菜` 入口进入完整【自己挑】菜品页 |
 | 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
+| `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
 | 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | `src/main.jsx` 将早餐和午餐在家做入口带到完整菜品库；产品 smoke 证明点选前早餐为空、点选后只写入用户选择的菜，且不会默认写紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |

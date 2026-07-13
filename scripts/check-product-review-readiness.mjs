@@ -106,7 +106,7 @@ const REQUIRED_CHECKS = [
     path: "src/components/Dashboard.jsx",
     required: ["tonight-primary-action", "meal-rhythm-panel", "!craveSelectionMode && dinnerActions"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["tonight-primary-action-is-in-first-viewport", "breakfast-and-lunch-follow-dinner-decision"],
+    evidenceRequired: ["tonight-primary-action-is-in-first-viewport", "breakfast-and-lunch-follow-dinner-decision", "tonight-do-writes-menu-and-dinner-plan", "tonight-do-auto-generates-grocery"],
   },
   {
     key: "learned-taste-feeds-recommendation",

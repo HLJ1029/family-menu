@@ -179,6 +179,8 @@ try {
   const checks = [
     { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
     { key: "breakfast-and-lunch-follow-dinner-decision", ok: tonightViewport.mealRhythmAfterPrimary },
+    { key: "tonight-do-writes-menu-and-dinner-plan", ok: tonightViewport.menuWritten && tonightViewport.dinnerPlanWritten, actual: tonightViewport.decisionState },
+    { key: "tonight-do-auto-generates-grocery", ok: tonightViewport.groceryGenerated, actual: tonightViewport.groceryCheckboxCount },
     { key: "full-library-title", ok: discoveryTitle },
     { key: "full-library-card-count", ok: recipeCards + selectedRecipeCount >= minRecipeCards, actual: recipeCards + selectedRecipeCount, expectedAtLeast: minRecipeCards },
     { key: "arranged-dishes-before-library-filters", ok: arrangedBeforeFilters },
@@ -334,8 +336,32 @@ async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
   });
   const screenshot = join(evidenceDir, "tonight-first-viewport-mobile.png");
   await page.screenshot({ path: screenshot });
+  await primary.click();
+  await page.waitForTimeout(700);
+  const today = getLocalDateKey();
+  const decisionState = await page.evaluate((dateKey) => {
+    const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const mealPlan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    return { todayMenu, dinnerPlan: mealPlan?.[dateKey]?.dinner ?? [] };
+  }, today);
+  const menuWritten = decisionState.todayMenu.length >= 2;
+  const dinnerPlanWritten = decisionState.dinnerPlan.length === decisionState.todayMenu.length
+    && decisionState.dinnerPlan.every((entry) => decisionState.todayMenu.some((item) => item.recipeId === entry.recipeId));
+  await page.getByRole("button", { name: "清单", exact: true }).click();
+  const groceryCheckboxCount = await page.getByRole("checkbox").count();
+  const groceryGenerated = groceryCheckboxCount > 0;
   await context.close();
-  return { primaryInFirstViewport, mealRhythmAfterPrimary, primaryBox, screenshot };
+  return {
+    primaryInFirstViewport,
+    mealRhythmAfterPrimary,
+    menuWritten,
+    dinnerPlanWritten,
+    groceryGenerated,
+    groceryCheckboxCount,
+    decisionState,
+    primaryBox,
+    screenshot,
+  };
 }
 
 async function installMiniProgramMock(page) {

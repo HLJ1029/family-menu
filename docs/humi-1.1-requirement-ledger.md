@@ -22,7 +22,7 @@
 | STR-01 | 底部只有【今晚】/【清单】/【我的家】三 tab | 已完成 | `src/components/navigation.js`；`release:spec:audit` |
 | STR-02 | 完整菜品库是推荐外的辅助子页 | 已完成 | `Library.jsx`、`TodayMenu.jsx`；`release:product:smoke` 检测 138 道菜 |
 | STR-03 | 今晚已安排菜固定在新菜流上方 | 已完成 | `selected-recipes-panel`；`arranged-dishes-before-library-filters` |
-| STR-04 | 补菜后自动进今晚计划与清单 | 已完成 | `addToday`、`updateMealPlanSlot`、`buildShoppingListFromEntries`；产品 smoke |
+| STR-04 | `今晚就做`/补菜后自动进今晚计划与清单 | 已完成 | 产品 smoke 真实点击 `今晚就做`，验证两道推荐同时写入 `todayMenu`、当日晚餐 `mealPlan`，并自动生成 24 个清单勾选项 |
 | STR-05 | 周计划降为“想连排几天”辅助入口 | 已完成 | `navigation.js`、`Dashboard.jsx` |
 | STR-06 | 搜索默认收起，需要时再展开 | 已完成 | `AppShell.jsx` 的 `searchOpen` |
 | STR-07 | 页级标题不抢主角 Display | 已完成 | `AppShell.jsx` 标题降为 24/30px |
