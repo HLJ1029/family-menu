@@ -33,7 +33,7 @@
 | --- | --- | --- | --- |
 | MEAL-01 | 晚饭仍是首屏主角，主行动在手机首屏内 | 已完成 | `Dashboard.jsx`；`tonight-primary-action-is-in-first-viewport` 实测按钮底部不进入导航遮挡区，早午餐位于晚饭决策之后 |
 | MEAL-02 | 早餐是轻量选择，不擅自记默认菜 | 已完成 | `breakfast-empty-before-user-pick`、`breakfast-does-not-default-to-seaweed-soup` |
-| MEAL-03 | 午餐以来源记录为主，在家做才选菜 | 已完成 | `setLunchSource`、`pickForMeal("lunch")`；`validate:api` |
+| MEAL-03 | 午餐以来源记录为主，在家做才选菜 | 已完成 | 产品 smoke 真实点击午餐“在家做”，验证选择前为空、用户点青椒土豆丝后才写入，且不会默认紫菜蛋花汤 |
 | MEAL-04 | 三餐食材统一汇总清单 | 已完成 | `mealPlanEntriesForGroceries`；`validate:api` |
 | MEAL-05 | 晚间确认含做了/换了/外食/不记录 | 已完成 | `quickConfirmDinner`、`Dashboard.jsx` |
 | LIST-01 | 清单可直接打开、勾选、显示进度和用量 | 已完成 | `GroceryList.jsx`；产品 smoke |
@@ -74,7 +74,7 @@
 | CRV-D4 | 推荐优先遵守忌口，再照顾感觉/食材/历史 | 已完成 | `validate:recommendation`；`collectRecentRecipeIds` |
 | CRV-D5 | 历史推荐不跨家庭/请求污染 | 已完成 | `validate:recommendation` 历史隔离回归测试 |
 | CRV-D6 | 每道菜展示“为什么推它” | 已完成 | `buildDishReason`、`Dashboard.jsx` |
-| CRV-E1 | 征集结果勾选后一次落进今晚与清单 | 已完成 | `craveSelectionMode`、`addRecommendedToday` |
+| CRV-E1 | 征集结果勾选后一次落进今晚与清单 | 已完成 | 产品 smoke 在无人回复超时菜单点击 `就做选中的 2 道`，验证两道汤同步进入今晚菜单、晚餐计划并生成 30 个清单勾选项 |
 | CRV-E2 | 有换一组/都不想吃退路 | 已完成 | `Dashboard.jsx` 的征集结果操作 |
 | CRV-F1 | 晚间轻确认作为记录副产品 | 已完成 | `quickConfirmDinner`、`buildFamilyReflections` |
 

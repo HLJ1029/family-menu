@@ -34,7 +34,7 @@
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
 | `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
-| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | `src/main.jsx` 将早餐和午餐在家做入口带到完整菜品库；产品 smoke 证明点选前早餐为空、点选后只写入用户选择的菜，且不会默认写紫菜蛋花汤 |
+| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | 产品 smoke 分别验证早餐与午餐选择前为空；早餐只写入用户点选的西红柿炒鸡蛋，午餐“在家做”只写入用户点选的青椒土豆丝，两者都不会默认紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
 | 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | 产品 smoke 在独立手机会话真实勾选西红柿，验证隐藏 `pantryItems` 写入；随后点“做了”，验证西红柿扣减且晚饭 `mealLogs` 写入 |
@@ -52,7 +52,7 @@
 | 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；API 持久化主厨 `initialFeelingTag`，产品 smoke 验证无人回复超时后仍按主厨感觉出菜单 |
 | 征集状态跨会话恢复，超时后主厨身份安全收口 | 已完成 | API 安全保存 `craveSignals` 且去除 owner secret；产品 smoke 从过期持久化征集自动出菜单，并用 Bearer 主厨会话关闭 |
 | 家人选填备注默认折叠 | 已完成 | `CraveVoteSheet` 首屏只显示“想补一句？”弱操作；游客 smoke 先确认输入框不存在，展开后仍可提交 |
-| 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | `Dashboard.jsx` 的 `craveSelectionMode` 支持勾选菜卡，按钮 `就做选中的 X 道` |
+| 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | 产品 smoke 在征集结果点击 `就做选中的 2 道`，验证两道菜同步写入今晚菜单与当日晚餐计划，并自动生成买菜清单 |
 | 每道菜展示“为什么推它” | 已完成 | `Dashboard.jsx` 的 `buildDishReason` 结合家人感觉、后台已有、忌口和推荐来源 |
 | 晚间轻确认包含“不记录” | 已完成 | `Dashboard.jsx` 的 `dinnerSources` 包含 `skip/不记录`，晚饭确认区也有 `不记录` |
 | 买菜认领可回传，且防重复认领/覆盖 | 已完成 | `GroceryShareLanding.jsx` 与 `api/store.js` claims；`validate:api` 覆盖 409 冲突 |

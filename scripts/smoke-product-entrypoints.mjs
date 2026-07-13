@@ -144,6 +144,15 @@ try {
   await page.getByRole("heading", { name: "早餐已选择" }).waitFor({ timeout: 15_000 });
   const breakfastAfterPick = await readTodayMealSlot(page, "breakfast");
 
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+  const mealRhythmPanel = page.getByTestId("meal-rhythm-panel");
+  await mealRhythmPanel.getByRole("button", { name: "在家做" }).click();
+  await page.getByRole("heading", { name: "给午餐选菜" }).first().waitFor({ timeout: 15_000 });
+  const lunchBeforePick = await readTodayMealSlot(page, "lunch");
+  await page.getByRole("button", { name: "加入 青椒土豆丝" }).click();
+  await page.getByRole("heading", { name: "午餐已选择" }).waitFor({ timeout: 15_000 });
+  const lunchAfterPick = await readTodayMealSlot(page, "lunch");
+
   await page.getByRole("button", { name: "清单", exact: true }).click();
   await waitForTransientUi(page);
   const inventoryMaintenanceHidden = await page.getByText("后台已有", { exact: true }).count() === 0;
@@ -199,6 +208,9 @@ try {
     { key: "breakfast-empty-before-user-pick", ok: breakfastBeforePick.length === 0, actual: breakfastBeforePick },
     { key: "breakfast-saves-user-picked-dish", ok: breakfastAfterPick.some((entry) => entry.recipeId === "tomato-egg"), actual: breakfastAfterPick },
     { key: "breakfast-does-not-default-to-seaweed-soup", ok: !breakfastAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: breakfastAfterPick },
+    { key: "lunch-empty-before-user-pick", ok: lunchBeforePick.length === 0, actual: lunchBeforePick },
+    { key: "lunch-home-saves-user-picked-dish", ok: lunchAfterPick.some((entry) => entry.recipeId === "potato-shreds"), actual: lunchAfterPick },
+    { key: "lunch-does-not-default-to-seaweed-soup", ok: !lunchAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: lunchAfterPick },
     { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
@@ -225,6 +237,8 @@ try {
     { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
     { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
     { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
+    { key: "crave-result-converges-to-menu-and-plan", ok: persistedCraveDeadline.menuConverged && persistedCraveDeadline.planConverged, actual: persistedCraveDeadline.convergedState },
+    { key: "crave-result-generates-grocery", ok: persistedCraveDeadline.groceryGenerated, actual: persistedCraveDeadline.groceryCheckboxCount },
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "grocery-check-adds-hidden-pantry-clue", ok: pantryPipeline.addedAfterCheck, actual: pantryPipeline.pantryAfterCheck },
     { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
@@ -649,8 +663,35 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
   const closeAuthorized = closeAuthorization === "Bearer persisted-crave-owner-token";
   const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");
   await page.screenshot({ path: screenshot });
+  const convergeButton = page.getByRole("button", { name: "就做选中的 2 道" });
+  await convergeButton.click();
+  await page.waitForTimeout(700);
+  const today = getLocalDateKey();
+  const convergedState = await page.evaluate((dateKey) => {
+    const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const mealPlan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    return { todayMenu, dinnerPlan: mealPlan?.[dateKey]?.dinner ?? [] };
+  }, today);
+  const menuConverged = convergedState.todayMenu.length === 2;
+  const planConverged = convergedState.dinnerPlan.length === 2
+    && convergedState.dinnerPlan.every((entry) => convergedState.todayMenu.some((item) => item.recipeId === entry.recipeId));
+  await page.getByRole("button", { name: "清单", exact: true }).click();
+  const groceryCheckboxCount = await page.getByRole("checkbox").count();
+  const groceryGenerated = groceryCheckboxCount > 0;
   await context.close();
-  return { generated, initiatorFeelingApplied, closeAuthorized, closeAuthorization, pageErrors, screenshot };
+  return {
+    generated,
+    initiatorFeelingApplied,
+    closeAuthorized,
+    closeAuthorization,
+    menuConverged,
+    planConverged,
+    groceryGenerated,
+    groceryCheckboxCount,
+    convergedState,
+    pageErrors,
+    screenshot,
+  };
 }
 
 async function verifyImplicitPantryPipeline(browser, base) {

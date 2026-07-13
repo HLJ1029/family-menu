@@ -89,7 +89,7 @@ const REQUIRED_CHECKS = [
     path: "api/server.js",
     required: ["craveSignals: sanitizeList", "sanitizeCraveSignal", "getOptionalAuth", "auth?.userId"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "no-reply-crave-keeps-initiator-feeling", "persisted-crave-closes-with-owner-session"],
+    evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "no-reply-crave-keeps-initiator-feeling", "persisted-crave-closes-with-owner-session", "crave-result-converges-to-menu-and-plan", "crave-result-generates-grocery"],
   },
   {
     key: "recommendation-history-isolation",
@@ -130,7 +130,7 @@ const REQUIRED_CHECKS = [
     path: "package.json",
     required: ["release:product:smoke"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["www.humi-home.com", "全部菜品库", "查看征集单", "breakfast-does-not-default-to-seaweed-soup", "grocery-share-opens-native-share-page", "crave-share-opens-native-share-page"],
+    evidenceRequired: ["www.humi-home.com", "全部菜品库", "查看征集单", "breakfast-does-not-default-to-seaweed-soup", "lunch-home-saves-user-picked-dish", "lunch-does-not-default-to-seaweed-soup", "grocery-share-opens-native-share-page", "crave-share-opens-native-share-page"],
   },
   {
     key: "native-share-cards",
