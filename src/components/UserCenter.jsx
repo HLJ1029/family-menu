@@ -67,6 +67,7 @@ export function UserCenter({
   const [wantNote, setWantNote] = useState("");
   const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
   const [familyCraveStatus, setFamilyCraveStatus] = useState("");
+  const [familyCraveOpen, setFamilyCraveOpen] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState("");
   const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
   const familyCraveRef = useRef(null);
@@ -176,6 +177,7 @@ export function UserCenter({
   }
 
   function startFamilyCrave() {
+    setFamilyCraveOpen(true);
     if (activeCraveRequest?.token) {
       setFamilyCraveStatus("今晚征集单已经在我的家展开，直接在下方分享、刷新回复或出菜单。");
       window.setTimeout(() => {
@@ -206,6 +208,7 @@ export function UserCenter({
   }
 
   function openFamilyCraveStarter() {
+    setFamilyCraveOpen(true);
     if (activeCraveRequest?.token) {
       startFamilyCrave();
       return;
@@ -243,7 +246,7 @@ export function UserCenter({
             <button
               type="button"
               onClick={() => onViewChange("dashboard")}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
             >
               安排今晚
             </button>
@@ -266,34 +269,6 @@ export function UserCenter({
           )}
         </section>
 
-        <CloudAccount
-          {...authProps}
-          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-          family={family}
-          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-        />
-        <FamilyRolePanel
-          signedIn={signedIn}
-          family={family}
-          role={familyRole}
-          members={familyMembers}
-          currentUserId={currentUserId}
-          activeInvite={activeHouseholdInvite}
-          onCreateInvite={onCreateHouseholdInvite}
-          onShareInvite={onShareHouseholdInvite}
-        />
-        <HouseholdSwitcher
-          signedIn={signedIn}
-          family={family}
-          households={households}
-          newHouseholdName={newHouseholdName}
-          onNameChange={setNewHouseholdName}
-          onCreate={() => {
-            onCreateHousehold?.(newHouseholdName || "另一个家");
-            setNewHouseholdName("");
-          }}
-          onSwitch={onSwitchHousehold}
-        />
         <section ref={familyCraveRef} data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -330,7 +305,7 @@ export function UserCenter({
               />
             </div>
           )}
-          {!activeCraveRequest?.token && canManageHouseholdMenu && (
+          {!activeCraveRequest?.token && canManageHouseholdMenu && familyCraveOpen && (
             <CraveStarterSheet
               selectedFeeling={familyFeelingTag}
               onSelectFeeling={setFamilyFeelingTag}
@@ -360,6 +335,34 @@ export function UserCenter({
             )}
           </div>
         </section>
+        <CloudAccount
+          {...authProps}
+          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+          family={family}
+          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+        />
+        <FamilyRolePanel
+          signedIn={signedIn}
+          family={family}
+          role={familyRole}
+          members={familyMembers}
+          currentUserId={currentUserId}
+          activeInvite={activeHouseholdInvite}
+          onCreateInvite={onCreateHouseholdInvite}
+          onShareInvite={onShareHouseholdInvite}
+        />
+        <HouseholdSwitcher
+          signedIn={signedIn}
+          family={family}
+          households={households}
+          newHouseholdName={newHouseholdName}
+          onNameChange={setNewHouseholdName}
+          onCreate={() => {
+            onCreateHousehold?.(newHouseholdName || "另一个家");
+            setNewHouseholdName("");
+          }}
+          onSwitch={onSwitchHousehold}
+        />
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>

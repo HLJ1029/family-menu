@@ -37,7 +37,7 @@
 | MEAL-04 | 三餐食材统一汇总清单 | 已完成 | `mealPlanEntriesForGroceries`；`validate:api` |
 | MEAL-05 | 晚间确认含做了/换了/外食/不记录 | 已完成 | `quickConfirmDinner`、`Dashboard.jsx` |
 | LIST-01 | 清单可直接打开、勾选、显示进度和用量 | 已完成 | `GroceryList.jsx`；产品 smoke |
-| LIST-02 | 勾选买回与做饭确认在后台反推/扣减食材 | 已完成 | `addGroceryItemToPantry`、`consumePantryForEntries` |
+| LIST-02 | 勾选买回与做饭确认在后台反推/扣减食材 | 已完成 | 产品 smoke 真实勾选西红柿后验证隐藏食材线索写入，再点“做了”验证扣减及 `mealLogs` 写入 |
 | LIST-03 | 用户不看库存页、数量或批量维护面板 | 已完成 | `GroceryList.jsx` 已移除“后台已有”面板；`inventory-maintenance-is-not-exposed` |
 | LIST-04 | 仅在用到时轻问“家里还有 X 吗” | 已完成 | `Dashboard.jsx` 的 `pantryCheckItem` |
 | LIST-05 | 营养视图归【我的家】，不占清单入口 | 已完成 | `nutrition-entry-is-not-on-grocery-tab`；`UserCenter.jsx` |
@@ -55,7 +55,7 @@
 | COL-06 | 临时 vote 登录后合并到正式成员 | 已完成 | `claimCraveVote`；`validate:api` |
 | COL-07 | 买菜认领免登录、可回传、防重复 | 已完成 | `GroceryShareLanding.jsx`；`release:collaboration:smoke`、`validate:api` |
 | COL-08 | 家人可丢想吃，但只能维护自己条目 | 已完成 | `WantToEatRow`、`mergeMemberWritableState`；成员边界 smoke |
-| COL-09 | 【我的家】沉淀感觉、买菜认领、想吃和做饭动态 | 已完成 | `groceryActivity`、`dinnerActivity`、`wantActivity`；三项产品 smoke |
+| COL-09 | 【我的家】先展示协作动态，设置下沉，征集单按需展开 | 已完成 | `family-activity-section` 位于账号设置前；默认折叠 `CraveStarterSheet`；产品 smoke 验证买菜、做饭、想吃三类动态和 DOM 顺序 |
 | COL-10 | 征集状态能跨登录/设备恢复，且不泄露 owner secret | 已完成 | `sanitizeCraveSignal`、`setCraveSignals`；`validate:api` |
 
 ## 4. 感觉征集 A–F

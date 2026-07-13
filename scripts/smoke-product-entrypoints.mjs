@@ -147,6 +147,13 @@ try {
   const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
   const dinnerActivityVisible = await page.getByText("主厨确认今晚已做饭").isVisible();
   const wantActivityVisible = await page.getByText("家人小林想吃 冬瓜排骨汤").isVisible();
+  const craveStarterCollapsed = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
+  const activityBeforeAccountSettings = await page.evaluate(() => {
+    const activity = document.querySelector('[data-testid="family-activity-section"]');
+    const account = document.querySelector('[data-testid="cloud-account-section"]');
+    if (!activity || !account) return false;
+    return Boolean(activity.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
   const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
   await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
   await page.getByRole("button", { name: "问问大家" }).first().click();
@@ -167,6 +174,7 @@ try {
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
+  const pantryPipeline = await verifyImplicitPantryPipeline(browser, baseUrl);
 
   const checks = [
     { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
@@ -190,6 +198,8 @@ try {
     { key: "family-activity-shows-grocery-claim", ok: groceryActivityVisible },
     { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
     { key: "family-activity-shows-want-item", ok: wantActivityVisible },
+    { key: "family-activity-precedes-account-settings", ok: activityBeforeAccountSettings },
+    { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
@@ -202,6 +212,10 @@ try {
     { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
     { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
+    { key: "grocery-check-adds-hidden-pantry-clue", ok: pantryPipeline.addedAfterCheck, actual: pantryPipeline.pantryAfterCheck },
+    { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
+    { key: "dinner-confirmation-writes-meal-log", ok: pantryPipeline.mealLogged, actual: pantryPipeline.mealLog },
+    { key: "implicit-pantry-pipeline-page-errors", ok: pantryPipeline.pageErrors.length === 0, errors: pantryPipeline.pageErrors },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
   ];
   const manifest = {
@@ -599,6 +613,77 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
   await page.screenshot({ path: screenshot });
   await context.close();
   return { generated, initiatorFeelingApplied, closeAuthorized, closeAuthorization, pageErrors, screenshot };
+}
+
+async function verifyImplicitPantryPipeline(browser, base) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const family = buildSmokeFamily();
+  const state = {
+    ...buildSmokeHouseholdState(),
+    mealLogs: {},
+    pantryItems: [],
+    checkedItems: {},
+  };
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "pantry-pipeline-owner-token",
+      refreshToken: "pantry-pipeline-owner-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      const payload = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state: payload.state, family, households: [family] }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state, family, households: [family] }) });
+  });
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "清单", exact: true }).click();
+  const tomatoRow = page.locator("label").filter({ hasText: "西红柿" });
+  const tomatoCheckbox = tomatoRow.getByRole("checkbox");
+  const tomatoCheckboxCount = await tomatoCheckbox.count();
+  if (tomatoCheckboxCount < 1) throw new Error("隐形食材流水线没有找到西红柿清单项。");
+  await tomatoRow.first().click();
+  const pantryAfterCheck = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"));
+  const addedAfterCheck = pantryAfterCheck.some((item) => item.name === "西红柿");
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+  const doneButton = page.getByRole("button").filter({ hasText: "做了" });
+  if (await doneButton.count() !== 1) throw new Error("隐形食材流水线没有找到唯一的晚饭“做了”按钮。");
+  await doneButton.click();
+  const result = await page.evaluate(() => ({
+    pantry: JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"),
+    mealLogs: JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}"),
+  }));
+  const today = getLocalDateKey();
+  const mealLog = result.mealLogs[today] ?? {};
+  const removedAfterDinner = !result.pantry.some((item) => item.name === "西红柿");
+  const mealLogged = mealLog.confirmation === "all"
+    && mealLog.consumedEntries?.some((entry) => entry.recipeId === "tomato-egg");
+  await context.close();
+  return {
+    addedAfterCheck,
+    removedAfterDinner,
+    mealLogged,
+    pantryAfterCheck,
+    pantryAfterDinner: result.pantry,
+    mealLog,
+    pageErrors,
+  };
 }
 
 async function fulfillJson(route, body) {

@@ -52,7 +52,7 @@ export function CloudAccount({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="cloud-account-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       {!compactTitle && (
         <HumiPeek
           variant={family ? "family-taste-talk" : "profile"}

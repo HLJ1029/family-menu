@@ -73,15 +73,15 @@ const REQUIRED_CHECKS = [
     required: ["这次不用买", "NeutralEmptyState", "进度会自动更新"],
     forbidden: ["后台已有", "营养视图", "HumiEmptyState"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["inventory-maintenance-is-not-exposed", "nutrition-entry-is-not-on-grocery-tab"],
+    evidenceRequired: ["inventory-maintenance-is-not-exposed", "grocery-check-adds-hidden-pantry-clue", "dinner-confirmation-consumes-hidden-pantry-clue", "nutrition-entry-is-not-on-grocery-tab"],
   },
   {
     key: "family-collaboration-activity",
     title: "我的家沉淀认领、做饭与想吃动态",
     path: "src/components/UserCenter.jsx",
-    required: ["groceryActivity", "dinnerActivity", "wantActivity", "buildDinnerActivityTitle"],
+    required: ["groceryActivity", "dinnerActivity", "wantActivity", "familyCraveOpen", "buildDinnerActivityTitle"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["family-activity-shows-grocery-claim", "family-activity-shows-dinner-confirmation", "family-activity-shows-want-item"],
+    evidenceRequired: ["family-activity-shows-grocery-claim", "family-activity-shows-dinner-confirmation", "family-activity-shows-want-item", "family-activity-precedes-account-settings", "crave-starter-is-collapsed-until-requested"],
   },
   {
     key: "crave-state-persistence",
