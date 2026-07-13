@@ -44,14 +44,15 @@
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 账号/成员设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
 | 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
 | 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；产品 smoke 验证家人不能改菜单、不能编辑家庭忌口，早午餐仅只读展示 |
+| 一人多家可见切换且数据隔离 | 已完成 | 产品 smoke 在【我的家】真实切换“小家 → 爸妈家”，验证 `/households/active` 被调用、当前家标题更新，并载入爸妈家的青椒土豆丝菜单 |
 | 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
 | 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人逛菜品库时加入想吃池而非补进菜单，也只能维护自己的想吃条目 |
 | 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
 | 家人打开分享卡片先免登录参与 | 已完成 | `CraveLanding.jsx` 可投感觉、`GroceryShareLanding.jsx` 可认领买菜、`InviteLanding.jsx` 可丢想吃；三者都使用公开 token 与临时身份，无需先登录 |
 | 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
-| 主厨可“我自己做主”，单人也能走完 | 已完成 | `Dashboard.jsx` 与 `UserCenter.jsx` 的 `onDecideAlone` 路径；无人参与也可出菜单 |
-| 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；API 持久化主厨 `initialFeelingTag`，产品 smoke 验证无人回复超时后仍按主厨感觉出菜单 |
+| 主厨可“我自己做主”，单人也能走完 | 已完成 | 产品 smoke 用仅主厨家庭真实点击“我自己做主”，验证不创建分享请求、直接出菜单并自动写入计划与清单 |
+| 等待态可手动出菜单，超时有退路 | 已完成 | 产品 smoke 刷新后看到“家人小林 · 想喝汤”并保留“现在出菜单”；另用过期持久化征集验证无人回复仍按主厨感觉出菜单 |
 | 征集状态跨会话恢复，超时后主厨身份安全收口 | 已完成 | API 安全保存 `craveSignals` 且去除 owner secret；产品 smoke 从过期持久化征集自动出菜单，并用 Bearer 主厨会话关闭 |
 | 家人选填备注默认折叠 | 已完成 | `CraveVoteSheet` 首屏只显示“想补一句？”弱操作；游客 smoke 先确认输入框不存在，展开后仍可提交 |
 | 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | 产品 smoke 在征集结果点击 `就做选中的 2 道`，验证两道菜同步写入今晚菜单与当日晚餐计划，并自动生成买菜清单 |

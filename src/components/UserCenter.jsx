@@ -769,7 +769,7 @@ function HouseholdSwitcher({ signedIn, family, households, newHouseholdName, onN
   const visibleHouseholds = households.length > 0 ? households : family ? [family] : [];
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="household-switcher" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="eyebrow">多个家</p>

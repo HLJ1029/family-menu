@@ -85,6 +85,28 @@ try {
     });
   });
 
+  await page.route("**/crave-requests/product-smoke-token", async (route) => {
+    await fulfillJson(route, {
+      request: {
+        id: "product-smoke-crave",
+        token: "product-smoke-token",
+        householdName: "我家",
+        initiatorName: "主厨",
+        recipientCount: 1,
+        status: "collecting",
+        votes: [{
+          memberId: "product-smoke-member",
+          memberName: "家人小林",
+          feelingTag: "想喝汤",
+          note: "今天想暖和一点",
+          createdAt: new Date().toISOString(),
+        }],
+        deadlineAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    });
+  });
+
   await page.route("**/grocery-shares", async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
     await route.fulfill({
@@ -241,6 +263,11 @@ try {
   await page.waitForSelector("text=今晚征集单已经在我的家展开", { timeout: 15_000 });
   const craveSheetVisible = await page.getByText("大家点了什么感觉").isVisible();
   const viewButtonVisible = await page.getByRole("button", { name: "查看征集单" }).first().isVisible();
+  await page.getByRole("button", { name: "刷新回复" }).click();
+  const craveVoteReceipt = page.getByText("家人小林 · 想喝汤", { exact: true });
+  await craveVoteReceipt.waitFor({ timeout: 15_000 });
+  const craveVoteReceiptVisible = await craveVoteReceipt.isVisible();
+  const craveManualMenuActionVisible = await page.getByRole("button", { name: "现在出菜单" }).isVisible();
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
   const grocerySharePosted = miniProgramCalls.some((call) => call.method === "postMessage" && call.payload?.data?.type === "humi:share-grocery");
   const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
@@ -249,6 +276,8 @@ try {
   const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
+  const soloOwnerFlow = await verifySoloOwnerFlow(browser, baseUrl, evidenceDir);
+  const multiHouseholdFlow = await verifyMultiHouseholdSwitch(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
   const pantryPipeline = await verifyImplicitPantryPipeline(browser, baseUrl);
   const hardConstraintOnboarding = await verifyHardConstraintOnboarding(browser, baseUrl, evidenceDir);
@@ -286,6 +315,8 @@ try {
     { key: "crave-create-keeps-selected-members", ok: craveCreatePayload?.recipientIds?.includes("product-smoke-member"), actual: craveCreatePayload?.recipientIds ?? [] },
     { key: "user-center-crave-sheet", ok: craveSheetVisible },
     { key: "user-center-view-crave-button", ok: viewButtonVisible },
+    { key: "crave-waiting-shows-member-feeling", ok: craveVoteReceiptVisible },
+    { key: "crave-waiting-allows-manual-menu", ok: craveManualMenuActionVisible },
     { key: "family-activity-shows-grocery-claim", ok: groceryActivityVisible },
     { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
     { key: "family-activity-shows-want-item", ok: wantActivityVisible },
@@ -305,6 +336,12 @@ try {
     { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
     { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
+    { key: "solo-owner-can-decide-without-family", ok: soloOwnerFlow.starterHasNoMemberPressure && soloOwnerFlow.decidedAlone && !soloOwnerFlow.shareRequestCreated, actual: soloOwnerFlow },
+    { key: "solo-owner-flow-generates-menu-and-grocery", ok: soloOwnerFlow.menuWritten && soloOwnerFlow.planWritten && soloOwnerFlow.groceryGenerated, actual: soloOwnerFlow },
+    { key: "solo-owner-page-errors", ok: soloOwnerFlow.pageErrors.length === 0, errors: soloOwnerFlow.pageErrors },
+    { key: "multi-household-switch-is-user-visible", ok: multiHouseholdFlow.switchRequested && multiHouseholdFlow.activeHeadingUpdated, actual: multiHouseholdFlow },
+    { key: "multi-household-switch-loads-isolated-menu", ok: multiHouseholdFlow.menuLoaded && multiHouseholdFlow.menuVisible, actual: multiHouseholdFlow },
+    { key: "multi-household-page-errors", ok: multiHouseholdFlow.pageErrors.length === 0, errors: multiHouseholdFlow.pageErrors },
     { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
     { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
     { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
@@ -339,6 +376,8 @@ try {
       nutritionReflectionMobile: nutritionReflectionScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
       memberDietReadonlyMobile: memberBoundary.dietScreenshot,
+      soloOwnerMobile: soloOwnerFlow.screenshot,
+      multiHouseholdMobile: multiHouseholdFlow.screenshot,
       persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
       profileOnboardingMobile: hardConstraintOnboarding.screenshot,
     },
@@ -571,6 +610,169 @@ async function readTodayMealSlot(page, slotId) {
 
 async function waitForTransientUi(page) {
   await page.locator(".toast-enter").waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+}
+
+async function verifySoloOwnerFlow(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let shareRequestCreated = false;
+  const family = {
+    ...buildSmokeFamily(),
+    id: "solo-owner-family",
+    name: "一个人的家",
+    members: [{ memberId: "product-smoke-owner", nickname: "主厨", role: "owner", status: "formal" }],
+  };
+  const state = { ...buildSmokeHouseholdState(), todayMenu: [], mealPlan: {}, mealLogs: {}, groceryClaims: {}, wantToEatItems: [] };
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "solo-owner-token",
+      refreshToken: "solo-owner-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      const payload = route.request().postDataJSON();
+      await fulfillJson(route, { state: payload.state, family, households: [family] });
+      return;
+    }
+    await fulfillJson(route, { state, family, households: [family] });
+  });
+  await page.route("**/crave-requests", async (route) => {
+    shareRequestCreated = true;
+    await fulfillJson(route, { error: "solo flow should not create a share request" });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "问问大家想吃啥" }).click();
+  await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
+  const starterHasNoMemberPressure = await page.getByText("还没有正式成员也没关系").isVisible()
+    && await page.getByRole("button", { name: "生成征集卡片" }).isVisible()
+    && await page.getByRole("button", { name: "我自己做主" }).isVisible();
+  await page.getByRole("button", { name: "想喝汤", exact: true }).click();
+  await page.getByRole("button", { name: "我自己做主" }).click();
+  await page.getByText("已直接出一组今晚菜单").waitFor({ timeout: 15_000 });
+  const decidedAlone = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
+  await waitForTransientUi(page);
+  const screenshot = join(evidenceDir, "solo-owner-mobile.png");
+  await page.screenshot({ path: screenshot });
+  await page.getByTestId("tonight-primary-action").click();
+  await page.waitForTimeout(700);
+  const today = getLocalDateKey();
+  const decisionState = await page.evaluate((dateKey) => {
+    const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const mealPlan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    return { todayMenu, dinnerPlan: mealPlan?.[dateKey]?.dinner ?? [] };
+  }, today);
+  const menuWritten = decisionState.todayMenu.length >= 2;
+  const planWritten = decisionState.dinnerPlan.length === decisionState.todayMenu.length;
+  await page.getByRole("button", { name: "清单", exact: true }).click();
+  const groceryGenerated = await page.getByRole("checkbox").count() > 0;
+  await context.close();
+  return {
+    starterHasNoMemberPressure,
+    decidedAlone,
+    shareRequestCreated,
+    menuWritten,
+    planWritten,
+    groceryGenerated,
+    decisionState,
+    pageErrors,
+    screenshot,
+  };
+}
+
+async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const familyA = { ...buildSmokeFamily(), id: "family-a", name: "小家" };
+  const familyB = { ...buildSmokeFamily(), id: "family-b", name: "爸妈家" };
+  const stateA = buildSmokeHouseholdState();
+  const today = getLocalDateKey();
+  const stateB = {
+    ...buildSmokeHouseholdState(),
+    todayMenu: [{ recipeId: "potato-shreds", quantity: 1 }],
+    mealPlan: { [today]: { breakfast: [], lunch: [], dinner: [{ recipeId: "potato-shreds", quantity: 1 }] } },
+    wantToEatItems: [],
+    groceryClaims: {},
+  };
+  let switchRequested = false;
+  let activeFamily = familyA;
+  let activeState = stateA;
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "multi-household-token",
+      refreshToken: "multi-household-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+  });
+  await page.route("**/households/active", async (route) => {
+    const payload = route.request().postDataJSON();
+    switchRequested = payload?.householdId === familyB.id;
+    if (switchRequested) {
+      activeFamily = familyB;
+      activeState = stateB;
+    }
+    await fulfillJson(route, { state: activeState, family: activeFamily, households: [familyA, familyB] });
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      const payload = route.request().postDataJSON();
+      activeState = payload.state;
+    }
+    await fulfillJson(route, { state: activeState, family: activeFamily, households: [familyA, familyB] });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "我的家", exact: true }).click();
+  await page.getByRole("heading", { name: "当前用的是 小家" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: /爸妈家/ }).click();
+  const switchedHeading = page.getByRole("heading", { name: "当前用的是 爸妈家" });
+  await switchedHeading.waitFor({ timeout: 15_000 });
+  const activeHeadingUpdated = await switchedHeading.isVisible();
+  await waitForTransientUi(page);
+  const screenshot = join(evidenceDir, "multi-household-mobile.png");
+  await page.getByTestId("household-switcher").screenshot({ path: screenshot });
+  const loadedMenu = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
+  const menuLoaded = loadedMenu.length === 1 && loadedMenu[0]?.recipeId === "potato-shreds";
+  await page.getByRole("button", { name: "今晚", exact: true }).click();
+  const menuVisible = await page.getByText("青椒土豆丝", { exact: true }).first().isVisible();
+  await context.close();
+  return {
+    switchRequested,
+    activeHeadingUpdated,
+    menuLoaded,
+    menuVisible,
+    loadedMenu,
+    pageErrors,
+    screenshot,
+  };
 }
 
 async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {

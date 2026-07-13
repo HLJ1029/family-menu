@@ -50,7 +50,7 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | COL-01 | Household 多成员共享同一份菜单、清单和画像 | 已完成 | `api/store.js`；`validate:api` 的 owner/member 共享状态 |
-| COL-02 | 一人可属于多个家并切换 | 已完成 | `/households`、`/households/active`；`validate:api` |
+| COL-02 | 一人可属于多个家并切换 | 已完成 | `/households`、`/households/active`；API smoke 验证模型与权限，产品 smoke 在【我的家】真实切换“小家 → 爸妈家”并验证独立菜单载入 |
 | COL-03 | 主厨可发起/定菜单/管理家；家人只参与 | 已完成 | `mergeMemberWritableState`；成员 UI/API 点击边界 smoke；家人只读查看家庭忌口且不显示早午餐编辑按钮 |
 | COL-04 | 家人首次免登录点感觉 | 已完成 | `CraveLanding.jsx`；`release:collaboration:smoke` |
 | COL-05 | 投票后再引导登录加入家庭 | 已完成 | `CraveSubmittedSheet`、`joinCraveRequest`；`validate:api` |
@@ -65,12 +65,12 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | CRV-A1 | 发起前默认全选已加入家人 | 已完成 | `CraveStarterSheet`；`crave-members-default-selected` |
-| CRV-A2 | 单人可“我自己做主” | 已完成 | `decideAloneFromCrave`；无成员时仍可生成卡片 |
+| CRV-A2 | 单人可“我自己做主” | 已完成 | 产品 smoke 用仅主厨家庭点击“我自己做主”，验证不创建分享请求、直接出菜单并自动生成计划与清单 |
 | CRV-B1 | 卡片第一屏直接感觉标签，无登录墙 | 已完成 | `crave-first-screen-is-guest-usable`、`landings-do-not-auto-login` |
 | CRV-B2 | 感觉标签不超过 9 个，“随便都行”最显眼 | 已完成 | `feelingTags`、`FeelingWall` |
 | CRV-B3 | 选填备注默认折叠 | 已完成 | `CraveVoteSheet`；`crave-optional-note-is-collapsed` |
 | CRV-C1 | 提交后立即反馈，可跳过加入 | 已完成 | `CraveSubmittedSheet`；游客协作 smoke |
-| CRV-D1 | 等待态展示回复者和感觉，可手动出菜单 | 已完成 | `CraveCollectingSheet`、`VoteReceiptRow` |
+| CRV-D1 | 等待态展示回复者和感觉，可手动出菜单 | 已完成 | 产品 smoke 刷新征集后真实看到“家人小林 · 想喝汤”，并验证“现在出菜单”可用 |
 | CRV-D2 | 没人回/到期也按主厨初始感觉自动出菜单 | 已完成 | API 持久化 `initialFeelingTag`；`persisted-crave-auto-generates-after-deadline` 与 `no-reply-crave-keeps-initiator-feeling` |
 | CRV-D3 | 主厨登录身份可安全收口，家人不能关闭 | 已完成 | `authenticated owner should close`、成员 403 API smoke |
 | CRV-D4 | 推荐优先遵守忌口，再照顾感觉/食材/历史 | 已完成 | `validate:recommendation`；`collectRecentRecipeIds` |
