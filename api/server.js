@@ -581,8 +581,9 @@ async function handleJoinCraveRequest(request, response, token) {
 
 async function handleCloseCraveRequest(request, response, token) {
   const body = await readJson(request);
+  const auth = await getOptionalAuth(request);
   try {
-    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary);
+    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary, auth?.userId);
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
     sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
   } catch (error) {
@@ -643,7 +644,6 @@ function toPublicCraveRequest(request) {
       feelingTag: vote.feelingTag,
       note: vote.note,
       temporary: vote.temporary,
-      memberId: vote.temporary ? undefined : vote.memberId,
       claimedAt: vote.claimedAt,
       createdAt: vote.createdAt,
     })),
@@ -778,6 +778,37 @@ function sanitizeAppState(state = {}) {
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
     recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
+    craveSignals: sanitizeList(state.craveSignals, sanitizeCraveSignal, 50),
+  };
+}
+
+function sanitizeCraveSignal(signal = {}) {
+  const token = stringValue(signal.token, 180);
+  if (!token) return null;
+  return {
+    id: stringValue(signal.id, 180),
+    token,
+    householdName: stringValue(signal.householdName, 32),
+    initiatorName: stringValue(signal.initiatorName, 32),
+    feelingTag: stringValue(signal.feelingTag, 32),
+    mealType: stringValue(signal.mealType, 24) || "dinner",
+    status: signal.status === "closed" ? "closed" : "open",
+    deadlineAt: stringValue(signal.deadlineAt, 40),
+    recipientCount: Math.max(0, Math.min(20, Number.parseInt(signal.recipientCount, 10) || 0)),
+    votes: sanitizeList(signal.votes, (vote) => ({
+      id: stringValue(vote?.id, 180),
+      memberId: stringValue(vote?.memberId, 180),
+      memberName: stringValue(vote?.memberName, 32) || "家人",
+      feelingTag: stringValue(vote?.feelingTag, 32),
+      note: stringValue(vote?.note, 120),
+      temporary: Boolean(vote?.temporary),
+      claimedAt: stringValue(vote?.claimedAt, 40),
+      createdAt: stringValue(vote?.createdAt, 40),
+    }), 50),
+    resultSummary: signal.resultSummary ? sanitizeObjectMap(signal.resultSummary, 20) : undefined,
+    createdAt: stringValue(signal.createdAt, 40),
+    updatedAt: stringValue(signal.updatedAt, 40),
+    generatedAt: stringValue(signal.generatedAt, 40),
   };
 }
 

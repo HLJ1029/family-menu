@@ -67,6 +67,40 @@ const REQUIRED_CHECKS = [
     evidenceRequired: ["免登录参与", "不用先做设置", "一家人的饭放在一起", "auth/wechat/login"],
   },
   {
+    key: "inventory-is-behavior-not-a-page",
+    title: "食材库存只在自然动作中反推",
+    path: "src/components/GroceryList.jsx",
+    required: ["这次不用买", "NeutralEmptyState", "进度会自动更新"],
+    forbidden: ["后台已有", "营养视图", "HumiEmptyState"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["inventory-maintenance-is-not-exposed", "nutrition-entry-is-not-on-grocery-tab"],
+  },
+  {
+    key: "family-collaboration-activity",
+    title: "我的家沉淀认领、做饭与想吃动态",
+    path: "src/components/UserCenter.jsx",
+    required: ["groceryActivity", "dinnerActivity", "wantActivity", "buildDinnerActivityTitle"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["family-activity-shows-grocery-claim", "family-activity-shows-dinner-confirmation", "family-activity-shows-want-item"],
+  },
+  {
+    key: "crave-state-persistence",
+    title: "征集单跨会话保存与超时收口",
+    path: "api/server.js",
+    required: ["craveSignals: sanitizeList", "sanitizeCraveSignal", "getOptionalAuth", "auth?.userId"],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "persisted-crave-closes-with-owner-session"],
+  },
+  {
+    key: "recommendation-history-isolation",
+    title: "推荐参考本家历史且不跨请求污染",
+    path: "src/lib/recommendation/rules.js",
+    required: ["collectRecentRecipeIds", "mealLogs", "const recentRecipeIds"],
+    forbidden: ["const recentRecipeIds = new Set();"],
+    evidence: "scripts/check-recommendation-constraints.mjs",
+    evidenceRequired: ["推荐应降低最近已吃菜品的排名", "不得跨调用污染"],
+  },
+  {
     key: "neutral-palette",
     title: "1.1 主界面保持黑白灰调色板",
     path: "package.json",
@@ -136,6 +170,12 @@ async function runCheck(item) {
   for (const text of item.required) {
     if (!source.includes(text)) {
       failures.push({ path: item.path, missing: text });
+    }
+  }
+
+  for (const text of item.forbidden ?? []) {
+    if (source.includes(text)) {
+      failures.push({ path: item.path, forbidden: text });
     }
   }
 

@@ -1,12 +1,12 @@
 import { nutritionFor, recipes } from "../recipes.js";
 import { getPlanningMode } from "../profile.js";
 
-const recentRecipeIds = new Set();
 const dislikedSignals = ["鸡爪", "肥肠"];
 
 export function buildTodayRecommendation({
   pantryItems = [],
   weekPlan = {},
+  mealLogs = {},
   groceryItems = [],
   todayRecipes = [],
   familyMembers = [],
@@ -15,6 +15,7 @@ export function buildTodayRecommendation({
   craveVotes = [],
   excludedRecipeIds = [],
 }) {
+  const recentRecipeIds = collectRecentRecipeIds({ weekPlan, mealLogs, todayRecipes });
   const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers, familyProfile);
   const wantSignals = collectWantSignals(wantToEatItems);
@@ -22,12 +23,6 @@ export function buildTodayRecommendation({
   const hardAvoidSignals = buildHardAvoidSignals(familyPreference);
   const planningMode = getPlanningMode(familyProfile.planningMode);
   const excludedIds = new Set(excludedRecipeIds);
-  Object.values(weekPlan)
-    .flat()
-    .slice(-8)
-    .forEach((recipeId) => recentRecipeIds.add(recipeId));
-  todayRecipes.forEach((recipe) => recentRecipeIds.add(recipe.id));
-
   const scored = recipes
     .filter(
       (recipe) =>
@@ -156,6 +151,30 @@ export function buildTodayRecommendation({
       proteinG: protein,
     },
   };
+}
+
+function collectRecentRecipeIds({ weekPlan = {}, mealLogs = {}, todayRecipes = [] }) {
+  const ids = new Set(Object.values(weekPlan).flat().filter(Boolean).slice(-14));
+  todayRecipes.forEach((recipe) => {
+    if (recipe?.id) ids.add(recipe.id);
+  });
+  Object.entries(mealLogs)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .slice(0, 14)
+    .forEach(([, log]) => {
+      const entries = [
+        ...(log?.consumedEntries ?? []),
+        ...(log?.plannedEntries ?? []),
+        ...Object.values(log?.meals ?? {}).flatMap((meal) => [
+          ...(meal?.consumedEntries ?? []),
+          ...(meal?.plannedEntries ?? []),
+        ]),
+      ];
+      entries.forEach((entry) => {
+        if (entry?.recipeId) ids.add(entry.recipeId);
+      });
+    });
+  return ids;
 }
 
 export function buildRecommendationItems(selectedRecipes = [], familySize = 2) {

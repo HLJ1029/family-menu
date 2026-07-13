@@ -5,7 +5,7 @@ import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandIllustration, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function TodayMenu({
   todayRecipes,
@@ -59,28 +59,9 @@ export function TodayMenu({
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
-        <div className="rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
-          <div className="grid gap-5 md:grid-cols-[1fr_150px] md:items-end">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚还没定。
-              </h2>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                回到【今晚】点“今晚就做”，Humi 会先给你凑好一组。
-              </p>
-            </div>
-            <div className="rounded-[26px] border border-line bg-canvas p-4 text-center">
-              <HumiBrandIllustration
-                variant="dinner-decision"
-                size="lg"
-                className="mx-auto"
-                title="空菜单生活场景"
-                contextKey="today-empty-menu"
-              />
-              <p className="mt-2 text-xs font-black text-ink/56">晚饭先空着</p>
-            </div>
-          </div>
+        <div className="rounded-[20px] border border-line bg-white p-5 text-ink shadow-card">
+          <p className="text-base font-black text-ink/55">今晚菜单先空着</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-ink/38">回【今晚】定一顿，或从下面补一道菜。</p>
         </div>
         <QuickAddRecipes
           todayRecipes={todayRecipes}

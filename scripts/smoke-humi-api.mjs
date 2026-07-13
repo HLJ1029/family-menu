@@ -111,6 +111,18 @@ try {
           status: "open",
           createdAt: new Date().toISOString(),
         }],
+        craveSignals: [{
+          id: "crave:state-smoke",
+          token: "crave-state-smoke-token",
+          ownerSecret: "must-not-be-shared",
+          householdName: "测试家",
+          initiatorName: "主厨",
+          feelingTag: "清淡点",
+          status: "open",
+          deadlineAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          votes: [],
+          createdAt: new Date().toISOString(),
+        }],
         familyProfile: { familySize: 3, goals: ["省时"] },
       },
     },
@@ -131,6 +143,8 @@ try {
   assert(loadedState?.groceryClaims?.["ingredient:tomato"]?.status === "claimed", "state should load grocery claims");
   assert(loadedState?.recommendationAccess?.preciseTrialRemaining === 2, "state should load recommendation access");
   assert(loadedState?.wantToEatItems?.[0]?.recipeId === "mapo-tofu", "state should load want-to-eat pool");
+  assert(loadedState?.craveSignals?.[0]?.token === "crave-state-smoke-token", "state should persist active crave signal across sessions");
+  assert(!loadedState?.craveSignals?.[0]?.ownerSecret, "shared state must not expose crave owner secret");
   assert(
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
     "owner household should include owner member",
@@ -237,7 +251,7 @@ try {
     body: { participantKey: "participant-smoke" },
   });
   assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
-  assert(joinedCrave.request?.votes?.[0]?.memberId === memberLogin.user.id, "joined crave vote should attach user");
+  assert(!joinedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose formal member ids");
   assert(
     joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
       && joinedCrave.family?.members?.some((member) => member.memberId === memberLogin.user.id),
@@ -257,6 +271,7 @@ try {
         todayMenu: [{ recipeId: "mapo-tofu", quantity: 9 }],
         familyProfile: { familySize: 9, dislikes: [] },
         recommendationAccess: { plan: "plus", preciseTrialRemaining: 20, preciseUsed: 0 },
+        craveSignals: [{ token: "member-forged-crave", status: "closed" }],
         wantToEatItems: [
           ...(joinedCrave.state?.wantToEatItems ?? []),
           {
@@ -298,6 +313,7 @@ try {
   assert(!memberMutation.state?.wantToEatItems?.some((item) => item.id === "want:member-forged"), "member must not write want-to-eat items for another user");
   assert(memberMutation.state?.groceryClaims?.["custom:member-milk"]?.status === "done", "member should update their own grocery claim");
   assert(memberMutation.state?.checkedItems?.["custom:member-milk"] === true, "completed member grocery claim should mark the item checked");
+  assert(memberMutation.state?.craveSignals?.[0]?.token === "crave-state-smoke-token", "member state save must not replace active crave signal");
 
   const targetedCrave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
@@ -309,6 +325,28 @@ try {
     },
   });
   assert(targetedCrave.request?.recipientCount === 1, "crave recipients should keep only unique household members");
+  try {
+    await request(`${baseUrl}/crave-requests/${targetedCrave.request.token}/close`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: {},
+    });
+    throw new Error("non-owner authenticated crave close should be forbidden");
+  } catch (error) {
+    assert(String(error.message).startsWith("403 "), "non-owner authenticated crave close should return 403");
+  }
+  const ownerClosedTargetedCrave = await request(`${baseUrl}/crave-requests/${targetedCrave.request.token}/close`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      resultSummary: {
+        dishes: [{ name: "冬瓜排骨汤", timeMinutes: 45 }],
+        reason: "主厨登录后收口。",
+        generatedAt: new Date().toISOString(),
+      },
+    },
+  });
+  assert(ownerClosedTargetedCrave.request?.status === "closed", "authenticated owner should close crave without client owner secret");
   assert(joinedCrave.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined crave user should immediately receive shared want-to-eat pool");
   assert(
     joinedCrave.family?.members?.some((member) => (

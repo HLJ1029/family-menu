@@ -12,6 +12,7 @@
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、三张直达原生分享确认页二维码和三张微信原生 card 图缺口。
 - `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据和微信审核显式确认护栏。
 - `npm run release:spec:audit` 会把三份策划书、验收矩阵和当前 P0/P1 gate 做机器复核，防止文档只存在但没有覆盖要求。
+- `docs/humi-1.1-requirement-ledger.md` 是逐项台账，区分已完成功能、待用户决策的支付范围和验收后才能做的外部动作。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”，不自动推动平台提交。
 - `npm run release:status` 的 `release.engineeringGatesReady=true` 只代表工程项健康；真实候选复盘也通过后，`release.candidateValidationReady=true` / `release:status ok=true` 才能进入微信审核准备讨论。
 - P2 可以进入灰度后继续迭代，但不能影响 P0 主路径体验。
@@ -35,6 +36,15 @@
 - [x] P1 游客协作落地与黑白灰视觉：征集、买菜、邀请三类 token 均用新游客上下文烟测，主界面与小程序壳保持黑白灰。
   - 验证：`npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4174/`，`npm run validate:palette`。
   - 证据：`scripts/smoke-collaboration-landings.mjs`、`scripts/validate-neutral-palette.mjs`。
+- [x] P1 隐形食材线索与清单降噪：清单页不再展示“后台已有”数量、批处理或营养入口；只保留勾选买到、这次不用买和推荐用到时的轻确认。
+  - 验证：`npm run release:product:review`，`npm run release:product:smoke -- --base-url http://127.0.0.1:4174/`。
+  - 证据：`src/components/GroceryList.jsx`、`src/components/Dashboard.jsx`、`inventory-maintenance-is-not-exposed`。
+- [x] P1 协作状态真正沉淀：征集单跨会话安全保存，到期后可自动出菜单并以主厨登录身份收口；我的家展示买菜认领、做饭确认和想吃动态。
+  - 验证：`npm run validate:api`，`npm run release:product:smoke -- --base-url http://127.0.0.1:4174/`。
+  - 证据：`api/server.js`、`api/store.js`、`src/components/UserCenter.jsx`、`persisted-crave-auto-generates-after-deadline`。
+- [x] P1 历史推荐隔离：最近菜品每次从当前家的周计划和三餐记录建集，不使用跨请求的模块级集合。
+  - 验证：`npm run validate:recommendation`。
+  - 证据：`src/lib/recommendation/rules.js`、`scripts/check-recommendation-constraints.mjs`。
 - [ ] P1 家庭订阅结算范围：确认 1.1 是否接入真实微信支付，或明确列入 1.2。
   - 当前已有：基础推荐无限、3 次精准尝鲜、Plus 权益状态、API 鉴权/402 和缓存复用。
   - 当前缺口：没有支付下单、回调验签、订单与权益发放闭环；未确认前不能宣称三份策划书全部完成。

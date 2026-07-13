@@ -35,6 +35,7 @@ export function UserCenter({
   recommendationAccess,
   wantToEatItems = [],
   craveSignals = [],
+  groceryClaims = {},
   activeCraveRequest,
   onCopyCraveLink,
   onRefreshCraveRequest,
@@ -95,7 +96,37 @@ export function UserCenter({
     ? validationSummary.topRejectedReasons
     : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
   const craveFeelingEntries = extractCraveFeelingEntries(craveSignals);
+  const groceryActivity = Object.values(groceryClaims)
+    .filter((claim) => claim?.itemName && claim?.memberName)
+    .sort((left, right) => String(right.completedAt || right.claimedAt || "").localeCompare(String(left.completedAt || left.claimedAt || "")))
+    .slice(0, 2)
+    .map((claim) => ({
+      id: `claim:${claim.itemKey}:${claim.memberId}`,
+      title: claim.status === "done"
+        ? `${claim.memberName}已经买到 ${claim.itemName}`
+        : `${claim.memberName}在买 ${claim.itemName}`,
+      meta: "买菜协作",
+    }));
+  const dinnerActivity = Object.entries(mealLogs)
+    .filter(([, log]) => log?.actorName && log?.confirmation && log.confirmation !== "skip")
+    .sort(([, left], [, right]) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")))
+    .slice(0, 1)
+    .map(([dateKey, log]) => ({
+      id: `meal:${dateKey}:${log.updatedAt || log.confirmation}`,
+      title: buildDinnerActivityTitle(log),
+      meta: "晚饭确认",
+    }));
+  const wantActivity = wantToEatItems
+    .filter((item) => item.status !== "done" && item.memberName)
+    .slice(0, 2)
+    .map((item) => ({
+      id: `activity:${item.id}`,
+      title: `${item.memberName}想吃 ${item.title}`,
+      meta: "想吃池子",
+    }));
   const familyActivity = [
+    ...groceryActivity,
+    ...dinnerActivity,
     ...craveFeelingEntries.slice(0, 4).map((item) => ({
       id: item.id,
       title: item.feelingTag === "随便都行"
@@ -108,7 +139,8 @@ export function UserCenter({
       title: `不想吃：${item.reasonLabel}`,
       meta: "晚饭反馈",
     })),
-  ].slice(0, 5);
+    ...wantActivity,
+  ].slice(0, 6);
   const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
   const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
   const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
@@ -262,7 +294,7 @@ export function UserCenter({
           }}
           onSwitch={onSwitchHousehold}
         />
-        <section ref={familyCraveRef} className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section ref={familyCraveRef} data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">家庭动态</p>
@@ -271,13 +303,15 @@ export function UserCenter({
                 感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。
               </p>
             </div>
-            <button
-              type="button"
-              onClick={openFamilyCraveStarter}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
-            >
-              {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
-            </button>
+            {canManageHouseholdMenu && (
+              <button
+                type="button"
+                onClick={openFamilyCraveStarter}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+              >
+                {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
+              </button>
+            )}
           </div>
           {familyCraveStatus && (
             <div className="mt-4 rounded-[20px] border border-line bg-canvas px-4 py-3 text-sm font-black leading-6 text-ink/62">
@@ -291,11 +325,12 @@ export function UserCenter({
                 onCopyCraveLink={onCopyCraveLink}
                 onRefreshCraveRequest={onRefreshCraveRequest}
                 onGenerateFromCrave={onGenerateFromCrave}
+                canManage={canManageHouseholdMenu}
                 compact
               />
             </div>
           )}
-          {!activeCraveRequest?.token && (
+          {!activeCraveRequest?.token && canManageHouseholdMenu && (
             <CraveStarterSheet
               selectedFeeling={familyFeelingTag}
               onSelectFeeling={setFamilyFeelingTag}
@@ -846,6 +881,15 @@ function WantToEatRow({ item, canAddToday, canEdit, onAddToday, onDone, onRemove
   );
 }
 
+function buildDinnerActivityTitle(log = {}) {
+  const actorName = log.actorName || "主厨";
+  if (log.confirmation === "all") return `${actorName}确认今晚已做饭`;
+  if (log.confirmation === "partial") return `${actorName}确认今晚做了一部分`;
+  if (log.confirmation === "changed") return `${actorName}说今晚换了别的`;
+  if (log.confirmation === "outside") return `${actorName}说今晚在外面吃`;
+  return `${actorName}更新了今晚的饭`;
+}
+
 function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatItems = [], sourceSummary = {} }) {
   const reflections = [];
   const feelingCounts = extractCraveFeelingEntries(craveSignals).reduce((summary, item) => {
@@ -985,7 +1029,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
       {!session?.user && !signedIn && (
         <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；创建我的家后，菜单、后台已有和画像会一起保存。
+          可以先填写体验；创建我的家后，菜单、食材清单和画像会一起保存。
         </div>
       )}
 

@@ -580,11 +580,12 @@ export class HumiStore {
     return request;
   }
 
-  async closeCraveRequest(token, ownerSecret, resultSummary = null) {
+  async closeCraveRequest(token, ownerSecret, resultSummary = null, ownerUserId = null) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    if (request.ownerSecret !== ownerSecret) {
+    const authenticatedOwner = Boolean(ownerUserId && request.initiatorId === ownerUserId);
+    if (!authenticatedOwner && request.ownerSecret !== ownerSecret) {
       const error = new Error("Owner secret mismatch.");
       error.code = "forbidden";
       throw error;

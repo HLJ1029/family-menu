@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock3, MessageCircleHeart, Send, Sparkles, Users } from "lucide-react";
+import { useState } from "react";
 import { feelingTags, summarizeCraveVotes } from "../lib/collaboration";
 
 export function CraveStarterSheet({
@@ -78,6 +79,7 @@ export function CraveCollectingSheet({
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
+  canManage = true,
   compact = false,
 }) {
   const votes = request?.votes ?? [];
@@ -91,13 +93,13 @@ export function CraveCollectingSheet({
       subtitle={votes.length > 0 ? `已收到 ${votes.length} 个回复，可以随时出菜单。` : "卡片已经准备好。没人回也可以直接让 Humi 出菜单。"}
       statusLabel={votes.length > 0 ? `征集中 · ${votes.length} 个回复` : "征集中"}
       compact={compact}
-      footer={(
+      footer={canManage ? (
         <div className="grid gap-2 sm:grid-cols-3">
           <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">分享征集单</button>
           <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
           <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">现在出菜单</button>
         </div>
-      )}
+      ) : null}
     >
       <div className="grid gap-3">
         <div className="flex flex-wrap gap-2">
@@ -116,7 +118,9 @@ export function CraveCollectingSheet({
             <VoteReceiptRow key={vote.id || `${vote.participantKey || "vote"}:${index}`} vote={vote} />
           )) : (
             <div className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
-              在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。
+              {canManage
+                ? "在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。"
+                : "征集还在等待回复，主厨会负责收口并确定今晚菜单。"}
             </div>
           )}
         </div>
@@ -140,6 +144,7 @@ export function CraveVoteSheet({
   status,
   onSubmit,
 }) {
+  const [showNote, setShowNote] = useState(false);
   return (
     <form onSubmit={onSubmit}>
       <CraveSheetShell
@@ -155,12 +160,19 @@ export function CraveVoteSheet({
               className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
               placeholder="怎么称呼你？可不填"
             />
-            <input
-              value={note}
-              onChange={onNoteChange}
-              className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
-              placeholder="想补一句？可不填"
-            />
+            {showNote ? (
+              <input
+                value={note}
+                onChange={onNoteChange}
+                autoFocus
+                className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
+                placeholder="想补一句？可不填"
+              />
+            ) : (
+              <button type="button" onClick={() => setShowNote(true)} className="w-fit text-sm font-black text-ink/55 underline decoration-ink/25 underline-offset-4">
+                想补一句？
+              </button>
+            )}
             {status && <p className="text-sm font-bold leading-6 text-ink/52">{status}</p>}
             <button type="submit" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-black text-white">
               <CheckCircle2 size={18} />

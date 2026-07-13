@@ -134,10 +134,20 @@ try {
   const breakfastAfterPick = await readTodayMealSlot(page, "breakfast");
 
   await page.getByRole("button", { name: "清单", exact: true }).click();
+  await waitForTransientUi(page);
+  const inventoryMaintenanceHidden = await page.getByText("后台已有", { exact: true }).count() === 0;
+  const groceryNutritionEntryHidden = await page.getByRole("button", { name: "营养视图" }).count() === 0;
+  const groceryScreenshot = join(evidenceDir, "grocery-mobile.png");
+  await page.screenshot({ path: groceryScreenshot, fullPage: true });
   await page.getByRole("button", { name: "分享买菜清单" }).click();
   await page.getByText("已打开买菜分享卡片").waitFor({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "我的家" }).click();
+  const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
+  const dinnerActivityVisible = await page.getByText("主厨确认今晚已做饭").isVisible();
+  const wantActivityVisible = await page.getByText("家人小林想吃 冬瓜排骨汤").isVisible();
+  const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
+  await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
   await page.getByRole("button", { name: "问问大家" }).first().click();
   await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
@@ -155,6 +165,7 @@ try {
   const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
+  const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
 
   const checks = [
     { key: "full-library-title", ok: discoveryTitle },
@@ -165,18 +176,28 @@ try {
     { key: "breakfast-does-not-default-to-seaweed-soup", ok: !breakfastAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: breakfastAfterPick },
     { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
+    { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
+    { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
     { key: "crave-share-posts-miniprogram-card", ok: craveSharePosted },
     { key: "crave-share-opens-native-share-page", ok: craveShareOpened },
     { key: "crave-members-default-selected", ok: selectedFamilyMember === "true", actual: selectedFamilyMember },
     { key: "crave-create-keeps-selected-members", ok: craveCreatePayload?.recipientIds?.includes("product-smoke-member"), actual: craveCreatePayload?.recipientIds ?? [] },
     { key: "user-center-crave-sheet", ok: craveSheetVisible },
     { key: "user-center-view-crave-button", ok: viewButtonVisible },
+    { key: "family-activity-shows-grocery-claim", ok: groceryActivityVisible },
+    { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
+    { key: "family-activity-shows-want-item", ok: wantActivityVisible },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
     { key: "member-can-edit-own-want-item", ok: memberBoundary.memberCanEditOwnWant },
     { key: "member-cannot-add-want-item-to-dinner", ok: !memberBoundary.memberCanAddWantToDinner },
+    { key: "member-cannot-start-crave-from-user-center", ok: memberBoundary.memberUserCenterAskButtons === 0, actual: memberBoundary.memberUserCenterAskButtons },
+    { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
+    { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
+    { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
+    { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
   ];
   const manifest = {
@@ -188,7 +209,10 @@ try {
       discoveryMobile: discoveryScreenshot,
       discoveryMobileFull: discoveryFullScreenshot,
       userCraveMobile: userCraveScreenshot,
+      groceryMobile: groceryScreenshot,
+      familyActivityMobile: familyActivityScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
+      persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
     },
     checks,
     nextActions: [
@@ -280,6 +304,34 @@ function buildSmokeHouseholdState() {
         dinner: [{ recipeId: "tomato-egg", quantity: 1 }],
       },
     },
+    mealLogs: {
+      [today]: {
+        source: "home",
+        confirmation: "all",
+        actorMemberId: "product-smoke-owner",
+        actorName: "主厨",
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    groceryClaims: {
+      "custom:milk": {
+        itemKey: "custom:milk",
+        itemName: "牛奶",
+        memberId: "product-smoke-member",
+        memberName: "家人小林",
+        status: "claimed",
+        claimedAt: new Date().toISOString(),
+      },
+    },
+    wantToEatItems: [{
+      id: "want:product-smoke-member",
+      title: "冬瓜排骨汤",
+      recipeId: "wintermelon-rib-soup",
+      memberId: "product-smoke-member",
+      memberName: "家人小林",
+      status: "open",
+      createdAt: new Date().toISOString(),
+    }],
   };
 }
 
@@ -393,7 +445,9 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const memberCanEditOwnWant = await memberWantRow.getByRole("button", { name: "标记安排" }).isVisible()
     && await memberWantRow.getByRole("button", { name: "移除" }).isVisible();
   const memberCanAddWantToDinner = await memberWantRow.getByRole("button", { name: "今晚就吃" }).isVisible().catch(() => false);
+  const memberUserCenterAskButtons = await page.getByRole("button", { name: /问问大家/ }).count();
   await page.getByRole("button", { name: "今晚", exact: true }).click();
+  const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
   const menuBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   await page.getByRole("button", { name: /今晚就做|就做选中的/ }).first().click();
   const ownerNotice = page.getByText("只有主厨能修改菜单和家庭设置；你仍可以点感觉、认领买菜或丢想吃。");
@@ -410,9 +464,81 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     ownerWantActions,
     memberCanEditOwnWant,
     memberCanAddWantToDinner,
+    memberUserCenterAskButtons,
+    memberDashboardAskButtons,
     pageErrors,
     screenshot,
   };
+}
+
+async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let closeAuthorization = "";
+  const family = buildSmokeFamily();
+  const state = {
+    ...buildSmokeHouseholdState(),
+    todayMenu: [],
+    mealPlan: {},
+    craveSignals: [{
+      id: "persisted-crave",
+      token: "persisted-crave-token",
+      householdName: "我家",
+      initiatorName: "主厨",
+      feelingTag: "随便都行",
+      status: "open",
+      deadlineAt: new Date(Date.now() - 1_000).toISOString(),
+      votes: [],
+      createdAt: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
+    }],
+  };
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "persisted-crave-owner-token",
+      refreshToken: "persisted-crave-owner-token",
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+    }));
+    localStorage.setItem("family-menu:today-menu", "[]");
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      const payload = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state: payload.state, family, households: [family] }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state, family, households: [family] }) });
+  });
+  await page.route("**/crave-requests/persisted-crave-token/close", async (route) => {
+    closeAuthorization = route.request().headers().authorization || "";
+    await fulfillJson(route, {
+      request: { ...state.craveSignals[0], status: "closed", resultSummary: route.request().postDataJSON()?.resultSummary },
+    });
+  });
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByText("已揉合家人的感觉").waitFor({ timeout: 15_000 });
+  const generated = await page.getByText("已揉合家人的感觉").isVisible();
+  await page.waitForTimeout(300);
+  const closeAuthorized = closeAuthorization === "Bearer persisted-crave-owner-token";
+  const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");
+  await page.screenshot({ path: screenshot });
+  await context.close();
+  return { generated, closeAuthorized, closeAuthorization, pageErrors, screenshot };
+}
+
+async function fulfillJson(route, body) {
+  await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
 }
 
 function getLocalDateKey(date = new Date()) {

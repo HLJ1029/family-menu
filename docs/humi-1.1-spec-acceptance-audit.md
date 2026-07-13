@@ -35,10 +35,11 @@
 | 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 的 `MealRhythmPanel` 处理早餐轻记录、午餐来源；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
 | 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | `src/main.jsx` 将早餐和午餐在家做入口带到完整菜品库；产品 smoke 证明点选前早餐为空、点选后只写入用户选择的菜，且不会默认写紫菜蛋花汤 |
 | 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
-| 不做独立库存维护页 | 已完成 | `src/components/InventoryPage.jsx` 已删除；`navigation.js` 无 `inventory`；界面使用“后台已有”轻确认 |
+| 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
 | 清单勾选反推后台已有，做饭确认扣减 | 已完成 | `src/main.jsx` 维护 `pantryItems`；`Dashboard.jsx` 提供“家里还有 X 吗”轻确认；AI-HQ 状态记录 1.1.29 闭环 |
 | 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`UserCenter.jsx` 保留忌口/画像编辑，不再暴露软口味偏好表 |
 | 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 首屏为“家里的饭线索”，包含家庭动态、问问大家、想吃池子、推荐权益 |
+| 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
 | 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；`release:product:smoke` 验证家人点“今晚就做”不会改写菜单 |
 | 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
 | 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人也只能维护自己的想吃条目 |
@@ -48,6 +49,8 @@
 | 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
 | 主厨可“我自己做主”，单人也能走完 | 已完成 | `Dashboard.jsx` 与 `UserCenter.jsx` 的 `onDecideAlone` 路径；无人参与也可出菜单 |
 | 等待态可手动出菜单，超时有退路 | 已完成 | `CraveCollectingSheet` 根据 `deadlineAt` 显示倒计时和 `现在出菜单`；本地逻辑超时出菜单 |
+| 征集状态跨会话恢复，超时后主厨身份安全收口 | 已完成 | API 安全保存 `craveSignals` 且去除 owner secret；产品 smoke 从过期持久化征集自动出菜单，并用 Bearer 主厨会话关闭 |
+| 家人选填备注默认折叠 | 已完成 | `CraveVoteSheet` 首屏只显示“想补一句？”弱操作；游客 smoke 先确认输入框不存在，展开后仍可提交 |
 | 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | `Dashboard.jsx` 的 `craveSelectionMode` 支持勾选菜卡，按钮 `就做选中的 X 道` |
 | 每道菜展示“为什么推它” | 已完成 | `Dashboard.jsx` 的 `buildDishReason` 结合家人感觉、后台已有、忌口和推荐来源 |
 | 晚间轻确认包含“不记录” | 已完成 | `Dashboard.jsx` 的 `dinnerSources` 包含 `skip/不记录`，晚饭确认区也有 `不记录` |
@@ -55,6 +58,7 @@
 | 想吃池子可由家人/主厨沉淀并参与推荐 | 已完成 | `UserCenter.jsx` 想吃池子入口；`src/lib/recommendation/rules.js` 使用 `wantToEatItems` 排序 |
 | 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
 | 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
+| 推荐参考本家最近饮食且不跨请求污染 | 已完成 | `collectRecentRecipeIds` 每次从本家周计划与 `mealLogs` 建集；`validate:recommendation` 同时验证降重与请求隔离 |
 | 推荐权益不可由客户端升级 | 已完成 | `api/store.js` 的 `mergeClientRecommendationAccess` 保持服务端 plan，次数只能消耗不能恢复；`validate:api` 覆盖伪造 Plus 和重置次数 |
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请先展示价值后登录，且不会自动发起微信登录 |

@@ -97,10 +97,12 @@ export async function joinCraveRequest(token, session, payload) {
   });
 }
 
-export async function closeCraveRequest(token, ownerSecret, payload = {}) {
+export async function closeCraveRequest(token, ownerSecret, payload = {}, session = null) {
   if (!token) throw new Error("征集链接不完整。");
-  return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/close`, {
+  const requester = session ? humiApiRequest : humiPublicRequest;
+  return requester(`/crave-requests/${encodeURIComponent(token)}/close`, {
     method: "POST",
+    ...(session ? { session } : {}),
     body: { ownerSecret, ...payload },
   });
 }

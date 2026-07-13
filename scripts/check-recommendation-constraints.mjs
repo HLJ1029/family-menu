@@ -59,6 +59,32 @@ if (!hasSoup || soupRecommendation.feelingHits <= 0) {
   throw new Error("感觉征集想喝汤时，推荐应优先照顾汤/粥类菜品。");
 }
 
+const historyBaseline = buildTodayRecommendation({
+  familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+});
+const historyDate = "2026-07-01";
+const withMealHistory = buildTodayRecommendation({
+  familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+  mealLogs: {
+    [historyDate]: {
+      confirmation: "all",
+      consumedEntries: historyBaseline.recipes.map((recipe) => ({ recipeId: recipe.id, quantity: 1 })),
+    },
+  },
+});
+const repeatedHistoryCount = withMealHistory.recipes.filter((recipe) => (
+  historyBaseline.recipes.some((previous) => previous.id === recipe.id)
+)).length;
+if (repeatedHistoryCount >= historyBaseline.recipes.length) {
+  throw new Error("推荐应降低最近已吃菜品的排名，不能完整重复上一组。");
+}
+const isolatedBaseline = buildTodayRecommendation({
+  familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+});
+if (isolatedBaseline.title !== historyBaseline.title) {
+  throw new Error("不同家庭/请求的最近菜品集合不得跨调用污染。");
+}
+
 await vite.close();
 
 console.log("Recommendation hard constraints check passed.");

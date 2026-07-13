@@ -62,6 +62,7 @@ export function Dashboard({
   onOpenUserCenter,
   householdMembers = [],
   currentMemberId = "",
+  canManageHousehold = true,
   familyProfile,
   groceryItemCount = 0,
   mealLog,
@@ -285,7 +286,7 @@ export function Dashboard({
               <div>
                 <p className="text-sm font-black text-ink">家里还有 {pantryCheckItem.name} 吗？</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-                  这组推荐把它当作加分项；不在了也没关系，我会从后台已有里轻轻拿掉。
+                  这组推荐把它当作加分项；不在了也没关系，后面就不再按家里有来算。
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -310,7 +311,7 @@ export function Dashboard({
                       [pantryCheckItem.key]: true,
                     }));
                   }}
-                  className="min-h-10 rounded-full bg-ink px-4 text-xs font-black text-white"
+                  className="min-h-10 rounded-full border border-line bg-white px-4 text-xs font-black text-ink"
                 >
                   没了
                 </button>
@@ -382,16 +383,18 @@ export function Dashboard({
                     : "精准推荐已用完"}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setCraveOpen((current) => !current)}
-              className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
-            >
-              <MessageCircleHeart size={18} />
-              问问大家想吃啥
-            </button>
+            {canManageHousehold && (
+              <button
+                type="button"
+                onClick={() => setCraveOpen((current) => !current)}
+                className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-transparent px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
+              >
+                <MessageCircleHeart size={18} />
+                问问大家想吃啥
+              </button>
+            )}
           </div>
-          {craveOpen && (
+          {canManageHousehold && craveOpen && (
             <div ref={cravePanelRef} className="mt-5 scroll-mb-32">
               {activeCraveRequest?.token ? (
                 <CraveCollectingSheet
@@ -551,7 +554,7 @@ function MealRhythmPanel({
           <button
             type="button"
             onClick={() => onRecordBreakfast?.()}
-            className="min-h-9 w-full rounded-full bg-ink px-3 text-xs font-black text-white"
+            className="min-h-9 w-full rounded-full border border-line bg-canvas px-3 text-xs font-black text-ink"
           >
             {breakfastSummary?.count > 0 ? "换早餐" : "选早餐吃什么"}
           </button>
