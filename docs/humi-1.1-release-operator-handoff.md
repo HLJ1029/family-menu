@@ -13,7 +13,7 @@
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
 - API 部署提交：`2c53017c`；部署前备份 `/opt/humi/backups/20260714T124938Z`。
 - 最新小程序上传：`1.1.63`，描述 `修复真机存量数据白屏`，AppID `wx4040b89f3b363416`。
-- 当前 H5：`https://www.humi-home.com/`，Pages run `29340371940` 已部署。
+- 已核验 H5：`https://www.humi-home.com/`，Pages run `29341674107` 已成功部署。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
 
