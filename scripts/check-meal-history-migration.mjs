@@ -1,10 +1,27 @@
 import assert from "node:assert/strict";
 import { migrateLegacyAutomaticMealSelections } from "../src/lib/mealHistoryMigration.js";
+import { normalizeMealEntries, normalizeMealLogs } from "../src/lib/mealState.js";
 
 const legacyTimestamp = "2026-07-01T10:30:00.000Z";
 const explicitSelectionTimestamp = "2026-07-14T12:53:10.000Z";
 const soupEntry = { recipeId: "seaweed-egg-soup", quantity: 1 };
 const dinnerEntry = { recipeId: "tomato-egg", quantity: 1 };
+
+assert.deepEqual(normalizeMealEntries([null, undefined, dinnerEntry]), [dinnerEntry]);
+assert.deepEqual(normalizeMealLogs({
+  "2026-07-14": {
+    meals: {
+      breakfast: { consumedEntries: [null, soupEntry], plannedEntries: null },
+      lunch: null,
+    },
+  },
+}), {
+  "2026-07-14": {
+    meals: {
+      breakfast: { consumedEntries: [soupEntry], plannedEntries: [] },
+    },
+  },
+});
 
 const legacyState = {
   mealPlan: {

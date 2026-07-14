@@ -1,5 +1,6 @@
 import { Minus, Plus } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
+import { normalizeMealEntries } from "../lib/mealPlan";
 
 export function Library({
   categories,
@@ -19,10 +20,11 @@ export function Library({
   canManageMenu = true,
   actionLabelOverride,
 }) {
-  const quantityByRecipe = Object.fromEntries(menuQuantities.map((item) => [item.recipeId, item.quantity]));
+  const safeMenuQuantities = normalizeMealEntries(menuQuantities);
+  const quantityByRecipe = Object.fromEntries(safeMenuQuantities.map((item) => [item.recipeId, item.quantity]));
   const recipeSource = allRecipes.length > 0 ? allRecipes : visibleRecipes;
   const recipeById = Object.fromEntries(recipeSource.map((recipe) => [recipe.id, recipe]));
-  const selectedRecipes = menuQuantities
+  const selectedRecipes = safeMenuQuantities
     .map((item) => {
       const recipe = recipeById[item.recipeId];
       return recipe ? { ...recipe, menuQuantity: item.quantity } : null;
