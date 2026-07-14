@@ -281,7 +281,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product anchors are covered and the 1.2 payment/Plus scope is locked. Continue local product acceptance; do not deploy, upload, or enter WeChat review before user acceptance.",
+        "Product anchors are covered and the 1.2 scope is locked. The production candidate is deployed and uploaded; continue real-device acceptance without entering WeChat review.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",

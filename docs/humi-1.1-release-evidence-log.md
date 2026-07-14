@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-05
+更新日期：2026-07-14
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -10,15 +10,15 @@
 | 项目 | 当前值 |
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
-| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| API 部署提交 | `154f379` |
-| GitHub Pages run | 最新 run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准；历史 run 见第 2 节 |
+| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure` |
+| API 部署提交 | `2c53017c` |
+| GitHub Pages deployment | `29334784527` / success / merge `88a70abe` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.59` |
-| 小程序描述 | `原生分享确认页` |
+| 小程序版本 | `1.1.60` |
+| 小程序描述 | `核心菜单与家庭协作验收版` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 产品功能继续在本地候选收口；分享 OCR 语义门禁已重开征集/邀请截图 P1，尚未提交微信审核 |
+| 当前状态 | 生产 H5/API 已部署、小程序候选已上传、线上自动化验收通过；等待用户真机验收，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -43,6 +43,11 @@
 | 2026-07-05 | codex@mbp-m5pro | `git push origin main` | 通过 | `2527e30` / Pages run `28744383941` success / 新增只读 `npm run release:map` 收口地图命令 |
 | 2026-07-13 | codex@mbp-m5pro | `npm run release:wechat:share:evidence` | 阻止收口 | 新增 Vision OCR 语义门禁后发现历史证据误判：`grocery-card.png` 有虚拟好友发送框并通过；`crave-card.png` 缺发送框，`invite-card.png` 为无关截图，二者必须重截 |
 | 2026-07-13 | codex@mbp-m5pro | `release:wechat:share:landings` / `release:wechat:share:direct-previews` | 当前候选准备完成 | 新建私有目录 `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457`；三张 landing、三张直达确认页二维码和通用预览二维码来自当前分支，未复制历史原生卡片，三类发送框均待重截 |
+| 2026-07-14 | codex@mbp-m5pro | PR #3 / GitHub Pages | 通过 | PR #3 合并为 `2c53017c`；Pages run `29334137689` success |
+| 2026-07-14 | codex@mbp-m5pro | 生产 API 部署 | 通过 | 备份 `/opt/humi/backups/20260714T124938Z`；同步 `2c53017c` API；`humi-api.service` active；monitor/readiness 通过 |
+| 2026-07-14 | codex@mbp-m5pro | PR #4 / GitHub Pages | 通过 | PR #4 合并为 `88a70abe`；Pages run `29334784527` success；修复未登录 Supabase 埋点 400 |
+| 2026-07-14 | codex@mbp-m5pro | production product/collaboration smoke | 通过 | 产品入口与三类游客协作全部通过，HTTP/页面错误为 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T130324Z` |
+| 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.60` / `核心菜单与家庭协作验收版` / package `20.1 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.60` |
 
 ## 3. 生产 API 补部署证据
 
@@ -50,11 +55,11 @@
 
 | 字段 | 记录 |
 | --- | --- |
-| 执行时间 | 2026-07-03 12:56 CST |
+| 执行时间 | 2026-07-14 20:52 CST |
 | 执行人 | codex@mbp-m5pro |
 | 可用 SSH target | `ubuntu@api.humi-home.com` + `~/.ssh/humi_tencent_lighthouse` |
-| 部署前备份路径 | `/opt/humi/backups/20260703T045543Z` |
-| 部署提交 | `154f379` |
+| 部署前备份路径 | `/opt/humi/backups/20260714T124938Z` |
+| 部署提交 | `2c53017c` |
 | 服务管理方式 | systemd / `humi-api.service` / `WorkingDirectory=/opt/humi` |
 | `npm run deploy:api:check` | 通过 |
 | `npm run monitor:prod` | 通过 |
@@ -81,14 +86,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.59` |
+| 提交版本 | `1.1.60` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.59` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.60` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -116,7 +121,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.59` |
+| 发布版本 | `1.1.60` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

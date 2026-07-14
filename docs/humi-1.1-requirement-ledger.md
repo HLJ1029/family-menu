@@ -142,4 +142,4 @@ npm run release:security:audit
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-本地功能完成不等于线上已变更。用户验收前，不部署、不上传、不提审。
+本地功能完成不等于真机验收完成。当前生产候选已部署并上传；用户真机验收通过前不提审、不正式发布。

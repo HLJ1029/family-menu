@@ -1,17 +1,17 @@
 # Humi 1.1 小程序发布 Runbook
 
-更新日期：2026-07-05
+更新日期：2026-07-14
 执行设备：codex@mbp-m5pro
 
 ## 1. 当前状态
 
-- 小程序版本：`1.1.59`
-- 版本描述：`原生分享确认页`
+- 小程序版本：`1.1.60`
+- 版本描述：`核心菜单与家庭协作验收版`
 - AppID：`wx4040b89f3b363416`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
 - 当前状态：H5 与小程序包已上传；提审前 P0/P1 已完成，当前不自动提交审核，需用户确认后进入微信公众平台提交。
-- 后端状态：生产 API 已补部署到 1.1.54 所需服务端增量；1.1.59 为原生分享确认页与 JSSDK/小程序壳层更新，不新增 API 端点，发布前后继续用 `npm run monitor:prod` 和 `npm run release:status` 复核。
+- 后端状态：生产 API 已部署 `2c53017c` 并通过线上 health/monitor/readiness；1.1.60 继续复用同一 API 合同，发布前后用 `npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 
 ## 2. 审核通过后立即执行

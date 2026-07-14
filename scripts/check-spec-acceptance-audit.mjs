@@ -285,7 +285,8 @@ function inspectCurrentOrder(content) {
     "http://127.0.0.1:4174/",
     "核心菜单、家庭协作、三类分享、数据与安全检查",
     "未通过就继续修",
-    "再单独确认是否部署 H5/API 与上传新的小程序候选",
+    "当前 H5/API 已部署",
+    "不重复执行部署或上传",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];
@@ -345,6 +346,6 @@ function buildNextActions({ sourceSpecs, audit, hardening, ledger }) {
   if (ledger.openDecisionRows?.length) actions.push(`Confirm or defer the open product/payment scope: ${ledger.openDecisionRows.map((row) => row.id).join(", ")}.`);
   if (ledger.openNativeRows?.length) actions.push(`Capture and verify current native WeChat evidence: ${ledger.openNativeRows.map((row) => row.id).join(", ")}.`);
   if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
-  if (!actions.length) actions.push("All spec rows, product decisions, and current-candidate native evidence are complete; keep deployment/upload/review deferred until the user accepts.");
+  if (!actions.length) actions.push("All spec rows, product decisions, and current-candidate native evidence are complete; the production candidate is deployed and uploaded, so continue real-device acceptance without entering WeChat review.");
   return actions;
 }
