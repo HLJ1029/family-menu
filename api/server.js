@@ -110,6 +110,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const householdInviteWantMatch = url.pathname.match(/^\/household-invites\/([^/]+)\/wants$/);
+      if (request.method === "POST" && householdInviteWantMatch) {
+        await handleAddHouseholdInviteWant(request, response, householdInviteWantMatch[1]);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/state") {
         await handleGetState(request, response);
         return;
@@ -379,6 +385,30 @@ async function handleGetHouseholdInvite(response, token) {
   sendJson(response, 200, { invite: toPublicHouseholdInvite(invite) });
 }
 
+async function handleAddHouseholdInviteWant(request, response, token) {
+  const body = await readJson(request);
+  try {
+    const result = await store.addHouseholdInviteWant(token, {
+      participantKey: stringValue(body.participantKey, 80),
+      memberName: stringValue(body.memberName, 32),
+      title: stringValue(body.title, 40),
+    });
+    if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+    sendJson(response, 201, {
+      invite: toPublicHouseholdInvite(result.invite),
+      want: toPublicWantToEatItem(result.want),
+    });
+  } catch (error) {
+    if (error.code === "invite_closed") {
+      throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    }
+    if (error.code === "missing_participant_key" || error.code === "missing_want_title") {
+      throw httpError(400, error.code, "请写下想吃的菜，再告诉主厨。");
+    }
+    throw error;
+  }
+}
+
 async function handleJoinHouseholdInvite(request, response, token) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
@@ -387,6 +417,7 @@ async function handleJoinHouseholdInvite(request, response, token) {
   try {
     const result = await store.acceptHouseholdInvite(token, user.id, {
       memberName: stringValue(body.memberName, 32) || user.displayName,
+      participantKey: stringValue(body.participantKey, 80),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
     const state = await store.getState(user.id);
@@ -468,10 +499,10 @@ async function handleExplain(request, response) {
 }
 
 async function handleCreateCraveRequest(request, response) {
-  const auth = await getOptionalAuth(request);
+  const auth = await requireAuth(request);
   const body = await readJson(request);
   try {
-    const craveRequest = await store.createCraveRequest(body, auth?.userId ?? null);
+    const craveRequest = await store.createCraveRequest(body, auth.userId);
     sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
   } catch (error) {
     if (error.code === "forbidden") {
@@ -581,8 +612,9 @@ async function handleJoinCraveRequest(request, response, token) {
 
 async function handleCloseCraveRequest(request, response, token) {
   const body = await readJson(request);
+  const auth = await getOptionalAuth(request);
   try {
-    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary);
+    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary, auth?.userId);
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
     sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
   } catch (error) {
@@ -625,7 +657,9 @@ function toPublicCraveRequest(request) {
     householdId: request.householdId,
     householdName: request.householdName,
     initiatorName: request.initiatorName,
+    recipientCount: (request.recipientIds ?? []).length,
     mealType: request.mealType,
+    initialFeelingTag: request.initialFeelingTag || "随便都行",
     status: request.status,
     deadlineAt: request.deadlineAt,
     resultSummary: request.resultSummary ? {
@@ -642,7 +676,6 @@ function toPublicCraveRequest(request) {
       feelingTag: vote.feelingTag,
       note: vote.note,
       temporary: vote.temporary,
-      memberId: vote.temporary ? undefined : vote.memberId,
       claimedAt: vote.claimedAt,
       createdAt: vote.createdAt,
     })),
@@ -683,6 +716,18 @@ function toPublicHouseholdInvite(invite) {
     acceptedCount: (invite.acceptedMemberIds ?? []).length,
     createdAt: invite.createdAt,
     updatedAt: invite.updatedAt,
+  };
+}
+
+function toPublicWantToEatItem(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    memberName: item.memberName,
+    status: item.status,
+    temporary: Boolean(item.temporary),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
   };
 }
 
@@ -777,6 +822,37 @@ function sanitizeAppState(state = {}) {
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
     recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
+    craveSignals: sanitizeList(state.craveSignals, sanitizeCraveSignal, 50),
+  };
+}
+
+function sanitizeCraveSignal(signal = {}) {
+  const token = stringValue(signal.token, 180);
+  if (!token) return null;
+  return {
+    id: stringValue(signal.id, 180),
+    token,
+    householdName: stringValue(signal.householdName, 32),
+    initiatorName: stringValue(signal.initiatorName, 32),
+    feelingTag: stringValue(signal.feelingTag, 32),
+    mealType: stringValue(signal.mealType, 24) || "dinner",
+    status: signal.status === "closed" ? "closed" : "open",
+    deadlineAt: stringValue(signal.deadlineAt, 40),
+    recipientCount: Math.max(0, Math.min(20, Number.parseInt(signal.recipientCount, 10) || 0)),
+    votes: sanitizeList(signal.votes, (vote) => ({
+      id: stringValue(vote?.id, 180),
+      memberId: stringValue(vote?.memberId, 180),
+      memberName: stringValue(vote?.memberName, 32) || "家人",
+      feelingTag: stringValue(vote?.feelingTag, 32),
+      note: stringValue(vote?.note, 120),
+      temporary: Boolean(vote?.temporary),
+      claimedAt: stringValue(vote?.claimedAt, 40),
+      createdAt: stringValue(vote?.createdAt, 40),
+    }), 50),
+    resultSummary: signal.resultSummary ? sanitizeObjectMap(signal.resultSummary, 20) : undefined,
+    createdAt: stringValue(signal.createdAt, 40),
+    updatedAt: stringValue(signal.updatedAt, 40),
+    generatedAt: stringValue(signal.generatedAt, 40),
   };
 }
 
@@ -924,7 +1000,10 @@ function sanitizeWantToEatItem(item = {}) {
     memberId: stringValue(item.memberId),
     memberName: stringValue(item.memberName) || "家人",
     status: item.status === "done" ? "done" : "open",
+    temporary: Boolean(item.temporary),
+    source: stringValue(item.source, 40),
     createdAt: stringValue(item.createdAt),
+    updatedAt: stringValue(item.updatedAt),
     completedAt: stringValue(item.completedAt),
   };
 }

@@ -17,7 +17,7 @@ export function DishImage({ recipe, variant = "hero", className = "", alt = "", 
       loading={loading}
       decoding="async"
       fetchPriority={fetchPriority}
-      className={`bg-[#ece5d8] ${className}`}
+      className={`bg-[#f5f5f5] ${className}`}
       onError={() => setIndex((current) => Math.min(current + 1, candidates.length - 1))}
     />
   );

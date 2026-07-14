@@ -8,25 +8,24 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_PRIVATE_DIR = "/Users/honglijie/.humi-release-evidence";
 const DEFAULT_WECHAT_CLI = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
 const EVIDENCE_PREFIX = "miniprogram-share-card-preview-";
-const NATIVE_CARDS = ["crave-card.png", "invite-card.png", "grocery-card.png"];
-const H5_LANDINGS = ["crave-landing.png", "invite-landing.png", "grocery-landing.png"];
-
 const root = resolve(new URL("..", import.meta.url).pathname);
 const projectDir = resolve(root, "miniprogram");
 const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
 const cliPath = process.env.HUMI_WECHAT_DEVTOOLS_CLI || DEFAULT_WECHAT_CLI;
+const evidence = await inspectShareEvidence();
+const evidenceFiles = Array.isArray(evidence.requiredFiles) ? evidence.requiredFiles : [];
+const nativeCards = evidenceFiles.filter((item) => item.key.endsWith("-card")).map(compactEvidenceItem);
+const h5Landings = evidenceFiles.filter((item) => item.key.endsWith("-landing")).map(compactEvidenceItem);
 
-const [cli, project, desktop, nativeCards, h5Landings] = await Promise.all([
+const [cli, project, desktop] = await Promise.all([
   inspectPath(cliPath, "file"),
   inspectPath(projectDir, "directory"),
   inspectDesktopActivity(),
-  inspectFiles(NATIVE_CARDS),
-  inspectFiles(H5_LANDINGS),
 ]);
 
 const missingNativeCards = nativeCards.filter((item) => !item.ok).map((item) => item.file);
 const missingH5Landings = h5Landings.filter((item) => !item.ok).map((item) => item.file);
-const ok = cli.ok && project.ok && missingNativeCards.length === 0 && missingH5Landings.length === 0;
+const ok = cli.ok && project.ok && evidence.ok === true && missingNativeCards.length === 0 && missingH5Landings.length === 0;
 
 console.log(JSON.stringify({
   ok,
@@ -38,7 +37,8 @@ console.log(JSON.stringify({
   desktop,
   nativeCards,
   h5Landings,
-  nextActions: buildNextActions({ cli, project, desktop, missingNativeCards, missingH5Landings }),
+  evidenceError: evidence.error,
+  nextActions: buildNextActions({ cli, project, desktop, evidence, missingNativeCards, missingH5Landings }),
 }, null, 2));
 
 if (!ok) process.exit(1);
@@ -57,12 +57,41 @@ async function findLatestEvidenceDir() {
   return join(baseDir, latest);
 }
 
-async function inspectFiles(files) {
-  return Promise.all(files.map(async (file) => {
-    const path = join(evidenceDir, file);
-    const result = await inspectPath(path, "file");
-    return { file, path, ...result };
-  }));
+async function inspectShareEvidence() {
+  const checker = resolve(root, "scripts/check-miniprogram-share-evidence.mjs");
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [checker], {
+      env: { ...process.env, HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR: evidenceDir },
+      timeout: 120_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    return JSON.parse(stdout);
+  } catch (error) {
+    try {
+      return JSON.parse(String(error.stdout || ""));
+    } catch {
+      return { requiredFiles: [], error: error.message };
+    }
+  }
+}
+
+function compactEvidenceItem(item) {
+  return {
+    key: item.key,
+    file: item.file,
+    path: item.path,
+    ok: item.ok,
+    size: item.size,
+    image: item.image,
+    visual: item.visual ? {
+      ok: item.visual.ok,
+      matchedSemanticMarker: item.visual.matchedSemanticMarker,
+      hasVirtualRecipient: item.visual.hasVirtualRecipient,
+      hasSendAction: item.visual.hasSendAction,
+      error: item.visual.error,
+    } : undefined,
+    error: item.error,
+  };
 }
 
 async function inspectPath(path, kind) {
@@ -105,10 +134,11 @@ async function inspectDesktopActivity() {
   }
 }
 
-function buildNextActions({ cli, project, desktop, missingNativeCards, missingH5Landings }) {
+function buildNextActions({ cli, project, desktop, evidence, missingNativeCards, missingH5Landings }) {
   const actions = [];
   if (!cli.ok) actions.push("Install or open WeChat DevTools, or set HUMI_WECHAT_DEVTOOLS_CLI to its CLI path.");
   if (!project.ok) actions.push("Ensure the miniprogram project directory exists before opening WeChat DevTools.");
+  if (evidence.error) actions.push(`Fix the share evidence checker before relying on this doctor: ${evidence.error}`);
   if (desktop.userIsActive === false) actions.push("Unlock the Mac screen before relying on WeChat DevTools windows or interactive screenshots.");
   if (missingH5Landings.length) actions.push(`Run npm run release:wechat:share:landings to generate missing H5 landing screenshots: ${missingH5Landings.join(", ")}.`);
   if (missingNativeCards.length) {

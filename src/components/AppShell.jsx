@@ -1,7 +1,7 @@
 import { ArrowLeft, CalendarDays, ChefHat, Search, Sparkles, UserRound } from "lucide-react";
 import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
-import { getNavItem, mobileNavItems, navItems } from "./navigation";
+import { getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
 import { stableHash } from "./ui/characterIllustrations";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 
@@ -24,8 +24,9 @@ export function IcpFooter({ compact = false }) {
 }
 
 export function Sidebar({ activeView, onChange }) {
+  const primaryActiveView = getPrimaryNavId(activeView);
   const quickLinks = [
-    { id: "library", label: "自己挑", icon: Sparkles },
+    { id: "library", label: "全部菜品库", icon: Sparkles },
     { id: "planner", label: "想连排几天", icon: CalendarDays },
   ];
 
@@ -43,7 +44,7 @@ export function Sidebar({ activeView, onChange }) {
       <nav className="space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = item.id === activeView;
+          const active = item.id === primaryActiveView;
           return (
             <button
               key={item.id}
@@ -101,7 +102,7 @@ export function Sidebar({ activeView, onChange }) {
   );
 }
 
-export function AccountAvatar({ session, onClick, compact = false }) {
+export function AccountAvatar({ session, onClick, compact = false, label = "回到 Humi 首页" }) {
   const email = session?.user?.email;
   const displayName = session?.user?.displayName;
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -119,8 +120,8 @@ export function AccountAvatar({ session, onClick, compact = false }) {
       className={`motion-card grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label="回到 Humi 首页"
-      title="回到 Humi 首页"
+      aria-label={label}
+      title={label}
     >
       {avatarSrc ? (
         <img
@@ -157,7 +158,7 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
           <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
-        <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-normal md:text-4xl">
+        <h1 className="mt-2 max-w-3xl text-2xl font-black tracking-normal md:text-3xl">
           {title}
         </h1>
       </div>
@@ -183,25 +184,30 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
             <Search size={18} />
           </button>
         )}
-        <AccountAvatar session={session} onClick={onOpenUserCenter} />
+        <AccountAvatar session={session} onClick={onOpenUserCenter} label="打开我的家" />
       </div>
     </header>
   );
 }
 
 export function MobileTabbar({ activeView, onChange }) {
+  const primaryActiveView = getPrimaryNavId(activeView);
   return (
     <nav
+      data-testid="mobile-primary-navigation"
+      aria-label="主导航"
       className="fixed inset-x-3 z-30 grid grid-cols-3 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {
         const Icon = item.icon;
-        const active = item.id === activeView;
+        const active = item.id === primaryActiveView;
         return (
           <button
             key={item.id}
             type="button"
+            data-testid={`mobile-nav-${item.id}`}
+            aria-current={active ? "page" : undefined}
             onClick={() => onChange(item.id)}
             className={`relative grid place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[11px] font-black transition ${
               active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"

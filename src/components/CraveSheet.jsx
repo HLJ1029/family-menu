@@ -1,25 +1,31 @@
 import { CheckCircle2, Clock3, MessageCircleHeart, Send, Sparkles, Users } from "lucide-react";
+import { useState } from "react";
 import { feelingTags, summarizeCraveVotes } from "../lib/collaboration";
 
 export function CraveStarterSheet({
   selectedFeeling,
   onSelectFeeling,
+  members = [],
+  selectedMemberIds = [],
+  onToggleMember,
   onStart,
   onDecideAlone,
   compact = false,
 }) {
+  const selectionRequired = members.length > 0;
+  const canStart = !selectionRequired || selectedMemberIds.length > 0;
   return (
     <CraveSheetShell
       eyebrow="今晚征集单"
-      title="今晚想问大家什么口味？"
-      subtitle="先替这次征集定一个方向，家人打开卡片后只要点一个感觉。"
+      title="今晚想问谁？"
+      subtitle="选好家人和一个大致方向。卡片发出去后，大家只用点一个感觉。"
       statusLabel="待发送"
       compact={compact}
       footer={(
         <div className="grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={onStart} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+          <button type="button" onClick={onStart} disabled={!canStart} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-35">
             <Send size={16} />
-            生成征集卡片
+            {selectionRequired ? `发给 ${selectedMemberIds.length} 位家人` : "生成征集卡片"}
           </button>
           <button type="button" onClick={onDecideAlone} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-black text-ink">
             <Sparkles size={16} />
@@ -28,7 +34,42 @@ export function CraveStarterSheet({
         </div>
       )}
     >
-      <FeelingWall selectedFeeling={selectedFeeling} onSelectFeeling={onSelectFeeling} />
+      <div className="grid gap-4">
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-black text-ink/45">要问的家人</p>
+            {selectionRequired && <p className="text-xs font-black text-ink/35">默认全选</p>}
+          </div>
+          {selectionRequired ? (
+            <div className="flex flex-wrap gap-2">
+              {members.map((member) => {
+                const selected = selectedMemberIds.includes(member.memberId);
+                const memberName = member.nickname || member.displayName || member.memberName || "家人";
+                return (
+                  <button
+                    key={member.memberId}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onToggleMember?.(member.memberId)}
+                    className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-black transition ${selected ? "border-ink bg-ink text-white" : "border-line bg-white text-ink/55"}`}
+                  >
+                    <CheckCircle2 size={15} />
+                    {memberName}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
+              还没有正式成员也没关系，先生成卡片发给家人，对方仍可免登录参与。
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-black text-ink/45">这次先照顾什么感觉</p>
+          <FeelingWall selectedFeeling={selectedFeeling} onSelectFeeling={onSelectFeeling} />
+        </div>
+      </div>
     </CraveSheetShell>
   );
 }
@@ -38,6 +79,7 @@ export function CraveCollectingSheet({
   onCopyCraveLink,
   onRefreshCraveRequest,
   onGenerateFromCrave,
+  canManage = true,
   compact = false,
 }) {
   const votes = request?.votes ?? [];
@@ -51,13 +93,13 @@ export function CraveCollectingSheet({
       subtitle={votes.length > 0 ? `已收到 ${votes.length} 个回复，可以随时出菜单。` : "卡片已经准备好。没人回也可以直接让 Humi 出菜单。"}
       statusLabel={votes.length > 0 ? `征集中 · ${votes.length} 个回复` : "征集中"}
       compact={compact}
-      footer={(
+      footer={canManage ? (
         <div className="grid gap-2 sm:grid-cols-3">
           <button type="button" onClick={onCopyCraveLink} className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white">分享征集单</button>
           <button type="button" onClick={onRefreshCraveRequest} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">刷新回复</button>
           <button type="button" onClick={onGenerateFromCrave} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">现在出菜单</button>
         </div>
-      )}
+      ) : null}
     >
       <div className="grid gap-3">
         <div className="flex flex-wrap gap-2">
@@ -76,7 +118,9 @@ export function CraveCollectingSheet({
             <VoteReceiptRow key={vote.id || `${vote.participantKey || "vote"}:${index}`} vote={vote} />
           )) : (
             <div className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
-              在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。
+              {canManage
+                ? "在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。"
+                : "征集还在等待回复，主厨会负责收口并确定今晚菜单。"}
             </div>
           )}
         </div>
@@ -100,12 +144,15 @@ export function CraveVoteSheet({
   status,
   onSubmit,
 }) {
+  const [showNote, setShowNote] = useState(false);
   return (
     <form onSubmit={onSubmit}>
       <CraveSheetShell
         eyebrow="今晚征集单"
         title="你想吃点啥？"
-        subtitle={`${request?.householdName || "我家"} 正在问今晚口味。不用想菜名，点一个感觉就行。`}
+        subtitle={request?.initiatorName
+          ? `${request.initiatorName}家今晚要做饭。不用想菜名，点一个感觉就行。`
+          : `${request?.householdName || "我家"}今晚要做饭。不用想菜名，点一个感觉就行。`}
         statusLabel="免登录参与"
         footer={(
           <div className="grid gap-3">
@@ -115,12 +162,19 @@ export function CraveVoteSheet({
               className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
               placeholder="怎么称呼你？可不填"
             />
-            <input
-              value={note}
-              onChange={onNoteChange}
-              className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
-              placeholder="想补一句？可不填"
-            />
+            {showNote ? (
+              <input
+                value={note}
+                onChange={onNoteChange}
+                autoFocus
+                className="min-h-12 rounded-full border border-line bg-white px-4 text-sm font-bold outline-none focus:border-ink/30"
+                placeholder="想补一句？可不填"
+              />
+            ) : (
+              <button type="button" onClick={() => setShowNote(true)} className="w-fit text-sm font-black text-ink/55 underline decoration-ink/25 underline-offset-4">
+                想补一句？
+              </button>
+            )}
             {status && <p className="text-sm font-bold leading-6 text-ink/52">{status}</p>}
             <button type="submit" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-black text-white">
               <CheckCircle2 size={18} />

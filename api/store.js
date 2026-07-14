@@ -266,6 +266,58 @@ export class HumiStore {
     return this.data.householdInvites.find((item) => item.token === token) ?? null;
   }
 
+  async addHouseholdInviteWant(token, payload = {}) {
+    await this.load();
+    const invite = this.data.householdInvites.find((item) => item.token === token);
+    if (!invite) return null;
+    if (invite.status !== "open") {
+      const error = new Error("Invite is closed.");
+      error.code = "invite_closed";
+      throw error;
+    }
+    const participantKey = sanitizeText(payload.participantKey, "", 80);
+    if (!participantKey) {
+      const error = new Error("Participant key is required.");
+      error.code = "missing_participant_key";
+      throw error;
+    }
+    const title = sanitizeText(payload.title, "", 40);
+    if (!title) {
+      const error = new Error("Want title is required.");
+      error.code = "missing_want_title";
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const temporaryMemberId = `temporary:${participantKey}`;
+    const currentState = this.data.householdStates[invite.householdId] ?? {};
+    const currentItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+    const existing = currentItems.find((item) => item.memberId === temporaryMemberId && item.status !== "done");
+    const want = {
+      id: existing?.id || `want:${randomUUID()}`,
+      title,
+      recipeId: "",
+      note: "",
+      memberId: temporaryMemberId,
+      memberName: sanitizeText(payload.memberName, "家人", 32),
+      status: "open",
+      temporary: true,
+      source: "household_invite",
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      completedAt: "",
+    };
+    this.data.householdStates[invite.householdId] = {
+      ...currentState,
+      householdId: invite.householdId,
+      wantToEatItems: [want, ...currentItems.filter((item) => item.id !== want.id)].slice(0, 200),
+      updatedAt: now,
+    };
+    invite.updatedAt = now;
+    await this.save();
+    return { invite, want };
+  }
+
   async acceptHouseholdInvite(token, userId, options = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
@@ -277,6 +329,26 @@ export class HumiStore {
     }
     const household = await this.addHouseholdMember(invite.householdId, userId, options);
     const now = new Date().toISOString();
+    const participantKey = sanitizeText(options.participantKey, "", 80);
+    if (participantKey) {
+      const temporaryMemberId = `temporary:${participantKey}`;
+      const currentState = this.data.householdStates[invite.householdId] ?? {};
+      this.data.householdStates[invite.householdId] = {
+        ...currentState,
+        wantToEatItems: (Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : []).map((item) => (
+          item.memberId === temporaryMemberId
+            ? {
+                ...item,
+                memberId: userId,
+                memberName: sanitizeText(options.memberName, item.memberName || "家人", 32),
+                temporary: false,
+                updatedAt: now,
+              }
+            : item
+        )),
+        updatedAt: now,
+      };
+    }
     invite.acceptedMemberIds = [...new Set([...(invite.acceptedMemberIds ?? []), userId])];
     invite.acceptedAt = now;
     invite.updatedAt = now;
@@ -416,8 +488,16 @@ export class HumiStore {
   async saveState(userId, state) {
     await this.load();
     const household = await this.ensureHouseholdForUser(userId);
+    const currentState = this.data.householdStates[household.id] ?? {};
+    const writableState = household.ownerId === userId
+      ? state
+      : mergeMemberWritableState(currentState, state, userId);
     const nextState = {
-      ...state,
+      ...writableState,
+      recommendationAccess: mergeClientRecommendationAccess(
+        currentState.recommendationAccess,
+        writableState.recommendationAccess,
+      ),
       householdId: household.id,
       updatedAt: new Date().toISOString(),
     };
@@ -484,6 +564,11 @@ export class HumiStore {
         memberName: payload.initiatorName,
       })
       : null;
+    const householdMemberIds = new Set((household?.members ?? []).map((member) => member.memberId));
+    const recipientIds = [...new Set((Array.isArray(payload.recipientIds) ? payload.recipientIds : [])
+      .map((memberId) => sanitizeText(memberId, "", 80))
+      .filter((memberId) => memberId && memberId !== ownerUserId && householdMemberIds.has(memberId)))]
+      .slice(0, 20);
     const request = {
       id: randomUUID(),
       token,
@@ -492,7 +577,9 @@ export class HumiStore {
       initiatorId: ownerUserId ?? null,
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      recipientIds,
       mealType: sanitizeText(payload.mealType, "dinner", 24),
+      initialFeelingTag: sanitizeText(payload.initialFeelingTag, "随便都行", 32),
       status: "open",
       deadlineAt,
       votes: [],
@@ -566,11 +653,12 @@ export class HumiStore {
     return request;
   }
 
-  async closeCraveRequest(token, ownerSecret, resultSummary = null) {
+  async closeCraveRequest(token, ownerSecret, resultSummary = null, ownerUserId = null) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    if (request.ownerSecret !== ownerSecret) {
+    const authenticatedOwner = Boolean(ownerUserId && request.initiatorId === ownerUserId);
+    if (!authenticatedOwner && request.ownerSecret !== ownerSecret) {
       const error = new Error("Owner secret mismatch.");
       error.code = "forbidden";
       throw error;
@@ -642,6 +730,51 @@ function normalizeRecommendationAccess(access = {}) {
     plan: access.plan === "plus" ? "plus" : "free",
     preciseTrialRemaining: Math.max(0, Math.min(20, Number.isFinite(parsedTrialRemaining) ? parsedTrialRemaining : 3)),
     preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
+  };
+}
+
+function mergeClientRecommendationAccess(currentAccess = {}, clientAccess = {}) {
+  const current = normalizeRecommendationAccess(currentAccess);
+  const incoming = normalizeRecommendationAccess(clientAccess);
+  return {
+    plan: current.plan,
+    preciseTrialRemaining: current.plan === "plus"
+      ? current.preciseTrialRemaining
+      : Math.min(current.preciseTrialRemaining, incoming.preciseTrialRemaining),
+    preciseUsed: Math.max(current.preciseUsed, incoming.preciseUsed),
+  };
+}
+
+function mergeMemberWritableState(currentState = {}, incomingState = {}, userId) {
+  const existingWantItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+  const incomingWantItems = (Array.isArray(incomingState.wantToEatItems) ? incomingState.wantToEatItems : [])
+    .filter((item) => item.memberId === userId);
+  const preservedWantItems = existingWantItems.filter((item) => item.memberId !== userId);
+
+  const existingClaims = currentState.groceryClaims && typeof currentState.groceryClaims === "object"
+    ? currentState.groceryClaims
+    : {};
+  const incomingClaims = incomingState.groceryClaims && typeof incomingState.groceryClaims === "object"
+    ? incomingState.groceryClaims
+    : {};
+  const preservedClaims = Object.fromEntries(
+    Object.entries(existingClaims).filter(([, claim]) => claim?.memberId !== userId),
+  );
+  const ownClaims = Object.fromEntries(
+    Object.entries(incomingClaims).filter(([, claim]) => claim?.memberId === userId),
+  );
+  const completedOwnKeys = Object.values(ownClaims)
+    .filter((claim) => claim?.status === "done" && claim.itemKey)
+    .map((claim) => claim.itemKey);
+
+  return {
+    ...currentState,
+    wantToEatItems: [...preservedWantItems, ...incomingWantItems].slice(0, 200),
+    groceryClaims: { ...preservedClaims, ...ownClaims },
+    checkedItems: {
+      ...(currentState.checkedItems ?? {}),
+      ...Object.fromEntries(completedOwnKeys.map((key) => [key, true])),
+    },
   };
 }
 

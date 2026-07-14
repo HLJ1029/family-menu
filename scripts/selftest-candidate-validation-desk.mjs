@@ -10,8 +10,9 @@ await writePacket(packetDir);
 
 const { stdout } = await execFileAsync("node", ["scripts/print-candidate-validation-desk.mjs"], {
   env: {
-    ...process.env,
-    HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
+      ...process.env,
+      HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
+      HUMI_CANDIDATE_VALIDATION_DATE: "2026-07-07",
   },
   timeout: 30_000,
   maxBuffer: 1024 * 1024,

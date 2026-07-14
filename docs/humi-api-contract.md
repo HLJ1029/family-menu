@@ -147,6 +147,7 @@ Authorization: Bearer <accessToken>
 - `POST /households/active`：切换当前家庭。
 - `POST /household-invites`：仅主厨/owner 可创建家庭邀请。
 - `GET /household-invites/:token`：公开读取邀请摘要。
+- `POST /household-invites/:token/wants`：临时家人凭邀请 token 免登录丢一道想吃；同一临时身份重复提交会更新自己的未完成条目。
 - `POST /household-invites/:token/join`：登录后加入家庭，成为正式成员。
 
 家庭角色边界：
@@ -155,6 +156,8 @@ Authorization: Bearer <accessToken>
 - `member` 可共享菜单、清单、征集记录和买菜认领。
 - `member` 不能代替主厨发起这个家的感觉征集或生成这个家的买菜分享卡片；服务端返回 403。
 - 免登录临时参与者只能投感觉、认领买菜、丢想吃，不能拥有或管理家庭。
+- 邀请页提交想吃时携带本机 `participantKey`；正式加入同一个家后，该条目归并到微信成员身份。
+- 用户主动维护的信息只保留忌口/过敏等硬约束；软口味与营养回看由感觉征集、想吃和确认做饭等行为形成，不要求填写设置表。
 
 ## 感觉征集
 

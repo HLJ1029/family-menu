@@ -1,7 +1,6 @@
-import { useMemo, useRef, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, Database, LogOut, Phone, Plus, Share2, ShieldAlert, SlidersHorizontal, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
-import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
-import { formatProfileSummary, getProfileCompletedCount, planningModes, profileOptions, withPlanningModeDefaults } from "../lib/profile";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, Check, ChefHat, Cloud, LogOut, Phone, Plus, Share2, ShieldAlert, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
+import { formatProfileSummary, profileOptions } from "../lib/profile";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
@@ -29,12 +28,11 @@ export function UserCenter({
   familyProfile,
   setFamilyProfile,
   mealLogs = {},
-  nutritionGoals,
-  setNutritionGoals,
   recommendationFeedback = [],
   recommendationAccess,
   wantToEatItems = [],
   craveSignals = [],
+  groceryClaims = {},
   activeCraveRequest,
   onCopyCraveLink,
   onRefreshCraveRequest,
@@ -48,6 +46,7 @@ export function UserCenter({
   onShareHouseholdInvite,
   onExportValidationData,
   onViewChange,
+  onOpenRecipeLibrary,
   onAskFamily,
   onAddWantToEat,
   onAddWantRecipe,
@@ -65,14 +64,21 @@ export function UserCenter({
   const [wantNote, setWantNote] = useState("");
   const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
   const [familyCraveStatus, setFamilyCraveStatus] = useState("");
+  const [familyCraveOpen, setFamilyCraveOpen] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState("");
+  const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
   const familyCraveRef = useRef(null);
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
   const currentUserId = humiSession?.user?.id || session?.user?.id || "";
   const currentFamilyMember = family?.members?.find((member) => member.memberId === currentUserId);
   const familyRole = family?.role || currentFamilyMember?.role || (family?.members?.length ? "member" : "owner");
+  const canManageHouseholdMenu = !family || familyRole === "owner";
   const familyMembers = family?.members ?? [];
+  const askableFamilyMembers = familyMembers.filter((member) => (
+    member?.memberId && member.memberId !== currentUserId && member.status !== "temporary"
+  ));
+  const askableMemberKey = askableFamilyMembers.map((member) => member.memberId).join("|");
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
@@ -88,7 +94,37 @@ export function UserCenter({
     ? validationSummary.topRejectedReasons
     : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
   const craveFeelingEntries = extractCraveFeelingEntries(craveSignals);
+  const groceryActivity = Object.values(groceryClaims)
+    .filter((claim) => claim?.itemName && claim?.memberName)
+    .sort((left, right) => String(right.completedAt || right.claimedAt || "").localeCompare(String(left.completedAt || left.claimedAt || "")))
+    .slice(0, 2)
+    .map((claim) => ({
+      id: `claim:${claim.itemKey}:${claim.memberId}`,
+      title: claim.status === "done"
+        ? `${claim.memberName}已经买到 ${claim.itemName}`
+        : `${claim.memberName}在买 ${claim.itemName}`,
+      meta: "买菜协作",
+    }));
+  const dinnerActivity = Object.entries(mealLogs)
+    .filter(([, log]) => log?.actorName && log?.confirmation && log.confirmation !== "skip")
+    .sort(([, left], [, right]) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")))
+    .slice(0, 1)
+    .map(([dateKey, log]) => ({
+      id: `meal:${dateKey}:${log.updatedAt || log.confirmation}`,
+      title: buildDinnerActivityTitle(log),
+      meta: "晚饭确认",
+    }));
+  const wantActivity = wantToEatItems
+    .filter((item) => item.status !== "done" && item.memberName)
+    .slice(0, 2)
+    .map((item) => ({
+      id: `activity:${item.id}`,
+      title: `${item.memberName}想吃 ${item.title}`,
+      meta: "想吃池子",
+    }));
   const familyActivity = [
+    ...groceryActivity,
+    ...dinnerActivity,
     ...craveFeelingEntries.slice(0, 4).map((item) => ({
       id: item.id,
       title: item.feelingTag === "随便都行"
@@ -101,7 +137,8 @@ export function UserCenter({
       title: `不想吃：${item.reasonLabel}`,
       meta: "晚饭反馈",
     })),
-  ].slice(0, 5);
+    ...wantActivity,
+  ].slice(0, 6);
   const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
   const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
   const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
@@ -112,6 +149,10 @@ export function UserCenter({
     wantToEatItems,
     sourceSummary,
   });
+
+  useEffect(() => {
+    setSelectedCraveMemberIds(askableFamilyMembers.map((member) => member.memberId));
+  }, [askableMemberKey]);
 
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
@@ -133,6 +174,7 @@ export function UserCenter({
   }
 
   function startFamilyCrave() {
+    setFamilyCraveOpen(true);
     if (activeCraveRequest?.token) {
       setFamilyCraveStatus("今晚征集单已经在我的家展开，直接在下方分享、刷新回复或出菜单。");
       window.setTimeout(() => {
@@ -145,7 +187,7 @@ export function UserCenter({
       familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 40);
     if (onStartCraveRequest) {
-      Promise.resolve(onStartCraveRequest(familyFeelingTag)).then((request) => {
+      Promise.resolve(onStartCraveRequest(familyFeelingTag, selectedCraveMemberIds)).then((request) => {
         setFamilyCraveStatus(
           request?.token
             ? "今晚征集单已在我的家展开，点“复制/分享”发给家人。"
@@ -162,6 +204,24 @@ export function UserCenter({
     }
   }
 
+  function openFamilyCraveStarter() {
+    setFamilyCraveOpen(true);
+    if (activeCraveRequest?.token) {
+      startFamilyCrave();
+      return;
+    }
+    setFamilyCraveStatus("先在下方选好要问的家人和一个感觉，再生成征集卡片。");
+    window.setTimeout(() => {
+      familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+  }
+
+  function toggleCraveMember(memberId) {
+    setSelectedCraveMemberIds((current) => current.includes(memberId)
+      ? current.filter((id) => id !== memberId)
+      : [...current, memberId]);
+  }
+
   function decideFamilyAlone() {
     if (onDecideAlone) {
       onDecideAlone(familyFeelingTag);
@@ -169,6 +229,88 @@ export function UserCenter({
     }
     onViewChange("dashboard");
   }
+
+  const wantToEatPanel = (
+    <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">想吃池子</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            家人随手写一句，主厨排今晚时可以直接放进菜单。
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+          待安排 {openWantItems.length}
+        </span>
+      </div>
+
+      <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input
+            value={wantTitle}
+            onChange={(event) => setWantTitle(event.target.value)}
+            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="例如：想吃牛肉面"
+          />
+          <input
+            value={wantNote}
+            onChange={(event) => setWantNote(event.target.value)}
+            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="补一句，可不填"
+          />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
+            <Plus size={16} />
+            加入
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {quickWantRecipes.map((recipe) => (
+          <button
+            key={recipe.id}
+            type="button"
+            onClick={() => onAddWantRecipe?.(recipe.id)}
+            className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
+          >
+            + {recipe.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {openWantItems.length > 0 ? openWantItems.map((item) => (
+          <WantToEatRow
+            key={item.id}
+            item={item}
+            canAddToday={canManageHouseholdMenu}
+            canEdit={canManageHouseholdMenu || item.memberId === currentUserId}
+            onAddToday={() => onAddWantToToday?.(item)}
+            onDone={() => onCompleteWantToEat?.(item.id)}
+            onRemove={() => onRemoveWantToEat?.(item.id)}
+          />
+        )) : (
+          <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+            可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
+          </div>
+        )}
+      </div>
+
+      {doneWantItems.length > 0 && (
+        <div className="mt-4 rounded-[20px] bg-canvas p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {doneWantItems.map((item) => (
+              <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
+                {item.title}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
@@ -183,7 +325,7 @@ export function UserCenter({
             <button
               type="button"
               onClick={() => onViewChange("dashboard")}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
             >
               安排今晚
             </button>
@@ -206,50 +348,26 @@ export function UserCenter({
           )}
         </section>
 
-        <CloudAccount
-          {...authProps}
-          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-          family={family}
-          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-        />
-        <FamilyRolePanel
-          signedIn={signedIn}
-          family={family}
-          role={familyRole}
-          members={familyMembers}
-          currentUserId={currentUserId}
-          activeInvite={activeHouseholdInvite}
-          onCreateInvite={onCreateHouseholdInvite}
-          onShareInvite={onShareHouseholdInvite}
-        />
-        <HouseholdSwitcher
-          signedIn={signedIn}
-          family={family}
-          households={households}
-          newHouseholdName={newHouseholdName}
-          onNameChange={setNewHouseholdName}
-          onCreate={() => {
-            onCreateHousehold?.(newHouseholdName || "另一个家");
-            setNewHouseholdName("");
-          }}
-          onSwitch={onSwitchHousehold}
-        />
-        <section ref={familyCraveRef} className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section ref={familyCraveRef} data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">家庭动态</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">最近大家怎么想吃</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。
-              </p>
+              {familyActivity.length === 0 && (
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                  第一次协作后，大家点过的感觉、买菜认领和晚饭反馈会留在这里。
+                </p>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={startFamilyCrave}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
-            >
-              {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
-            </button>
+            {canManageHouseholdMenu && (
+              <button
+                type="button"
+                onClick={openFamilyCraveStarter}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+              >
+                {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
+              </button>
+            )}
           </div>
           {familyCraveStatus && (
             <div className="mt-4 rounded-[20px] border border-line bg-canvas px-4 py-3 text-sm font-black leading-6 text-ink/62">
@@ -263,14 +381,18 @@ export function UserCenter({
                 onCopyCraveLink={onCopyCraveLink}
                 onRefreshCraveRequest={onRefreshCraveRequest}
                 onGenerateFromCrave={onGenerateFromCrave}
+                canManage={canManageHouseholdMenu}
                 compact
               />
             </div>
           )}
-          {!activeCraveRequest?.token && (
+          {!activeCraveRequest?.token && canManageHouseholdMenu && familyCraveOpen && (
             <CraveStarterSheet
               selectedFeeling={familyFeelingTag}
               onSelectFeeling={setFamilyFeelingTag}
+              members={askableFamilyMembers}
+              selectedMemberIds={selectedCraveMemberIds}
+              onToggleMember={toggleCraveMember}
               onStart={startFamilyCrave}
               onDecideAlone={decideFamilyAlone}
               compact
@@ -294,6 +416,29 @@ export function UserCenter({
             )}
           </div>
         </section>
+        {wantToEatPanel}
+        <FamilyRolePanel
+          signedIn={signedIn}
+          family={family}
+          role={familyRole}
+          members={familyMembers}
+          currentUserId={currentUserId}
+          activeInvite={activeHouseholdInvite}
+          onCreateInvite={onCreateHouseholdInvite}
+          onShareInvite={onShareHouseholdInvite}
+        />
+        <HouseholdSwitcher
+          signedIn={signedIn}
+          family={family}
+          households={households}
+          newHouseholdName={newHouseholdName}
+          onNameChange={setNewHouseholdName}
+          onCreate={() => {
+            onCreateHousehold?.(newHouseholdName || "另一个家");
+            setNewHouseholdName("");
+          }}
+          onSwitch={onSwitchHousehold}
+        />
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -318,83 +463,6 @@ export function UserCenter({
               不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度家庭协调和完整版画像回顾上。
             </p>
           </div>
-        </section>
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="eyebrow">想吃池子</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                不用等发起征集。家人随手写一句，主厨排今晚时可以直接放进菜单。
-              </p>
-            </div>
-            <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
-              待安排 {openWantItems.length}
-            </span>
-          </div>
-
-          <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
-            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <input
-                value={wantTitle}
-                onChange={(event) => setWantTitle(event.target.value)}
-                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-                placeholder="例如：想吃牛肉面"
-              />
-              <input
-                value={wantNote}
-                onChange={(event) => setWantNote(event.target.value)}
-                className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-                placeholder="补一句，可不填"
-              />
-              <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-                <Plus size={16} />
-                加入
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {quickWantRecipes.map((recipe) => (
-              <button
-                key={recipe.id}
-                type="button"
-                onClick={() => onAddWantRecipe?.(recipe.id)}
-                className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
-              >
-                + {recipe.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {openWantItems.length > 0 ? openWantItems.map((item) => (
-              <WantToEatRow
-                key={item.id}
-                item={item}
-                onAddToday={() => onAddWantToToday?.(item)}
-                onDone={() => onCompleteWantToEat?.(item.id)}
-                onRemove={() => onRemoveWantToEat?.(item.id)}
-              />
-            )) : (
-              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-                池子还是空的。可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
-              </div>
-            )}
-          </div>
-
-          {doneWantItems.length > 0 && (
-            <div className="mt-4 rounded-[20px] bg-canvas p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {doneWantItems.map((item) => (
-                  <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
-                    {item.title}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
         <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
           <HumiPeek
@@ -460,44 +528,50 @@ export function UserCenter({
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
-            <UtilityButton icon={ChefHat} label="菜谱库" onClick={() => onViewChange("library")} />
+            <UtilityButton icon={ChefHat} label="全部菜品库" onClick={onOpenRecipeLibrary} />
           </div>
         </section>
 
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="eyebrow">设置</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">需要改时再进入</h3>
+              <p className="eyebrow">{canManageHouseholdMenu ? "设置" : "家庭忌口"}</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+                {canManageHouseholdMenu ? "需要改时再进入" : "主厨统一维护"}
+              </h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                家庭画像和营养目标会自动保存。我的家默认展示结果，不把表单一直摊开。
+                {canManageHouseholdMenu
+                  ? "这里只改家里不能吃的东西。其他口味由感觉征集和做饭确认慢慢学，不需要维护。"
+                  : "这里展示全家共用的忌口和过敏；需要调整时由主厨修改，避免多人同时覆盖。"}
               </p>
             </div>
             <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/45">
               {formatProfileSummary(familyProfile)}
             </span>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <UtilityButton icon={UserRound} label="修改家庭画像" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
-            <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
+          <div className="mt-4 grid gap-2">
+            {canManageHouseholdMenu ? (
+              <UtilityButton icon={ShieldAlert} label="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+            ) : (
+              <div data-testid="family-constraints-readonly" className="rounded-[18px] border border-line bg-canvas px-4 py-3 text-sm font-black text-ink/58">
+                {formatProfileSummary(familyProfile)}
+              </div>
+            )}
           </div>
         </section>
 
-        {activeSettings === "profile" && (
+        {canManageHouseholdMenu && activeSettings === "profile" && (
           <FamilyProfilePanel
-            session={session}
-            signedIn={signedIn}
             profile={familyProfile}
             setProfile={setFamilyProfile}
           />
         )}
-        {activeSettings === "goals" && (
-          <NutritionGoalsPanel
-            profile={familyProfile}
-            goals={nutritionGoals}
-            setGoals={setNutritionGoals}
-          />
-        )}
+        <CloudAccount
+          {...authProps}
+          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+          family={family}
+          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+        />
         <CloudSyncPanel {...cloudMenuProps} />
       </div>
 
@@ -601,7 +675,8 @@ export function UserCenter({
 
 function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activeInvite, onCreateInvite, onShareInvite }) {
   const isOwner = role === "owner";
-  const roleLabel = isOwner ? "主厨" : "家人";
+  const isMember = role === "member";
+  const roleLabel = isOwner ? "主厨" : isMember ? "家人" : "身份确认中";
   const memberCount = members.length || (family ? 1 : 0);
 
   return (
@@ -613,7 +688,7 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activ
             {family ? `${family.name}里的${roleLabel}` : signedIn ? "先创建我的家" : "登录后再加入我的家"}
           </h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            主厨负责发起征集、定菜单和保存画像；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
+            主厨负责发起征集、定菜单和管理家庭忌口；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
           </p>
         </div>
         <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
@@ -626,12 +701,12 @@ function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activ
           icon={ChefHat}
           title="主厨能力"
           active={isOwner || !family}
-          lines={["发起问问大家", "定今晚菜单", "维护家庭画像"]}
+          lines={["发起问问大家", "定今晚菜单", "管理家庭忌口"]}
         />
         <PermissionCard
           icon={Users}
           title="家人能力"
-          active={!isOwner && Boolean(family)}
+          active={isMember && Boolean(family)}
           lines={["点一个感觉", "认领买菜项", "加入想吃池子"]}
         />
       </div>
@@ -700,7 +775,7 @@ function HouseholdSwitcher({ signedIn, family, households, newHouseholdName, onN
   const visibleHouseholds = households.length > 0 ? households : family ? [family] : [];
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="household-switcher" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="eyebrow">多个家</p>
@@ -775,9 +850,9 @@ function PermissionCard({ icon: Icon, title, active, lines }) {
   );
 }
 
-function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
+function WantToEatRow({ item, canAddToday, canEdit, onAddToday, onDone, onRemove }) {
   return (
-    <div className="rounded-[20px] border border-line bg-canvas p-4">
+    <div data-testid="want-to-eat-row" className="rounded-[20px] border border-line bg-canvas p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-base font-black">{item.title}</p>
@@ -789,21 +864,36 @@ function WantToEatRow({ item, onAddToday, onDone, onRemove }) {
           待安排
         </span>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
-          <Utensils size={14} />
-          今晚就吃
-        </button>
-        <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-          标记安排
-        </button>
-        <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-          <Trash2 size={13} />
-          移除
-        </button>
-      </div>
+      {(canAddToday || canEdit) && <div className={`mt-3 grid gap-2 ${canAddToday && canEdit ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+        {canAddToday && (
+          <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
+            <Utensils size={14} />
+            今晚就吃
+          </button>
+        )}
+        {canEdit && (
+          <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+            标记安排
+          </button>
+        )}
+        {canEdit && (
+          <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
+            <Trash2 size={13} />
+            移除
+          </button>
+        )}
+      </div>}
     </div>
   );
+}
+
+function buildDinnerActivityTitle(log = {}) {
+  const actorName = log.actorName || "主厨";
+  if (log.confirmation === "all") return `${actorName}确认今晚已做饭`;
+  if (log.confirmation === "partial") return `${actorName}确认今晚做了一部分`;
+  if (log.confirmation === "changed") return `${actorName}说今晚换了别的`;
+  if (log.confirmation === "outside") return `${actorName}说今晚在外面吃`;
+  return `${actorName}更新了今晚的饭`;
 }
 
 function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatItems = [], sourceSummary = {} }) {
@@ -905,14 +995,9 @@ function extractCraveFeelingEntries(craveSignals = []) {
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
-function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
+function FamilyProfilePanel({ profile, setProfile }) {
   const [draft, setDraft] = useState(profile);
   const [status, setStatus] = useState("");
-  const completedCount = useMemo(() => getProfileCompletedCount(profile), [profile]);
-
-  function updateValue(key, value) {
-    setDraft((current) => ({ ...current, [key]: value }));
-  }
 
   function toggleListValue(key, value) {
     setDraft((current) => {
@@ -925,84 +1010,24 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
   function saveProfile() {
     setProfile(draft);
-    setStatus("家庭画像已保存。之后推荐会优先参考这些习惯。");
+    setStatus("忌口已保存，之后推荐会把这些当成硬约束避开。");
   }
 
   return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="diet-constraints-panel" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="eyebrow">家庭画像</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">让 Humi 更懂你家</h3>
+          <p className="eyebrow">硬约束</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家里不能吃什么</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            先选几个常用习惯，推荐时会压缩成一份简短画像，少传废话，也更贴近你家。
+            只维护会让推荐直接出错的忌口和过敏。其他口味会从家人的自然动作里学习。
           </p>
         </div>
-        <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
-          {completedCount}/5 已完成
-        </span>
+        <span className="w-fit rounded-full bg-ink px-3 py-1 text-xs font-black text-white">只填一次</span>
       </div>
 
-      {!session?.user && !signedIn && (
-        <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；创建我的家后，菜单、后台已有和画像会一起保存。
-        </div>
-      )}
-
       <div className="mt-5 grid gap-4">
-        <ProfileStep icon={Sparkles} title="这次主要想规划什么">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {planningModes.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => setDraft((current) => withPlanningModeDefaults(current, mode.id))}
-                className={`rounded-[20px] border p-4 text-left transition ${
-                  draft.planningMode === mode.id
-                    ? "border-ink bg-ink text-white"
-                    : "border-line bg-white text-ink/58 hover:text-ink"
-                }`}
-              >
-                <p className="text-sm font-black">{mode.label}</p>
-                <p className={`mt-1 text-xs font-bold leading-5 ${draft.planningMode === mode.id ? "text-white/58" : "text-ink/40"}`}>
-                  {mode.description}
-                </p>
-              </button>
-            ))}
-          </div>
-        </ProfileStep>
-
-        <ProfileStep icon={Users} title="家里几个人吃饭">
-          <div className="grid grid-cols-4 gap-2">
-            {[1, 2, 3, 4].map((size) => (
-              <ChoiceButton
-                key={size}
-                active={Number(draft.familySize) === size}
-                label={size === 4 ? "4人+" : `${size}人`}
-                onClick={() => updateValue("familySize", size)}
-              />
-            ))}
-          </div>
-          <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-between rounded-[18px] bg-canvas px-4">
-            <span className="text-sm font-black">有孩子一起吃</span>
-            <input
-              type="checkbox"
-              checked={Boolean(draft.hasChildren)}
-              onChange={(event) => updateValue("hasChildren", event.target.checked)}
-              className="h-5 w-5 accent-black"
-            />
-          </label>
-        </ProfileStep>
-
-        <ProfileStep icon={SlidersHorizontal} title="晚饭最在意什么">
-          <TagChoices
-            options={profileOptions.goals}
-            values={draft.goals}
-            onToggle={(value) => toggleListValue("goals", value)}
-          />
-        </ProfileStep>
-
-        <ProfileStep icon={ShieldAlert} title="不想吃 / 不能吃">
+        <ProfileStep icon={ShieldAlert} title="忌口与过敏">
           <p className="mb-2 text-xs font-bold text-ink/42">这些会作为硬约束避开</p>
           <TagChoices
             options={profileOptions.dislikes}
@@ -1017,33 +1042,11 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
           />
         </ProfileStep>
 
-        <ProfileStep icon={Database} title="买菜接受度">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <ChoiceButton
-              active={draft.shoppingTolerance === "low"}
-              label="少买菜"
-              note="优先用家里现有"
-              onClick={() => updateValue("shoppingTolerance", "low")}
-            />
-            <ChoiceButton
-              active={draft.shoppingTolerance === "medium"}
-              label="可以买几样"
-              note="2-3样主食材"
-              onClick={() => updateValue("shoppingTolerance", "medium")}
-            />
-            <ChoiceButton
-              active={draft.shoppingTolerance === "high"}
-              label="愿意专门买"
-              note="好吃优先"
-              onClick={() => updateValue("shoppingTolerance", "high")}
-            />
-          </div>
-        </ProfileStep>
       </div>
 
       <div className="mt-5 rounded-[20px] bg-canvas p-4">
-        <p className="text-xs font-black text-ink/38">画像摘要</p>
-        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatProfileSummary(draft)}</p>
+        <p className="text-xs font-black text-ink/38">软口味自动学习</p>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">感觉征集、想吃池子和确认做过的菜会慢慢形成画像，无需手动填写。</p>
       </div>
 
       {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
@@ -1054,128 +1057,9 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
         <Check size={17} className="text-white" />
-        保存家庭画像
+        保存忌口
       </button>
     </section>
-  );
-}
-
-function NutritionGoalsPanel({ profile, goals, setGoals }) {
-  const normalizedGoals = normalizeNutritionGoals(profile, goals);
-  const [draft, setDraft] = useState(normalizedGoals);
-  const [status, setStatus] = useState("");
-
-  function updateNumber(key, value) {
-    setDraft((current) => ({ ...current, [key]: Number(value) }));
-  }
-
-  function resetToModeDefaults() {
-    const defaults = getDefaultNutritionGoals(profile);
-    setDraft(defaults);
-    setGoals(defaults);
-    setStatus("已恢复当前规划模式的默认目标。");
-  }
-
-  function saveGoals() {
-    const nextGoals = {
-      ...draft,
-      caloriesKcalMax: Number(draft.caloriesKcalMax),
-      proteinGMin: Number(draft.proteinGMin),
-      fatGMax: Number(draft.fatGMax),
-      carbsGMax: Number(draft.carbsGMax),
-      vegetableRatioMin: Number(draft.vegetableRatioMin),
-      proteinRatioMin: Number(draft.proteinRatioMin),
-      quickRatioMin: Number(draft.quickRatioMin),
-      homeCookRatioMin: Number(draft.homeCookRatioMin),
-    };
-    setGoals(nextGoals);
-    setStatus("营养目标已保存在本机。");
-  }
-
-  return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">营养目标</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">每顿晚餐参考目标</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            这里只管理晚餐估算目标，不代表全天摄入，也不替代专业营养建议。
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={resetToModeDefaults}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink"
-        >
-          使用模式默认
-        </button>
-      </div>
-
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <GoalInput label="热量上限" value={draft.caloriesKcalMax} unit="kcal" min={300} max={900} step={10} onChange={(value) => updateNumber("caloriesKcalMax", value)} />
-        <GoalInput label="蛋白质下限" value={draft.proteinGMin} unit="g" min={8} max={50} step={1} onChange={(value) => updateNumber("proteinGMin", value)} />
-        <GoalInput label="脂肪上限" value={draft.fatGMax} unit="g" min={8} max={45} step={1} onChange={(value) => updateNumber("fatGMax", value)} />
-        <GoalInput label="碳水上限" value={draft.carbsGMax} unit="g" min={30} max={120} step={1} onChange={(value) => updateNumber("carbsGMax", value)} />
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <RatioInput label="蔬菜比例" value={draft.vegetableRatioMin} onChange={(value) => updateNumber("vegetableRatioMin", value)} />
-        <RatioInput label="蛋白类比例" value={draft.proteinRatioMin} onChange={(value) => updateNumber("proteinRatioMin", value)} />
-        <RatioInput label="省时菜比例" value={draft.quickRatioMin} onChange={(value) => updateNumber("quickRatioMin", value)} />
-        <RatioInput label="在家做比例" value={draft.homeCookRatioMin} onChange={(value) => updateNumber("homeCookRatioMin", value)} />
-      </div>
-
-      {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
-
-      <button
-        type="button"
-        onClick={saveGoals}
-        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
-      >
-        <Check size={17} className="text-white" />
-        保存营养目标
-      </button>
-    </section>
-  );
-}
-
-function GoalInput({ label, value, unit, min, max, step, onChange }) {
-  return (
-    <label className="rounded-[20px] bg-canvas p-4">
-      <span className="flex items-center justify-between gap-3 text-sm font-black">
-        <span>{label}</span>
-        <span className="text-ink/48">{Math.round(value)}{unit}</span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-3 w-full accent-black"
-      />
-    </label>
-  );
-}
-
-function RatioInput({ label, value, onChange }) {
-  return (
-    <label className="rounded-[20px] bg-canvas p-4">
-      <span className="flex items-center justify-between gap-3 text-sm font-black">
-        <span>{label}</span>
-        <span className="text-ink/48">{Math.round(value * 100)}%</span>
-      </span>
-      <input
-        type="range"
-        min={0.1}
-        max={0.8}
-        step={0.05}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-3 w-full accent-black"
-      />
-    </label>
   );
 }
 

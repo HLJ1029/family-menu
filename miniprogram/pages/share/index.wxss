@@ -1,6 +1,6 @@
 page {
   min-height: 100vh;
-  background: #f7f5f1;
+  background: #f5f5f5;
   color: #111111;
 }
 

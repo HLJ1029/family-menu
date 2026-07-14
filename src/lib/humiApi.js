@@ -50,6 +50,14 @@ export async function loadHouseholdInvite(token) {
   return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}`);
 }
 
+export async function submitHouseholdInviteWant(token, payload = {}) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}/wants`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export async function joinHouseholdInvite(token, session, payload = {}) {
   if (!token) throw new Error("家庭邀请不完整。");
   return humiApiRequest(`/household-invites/${encodeURIComponent(token)}/join`, {
@@ -67,16 +75,10 @@ export async function logoutHumiSession(session) {
   });
 }
 
-export async function createCraveRequest(payload, session = null) {
-  if (isHumiApiSession(session)) {
-    return humiApiRequest("/crave-requests", {
-      method: "POST",
-      session,
-      body: payload,
-    });
-  }
-  return humiPublicRequest("/crave-requests", {
+export async function createCraveRequest(payload, session) {
+  return humiApiRequest("/crave-requests", {
     method: "POST",
+    session,
     body: payload,
   });
 }
@@ -103,10 +105,12 @@ export async function joinCraveRequest(token, session, payload) {
   });
 }
 
-export async function closeCraveRequest(token, ownerSecret, payload = {}) {
+export async function closeCraveRequest(token, ownerSecret, payload = {}, session = null) {
   if (!token) throw new Error("征集链接不完整。");
-  return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/close`, {
+  const requester = session ? humiApiRequest : humiPublicRequest;
+  return requester(`/crave-requests/${encodeURIComponent(token)}/close`, {
     method: "POST",
+    ...(session ? { session } : {}),
     body: { ownerSecret, ...payload },
   });
 }

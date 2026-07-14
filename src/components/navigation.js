@@ -14,7 +14,7 @@ export const navItems = [
 ];
 
 export const auxiliaryNavItems = [
-  { id: "library", label: "自己挑", icon: Sparkles },
+  { id: "library", label: "全部菜品库", icon: Sparkles },
   { id: "planner", label: "想连排几天", icon: CalendarDays },
   { id: "today", label: "今晚菜单", icon: CalendarDays },
   { id: "calendar", label: "日历", icon: CalendarDays },
@@ -23,6 +23,12 @@ export const auxiliaryNavItems = [
 
 export function getNavItem(id) {
   return [...navItems, ...auxiliaryNavItems].find((item) => item.id === id);
+}
+
+export function getPrimaryNavId(id) {
+  if (["library", "planner", "today", "calendar"].includes(id)) return "dashboard";
+  if (id === "stats") return "user";
+  return navItems.some((item) => item.id === id) ? id : "dashboard";
 }
 
 export const mobileNavItems = navItems;

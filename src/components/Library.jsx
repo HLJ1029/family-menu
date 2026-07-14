@@ -6,29 +6,63 @@ export function Library({
   category,
   setCategory,
   recipes: visibleRecipes,
+  allRecipes = [],
   onAdd,
   onUpdateQuantity,
   menuQuantities,
+  parentLabel = "今晚菜单",
+  targetMealSlot,
+  targetMealLabel,
+  onClearTargetMeal,
   onOpenRecipe,
   onDragStart,
+  canManageMenu = true,
+  actionLabelOverride,
 }) {
   const quantityByRecipe = Object.fromEntries(menuQuantities.map((item) => [item.recipeId, item.quantity]));
+  const recipeSource = allRecipes.length > 0 ? allRecipes : visibleRecipes;
+  const recipeById = Object.fromEntries(recipeSource.map((recipe) => [recipe.id, recipe]));
+  const selectedRecipes = menuQuantities
+    .map((item) => {
+      const recipe = recipeById[item.recipeId];
+      return recipe ? { ...recipe, menuQuantity: item.quantity } : null;
+    })
+    .filter(Boolean);
+  const selectedIds = new Set(selectedRecipes.map((recipe) => recipe.id));
+  const remainingRecipes = visibleRecipes.filter((recipe) => !selectedIds.has(recipe.id));
+  const pickingMeal = Boolean(targetMealSlot && targetMealSlot !== "dinner");
+  const actionLabel = actionLabelOverride ?? (pickingMeal ? `加入${targetMealLabel || "这一餐"}` : "补进今晚");
 
   return (
     <section>
-      <div className="mb-4 rounded-[24px] border border-line bg-white p-4 shadow-card sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">自己挑</p>
-            <h2 className="mt-2 text-2xl font-black tracking-normal sm:text-3xl">
-              发现新菜
-            </h2>
-          </div>
-        </div>
-        <div>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            像刷菜谱卡片一样慢慢逛。看到合适的就补进今晚，清单会跟着更新。
+      {selectedRecipes.length > 0 && (
+        <SelectedRecipesPanel
+          recipes={selectedRecipes}
+          title={pickingMeal ? `${targetMealLabel || "这一餐"}已选择` : "今晚已安排"}
+          onOpenRecipe={onOpenRecipe}
+          onUpdateQuantity={onUpdateQuantity}
+          canManageMenu={canManageMenu}
+        />
+      )}
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">
+            {parentLabel} · {pickingMeal ? "先选再记录" : "继续发现"}
           </p>
+          <h2 className="mt-1 text-xl font-black tracking-normal sm:text-2xl">
+            {pickingMeal ? `给${targetMealLabel || "这一餐"}选菜` : selectedRecipes.length > 0 ? "未安排的新菜" : "发现新菜"}
+          </h2>
+          {pickingMeal && (
+            <p className="mt-1 text-xs font-bold leading-5 text-ink/45">只有点选后才会写入这一餐。</p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-xs font-black text-ink/45">{recipeSource.length} 道</span>
+          {pickingMeal && (
+            <button type="button" onClick={onClearTargetMeal} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-ink/56">
+              改加今晚
+            </button>
+          )}
         </div>
       </div>
 
@@ -49,7 +83,7 @@ export function Library({
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:gap-5">
-        {visibleRecipes.map((recipe) => (
+        {remainingRecipes.map((recipe) => (
           <RecipeCard
             key={recipe.id}
             recipe={recipe}
@@ -58,14 +92,16 @@ export function Library({
             quantity={quantityByRecipe[recipe.id] ?? 0}
             onOpen={onOpenRecipe}
             onDragStart={onDragStart}
+            actionLabel={actionLabel}
+            canManageMenu={canManageMenu}
           />
         ))}
       </div>
-      {visibleRecipes.length === 0 && (
+      {remainingRecipes.length === 0 && (
         <div className="rounded-[24px] border border-dashed border-line bg-white p-6 text-center shadow-card">
           <p className="text-lg font-black text-ink">这组条件下还没菜</p>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            换个分类或点顶部搜索清空关键词，再继续逛。
+            {selectedRecipes.length > 0 ? "已选的菜在页面最上方，可以切换分类继续发现。" : "换个分类或点顶部搜索清空关键词，再继续逛。"}
           </p>
           <button
             type="button"
@@ -80,10 +116,43 @@ export function Library({
   );
 }
 
-function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragStart }) {
+function SelectedRecipesPanel({ recipes, title, onOpenRecipe, onUpdateQuantity, canManageMenu }) {
+  return (
+    <section data-testid="selected-recipes-panel" className="mb-5 rounded-[24px] border border-line bg-white p-4 shadow-card sm:p-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">已安排</p>
+          <h3 className="mt-1 text-xl font-black tracking-normal">{title}</h3>
+        </div>
+        <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">{recipes.length} 道</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {recipes.map((recipe) => (
+          <article key={recipe.id} className="flex items-center gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0">
+            <button type="button" onClick={() => onOpenRecipe(recipe.id)} className="h-20 w-20 shrink-0 overflow-hidden rounded-[18px] bg-canvas" aria-label={`查看 ${recipe.name}`}>
+              <DishImage recipe={recipe} variant="thumb" alt={recipe.name} className="h-full w-full object-cover" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <button type="button" onClick={() => onOpenRecipe(recipe.id)} className="block w-full truncate text-left text-base font-black">{recipe.name}</button>
+              <p className="mt-1 text-xs font-bold text-ink/45">{recipe.categories[0]} · {recipe.timeMinutes} min</p>
+              {canManageMenu ? <div className="mt-2 flex items-center gap-2">
+                <button type="button" onClick={() => onUpdateQuantity(recipe.id, -1)} className="grid h-8 w-8 place-items-center rounded-full bg-canvas" aria-label={`减少 ${recipe.name}`}><Minus size={14} /></button>
+                <span className="min-w-8 text-center text-xs font-black">{recipe.menuQuantity ?? 1} 份</span>
+                <button type="button" onClick={() => onUpdateQuantity(recipe.id, 1)} className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white" aria-label={`增加 ${recipe.name}`}><Plus size={14} /></button>
+              </div> : <p className="mt-2 text-xs font-bold text-ink/42">主厨已安排 {recipe.menuQuantity ?? 1} 份</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragStart, actionLabel, canManageMenu }) {
   return (
     <article
-      draggable
+      data-testid="recipe-card"
+      draggable={canManageMenu}
       onDragStart={() => onDragStart(recipe.id)}
       onClick={() => onOpen(recipe.id)}
       className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
@@ -102,7 +171,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           {recipe.categories[0]}
         </div>
         <div className="absolute bottom-3 left-3 right-3 text-white sm:bottom-4 sm:left-4 sm:right-4">
-          <h3 className="line-clamp-2 text-lg font-black leading-tight tracking-[-0.03em] sm:text-2xl">
+          <h3 className="line-clamp-2 text-lg font-black leading-tight tracking-normal sm:text-2xl">
             {recipe.name}
           </h3>
           <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-black text-white/82 sm:text-xs">
@@ -114,12 +183,14 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
             </span>
           </div>
         </div>
-        <RecipeQuantityControl
-          recipe={recipe}
-          quantity={quantity}
-          onAdd={onAdd}
-          onUpdateQuantity={onUpdateQuantity}
-        />
+        {canManageMenu && (
+          <RecipeQuantityControl
+            recipe={recipe}
+            quantity={quantity}
+            onAdd={onAdd}
+            onUpdateQuantity={onUpdateQuantity}
+          />
+        )}
       </div>
       <div className="grid gap-3 p-3 sm:p-4">
         <p className="line-clamp-2 min-h-10 text-xs font-bold leading-5 text-ink/54 sm:text-sm sm:leading-6">
@@ -129,7 +200,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            if (quantity > 0) {
+            if (canManageMenu && quantity > 0) {
               onOpen(recipe.id);
               return;
             }
@@ -137,7 +208,7 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, onOpen, onDragS
           }}
           className="min-h-11 w-full rounded-full border border-ink/10 bg-ink px-3 text-sm font-black text-white transition hover:-translate-y-0.5"
         >
-          {quantity > 0 ? `已在今晚 ${quantity} 份 · 看做法` : "补进今晚"}
+          {canManageMenu && quantity > 0 ? `已选 ${quantity} 份 · 看做法` : actionLabel}
         </button>
       </div>
     </article>

@@ -11,6 +11,15 @@ try {
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
 
+  await assertUnauthorizedCreate(`${baseUrl}/crave-requests`, {
+    householdName: "匿名测试家",
+    initiatorName: "匿名用户",
+  }, "anonymous crave request creation");
+  await assertUnauthorizedCreate(`${baseUrl}/grocery-shares`, {
+    initiatorName: "匿名用户",
+    items: [{ key: "custom:milk", name: "牛奶", amount: "1盒", type: "custom" }],
+  }, "anonymous grocery share creation");
+
   const login = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `smoke-${runId}` },
@@ -102,6 +111,18 @@ try {
           status: "open",
           createdAt: new Date().toISOString(),
         }],
+        craveSignals: [{
+          id: "crave:state-smoke",
+          token: "crave-state-smoke-token",
+          ownerSecret: "must-not-be-shared",
+          householdName: "测试家",
+          initiatorName: "主厨",
+          feelingTag: "清淡点",
+          status: "open",
+          deadlineAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          votes: [],
+          createdAt: new Date().toISOString(),
+        }],
         familyProfile: { familySize: 3, goals: ["省时"] },
       },
     },
@@ -122,6 +143,8 @@ try {
   assert(loadedState?.groceryClaims?.["ingredient:tomato"]?.status === "claimed", "state should load grocery claims");
   assert(loadedState?.recommendationAccess?.preciseTrialRemaining === 2, "state should load recommendation access");
   assert(loadedState?.wantToEatItems?.[0]?.recipeId === "mapo-tofu", "state should load want-to-eat pool");
+  assert(loadedState?.craveSignals?.[0]?.token === "crave-state-smoke-token", "state should persist active crave signal across sessions");
+  assert(!loadedState?.craveSignals?.[0]?.ownerSecret, "shared state must not expose crave owner secret");
   assert(
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
     "owner household should include owner member",
@@ -134,6 +157,20 @@ try {
   );
   assert(Array.isArray(loadedStateEnvelope.households), "state envelope should include households");
   assert(loadedStateEnvelope.households?.length === 1, "new user should start with one active household");
+
+  const spoofedAccessEnvelope = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      state: {
+        ...loadedState,
+        recommendationAccess: { plan: "plus", preciseTrialRemaining: 20, preciseUsed: 0 },
+      },
+    },
+  });
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.plan === "free", "client state must not grant plus access");
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.preciseTrialRemaining === 2, "client state must not restore precise trials");
+  assert(spoofedAccessEnvelope.state?.recommendationAccess?.preciseUsed === 1, "client state must not reduce precise usage");
 
   const secondHousehold = await request(`${baseUrl}/households`, {
     method: "POST",
@@ -187,10 +224,11 @@ try {
   const crave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
-    body: { householdName: "测试家", initiatorName: "主厨" },
+    body: { householdName: "测试家", initiatorName: "主厨", initialFeelingTag: "想喝汤" },
   });
   assert(crave.request?.token, "crave request should return token");
   assert(crave.request?.householdId === loadedStateEnvelope.family?.id, "crave request should attach owner household");
+  assert(crave.request?.initialFeelingTag === "想喝汤", "crave request should preserve the initiator feeling for no-reply fallback");
   assert(
     Number.isFinite(Date.parse(crave.request?.deadlineAt)),
     "crave request should return an explicit deadline",
@@ -214,7 +252,7 @@ try {
     body: { participantKey: "participant-smoke" },
   });
   assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
-  assert(joinedCrave.request?.votes?.[0]?.memberId === memberLogin.user.id, "joined crave vote should attach user");
+  assert(!joinedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose formal member ids");
   assert(
     joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
       && joinedCrave.family?.members?.some((member) => member.memberId === memberLogin.user.id),
@@ -224,6 +262,92 @@ try {
   assert(joinedCrave.family?.ownerId === login.user.id, "joined family should keep original owner");
   assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
   assert(joinedCrave.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined crave user should immediately receive shared household state");
+
+  const memberMutation = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      state: {
+        ...joinedCrave.state,
+        todayMenu: [{ recipeId: "mapo-tofu", quantity: 9 }],
+        familyProfile: { familySize: 9, dislikes: [] },
+        recommendationAccess: { plan: "plus", preciseTrialRemaining: 20, preciseUsed: 0 },
+        craveSignals: [{ token: "member-forged-crave", status: "closed" }],
+        wantToEatItems: [
+          ...(joinedCrave.state?.wantToEatItems ?? []),
+          {
+            id: "want:member-own",
+            title: "冬瓜排骨汤",
+            recipeId: "wintermelon-rib-soup",
+            memberId: memberLogin.user.id,
+            memberName: "家人",
+            status: "open",
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "want:member-forged",
+            title: "伪造他人想吃",
+            memberId: login.user.id,
+            memberName: "主厨",
+            status: "open",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        groceryClaims: {
+          ...(joinedCrave.state?.groceryClaims ?? {}),
+          "custom:member-milk": {
+            itemKey: "custom:member-milk",
+            itemName: "牛奶",
+            memberId: memberLogin.user.id,
+            memberName: "家人",
+            status: "done",
+            claimedAt: new Date().toISOString(),
+          },
+        },
+      },
+    },
+  });
+  assert(memberMutation.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "member state save must not replace the owner menu");
+  assert(memberMutation.state?.familyProfile?.familySize === 3, "member state save must not replace the family profile");
+  assert(memberMutation.state?.recommendationAccess?.plan === "free", "member state save must not grant plus access");
+  assert(memberMutation.state?.wantToEatItems?.some((item) => item.id === "want:member-own"), "member should add their own want-to-eat item");
+  assert(!memberMutation.state?.wantToEatItems?.some((item) => item.id === "want:member-forged"), "member must not write want-to-eat items for another user");
+  assert(memberMutation.state?.groceryClaims?.["custom:member-milk"]?.status === "done", "member should update their own grocery claim");
+  assert(memberMutation.state?.checkedItems?.["custom:member-milk"] === true, "completed member grocery claim should mark the item checked");
+  assert(memberMutation.state?.craveSignals?.[0]?.token === "crave-state-smoke-token", "member state save must not replace active crave signal");
+
+  const targetedCrave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdName: "测试家",
+      initiatorName: "主厨",
+      recipientIds: [memberLogin.user.id, "not-a-household-member", memberLogin.user.id],
+    },
+  });
+  assert(targetedCrave.request?.recipientCount === 1, "crave recipients should keep only unique household members");
+  try {
+    await request(`${baseUrl}/crave-requests/${targetedCrave.request.token}/close`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: {},
+    });
+    throw new Error("non-owner authenticated crave close should be forbidden");
+  } catch (error) {
+    assert(String(error.message).startsWith("403 "), "non-owner authenticated crave close should return 403");
+  }
+  const ownerClosedTargetedCrave = await request(`${baseUrl}/crave-requests/${targetedCrave.request.token}/close`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      resultSummary: {
+        dishes: [{ name: "冬瓜排骨汤", timeMinutes: 45 }],
+        reason: "主厨登录后收口。",
+        generatedAt: new Date().toISOString(),
+      },
+    },
+  });
+  assert(ownerClosedTargetedCrave.request?.status === "closed", "authenticated owner should close crave without client owner secret");
   assert(joinedCrave.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "joined crave user should immediately receive shared want-to-eat pool");
   assert(
     joinedCrave.family?.members?.some((member) => (
@@ -268,6 +392,25 @@ try {
   assert(householdInvite.invite?.householdId === loadedStateEnvelope.family.id, "household invite should attach household");
   const publicInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}`);
   assert(publicInvite.invite?.householdName === loadedStateEnvelope.family.name, "public invite should expose household name");
+  const temporaryInviteWant = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}/wants`, {
+    method: "POST",
+    body: {
+      participantKey: "temporary-invite-want-smoke",
+      memberName: "想吃面的家人",
+      title: "牛肉面",
+    },
+  });
+  assert(temporaryInviteWant.want?.title === "牛肉面", "invite guest should add a want-to-eat item without login");
+  assert(temporaryInviteWant.want?.temporary === true, "invite guest want should remain temporary before joining");
+  const stateWithTemporaryInviteWant = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    stateWithTemporaryInviteWant.state?.wantToEatItems?.some((item) => (
+      item.title === "牛肉面" && item.memberId === "temporary:temporary-invite-want-smoke"
+    )),
+    "invite guest want should persist in the household want-to-eat pool",
+  );
   const invitedLogin = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `invite-member-smoke-${runId}` },
@@ -275,7 +418,7 @@ try {
   const joinedInvite = await request(`${baseUrl}/household-invites/${householdInvite.invite.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${invitedLogin.accessToken}` },
-    body: { memberName: "被邀请的家人" },
+    body: { memberName: "被邀请的家人", participantKey: "temporary-invite-want-smoke" },
   });
   assert(joinedInvite.family?.role === "member", "invite joiner should see member role");
   assert(
@@ -284,7 +427,13 @@ try {
   );
   assert(joinedInvite.households?.some((household) => household.id === loadedStateEnvelope.family.id), "invite joiner should receive households");
   assert(joinedInvite.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "invite joiner should immediately receive shared household state");
-  assert(joinedInvite.state?.wantToEatItems?.[0]?.title === "麻婆豆腐", "invite joiner should immediately receive shared want-to-eat pool");
+  assert(joinedInvite.state?.wantToEatItems?.some((item) => item.title === "麻婆豆腐"), "invite joiner should immediately receive shared want-to-eat pool");
+  assert(
+    joinedInvite.state?.wantToEatItems?.some((item) => (
+      item.title === "牛肉面" && item.memberId === invitedLogin.user.id && item.temporary === false
+    )),
+    "joining should merge the invite guest want into the formal member identity",
+  );
   try {
     await request(`${baseUrl}/household-invites`, {
       method: "POST",
@@ -480,6 +629,15 @@ async function request(url, options = {}) {
     throw new Error(`${response.status} ${JSON.stringify(data)}`);
   }
   return data;
+}
+
+async function assertUnauthorizedCreate(url, body, label) {
+  try {
+    await request(url, { method: "POST", body });
+    throw new Error(`${label} should require auth`);
+  } catch (error) {
+    assert(String(error.message).startsWith("401 "), `${label} should return 401`);
+  }
 }
 
 function assert(condition, message) {

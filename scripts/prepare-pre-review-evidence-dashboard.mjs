@@ -40,11 +40,12 @@ const [gitState, hardening, latestCraveDir, latestShareDir] = await Promise.all(
   findLatestDir("miniprogram-share-card-preview-"),
 ]);
 
-const [craveTemplateEvidence, shareEvidence, directPreviewEvidence] = await Promise.all([
+const [craveTemplateEvidence, shareGate, directPreviewEvidence] = await Promise.all([
   inspectGroup(latestCraveDir, craveTemplateFiles, { minWidth: 320, minHeight: 240, minBytes: 20_000 }),
-  inspectGroup(latestShareDir, shareFiles, { minWidth: 240, minHeight: 160, minBytes: 8_000 }),
+  inspectShareEvidence(latestShareDir),
   inspectGroup(latestShareDir, directPreviewFiles, { minWidth: 240, minHeight: 240, minBytes: 8_000 }),
 ]);
+const shareEvidence = buildShareEvidenceSummary(latestShareDir, shareGate);
 
 const missingShareNativeCards = shareEvidence.files
   .filter((item) => item.kind === "native-card" && !item.ok)
@@ -132,6 +133,54 @@ async function inspectGroup(dir, fileDefs, thresholds) {
     ok: Boolean(dir) && files.every((item) => item.ok),
     dir,
     files,
+  };
+}
+
+async function inspectShareEvidence(dir) {
+  if (!dir) return { ok: false, requiredFiles: [], error: "Share evidence directory not found." };
+  try {
+    const { stdout } = await execFileAsync(process.execPath, ["scripts/check-miniprogram-share-evidence.mjs"], {
+      env: { ...process.env, HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR: dir },
+      timeout: 120_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    return JSON.parse(stdout);
+  } catch (error) {
+    try {
+      return JSON.parse(String(error.stdout || ""));
+    } catch {
+      return { ok: false, requiredFiles: [], error: error.message };
+    }
+  }
+}
+
+function buildShareEvidenceSummary(dir, gate) {
+  const gateFiles = Array.isArray(gate.requiredFiles) ? gate.requiredFiles : [];
+  return {
+    ok: gate.ok === true,
+    dir,
+    error: gate.error,
+    files: shareFiles.map(([file, label, kind]) => {
+      const item = gateFiles.find((candidate) => candidate.file === file) ?? {};
+      return {
+        file,
+        label,
+        kind,
+        path: item.path ?? (dir ? join(dir, file) : null),
+        ok: item.ok === true,
+        size: item.size,
+        image: item.image,
+        sha256: item.sha256,
+        visual: item.visual ? {
+          ok: item.visual.ok,
+          matchedSemanticMarker: item.visual.matchedSemanticMarker,
+          hasVirtualRecipient: item.visual.hasVirtualRecipient,
+          hasSendAction: item.visual.hasSendAction,
+          error: item.visual.error,
+        } : undefined,
+        error: item.error ?? gate.error,
+      };
+    }),
   };
 }
 

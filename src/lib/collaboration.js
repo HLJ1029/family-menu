@@ -46,6 +46,23 @@ export function summarizeCraveVotes(votes = []) {
     .sort((a, b) => b.count - a.count);
 }
 
+export function collectLearnedCraveVotes(signals = [], { excludeToken = "" } = {}) {
+  return signals
+    .filter((signal) => signal && signal.token !== excludeToken)
+    .filter((signal) => signal.status === "closed" || !signal.token)
+    .flatMap((signal) => {
+      if (Array.isArray(signal.votes) && signal.votes.length > 0) return signal.votes;
+      if (!signal.feelingTag) return [];
+      return [{
+        feelingTag: signal.feelingTag,
+        createdAt: signal.createdAt,
+        memberName: signal.initiatorName || "主厨",
+      }];
+    })
+    .filter((vote) => vote?.feelingTag && vote.feelingTag !== "随便都行")
+    .slice(0, 12);
+}
+
 export function formatCraveReason(votes = []) {
   const summary = summarizeCraveVotes(votes);
   if (summary.length === 0) return "还没人回复，先按家里忌口和省心程度来。";

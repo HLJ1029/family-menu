@@ -1,12 +1,12 @@
 import { nutritionFor, recipes } from "../recipes.js";
 import { getPlanningMode } from "../profile.js";
 
-const recentRecipeIds = new Set();
 const dislikedSignals = ["鸡爪", "肥肠"];
 
 export function buildTodayRecommendation({
   pantryItems = [],
   weekPlan = {},
+  mealLogs = {},
   groceryItems = [],
   todayRecipes = [],
   familyMembers = [],
@@ -15,6 +15,8 @@ export function buildTodayRecommendation({
   craveVotes = [],
   excludedRecipeIds = [],
 }) {
+  const recentRecipeIds = collectRecentRecipeIds({ weekPlan, mealLogs, todayRecipes });
+  const mealHistoryTaste = collectMealHistoryTaste(mealLogs);
   const pantryState = buildPantryState(pantryItems);
   const familyPreference = collectFamilyPreference(familyMembers, familyProfile);
   const wantSignals = collectWantSignals(wantToEatItems);
@@ -22,12 +24,6 @@ export function buildTodayRecommendation({
   const hardAvoidSignals = buildHardAvoidSignals(familyPreference);
   const planningMode = getPlanningMode(familyProfile.planningMode);
   const excludedIds = new Set(excludedRecipeIds);
-  Object.values(weekPlan)
-    .flat()
-    .slice(-8)
-    .forEach((recipeId) => recentRecipeIds.add(recipeId));
-  todayRecipes.forEach((recipe) => recentRecipeIds.add(recipe.id));
-
   const scored = recipes
     .filter(
       (recipe) =>
@@ -53,6 +49,7 @@ export function buildTodayRecommendation({
       const preferenceScore = scorePreference(recipe, familyPreference);
       const wantScore = scoreWantSignals(recipe, wantSignals);
       const feelingScore = scoreFeelingSignals(recipe, feelingSignals);
+      const mealHistoryScore = scoreMealHistoryTaste(recipe, mealHistoryTaste);
       const modeScore = scorePlanningMode(recipe, planningMode.id);
       const score =
         quickBonus +
@@ -62,6 +59,7 @@ export function buildTodayRecommendation({
         modeScore +
         wantScore.bonus +
         feelingScore.bonus +
+        mealHistoryScore.bonus +
         preferenceScore.bonus -
         repeatedPenalty -
         dislikedPenalty -
@@ -76,6 +74,7 @@ export function buildTodayRecommendation({
         preferenceScore,
         wantScore,
         feelingScore,
+        mealHistoryScore,
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -112,6 +111,9 @@ export function buildTodayRecommendation({
   const feelingHits = scored
     .filter(({ recipe }) => selectedIds.has(recipe.id))
     .reduce((total, item) => total + item.feelingScore.hits, 0);
+  const mealHistoryHits = scored
+    .filter(({ recipe }) => selectedIds.has(recipe.id))
+    .reduce((total, item) => total + item.mealHistoryScore.hits, 0);
   const calories = recommendationItems.reduce(
     (total, item) => total + nutritionFor(item.recipe).caloriesKcal * item.quantity,
     0,
@@ -137,24 +139,87 @@ export function buildTodayRecommendation({
       preferenceHits,
       wantIntentHits,
       feelingHits,
+      mealHistoryHits,
     }),
     inventoryHits,
     expiringHits,
     preferenceHits,
     wantIntentHits,
     feelingHits,
+    mealHistoryHits,
+    mealHistorySampleCount: mealHistoryTaste.sampleCount,
     missingItems: dedupeItems(selectedMissing),
     explanation: {
       pantry: buildPantryExplanation({ inventoryHits, expiringHits, matchedPantryItems }),
       preference: buildPreferenceExplanation(preferenceHits),
       want: buildWantExplanation(wantIntentHits),
       feeling: buildFeelingExplanation(feelingHits),
+      history: buildMealHistoryExplanation(mealHistoryHits, mealHistoryTaste),
       grocery: buildGroceryExplanation(selectedMissing),
     },
     nutrition: {
       caloriesKcal: calories,
       proteinG: protein,
     },
+  };
+}
+
+function collectRecentRecipeIds({ weekPlan = {}, mealLogs = {}, todayRecipes = [] }) {
+  const ids = new Set(Object.values(weekPlan).flat().filter(Boolean).slice(-14));
+  todayRecipes.forEach((recipe) => {
+    if (recipe?.id) ids.add(recipe.id);
+  });
+  Object.entries(mealLogs)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .slice(0, 14)
+    .forEach(([, log]) => {
+      const entries = [
+        ...(log?.consumedEntries ?? []),
+        ...(log?.plannedEntries ?? []),
+        ...Object.values(log?.meals ?? {}).flatMap((meal) => [
+          ...(meal?.consumedEntries ?? []),
+          ...(meal?.plannedEntries ?? []),
+        ]),
+      ];
+      entries.forEach((entry) => {
+        if (entry?.recipeId) ids.add(entry.recipeId);
+      });
+    });
+  return ids;
+}
+
+function collectMealHistoryTaste(mealLogs = {}) {
+  const categoryCounts = new Map();
+  let sampleCount = 0;
+  let quickCount = 0;
+  Object.entries(mealLogs)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .slice(0, 28)
+    .forEach(([, log]) => {
+      const entries = [
+        ...(log?.consumedEntries ?? []),
+        ...Object.values(log?.meals ?? {}).flatMap((meal) => meal?.consumedEntries ?? []),
+      ];
+      entries.forEach((entry) => {
+        const recipe = recipes.find((item) => item.id === entry?.recipeId);
+        if (!recipe) return;
+        sampleCount += 1;
+        if (recipe.timeMinutes <= 25) quickCount += 1;
+        recipe.categories.forEach((category) => {
+          categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+        });
+      });
+    });
+  const preferredCategories = sampleCount >= 2
+    ? [...categoryCounts.entries()]
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 4)
+        .map(([category]) => category)
+    : [];
+  return {
+    sampleCount,
+    preferredCategories: new Set(preferredCategories),
+    prefersQuick: sampleCount >= 2 && quickCount / sampleCount >= 0.5,
   };
 }
 
@@ -273,6 +338,14 @@ function buildFeelingExplanation(feelingHits) {
   return "这次没有明确感觉命中，先按忌口、耗时和搭配平衡安排。";
 }
 
+function buildMealHistoryExplanation(mealHistoryHits, historyTaste) {
+  if (mealHistoryHits <= 0 || historyTaste.sampleCount < 2) {
+    return "确认做过的餐次还不多，暂不让历史口味左右今晚。";
+  }
+  const categories = [...historyTaste.preferredCategories].slice(0, 3).join("、");
+  return `参考最近确认做过的 ${historyTaste.sampleCount} 道菜，轻量照顾 ${categories || "常做类型"}，但仍避开原菜重复。`;
+}
+
 function buildGroceryExplanation(missingItems) {
   if (missingItems.length === 0) return "主食材基本够了，可以直接开做。";
   return `还要买：${dedupeItems(missingItems).map((item) => item.name).join("、")}。`;
@@ -381,6 +454,17 @@ function scoreFeelingSignals(recipe, feelingSignals = []) {
   const hits = feelingSignals.filter((tag) => recipeMatchesFeeling(recipe, tag)).length;
   return {
     bonus: Math.min(42, hits * 14),
+    hits,
+  };
+}
+
+function scoreMealHistoryTaste(recipe, historyTaste) {
+  if (!historyTaste || historyTaste.sampleCount < 2) return { bonus: 0, hits: 0 };
+  const categoryHits = recipe.categories.filter((category) => historyTaste.preferredCategories.has(category)).length;
+  const quickHit = historyTaste.prefersQuick && recipe.timeMinutes <= 25 ? 1 : 0;
+  const hits = categoryHits + quickHit;
+  return {
+    bonus: Math.min(12, categoryHits * 4 + quickHit * 3),
     hits,
   };
 }
@@ -501,7 +585,7 @@ function pairsWellWithSet(selected, candidate) {
   return selected.some((recipe) => pairsWell(recipe, candidate));
 }
 
-function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits, wantIntentHits, feelingHits }) {
+function buildReason({ selected, inventoryHits, expiringHits, groceryItems, selectedMissing, preferenceHits, wantIntentHits, feelingHits, mealHistoryHits }) {
   const quickCount = selected.filter((recipe) => recipe.timeMinutes <= 25).length;
   if (expiringHits > 0) {
     return `优先用掉 ${expiringHits} 项快到期食材，日期已过的先留给你确认，适合今天减少浪费。`;
@@ -511,6 +595,9 @@ function buildReason({ selected, inventoryHits, expiringHits, groceryItems, sele
   }
   if (wantIntentHits > 0) {
     return `优先照顾想吃池子里的 ${wantIntentHits} 条待安排心愿，同时继续避开家里的硬忌口。`;
+  }
+  if (mealHistoryHits > 0) {
+    return `参考最近确认做过的菜，命中 ${mealHistoryHits} 个常做类型，同时降低了原菜重复。`;
   }
   if (preferenceHits > 0) {
     return `已避开家里的硬忌口，并参考 ${preferenceHits} 个行为信号来排序。`;
