@@ -14,6 +14,10 @@ page {
   background: #ffffff;
 }
 
+.error-shell {
+  background: #f6f6f4;
+}
+
 .brand-mark {
   font-size: 32rpx;
   font-weight: 900;

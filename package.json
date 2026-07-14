@@ -19,6 +19,7 @@
     "validate:crave-template": "node scripts/check-crave-sheet-template.mjs",
     "validate:recommendation": "node scripts/check-recommendation-constraints.mjs",
     "validate:share-bridge": "node scripts/check-mini-program-share-bridge.mjs",
+    "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
