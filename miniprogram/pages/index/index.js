@@ -11,6 +11,7 @@ Page({
     shareGrocery: null,
     loginPending: false,
     loginError: "",
+    webViewError: "",
     phoneBindVisible: false,
     phoneBindPending: false,
     phoneBindError: "",
@@ -33,8 +34,8 @@ Page({
           initiatorName: "主厨",
           itemCount: 0
         },
-        url: appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" })
       });
+      this.openWebView(appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" }));
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
@@ -48,8 +49,8 @@ Page({
           householdName: "这个家",
           inviterName: "主厨"
         },
-        url: appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" })
       });
+      this.openWebView(appendQuery(getHumiH5Url(), { invite: launchInviteToken, channel: "wechat-miniprogram" }));
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
@@ -64,15 +65,21 @@ Page({
           initiatorName: "主厨",
           title: "今晚征集口味，点一下就行"
         },
-        url: appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" })
       });
+      this.openWebView(appendQuery(getHumiH5Url(), { crave: launchCraveToken, channel: "wechat-miniprogram" }));
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
-    this.setData({ url: getHumiH5Url() });
     if (HUMI_WECHAT_LOGIN_ENABLED) {
+      this._initialLoginTimer = setTimeout(() => this.finishInitialLoad(), 2200);
       this.loginWithWechat({ initial: true });
+      return;
     }
+    this.finishInitialLoad();
+  },
+
+  onUnload() {
+    if (this._initialLoginTimer) clearTimeout(this._initialLoginTimer);
   },
 
   onShow() {
@@ -89,7 +96,9 @@ Page({
     }
   },
 
-  handleLoad() {},
+  handleLoad() {
+    if (this.data.webViewError) this.setData({ webViewError: "" });
+  },
 
   handleMessage(event) {
     const messages = event.detail?.data || [];
@@ -136,7 +145,11 @@ Page({
       return;
     }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
-      this.loginWithWechat();
+      if (this.data.currentSession?.accessToken) {
+        this.openWebView(appendSessionToUrl(this.buildH5Url(), this.data.currentSession));
+      } else {
+        this.loginWithWechat();
+      }
     }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:phone-bind") {
       if (!this.data.currentSession?.accessToken) {
@@ -149,6 +162,34 @@ Page({
 
   handleError(error) {
     console.warn("Humi web-view error", error.detail);
+    if (this.data.url) this._lastWebViewUrl = this.data.url;
+    this.setData({
+      url: "",
+      webViewError: "页面暂时没有加载出来。请检查网络后重试。"
+    });
+  },
+
+  retryWebView() {
+    const targetUrl = this._lastWebViewUrl || this.buildH5Url();
+    this.openWebView(appendQuery(targetUrl, { humiRetry: Date.now() }));
+  },
+
+  openWebView(url) {
+    this._lastWebViewUrl = url;
+    this.setData({ url, webViewError: "" });
+  },
+
+  finishInitialLoad(session) {
+    if (this._initialLoadFinished) return;
+    this._initialLoadFinished = true;
+    if (this._initialLoginTimer) {
+      clearTimeout(this._initialLoginTimer);
+      this._initialLoginTimer = null;
+    }
+    const url = session?.accessToken
+      ? appendSessionToUrl(this.buildH5Url(), session)
+      : this.buildH5Url();
+    this.openWebView(url);
   },
 
   loginWithWechat(options = {}) {
@@ -171,16 +212,23 @@ Page({
           success: ({ statusCode, data }) => {
             if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
               this.setData({ loginError: "登录服务暂时不可用，请稍后重试。" });
-          return;
-        }
+              if (initial) this.finishInitialLoad();
+              return;
+            }
 
             const app = getApp();
             app.globalData.humiSession = data;
-            this.setData({ currentSession: data, url: appendSessionToUrl(this.buildH5Url(), data) });
+            this.setData({ currentSession: data });
+            if (initial) {
+              this.finishInitialLoad(data);
+            } else {
+              this.openWebView(appendSessionToUrl(this.buildH5Url(), data));
+            }
             if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
             this.setData({ loginError: "网络连接失败，请检查网络后重试。" });
+            if (initial) this.finishInitialLoad();
           },
           complete: () => {
             this.setData({ loginPending: false });
@@ -189,6 +237,7 @@ Page({
       },
       fail: () => {
         this.setData({ loginPending: false, loginError: "微信登录失败，请重新尝试。" });
+        if (initial) this.finishInitialLoad();
       }
     });
   },
