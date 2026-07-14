@@ -41,6 +41,7 @@ import {
   removeMealEntry,
   upsertMealEntry,
 } from "./lib/mealPlan";
+import { migrateLegacyAutomaticMealSelections } from "./lib/mealHistoryMigration";
 import {
   createGroceryPoster,
   createTodayMenuPoster,
@@ -358,6 +359,13 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [humiSession, humiStateSnapshot]);
+
+  useEffect(() => {
+    const migration = migrateLegacyAutomaticMealSelections({ mealPlan, mealLogs });
+    if (!migration.changed) return;
+    setMealPlan(migration.mealPlan);
+    setMealLogs(migration.mealLogs);
+  }, [mealLogs, mealPlan, setMealLogs, setMealPlan]);
 
   useEffect(() => {
     if (Object.keys(mealPlan ?? {}).length > 0) return;
@@ -1383,6 +1391,7 @@ function App() {
     updateMealPlanSlot(todayDateKey, "breakfast", () => entries);
     recordMealSlot("breakfast", {
       source: "home",
+      selectionMode: "explicit",
       consumedEntries: entries,
       quickRecordedAt: new Date().toISOString(),
     });
@@ -3054,6 +3063,7 @@ function App() {
     assignMealRecipe(todayDateKey, libraryMealSlot, recipeId, 1, { silent: true });
     recordMealSlot(libraryMealSlot, {
       source: "home",
+      selectionMode: "explicit",
       consumedEntries: nextEntries,
       quickRecordedAt: new Date().toISOString(),
     });
