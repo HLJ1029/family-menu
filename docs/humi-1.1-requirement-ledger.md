@@ -92,10 +92,10 @@
 | REC-04 | 相同推荐上下文缓存复用 | 已完成 | `buildPreciseRecommendationCacheKey`，已包含 candidates/历史/反馈 |
 | REC-05 | 早期数据少也给画像反射 | 已完成 | `buildFamilyReflections` 的感觉/三餐/想吃/初始反射 |
 | REC-06 | 历史感觉与确认做过的菜反哺推荐，但不原菜循环 | 已完成 | `collectLearnedCraveVotes`、`collectMealHistoryTaste`；`validate:recommendation` 验证已结束征集沉淀、常做类型轻加分和近期原菜降权 |
-| REC-07 | Plus 的深度家庭协调：精确忌口、成员权重和阶段偏好 | 待用户决策 | 当前只有家庭硬忌口、感觉揉合和基础历史学习；需确认 1.1 实现，或明确列入 1.2 |
-| REC-08 | Plus 的完整版家庭画像/营养回顾权益边界 | 待用户决策 | 当前基础画像反射和营养回看可用，但没有免费版/完整版区分；需与付费范围一并确认 |
-| REC-09 | Plus 的一周计划打包权益边界 | 待用户决策 | 当前“想连排几天”和汇总清单可用，但没有 Plus 权益区分；需确认是否保持基础免费、仅增强打包付费，或列入 1.2 |
-| PAY-01 | 1.1 是否接入真实微信支付、订单回调和权益发放 | 待用户决策 | 必须在“1.1 接入”与“明确放到 1.2”中选择；未确认前不动支付 |
+| REC-07 | Plus 的深度家庭协调：精确忌口、成员权重和阶段偏好 | 明确列入 1.2 | 2026-07-14 用户确认；1.1 保留家庭硬忌口、感觉揉合和基础历史学习，不做 Plus 差异化 |
+| REC-08 | Plus 的完整版家庭画像/营养回顾权益边界 | 明确列入 1.2 | 2026-07-14 用户确认；1.1 的基础画像反射与营养回看继续免费可用，不做完整版付费分层 |
+| REC-09 | Plus 的一周计划打包权益边界 | 明确列入 1.2 | 2026-07-14 用户确认；1.1 保留“想连排几天”和汇总清单基础能力，不接入 Plus 打包权益 |
+| PAY-01 | 1.1 是否接入真实微信支付、订单回调和权益发放 | 明确列入 1.2 | 2026-07-14 用户确认；1.1 不接支付下单、回调验签、订单和权益发放闭环 |
 
 ## 6. 小程序分享与视觉
 
@@ -104,7 +104,7 @@
 | WX-01 | `crave`/`invite`/`grocery` 三类小程序卡片路径 | 已完成 | `release:wechat:share:selftest` |
 | WX-02 | 清单、征集与家庭邀请真实打开原生分享子页，失败不误报成功 | 已完成 | `validate:share-bridge` 覆盖缺失能力、跳转成功、跳转失败、异常与无 token；`release:product:smoke` 覆盖真实入口点击 |
 | WX-03 | 三类 token 落地页不自动登录 | 已完成 | `release:collaboration:smoke` |
-| WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 进行中 | 历史截图已由 OCR 语义门禁纠错；当前候选干净证据目录已生成 landing 与直达二维码，三类原生发送框待 Mac 解锁后在当前分支重截 |
+| WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 已完成 | 2026-07-14 当前候选在微信开发者工具逐类打开 `crave`/`invite`/`grocery` 原生发送框；`release:wechat:share:evidence` 识别到虚拟好友、发送动作和对应业务语义，`release:wechat:share:complete` 已完成人工视觉确认。证据目录：`/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457` |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |
@@ -136,7 +136,7 @@ npm run release:product:review
 npm run release:product:smoke -- --base-url http://127.0.0.1:4174/
 npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4174/
 npm run release:wechat:share:selftest
-npm run release:spec:audit # 未确认 Plus/支付范围或未完成当前候选原生卡片时，应明确返回 specClosureReady=false
+npm run release:spec:audit # 1.1 范围与当前候选原生卡片均完成后，应返回 specClosureReady=true
 npm run release:docs:check
 npm run release:security:audit
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh

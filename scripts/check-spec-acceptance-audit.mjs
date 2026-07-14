@@ -59,6 +59,15 @@ const REQUIRED_MATRIX_ITEMS = [
 const DECISION_LEDGER_IDS = ["REC-07", "REC-08", "REC-09", "PAY-01"];
 const NATIVE_EVIDENCE_LEDGER_IDS = ["WX-04"];
 const EXTERNAL_LEDGER_IDS = ["EXT-01", "EXT-02", "EXT-03"];
+const EXPECTED_EXTERNAL_STATUSES = new Map([
+  ["家庭订阅真实支付结算", "暂缓"],
+  ["Plus 深度协调、完整版画像与一周计划打包", "暂缓"],
+  ["三类小程序原生分享发送框视觉复核", "已完成"],
+  ["生产 API 补部署", "已完成"],
+  ["微信公众平台提交审核/发布", "暂缓"],
+  ["10-20 个家庭灰度名单与反馈表", "模板已准备，待填真实名单"],
+  ["生产真机全路径证据", "待小程序发布后验证"],
+]);
 const REQUIRED_LEDGER_IDS = [
   ...numberedIds("STR", 1, 8),
   ...numberedIds("MEAL", 1, 5),
@@ -132,10 +141,9 @@ async function inspectAudit() {
     const missingMatrixItems = REQUIRED_MATRIX_ITEMS.filter((label) => !matrixRows.some((row) => row.requirement.includes(label)));
     const externalRows = parseExternalRows(content);
     const currentOrder = inspectCurrentOrder(content);
-    const unexpectedOpenRows = externalRows.filter((row) => {
-      if (row.item === "生产 API 补部署") return row.status !== "已完成";
-      return !["进行中", "暂缓", "待用户确认", "模板已准备，待填真实名单", "待小程序发布后验证"].includes(row.status);
-    });
+    const unexpectedOpenRows = externalRows.filter((row) => (
+      EXPECTED_EXTERNAL_STATUSES.get(row.item) !== row.status
+    ));
 
     return {
       path: AUDIT_PATH,
@@ -275,11 +283,9 @@ function inspectCurrentOrder(content) {
   const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
   const required = [
     "http://127.0.0.1:4174/",
-    "家庭订阅在 1.1 接入真实微信支付",
-    "未确认前不启动支付工程",
+    "核心菜单、家庭协作、三类分享、数据与安全检查",
     "未通过就继续修",
-    "验收通过后再部署 H5/API",
-    "微信开发者工具中连调",
+    "再单独确认是否部署 H5/API 与上传新的小程序候选",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];
