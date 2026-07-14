@@ -7,7 +7,7 @@
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 生产 API 已部署合并基线 `2c53017c`；备份路径 `/opt/humi/backups/20260714T124938Z`，`humi-api.service` 已重启，`npm run monitor:prod`、`npm run release:check:online` 和线上产品/协作 smoke 已通过。小程序 1.1.61 继续使用该 API 合同。
+- 生产 API 已部署合并基线 `2c53017c`；备份路径 `/opt/humi/backups/20260714T124938Z`，`humi-api.service` 已重启，`npm run monitor:prod`、`npm run release:check:online` 和线上产品/协作 smoke 已通过。小程序 1.1.63 继续使用该 API 合同。
 
 本地启动：
 

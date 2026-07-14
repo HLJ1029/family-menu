@@ -15,7 +15,7 @@ page {
 }
 
 .error-shell {
-  background: #f6f6f4;
+  background: #f6f6f6;
 }
 
 .brand-mark {

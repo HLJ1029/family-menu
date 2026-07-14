@@ -24,7 +24,7 @@ const modes = {
       "处理记录": "HUMI_WECHAT_REVIEW_HANDLING",
     },
     nextActions: [
-      "If review approved, publish 1.1.61 in WeChat public platform.",
+      "If review approved, publish 1.1.63 in WeChat public platform.",
       "After publishing, run npm run release:evidence:record:publish.",
       "If rejected, record the fix in docs/launch-feedback-and-101-backlog.md before uploading any 1.1.x.",
     ],
@@ -41,7 +41,7 @@ const modes = {
     fields: {
       "发布时间": "HUMI_WECHAT_PUBLISH_TIME",
       "发布人": "HUMI_WECHAT_PUBLISHER",
-      "发布版本": "constant:1.1.61",
+      "发布版本": "constant:1.1.63",
       "发布状态截图位置": "HUMI_WECHAT_PUBLISH_SCREENSHOT",
       "首次真机验证设备": "HUMI_WECHAT_P0_DEVICE",
       "是否需要回滚/暂停扩散": "HUMI_WECHAT_ROLLBACK_STATUS",

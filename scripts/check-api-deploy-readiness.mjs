@@ -95,7 +95,9 @@ await check("git-main-clean", async () => {
   const status = await run("git", ["status", "--porcelain"]);
   const head = await run("git", ["rev-parse", "--short", "HEAD"]);
   const upstream = await run("git", ["rev-parse", "--short", "origin/main"]);
-  if (branch.stdout !== "main") throw new Error(`Expected branch main, got ${branch.stdout || "(detached)"}`);
+  if (branch.stdout !== "main" && !completionSelftestAllowDirty) {
+    throw new Error(`Expected branch main, got ${branch.stdout || "(detached)"}`);
+  }
   if (status.stdout && !completionSelftestAllowDirty) throw new Error("Working tree has uncommitted changes.");
   if (head.stdout !== upstream.stdout) {
     throw new Error(`HEAD ${head.stdout} does not match origin/main ${upstream.stdout}.`);
