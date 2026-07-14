@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure` |
 | API 部署提交 | `2c53017c` |
-| GitHub Pages deployment | `29334784527` / success / merge `88a70abe` |
+| GitHub Pages deployment | `29337705997` / success / merge `470250d` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.61` |
@@ -48,6 +48,9 @@
 | 2026-07-14 | codex@mbp-m5pro | PR #4 / GitHub Pages | 通过 | PR #4 合并为 `88a70abe`；Pages run `29334784527` success；修复未登录 Supabase 埋点 400 |
 | 2026-07-14 | codex@mbp-m5pro | production product/collaboration smoke | 通过 | 产品入口与三类游客协作全部通过，HTTP/页面错误为 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T130324Z` |
 | 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload | 通过 | `1.1.60` / `核心菜单与家庭协作验收版` / package `20.1 KB` / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.60` |
+| 2026-07-14 | codex@mbp-m5pro | PR #5 / #6 / #7 / GitHub Pages | 通过 | 当前 `main` 为 `470250d`；Pages run `29337705997` success；补充旧自动早餐/午餐记录无损迁移并准备 `1.1.61` |
+| 2026-07-14 | codex@mbp-m5pro | production migration/product smoke | 通过 | 旧自动紫菜蛋花汤记录被清理，晚餐和明确手选保留；产品入口全量 smoke 页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T134729Z` |
+| 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.61` / `核心菜单与家庭协作验收版` / package `20.1 KB` / DevTools `h5v=1.1.61` / Errors 0 / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.61` |
 
 ## 3. 生产 API 补部署证据
 
