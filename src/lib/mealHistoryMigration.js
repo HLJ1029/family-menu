@@ -1,5 +1,6 @@
 const LEGACY_AUTOMATIC_RECIPE_ID = "seaweed-egg-soup";
 const LEGACY_AUTOMATIC_MEAL_CUTOFF_MS = Date.parse("2026-07-14T12:53:09.000Z");
+const LEGACY_AUTOMATIC_MEAL_CUTOFF_DATE = "2026-07-14";
 const LEGACY_AUTOMATIC_MEAL_SLOTS = ["breakfast", "lunch"];
 
 export function migrateLegacyAutomaticMealSelections({ mealPlan = {}, mealLogs = {} } = {}) {
@@ -7,10 +8,19 @@ export function migrateLegacyAutomaticMealSelections({ mealPlan = {}, mealLogs =
   const nextMealLogs = { ...(mealLogs ?? {}) };
   const removed = [];
 
-  Object.entries(mealLogs ?? {}).forEach(([dateKey, dayLog]) => {
-    const legacySlots = LEGACY_AUTOMATIC_MEAL_SLOTS.filter((slotId) => (
-      isLegacyAutomaticMealSlot(dayLog?.meals?.[slotId])
-    ));
+  const dateKeys = new Set([
+    ...Object.keys(mealPlan ?? {}),
+    ...Object.keys(mealLogs ?? {}),
+  ]);
+
+  dateKeys.forEach((dateKey) => {
+    const dayLog = mealLogs?.[dateKey];
+    const dayPlan = mealPlan?.[dateKey];
+    const legacySlots = LEGACY_AUTOMATIC_MEAL_SLOTS.filter((slotId) => {
+      const slotLog = dayLog?.meals?.[slotId];
+      return isLegacyAutomaticMealSlot(slotLog)
+        || isLegacyPlanOnlyMealSlot({ dateKey, entries: dayPlan?.[slotId], slotLog });
+    });
     if (legacySlots.length === 0) return;
 
     const nextMeals = { ...(dayLog?.meals ?? {}) };
@@ -31,7 +41,6 @@ export function migrateLegacyAutomaticMealSelections({ mealPlan = {}, mealLogs =
       delete nextMealLogs[dateKey];
     }
 
-    const dayPlan = mealPlan?.[dateKey];
     if (!dayPlan) return;
     const nextDayPlan = { ...dayPlan };
     legacySlots.forEach((slotId) => {
@@ -47,6 +56,12 @@ export function migrateLegacyAutomaticMealSelections({ mealPlan = {}, mealLogs =
     changed: removed.length > 0,
     removed,
   };
+}
+
+function isLegacyPlanOnlyMealSlot({ dateKey, entries, slotLog }) {
+  return dateKey < LEGACY_AUTOMATIC_MEAL_CUTOFF_DATE
+    && !slotLog
+    && isSingleLegacyRecipe(entries);
 }
 
 function isLegacyAutomaticMealSlot(slot) {

@@ -53,6 +53,40 @@ assert.deepEqual(migrated.mealPlan["2026-07-01"].dinner, [dinnerEntry]);
 assert.equal(migrated.mealLogs["2026-07-01"].meals, undefined);
 assert.equal(migrated.mealLogs["2026-07-01"].confirmation, "all");
 
+const realStoredPlanWithoutLegacyLogs = {
+  mealPlan: {
+    "2026-07-01": {
+      breakfast: [soupEntry],
+      lunch: [{ ...soupEntry, quantity: 2 }],
+      dinner: [dinnerEntry],
+    },
+    "2026-07-14": {
+      breakfast: [{ recipeId: "preserved-egg-pork-congee", quantity: 1 }],
+      lunch: [],
+      dinner: [],
+    },
+  },
+  mealLogs: {
+    "2026-07-14": {
+      meals: {
+        breakfast: {
+          source: "home",
+          selectionMode: "explicit",
+          consumedEntries: [],
+          quickRecordedAt: explicitSelectionTimestamp,
+        },
+      },
+    },
+  },
+};
+const migratedRealStoredPlan = migrateLegacyAutomaticMealSelections(realStoredPlanWithoutLegacyLogs);
+assert.equal(migratedRealStoredPlan.changed, true);
+assert.deepEqual(migratedRealStoredPlan.removed.map(({ slotId }) => slotId), ["breakfast", "lunch"]);
+assert.deepEqual(migratedRealStoredPlan.mealPlan["2026-07-01"].breakfast, []);
+assert.deepEqual(migratedRealStoredPlan.mealPlan["2026-07-01"].lunch, []);
+assert.deepEqual(migratedRealStoredPlan.mealPlan["2026-07-01"].dinner, [dinnerEntry]);
+assert.deepEqual(migratedRealStoredPlan.mealPlan["2026-07-14"], realStoredPlanWithoutLegacyLogs.mealPlan["2026-07-14"]);
+
 const explicitSelection = {
   mealPlan: { "2026-07-14": { breakfast: [soupEntry], lunch: [], dinner: [] } },
   mealLogs: {
