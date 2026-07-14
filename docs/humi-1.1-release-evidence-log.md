@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure` |
 | API 部署提交 | `2c53017c` |
-| GitHub Pages deployment | 已记录 `29343259367` / success / PR #14 merge `864e8c8` |
+| GitHub Pages deployment | 已记录 `29345223275` / success / PR #16 merge `4e6119d` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.64` |
-| 小程序描述 | `清理旧自动餐次记录` |
+| 小程序版本 | `1.1.65` |
+| 小程序描述 | `增加首屏白屏兜底` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 生产 H5/API 已部署、小程序 `1.1.64` 候选已上传；遗漏的旧计划单独记录已完成迁移并通过 WebView/线上自动化复验，等待用户手机复验，尚未提交微信审核 |
+| 当前状态 | 生产 H5/API 已部署、小程序 `1.1.65` 候选已上传；HTML 预启动加载页已消除主脚本加载失败时的纯白屏，并通过生产失败注入、DevTools 和线上自动化复验，等待用户手机复验，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -59,6 +59,10 @@
 | 2026-07-14 | codex@mbp-m5pro | PR #14 / GitHub Pages | 通过 | PR #14 merge `864e8c8`；Pages run `29343259367` success；迁移范围扩展到仅存在于 `meal-plan`、没有对应 `meal-log` 的旧自动早餐/午餐记录，晚餐与当前明确手选记录保留 |
 | 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.64` / `清理旧自动餐次记录` / package `21.6 KB` / DevTools 打开 `h5v=1.1.64`、旧早餐/午餐消失、有效晚餐和当前手选早餐保留、Errors 0；preview QR SHA-256 `f62171d0254f20b66aed3d1d4a8389fac4a53ab358685051b9dd79be2cec19da`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.64` |
 | 2026-07-14 | codex@mbp-m5pro | production monitor / product smoke | 通过 | H5/API/recommend HTTP 200；138 道菜库、三餐手选、清单、征集、成员权限、多家庭全部通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T150831Z` |
+| 2026-07-14 | codex@mbp-m5pro | PR #16 / GitHub Pages | 通过 | PR #16 merge `4e6119d`；Pages run `29345223275` success；H5 在 React 启动前直接渲染品牌加载页，主脚本失败 6 秒后显示重新加载；`validate:h5-entry` 已进入发布状态工程门禁 |
+| 2026-07-14 | codex@mbp-m5pro | production WeChat-UA failure injection | 通过 | 生产 `www.humi-home.com` 主脚本被主动阻断后仍显示 Humi 加载页与重新加载，不出现纯白屏；证据 `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.65/production-wechat-main-script-failed.png` |
+| 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.65` / `增加首屏白屏兜底` / package `21.6 KB` / DevTools 打开 `h5v=1.1.65`、业务页面可见、原生错误页未触发、Errors 0；preview QR SHA-256 `ad717a104f4d110363fcaea4f8fbd88a27b7866cbca4c0a29e1d26a28075bf9c`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.65` |
+| 2026-07-14 | codex@mbp-m5pro | production monitor / product smoke | 通过 | H5/API/recommend HTTP 200；138 道菜库、三餐手选、清单、征集、成员权限、多家庭全部通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T152840Z` |
 
 ## 3. 生产 API 补部署证据
 
@@ -97,14 +101,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.64` |
+| 提交版本 | `1.1.65` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.64` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.65` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -132,7 +136,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.64` |
+| 发布版本 | `1.1.65` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

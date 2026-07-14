@@ -4,7 +4,7 @@
 
 本文档是 Humi 小程序 WebView MVP 的历史执行基线。1.1 当前收口、阻塞项和下一步以 `npm run release:next`、`npm run release:closure`、`docs/humi-1.1-pre-review-hardening.md` 和 `docs/humi-1.1-spec-acceptance-audit.md` 为准；本文件中较早日期的 checklist 仅作为历史背景，不再单独作为当前提审门禁。
 
-当前状态（2026-07-14）：小程序 `1.1.64`（`清理旧自动餐次记录`）已通过微信开发者工具 CLI 上传；生产 H5/API 在线，线上产品与游客协作 smoke 通过且页面错误为 0。当前不直接提交审核，先完成真实微信核心菜单、征集分享和买菜协作验收；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本同步记录继续保留在本文后半部分。
+当前状态（2026-07-14）：小程序 `1.1.65`（`增加首屏白屏兜底`）已通过微信开发者工具 CLI 上传；生产 H5/API 在线，线上产品与游客协作 smoke 通过且页面错误为 0。当前不直接提交审核，先完成真实微信核心菜单、征集分享和买菜协作验收；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本同步记录继续保留在本文后半部分。
 
 ## 1. 首发结论
 

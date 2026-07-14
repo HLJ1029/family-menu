@@ -12,7 +12,7 @@
 - 当前线上 H5：`https://www.humi-home.com/`
 - 当前已审计内容提交：`cb5c15d`（API 部署预检已支持显式 SSH key）。
 - 最新 GitHub Pages：run `28628986271` / success / `npm run release:check:online` 已通过。
-- 最新小程序上传：`1.1.64` / `清理旧自动餐次记录`。生产 API 已部署合并基线 `2c53017c`，备份 `/opt/humi/backups/20260714T124938Z`；后续候选继续按本 runbook 先备份再同步。
+- 最新小程序上传：`1.1.65` / `增加首屏白屏兜底`。生产 API 已部署合并基线 `2c53017c`，备份 `/opt/humi/backups/20260714T124938Z`；后续候选继续按本 runbook 先备份再同步。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
