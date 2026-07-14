@@ -44,6 +44,11 @@ try {
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
   });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      pageErrors.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  });
 
   await page.route("**/state", async (route) => {
     const request = route.request();
@@ -708,6 +713,11 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
   });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      pageErrors.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  });
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
@@ -1010,6 +1020,11 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      pageErrors.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
   });
   await page.addInitScript(() => {
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
