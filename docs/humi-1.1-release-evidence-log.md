@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure` |
 | API 部署提交 | `2c53017c` |
-| GitHub Pages deployment | 已记录 `29341674107` / success / PR #12 merge `ed18b76` |
+| GitHub Pages deployment | 已记录 `29343259367` / success / PR #14 merge `864e8c8` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.63` |
-| 小程序描述 | `修复真机存量数据白屏` |
+| 小程序版本 | `1.1.64` |
+| 小程序描述 | `清理旧自动餐次记录` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 生产 H5/API 已部署、小程序 `1.1.63` 候选已上传；真机白屏根因已修复并通过 WebView/线上自动化复验，等待用户手机复验，尚未提交微信审核 |
+| 当前状态 | 生产 H5/API 已部署、小程序 `1.1.64` 候选已上传；遗漏的旧计划单独记录已完成迁移并通过 WebView/线上自动化复验，等待用户手机复验，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -56,6 +56,9 @@
 | 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.63` / `修复真机存量数据白屏` / package `21.6 KB` / DevTools 保留旧数据打开 `h5v=1.1.63` / Errors 0 / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.63` |
 | 2026-07-14 | codex@mbp-m5pro | production product/collaboration smoke | 通过 | 138 道完整菜品库、已安排置顶、早餐/午餐先选后记、菜单/清单/征集/成员权限/多家庭与三类游客协作全部通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T142606Z` |
 | 2026-07-14 | codex@mbp-m5pro | PR #12 / GitHub Pages / CLI re-upload | 通过 | PR #12 merge `ed18b76`；Pages run `29341674107` success；`1.1.63` 从该主线基线覆盖上传，package `21.6 KB`；新 preview QR 保存在原私有证据目录 |
+| 2026-07-14 | codex@mbp-m5pro | PR #14 / GitHub Pages | 通过 | PR #14 merge `864e8c8`；Pages run `29343259367` success；迁移范围扩展到仅存在于 `meal-plan`、没有对应 `meal-log` 的旧自动早餐/午餐记录，晚餐与当前明确手选记录保留 |
+| 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.64` / `清理旧自动餐次记录` / package `21.6 KB` / DevTools 打开 `h5v=1.1.64`、旧早餐/午餐消失、有效晚餐和当前手选早餐保留、Errors 0；preview QR SHA-256 `f62171d0254f20b66aed3d1d4a8389fac4a53ab358685051b9dd79be2cec19da`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.64` |
+| 2026-07-14 | codex@mbp-m5pro | production monitor / product smoke | 通过 | H5/API/recommend HTTP 200；138 道菜库、三餐手选、清单、征集、成员权限、多家庭全部通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T150831Z` |
 
 ## 3. 生产 API 补部署证据
 
@@ -94,14 +97,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.63` |
+| 提交版本 | `1.1.64` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.63` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.64` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -129,7 +132,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.63` |
+| 发布版本 | `1.1.64` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |
