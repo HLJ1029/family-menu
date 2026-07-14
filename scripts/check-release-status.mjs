@@ -353,7 +353,7 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: "1.1.60",
+    miniProgramUploadedVersion: "1.1.61",
     miniProgramUploadDescription: "核心菜单与家庭协作验收版",
   },
   requiredArtifacts: artifacts,
