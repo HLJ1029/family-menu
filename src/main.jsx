@@ -37,6 +37,7 @@ import {
   mealSlotIds,
   mealSlots,
   normalizeMealEntries,
+  normalizeMealLogs,
   normalizeMealPlan,
   removeMealEntry,
   upsertMealEntry,
@@ -151,15 +152,21 @@ function App() {
   const [libraryParentLabel, setLibraryParentLabel] = useState("今晚菜单");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
-  const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
+  const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", [], {
+    normalize: normalizeMealEntries,
+  });
   const [weekPlan, setWeekPlan] = useLocalStorageState("family-menu:week-plan", createDefaultWeekPlan);
-  const [mealPlan, setMealPlan] = useLocalStorageState("humi:meal-plan:v1", () => ({}));
+  const [mealPlan, setMealPlan] = useLocalStorageState("humi:meal-plan:v1", () => ({}), {
+    normalize: normalizeMealPlan,
+  });
   const [activeWeekKey, setActiveWeekKey] = useLocalStorageState("family-menu:active-week-key", null);
   const [mealCalendar, setMealCalendar] = useLocalStorageState(
     "family-menu:meal-calendar",
     createInitialMealCalendar,
   );
-  const [mealLogs, setMealLogs] = useLocalStorageState("family-menu:meal-logs:v1", {});
+  const [mealLogs, setMealLogs] = useLocalStorageState("family-menu:meal-logs:v1", {}, {
+    normalize: normalizeMealLogs,
+  });
   const [checkedItems, setCheckedItems] = useLocalStorageState("family-menu:checked-items", {});
   const [groceryClaims, setGroceryClaims] = useLocalStorageState("humi:grocery-claims:v1", {});
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
@@ -2699,10 +2706,10 @@ function App() {
     );
     const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
     setMealPlan(loadedMealPlan);
-    setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
+    setTodayMenu(todayDinner.length > 0 ? todayDinner : normalizeMealEntries(state.todayMenu));
     setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
     setMealCalendar(mealPlanToCalendar(loadedMealPlan));
-    setMealLogs(state.mealLogs ?? {});
+    setMealLogs(normalizeMealLogs(state.mealLogs));
     setCheckedItems(state.checkedItems ?? {});
     setGroceryClaims(state.groceryClaims ?? {});
     setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
@@ -3753,7 +3760,7 @@ function buildBreakfastChoices(mealLogs = {}) {
   const recentRecipeIds = Object.entries(mealLogs)
     .sort(([left], [right]) => right.localeCompare(left))
     .flatMap(([, log]) => log?.meals?.breakfast?.consumedEntries ?? [])
-    .map((entry) => entry.recipeId)
+    .map((entry) => entry?.recipeId)
     .filter(Boolean);
   const quickBreakfastRecipeIds = recipes
     .filter((recipe) => recipe.categories.includes("早餐"))
@@ -3883,4 +3890,43 @@ function createHumiSessionFamily(humiSession) {
   };
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Humi failed to render", error, info);
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <main className="grid min-h-screen place-items-center bg-canvas px-6 text-ink">
+        <section className="w-full max-w-sm">
+          <p className="text-sm font-black">Humi</p>
+          <h1 className="mt-8 text-4xl font-black tracking-normal">页面没有正常打开。</h1>
+          <p className="mt-4 text-sm font-bold leading-7 text-ink/55">本机记录没有丢失，请重新加载一次。</p>
+          <button
+            type="button"
+            className="mt-8 min-h-14 w-full rounded-full bg-ink px-6 text-base font-black text-white"
+            onClick={() => window.location.reload()}
+          >
+            重新加载
+          </button>
+        </section>
+      </main>
+    );
+  }
+}
+
+createRoot(document.getElementById("root")).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>,
+);
