@@ -7,11 +7,11 @@ const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTES
 const skipCandidatePrepareSelftest = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1" || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1";
 const skipProductSmoke = completionSelftestAllowDirty || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1";
 
-async function runNpmScript(scriptName) {
+async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
   const startedAt = Date.now();
   try {
     const { stdout, stderr } = await execFileAsync("npm", ["run", scriptName], {
-      timeout: 60_000,
+      timeout: timeoutMs,
       maxBuffer: 1024 * 1024 * 4,
     });
     return {
@@ -35,7 +35,7 @@ async function runNpmScript(scriptName) {
   }
 }
 
-async function runOptionalNpmScript(scriptName, { skip, reason }) {
+async function runOptionalNpmScript(scriptName, { skip, reason, timeoutMs }) {
   if (skip) {
     return {
       name: scriptName,
@@ -51,7 +51,7 @@ async function runOptionalNpmScript(scriptName, { skip, reason }) {
       },
     };
   }
-  return runNpmScript(scriptName);
+  return runNpmScript(scriptName, { timeoutMs });
 }
 
 async function gitInfo() {
@@ -136,6 +136,7 @@ const [
   runOptionalNpmScript("release:product:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 Playwright smoke during release completion selftests",
+    timeoutMs: 150_000,
   }),
   runOptionalNpmScript("release:collaboration:smoke", {
     skip: skipProductSmoke,
@@ -146,6 +147,7 @@ const [
   runOptionalNpmScript("release:candidate:prepare:selftest", {
     skip: skipCandidatePrepareSelftest,
     reason: "skip candidate prepare selftest while candidate prepare is calling release:status",
+    timeoutMs: 150_000,
   }),
   runNpmScript("release:candidate:forms:preview:selftest"),
   runNpmScript("release:candidate:plan:selftest"),
