@@ -102,6 +102,7 @@ const [
   securityAudit,
   docsFreshness,
   paletteValidation,
+  h5EntrypointValidation,
   productReview,
   productSmoke,
   collaborationSmoke,
@@ -132,6 +133,7 @@ const [
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
   runNpmScript("validate:palette"),
+  runNpmScript("validate:h5-entry", { timeoutMs: 30_000 }),
   runNpmScript("release:product:review"),
   runOptionalNpmScript("release:product:smoke", {
     skip: skipProductSmoke,
@@ -177,6 +179,7 @@ const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
 const paletteValidationOk = paletteValidation.ok;
+const h5EntrypointValidationOk = h5EntrypointValidation.ok;
 const productReviewOk = productReview.ok;
 const productSmokeOk = productSmoke.ok;
 const collaborationSmokeOk = collaborationSmoke.ok;
@@ -199,7 +202,7 @@ const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && paletteValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && paletteValidationOk && h5EntrypointValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
@@ -223,6 +226,9 @@ if (!docsFreshnessOk) {
 }
 if (!paletteValidationOk) {
   nextActions.push("Remove non-neutral UI colors before treating the 1.1 design system as closed.");
+}
+if (!h5EntrypointValidationOk) {
+  nextActions.push("Fix validate:h5-entry failures before relying on the Mini Program WebView first screen.");
 }
 if (!productReviewOk) {
   nextActions.push("Fix release:product:review failures before claiming the 1.1 product review anchors are covered.");
@@ -328,6 +334,7 @@ console.log(JSON.stringify({
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
     neutralPaletteReady: paletteValidationOk,
+    h5EntrypointReady: h5EntrypointValidationOk,
     engineeringGatesReady,
     productReviewReady: productReviewOk,
     productSmokeReady: productSmokeOk,
@@ -367,6 +374,7 @@ console.log(JSON.stringify({
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
     summarizeCheck(paletteValidation),
+    summarizeCheck(h5EntrypointValidation),
     summarizeCheck(productReview),
     summarizeCheck(productSmoke),
     summarizeCheck(collaborationSmoke),

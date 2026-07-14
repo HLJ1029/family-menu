@@ -104,6 +104,8 @@ async function main() {
 
   assertContains("miniprogram/utils/config.js", "https://www.humi-home.com/?channel=wechat-miniprogram");
   assertContains("miniprogram/utils/config.js", "https://api.humi-home.com");
+  assertContains("index.html", "id=\"humi-boot-fallback\"");
+  assertContains("index.html", "humi-boot-fallback__retry");
   checkWechatLoginRequired();
   checkMiniProgramConfig();
   checkWechatDomainVerification();
