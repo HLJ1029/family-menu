@@ -12,7 +12,7 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure` |
 | API 部署提交 | `2c53017c` |
-| GitHub Pages deployment | `29340371940` / success / merge `de0b4d8` |
+| GitHub Pages deployment | 已记录 `29341674107` / success / PR #12 merge `ed18b76` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.63` |
@@ -55,6 +55,7 @@
 | 2026-07-14 | codex@mbp-m5pro | PR #10 / #11 / GitHub Pages | 通过 | 壳层单次挂载与错误重试 merge `555d7ad`；存量餐次清洗与 React 恢复页 merge `de0b4d8`；Pages run `29340371940` success |
 | 2026-07-14 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.63` / `修复真机存量数据白屏` / package `21.6 KB` / DevTools 保留旧数据打开 `h5v=1.1.63` / Errors 0 / private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.63` |
 | 2026-07-14 | codex@mbp-m5pro | production product/collaboration smoke | 通过 | 138 道完整菜品库、已安排置顶、早餐/午餐先选后记、菜单/清单/征集/成员权限/多家庭与三类游客协作全部通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260714T142606Z` |
+| 2026-07-14 | codex@mbp-m5pro | PR #12 / GitHub Pages / CLI re-upload | 通过 | PR #12 merge `ed18b76`；Pages run `29341674107` success；`1.1.63` 从该主线基线覆盖上传，package `21.6 KB`；新 preview QR 保存在原私有证据目录 |
 
 ## 3. 生产 API 补部署证据
 
