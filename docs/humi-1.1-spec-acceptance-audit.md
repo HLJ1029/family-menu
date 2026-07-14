@@ -71,7 +71,7 @@
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请免登录丢想吃且先展示价值后登录，并确认不会自动发起微信登录 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery` | 已完成 | `miniprogram/pages/index/index.js` 与 H5 落地页组件覆盖三类 token |
-| 清单分享与感觉征集确实唤起小程序原生分享页 | 已完成 | `release:product:smoke` 模拟 `wx.miniProgram`，点击验证 `postMessage` 与 `/pages/share/index?type=grocery|crave` 两个动作 |
+| 清单分享、感觉征集与家庭邀请确实唤起小程序原生分享页 | 已完成 | `miniProgramShare.js` 以原生 `navigateTo` 成功/失败回调为准，不再把缺少跳转能力误报为“已打开”；`validate:share-bridge` 覆盖三类子页、缺失能力、失败、异常与无 token，`release:product:smoke` 覆盖入口点击 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
 | 发布材料去除旧“首页/周计划/库存管理”主路径口径 | 已完成 | `docs/miniprogram-launch-readiness.md`、`docs/launch-day-runbook.md`、`docs/miniprogram-review-materials.md` 已更新为 1.1 三 tab 口径 |
 

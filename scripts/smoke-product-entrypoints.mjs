@@ -35,6 +35,7 @@ try {
         },
         navigateTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
+          payload.success?.({ errMsg: "navigateTo:ok" });
         },
       },
     };
@@ -592,6 +593,7 @@ async function installMiniProgramMock(page) {
       },
       navigateTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
+        payload.success?.({ errMsg: "navigateTo:ok" });
       },
     };
   });

@@ -235,6 +235,25 @@ const REQUIRED_CHECKS = [
     evidenceRequired: ["VNRecognizeTextRequest", "recognitionLanguages", "zh-Hans"],
   },
   {
+    key: "native-share-navigation-is-truthful",
+    title: "小程序分享只在原生子页面真实打开后报告成功",
+    path: "src/lib/miniProgramShare.js",
+    required: [
+      "typeof miniProgram?.navigateTo !== \"function\"",
+      "success: () => finish(true)",
+      "fail: () => finish(false)",
+      "buildMiniProgramShareUrl",
+    ],
+    evidence: "scripts/check-mini-program-share-bridge.mjs",
+    evidenceRequired: [
+      "missing-navigation-does-not-report-success",
+      "navigation-failure-does-not-report-success",
+      "crave-opens-native-share-page",
+      "grocery-opens-native-share-page-with-item-count",
+      "invite-opens-native-share-page",
+    ],
+  },
+  {
     key: "review-confirmation-gate",
     title: "微信审核动作必须显式确认",
     path: "scripts/prepare-wechat-submit-workspace.mjs",

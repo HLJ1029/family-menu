@@ -74,6 +74,11 @@ import {
   switchHumiHousehold,
 } from "./lib/humiApi";
 import { getLaunchChannel } from "./lib/runtime";
+import {
+  openCraveMiniProgramShare,
+  openGroceryMiniProgramShare,
+  openHouseholdInviteMiniProgramShare,
+} from "./lib/miniProgramShare";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
@@ -1099,7 +1104,7 @@ function App() {
       if (request?.token) {
         createdShareRequest = true;
         createdRequest = request;
-        postCraveShareToMiniProgram({
+        const openedMiniProgramShare = await openCraveMiniProgramShare({
           token: request.token,
           householdName: request.householdName,
           initiatorName: request.initiatorName,
@@ -1123,7 +1128,9 @@ function App() {
           },
           ...current.filter((item) => item.token !== request.token),
         ].slice(0, 24));
-        showNotice("邀请卡片已准备好，请点右上角分享");
+        showNotice(openedMiniProgramShare
+          ? "已打开原生分享页"
+          : "征集单已生成，可在 Humi 内继续查看和分享");
       }
     } catch (error) {
       showNotice(error.message || "协作链接暂时没生成成功");
@@ -1230,20 +1237,20 @@ function App() {
     }
   }
 
-  function copyCraveLink() {
+  async function copyCraveLink() {
     if (!requireHouseholdOwnerAction()) return;
     if (!activeCraveRequest?.token) return;
     const url = new URL(window.location.href);
     url.search = "";
     url.searchParams.set("crave", activeCraveRequest.token);
     navigator.clipboard?.writeText(url.toString());
-    const openedMiniProgramShare = postCraveShareToMiniProgram({
+    const openedMiniProgramShare = await openCraveMiniProgramShare({
       token: activeCraveRequest.token,
       householdName: activeCraveRequest.householdName || family?.name || familyName || "我家",
       initiatorName: activeCraveRequest.initiatorName || displaySession?.user?.displayName || "主厨",
       title: `${activeCraveRequest.householdName || family?.name || familyName || "我家"}今晚征集口味，点一下就行`,
     });
-    showNotice(openedMiniProgramShare ? "已打开小程序分享卡片" : "邀请链接已复制，小程序分享卡片也已准备好");
+    showNotice(openedMiniProgramShare ? "已打开原生分享页" : "邀请链接已复制");
   }
 
   function generateFromCraveRequest(options = {}) {
@@ -2130,7 +2137,7 @@ function App() {
             })),
           ],
       });
-      if (data.share?.token && postGroceryShareToMiniProgram(data.share)) {
+      if (data.share?.token && await openGroceryMiniProgramShare(data.share)) {
         showNotice("已打开买菜分享卡片");
         return;
       }
@@ -2851,12 +2858,18 @@ function App() {
       });
       if (data.invite?.token) {
         setActiveHouseholdInvite(data.invite);
-        const openedMiniProgramShare = postHouseholdInviteShareToMiniProgram(data.invite);
-        showNotice(openedMiniProgramShare ? "已打开家庭邀请卡片" : "家庭邀请卡片已准备好，请点右上角分享");
+        const openedMiniProgramShare = await openHouseholdInviteMiniProgramShare(data.invite);
+        showNotice(openedMiniProgramShare ? "已打开家庭邀请卡片" : "家庭邀请已生成，可稍后重试分享");
       }
     } catch (error) {
       showNotice(error.message || "家庭邀请暂时没生成成功");
     }
+  }
+
+  async function shareActiveFamilyInviteCard() {
+    if (!activeHouseholdInvite?.token) return;
+    const openedMiniProgramShare = await openHouseholdInviteMiniProgramShare(activeHouseholdInvite);
+    showNotice(openedMiniProgramShare ? "已打开家庭邀请卡片" : "暂时无法打开分享页，请稍后重试");
   }
 
   async function migrateGroceryToCloud() {
@@ -3441,7 +3454,7 @@ function App() {
                 onSwitchHousehold={switchActiveHumiHousehold}
                 activeHouseholdInvite={activeHouseholdInvite}
                 onCreateHouseholdInvite={createFamilyInviteCard}
-                onShareHouseholdInvite={() => activeHouseholdInvite && postHouseholdInviteShareToMiniProgram(activeHouseholdInvite)}
+                onShareHouseholdInvite={shareActiveFamilyInviteCard}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
                 onOpenRecipeLibrary={() => openFullRecipeLibrary("我的家")}
@@ -3538,71 +3551,6 @@ function clearGroceryShareTokenFromUrl() {
   const url = new URL(window.location.href);
   url.searchParams.delete("grocery");
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function postCraveShareToMiniProgram(payload) {
-  if (typeof window === "undefined") return false;
-  const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({
-    data: {
-      type: "humi:share-crave",
-      ...payload,
-      requestedAt: Date.now(),
-    },
-  });
-  return navigateToMiniProgramShare("crave", payload);
-}
-
-function postHouseholdInviteShareToMiniProgram(payload) {
-  if (typeof window === "undefined") return false;
-  const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({
-    data: {
-      type: "humi:share-household-invite",
-      token: payload.token,
-      householdName: payload.householdName || "我的家",
-      inviterName: payload.inviterName || "主厨",
-      requestedAt: Date.now(),
-    },
-  });
-  return navigateToMiniProgramShare("invite", payload);
-}
-
-function postGroceryShareToMiniProgram(payload) {
-  if (typeof window === "undefined") return false;
-  const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({
-    data: {
-      type: "humi:share-grocery",
-      token: payload.token,
-      householdName: payload.householdName || "我家",
-      initiatorName: payload.initiatorName || "主厨",
-      itemCount: Array.isArray(payload.items) ? payload.items.length : 0,
-      requestedAt: Date.now(),
-    },
-  });
-  return navigateToMiniProgramShare("grocery", {
-    ...payload,
-    itemCount: Array.isArray(payload.items) ? payload.items.length : 0,
-  });
-}
-
-function navigateToMiniProgramShare(type, payload = {}) {
-  const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.navigateTo) return true;
-  const params = new URLSearchParams();
-  params.set("type", type);
-  params.set("token", payload.token || "");
-  if (payload.householdName) params.set("householdName", payload.householdName);
-  if (payload.initiatorName) params.set("initiatorName", payload.initiatorName);
-  if (payload.inviterName) params.set("inviterName", payload.inviterName);
-  if (payload.title) params.set("title", payload.title);
-  if (payload.itemCount !== undefined) params.set("itemCount", String(payload.itemCount));
-  miniProgram.navigateTo({ url: `/pages/share/index?${params.toString()}` });
-  return true;
 }
 
 function getGroceryClaimActor({ humiSession, family }) {

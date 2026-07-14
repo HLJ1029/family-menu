@@ -11,6 +11,7 @@
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、三张直达原生分享确认页二维码和三张微信原生 card 图缺口。
 - `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据和微信审核显式确认护栏。
+- `npm run validate:share-bridge` 会验证征集、家庭邀请、买菜清单三类入口只有在原生分享子页真实打开后才报告成功，并覆盖缺少桥接、跳转失败、异常和无 token。
 - `npm run release:spec:audit` 会逐项核对 70 个需求 ID，并分别输出台账完整性、本地实现完成度与当前候选收口状态；付费决策或原生分享证据未完成时必须保持 `specClosureReady=false`。
 - `docs/humi-1.1-requirement-ledger.md` 是逐项台账，区分已完成功能、待用户决策的支付范围和验收后才能做的外部动作。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”，不自动推动平台提交。
