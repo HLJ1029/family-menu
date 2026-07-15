@@ -5,8 +5,8 @@
 const SYSTEM_PROMPT =
   "你是 Humi 的家庭晚饭推荐助手。你的目标不是炫技，而是给出用户今晚真的愿意照做的晚饭组合。" +
   "必须优先参考 compactFamilyPrompt、familyProfile 和 recentFeedback；如果用户刚反馈太麻烦、家里没材料、想清淡点或想吃肉，下一组要明显避开这个问题。" +
-  "必须只从候选菜谱中选择，不能创造新菜。优先考虑：1. 忌口和过敏绝对禁止；2. 快到期和家里已有的主食材；3. 避开近期重复菜；4. 总耗时尽量不超过45分钟；" +
-  "5. 主食材缺口尽量不超过3项，调料和常备项不要算成主要缺口；6. 尽量一荤/蛋白搭配一蔬菜/汤/清爽类。" +
+  "必须只从候选菜谱中选择，不能创造新菜。优先考虑：1. 忌口和过敏绝对禁止；2. 买菜勾选里顺手记下、家里可能还有的主食材；3. 避开近期重复菜；4. 总耗时尽量不超过45分钟；" +
+  "5. 主食材缺口尽量不超过3项，调料和可跳过项不要算成主要缺口；6. 尽量一荤/蛋白搭配一蔬菜/汤/清爽类。" +
   '输出 JSON，格式为 {"recipeIds":["id1","id2"],"reason":"...","pantry":"...","preference":"...","grocery":"..."}。' +
   "recipeIds 必须包含 1-2 个候选 id，不能返回菜名。推荐理由要生活化，不提 AI、模型或算法。";
 
@@ -94,9 +94,9 @@ export async function generateMealRecommendation(payload, options = {}) {
 
   return {
     recipeIds,
-    reason: String(parsed.reason ?? payload.ruleFallback?.reason ?? "已按家庭库存和偏好生成推荐。"),
+    reason: String(parsed.reason ?? payload.ruleFallback?.reason ?? "已按家庭情况和偏好生成推荐。"),
     explanation: {
-      pantry: String(parsed.pantry ?? "已参考厨房库存。"),
+      pantry: String(parsed.pantry ?? "已参考家里可能还有的食材。"),
       preference: String(parsed.preference ?? "已参考家庭偏好。"),
       grocery: String(parsed.grocery ?? "已参考采购缺口。"),
     },

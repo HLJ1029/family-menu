@@ -1,0 +1,43 @@
+<view class="share-shell">
+  <view>
+    <view class="brand-row">
+      <button class="back-button" bindtap="goBack" aria-label="返回">‹</button>
+      <view class="brand-dot"></view>
+      <view class="brand-text">HUMI</view>
+    </view>
+
+    <view class="hero">
+      <view class="badge">{{badge}}</view>
+      <view class="title">{{title}}</view>
+      <view class="subtitle">{{subtitle}}</view>
+      <button class="primary-button hero-share-button" open-type="share">{{primaryLabel}}</button>
+    </view>
+
+    <view class="preview-card">
+      <view class="preview-top">
+        <view class="avatar">H</view>
+        <view>
+          <view class="preview-title">{{shareTitle}}</view>
+          <view class="preview-meta">Humi 小程序卡片</view>
+        </view>
+      </view>
+      <view class="preview-body">
+        {{previewBody}}
+      </view>
+      <view wx:if="{{previewChips.length}}" class="preview-chips">
+        <view wx:for="{{previewChips}}" wx:key="*this" class="preview-chip">{{item}}</view>
+      </view>
+      <view wx:if="{{receiptRows.length}}" class="receipt-rows">
+        <view wx:for="{{receiptRows}}" wx:key="label" class="receipt-row">
+          <view class="receipt-label">{{item.label}}</view>
+          <view class="receipt-value">{{item.value}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="actions">
+    <view class="hint">{{hint}}</view>
+    <button class="ghost-button" bindtap="openHumi">回到 Humi</button>
+  </view>
+</view>

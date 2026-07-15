@@ -2,7 +2,8 @@ import { BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket, Sparkles,
 import { buildMealInsights } from "../lib/insights";
 import { getNutritionSummary, NutritionRings } from "./CalendarPage";
 import { Card } from "./ui/Card";
-import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 import { StatBlock } from "./ui/StatsBlocks";
 
 export function StatsPage({
@@ -39,31 +40,24 @@ export function StatsPage({
   return (
     <section className="grid gap-5">
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="relative overflow-hidden rounded-[30px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <div className="absolute right-5 top-5 hidden md:block">
-            <HumiIllustrationPanel
-              variant="family-taste-talk"
-              size="md"
-              tone="dark"
-              contextKey="stats-hero"
-            />
-          </div>
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Nutrition goals</p>
+        <section className="relative overflow-hidden rounded-[30px] border border-line bg-white p-6 text-ink shadow-card md:p-8 md:pr-64">
+          <HumiScene scene="achievement" size="xl" className="absolute bottom-2 right-3 hidden md:grid" />
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/42">饮食画像</p>
           <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
             {insights.goals.label}
           </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+          <p className="mt-4 max-w-xl text-sm leading-7 text-ink/58">
             按早餐、午餐、晚餐一起做目标管理；已确认的餐次优先纳入营养目标。
           </p>
           {!insights.hasConfirmedMeals && (
-            <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
+            <p className="mt-4 inline-flex rounded-full bg-canvas px-4 py-2 text-xs font-black text-ink/62">
               样本不足，当前先用今日菜单和本周三餐计划做弱参考
             </p>
           )}
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <StatBlock label="已确认餐次" value={String(insights.confirmedMeals.length)} />
-            <StatBlock label="平均时长" value={`${averageTime} min`} />
-            <StatBlock label="待买食材" value={String(groceryItems.length)} />
+            <StatBlock label="已确认餐次" value={String(insights.confirmedMeals.length)} tone="light" />
+            <StatBlock label="平均时长" value={`${averageTime} min`} tone="light" />
+            <StatBlock label="待买食材" value={String(groceryItems.length)} tone="light" />
           </div>
         </section>
 
@@ -223,11 +217,11 @@ function ActionButton({ icon: Icon, title, text, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-ink"
+      className="group rounded-[20px] border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-ink hover:bg-ink hover:text-white"
     >
       <Icon size={20} />
       <p className="mt-3 font-black">{title}</p>
-      <p className="mt-1 text-xs font-bold text-ink/50">{text}</p>
+      <p className="mt-1 text-xs font-bold text-ink/50 group-hover:text-white/62">{text}</p>
     </button>
   );
 }

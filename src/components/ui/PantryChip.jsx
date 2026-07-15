@@ -5,7 +5,7 @@ export function PantryChip({ item, onRemove }) {
   const expiryState = getExpiryState(item.expiresOn);
   const expiryClass =
     expiryState === "expired"
-      ? "bg-rose-100 text-rose-700"
+      ? "bg-ink text-white"
       : expiryState === "soon"
         ? "bg-ink text-white"
         : "bg-canvas text-ink/45";
@@ -14,8 +14,8 @@ export function PantryChip({ item, onRemove }) {
     <button
       type="button"
       onClick={onRemove}
-      className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-ink"
-      aria-label={`从厨房库存移除 ${item.name}`}
+      className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/62 transition hover:bg-ink hover:text-white"
+      aria-label={`这次不用买 ${item.name}`}
     >
       <span>{item.name}</span>
       {item.amount && <span className="text-ink/38">{item.amount}</span>}

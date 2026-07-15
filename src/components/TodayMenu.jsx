@@ -1,19 +1,18 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, Search, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
-import { nutritionFor, recipes } from "../lib/recipes";
+import { Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { nutritionFor } from "../lib/recipes";
 import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandIllustration, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function TodayMenu({
   todayRecipes,
   groceryItems,
-  onAddToday,
   onUpdateQuantity,
   onOpenRecipe,
   onViewChange,
+  onOpenRecipeLibrary,
   cloudSync,
   onShare,
   mealLog,
@@ -22,10 +21,6 @@ export function TodayMenu({
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
 }) {
-  const [showAddPanel, setShowAddPanel] = useState(true);
-  const [quickAddPreset, setQuickAddPreset] = useState("all");
-  const addPanelRef = useRef(null);
-  const logPanelRef = useRef(null);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -42,49 +37,32 @@ export function TodayMenu({
   );
   const hasStaple = todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
 
-  function showAddPreset(preset) {
-    setShowAddPanel(true);
-    setQuickAddPreset(preset ?? "all");
-    window.setTimeout(() => {
-      addPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
-  }
-
-  function scrollToLog() {
-    logPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
-        <div className="rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
-          <div className="grid gap-5 md:grid-cols-[1fr_150px] md:items-end">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚菜单还是空的。
-              </h2>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                回到首页点“帮我安排晚饭”，Humi 会先给你凑好一组。
-              </p>
-            </div>
-            <div className="rounded-[26px] border border-line bg-canvas p-4 text-center">
-              <HumiBrandIllustration
-                variant="dinner-decision"
-                size="lg"
-                className="mx-auto"
-                title="空菜单生活场景"
-                contextKey="today-empty-menu"
-              />
-              <p className="mt-2 text-xs font-black text-ink/56">还没有安排晚饭</p>
-            </div>
+        <Card>
+          <p className="eyebrow">今晚菜单</p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">今晚可以从这里开始</h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            让 Humi 先给一组，或者直接去全部菜品挑一道。
+          </p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="min-h-12 rounded-full bg-ink px-5 text-sm font-black text-white"
+            >
+              回到今晚推荐
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenRecipeLibrary?.()}
+              className="min-h-12 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
+            >
+              自己挑菜
+            </button>
           </div>
-        </div>
-        <QuickAddRecipes
-          todayRecipes={todayRecipes}
-          onAddToday={onAddToday}
-          onOpenRecipe={onOpenRecipe}
-        />
+        </Card>
         <DinnerLogPanel
           mealLog={mealLog}
           mealLogs={mealLogs}
@@ -117,14 +95,14 @@ export function TodayMenu({
             className="absolute -bottom-6 -right-4 opacity-95"
             contextKey="today-ready-peek"
           />
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">今晚菜单</p>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚安排完成。
+              <h2 className="max-w-3xl text-3xl font-black tracking-[-0.04em] md:text-5xl">
+                {todayRecipes.map((recipe) => recipe.name).join(" + ")}
               </h2>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到本周计划。还可以继续加菜或加主食。
+              <p className="mt-3 max-w-xl text-sm font-bold leading-7 text-ink/52">
+                {todayRecipes.length} 道 · {totalDishes} 份 · 待买 {groceryItems.length} 项
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -146,70 +124,14 @@ export function TodayMenu({
               </button>
               <button
                 type="button"
-                onClick={() => showAddPreset("all")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Plus size={18} />
-                加一道菜
-              </button>
-              <button
-                type="button"
-                onClick={() => showAddPreset("staple")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Plus size={18} />
-                加主食
-              </button>
-              <button
-                type="button"
-                onClick={scrollToLog}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Utensils size={18} />
-                记录这顿
-              </button>
-              <button
-                type="button"
                 onClick={onShare}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Share2 size={18} />
-                生成海报
+                分享菜单
               </button>
             </div>
           </div>
-        </div>
-
-        {showAddPanel && (
-          <QuickAddRecipes
-            ref={addPanelRef}
-            forcedPreset={quickAddPreset}
-            todayRecipes={todayRecipes}
-            onAddToday={onAddToday}
-            onOpenRecipe={onOpenRecipe}
-          />
-        )}
-
-        <CloudInlineStatus
-          {...cloudSync}
-          localLabel="本机今晚菜单"
-          pendingLabel="今晚菜单待保存"
-          enabledLabel="已保存今晚菜单"
-          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
-        />
-
-        <div ref={logPanelRef}>
-          <DinnerLogPanel
-            mealLog={mealLog}
-            mealLogs={mealLogs}
-            onSetDinnerSource={onSetDinnerSource}
-            onSetDinnerConfirmation={onSetDinnerConfirmation}
-            onToggleConsumedRecipe={onToggleConsumedRecipe}
-            todayRecipes={todayRecipes}
-            showConfirmation
-            dinnerReady
-            onViewChange={onViewChange}
-          />
         </div>
 
         <div className="grid gap-4">
@@ -255,7 +177,7 @@ export function TodayMenu({
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(recipe.id, 1)}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-ink text-white transition hover:scale-105"
+                      className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-ink transition hover:border-ink"
                       aria-label={`增加 ${recipe.name}`}
                     >
                       <Plus size={17} />
@@ -267,9 +189,9 @@ export function TodayMenu({
                   <button
                     type="button"
                     onClick={() => onOpenRecipe(recipe.id)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
                   >
-                    <Utensils size={16} className="text-white" />
+                    <Utensils size={16} />
                     查看做法
                   </button>
                   <button
@@ -285,9 +207,35 @@ export function TodayMenu({
             </article>
           ))}
         </div>
+
+        <OpenRecipeLibraryPanel
+          hasStaple={hasStaple}
+          onOpenRecipeLibrary={onOpenRecipeLibrary}
+        />
+
+        <CloudInlineStatus
+          {...cloudSync}
+          localLabel="本机今晚菜单"
+          pendingLabel="今晚菜单待保存"
+          enabledLabel="已保存今晚菜单"
+          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
+        />
+
+        <DinnerLogPanel
+          mealLog={mealLog}
+          mealLogs={mealLogs}
+          onSetDinnerSource={onSetDinnerSource}
+          onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onToggleConsumedRecipe={onToggleConsumedRecipe}
+          todayRecipes={todayRecipes}
+          showConfirmation
+          dinnerReady
+          onViewChange={onViewChange}
+        />
+
       </div>
 
-      <aside className="grid content-start gap-5">
+      <aside className="hidden content-start gap-5 xl:grid">
         <Card>
           <p className="eyebrow">Menu summary</p>
           <h3 className="card-title">今日概览</h3>
@@ -317,167 +265,41 @@ export function TodayMenu({
   );
 }
 
-const QuickAddRecipes = forwardRef(function QuickAddRecipes({ todayRecipes, onAddToday, onOpenRecipe, forcedPreset }, ref) {
-  const [keyword, setKeyword] = useState("");
-  const [activePreset, setActivePreset] = useState("all");
-  const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
-  const hasStaple = useMemo(
-    () => todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食")),
-    [todayRecipes],
-  );
-  const stapleRecipes = useMemo(
-    () => recipes
-      .filter((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"))
-      .slice(0, 4),
-    [],
-  );
-  const visibleRecipes = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    return recipes
-      .filter((recipe) => {
-        if (activePreset === "staple" && !recipe.categories.includes("主食") && !recipe.tags?.includes("主食")) return false;
-        if (activePreset === "quick" && recipe.timeMinutes > 25) return false;
-        if (activePreset === "protein" && !recipe.categories.some((category) => ["肉类", "鱼虾", "蛋类"].includes(category))) return false;
-        if (!normalizedKeyword) return true;
-        return [
-          recipe.name,
-          recipe.description,
-          ...recipe.categories,
-          ...(recipe.tags ?? []),
-          ...recipe.ingredients.map((item) => item.name),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedKeyword);
-      })
-      .slice(0, 12);
-  }, [activePreset, keyword]);
-
-  useEffect(() => {
-    if (forcedPreset) setActivePreset(forcedPreset);
-  }, [forcedPreset]);
-
+function OpenRecipeLibraryPanel({ hasStaple, onOpenRecipeLibrary }) {
   return (
-    <section
-      ref={ref}
-      className="scroll-mt-24 rounded-[28px] border border-line bg-white p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] shadow-card md:p-5 md:pb-5"
-    >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <section className="rounded-[28px] border border-line bg-white p-4 shadow-card md:p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="eyebrow">Add dishes</p>
-          <h3 className="mt-1 text-2xl font-black">添加到今晚菜单</h3>
+          <p className="eyebrow">Dish library</p>
+          <h3 className="mt-1 text-2xl font-black">去全部菜品挑</h3>
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-ink/52">
+            菜品库会完整展示所有菜，已安排的菜会置顶，方便边看边调整。
+          </p>
         </div>
-        <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4 md:w-72">
-          <Search size={17} className="text-ink/38" />
-          <input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-ink/35"
-            placeholder="搜索菜名、食材"
-          />
-        </div>
-      </div>
-
-      {!hasStaple && stapleRecipes.length > 0 && (
-        <div className="mt-4 rounded-[22px] border border-line bg-canvas p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">Staple</p>
-              <p className="mt-1 text-sm font-black">补一个主食，营养统计会一起计入</p>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenRecipeLibrary?.()}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+          >
+            <Plus size={18} />
+            全部菜品库
+          </button>
+          {!hasStaple && (
             <button
               type="button"
-              onClick={() => setActivePreset("staple")}
-              className="shrink-0 rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
+              onClick={() => onOpenRecipeLibrary?.("主食")}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
             >
-              看主食
+              <Plus size={18} />
+              挑主食
             </button>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {stapleRecipes.map((recipe) => (
-              <button
-                key={recipe.id}
-                type="button"
-                onClick={() => onAddToday(recipe.id)}
-                className="flex min-h-12 items-center justify-between gap-3 rounded-[18px] bg-white px-3 text-left text-sm font-black transition hover:-translate-y-0.5"
-              >
-                <span className="truncate">{recipe.name}</span>
-                <span className="rounded-full bg-ink px-2.5 py-1 text-xs text-white">加入</span>
-              </button>
-            ))}
-          </div>
+          )}
         </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {[
-          ["all", "全部"],
-          ["staple", "主食"],
-          ["quick", "25分钟内"],
-          ["protein", "蛋白类"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActivePreset(id)}
-            className={`rounded-full border px-3 py-2 text-xs font-black transition ${
-              activePreset === id
-                ? "border-ink bg-ink text-white"
-                : "border-line bg-canvas text-ink/54 hover:border-ink/20 hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {visibleRecipes.map((recipe) => {
-          const inTodayMenu = todayRecipeIds.has(recipe.id);
-          return (
-            <article
-              key={recipe.id}
-              className="grid grid-cols-[76px_1fr] gap-3 rounded-[20px] border border-line bg-canvas p-2"
-            >
-              <button
-                type="button"
-                onClick={() => onOpenRecipe(recipe.id)}
-                className="overflow-hidden rounded-[16px] bg-white"
-                aria-label={`查看 ${recipe.name} 菜谱`}
-              >
-                <DishImage
-                  recipe={recipe}
-                  variant="thumb"
-                  alt=""
-                  loading="lazy"
-                  className="h-20 w-full object-cover"
-                />
-              </button>
-              <div className="min-w-0 py-1 pr-1">
-                <p className="truncate text-base font-black">{recipe.name}</p>
-                <p className="mt-1 truncate text-xs font-bold text-ink/45">
-                  {recipe.categories[0]} · {recipe.timeMinutes} min
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onAddToday(recipe.id)}
-                  className={`mt-3 inline-flex min-h-9 w-full items-center justify-center gap-1 rounded-full px-3 text-xs font-black transition ${
-                    inTodayMenu
-                      ? "border border-line bg-white text-ink hover:border-ink/20"
-                      : "bg-ink text-white hover:-translate-y-0.5"
-                  }`}
-                >
-                  <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-white"} />
-                  {inTodayMenu ? "再加一份" : "加入今晚"}
-                </button>
-              </div>
-            </article>
-          );
-        })}
       </div>
     </section>
   );
-});
+}
 
 function SummaryTile({ label, value }) {
   return (

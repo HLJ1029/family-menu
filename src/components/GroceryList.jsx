@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { BarChart3, Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
+import { Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
-import { HumiEmptyState, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 export function GroceryList({
   items,
@@ -10,36 +10,26 @@ export function GroceryList({
   customItems,
   newCustomItem,
   setNewCustomItem,
-  pantryItems,
-  newPantryItem,
-  setNewPantryItem,
-  newPantryAmount,
-  setNewPantryAmount,
-  newPantryExpiresOn,
-  setNewPantryExpiresOn,
-  pantryExpirySummary,
   onAddCustomItem,
   onRemoveCustomItem,
-  onAddPantryItem,
-  onRemovePantryItem,
   onExcludeItem,
   onRestoreItem,
   onRestoreAllItems,
-  onMarkPantryItemsOwned,
   excludedItems,
   onShare,
   checkedItems,
   setCheckedItems,
   cloudSync,
   onOpenUserCenter,
-  onOpenInventory,
-  onOpenStats,
+  onPlanDinner,
   onGroceryItemChecked,
+  activeShareRequest,
+  onRefreshShare,
+  shareMode = "poster",
 }) {
   const totalItemCount = items.length + customItems.length;
   const checklistItems = [...items, ...customItems];
   const checkedItemCount = checklistItems.filter((item) => checkedItems[item.key]).length;
-  const pantryCandidateCount = items.filter((item) => item.pantryItem).length;
   const daySections = useMemo(() => buildDaySections(groups), [groups]);
   const shoppingSections = useMemo(() => buildShoppingSections(items), [items]);
   const [openSections, setOpenSections] = useState({});
@@ -71,9 +61,11 @@ export function GroceryList({
           onRemoveItem={onExcludeItem}
           onRemoveCustomItem={onRemoveCustomItem}
           onShare={onShare}
+          onPlanDinner={onPlanDinner}
+          shareMode={shareMode}
         />
 
-        {daySections.length > 0 ? (
+        {daySections.length > 0 && (
           <Card>
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -98,15 +90,6 @@ export function GroceryList({
               ))}
             </div>
           </Card>
-        ) : (
-          <Card>
-            <HumiEmptyState
-              variant="grocery-memo"
-              title="购物篮还空着"
-              text="先回首页安排晚饭，或去“自己挑”临时加一道菜，我再帮你分成要买和家里常备。"
-              contextKey="grocery-day-empty"
-            />
-          </Card>
         )}
 
         <Card>
@@ -130,73 +113,23 @@ export function GroceryList({
               className="min-w-0 flex-1 rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
               placeholder="例如：厨房纸、牛奶、保鲜袋"
             />
-            <button type="submit" className="rounded-full bg-ink px-5 text-sm font-black text-white">
+            <button type="submit" className="rounded-full border border-ink bg-white px-5 text-sm font-black text-ink">
               添加
             </button>
           </form>
         </Card>
       </div>
 
-      <Card>
+      <aside className="grid content-start gap-5">
+        {activeShareRequest?.token && (
+          <GroceryShareStatus request={activeShareRequest} onRefresh={onRefreshShare} />
+        )}
         <GroceryCloudStatus cloudSync={cloudSync} onOpenUserCenter={onOpenUserCenter} />
-        <div className="relative mt-5 overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
-          <HumiPeek
-            variant="grocery-done"
-            size="md"
-            className="absolute -bottom-4 -right-3 opacity-90"
-            contextKey="grocery-pantry-peek"
-          />
-          <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
-              <PackageCheck size={19} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-black">家中已有</p>
-              <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-                盐、油、酱油这类常备调料通常不用再买，可以一键移到恢复区。
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onMarkPantryItemsOwned}
-            disabled={pantryCandidateCount === 0}
-            className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <PackageCheck size={16} />
-            {pantryCandidateCount > 0 ? `移出 ${pantryCandidateCount} 个常备项` : "常备项已处理"}
-          </button>
-        </div>
-        <div className="mt-4 grid gap-2">
-          <button
-            type="button"
-            onClick={onOpenInventory}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
-          >
-            <PackageCheck size={17} />
-            看临期库存
-          </button>
-          <button
-            type="button"
-            onClick={onOpenStats}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-transparent px-4 text-sm font-black text-ink/62 transition hover:text-ink"
-          >
-            <BarChart3 size={17} />
-            营养视图
-          </button>
-        </div>
-        <div className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">库存</p>
-          <p className="mt-1 text-sm font-black">库存维护放在独立页面</p>
-          <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            当前有 {pantryItems.length} 个库存项；需要新增、删除或看临期时再进入库存页。
-          </p>
-        </div>
         {excludedItems.length > 0 && (
-          <div className="mt-6 rounded-[22px] border border-line bg-canvas p-4">
+          <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Already at home</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">本次不用买</p>
                 <p className="mt-1 text-sm font-black">已从清单移出</p>
               </div>
               <button
@@ -226,8 +159,46 @@ export function GroceryList({
             </div>
           </div>
         )}
-      </Card>
+      </aside>
     </section>
+  );
+}
+
+function GroceryShareStatus({ request, onRefresh }) {
+  const claims = Array.isArray(request?.claims) ? request.claims : [];
+  const items = Array.isArray(request?.items) ? request.items : [];
+  const claimedCount = claims.filter((claim) => claim.status === "claimed").length;
+  const declinedCount = claims.filter((claim) => claim.status === "declined").length;
+  const checkedCount = items.filter((item) => item.checked).length;
+  const summary = items.length > 0
+    ? `已买 ${checkedCount}/${items.length}${claimedCount > 0 ? ` · ${claimedCount} 人认领` : ""}${declinedCount > 0 ? ` · ${declinedCount} 人买不了` : ""}`
+    : claimedCount > 0
+      ? `${claimedCount} 人认领`
+      : "清单卡片已发出";
+
+  return (
+    <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
+          <PackageCheck size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">买菜协作</p>
+          <p className="mt-1 text-sm font-black">{summary}</p>
+          <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
+            家人认领或勾选买到后，回到这里刷新，清单会同步已买状态。
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onRefresh}
+        className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
+      >
+        <RefreshCw size={15} />
+        刷新协作
+      </button>
+    </div>
   );
 }
 
@@ -243,8 +214,8 @@ function buildShoppingSections(items) {
     },
     {
       key: "seasonings",
-      title: "调料和常备",
-      note: "家里有就不用买，做饭前确认一下。",
+      title: "调料和按需项",
+      note: "家里有就跳过，不需要专门维护。",
       items: seasoningItems,
     },
   ].filter((section) => section.items.length > 0);
@@ -260,6 +231,8 @@ function ShoppingChecklist({
   onRemoveItem,
   onRemoveCustomItem,
   onShare,
+  onPlanDinner,
+  shareMode = "poster",
 }) {
   const [openSections, setOpenSections] = useState({ ingredients: true, seasonings: false, custom: true });
   const progress = totalItemCount > 0 ? Math.round((checkedItemCount / totalItemCount) * 100) : 0;
@@ -270,24 +243,32 @@ function ShoppingChecklist({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
         <div>
           <p className="eyebrow">买菜清单</p>
-          <h3 className="card-title">去买这些就够了</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            这里是买菜时看的清单；每道菜的精确用量放在下面核对。
-          </p>
+          <h3 className="card-title">{totalItemCount > 0 ? `${totalItemCount} 项待核对` : "清单还空着"}</h3>
         </div>
-        <span key={checkedItemCount} className="grocery-count-pop min-w-[118px] shrink-0 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-center text-xs font-black leading-none text-white">
-          已完成 {checkedItemCount}/{totalItemCount}
-        </span>
+        <div className="flex items-center justify-end gap-2">
+          {totalItemCount > 0 && (
+            <span key={checkedItemCount} className="grocery-count-pop min-w-[118px] shrink-0 whitespace-nowrap rounded-full bg-canvas px-4 py-2 text-center text-xs font-black leading-none text-ink/62">
+              已完成 {checkedItemCount}/{totalItemCount}
+            </span>
+          )}
+          <HumiScene
+            scene={totalItemCount > 0 && checkedItemCount === totalItemCount ? "groceryBought" : "grocery"}
+            size="sm"
+            className="hidden shrink-0 sm:grid"
+          />
+        </div>
       </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-canvas">
-        <div
-          className="grocery-progress-fill h-full rounded-full bg-ink"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      {totalItemCount > 0 && (
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-canvas">
+          <div
+            className="grocery-progress-fill h-full rounded-full bg-ink"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
 
       <div className="mt-5 grid gap-4">
         {sections.length > 0 ? (
@@ -312,12 +293,21 @@ function ShoppingChecklist({
             </CollapsibleChecklistSection>
           ))
         ) : (
-          <HumiEmptyState
-            variant={checkedItemCount > 0 ? "grocery-done" : "grocery-empty"}
-            title="清单还空着"
-            text="先安排一顿饭，我就能把食材按买菜习惯分好类。"
-            contextKey="grocery-checklist-empty"
-          />
+          <div className="grid items-center gap-3 border-t border-line pt-4 sm:grid-cols-[1fr_auto]">
+            <div>
+              <p className="text-sm font-bold leading-6 text-ink/52">
+                先定今晚吃什么，我会自动把食材汇总到这里。
+              </p>
+              <button
+                type="button"
+                onClick={onPlanDinner}
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 sm:w-auto"
+              >
+                去安排晚饭
+              </button>
+            </div>
+            <HumiScene scene="grocery" size="sm" className="mx-auto" />
+          </div>
         )}
 
         {customItems.length > 0 && (
@@ -343,14 +333,16 @@ function ShoppingChecklist({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onShare}
-        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
-      >
-        <Share2 size={17} />
-        生成清单海报
-      </button>
+      {totalItemCount > 0 && (
+        <button
+          type="button"
+          onClick={onShare}
+          className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+        >
+          <Share2 size={17} />
+          {shareMode === "mini" ? "分享清单给家人" : "生成清单海报"}
+        </button>
+      )}
     </Card>
   );
 }
@@ -396,7 +388,7 @@ function GroceryCloudStatus({ cloudSync, onOpenUserCenter }) {
     : "食材清单会先保存在本机。";
 
   return (
-    <div className="mb-5 rounded-[22px] border border-line bg-canvas p-4">
+    <div className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
           <Cloud size={18} />
@@ -486,7 +478,7 @@ function DayGrocerySection({ section, open, onToggle, checkedItems, onToggleItem
           <p className="mt-2 line-clamp-1 text-sm font-bold text-ink/48">{recipeNames}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
+          <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
             {section.itemCount} 项
           </span>
           <span className={`grid h-10 w-10 place-items-center rounded-full bg-canvas transition ${open ? "rotate-180" : ""}`}>
@@ -544,7 +536,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
           <span className="strike-text" data-checked={Boolean(checked)}>
             {item.name}
           </span>
-          {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">常备</em>}
+          {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/38">可跳过</em>}
           {item.required === false && <em className="ml-2 text-xs not-italic text-ink/38">可选</em>}
         </span>
         <span className="shrink-0 font-black text-ink/66">{formatAmount(item)}</span>
@@ -553,7 +545,7 @@ function GroceryItem({ item, checked, onToggle, onRemove }) {
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={`${item.name} 加入厨房库存`}
+        aria-label={`${item.name} 这次不用买`}
       >
         <PackageCheck size={15} />
       </button>
@@ -578,7 +570,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
           </span>
           <span className="mt-0.5 block text-xs font-bold text-ink/42">
             {item.type === "seasoning" ? "调料" : "食材"}
-            {item.pantryItem ? " · 常备" : ""}
+            {item.pantryItem ? " · 可跳过" : ""}
             {item.required === false ? " · 可选" : ""}
           </span>
         </span>
@@ -590,7 +582,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
         type="button"
         onClick={onRemove}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-ink/45 transition hover:bg-ink hover:text-white"
-        aria-label={removeLabel ?? `${item.name} 加入厨房库存`}
+        aria-label={removeLabel ?? `${item.name} 这次不用买`}
       >
         <ActionIcon size={15} />
       </button>
@@ -599,7 +591,7 @@ function ShoppingItem({ item, checked, onToggle, onRemove, removeLabel, actionIc
 }
 
 function formatShoppingAmount(item) {
-  if (item.type === "seasoning" || item.pantryItem) return "家里确认";
+  if (item.type === "seasoning" || item.pantryItem) return "按需确认";
   if (typeof item.amount !== "number") return item.amount;
   if (["个", "颗", "根", "只", "块", "片"].includes(item.unit)) return `${item.amount}${item.unit}左右`;
   return `约 ${formatAmount(item)}`;

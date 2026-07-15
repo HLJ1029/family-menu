@@ -30,7 +30,7 @@
     <view class="eyebrow">微信登录</view>
     <view class="title">正在连接你的 Humi 账号</view>
     <view class="body">
-      登录后，今晚菜单、购物清单和家中库存会跟着微信账号保存。
+      登录后，今晚菜单、购物清单和家庭画像会跟着微信账号保存。
     </view>
     <view wx:if="{{loginPending}}" class="loading-dot"></view>
     <button wx:else class="primary-button" bindtap="loginWithWechat">重新登录</button>

@@ -1,4 +1,11 @@
 const { HUMI_WECHAT_LOGIN_ENABLED, getHumiApiBaseUrl, getHumiH5Url } = require("../../utils/config");
+const {
+  buildHumiUrl,
+  buildSharePayload,
+  encodeShareParams,
+  normalizeLaunchOptions,
+  shouldOpenAsGuest,
+} = require("../../utils/share-routing");
 
 Page({
   data: {
@@ -9,18 +16,28 @@ Page({
     phoneBindPending: false,
     phoneBindError: "",
     currentSession: null,
-    phoneSessionUpdatedAt: 0
+    phoneSessionUpdatedAt: 0,
+    launchOptions: {},
+    pendingShare: null
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const launchOptions = normalizeLaunchOptions(options);
+    enableNativeShareMenu();
+    this.setData({ launchOptions });
+    if (shouldOpenAsGuest(launchOptions)) {
+      this.setData({ url: buildHumiUrl(getHumiH5Url(), launchOptions) });
+      return;
+    }
     if (HUMI_WECHAT_LOGIN_ENABLED) {
       this.loginWithWechat({ initial: true });
       return;
     }
-    this.setData({ url: getHumiH5Url() });
+    this.setData({ url: buildHumiUrl(getHumiH5Url(), launchOptions) });
   },
 
   onShow() {
+    enableNativeShareMenu();
     const app = getApp();
     const updatedAt = app.globalData?.humiPhoneSessionUpdatedAt || 0;
     const session = app.globalData?.humiSession;
@@ -29,7 +46,7 @@ Page({
         currentSession: session,
         phoneSessionUpdatedAt: updatedAt,
         phoneBindVisible: false,
-        url: appendSessionToUrl(getHumiH5Url(), session)
+        url: appendSessionToUrl(buildHumiUrl(getHumiH5Url(), this.data.launchOptions), session)
       });
     }
   },
@@ -48,6 +65,12 @@ Page({
         return;
       }
       this.setData({ phoneBindVisible: true, phoneBindError: "" });
+    }
+    if (latestMessage?.type === "humi:share") {
+      const payload = latestMessage.payload || {};
+      this.setData({ pendingShare: buildSharePayload(payload) });
+      const params = encodeShareParams(payload);
+      openSharePage(params);
     }
   },
 
@@ -80,7 +103,7 @@ Page({
 
             const app = getApp();
             app.globalData.humiSession = data;
-            this.setData({ currentSession: data, url: appendSessionToUrl(getHumiH5Url(), data) });
+            this.setData({ currentSession: data, url: appendSessionToUrl(buildHumiUrl(getHumiH5Url(), this.data.launchOptions), data) });
             if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
@@ -136,7 +159,7 @@ Page({
           currentSession: data,
           phoneSessionUpdatedAt: app.globalData.humiPhoneSessionUpdatedAt,
           phoneBindVisible: false,
-          url: appendSessionToUrl(getHumiH5Url(), data)
+          url: appendSessionToUrl(buildHumiUrl(getHumiH5Url(), this.data.launchOptions), data)
         });
         wx.showToast({ title: "手机号已绑定", icon: "success" });
       },
@@ -147,10 +170,91 @@ Page({
         this.setData({ phoneBindPending: false });
       }
     });
-  }
+  },
+
+  onShareAppMessage() {
+    return getCurrentSharePayload(this.data);
+  },
+
 });
 
 function appendSessionToUrl(url, session) {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}humiLogin=wechat&humiSession=${encodeURIComponent(JSON.stringify(session))}`;
+}
+
+function openSharePage(params = "") {
+  const url = params ? `/pages/share/index?${params}` : "/pages/share/index";
+  wx.navigateTo({
+    url,
+    fail: () => {
+      wx.redirectTo({
+        url,
+        fail: () => {
+          wx.showToast({
+            title: "分享卡片暂时打不开",
+            icon: "none"
+          });
+        }
+      });
+    }
+  });
+}
+
+function getCurrentSharePayload(data = {}) {
+  if (data.pendingShare?.path) return data.pendingShare;
+  const launchOptions = data.launchOptions || {};
+  if (launchOptions.crave) {
+    return {
+      title: "我家今晚要做饭，你想吃点啥？",
+      path: `/pages/index/index?crave=${encodeURIComponent(launchOptions.crave)}&shareSource=crave`
+    };
+  }
+  if (launchOptions.groceryShare) {
+    return {
+      title: "Humi 买菜清单，顺路带这些",
+      path: `/pages/index/index?groceryShare=${encodeURIComponent(launchOptions.groceryShare)}&shareSource=grocery`
+    };
+  }
+  if (launchOptions.menuShare) {
+    return {
+      title: "Humi 今晚菜单",
+      path: `/pages/index/index?menuShare=${encodeURIComponent(launchOptions.menuShare)}&shareSource=today_menu`
+    };
+  }
+  if (launchOptions.wishShare) {
+    return {
+      title: "我家最近想吃什么？写一道给 Humi",
+      path: `/pages/index/index?wishShare=${encodeURIComponent(launchOptions.wishShare)}&shareSource=wish`
+    };
+  }
+  if (launchOptions.invite) {
+    return {
+      title: "邀请你加入我的家，一起用 Humi",
+      path: `/pages/index/index?invite=${encodeURIComponent(launchOptions.invite)}&shareSource=invite`
+    };
+  }
+  if (launchOptions.view === "grocery") {
+    return {
+      title: "Humi 买菜清单",
+      path: "/pages/index/index?view=grocery&shareSource=grocery"
+    };
+  }
+  if (launchOptions.view === "today") {
+    return {
+      title: "Humi 今晚菜单",
+      path: "/pages/index/index?view=today&shareSource=today_menu"
+    };
+  }
+  return {
+    title: "Humi：今晚吃什么，家里一起定",
+    path: "/pages/index/index"
+  };
+}
+
+function enableNativeShareMenu() {
+  wx.showShareMenu({
+    menus: ["shareAppMessage"],
+    withShareTicket: false
+  });
 }

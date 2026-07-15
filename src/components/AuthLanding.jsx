@@ -1,27 +1,25 @@
 import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
-import { recipes } from "../lib/recipes";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
 import { CloudAccount } from "./system/CloudAccount";
-import { DishImage } from "./ui/DishImage";
-import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
-export function AuthLanding({ authProps, onContinueGuest }) {
+export function AuthLanding({ authProps, onContinueGuest, entryIntent = "" }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const showDevEmailAuth =
     !isWechatMiniProgram &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("devAuth") === "email";
-  const featuredRecipe = recipes[0];
-
   return (
     <main className="min-h-screen overflow-hidden bg-canvas px-6 py-8 text-ink">
       <section className="mx-auto grid min-h-[calc(100vh-112px)] max-w-md content-between gap-8">
         <div className="pt-8 text-center">
           <p className="text-5xl font-black uppercase tracking-[0.02em] text-ink">HUMI</p>
-          <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">今晚吃什么</p>
+          <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">
+            {entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
+          </p>
         </div>
 
         {showDevEmailAuth ? (
@@ -36,30 +34,19 @@ export function AuthLanding({ authProps, onContinueGuest }) {
           </div>
         ) : (
           <>
-            <div className="relative mx-auto grid aspect-square w-full max-w-[360px] place-items-center">
-              <div className="absolute inset-8 rounded-full bg-ink/35 blur-3xl" />
-              <div className="absolute inset-1 rounded-full bg-apricot/12 blur-2xl" />
-              <DishImage
-                recipe={featuredRecipe}
-                variant="hero"
-                alt=""
-                loading="eager"
-                fetchPriority="high"
-                className="relative h-[82%] w-[82%] rounded-full bg-white object-cover shadow-[0_30px_90px_rgba(17,17,17,0.12)]"
+            <div className="mx-auto grid w-full max-w-[390px] place-items-center rounded-[28px] border border-line bg-white px-5 py-6 shadow-card">
+              <HumiScene
+                scene={entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
+                size="hero"
+                className="w-full"
+                eager
               />
-              <div className="absolute bottom-5 left-5 rounded-[22px] border border-line bg-white/88 px-4 py-3 text-left shadow-card backdrop-blur-xl">
-                <p className="text-sm font-black text-ink">先安排今晚</p>
-                <p className="mt-1 text-xs font-bold text-ink/42">Humi</p>
-              </div>
-              <HumiPeek
-                variant="dinner-decision-hero"
-                size="lg"
-                className="absolute -right-4 bottom-2"
-                contextKey="auth-landing-peek"
-              />
+              <p className="mt-3 text-sm font-black text-ink">
+                {entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
+              </p>
             </div>
 
-            <MobileAuthChoices onContinueGuest={onContinueGuest} />
+            <MobileAuthChoices onContinueGuest={onContinueGuest} entryIntent={entryIntent} />
           </>
         )}
       </section>
@@ -68,14 +55,14 @@ export function AuthLanding({ authProps, onContinueGuest }) {
   );
 }
 
-function MobileAuthChoices({ onContinueGuest }) {
+function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
   const [status, setStatus] = useState("");
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
 
   function handleWechatLogin() {
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
-      setStatus("正在唤起微信登录。登录后菜单、清单和库存会保存到微信账号。");
+      setStatus("正在唤起微信登录。登录后菜单、清单和画像线索会保存到微信账号。");
       return;
     }
     setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
@@ -114,7 +101,7 @@ function MobileAuthChoices({ onContinueGuest }) {
                 onClick={onContinueGuest}
                 className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
               >
-                先体验 Humi
+                {entryIntent === "startCrave" || entryIntent === "startCollaboration" ? "先不发起，回到 Humi" : "先体验 Humi"}
               </button>
             </>
           )}
@@ -125,17 +112,23 @@ function MobileAuthChoices({ onContinueGuest }) {
           onClick={onContinueGuest}
           className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
         >
-          先体验 Humi
+          {entryIntent === "startCrave" || entryIntent === "startCollaboration" ? "先不发起，回到 Humi" : "先体验 Humi"}
         </button>
       )}
 
       <div className="px-5 text-center text-xs font-bold leading-5 text-ink/36">
         {status || (
-          isWechatMiniProgram
-            ? "微信登录后，菜单、画像、清单和库存会跟着账号保存。"
-            : wechatLoginEnabled
-              ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。"
-              : "首发先不要求登录。菜单、计划和清单会保存在当前设备。"
+          entryIntent === "joinFamily"
+            ? "微信登录后就能加入这个家；暂时不登录也可以先看 Humi。"
+            : entryIntent === "startCrave"
+              ? "主厨登录后才能发起；家人点开征集卡片仍然免登录。"
+            : entryIntent === "startCollaboration"
+              ? "主厨登录后才能发起协作；家人点开卡片仍然免登录参与。"
+            : isWechatMiniProgram
+              ? "微信登录后，菜单、画像和清单会跟着账号保存。"
+              : wechatLoginEnabled
+                ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。"
+                : "首发先不要求登录。菜单、计划和清单会保存在当前设备。"
         )}
       </div>
     </div>

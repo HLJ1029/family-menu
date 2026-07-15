@@ -5,7 +5,8 @@ const POSTER_HEIGHT = 1440;
 const COLORS = {
   acid: "#111111",
   ink: "#111111",
-  canvas: "#F5F4F1",
+  canvas: "#FFFFFF",
+  soft: "#F5F5F5",
   white: "#FFFFFF",
   muted: "rgba(17, 17, 17, 0.54)",
   line: "rgba(17, 17, 17, 0.12)",
@@ -13,13 +14,19 @@ const COLORS = {
 
 const shoppingPosterStyles = ["default", "default", "default", "default", "theme"];
 const HUMI_ICON_URL = "/icons/humi-icon-512.png";
+const POSTER_CHARACTER_URLS = {
+  tonight: "/assets/brand/lovart-v2/humi-poster-tonight-eating-01.webp",
+  weekly: "/assets/brand/lovart-v2/humi-poster-weekly-planning-01.webp",
+  shopping: "/assets/brand/lovart-v2/humi-poster-shopping-bag-01.webp",
+};
 
 export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
+    const character = await loadImageSafe(POSTER_CHARACTER_URLS.tonight);
     const heroRecipe = recipes[0];
     const heroImage = await loadImageSafe(heroRecipe ? photoFor(heroRecipe) : "");
-    drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage });
+    drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage, character });
   });
 }
 
@@ -34,6 +41,7 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
 
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
+    const character = await loadImageSafe(POSTER_CHARACTER_URLS.weekly);
     const featuredRecipes = weekRecipes.slice(0, 4);
     const featuredImages = await Promise.all(featuredRecipes.map((recipe) => loadImageSafe(photoFor(recipe))));
     drawWeeklyTemplateA(ctx, {
@@ -43,6 +51,7 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
       featuredRecipes,
       featuredImages,
       dishCount,
+      character,
     });
   });
 }
@@ -51,12 +60,13 @@ export async function createGroceryPoster({ items = [], customItems = [] }) {
   const style = shoppingPosterStyles[Math.floor(Math.random() * shoppingPosterStyles.length)];
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
+    const character = await loadImageSafe(POSTER_CHARACTER_URLS.shopping);
     const groups = buildShoppingPosterGroups(items, customItems);
     if (style === "theme") {
-      drawShoppingThemePoster(ctx, { icon, groups });
+      drawShoppingThemePoster(ctx, { icon, groups, character });
       return;
     }
-    drawShoppingDefaultPoster(ctx, { icon, groups });
+    drawShoppingDefaultPoster(ctx, { icon, groups, character });
   });
 }
 
@@ -92,7 +102,7 @@ async function createPosterBlob(draw) {
   });
 }
 
-function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
+function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage, character }) {
   const heroRecipe = recipes[0];
   drawPaperBackground(ctx);
 
@@ -122,7 +132,7 @@ function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
     const horizontalDish = isHorizontalDish(heroRecipe);
     drawRoundedImage(ctx, heroImage, heroBox.x, heroBox.y, heroBox.width, heroBox.height, heroBox.radius, {
       fit: horizontalDish ? "contain" : "cover",
-      background: "#F7F3EA",
+      background: "#F5F5F5",
       padding: horizontalDish ? 26 : 0,
     });
   } else {
@@ -155,6 +165,7 @@ function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
     color: COLORS.muted,
     maxWidth: 420,
   });
+  drawBrandCharacter(ctx, character, 714, 1192, 164, 164, "poster");
   drawText(ctx, "HUMI", 884, 1328, {
     size: 32,
     weight: 950,
@@ -166,14 +177,9 @@ function drawTonightTemplateA(ctx, { recipes, groceryCount, icon, heroImage }) {
 function drawPaperBackground(ctx) {
   ctx.fillStyle = COLORS.canvas;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
-  const glow = ctx.createRadialGradient(910, 180, 20, 910, 180, 260);
-  glow.addColorStop(0, "rgba(212, 235, 90, 0.35)");
-  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 
   ctx.save();
-  ctx.globalAlpha = 0.2;
+  ctx.globalAlpha = 0.18;
   ctx.strokeStyle = "rgba(17, 17, 17, 0.035)";
   ctx.lineWidth = 1;
   for (let x = 0; x <= POSTER_WIDTH; x += 42) {
@@ -243,9 +249,9 @@ function drawMarker(ctx, x, y, width, height) {
 }
 
 function drawDishPlaceholder(ctx, title, box) {
-  ctx.fillStyle = "#F7F3EA";
+  ctx.fillStyle = COLORS.soft;
   roundRect(ctx, box.x, box.y, box.width, box.height, box.radius, true);
-  drawCircle(ctx, box.x + box.width / 2, box.y + box.height / 2 - 30, 130, "rgba(212, 235, 90, 0.28)");
+  drawCircle(ctx, box.x + box.width / 2, box.y + box.height / 2 - 30, 130, "rgba(17, 17, 17, 0.06)");
   drawText(ctx, title, box.x + 90, box.y + box.height / 2 + 70, {
     size: 54,
     weight: 950,
@@ -267,7 +273,7 @@ function isHorizontalDish(recipe) {
   return ["steamed-sea-bass", "braised-crucian-carp", "braised-wuchang-fish"].includes(recipe?.id);
 }
 
-function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImages, dishCount }) {
+function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImages, dishCount, character }) {
   drawPaperBackground(ctx);
 
   if (icon) {
@@ -295,6 +301,7 @@ function drawWeeklyTemplateA(ctx, { icon, recipes, featuredRecipes, featuredImag
     color: COLORS.muted,
     maxWidth: 760,
   });
+  drawBrandCharacter(ctx, character, 764, 238, 210, 210, "weekly");
 
   drawWeeklyCountLine(ctx, { dishCount });
   drawWeeklyCandidateCollage(ctx, { featuredRecipes, featuredImages });
@@ -364,7 +371,7 @@ function drawWeeklyTape(ctx, x, y, angle) {
   ctx.save();
   ctx.translate(x + 69, y + 17);
   ctx.rotate((angle * Math.PI) / 180);
-  ctx.fillStyle = "rgba(212, 235, 90, 0.78)";
+  ctx.fillStyle = "rgba(17, 17, 17, 0.9)";
   ctx.shadowColor = "rgba(17, 17, 17, 0.08)";
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 10;
@@ -390,7 +397,7 @@ function drawWeeklyCandidatePhoto(ctx, { recipe, image, slot }) {
     const horizontalDish = isHorizontalDish(recipe);
     drawRoundedImage(ctx, image, -slot.width / 2, -slot.height / 2, slot.width, slot.height, slot.radius, {
       fit: horizontalDish ? "contain" : "cover",
-      background: "#F7F3EA",
+      background: "#F5F5F5",
       padding: horizontalDish ? 16 : 0,
     });
   } else {
@@ -457,6 +464,32 @@ function drawRoundedImage(ctx, image, x, y, width, height, radius, options = {})
   ctx.restore();
 }
 
+function drawBrandCharacter(ctx, image, x, y, width, height, variant) {
+  ctx.save();
+  if (!image) {
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 4;
+    const faceX = x + width * 0.46;
+    const faceY = y + height * 0.34;
+    drawCircle(ctx, faceX, faceY, Math.min(width, height) * 0.12, "transparent");
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(faceX, faceY + height * 0.12);
+    ctx.lineTo(x + width * 0.3, y + height * 0.86);
+    ctx.lineTo(x + width * 0.7, y + height * 0.86);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (variant === "poster") ctx.globalAlpha = 0.92;
+  if (variant === "weekly") ctx.globalAlpha = 0.86;
+  ctx.drawImage(image, x, y, width, height);
+  ctx.restore();
+}
+
 function calculateImageFit({ imageWidth, imageHeight, x, y, width, height, fit }) {
   const imageRatio = imageWidth / imageHeight;
   const boxRatio = width / height;
@@ -495,13 +528,13 @@ function drawPosterBase(ctx, { eyebrow, title, subtitle, style }) {
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 
   if (style === "market") {
-    drawCircle(ctx, 935, 170, 170, COLORS.acid);
-    drawCircle(ctx, 90, 1180, 230, "rgba(212, 235, 90, 0.38)");
+    drawCircle(ctx, 935, 170, 170, "rgba(17, 17, 17, 0.06)");
+    drawCircle(ctx, 90, 1180, 230, "rgba(17, 17, 17, 0.05)");
   } else if (style === "receipt") {
     ctx.fillStyle = COLORS.white;
     roundRect(ctx, 66, 250, 948, 980, 46, true);
   } else {
-    drawCircle(ctx, 920, 250, 260, "rgba(212, 235, 90, 0.5)");
+    drawCircle(ctx, 920, 250, 260, "rgba(17, 17, 17, 0.05)");
   }
 
   drawLogo(ctx, 70, 70);
@@ -651,7 +684,7 @@ function buildShoppingPosterGroups(items, customItems) {
   };
 }
 
-function drawShoppingDefaultPoster(ctx, { icon, groups }) {
+function drawShoppingDefaultPoster(ctx, { icon, groups, character }) {
   drawPaperBackground(ctx);
   drawPosterHeader(ctx, { icon, dark: false });
 
@@ -664,6 +697,7 @@ function drawShoppingDefaultPoster(ctx, { icon, groups }) {
     color: COLORS.muted,
     maxWidth: 760,
   });
+  drawBrandCharacter(ctx, character, 740, 292, 230, 230, "shopping");
 
   if (groups.totalCount === 0) {
     drawEmptyBlock(ctx, "清单还是空的，先安排一顿饭。", 650);
@@ -730,22 +764,23 @@ function drawShoppingMemoCard(ctx, { x, y, width, height, ingredients, seasoning
   ctx.restore();
 }
 
-function drawShoppingThemePoster(ctx, { icon, groups }) {
-  drawDarkShoppingBackground(ctx);
-  drawPosterHeader(ctx, { icon, dark: true });
-  drawText(ctx, "菜买好", 86, 324, { size: 126, weight: 950, lineHeight: 128, color: COLORS.white, maxWidth: 900 });
-  drawText(ctx, "饭就快了", 86, 448, { size: 126, weight: 950, lineHeight: 128, color: COLORS.white, maxWidth: 900 });
+function drawShoppingThemePoster(ctx, { icon, groups, character }) {
+  drawPaperBackground(ctx);
+  drawPosterHeader(ctx, { icon, dark: false });
+  drawText(ctx, "菜买好", 86, 324, { size: 126, weight: 950, lineHeight: 128, color: COLORS.ink, maxWidth: 900 });
+  drawText(ctx, "饭就快了", 86, 448, { size: 126, weight: 950, lineHeight: 128, color: COLORS.ink, maxWidth: 900 });
   drawMarker(ctx, 90, 476, 570, 40);
   drawText(ctx, "周末这一趟，把晚饭的底气带回家。", 90, 558, {
     size: 38,
     weight: 850,
-    color: "rgba(245, 244, 241, 0.64)",
+    color: COLORS.muted,
     maxWidth: 820,
   });
+  drawBrandCharacter(ctx, character, 744, 292, 224, 224, "shopping-theme");
 
   if (groups.totalCount === 0) {
     drawEmptyShoppingSticky(ctx, "清单还是空的，先安排一顿饭。");
-    drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.white, maxWidth: 140 });
+    drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.ink, maxWidth: 140 });
     return;
   }
 
@@ -755,20 +790,14 @@ function drawShoppingThemePoster(ctx, { icon, groups }) {
   drawText(ctx, "适合周末、火锅、节日前采购。", 90, 1280, {
     size: 34,
     weight: 850,
-    color: "rgba(245, 244, 241, 0.68)",
+    color: COLORS.muted,
     maxWidth: 660,
   });
-  drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.white, maxWidth: 140 });
+  drawText(ctx, "HUMI", 884, 1328, { size: 32, weight: 950, color: COLORS.ink, maxWidth: 140 });
 }
 
 function drawDarkShoppingBackground(ctx) {
   ctx.fillStyle = COLORS.ink;
-  ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
-  const glow = ctx.createRadialGradient(870, 150, 20, 870, 150, 300);
-  glow.addColorStop(0, "rgba(212, 235, 90, 0.96)");
-  glow.addColorStop(0.58, "rgba(212, 235, 90, 0.9)");
-  glow.addColorStop(1, "rgba(212, 235, 90, 0)");
-  ctx.fillStyle = glow;
   ctx.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
 }
 
@@ -777,7 +806,7 @@ function drawEmptyShoppingSticky(ctx, text) {
   ctx.save();
   ctx.translate(540, 915);
   ctx.rotate((1.1 * Math.PI) / 180);
-  ctx.fillStyle = COLORS.canvas;
+  ctx.fillStyle = COLORS.soft;
   roundRect(ctx, -440, -270, 880, 540, 54, true);
   drawText(ctx, text, -340, 20, { size: 48, weight: 950, lineHeight: 62, maxWidth: 680 });
   ctx.restore();
@@ -787,10 +816,10 @@ function drawShoppingSticky(ctx, { items }) {
   ctx.save();
   ctx.translate(540, 915);
   ctx.rotate((1.1 * Math.PI) / 180);
-  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+  ctx.shadowColor = "rgba(17, 17, 17, 0.14)";
   ctx.shadowBlur = 70;
   ctx.shadowOffsetY = 30;
-  ctx.fillStyle = COLORS.canvas;
+  ctx.fillStyle = COLORS.soft;
   roundRect(ctx, -440, -270, 880, 540, 54, true);
   ctx.restore();
 

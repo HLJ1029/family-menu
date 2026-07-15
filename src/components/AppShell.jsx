@@ -1,6 +1,9 @@
 import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
+import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
-import { getNavItem, mobileNavItems, navItems } from "./navigation";
+import { auxiliaryNavItems, getNavItem, mobileNavItems, navItems } from "./navigation";
+import { humiAvatarScenes } from "./ui/brandScenes";
+import { stableHash } from "./ui/characterIllustrations";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
@@ -8,7 +11,7 @@ export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
 
 export function IcpFooter({ compact = false }) {
   return (
-    <footer className={`mx-auto w-full max-w-[1480px] px-4 text-center text-xs font-bold text-ink/42 md:px-6 ${compact ? "pb-5 pt-2" : "pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-8 lg:pb-8"}`}>
+    <footer className={`mx-auto w-full max-w-[1480px] px-4 text-center text-xs font-bold text-ink/42 md:px-6 ${compact ? "pb-5 pt-2" : "pb-[calc(9rem+env(safe-area-inset-bottom))] pt-8 lg:pb-8"}`}>
       <a
         href={ICP_RECORD_URL}
         target="_blank"
@@ -22,6 +25,8 @@ export function IcpFooter({ compact = false }) {
 }
 
 export function Sidebar({ activeView, onChange }) {
+  const quickLinks = auxiliaryNavItems.filter((item) => item.id !== "recommendations");
+
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-48px)] w-72 shrink-0 flex-col rounded-[28px] border border-line/80 bg-white/78 p-5 shadow-card backdrop-blur-xl lg:flex">
       <div className="mb-8 flex items-center gap-3">
@@ -52,6 +57,28 @@ export function Sidebar({ activeView, onChange }) {
           );
         })}
       </nav>
+      <div className="mt-6 border-t border-line pt-4">
+        <p className="mb-2 px-4 text-xs font-black uppercase tracking-[0.18em] text-ink/35">细看</p>
+        <div className="space-y-1">
+          {quickLinks.map((item) => {
+            const Icon = item.icon;
+            const active = item.id === activeView;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onChange(item.id)}
+                className={`flex w-full items-center gap-3 rounded-[18px] px-4 py-2.5 text-left text-sm font-bold transition ${
+                  active ? "bg-canvas text-ink" : "text-ink/48 hover:bg-ink/[0.04] hover:text-ink"
+                }`}
+              >
+                <Icon size={17} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => onChange("user")}
@@ -65,7 +92,7 @@ export function Sidebar({ activeView, onChange }) {
         />
         <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
-          从今晚吃什么，到买菜清单和家里库存，都帮你顺一顺。
+          从今晚吃啥，到买菜清单和家人反馈，都帮你顺一顺。
         </p>
       </button>
     </aside>
@@ -75,56 +102,85 @@ export function Sidebar({ activeView, onChange }) {
 export function AccountAvatar({ session, onClick, compact = false }) {
   const email = session?.user?.email;
   const displayName = session?.user?.displayName;
-  const initial = email ? email.slice(0, 1).toUpperCase() : displayName ? displayName.slice(0, 1) : "";
   const isWechatMiniProgram = isWechatMiniProgramWebView();
+  const identitySeed = email || displayName || (isWechatMiniProgram ? "wechat-mini-program" : "guest");
+  const avatar = humiAvatarScenes[stableHash(identitySeed) % humiAvatarScenes.length];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`motion-card grid shrink-0 place-items-center rounded-full border border-line bg-white text-sm font-black text-ink shadow-card transition hover:-translate-y-0.5 ${
+      className={`motion-card grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label={email || displayName || isWechatMiniProgram ? "打开我的家" : "登录并保存我的 Humi"}
+      aria-label="打开我的家"
+      title="打开我的家"
     >
-      {initial ? initial : <UserRound size={19} />}
+      {avatar?.src ? (
+        <img
+          src={avatar.src}
+          alt=""
+          className="h-full w-full scale-[0.96] object-contain object-center"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <UserRound size={19} />
+      )}
     </button>
   );
 }
 
-export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter, onBack }) {
+export function Topbar({ activeView, titleOverride, query, setQuery, session, onOpenUserCenter, onBack }) {
   const activeItem = getNavItem(activeView);
-  const title = activeItem?.label ?? "Humi";
+  const title = titleOverride || activeItem?.label || "Humi";
+  const [searchOpen, setSearchOpen] = useState(Boolean(query));
 
   return (
-    <header className="relative z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
-      <div>
+    <header className={`relative z-20 mb-4 flex gap-3 rounded-b-[20px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none ${
+      searchOpen ? "flex-col" : "flex-row items-start justify-between"
+    }`}>
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
-            aria-label="返回上一页"
-          >
-            <ArrowLeft size={17} />
-          </button>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
+              aria-label="返回上一页"
+            >
+              <ArrowLeft size={17} />
+            </button>
+          )}
           <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
-        <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-[-0.04em] sm:text-5xl md:text-7xl">
+        <h1 className="mt-2 max-w-3xl text-2xl font-black tracking-[-0.03em] sm:text-3xl md:text-4xl">
           {title}
         </h1>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
-          <Search size={18} className="text-ink/38" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
-            placeholder="搜索菜名、食材、标签"
-          />
-        </div>
+      <div className={`flex shrink-0 items-center gap-3 ${searchOpen ? "w-full" : ""}`}>
+        {searchOpen ? (
+          <div className="flex w-full items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
+            <Search size={18} className="text-ink/38" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-ink/35"
+              placeholder="搜索菜名、食材、标签"
+              autoFocus
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="grid h-12 w-12 place-items-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
+            aria-label="展开搜索"
+          >
+            <Search size={18} />
+          </button>
+        )}
         <AccountAvatar session={session} onClick={onOpenUserCenter} />
       </div>
     </header>
@@ -145,7 +201,7 @@ export function MobileTabbar({ activeView, onChange }) {
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
-            className={`relative grid place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[11px] font-black transition ${
+            className={`relative grid min-w-0 place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[10px] font-black transition sm:text-[11px] ${
               active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"
             }`}
           >

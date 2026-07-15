@@ -1,0 +1,535 @@
+{
+  "generatedAt": "2026-07-15T04:30:15.753Z",
+  "sourceDir": "/Users/honglijie/AI-HQ-assets/humi-ui-assets-2026-07-15/source",
+  "count": 52,
+  "categories": {
+    "product": 10,
+    "avatar": 8,
+    "collaboration": 11,
+    "poster": 8,
+    "social": 6,
+    "state": 9
+  },
+  "assets": [
+    {
+      "id": "humi-achievement-small-win-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-achievement-small-win-01.webp",
+      "sourceFile": "humi-achievement-small-win-01.png",
+      "sourceBytes": 1103037,
+      "sourceSha256": "29c6d630805a7b517f0998906e97a1104d2b1d1c3c81b7d5ad771897fdbc23f5",
+      "outputBytes": 37562,
+      "outputSha256": "7fbfd3d41082853f784ac086913399764075e2dfd410f6d8de16865fb54e1fc7"
+    },
+    {
+      "id": "humi-avatar-dev-front-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-dev-front-m-01.webp",
+      "sourceFile": "humi-avatar-dev-front-m-01.png",
+      "sourceBytes": 893216,
+      "sourceSha256": "2f7eb5c4158acdeac480713e7c1c3034060e2e991a29fe3191cbd638b379fd54",
+      "outputBytes": 42658,
+      "outputSha256": "b37a21f2e4d428195b3ddcdda735db0091531e33d6048272cfe62f26e3b13db2"
+    },
+    {
+      "id": "humi-avatar-dev-laptop-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-dev-laptop-m-01.webp",
+      "sourceFile": "humi-avatar-dev-laptop-m-01.png",
+      "sourceBytes": 882118,
+      "sourceSha256": "e85fc544b48d4c6c81d94460f621e400d4caa035eb2f938f2d103eaaaddd65ba",
+      "outputBytes": 47324,
+      "outputSha256": "e64df751a012391aaed24692d29acc7c3eb8f00afbbac0b88f575aba69f797fd"
+    },
+    {
+      "id": "humi-avatar-dev-side-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-dev-side-m-01.webp",
+      "sourceFile": "humi-avatar-dev-side-m-01.png",
+      "sourceBytes": 805501,
+      "sourceSha256": "89ee70386eedb9bda785721edadf6829c1a1f5ae316bf62e614fb8ee7f5b6c81",
+      "outputBytes": 37556,
+      "outputSha256": "bbc28cea2aff1fb679c9c63516c92e256ee06a0a3441d3f7c5b8e1ec4f9c7ecd"
+    },
+    {
+      "id": "humi-avatar-dev-thinking-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-dev-thinking-m-01.webp",
+      "sourceFile": "humi-avatar-dev-thinking-m-01.png",
+      "sourceBytes": 777852,
+      "sourceSha256": "e77d8b36b90197164f538a137ecd68cde3da05578373534fed6bf24902a8b505",
+      "outputBytes": 47700,
+      "outputSha256": "f7829574b53fb2fd67da3047525b8a635deb3390366bfa5c473f2166e654e3d0"
+    },
+    {
+      "id": "humi-avatar-family-f-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-family-f-01.webp",
+      "sourceFile": "humi-avatar-family-f-01.png",
+      "sourceBytes": 824303,
+      "sourceSha256": "9ea801b8613219b403d4acf6a1c61019fb9a3e77dd30a537f9bee49cd9dd65c4",
+      "outputBytes": 39076,
+      "outputSha256": "a757f0bc71228c9c9f27bd8eb99322374675e7f739c9ec2c6519418d0e5d3f73"
+    },
+    {
+      "id": "humi-avatar-family-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-family-m-01.webp",
+      "sourceFile": "humi-avatar-family-m-01.png",
+      "sourceBytes": 849944,
+      "sourceSha256": "fe3cc895f4a00afd6100e2014ea5aadf3210983d5b9379317b20c68dd65b8b66",
+      "outputBytes": 41208,
+      "outputSha256": "daa7e832af40f64e07a92eb0270d39c31422ed1cf638a03d6a106a0aee75d8c7"
+    },
+    {
+      "id": "humi-avatar-parent-f-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-parent-f-01.webp",
+      "sourceFile": "humi-avatar-parent-f-01.png",
+      "sourceBytes": 926277,
+      "sourceSha256": "71f1541faa6d586bc26fcd6279c0d57ca3244c341494e66bcae179c34deda06c",
+      "outputBytes": 48750,
+      "outputSha256": "2cf84a08f0a337c36f8fc25fcffbdc50321f27da4fcdd2ef3900a650f5236164"
+    },
+    {
+      "id": "humi-avatar-parent-m-01",
+      "category": "avatar",
+      "src": "/assets/brand/lovart-v2/humi-avatar-parent-m-01.webp",
+      "sourceFile": "humi-avatar-parent-m-01.png",
+      "sourceBytes": 829045,
+      "sourceSha256": "071c8baacd16f415abce5c7a3a35386b58480687b6dbd81f81e5f639cbc26ce0",
+      "outputBytes": 48120,
+      "outputSha256": "9ae12fcde0321916c34f2cd6ceb9bf44060d16cfc71af73ba4e982ebd332debb"
+    },
+    {
+      "id": "humi-crave-vote-submitted-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-crave-vote-submitted-01.webp",
+      "sourceFile": "humi-crave-vote-submitted-01.png",
+      "sourceBytes": 956254,
+      "sourceSha256": "6961024f4cc6ea7b739c6b1e7c109645a00ddfeaea280c8c07bf9c384ee5cd12",
+      "outputBytes": 47094,
+      "outputSha256": "b3c3cb1fc650ec8c103ab39732a996a2660081a5fb982f9d296c7a9aeb0cffc5"
+    },
+    {
+      "id": "humi-crave-vote-thinking-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-crave-vote-thinking-01.webp",
+      "sourceFile": "humi-crave-vote-thinking-01.png",
+      "sourceBytes": 1158989,
+      "sourceSha256": "27fb41e2e074488b135cf34eb0c23b9b87efc939505b2c8311a5ea581204e201",
+      "outputBytes": 74546,
+      "outputSha256": "74af0e864cca418a5d8a9c95d086c62fd078b50a4d32a61a05841dafec120d1a"
+    },
+    {
+      "id": "humi-discover-pick-dish-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-discover-pick-dish-01.webp",
+      "sourceFile": "humi-discover-pick-dish-01.png",
+      "sourceBytes": 1103225,
+      "sourceSha256": "f698e27bf8c2e712cf8cd7c5bbd4f32408bd64224113559b130020ce04f1fc21",
+      "outputBytes": 43130,
+      "outputSha256": "6258bb4964cd6063c3c72fb9f74a02944d38196e4c70f6ecf8e8c3fd6c0ccd96"
+    },
+    {
+      "id": "humi-feedback-excited-picked-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-feedback-excited-picked-01.webp",
+      "sourceFile": "humi-feedback-excited-picked-01.png",
+      "sourceBytes": 1067165,
+      "sourceSha256": "5e17df3822804766bb60700d0f2d6799f9addedecd3ce64d8ef7ea10e22be16c",
+      "outputBytes": 70968,
+      "outputSha256": "937de1795dfa77b0402c78d3dc5fa4d47d985bf412f34d4bd90829882f585b92"
+    },
+    {
+      "id": "humi-feedback-full-happy-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-feedback-full-happy-01.webp",
+      "sourceFile": "humi-feedback-full-happy-01.png",
+      "sourceBytes": 925521,
+      "sourceSha256": "52236b7a5b78b480cc6684d93568b8b3b9d87f77273cd27ca6b58b66c3b0de6e",
+      "outputBytes": 28334,
+      "outputSha256": "8fd291b792b9ae04de937858ace9a9d72f9bce6c1402b12c920313be57e1e50e"
+    },
+    {
+      "id": "humi-grocery-checking-list-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-grocery-checking-list-01.webp",
+      "sourceFile": "humi-grocery-checking-list-01.png",
+      "sourceBytes": 1217500,
+      "sourceSha256": "595cb756024ffc995bfd579e70e5d73753191bc873f57079fee8c587e4de277e",
+      "outputBytes": 69864,
+      "outputSha256": "9cd3b463b44f1e0fe490bf520ade32ae9e6ff748c1cd2fa6c41953319c7654f3"
+    },
+    {
+      "id": "humi-grocery-claim-bought-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-grocery-claim-bought-01.webp",
+      "sourceFile": "humi-grocery-claim-bought-01.png",
+      "sourceBytes": 1131708,
+      "sourceSha256": "707bd936e2e2b85961d927d624dc59462e3cc05fc4bd2ea32dd1ebac1ff84699",
+      "outputBytes": 43578,
+      "outputSha256": "904c9363c38366a2cb9856d16488c039381c992bf705b0965bd65658b0ed1429"
+    },
+    {
+      "id": "humi-grocery-claim-declined-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-grocery-claim-declined-01.webp",
+      "sourceFile": "humi-grocery-claim-declined-01.png",
+      "sourceBytes": 973629,
+      "sourceSha256": "65d8efafc3dab948e3e375a54058a01c589b7a2e35179e40d67f7a2ba2c3c327",
+      "outputBytes": 41748,
+      "outputSha256": "457e930c93b5903324db0a7036570027ffa1935f034a92c42d6578f5889bba8d"
+    },
+    {
+      "id": "humi-grocery-claim-open-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-grocery-claim-open-01.webp",
+      "sourceFile": "humi-grocery-claim-open-01.png",
+      "sourceBytes": 1106228,
+      "sourceSha256": "1dc411e97972248d25e5b062fe1e5922da960807e453ea02ff4d7247d3010b8f",
+      "outputBytes": 69888,
+      "outputSha256": "8e82ea164a340afe87d7459e2bd4ec6b9d278d5c0cb2bdd6232a554babbb5091"
+    },
+    {
+      "id": "humi-grocery-progress-sync-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-grocery-progress-sync-01.webp",
+      "sourceFile": "humi-grocery-progress-sync-01.png",
+      "sourceBytes": 1197900,
+      "sourceSha256": "f0222247af8aea7ebe241643e82b5df82646c6107a73daa3de28a411da20cb31",
+      "outputBytes": 49872,
+      "outputSha256": "ada8c98ead2c7d8717c4dd20391f89e3db75c9b3475c92c34a3182d0f1d93309"
+    },
+    {
+      "id": "humi-home-family-dinner-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-home-family-dinner-01.webp",
+      "sourceFile": "humi-home-family-dinner-01.png",
+      "sourceBytes": 1326598,
+      "sourceSha256": "fb2e09e41f4013eebbe1c79f980111c18e63a2a9702088725798e401c84cf7d8",
+      "outputBytes": 64112,
+      "outputSha256": "150f12c6548feab29aee149444d7efaa583aacf231648f84f3c6548d58d49e82"
+    },
+    {
+      "id": "humi-invite-family-accepted-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-invite-family-accepted-01.webp",
+      "sourceFile": "humi-invite-family-accepted-01.png",
+      "sourceBytes": 1152645,
+      "sourceSha256": "a2fd2b33e2a0bebd81bc345a1f34516af75e959bc3e19127ac3c589b82611a3c",
+      "outputBytes": 58934,
+      "outputSha256": "59967d1160840eeae132f1b4e558c3ce4028c240271629fad27adfc7cb14e450"
+    },
+    {
+      "id": "humi-invite-family-join-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-invite-family-join-01.webp",
+      "sourceFile": "humi-invite-family-join-01.png",
+      "sourceBytes": 1059585,
+      "sourceSha256": "0a1bc5ac6f52e4308901617398ff160ee20e073d5e5f4f4aa40c3ab815e14df4",
+      "outputBytes": 65260,
+      "outputSha256": "3856fa8ff600bf3ae1d764d3776e1637f1c0b916e7d7a9a8dc08d828412c894b"
+    },
+    {
+      "id": "humi-menu-share-open-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-menu-share-open-01.webp",
+      "sourceFile": "humi-menu-share-open-01.png",
+      "sourceBytes": 1158887,
+      "sourceSha256": "6add859dc6f5346707e3282d70c6afbfe3dd938e4c0dee76feade5893382457e",
+      "outputBytes": 64706,
+      "outputSha256": "7f8ed05a092012dbfc4b3ca98a772d932b86b0d5c4b8f6aa1d93c1b6a2f20ef0"
+    },
+    {
+      "id": "humi-nutrition-calendar-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-nutrition-calendar-01.webp",
+      "sourceFile": "humi-nutrition-calendar-01.png",
+      "sourceBytes": 1187482,
+      "sourceSha256": "001d6f1b92be05c225510f63a394c335464d6c2a74ad6cb83020f51ae15a447d",
+      "outputBytes": 53736,
+      "outputSha256": "3559be57619cd50da088b24e1fb9d0c6271e2b764aa7b81a9905a284b022f8eb"
+    },
+    {
+      "id": "humi-planner-week-calendar-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-planner-week-calendar-01.webp",
+      "sourceFile": "humi-planner-week-calendar-01.png",
+      "sourceBytes": 1242431,
+      "sourceSha256": "128f4abbbe44d63db13b0e936eb9929795218b4dedaf9aa8c43b3bb43f0904f3",
+      "outputBytes": 56202,
+      "outputSha256": "0ca5b208cdb615e18363abe8e0015ffbe9aab5b9b92ef91a58bc9e2566ebeeac"
+    },
+    {
+      "id": "humi-poster-breakfast-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-breakfast-01.webp",
+      "sourceFile": "humi-poster-breakfast-01.png",
+      "sourceBytes": 1124591,
+      "sourceSha256": "a57469436c7c30502be2f2f6fda2c34fae8e26b30175f05eb695a084b6015851",
+      "outputBytes": 43442,
+      "outputSha256": "e01e021402826a3abd4038ea6309e135e7f3ff3860e04c52e190d145a09d91c6"
+    },
+    {
+      "id": "humi-poster-family-taste-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-family-taste-01.webp",
+      "sourceFile": "humi-poster-family-taste-01.png",
+      "sourceBytes": 1253306,
+      "sourceSha256": "20ed191db6f8e26f0204decb335cfd87009bfaf592f573c837344620b1227b73",
+      "outputBytes": 60738,
+      "outputSha256": "eedcb2d16b5222a23564e984f4d1aa8a2778066a70d7529fec382100ef4bf317"
+    },
+    {
+      "id": "humi-poster-fridge-leftover-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-fridge-leftover-01.webp",
+      "sourceFile": "humi-poster-fridge-leftover-01.png",
+      "sourceBytes": 1160082,
+      "sourceSha256": "5bd918b765a14b0412e803a6c84512fbfaffd4313250af127f418a8e376de7fd",
+      "outputBytes": 47994,
+      "outputSha256": "840abadc64507af9b8b90a45689feeb084650648e57017e5e64420e5ffc7a428"
+    },
+    {
+      "id": "humi-poster-low-fat-meal-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-low-fat-meal-01.webp",
+      "sourceFile": "humi-poster-low-fat-meal-01.png",
+      "sourceBytes": 1181081,
+      "sourceSha256": "522bc9af4830dccf718c8d1a98dbf13c22f0e2b20cb618185f64615cd8eab4d4",
+      "outputBytes": 53636,
+      "outputSha256": "41e1ab6d695c5505bdd7badba3fd75cae09c8ca4b4d9251d354f18adeab7536a"
+    },
+    {
+      "id": "humi-poster-shopping-bag-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-shopping-bag-01.webp",
+      "sourceFile": "humi-poster-shopping-bag-01.png",
+      "sourceBytes": 1160823,
+      "sourceSha256": "6a2fe7b8e5dec7052d2a7b34f5e5b5e04eb3f8170fab8fa7a687f05e347f1bb1",
+      "outputBytes": 62100,
+      "outputSha256": "e1a06c93893840ca5e8434bc4bc0357a4e99bdcd295f130b93e546772b4865f6"
+    },
+    {
+      "id": "humi-poster-tonight-eating-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-tonight-eating-01.webp",
+      "sourceFile": "humi-poster-tonight-eating-01.png",
+      "sourceBytes": 1104733,
+      "sourceSha256": "a3a1f0aeab920493e4adb253773b0fcf09fda039090f8669559e2c5df2b27f0c",
+      "outputBytes": 68022,
+      "outputSha256": "42a14e81021c77463721789e9fb68716fb0038922a9edb26c395d5d6df3dd1e5"
+    },
+    {
+      "id": "humi-poster-weekly-planning-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-weekly-planning-01.webp",
+      "sourceFile": "humi-poster-weekly-planning-01.png",
+      "sourceBytes": 1305696,
+      "sourceSha256": "03df7c618c170c61a894ee7a9bdc98464ee488fd78ee3df336a2d608c9c12ac5",
+      "outputBytes": 74688,
+      "outputSha256": "d6cc26bc704e164c8c4ae960094e3dd9cc0b5535dc3bbca0ad5fb784d5404503"
+    },
+    {
+      "id": "humi-poster-wish-pool-01",
+      "category": "poster",
+      "src": "/assets/brand/lovart-v2/humi-poster-wish-pool-01.webp",
+      "sourceFile": "humi-poster-wish-pool-01.png",
+      "sourceBytes": 1082396,
+      "sourceSha256": "cf99ed66b08520404b1e94dc8ff9bbf2e87a79221af11bdde287fad862d03399",
+      "outputBytes": 66166,
+      "outputSha256": "eac5728c7813455ea95b5f82c414aa39fe35c8d90006a0927c728c151144ed5b"
+    },
+    {
+      "id": "humi-recipe-reading-step-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-recipe-reading-step-01.webp",
+      "sourceFile": "humi-recipe-reading-step-01.png",
+      "sourceBytes": 1252344,
+      "sourceSha256": "382d346a03235f9a2f49b9d5c998b6852793a90d3d9d0da95571bf98cb377fc1",
+      "outputBytes": 67142,
+      "outputSha256": "fa62efb24766767a494a2c28a9decf394cd7babd1d981c5e46d952a7f7930812"
+    },
+    {
+      "id": "humi-social-cover-dev-diary-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-dev-diary-01.webp",
+      "sourceFile": "humi-social-cover-dev-diary-01.png",
+      "sourceBytes": 1494704,
+      "sourceSha256": "437b959a4d3264ea05483cdcae0108686aa32fbb7cec2e7fe4b25950c55d72b5",
+      "outputBytes": 111012,
+      "outputSha256": "eecd7571b03254b0c2f0c4535c780db56ad2ab3a884ecac201b04700faf58bb0"
+    },
+    {
+      "id": "humi-social-cover-dinner-question-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-dinner-question-01.webp",
+      "sourceFile": "humi-social-cover-dinner-question-01.png",
+      "sourceBytes": 1192830,
+      "sourceSha256": "d2e3c65a47e97cc36833e663af4543abdd181f9faf6f798f26adcd9b58728ee0",
+      "outputBytes": 54270,
+      "outputSha256": "c7caa7ccddaf89847ace26554d5513a306c4c37845e59e926e8ec376eab236a1"
+    },
+    {
+      "id": "humi-social-cover-family-taste-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-family-taste-01.webp",
+      "sourceFile": "humi-social-cover-family-taste-01.png",
+      "sourceBytes": 1261593,
+      "sourceSha256": "ee70bac65a84513a980482e720eebefd41e04d41890d7faac1a27e7554a3f523",
+      "outputBytes": 62522,
+      "outputSha256": "28a738c7248acd9422f69e15b4b7d84bcff9a68367707e96e6819c28d935f29c"
+    },
+    {
+      "id": "humi-social-cover-fridge-leftover-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-fridge-leftover-01.webp",
+      "sourceFile": "humi-social-cover-fridge-leftover-01.png",
+      "sourceBytes": 1163808,
+      "sourceSha256": "2885f34d17f42be2dd2a618d2494711c2eafd5887e7c55e65becbb25e84fbeff",
+      "outputBytes": 50544,
+      "outputSha256": "55e14530ce66498e1a811ca0ca8f1d7f892b09d5e9da1d50fb51855efb2d2634"
+    },
+    {
+      "id": "humi-social-cover-low-fat-week-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-low-fat-week-01.webp",
+      "sourceFile": "humi-social-cover-low-fat-week-01.png",
+      "sourceBytes": 1226188,
+      "sourceSha256": "a4292384fa2d48ffe476fdebee5265c1e4a6a6d08d57428a3befc982855a90b8",
+      "outputBytes": 61742,
+      "outputSha256": "84cce561950083abdde0cb508ec1311e0304d58fe47fc13bcd88a37ba965929c"
+    },
+    {
+      "id": "humi-social-cover-shopping-list-01",
+      "category": "social",
+      "src": "/assets/brand/lovart-v2/humi-social-cover-shopping-list-01.webp",
+      "sourceFile": "humi-social-cover-shopping-list-01.png",
+      "sourceBytes": 1253121,
+      "sourceSha256": "00972007e6ebab3bb55b0d8a36f36bd1ab594366e06ae377752d1a2c2036d74b",
+      "outputBytes": 60424,
+      "outputSha256": "ff7ba95fcc0c83e49bd07562d6f6df1f3e17dba66e2890bce92c31c8612d51d9"
+    },
+    {
+      "id": "humi-state-empty-family-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-empty-family-01.webp",
+      "sourceFile": "humi-state-empty-family-01.png",
+      "sourceBytes": 1122289,
+      "sourceSha256": "96fadf40b25c994015ae9dad6d76463cb703371f4402a922ff8d5f67d02f8f95",
+      "outputBytes": 48652,
+      "outputSha256": "bc0581f01e6f1be44fcd98c3d1b3d241716a2bcf58409a06591a0711c8b5e510"
+    },
+    {
+      "id": "humi-state-empty-wish-pool-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-empty-wish-pool-01.webp",
+      "sourceFile": "humi-state-empty-wish-pool-01.png",
+      "sourceBytes": 1085663,
+      "sourceSha256": "056c4b190d2a8a5b1cf2477c6672155733a4ceab85e2bca4c0d9af92a6dedc94",
+      "outputBytes": 39472,
+      "outputSha256": "2d49d476f428d7515239374d07f8a03a2c15fb5b7c418d8931fbea3d5252ce7d"
+    },
+    {
+      "id": "humi-state-link-expired-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-link-expired-01.webp",
+      "sourceFile": "humi-state-link-expired-01.png",
+      "sourceBytes": 1086921,
+      "sourceSha256": "0fb17dc04c8021d7c69c888921c930aa6c23c68621a6e2f78ef49656fb3e0f46",
+      "outputBytes": 37910,
+      "outputSha256": "ac57929a74d61509003f901be3e625694e28f938d2df29a067d57833211dafe8"
+    },
+    {
+      "id": "humi-state-loading-menu-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-loading-menu-01.webp",
+      "sourceFile": "humi-state-loading-menu-01.png",
+      "sourceBytes": 1121558,
+      "sourceSha256": "bbfb930ac73f1917b9473076283ff5684c0cfd72aaa700354c5d91d4fd4d6d74",
+      "outputBytes": 55672,
+      "outputSha256": "95388cb83d5e19f6ec58988fc7e63507be9aac35e5c94f0c7d8484ec4815d2a0"
+    },
+    {
+      "id": "humi-state-offline-local-save-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-offline-local-save-01.webp",
+      "sourceFile": "humi-state-offline-local-save-01.png",
+      "sourceBytes": 990217,
+      "sourceSha256": "d482273f3f5d281472cc6826b9337b0af99c89aff0d62e1d0bc82aed83a5f4fa",
+      "outputBytes": 48138,
+      "outputSha256": "157a60290e10a20df4bbf96894c46bbf14c9ccf8bc8e2b2e098b8e0b957a809d"
+    },
+    {
+      "id": "humi-state-phone-bind-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-phone-bind-01.webp",
+      "sourceFile": "humi-state-phone-bind-01.png",
+      "sourceBytes": 1089997,
+      "sourceSha256": "51c44cc6e4806181c23a2c40a66d9edc7ce2c594b12acdcf1376e86b0bdf864b",
+      "outputBytes": 39954,
+      "outputSha256": "e01a19ccf587dd83e1ab85266f5b8a24b6d4faba404ef11d2184aa60a5093a53"
+    },
+    {
+      "id": "humi-state-sync-conflict-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-sync-conflict-01.webp",
+      "sourceFile": "humi-state-sync-conflict-01.png",
+      "sourceBytes": 1116915,
+      "sourceSha256": "b2cae1a02e8a91303f9290470162280aebbfdc07ce3ebf4fb21faa20c0c6a4a7",
+      "outputBytes": 38494,
+      "outputSha256": "74b2027e40f9494e471763d88fe89893063c21a760c2dcc0600ca9856544ed99"
+    },
+    {
+      "id": "humi-state-sync-success-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-sync-success-01.webp",
+      "sourceFile": "humi-state-sync-success-01.png",
+      "sourceBytes": 1110783,
+      "sourceSha256": "d9f6ec85c2af0d8d44a5f44239e6cbcd9388a989230c366e9f9cba2ced26d048",
+      "outputBytes": 36280,
+      "outputSha256": "d365bee4f64d250ba6454155eda4c9be37a3f8ef03dc87804eabdab26d3ee536"
+    },
+    {
+      "id": "humi-state-wechat-login-01",
+      "category": "state",
+      "src": "/assets/brand/lovart-v2/humi-state-wechat-login-01.webp",
+      "sourceFile": "humi-state-wechat-login-01.png",
+      "sourceBytes": 1132143,
+      "sourceSha256": "269c4f7732d838a24bf489433518042707ff55bb2270c4b6c8cf0ff452fb3094",
+      "outputBytes": 49952,
+      "outputSha256": "ae94435472daf79638c37549028ed327f7b7decb157e2c120111a99957a5cd9a"
+    },
+    {
+      "id": "humi-user-family-profile-01",
+      "category": "product",
+      "src": "/assets/brand/lovart-v2/humi-user-family-profile-01.webp",
+      "sourceFile": "humi-user-family-profile-01.png",
+      "sourceBytes": 1248692,
+      "sourceSha256": "9bd7f03eb30c3491ca1cbf1dec9ad542ce8cc40f13e1499f03d531df204b8ce1",
+      "outputBytes": 71608,
+      "outputSha256": "b42ab69154e9e95a2edd559f5694f73675f3bae1a2170660580bc962b8051dfb"
+    },
+    {
+      "id": "humi-wish-submitted-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-wish-submitted-01.webp",
+      "sourceFile": "humi-wish-submitted-01.png",
+      "sourceBytes": 1139869,
+      "sourceSha256": "623fd929ac297ce068122481fc0a620751a1d89c2c6c94377df0ea4a0018f1fd",
+      "outputBytes": 46540,
+      "outputSha256": "31f43a8b06ed31f8e3168819782a71c6fc54e92eede3a911bea6943c1e4acb10"
+    },
+    {
+      "id": "humi-wish-write-dish-01",
+      "category": "collaboration",
+      "src": "/assets/brand/lovart-v2/humi-wish-write-dish-01.webp",
+      "sourceFile": "humi-wish-write-dish-01.png",
+      "sourceBytes": 1112649,
+      "sourceSha256": "a9b67af27011ec59740b040adc43e1d31291604568b05f8d7da29f7d5b757e32",
+      "outputBytes": 44538,
+      "outputSha256": "62f9de2b5b22581441371c642ddfea2a7e9f755be48bc83751d04f05cf0e6fa3"
+    }
+  ]
+}

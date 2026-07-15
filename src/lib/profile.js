@@ -59,8 +59,6 @@ export function getProfileCompletedCount(profile = {}) {
   return [
     profile.planningMode,
     profile.familySize,
-    profile.tastePreferences?.length,
-    profile.goals?.length,
     profile.dislikes?.length || profile.allergies?.length,
     profile.shoppingTolerance,
   ].filter(Boolean).length;
@@ -74,6 +72,16 @@ export function formatProfileSummary(profile = {}) {
     mode.shortLabel,
     profile.hasChildren ? "有孩子" : "",
     avoid.length > 0 ? `避开 ${avoid.slice(0, 3).join("、")}` : "",
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
+export function formatHardProfileSummary(profile = {}) {
+  const avoid = [...(profile.dislikes ?? []), ...(profile.allergies ?? [])];
+  const parts = [
+    `${profile.familySize ?? 2} 人`,
+    profile.hasChildren ? "有孩子" : "",
+    avoid.length > 0 ? `避开 ${avoid.slice(0, 3).join("、")}` : "已确认忌口",
   ].filter(Boolean);
   return parts.join(" · ");
 }
@@ -95,7 +103,7 @@ export function buildCompactFamilyPrompt(profile = {}) {
 }
 
 export function shoppingToleranceLabel(value) {
-  if (value === "low") return "少买菜，优先用库存";
+  if (value === "low") return "少买菜，优先用家里常见食材";
   if (value === "high") return "愿意专门买菜";
   return "可买2-3样主食材";
 }

@@ -1,13 +1,14 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/share/index",
     "pages/phone-bind/index"
   ],
   "window": {
     "navigationBarTitleText": "Humi",
     "navigationBarBackgroundColor": "#111111",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#F5F4F1"
+    "backgroundColor": "#F5F5F5"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

@@ -38,10 +38,10 @@ export function CloudSyncPanel({
       <SyncCard
         icon={ShoppingBasket}
         eyebrow="Save"
-        title="食材清单和家中库存"
+        title="食材清单"
         description={
           cloudGroceryEnabled
-            ? "买菜勾选、家里现有和库存都会被记住。"
+            ? "买菜勾选会顺手记住，不需要单独维护。"
             : "菜单保存后，再把买菜时会改动的清单也保存起来。"
         }
         loading={cloudGroceryLoading}

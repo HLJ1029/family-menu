@@ -14,7 +14,7 @@ export function MetricCard({ icon: Icon, label, value, note, action, onClick }) 
           <h3 className="mt-3 text-3xl font-black tracking-[-0.04em]">{value}</h3>
           <p className="mt-2 text-sm leading-6 text-ink/52">{note}</p>
         </div>
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-white">
           <Icon size={20} />
         </div>
       </div>
@@ -36,11 +36,12 @@ export function Stat({ label, value }) {
   );
 }
 
-export function StatBlock({ label, value }) {
+export function StatBlock({ label, value, tone = "dark" }) {
+  const light = tone === "light";
   return (
-    <div className="rounded-[22px] bg-white/10 p-4">
+    <div className={`rounded-[22px] p-4 ${light ? "bg-canvas" : "bg-white/10"}`}>
       <p className="text-3xl font-black tracking-[-0.04em]">{value}</p>
-      <p className="mt-1 text-xs font-black uppercase tracking-[0.16em] text-white/45">{label}</p>
+      <p className={`mt-1 text-xs font-black uppercase tracking-[0.16em] ${light ? "text-ink/42" : "text-white/45"}`}>{label}</p>
     </div>
   );
 }

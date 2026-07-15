@@ -1,6 +1,7 @@
-import { CheckCircle2, RefreshCw, ShoppingBasket, Utensils } from "lucide-react";
+import { RefreshCw, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
-import { HumiBrandCallout, HumiBrandIllustration, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiBrandCallout, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 const rejectReasons = [
   { id: "too_much_work", label: "太麻烦" },
@@ -13,15 +14,22 @@ const rejectReasons = [
 export function RecommendationsPage({
   recommendation,
   aiRecommendationLoading,
+  preciseRecommendationEnabled = false,
   onRefresh,
   onAccept,
   onReject,
   onOpenRecipe,
+  onOpenRecipeLibrary,
   onViewChange,
 }) {
   const items = getRecommendationItems(recommendation);
   const totalMinutes = items.reduce((total, item) => total + item.recipe.timeMinutes, 0);
   const hasStaple = items.some((item) => item.recipe.categories.includes("主食") || item.recipe.tags?.includes("主食"));
+  const refreshLabel = preciseRecommendationEnabled ? "精准换一组" : "基础换一组";
+  const recommendationModeLabel = preciseRecommendationEnabled ? "精准推荐" : "基础推荐";
+  const recommendationModeText = preciseRecommendationEnabled
+    ? "会结合家庭画像、反馈和候选菜谱重新核对。"
+    : "先用本地规则快速换一组，基础推荐可以一直用。";
 
   return (
     <section className="grid min-w-0 grid-cols-1 gap-5">
@@ -51,7 +59,7 @@ export function RecommendationsPage({
                 className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-60"
               >
                 <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
-                换一组
+                {refreshLabel}
               </button>
               <button
                 type="button"
@@ -61,21 +69,28 @@ export function RecommendationsPage({
                 <ShoppingBasket size={18} />
                 看清单
               </button>
+              <button
+                type="button"
+                onClick={() => onOpenRecipeLibrary?.()}
+                className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 sm:col-span-1"
+              >
+                <Sparkles size={18} />
+                全部菜品库
+              </button>
             </div>
           </div>
-          <div className="rounded-[28px] border border-line bg-canvas p-4 text-center">
-            <HumiBrandIllustration
-              variant={aiRecommendationLoading ? "recommendation-loading" : "recommendation"}
+          <div className="text-center">
+            <HumiScene
+              scene={aiRecommendationLoading ? "loadingMenu" : "discover"}
               size="xl"
               className="mx-auto"
-              title="推荐生活场景"
-              contextKey={aiRecommendationLoading ? "recommendation-loading" : "recommendation-hero"}
+              eager
             />
             <p className="mt-2 text-sm font-black text-ink">
-              {aiRecommendationLoading ? "重新核对中" : "先用家里已有"}
+              {aiRecommendationLoading ? "重新核对中" : recommendationModeLabel}
             </p>
             <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
-              推荐先看库存、再看今晚时间，真实菜品仍然是主视觉。
+              {recommendationModeText}
             </p>
           </div>
         </div>

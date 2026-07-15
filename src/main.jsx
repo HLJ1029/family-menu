@@ -2,10 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
+import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
+import { GroceryClaimLanding } from "./components/GroceryClaimLanding";
 import { GroceryList } from "./components/GroceryList";
-import { InventoryPage } from "./components/InventoryPage";
+import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
+import { MenuShareLanding } from "./components/MenuShareLanding";
 import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
@@ -15,6 +18,7 @@ import { IcpFooter, Sidebar, MobileTabbar, Topbar } from "./components/AppShell"
 import { StatsPage } from "./components/StatsPage";
 import { TodayMenu } from "./components/TodayMenu";
 import { UserCenter } from "./components/UserCenter";
+import { WishLanding } from "./components/WishLanding";
 import { OfflineStatus } from "./components/system/OfflineStatus";
 import { HumiPeek } from "./components/ui/HumiBrandIllustration";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
@@ -55,11 +59,12 @@ import {
   photoCandidatesFor,
   recipes,
 } from "./lib/recipes";
-import { buildRecommendationItems, buildTodayRecommendation } from "./lib/recommendation/rules";
+import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
-import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession } from "./lib/humiIdentity";
-import { isHumiApiSession, loadHumiState, logoutHumiSession, saveHumiState } from "./lib/humiApi";
-import { getLaunchChannel } from "./lib/runtime";
+import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession, requestWechatLoginFromMiniProgram } from "./lib/humiIdentity";
+import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold } from "./lib/humiApi";
+import { isHumiAiViaApiEnabled } from "./lib/aiViaHumiApi";
+import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramShare } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
@@ -113,9 +118,19 @@ function App() {
   const flowMotionTimerRef = useRef(null);
   const humiStateLoadedRef = useRef(false);
   const humiStateHydratingRef = useRef(false);
+  const pendingJoinMergeRef = useRef("");
   const viewHistoryRef = useRef(["dashboard"]);
   const swipeStartRef = useRef(null);
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => getInitialView());
+  const [landingCraveToken, setLandingCraveToken] = useState(() => getInitialCraveToken());
+  const [landingGroceryShareToken, setLandingGroceryShareToken] = useState(() => getInitialGroceryShareToken());
+  const [landingMenuShareToken, setLandingMenuShareToken] = useState(() => getInitialMenuShareToken());
+  const [landingWishShareToken, setLandingWishShareToken] = useState(() => getInitialWishShareToken());
+  const [landingInviteToken, setLandingInviteToken] = useState(() => getInitialInviteToken());
+  const [entryRedirectView, setEntryRedirectView] = useState("dashboard");
+  const [authGateIntent, setAuthGateIntent] = useState("");
+  const [libraryMealSlot, setLibraryMealSlot] = useState(null);
+  const [libraryParentLabel, setLibraryParentLabel] = useState("今晚菜单");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [todayMenu, setTodayMenu] = useLocalStorageState("family-menu:today-menu", []);
@@ -131,9 +146,6 @@ function App() {
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
   const [newCustomItem, setNewCustomItem] = useState("");
   const [pantryItems, setPantryItems] = useLocalStorageState("family-menu:pantry-items", []);
-  const [newPantryItem, setNewPantryItem] = useState("");
-  const [newPantryAmount, setNewPantryAmount] = useState("");
-  const [newPantryExpiresOn, setNewPantryExpiresOn] = useState("");
   const [excludedGroceryKeys, setExcludedGroceryKeys] = useLocalStorageState(
     "family-menu:excluded-grocery-keys",
     [],
@@ -149,6 +161,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
   const [family, setFamily] = useState(null);
+  const [humiHouseholds, setHumiHouseholds] = useState([]);
   const [familyName, setFamilyName] = useState("我的家庭");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("humi:cloud-menu-enabled", false, {
@@ -160,7 +173,7 @@ function App() {
     legacyKeys: ["familyos:cloud-grocery-enabled"],
   });
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
-  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单和库存。");
+  const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单。");
   const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
   const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -171,21 +184,35 @@ function App() {
     () => getDefaultNutritionGoals(defaultFamilyProfile),
   );
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
+  const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
+  const [wishPool, setWishPool] = useLocalStorageState("humi:wish-pool:v1", []);
+  const [activeCraveRequest, setActiveCraveRequest] = useLocalStorageState("humi:active-crave-request:v1", null);
+  const [activeGroceryShareRequest, setActiveGroceryShareRequest] = useLocalStorageState("humi:active-grocery-share-request:v1", null);
+  const [activeWishShareRequest, setActiveWishShareRequest] = useLocalStorageState("humi:active-wish-share-request:v1", null);
+  const [activeHouseholdInvite, setActiveHouseholdInvite] = useLocalStorageState("humi:household-invite:v1", null);
+  const [pendingJoinContext, setPendingJoinContext] = useLocalStorageState("humi:pending-join-context:v1", null);
+  const [householdMembers, setHouseholdMembers] = useLocalStorageState("humi:household-members:v1", []);
+  const [craveRequestPending, setCraveRequestPending] = useState(false);
+  const [craveRequestStatus, setCraveRequestStatus] = useState("");
+  const [cravePanelOpenSignal, setCravePanelOpenSignal] = useState(0);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [preferencesLoading, setPreferencesLoading] = useState(false);
-  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员偏好。");
+  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员忌口。");
   const [aiExplanation, setAiExplanation] = useState("");
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像和口味。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+  const [preciseRecommendationBlocked, setPreciseRecommendationBlocked] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
   const [posterLoading, setPosterLoading] = useState(false);
   const [entryMotion, setEntryMotion] = useState(false);
   const [flowMotion, setFlowMotion] = useState(null);
   const signedIn = Boolean(session?.user || humiSession?.user);
+  const preciseRecommendationAvailable = isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && !preciseRecommendationBlocked;
+  const sharedGuestLanding = isSharedGuestLanding();
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
   const todayDateKey = formatDateKey(new Date());
   const weekDateKeys = useMemo(() => {
@@ -194,11 +221,25 @@ function App() {
       weekPlanDays.map((day, index) => [day, formatDateKey(addDays(weekStart, index))]),
     );
   }, [activeWeekKey]);
+
+  useEffect(() => {
+    setPreciseRecommendationBlocked(false);
+  }, [session?.user?.id, humiSession?.user?.id]);
+
   const slotLabelsById = useMemo(
     () => Object.fromEntries(mealSlots.map((slot) => [slot.id, slot.label])),
     [],
   );
   const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
+  const libraryMenuQuantities = useMemo(() => {
+    if (libraryMealSlot && libraryMealSlot !== "dinner") {
+      return (todayMeals[libraryMealSlot] ?? []).map((entry) => ({
+        recipeId: entry.recipeId,
+        quantity: entry.quantity ?? 1,
+      }));
+    }
+    return todayMenu;
+  }, [libraryMealSlot, todayMeals, todayMenu]);
   const humiStateSnapshot = useMemo(() => ({
     todayMenu,
     weekPlan,
@@ -212,17 +253,31 @@ function App() {
     familyProfile,
     nutritionGoals,
     recommendationFeedback,
+    craveSignals,
+    wishPool,
+    activeCraveRequest,
+    activeGroceryShareRequest,
+    activeWishShareRequest,
+    pendingJoinContext,
+    householdMembers,
   }), [
+    activeCraveRequest,
+    activeGroceryShareRequest,
+    activeWishShareRequest,
     checkedItems,
     customItems,
     excludedGroceryKeys,
     familyProfile,
+    householdMembers,
     mealPlan,
     mealCalendar,
     mealLogs,
     nutritionGoals,
     pantryItems,
+    pendingJoinContext,
     recommendationFeedback,
+    craveSignals,
+    wishPool,
     todayMenu,
     weekPlan,
   ]);
@@ -234,8 +289,9 @@ function App() {
     setOnboardingComplete(true);
     setProfileOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
+    setAuthGateIntent("");
     setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
+    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像和口味反馈。");
     showNotice("已登录 Humi");
   }, [setOnboardingComplete, setProfileOnboardingComplete]);
 
@@ -250,48 +306,17 @@ function App() {
     setCloudMenuLoading(true);
     setCloudGroceryLoading(true);
     setCloudSyncStatus("正在读取微信账号保存的菜单...");
-    setCloudGroceryStatus("正在读取微信账号保存的清单和库存...");
+    setCloudGroceryStatus("正在读取微信账号保存的清单...");
 
     async function loadWechatState() {
       try {
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiStateEnvelope(humiSession);
         if (!active) return;
-        if (state) {
-          setTodayMenu(Array.isArray(state.todayMenu) ? state.todayMenu : []);
-          const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
-          const loadedMealCalendar = state.mealCalendar ?? createInitialMealCalendar();
-          const loadedMealPlan = normalizeMealPlan(
-            state.mealPlan ?? createMealPlanFromLegacy({
-              mealCalendar: loadedMealCalendar,
-              weekPlan: loadedWeekPlan,
-              todayMenu: state.todayMenu,
-              todayDateKey,
-              currentDay: getCurrentPlanDay(),
-            }),
-          );
-          const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
-          setMealPlan(loadedMealPlan);
-          setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
-          setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
-          setMealCalendar(mealPlanToCalendar(loadedMealPlan));
-          setMealLogs(state.mealLogs ?? {});
-          setCheckedItems(state.checkedItems ?? {});
-          setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
-          setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
-          setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
-          setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
-          setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
-          setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
-          setCloudSyncStatus("已读取微信账号保存的今晚菜单和一周计划。");
-          setCloudGroceryStatus("已读取微信账号保存的食材清单和家中库存。");
-        } else {
-          setCloudSyncStatus("微信账号保存已开启，今晚菜单会自动保存。");
-          setCloudGroceryStatus("微信账号保存已开启，清单和库存会自动保存。");
-        }
+        applyHumiStateEnvelope(data, { preservePendingJoin: pendingJoinContext });
       } catch (error) {
         if (active) {
-          setCloudSyncStatus(error.message);
-          setCloudGroceryStatus(error.message);
+          setCloudSyncStatus(formatCloudSyncError(error));
+          setCloudGroceryStatus(formatCloudSyncError(error));
         }
       } finally {
         if (active) {
@@ -322,6 +347,7 @@ function App() {
     setNutritionGoals,
     setPantryItems,
     setRecommendationFeedback,
+    setWishPool,
     setTodayMenu,
     setWeekPlan,
     todayDateKey,
@@ -334,15 +360,39 @@ function App() {
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
-        setCloudGroceryStatus("清单和家中库存已保存到微信账号。");
+        setCloudGroceryStatus("清单已保存到微信账号。");
       } catch (error) {
-        setCloudSyncStatus(error.message);
-        setCloudGroceryStatus(error.message);
+        setCloudSyncStatus(formatCloudSyncError(error));
+        setCloudGroceryStatus(formatCloudSyncError(error));
       }
     }, 900);
 
     return () => window.clearTimeout(timer);
   }, [humiSession, humiStateSnapshot]);
+
+  useEffect(() => {
+    if (!isHumiApiSession(humiSession) || !pendingJoinContext?.type || !pendingJoinContext?.token || !pendingJoinContext?.participantKey) return undefined;
+    const mergeKey = `${pendingJoinContext.type}:${pendingJoinContext.token}:${pendingJoinContext.participantKey}:${humiSession.user?.id || "user"}`;
+    let cancelled = false;
+    let timer;
+
+    function mergeWhenReady() {
+      if (cancelled) return;
+      if (!humiStateLoadedRef.current || humiStateHydratingRef.current) {
+        timer = window.setTimeout(mergeWhenReady, 100);
+        return;
+      }
+      if (pendingJoinMergeRef.current === mergeKey) return;
+      pendingJoinMergeRef.current = mergeKey;
+      void acceptPendingJoinAsMember(pendingJoinContext);
+    }
+
+    mergeWhenReady();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [humiSession, pendingJoinContext]);
 
   useEffect(() => {
     if (Object.keys(mealPlan ?? {}).length > 0) return;
@@ -384,6 +434,10 @@ function App() {
 
   useEffect(() => {
     const currentWeekKey = getWeekKey();
+    if (!activeWeekKey) {
+      setActiveWeekKey(currentWeekKey);
+      return;
+    }
     if (activeWeekKey === currentWeekKey) return;
     const currentWeekEndKey = formatDateKey(addDays(parseDateKey(currentWeekKey), 6));
     setTodayMenu([]);
@@ -456,7 +510,7 @@ function App() {
         }));
         setCloudSyncStatus("已读取我的家里保存的今晚菜单和一周计划。");
       } catch (error) {
-        if (active) setCloudSyncStatus(error.message);
+        if (active) setCloudSyncStatus(formatCloudSyncError(error));
       } finally {
         if (active) setCloudMenuLoading(false);
       }
@@ -475,7 +529,7 @@ function App() {
         await saveTodayMenu(family.id, todayMenu);
         setCloudSyncStatus("今晚菜单已保存到我的家。");
       } catch (error) {
-        setCloudSyncStatus(error.message);
+        setCloudSyncStatus(formatCloudSyncError(error));
       }
     }, 450);
 
@@ -489,7 +543,7 @@ function App() {
         await saveWeekPlan(family.id, weekPlan);
         setCloudSyncStatus("一周计划已保存到我的家。");
       } catch (error) {
-        setCloudSyncStatus(error.message);
+        setCloudSyncStatus(formatCloudSyncError(error));
       }
     }, 650);
 
@@ -510,9 +564,9 @@ function App() {
         setCheckedItems(cloudGrocery.checkedItems);
         setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
         setPantryItems(cloudGrocery.pantryItems);
-        setCloudGroceryStatus("已从云端读取食材清单和厨房库存。");
+        setCloudGroceryStatus("已从云端读取食材清单。");
       } catch (error) {
-        if (active) setCloudGroceryStatus(error.message);
+        if (active) setCloudGroceryStatus(formatCloudSyncError(error));
       } finally {
         if (active) setCloudGroceryLoading(false);
       }
@@ -543,9 +597,9 @@ function App() {
           excludedGroceryKeys,
           pantryItems,
         });
-        setCloudGroceryStatus("食材清单和家中库存已保存到我的家。");
+        setCloudGroceryStatus("食材清单已保存到我的家。");
       } catch (error) {
-        setCloudGroceryStatus(error.message);
+        setCloudGroceryStatus(formatCloudSyncError(error));
       }
     }, 700);
 
@@ -614,7 +668,7 @@ function App() {
       setFamilyMembers([]);
       setPreferenceDraft({});
       setInviteEmail("");
-      setPreferencesStatus("创建家庭空间后，可维护家庭成员偏好。");
+      setPreferencesStatus("创建家庭空间后，可维护家庭成员忌口。");
       return;
     }
 
@@ -654,14 +708,15 @@ function App() {
     })
     .filter(Boolean);
   const todayMealLog = mealLogs[todayDateKey] ?? {};
-  const plannedEntries = mealPlanEntriesForGroceries(mealPlan, ({ dateKey, slotId }) => {
+  const rawPlannedEntries = mealPlanEntriesForGroceries(mealPlan, ({ dateKey, slotId }) => {
     const day = Object.entries(weekDateKeys).find(([, key]) => key === dateKey)?.[0];
     const dateLabel = day ?? formatDateLabel(dateKey);
     return `${dateLabel}·${slotLabelsById[slotId] ?? "餐次"}`;
   });
+  const plannedEntries = rawPlannedEntries.filter((entry) => shouldIncludeMealEntryInGroceries(entry));
   const plannedRecipes = plannedEntries.map((entry) => getRecipe(entry.recipeId)).filter(Boolean);
   const selectedRecipe = selectedRecipeId ? getRecipe(selectedRecipeId) : null;
-  const recipeEntries = plannedEntries.length > 0
+  const recipeEntries = rawPlannedEntries.length > 0
     ? plannedEntries
     : [
         ...todayMenu.map((item) => ({ ...item, source: "今晚菜单" })),
@@ -679,12 +734,6 @@ function App() {
     () => new Set(pantryItems.map((item) => normalizeName(item.name))),
     [pantryItems],
   );
-  const pantryExpirySummary = useMemo(() => {
-    return {
-      expiringCount: pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon").length,
-      expiredCount: pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired").length,
-    };
-  }, [pantryItems]);
   const isGroceryItemOwned = (item) => excludedGrocerySet.has(item.hiddenKey) || pantryNameSet.has(normalizeName(item.name));
   const visibleGroceryGroups = useMemo(
     () =>
@@ -704,6 +753,10 @@ function App() {
     () => groceryItems.filter((item) => isGroceryItemOwned(item)),
     [excludedGrocerySet, groceryItems, pantryNameSet],
   );
+  const activeCravePreferences = useMemo(() => {
+    if (!activeCraveRequest || activeCraveRequest.status !== "closed" || todayMenu.length > 0) return [];
+    return buildCravePreferencesFromVotes(activeCraveRequest.votes ?? [], activeCraveRequest.starterFeeling || "");
+  }, [activeCraveRequest, todayMenu.length]);
   const todayRecommendation = useMemo(
     () =>
       buildTodayRecommendation({
@@ -713,24 +766,32 @@ function App() {
         todayRecipes,
         familyMembers,
         familyProfile,
+        cravePreferences: activeCravePreferences,
       }),
-    [familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
+    [activeCravePreferences, familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
   );
 
   useEffect(() => {
+    const closedCraveVoteCount = activeCraveRequest?.status === "closed" && todayMenu.length === 0
+      ? activeCraveRequest.votes?.length ?? 0
+      : 0;
     setAiExplanation("");
     setAiExplanationStatus(
-      signedIn
+      closedCraveVoteCount > 0
+        ? "这组解释会优先说明家人点过的感觉。"
+        : signedIn
         ? "先给你一组搭配理由；Humi 会继续参考家里的习惯。"
         : "先给你一组搭配理由；Humi 会慢慢记住家里的习惯。",
     );
     setAiRecommendation(null);
     setAiRecommendationStatus(
-      signedIn
-        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像、库存和口味。"
-        : "先按家里现有情况给你安排；之后会继续参考家庭画像、库存和口味。",
+      closedCraveVoteCount > 0
+        ? `已按 ${closedCraveVoteCount} 个家人回复揉合出一组，勾一下就能落进今晚菜单。`
+        : signedIn
+        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像和口味。"
+        : "先按家里现有情况给你安排；之后会继续参考家庭画像和口味。",
     );
-  }, [signedIn, todayRecommendation.title]);
+  }, [activeCraveRequest, signedIn, todayMenu.length, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
   useEffect(() => {
@@ -785,6 +846,82 @@ function App() {
     setNotice({ message, illustration: options.illustration ?? null });
     window.clearTimeout(showNotice.timer);
     showNotice.timer = window.setTimeout(() => setNotice(null), 1800);
+  }
+
+  function applyHumiStateEnvelope(data = {}, status = {}) {
+    if (data.family) setFamily(data.family);
+    if (Array.isArray(data.households)) setHumiHouseholds(data.households);
+    const formalMembers = (data.family?.members ?? []).map((member) => ({
+      id: `member:${member.memberId}`,
+      memberId: member.memberId,
+      name: member.nickname || "家人",
+      role: member.role === "owner" ? "主厨" : "家人",
+      status: "正式成员",
+      joinedAt: member.joinedAt,
+    }));
+    const state = data.state;
+    if (!state) {
+      setTodayMenu([]);
+      setWeekPlan(createDefaultWeekPlan());
+      setMealPlan({});
+      setMealCalendar({});
+      setMealLogs({});
+      setCheckedItems({});
+      setCustomItems([]);
+      setExcludedGroceryKeys([]);
+      setPantryItems([]);
+      setFamilyProfile(defaultFamilyProfile);
+      setNutritionGoals(getDefaultNutritionGoals(defaultFamilyProfile));
+      setRecommendationFeedback([]);
+      setCraveSignals([]);
+      setWishPool([]);
+      setActiveCraveRequest(null);
+      setActiveGroceryShareRequest(null);
+      setActiveWishShareRequest(null);
+      setPendingJoinContext(status.preservePendingJoin ?? null);
+      setHouseholdMembers(formalMembers);
+      setCloudSyncStatus(status.emptyMenu || "这个家还没有保存菜单，可以从今晚开始。");
+      setCloudGroceryStatus(status.emptyGrocery || "这个家还没有保存清单。安排一顿后会自动生成。");
+      return;
+    }
+
+    const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state.weekPlan ?? {}) };
+    const loadedMealCalendar = state.mealCalendar ?? createInitialMealCalendar();
+    const loadedMealPlan = normalizeMealPlan(
+      state.mealPlan ?? createMealPlanFromLegacy({
+        mealCalendar: loadedMealCalendar,
+        weekPlan: loadedWeekPlan,
+        todayMenu: state.todayMenu,
+        todayDateKey,
+        currentDay: getCurrentPlanDay(),
+      }),
+    );
+    const todayDinner = getDayMeals(loadedMealPlan, todayDateKey).dinner;
+    setMealPlan(loadedMealPlan);
+    setTodayMenu(todayDinner.length > 0 ? todayDinner : Array.isArray(state.todayMenu) ? state.todayMenu : []);
+    setWeekPlan(mealPlanToWeekPlan(loadedMealPlan, weekDateKeys));
+    setMealCalendar(mealPlanToCalendar(loadedMealPlan));
+    setMealLogs(state.mealLogs ?? {});
+    setCheckedItems(state.checkedItems ?? {});
+    setCustomItems(Array.isArray(state.customItems) ? state.customItems : []);
+    setExcludedGroceryKeys(Array.isArray(state.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
+    setPantryItems(Array.isArray(state.pantryItems) ? state.pantryItems : []);
+    setFamilyProfile({ ...defaultFamilyProfile, ...(state.familyProfile ?? {}) });
+    setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
+    setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
+    setCraveSignals(Array.isArray(state.craveSignals) ? state.craveSignals : []);
+    setWishPool(Array.isArray(state.wishPool) ? state.wishPool : []);
+    setActiveCraveRequest(state.activeCraveRequest ?? null);
+    setActiveGroceryShareRequest(state.activeGroceryShareRequest ?? null);
+    setActiveWishShareRequest(state.activeWishShareRequest ?? null);
+    setPendingJoinContext(status.preservePendingJoin ?? state.pendingJoinContext ?? null);
+    const stateMembers = Array.isArray(state.householdMembers) ? state.householdMembers : [];
+    setHouseholdMembers([
+      ...formalMembers,
+      ...stateMembers.filter((member) => !formalMembers.some((formal) => formal.memberId && formal.memberId === member.memberId)),
+    ]);
+    setCloudSyncStatus(status.loadedMenu || "已读取当前家的今晚菜单和一周计划。");
+    setCloudGroceryStatus(status.loadedGrocery || "已读取当前家的食材清单。");
   }
 
   function trackProductEvent(eventName, payload = {}) {
@@ -906,11 +1043,25 @@ function App() {
   }
 
   function addRecommendedToday() {
+    acceptRecommendationItems();
+  }
+
+  function addSelectedRecommendedToday(recipeIds = []) {
+    const selectedIds = new Set(recipeIds);
+    if (selectedIds.size === 0) {
+      showNotice("先勾选今晚要做的菜");
+      return;
+    }
+    acceptRecommendationItems(selectedIds);
+  }
+
+  function acceptRecommendationItems(selectedIds = null) {
     const recommendedItems = getRecommendationItems(displayedRecommendation)
+      .filter((item) => !selectedIds || selectedIds.has(item.recipe.id))
       .filter((item) => !todayMenu.some((menuItem) => menuItem.recipeId === item.recipe.id));
 
     if (recommendedItems.length === 0) {
-      showNotice("这组菜已经在今晚菜单里");
+      showNotice(selectedIds ? "勾选的菜已经在今晚菜单里" : "这组菜已经在今晚菜单里");
       return;
     }
 
@@ -925,9 +1076,455 @@ function App() {
       missingCount: displayedRecommendation.missingItems.length,
       familySize: displayedRecommendation.familySize ?? familyProfile.familySize,
     });
-    showNotice(`已加入 ${recommendedItems.length} 道推荐菜`, {
+    showNotice(selectedIds ? `已按征集确认 ${recommendedItems.length} 道菜` : `已加入 ${recommendedItems.length} 道推荐菜`, {
       illustration: "menu-accepted",
     });
+  }
+
+  async function startCraveRequest(feelingTag, options = {}) {
+    if (!signedIn) {
+      setEntryRedirectView("dashboard");
+      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+        showNotice("登录后就能发起征集，家人点卡片仍然免登录");
+      } else {
+        setAuthGateIntent("startCrave");
+      }
+      return;
+    }
+    if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+      showNotice("这个家的征集需要主厨发起；家人可以直接点感觉或丢想吃。");
+      return;
+    }
+    const safeFeeling = feelingTag || "随便都行";
+    const audience = Array.isArray(options.audience) && options.audience.length > 0
+      ? options.audience
+      : [{ id: "share-card-family", name: "家人", meta: "通过小程序卡片免登录参与" }];
+    setCraveRequestPending(true);
+    setCraveRequestStatus("");
+    try {
+      const data = await createCraveRequest({
+        householdId: family?.id ?? "",
+        ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+        householdName: family?.name ?? familyName ?? "我家",
+        initiatorName: getDisplayName(displaySession) ?? "主厨",
+        mealType: "dinner",
+        starterFeeling: safeFeeling,
+        targetParticipantNames: audience.map((person) => person.name).filter(Boolean),
+      }, isHumiApiSession(humiSession) ? humiSession : null);
+      const nextRequest = {
+        ...data.request,
+        ownerSecret: data.ownerSecret,
+        starterFeeling: safeFeeling,
+        audience,
+        targetParticipantNames: audience.map((person) => person.name).filter(Boolean),
+      };
+      setActiveCraveRequest(nextRequest);
+      setCraveRequestStatus("征集单已生成，可以分享给家人。");
+      trackProductEvent(appEvents.share, { type: "crave_request_created", method: "api" });
+      void shareCraveRequest(nextRequest);
+    } catch (error) {
+      setCraveRequestStatus(error.message || "征集单暂时没生成，请稍后再试。");
+      showNotice("协作征集暂时没连上");
+    } finally {
+      setCraveRequestPending(false);
+    }
+  }
+
+  function applyCraveRecommendation({ request, fallbackFeeling = "随便都行" } = {}) {
+    const votes = request?.votes ?? [];
+    const primaryVote = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行");
+    const safeFeeling = primaryVote?.feelingTag || request?.starterFeeling || fallbackFeeling || "随便都行";
+    const cravePreferences = buildCravePreferencesFromVotes(votes, safeFeeling);
+    const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const alternateRuleRecommendation = buildTodayRecommendation({
+      pantryItems,
+      weekPlan,
+      groceryItems: visibleGroceryItems,
+      todayRecipes,
+      familyMembers,
+      familyProfile,
+      excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
+      cravePreferences,
+    });
+    const voteReason = votes.length > 0
+      ? `照顾到：${votes.map(formatCraveVoteSummary).join(" · ")}。`
+      : safeFeeling === "随便都行"
+        ? "没人回复也没关系，先按忌口和省心程度来。"
+        : `先按发起时选的“${safeFeeling}”来。`;
+    const nextRecommendation = {
+      ...alternateRuleRecommendation,
+      source: "rule",
+      reason: `${alternateRuleRecommendation.reason} ${voteReason}`,
+    };
+    upsertCraveSignal({
+      request,
+      fallbackFeeling: safeFeeling,
+      recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+    });
+    setAiRecommendation(nextRecommendation);
+    setAiRecommendationStatus(
+      votes.length > 0
+        ? `收到 ${votes.length} 个家人感觉，已揉合出一组。`
+        : safeFeeling === "随便都行"
+          ? "没人回复也没关系。已按家庭忌口和省心程度给一组。"
+          : `已先按“${safeFeeling}”揉合出一组。`,
+    );
+    trackProductEvent(appEvents.recommendationRequest, {
+      source: "crave_signal",
+      feelingTag: safeFeeling,
+      voteCount: votes.length,
+      recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
+    });
+    showNotice(votes.length > 0 ? "已按家人感觉出菜单" : safeFeeling === "随便都行" ? "那就 Humi 来做主" : `已按“${safeFeeling}”换一组`);
+  }
+
+  function upsertCraveSignal({ request, fallbackFeeling = "随便都行", recipeIds = [] } = {}) {
+    const votes = Array.isArray(request?.votes) ? request.votes : [];
+    const primaryVote = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行");
+    const safeFeeling = primaryVote?.feelingTag || request?.starterFeeling || fallbackFeeling || "随便都行";
+    if (votes.length === 0 && !safeFeeling) return;
+
+    const requestToken = request?.token || "";
+    const signalId = requestToken ? `crave:${requestToken}` : `crave:${Date.now()}`;
+    const now = new Date().toISOString();
+    setCraveSignals((current) => {
+      const existing = current.find((item) => item.id === signalId || (requestToken && item.requestToken === requestToken));
+      const nextSignal = {
+        ...(existing ?? {}),
+        id: existing?.id || signalId,
+        requestToken,
+        householdId: request?.householdId || existing?.householdId || family?.id || "",
+        ownerId: request?.ownerId || existing?.ownerId || humiSession?.user?.id || session?.user?.id || "",
+        householdName: request?.householdName || existing?.householdName || family?.name || familyName || "我家",
+        initiatorName: request?.initiatorName || existing?.initiatorName || getDisplayName(displaySession) || "主厨",
+        feelingTag: safeFeeling,
+        voteCount: votes.length,
+        votes,
+        recipeIds: recipeIds.length > 0 ? recipeIds : existing?.recipeIds ?? [],
+        createdAt: existing?.createdAt || request?.createdAt || now,
+        updatedAt: now,
+      };
+      return [
+        nextSignal,
+        ...current.filter((item) => item.id !== nextSignal.id && (!requestToken || item.requestToken !== requestToken)),
+      ].slice(0, 24);
+    });
+  }
+
+  async function shareCraveRequest(request = activeCraveRequest) {
+    if (!request?.token) {
+      showNotice("先生成征集单");
+      return false;
+    }
+    const nativeShareStatus = await requestMiniProgramShare({
+      type: "crave",
+      token: request.token,
+      householdName: request.householdName || family?.name || familyName || "我家",
+      initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
+      voteCount: request.votes?.length ?? 0,
+    });
+    if (nativeShareStatus === "opened") {
+      showNotice("已打开小程序征集分享卡片");
+      return true;
+    }
+    await copyShareUrl(buildCraveUrl(request.token));
+    showNotice("征集链接已复制");
+    return true;
+  }
+
+  function buildCravePreferencesFromVotes(votes = [], fallbackFeeling = "") {
+    const values = [];
+    if (fallbackFeeling) values.push(fallbackFeeling);
+    votes.forEach((vote) => {
+      if (vote.feelingTag) values.push(vote.feelingTag);
+      if (vote.dishWish) values.push(vote.dishWish);
+      if (vote.note) values.push(vote.note);
+    });
+    return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
+  }
+
+  function formatCraveVoteSummary(vote) {
+    const name = vote.memberName || "家人";
+    const feeling = vote.feelingTag || "随便都行";
+    return vote.dishWish
+      ? `${name}想要“${feeling}”，还提到“${vote.dishWish}”`
+      : `${name}想要“${feeling}”`;
+  }
+
+  async function refreshCraveRequest() {
+    if (!activeCraveRequest?.token) {
+      showNotice("先生成征集单");
+      return;
+    }
+    setCraveRequestPending(true);
+    setCraveRequestStatus("");
+    try {
+      const data = await loadCraveRequest(activeCraveRequest.token);
+      const nextRequest = { ...activeCraveRequest, ...data.request };
+      setActiveCraveRequest(nextRequest);
+      collectGuestDishWishes(nextRequest.votes);
+      if ((nextRequest.votes ?? []).length > 0) {
+        upsertCraveSignal({ request: nextRequest, fallbackFeeling: nextRequest.starterFeeling || "随便都行" });
+      }
+      setCraveRequestStatus(data.request.votes?.length > 0 ? `已收到 ${data.request.votes.length} 个回复。` : "还没人回复，可以先出菜单。");
+    } catch (error) {
+      setCraveRequestStatus(error.message || "刷新失败，请稍后再试。");
+    } finally {
+      setCraveRequestPending(false);
+    }
+  }
+
+  async function finishCraveRequest(fallbackFeeling = "随便都行") {
+    const safeFallbackFeeling = typeof fallbackFeeling === "string" && fallbackFeeling.trim()
+      ? fallbackFeeling.trim()
+      : "随便都行";
+    const request = activeCraveRequest;
+    if (!request?.token) {
+      applyCraveRecommendation({ fallbackFeeling: safeFallbackFeeling });
+      return;
+    }
+    setCraveRequestPending(true);
+    setCraveRequestStatus("");
+    try {
+      const latest = await loadCraveRequest(request.token);
+      const mergedRequest = { ...request, ...latest.request };
+      if (request.ownerSecret && mergedRequest.status === "open") {
+        await closeCraveRequest(request.token, request.ownerSecret);
+      }
+      setActiveCraveRequest({ ...mergedRequest, status: "closed" });
+      collectGuestDishWishes(mergedRequest.votes);
+      applyCraveRecommendation({ request: mergedRequest });
+      setCraveRequestStatus("已按这次征集出菜单。");
+    } catch (error) {
+      setCraveRequestStatus(error.message || "出菜单失败，先按当前回复本地揉合。");
+      applyCraveRecommendation({ request });
+    } finally {
+      setCraveRequestPending(false);
+    }
+  }
+
+  function restartCraveFeelingChoice() {
+    setActiveCraveRequest(null);
+    setCraveRequestStatus("可以重新选一个感觉，或者直接去全部菜品库自己搭。");
+    setCraveRequestPending(false);
+  }
+
+  function pickForMeal(slotId) {
+    const slotLabel = slotLabelsById[slotId] ?? "这一餐";
+    setLibraryMealSlot(slotId);
+    setLibraryParentLabel("今晚菜单");
+    setCategory("全部");
+    setQuery("");
+    navigateTo("library");
+    showNotice(`选择${slotLabel}吃什么`);
+  }
+
+  function openRecipeLibrary(preferredCategory = "全部") {
+    const nextCategory = typeof preferredCategory === "string" && preferredCategory ? preferredCategory : "全部";
+    setLibraryMealSlot(null);
+    setLibraryParentLabel(getLibraryParentLabel(activeView));
+    setCategory(nextCategory);
+    setQuery("");
+    navigateTo("library");
+  }
+
+  function addRecipeFromLibrary(recipeId) {
+    if (libraryMealSlot && libraryMealSlot !== "dinner") {
+      assignMealRecipe(todayDateKey, libraryMealSlot, recipeId);
+      markMealSource(libraryMealSlot, "home");
+      return;
+    }
+    addToday(recipeId);
+  }
+
+  function updateLibraryQuantity(recipeId, delta) {
+    if (libraryMealSlot && libraryMealSlot !== "dinner") {
+      if (delta > 0) assignMealRecipe(todayDateKey, libraryMealSlot, recipeId);
+      else removeMealRecipe(todayDateKey, libraryMealSlot, recipeId);
+      return;
+    }
+    updateTodayQuantity(recipeId, delta);
+  }
+
+  function addRecipeToWishPool(recipeId) {
+    const recipe = getRecipe(recipeId);
+    if (!recipe) return;
+    setWishPool((current) => {
+      if (current.some((item) => item.recipeId === recipeId)) return current;
+      return [
+        {
+          id: `wish:${Date.now()}:${recipeId}`,
+          recipeId,
+          name: recipe.name,
+          createdAt: new Date().toISOString(),
+          source: libraryMealSlot ? slotLabelsById[libraryMealSlot] || "这一餐" : "全部菜品",
+        },
+        ...current,
+      ].slice(0, 30);
+    });
+    showNotice(`${recipe.name} 已放进想吃池`);
+  }
+
+  function collectGuestDishWishes(votes = []) {
+    const wishes = votes
+      .map((vote) => ({
+        name: String(vote.dishWish || "").trim(),
+        memberName: vote.memberName || "家人",
+      }))
+      .filter((item) => item.name);
+    if (wishes.length === 0) return;
+
+    setWishPool((current) => {
+      const existingKeys = new Set(current.map((item) => normalizeName(item.recipeId || item.name)));
+      const additions = wishes
+        .map((wish, index) => {
+          const matchedRecipe = findRecipeByName(wish.name);
+          const key = normalizeName(matchedRecipe?.id || wish.name);
+          if (existingKeys.has(key)) return null;
+          existingKeys.add(key);
+          return {
+            id: `wish:guest:${Date.now()}:${index}`,
+            recipeId: matchedRecipe?.id || "",
+            name: matchedRecipe?.name || wish.name,
+            createdAt: new Date().toISOString(),
+            source: `${wish.memberName}想吃`,
+          };
+        })
+        .filter(Boolean);
+      return additions.length > 0 ? [...additions, ...current].slice(0, 30) : current;
+    });
+  }
+
+  function collectWishShareEntries(wishes = []) {
+    const entries = wishes
+      .map((wish) => ({
+        name: String(wish.dishName || wish.name || "").trim(),
+        memberName: wish.memberName || "家人",
+        note: String(wish.note || "").trim(),
+        participantKey: wish.participantKey || "",
+      }))
+      .filter((item) => item.name);
+    if (entries.length === 0) return 0;
+
+    let addedCount = 0;
+    setWishPool((current) => {
+      const existingKeys = new Set(current.map((item) => normalizeName(item.recipeId || item.name)));
+      const additions = entries
+        .map((wish, index) => {
+          const matchedRecipe = findRecipeByName(wish.name);
+          const key = normalizeName(matchedRecipe?.id || wish.name);
+          if (existingKeys.has(key)) return null;
+          existingKeys.add(key);
+          addedCount += 1;
+          return {
+            id: `wish:share:${Date.now()}:${index}`,
+            recipeId: matchedRecipe?.id || "",
+            name: matchedRecipe?.name || wish.name,
+            createdAt: new Date().toISOString(),
+            source: `${wish.memberName}想吃${wish.note ? ` · ${wish.note}` : ""}`,
+            participantKey: wish.participantKey,
+            temporary: true,
+          };
+        })
+        .filter(Boolean);
+      return additions.length > 0 ? [...additions, ...current].slice(0, 40) : current;
+    });
+    return addedCount;
+  }
+
+  async function startWishShareRequest() {
+    if (!signedIn) {
+      setEntryRedirectView("user");
+      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+        showNotice("登录后就能分享想吃入口，家人写菜仍然免登录");
+      } else {
+        setAuthGateIntent("startCollaboration");
+      }
+      return;
+    }
+    if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+      showNotice("这个家的想吃入口需要主厨分享；家人可以直接写想吃。");
+      return;
+    }
+    try {
+      const data = await createWishShareRequest({
+        householdId: family?.id ?? "",
+        ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+        householdName: family?.name ?? familyName ?? "我家",
+        initiatorName: getDisplayName(displaySession) || "主厨",
+        title: "家里最近想吃什么",
+      }, isHumiApiSession(humiSession) ? humiSession : null);
+      const nextRequest = {
+        ...data.request,
+        ownerSecret: data.ownerSecret,
+      };
+      setActiveWishShareRequest(nextRequest);
+      trackProductEvent(appEvents.share, { type: "wish_share_created", method: "api" });
+      await shareWishRequest(nextRequest);
+    } catch (error) {
+      showNotice(error.message || "想吃入口暂时没生成");
+    }
+  }
+
+  async function shareWishRequest(request = activeWishShareRequest) {
+    if (!request?.token) {
+      await startWishShareRequest();
+      return false;
+    }
+    const nativeShareStatus = await requestMiniProgramShare({
+      type: "wish",
+      token: request.token,
+      householdName: request.householdName || family?.name || familyName || "我家",
+      initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
+      wishCount: request.wishes?.length ?? 0,
+    });
+    if (nativeShareStatus === "opened") {
+      showNotice("已打开小程序想吃分享卡片");
+      return true;
+    }
+    await copyShareUrl(buildWishShareUrl(request.token));
+    showNotice("想吃入口链接已复制");
+    return true;
+  }
+
+  async function refreshWishShareRequest() {
+    if (!activeWishShareRequest?.token) {
+      showNotice("还没有正在征集的想吃入口");
+      return;
+    }
+    try {
+      const data = await loadWishShareRequest(activeWishShareRequest.token);
+      const nextRequest = { ...activeWishShareRequest, ...data.request };
+      setActiveWishShareRequest(nextRequest);
+      const addedCount = collectWishShareEntries(nextRequest.wishes);
+      const wishCount = nextRequest.wishes?.length ?? 0;
+      showNotice(
+        addedCount > 0
+          ? `已收进 ${addedCount} 道想吃`
+          : wishCount > 0
+            ? `已收到 ${wishCount} 个想吃回复`
+            : "还没有人写想吃的菜",
+      );
+    } catch (error) {
+      showNotice(error.message || "想吃入口暂时刷新失败");
+    }
+  }
+
+  function removeWishPoolItem(idOrRecipeId) {
+    setWishPool((current) => current.filter((item) => item.id !== idOrRecipeId && item.recipeId !== idOrRecipeId));
+  }
+
+  function planWishPoolItem(recipeId) {
+    if (!recipeId) {
+      setCategory("全部");
+      setQuery("");
+      setLibraryParentLabel("我的家");
+      navigateTo("library");
+      showNotice("先从全部菜品里挑一道相近的");
+      return;
+    }
+    addToday(recipeId);
+    removeWishPoolItem(recipeId);
   }
 
   function updateTodayMealLog(patch) {
@@ -942,15 +1539,53 @@ function App() {
     }));
   }
 
+  function consumePantryForMealEntries(entries = [], consumedRecipeIds = todayMealLog.pantryConsumedRecipeIds ?? []) {
+    const alreadyConsumed = new Set(consumedRecipeIds);
+    const nextRecipeIds = entries
+      .map((entry) => entry.recipeId)
+      .filter((recipeId) => recipeId && !alreadyConsumed.has(recipeId) && getRecipe(recipeId));
+
+    if (nextRecipeIds.length === 0) return [...alreadyConsumed];
+
+    const consumedIngredientNames = new Set(
+      nextRecipeIds.flatMap((recipeId) =>
+        (getRecipe(recipeId)?.ingredients ?? []).map((ingredient) => normalizeName(ingredient.name)),
+      ).filter(Boolean),
+    );
+
+    if (consumedIngredientNames.size > 0) {
+      setPantryItems((current) =>
+        current.filter((item) => !consumedIngredientNames.has(normalizeName(item.name))),
+      );
+    }
+
+    return [...alreadyConsumed, ...nextRecipeIds];
+  }
+
   function setDinnerSource(source) {
+    const recordedBy = getDisplayName(displaySession) || "我";
     if (source === "home") {
+      const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
+      const pantryConsumedRecipeIds = todayMenu.length > 0
+        ? consumePantryForMealEntries(consumedEntries)
+        : todayMealLog.pantryConsumedRecipeIds ?? [];
       updateTodayMealLog({
         source,
+        recordedBy,
         confirmation: todayMenu.length > 0 ? "all" : undefined,
-        consumedEntries: todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity })),
+        confirmedBy: todayMenu.length > 0 ? recordedBy : undefined,
+        consumedEntries,
+        pantryConsumedRecipeIds,
       });
     } else {
-      updateTodayMealLog({ source, confirmation: undefined, consumedEntries: [] });
+      updateTodayMealLog({
+        source,
+        recordedBy,
+        confirmation: undefined,
+        confirmedBy: undefined,
+        consumedEntries: [],
+        pantryConsumedRecipeIds: [],
+      });
     }
     const labels = {
       home: "今天在家做饭",
@@ -967,21 +1602,66 @@ function App() {
     showNotice(labels[source] ?? "晚餐来源已记录");
   }
 
+  function setMealSource(slotId, source) {
+    const slotLabel = slotLabelsById[slotId] ?? "这一餐";
+    markMealSource(slotId, source);
+    const labels = {
+      home: `${slotLabel}记为在家做`,
+      delivery: `${slotLabel}记为点外卖`,
+      outside: `${slotLabel}记为在外吃`,
+      skip: `${slotLabel}先不记录`,
+    };
+    showNotice(labels[source] ?? `${slotLabel}来源已记录`);
+  }
+
+  function markMealSource(slotId, source) {
+    const recordedBy = getDisplayName(displaySession) || "我";
+    updateTodayMealLog({
+      mealSources: {
+        ...(todayMealLog.mealSources ?? {}),
+        [slotId]: source,
+      },
+      mealRecordedBy: {
+        ...(todayMealLog.mealRecordedBy ?? {}),
+        [slotId]: recordedBy,
+      },
+    });
+  }
+
+  function shouldIncludeMealEntryInGroceries(entry) {
+    if (!entry?.recipeId) return false;
+    if (entry.dateKey !== todayDateKey) return true;
+    if (entry.mealSlot === "dinner") {
+      return !todayMealLog.source || todayMealLog.source === "home";
+    }
+    const source = todayMealLog.mealSources?.[entry.mealSlot];
+    return !source || source === "home";
+  }
+
   function setDinnerConfirmation(confirmation) {
+    const confirmedBy = getDisplayName(displaySession) || "我";
+    const consumedEntries = confirmation === "all"
+      ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
+      : confirmation === "missed"
+        ? []
+        : todayMealLog.consumedEntries ?? [];
+    const pantryConsumedRecipeIds = confirmation === "missed"
+      ? []
+      : consumePantryForMealEntries(consumedEntries);
     updateTodayMealLog({
       confirmation,
-      consumedEntries: confirmation === "all"
-        ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
-        : todayMealLog.consumedEntries ?? [],
+      confirmedBy,
+      consumedEntries,
+      pantryConsumedRecipeIds,
     });
     const labels = {
       all: "已确认今晚吃了",
       partial: "已记录吃了一部分",
-      missed: "已记录今晚没做",
+      missed: "已记录今晚换了别的",
     };
     trackValidationEvent(validationEvents.mealConfirmed, {
       confirmation,
-      consumedCount: confirmation === "all" ? todayMenu.length : todayMealLog.consumedEntries?.length ?? 0,
+      consumedCount: consumedEntries.length,
       dateKey: todayDateKey,
     });
     showNotice(labels[confirmation] ?? "晚餐确认已记录");
@@ -999,9 +1679,13 @@ function App() {
           ...currentEntries,
           todayMenu.find((item) => item.recipeId === recipeId) ?? { recipeId, quantity: 1 },
         ];
+    const pantryConsumedRecipeIds = exists
+      ? (todayMealLog.pantryConsumedRecipeIds ?? []).filter((id) => id !== recipeId)
+      : consumePantryForMealEntries(nextEntries);
     updateTodayMealLog({
       consumedEntries: nextEntries,
       confirmation: nextEntries.length === todayMenu.length ? "all" : nextEntries.length > 0 ? "partial" : "missed",
+      pantryConsumedRecipeIds,
     });
   }
 
@@ -1094,7 +1778,7 @@ function App() {
   }
 
   async function requestAiExplanation() {
-    if (!session?.user) {
+    if (!preciseRecommendationAvailable) {
       setAiExplanation(displayedRecommendation.reason);
       setAiExplanationStatus(
         signedIn ? "这组先按当前菜单说明，Humi 会继续参考家里的口味。" : "这组先按当前菜单说明，Humi 会慢慢记住家里的口味。",
@@ -1110,6 +1794,9 @@ function App() {
       setAiExplanationStatus("搭配理由已经整理好了。");
     } catch (error) {
       setAiExplanation(displayedRecommendation.reason);
+      if (isPreciseTrialUsedError(error)) {
+        setPreciseRecommendationBlocked(true);
+      }
       setAiExplanationStatus(`${formatAiError(error)} 先用当前搭配理由。`);
     } finally {
       setAiExplanationLoading(false);
@@ -1119,6 +1806,7 @@ function App() {
   async function requestAiRecommendation(feedbackReason = null) {
     setRecommendationFeedbackOpen(false);
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const cravePreferencesForRefresh = activeCravePreferences;
     const alternateRuleRecommendation = buildTodayRecommendation({
       pantryItems,
       weekPlan,
@@ -1127,6 +1815,7 @@ function App() {
       familyMembers,
       familyProfile,
       excludedRecipeIds: currentRecipeIds,
+      cravePreferences: cravePreferencesForRefresh,
     });
     trackProductEvent(appEvents.recommendationRequest, {
       hasFeedback: Boolean(feedbackReason),
@@ -1141,10 +1830,10 @@ function App() {
       recordRecommendationFeedback(feedbackReason);
     }
 
-    if (!session?.user) {
+    if (!preciseRecommendationAvailable) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
       setAiRecommendationStatus(
-        signedIn ? "已经换成另一组；Humi 会继续参考家庭画像和库存。" : "已经换成另一组；之后会继续参考家庭画像和库存。",
+        signedIn ? "已经换成另一组；Humi 会继续参考家庭画像和家里现有。" : "已经换成另一组；之后会继续参考家庭画像和家里现有。",
       );
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
@@ -1163,6 +1852,7 @@ function App() {
           fallbackRecommendation: alternateRuleRecommendation,
           currentRecipeIds,
           feedbackReason,
+          cravePreferences: cravePreferencesForRefresh,
         }),
       );
       const nextRecommendation = hydrateAiRecommendation({
@@ -1171,7 +1861,7 @@ function App() {
       });
       setAiRecommendation(nextRecommendation);
       setAiExplanation(result.reason ?? nextRecommendation.reason);
-      setAiRecommendationStatus("给你重新想好了一组。");
+      setAiRecommendationStatus(formatPreciseRecommendationStatus(result.entitlement));
       setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
       trackProductEvent(appEvents.recommendationShown, {
         source: nextRecommendation.source ?? "deepseek",
@@ -1181,7 +1871,12 @@ function App() {
       showNotice("晚饭推荐已更新");
     } catch (error) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
-      setAiRecommendationStatus(`${formatAiError(error)} 已先换成另一组。`);
+      if (isPreciseTrialUsedError(error)) {
+        setPreciseRecommendationBlocked(true);
+        setAiRecommendationStatus("精准推荐尝鲜已用完；已切回基础推荐，基础换一组仍可一直用。");
+      } else {
+        setAiRecommendationStatus(`${formatAiError(error)} 已先换成另一组。`);
+      }
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
         reason: "fallback",
@@ -1255,7 +1950,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像和口味。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -1282,7 +1977,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像、库存和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像和口味。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -1363,28 +2058,6 @@ function App() {
     setCustomItems((current) => current.filter((item) => item.key !== key));
   }
 
-  function addPantryItem({ name, amount, expiresOn }) {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const normalized = normalizeName(trimmed);
-    setPantryItems((current) => {
-      if (current.some((item) => normalizeName(item.name) === normalized)) return current;
-      return [
-        ...current,
-        {
-          key: `pantry:${Date.now()}`,
-          name: trimmed,
-          amount: amount?.trim() || undefined,
-          expiresOn: expiresOn || undefined,
-        },
-      ];
-    });
-    setNewPantryItem("");
-    setNewPantryAmount("");
-    setNewPantryExpiresOn("");
-    showNotice(`${trimmed} 已加入厨房库存`);
-  }
-
   function addGroceryItemToPantry(item, source = "清单完成") {
     if (!item?.name) return false;
     const normalized = normalizeName(item.name);
@@ -1401,12 +2074,55 @@ function App() {
         },
       ];
     });
-    showNotice(`${item.name} 已加入家中已有`);
+    showNotice(`${item.name} 已勾选`);
     return true;
   }
 
-  function removePantryItem(key) {
-    setPantryItems((current) => current.filter((item) => item.key !== key));
+  function syncGroceryShareProgress(request) {
+    const shareItems = Array.isArray(request?.items) ? request.items : [];
+    if (shareItems.length === 0) return { checkedCount: 0, pantryAddedCount: 0 };
+
+    setCheckedItems((current) => {
+      let changed = false;
+      const next = { ...current };
+      shareItems.forEach((item) => {
+        if (!item?.id) return;
+        const checked = Boolean(item.checked);
+        if (Boolean(next[item.id]) !== checked) {
+          next[item.id] = checked;
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+
+    const existingNames = new Set(pantryItems.map((item) => normalizeName(item.name)));
+    const additions = shareItems
+      .filter((item) => item?.checked && item.name && !existingNames.has(normalizeName(item.name)))
+      .map((item, index) => ({
+        key: `pantry:share:${Date.now()}:${item.id || index}`,
+        name: item.name,
+        amount: item.amount || "",
+        source: "家人买菜回传",
+      }));
+
+    if (additions.length > 0) {
+      setPantryItems((current) => {
+        const currentNames = new Set(current.map((item) => normalizeName(item.name)));
+        const uniqueAdditions = additions.filter((item) => {
+          const normalized = normalizeName(item.name);
+          if (currentNames.has(normalized)) return false;
+          currentNames.add(normalized);
+          return true;
+        });
+        return uniqueAdditions.length > 0 ? [...current, ...uniqueAdditions] : current;
+      });
+    }
+
+    return {
+      checkedCount: shareItems.filter((item) => item.checked).length,
+      pantryAddedCount: additions.length,
+    };
   }
 
   function excludeGroceryItem(itemOrKey) {
@@ -1414,7 +2130,7 @@ function App() {
     if (!key) return;
     setExcludedGroceryKeys((current) => (current.includes(key) ? current : [...current, key]));
     if (typeof itemOrKey === "object" && itemOrKey?.name) {
-      addGroceryItemToPantry(itemOrKey, "清单移入家中已有");
+      addGroceryItemToPantry(itemOrKey, "本次不用买");
     }
   }
 
@@ -1429,28 +2145,82 @@ function App() {
     setPantryItems((current) => current.filter((item) => !hiddenNames.has(normalizeName(item.name))));
   }
 
-  function markPantryItemsOwned() {
-    const pantryItemsToAdd = visibleGroceryItems.filter((item) => item.pantryItem);
-    if (pantryItemsToAdd.length === 0) {
-      showNotice("当前没有常备项需要处理");
+  function confirmPantryItemAvailability(name, available) {
+    const normalized = normalizeName(name);
+    if (!normalized) return;
+    if (available) {
+      showNotice(`${name} 还在，今晚会优先用上`);
       return;
     }
-    setPantryItems((current) => {
-      const currentNames = new Set(current.map((item) => normalizeName(item.name)));
-      const additions = pantryItemsToAdd
-        .filter((item) => !currentNames.has(normalizeName(item.name)))
-        .map((item, index) => ({
-          key: `pantry:${Date.now()}:${index}`,
-          name: item.name,
-          amount: formatRawAmount(item),
-          source: "常备项确认",
-        }));
-      return [...current, ...additions];
+    setPantryItems((current) => current.filter((item) => normalizeName(item.name) !== normalized));
+    setExcludedGroceryKeys((current) => current.filter((key) => !key.includes(normalized)));
+    showNotice(`${name} 已恢复到清单`);
+  }
+
+  function addPantryHints(value) {
+    const names = [...new Set(
+      String(value || "")
+        .split(/[，,、\s]+/)
+        .map((name) => name.trim())
+        .filter(Boolean),
+    )].slice(0, 6);
+    if (names.length === 0) {
+      showNotice("写一两样家里有的食材就行");
+      return 0;
+    }
+    const existingNames = new Set(pantryItems.map((item) => normalizeName(item.name)));
+    const additions = names.flatMap((name, index) => {
+      const normalized = normalizeName(name);
+      if (!normalized || existingNames.has(normalized)) return [];
+      existingNames.add(normalized);
+      return [{
+        key: `pantry:hint:${Date.now()}:${index}`,
+        name,
+        amount: "",
+        source: "顺手告诉 Humi",
+      }];
     });
-    showNotice(`已把 ${pantryItemsToAdd.length} 个常备项加入厨房库存`);
+    if (additions.length > 0) setPantryItems((current) => [...additions, ...current]);
+    showNotice(additions.length > 0 ? `记住了 ${additions.length} 样，接下来只当加分项` : "这些食材已经记住了");
+    return additions.length;
   }
 
   async function shareGroceryList() {
+    if (isWechatMiniProgramWebView()) {
+      if (!signedIn) {
+        setEntryRedirectView("grocery");
+        if (requestWechatLoginFromMiniProgram()) showNotice("登录后才能分享可回传清单，家人认领仍然免登录");
+        else setAuthGateIntent("startCollaboration");
+        return;
+      }
+      if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+        showNotice("这个家的买菜卡片需要主厨分享；家人可以认领和标记买到。");
+        return;
+      }
+      try {
+        const data = await createGroceryShareRequest({
+          householdId: family?.id ?? "",
+          ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+          householdName: family?.name ?? familyName ?? "我家",
+          initiatorName: getDisplayName(displaySession) || "主厨",
+          title: "Humi 买菜清单",
+          items: buildGroceryShareItems(visibleGroceryItems, customItems, checkedItems),
+        }, isHumiApiSession(humiSession) ? humiSession : null);
+        setActiveGroceryShareRequest(data.request);
+        const nativeShareStatus = await requestMiniProgramShare({
+          type: "grocery",
+          token: data.request.token,
+          title: "Humi 买菜清单",
+          itemCount: data.request.items?.length ?? 0,
+        });
+        if (nativeShareStatus === "opened") {
+          showNotice("已打开小程序清单分享卡片");
+          return;
+        }
+      } catch (error) {
+        showNotice(error.message || "清单分享暂时不可用");
+      }
+    }
     const text = formatShareText(visibleGroceryGroups, customItems);
     await openPosterPreview({
       type: "grocery_list",
@@ -1463,7 +2233,77 @@ function App() {
     });
   }
 
+  async function refreshGroceryShareRequest() {
+    if (!activeGroceryShareRequest?.token) {
+      showNotice("还没有正在协作的买菜清单");
+      return;
+    }
+    try {
+      const data = await loadGroceryShareRequest(activeGroceryShareRequest.token);
+      setActiveGroceryShareRequest(data.request);
+      const synced = syncGroceryShareProgress(data.request);
+      const claimedCount = (data.request.claims ?? []).filter((claim) => claim.status === "claimed").length;
+      showNotice(
+        synced.checkedCount > 0
+          ? `已同步 ${synced.checkedCount} 项已买`
+          : claimedCount > 0
+            ? `已收到 ${claimedCount} 个买菜认领`
+            : "还没有人认领买菜",
+      );
+    } catch (error) {
+      showNotice(error.message || "买菜认领暂时刷新失败");
+    }
+  }
+
   async function shareTodayMenu() {
+    if (isWechatMiniProgramWebView()) {
+      if (!signedIn) {
+        setEntryRedirectView("today");
+        if (requestWechatLoginFromMiniProgram()) showNotice("登录后才能分享家庭菜单");
+        else setAuthGateIntent("startCollaboration");
+        return;
+      }
+      if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
+        showNotice("这个家的菜单卡片需要主厨分享。");
+        return;
+      }
+      try {
+        const data = await createMenuShareRequest({
+          householdId: family?.id ?? "",
+          ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+          householdName: family?.name ?? familyName ?? "我家",
+          initiatorName: getDisplayName(displaySession) || "主厨",
+          title: todayRecipes.length > 0 ? todayRecipes.map((recipe) => recipe.name).join(" + ") : "Humi 今晚菜单",
+          groceryCount: visibleGroceryItems.length,
+          dishes: todayRecipes.map((recipe) => ({
+            id: recipe.id,
+            recipeId: recipe.id,
+            name: recipe.name,
+            quantity: recipe.menuQuantity ?? 1,
+            category: recipe.categories?.[0] || "",
+            timeMinutes: recipe.timeMinutes,
+          })),
+        }, isHumiApiSession(humiSession) ? humiSession : null);
+        const nativeShareStatus = await requestMiniProgramShare({
+          type: "today_menu",
+          token: data.request?.token,
+          title: data.request?.title || "Humi 今晚菜单",
+          itemCount: visibleGroceryItems.length,
+          view: "today",
+        });
+        if (nativeShareStatus === "opened") {
+          showNotice("已打开小程序菜单分享卡片");
+          return;
+        }
+        if (data.request?.token) {
+          await copyShareUrl(buildMenuShareUrl(data.request.token));
+          showNotice("今晚菜单链接已复制");
+          return;
+        }
+      } catch (error) {
+        showNotice(error.message || "菜单分享暂时不可用，先生成海报");
+      }
+    }
     const text = [
       "Humi 今晚菜单",
       "",
@@ -1500,24 +2340,6 @@ function App() {
       fallbackSuccess: "一周计划已复制",
       refreshLabel: "重新生成海报",
     });
-  }
-
-  async function shareInventorySummary() {
-    const expiredItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "expired");
-    const expiringItems = pantryItems.filter((item) => getExpiryState(item.expiresOn) === "soon");
-    const freshItems = pantryItems.filter((item) => !["expired", "soon"].includes(getExpiryState(item.expiresOn)));
-    const text = [
-      "Humi 家中库存",
-      "",
-      `全部库存：${pantryItems.length} 项`,
-      `临期：${expiringItems.length} 项`,
-      `日期已过：${expiredItems.length} 项`,
-      "",
-      formatInventoryShareSection("临期优先处理", expiringItems),
-      formatInventoryShareSection("日期已过", expiredItems),
-      formatInventoryShareSection("家里现有", freshItems),
-    ].join("\n");
-    await shareText({ type: "inventory", title: "Humi 家中库存", text, success: "库存摘要已复制" });
   }
 
   async function shareText({ type, title, text, success }) {
@@ -1682,7 +2504,7 @@ function App() {
           : "已登录 Humi。",
       );
       setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像、库存和口味反馈。");
+      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像和口味反馈。");
       setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
@@ -1735,7 +2557,7 @@ function App() {
     if (!session?.user || !family?.id) return;
 
     setPreferencesLoading(true);
-    setPreferencesStatus("正在读取家庭成员偏好...");
+    setPreferencesStatus("正在读取家庭成员忌口...");
     try {
       const members = await loadFamilyPreferences(family.id);
       if (!active()) return;
@@ -1749,7 +2571,7 @@ function App() {
           {},
         ),
       );
-      setPreferencesStatus("家庭成员偏好已读取。");
+      setPreferencesStatus("家庭成员忌口已读取。");
     } catch (error) {
       if (active()) setPreferencesStatus(error.message);
     } finally {
@@ -1774,16 +2596,16 @@ function App() {
     }
 
     setPreferencesLoading(true);
-    setPreferencesStatus("正在保存家庭成员偏好...");
+    setPreferencesStatus("正在保存家庭成员忌口...");
     try {
       await saveMemberPreference({
         familyId: family.id,
         memberId,
         preference: draftToPreference(preferenceDraft[memberId] ?? {}),
       });
-      setPreferencesStatus("家庭成员偏好已保存。");
+      setPreferencesStatus("家庭成员忌口已保存。");
       trackProductEvent(appEvents.profileSaved, { type: "member_preference" });
-      showNotice("成员偏好已保存");
+      showNotice("成员忌口已保存");
       await loadPreferencesForFamily();
     } catch (error) {
       setPreferencesStatus(error.message);
@@ -1827,7 +2649,9 @@ function App() {
     fallbackRecommendation,
     currentRecipeIds = [],
     feedbackReason = null,
+    cravePreferences = [],
   }) {
+    const hardAvoidSignals = getHardAvoidSignals({ familyMembers, familyProfile });
     const recentRecipeIds = [
       ...new Set([
         ...Object.values(weekPlan).flat(),
@@ -1838,6 +2662,7 @@ function App() {
     return {
       candidates: recipes
         .filter((recipe) => !currentRecipeIds.includes(recipe.id))
+        .filter((recipe) => !recipeMatchesHardAvoid(recipe, { familyMembers, familyProfile }))
         .map((recipe) => ({
           id: recipe.id,
           name: recipe.name,
@@ -1863,6 +2688,7 @@ function App() {
       compactFamilyPrompt: buildCompactFamilyPrompt(familyProfile),
       recentRecipeIds,
       currentMissingItems: fallbackRecommendation.missingItems.map((item) => item.name),
+      currentCraveSignals: cravePreferences,
       recentFeedback: [
         ...(feedbackReason
           ? [{
@@ -1879,16 +2705,22 @@ function App() {
       ],
       acceptanceRules: [
         "只推荐候选菜谱里的菜，不能创造新菜。",
-        "优先使用快到期或家里已有的主食材。",
+        hardAvoidSignals.length > 0
+          ? `硬性忌口/过敏必须避开：${hardAvoidSignals.join("、")}；候选中已过滤，但返回时仍不能包含相关食材或菜名。`
+          : "",
+        "优先使用买菜勾选里顺手记下、家里可能还有的主食材。",
         "避开近期已经安排过的菜。",
         "晚饭组合必须按家庭人数落地：1人建议1-2道，2人建议2道，3-4人建议2-3道，5人以上建议3-4道。",
         "如果菜品数量少于家庭人数需要，可用份量补足，但推荐理由要说明份量安排。",
-        "主食材缺口尽量不超过 3 项；调料和常备项不要当作主要缺口。",
+        "主食材缺口尽量不超过 3 项；调料和可跳过项不要当作主要缺口。",
         "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
         "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
+        cravePreferences.length > 0
+          ? `本轮来自家人感觉征集，继续尽量照顾这些信号：${cravePreferences.join("、")}。`
+          : "",
         `当前使用场景是${getPlanningMode(familyProfile.planningMode).label}，需要按该场景调整推荐理由和搭配重点。`,
         "本轮候选已排除用户刚看到的菜，不能重复上一组。",
-      ],
+      ].filter(Boolean),
       ruleFallback: {
         recipeIds: fallbackRecommendation.recipes.map((recipe) => recipe.id),
         items: getRecommendationItems(fallbackRecommendation).map((item) => ({
@@ -1903,13 +2735,17 @@ function App() {
   function hydrateAiRecommendation({ result, fallback }) {
     const selectedRecipes = result.recipeIds
       .map((recipeId) => getRecipe(recipeId))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((recipe) => !recipeMatchesHardAvoid(recipe, { familyMembers, familyProfile }));
 
     if (selectedRecipes.length === 0) return fallback;
     const filledRecipes = [...selectedRecipes];
     for (const fallbackItem of getRecommendationItems(fallback)) {
       if (filledRecipes.length >= (fallback.targetDishCount ?? fallback.recipes.length)) break;
-      if (!filledRecipes.some((recipe) => recipe.id === fallbackItem.recipe.id)) {
+      if (
+        !recipeMatchesHardAvoid(fallbackItem.recipe, { familyMembers, familyProfile }) &&
+        !filledRecipes.some((recipe) => recipe.id === fallbackItem.recipe.id)
+      ) {
         filledRecipes.push(fallbackItem.recipe);
       }
     }
@@ -1989,10 +2825,10 @@ function App() {
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
         setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
-        setCloudGroceryStatus("清单和家中库存也会继续自动同步。");
+      setCloudGroceryStatus("清单也会继续自动同步。");
         showNotice("菜单已保存到微信账号");
       } catch (error) {
-        setCloudSyncStatus(error.message);
+        setCloudSyncStatus(formatCloudSyncError(error));
       } finally {
         setCloudMenuLoading(false);
       }
@@ -2011,7 +2847,7 @@ function App() {
       setCloudSyncStatus("本机今晚菜单和一周计划已保存到我的家。");
       showNotice("菜单已保存到我的家");
     } catch (error) {
-      setCloudSyncStatus(error.message);
+      setCloudSyncStatus(formatCloudSyncError(error));
     } finally {
       setCloudMenuLoading(false);
     }
@@ -2021,7 +2857,10 @@ function App() {
     if (isHumiApiSession(humiSession)) {
       try {
         setCloudMenuLoading(true);
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiStateEnvelope(humiSession);
+        const state = data.state;
+        if (data.family) setFamily(data.family);
+        if (Array.isArray(data.households)) setHumiHouseholds(data.households);
         const loadedWeekPlan = { ...createDefaultWeekPlan(), ...(state?.weekPlan ?? {}) };
         const loadedMealPlan = normalizeMealPlan(
           state?.mealPlan ?? createMealPlanFromLegacy({
@@ -2040,7 +2879,7 @@ function App() {
         setCloudSyncStatus("已刷新微信账号保存的菜单。");
         showNotice("微信账号菜单已刷新");
       } catch (error) {
-        setCloudSyncStatus(error.message);
+        setCloudSyncStatus(formatCloudSyncError(error));
       } finally {
         setCloudMenuLoading(false);
       }
@@ -2067,25 +2906,124 @@ function App() {
       setCloudSyncStatus("已刷新我的家里保存的今晚菜单和一周计划。");
       showNotice("云端菜单已刷新");
     } catch (error) {
-      setCloudSyncStatus(error.message);
+      setCloudSyncStatus(formatCloudSyncError(error));
     } finally {
       setCloudMenuLoading(false);
     }
   }
 
+  async function createAnotherHumiHousehold(name) {
+    if (!isHumiApiSession(humiSession)) {
+      showNotice("请先在小程序里登录 Humi");
+      return;
+    }
+    setCloudMenuLoading(true);
+    humiStateHydratingRef.current = true;
+    try {
+      const data = await createHumiHousehold(humiSession, {
+        householdName: String(name || "另一个家").trim() || "另一个家",
+        memberName: humiSession.user?.displayName || "主厨",
+      });
+      applyHumiStateEnvelope({ ...data, state: null }, {
+        emptyMenu: "已创建新的家。这里还没有保存菜单。",
+        emptyGrocery: "这个家的清单和画像会单独保存。",
+      });
+      showNotice(`已创建 ${data.family?.name || "新的家"}`);
+    } catch (error) {
+      showNotice(error.message || "新的家暂时没创建成功");
+    } finally {
+      setCloudMenuLoading(false);
+      window.setTimeout(() => {
+        humiStateHydratingRef.current = false;
+      }, 0);
+    }
+  }
+
+  async function switchActiveHumiHousehold(householdId) {
+    if (!isHumiApiSession(humiSession) || !householdId || householdId === family?.id) return;
+    setCloudMenuLoading(true);
+    setCloudGroceryLoading(true);
+    humiStateHydratingRef.current = true;
+    try {
+      const data = await switchHumiHousehold(humiSession, householdId);
+      applyHumiStateEnvelope(data, {
+        loadedMenu: "已切换并读取当前家的菜单。",
+        loadedGrocery: "已切换并读取当前家的清单和画像。",
+        emptyMenu: "已切换到这个家。这里还没有保存菜单。",
+        emptyGrocery: "已切换到这个家。这里还没有保存清单。",
+      });
+      showNotice(`已切换到 ${data.family?.name || "这个家"}`);
+    } catch (error) {
+      showNotice(error.message || "暂时没切换成功");
+    } finally {
+      setCloudMenuLoading(false);
+      setCloudGroceryLoading(false);
+      window.setTimeout(() => {
+        humiStateHydratingRef.current = false;
+      }, 0);
+    }
+  }
+
+  async function createFamilyInviteCard() {
+    if (!isHumiApiSession(humiSession)) {
+      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+        showNotice("登录后就能邀请家人");
+      } else {
+        showNotice("请先在小程序里登录 Humi");
+      }
+      return;
+    }
+    if (family?.role && family.role !== "owner") {
+      showNotice("只有主厨能邀请家人加入这个家");
+      return;
+    }
+    try {
+      const activeHouseholdId = humiHouseholds.some((household) => household.id === family?.id)
+        ? family.id
+        : "";
+      const data = await createHouseholdInvite(humiSession, {
+        householdId: activeHouseholdId,
+        inviterName: getDisplayName(displaySession) || "主厨",
+      });
+      setActiveHouseholdInvite(data.invite);
+      await shareHouseholdInvite(data.invite);
+    } catch (error) {
+      showNotice(error.message || "家庭邀请暂时没生成成功");
+    }
+  }
+
+  async function shareHouseholdInvite(invite = activeHouseholdInvite) {
+    if (!invite?.token) {
+      await createFamilyInviteCard();
+      return;
+    }
+    const nativeStatus = await requestMiniProgramShare({
+      type: "invite",
+      token: invite.token,
+      householdName: invite.householdName || family?.name || "我的家",
+      initiatorName: invite.inviterName || getDisplayName(displaySession) || "主厨",
+    });
+    if (nativeStatus === "opened") {
+      showNotice("已打开家庭邀请卡片");
+      return;
+    }
+    await copyShareUrl(buildHouseholdInviteUrl(invite.token));
+    showNotice("家庭邀请链接已复制");
+  }
+
   async function migrateGroceryToCloud() {
     if (isHumiApiSession(humiSession)) {
       setCloudGroceryLoading(true);
-      setCloudGroceryStatus("正在保存食材清单和家中库存...");
+      setCloudGroceryStatus("正在保存食材清单...");
       try {
         await saveHumiState(humiSession, humiStateSnapshot);
         setCloudMenuEnabled(true);
         setCloudGroceryEnabled(true);
         setCloudSyncStatus("今晚菜单和一周计划也会继续自动同步。");
-        setCloudGroceryStatus("食材清单和家中库存已保存到微信账号。");
-        showNotice("清单和库存已保存到微信账号");
+        setCloudGroceryStatus("食材清单已保存到微信账号。");
+        showNotice("清单已保存到微信账号");
       } catch (error) {
-        setCloudGroceryStatus(error.message);
+        setCloudGroceryStatus(formatCloudSyncError(error));
       } finally {
         setCloudGroceryLoading(false);
       }
@@ -2097,7 +3035,7 @@ function App() {
     }
 
     setCloudGroceryLoading(true);
-    setCloudGroceryStatus("正在迁移食材清单和库存...");
+    setCloudGroceryStatus("正在迁移食材清单...");
     try {
       await migrateLocalGroceryToCloud({
         familyId: family.id,
@@ -2107,10 +3045,10 @@ function App() {
         pantryItems,
       });
       setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("本地食材清单和厨房库存已迁移到家庭空间。");
+      setCloudGroceryStatus("本地食材清单已迁移到家庭空间。");
       showNotice("食材清单已迁移到云端");
     } catch (error) {
-      setCloudGroceryStatus(error.message);
+      setCloudGroceryStatus(formatCloudSyncError(error));
     } finally {
       setCloudGroceryLoading(false);
     }
@@ -2120,15 +3058,18 @@ function App() {
     if (isHumiApiSession(humiSession)) {
       try {
         setCloudGroceryLoading(true);
-        const state = await loadHumiState(humiSession);
+        const data = await loadHumiStateEnvelope(humiSession);
+        const state = data.state;
+        if (data.family) setFamily(data.family);
+        if (Array.isArray(data.households)) setHumiHouseholds(data.households);
         setCustomItems(Array.isArray(state?.customItems) ? state.customItems : []);
         setCheckedItems(state?.checkedItems ?? {});
         setExcludedGroceryKeys(Array.isArray(state?.excludedGroceryKeys) ? state.excludedGroceryKeys : []);
         setPantryItems(Array.isArray(state?.pantryItems) ? state.pantryItems : []);
-        setCloudGroceryStatus("已刷新微信账号保存的清单和库存。");
+        setCloudGroceryStatus("已刷新微信账号保存的清单。");
         showNotice("微信账号清单已刷新");
       } catch (error) {
-        setCloudGroceryStatus(error.message);
+        setCloudGroceryStatus(formatCloudSyncError(error));
       } finally {
         setCloudGroceryLoading(false);
       }
@@ -2148,10 +3089,10 @@ function App() {
       setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
       setPantryItems(cloudGrocery.pantryItems);
       setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("已刷新云端食材清单和厨房库存。");
+      setCloudGroceryStatus("已刷新云端食材清单。");
       showNotice("云端食材清单已刷新");
     } catch (error) {
-      setCloudGroceryStatus(error.message);
+      setCloudGroceryStatus(formatCloudSyncError(error));
     } finally {
       setCloudGroceryLoading(false);
     }
@@ -2283,23 +3224,286 @@ function App() {
   }
 
   function continueAsGuest() {
+    setAuthGateIntent("");
     setEntryMotion(true);
     window.setTimeout(() => {
+      const nextView = entryRedirectView || "dashboard";
       setOnboardingComplete(true);
-      setActiveView("dashboard");
-      viewHistoryRef.current = ["dashboard"];
+      setActiveView(nextView);
+      viewHistoryRef.current = [nextView];
       window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
-      showNotice("先从今晚吃什么开始");
+      showNotice(nextView === "user" ? "可以先看看我的家" : "先从今晚吃什么开始");
+      setEntryRedirectView("dashboard");
     }, 760);
     window.setTimeout(() => setEntryMotion(false), 1360);
   }
 
-  if (!signedIn && !onboardingComplete) {
+  function openFamilyCravePanel() {
+    setActiveView("dashboard");
+    viewHistoryRef.current = ["dashboard"];
+    setCravePanelOpenSignal(Date.now());
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    showNotice("已打开今晚的感觉征集");
+  }
+
+  function closeSharedLanding(paramName) {
+    if (paramName === "crave") setLandingCraveToken("");
+    if (paramName === "groceryShare") setLandingGroceryShareToken("");
+    if (paramName === "menuShare") setLandingMenuShareToken("");
+    if (paramName === "wishShare") setLandingWishShareToken("");
+    if (paramName === "invite") setLandingInviteToken("");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(paramName);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  }
+
+  function joinFamilyFromSharedLanding(paramName, context = null) {
+    const nextContext = context?.type ? {
+      ...context,
+      createdAt: new Date().toISOString(),
+    } : null;
+    if (context?.type) {
+      setPendingJoinContext(nextContext);
+    }
+    closeSharedLanding(paramName);
+    setEntryRedirectView("user");
+    setActiveView("user");
+    viewHistoryRef.current = ["user"];
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    if (!signedIn && isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+      showNotice("正在唤起微信登录，登录后会合并刚才的参与");
+      return;
+    }
+    showNotice(signedIn ? "已打开我的家，可以收进正式成员" : "登录后就能加入这个家");
+  }
+
+  async function acceptPendingJoinAsMember(context = pendingJoinContext) {
+    if (!context?.type) {
+      showNotice("没有待加入的家人记录");
+      return;
+    }
+    if (!signedIn) {
+      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+        showNotice("正在唤起微信登录");
+      } else {
+        showNotice("登录后再把临时身份转为正式成员");
+      }
+      return;
+    }
+    if (isHumiApiSession(humiSession) && context.token && context.participantKey) {
+      humiStateHydratingRef.current = true;
+      try {
+        const payload = {
+          participantKey: context.participantKey,
+          memberName: context.memberName || humiSession.user?.displayName || "家人",
+        };
+        const data = context.type === "crave"
+          ? await joinCraveRequest(context.token, humiSession, payload)
+          : context.type === "grocery"
+            ? await joinGroceryShareRequest(context.token, humiSession, payload)
+            : await joinWishShareRequest(context.token, humiSession, payload);
+        applyHumiStateEnvelope(data, {
+          loadedMenu: "已加入这个家，并读取共享菜单。",
+          loadedGrocery: "已加入这个家，并读取共享清单和画像。",
+          emptyMenu: "已加入这个家。这里还没有保存菜单。",
+          emptyGrocery: "已加入这个家。这里还没有保存清单。",
+        });
+        if (context.type === "crave" && data.request) setActiveCraveRequest(data.request);
+        if (context.type === "grocery" && data.request) setActiveGroceryShareRequest(data.request);
+        if (context.type === "wish" && data.request) setActiveWishShareRequest(data.request);
+        mergeTemporaryParticipationIntoMember(context);
+        setPendingJoinContext(null);
+        pendingJoinMergeRef.current = "";
+        showNotice("已加入这个家，刚才的参与已经合并");
+        return;
+      } catch (error) {
+        pendingJoinMergeRef.current = "";
+        showNotice(error.message || "正式加入暂时没完成，请稍后重试");
+        return;
+      } finally {
+        window.setTimeout(() => {
+          humiStateHydratingRef.current = false;
+        }, 0);
+      }
+    }
+    const nextMember = buildHouseholdMemberFromJoinContext(context);
+    setHouseholdMembers((current) => [
+      nextMember,
+      ...current.filter((member) => member.id !== nextMember.id && member.participantKey !== nextMember.participantKey),
+    ].slice(0, 24));
+    mergeTemporaryParticipationIntoMember(context);
+    setPendingJoinContext(null);
+    showNotice(`${nextMember.name} 已加入我的家，刚才的参与已合并`);
+  }
+
+  function mergeTemporaryParticipationIntoMember(context = {}) {
+    const participantKey = String(context.participantKey || "").trim();
+    if (!participantKey) return;
+    const memberName = String(context.memberName || "家人").trim() || "家人";
+    const now = new Date().toISOString();
+
+    setActiveCraveRequest((current) => {
+      if (!current?.votes?.length) return current;
+      let changed = false;
+      const votes = current.votes.map((vote) => {
+        if (vote.participantKey !== participantKey) return vote;
+        changed = true;
+        return {
+          ...vote,
+          memberName,
+          temporary: false,
+          mergedAt: now,
+        };
+      });
+      return changed ? { ...current, votes } : current;
+    });
+
+    setCraveSignals((current) => {
+      let changed = false;
+      const nextSignals = current.map((signal) => {
+        const votes = Array.isArray(signal.votes) ? signal.votes : [];
+        let signalChanged = false;
+        const nextVotes = votes.map((vote) => {
+          if (vote.participantKey !== participantKey) return vote;
+          changed = true;
+          signalChanged = true;
+          return {
+            ...vote,
+            memberName,
+            temporary: false,
+            mergedAt: now,
+          };
+        });
+        return signalChanged ? {
+          ...signal,
+          votes: nextVotes,
+          updatedAt: now,
+        } : signal;
+      });
+      return changed ? nextSignals : current;
+    });
+
+    setActiveGroceryShareRequest((current) => {
+      if (!current?.claims?.length) return current;
+      let changed = false;
+      const claims = current.claims.map((claim) => {
+        if (claim.participantKey !== participantKey) return claim;
+        changed = true;
+        return {
+          ...claim,
+          memberName,
+          temporary: false,
+          mergedAt: now,
+        };
+      });
+      return changed ? { ...current, claims } : current;
+    });
+
+    setActiveWishShareRequest((current) => {
+      if (!current?.wishes?.length) return current;
+      let changed = false;
+      const wishes = current.wishes.map((wish) => {
+        if (wish.participantKey !== participantKey) return wish;
+        changed = true;
+        return {
+          ...wish,
+          memberName,
+          temporary: false,
+          mergedAt: now,
+        };
+      });
+      return changed ? { ...current, wishes } : current;
+    });
+
+    setWishPool((current) => {
+      let changed = false;
+      const nextItems = current.map((item) => {
+        if (item.participantKey !== participantKey) return item;
+        changed = true;
+        return {
+          ...item,
+          source: `${memberName}想吃`,
+          temporary: false,
+          mergedAt: now,
+        };
+      });
+      return changed ? nextItems : current;
+    });
+  }
+
+  if (landingCraveToken) {
+    return (
+      <CraveLanding
+        token={landingCraveToken}
+        onClose={() => closeSharedLanding("crave")}
+        onJoinFamily={(context) => joinFamilyFromSharedLanding("crave", context)}
+      />
+    );
+  }
+
+  if (landingGroceryShareToken) {
+    return (
+      <GroceryClaimLanding
+        token={landingGroceryShareToken}
+        onClose={() => closeSharedLanding("groceryShare")}
+        onJoinFamily={(context) => joinFamilyFromSharedLanding("groceryShare", context)}
+      />
+    );
+  }
+
+  if (landingMenuShareToken) {
+    return (
+      <MenuShareLanding
+        token={landingMenuShareToken}
+        onClose={() => closeSharedLanding("menuShare")}
+      />
+    );
+  }
+
+  if (landingWishShareToken) {
+    return (
+      <WishLanding
+        token={landingWishShareToken}
+        onClose={() => closeSharedLanding("wishShare")}
+        onJoinFamily={(context) => joinFamilyFromSharedLanding("wishShare", context)}
+      />
+    );
+  }
+
+  if (landingInviteToken) {
+    return (
+      <InviteLanding
+        token={landingInviteToken}
+        humiSession={humiSession}
+        onJoined={(data) => {
+          applyHumiStateEnvelope(data, {
+            loadedMenuStatus: "已加入这个家，并读取这个家的今晚菜单和征集记录。",
+            loadedGroceryStatus: "已加入这个家，并读取这个家的清单和后台已有。",
+            emptyMenuStatus: "已加入这个家。这个家还没有保存菜单。",
+            emptyGroceryStatus: "已加入这个家。这个家还没有保存清单和后台已有。",
+          });
+          setOnboardingComplete(true);
+          setProfileOnboardingComplete(true);
+        }}
+        onClose={() => {
+          closeSharedLanding("invite");
+          setOnboardingComplete(true);
+          setActiveView("user");
+          viewHistoryRef.current = ["user"];
+        }}
+      />
+    );
+  }
+
+  if (!signedIn && (authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
     return (
       <>
         <AuthLanding
           authProps={authProps}
           onContinueGuest={continueAsGuest}
+          entryIntent={authGateIntent || (entryRedirectView === "user" ? "joinFamily" : "")}
         />
         {entryMotion && <EntryTableMotion />}
       </>
@@ -2322,18 +3526,21 @@ function App() {
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] gap-6 px-4 py-4 md:px-6 lg:py-6">
         <Sidebar activeView={activeView} onChange={navigateTo} />
         <main
-          className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0"
+          className="min-w-0 flex-1 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:pb-0"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {activeView !== "dashboard" && (
-            <Topbar
-              activeView={activeView}
-              query={query}
-              setQuery={setQuery}
-              session={displaySession}
+              <Topbar
+                activeView={activeView}
+                titleOverride={activeView === "library"
+                  ? libraryMealSlot ? `给${slotLabelsById[libraryMealSlot] ?? "这一餐"}选菜` : undefined
+                  : undefined}
+                query={query}
+                setQuery={setQuery}
+                session={displaySession}
               onOpenUserCenter={() => navigateTo("user")}
-              onBack={goBack}
+              onBack={activeView === "grocery" || activeView === "user" ? undefined : goBack}
             />
           )}
           <div key={activeView} className={`view-enter ${flowMotion ? `flow-motion-${flowMotion}` : ""}`}>
@@ -2348,11 +3555,27 @@ function App() {
                 onViewChange={navigateTo}
                 onOpenRecipe={openRecipe}
                 onAddRecommended={addRecommendedToday}
+                onAcceptCraveSelection={addSelectedRecommendedToday}
                 onRequestAiRecommendation={requestAiRecommendation}
                 onOpenRecommendationFeedback={() => setRecommendationFeedbackOpen(true)}
                 feedbackOpen={recommendationFeedbackOpen}
                 onSubmitRecommendationFeedback={(reason) => requestAiRecommendation(reason)}
                 onCloseRecommendationFeedback={() => setRecommendationFeedbackOpen(false)}
+                onStartCraveRequest={startCraveRequest}
+                activeCraveRequest={activeCraveRequest}
+                craveRequestPending={craveRequestPending}
+                craveRequestStatus={craveRequestStatus}
+                onShareCraveRequest={() => shareCraveRequest()}
+                onRefreshCraveRequest={refreshCraveRequest}
+                onFinishCraveRequest={finishCraveRequest}
+                onRestartCraveRequest={restartCraveFeelingChoice}
+                cravePanelOpenSignal={cravePanelOpenSignal}
+                onConfirmPantryItem={confirmPantryItemAvailability}
+                pantryItemCount={pantryItems.length}
+                onAddPantryHints={addPantryHints}
+                onPickForMeal={pickForMeal}
+                onOpenRecipeLibrary={openRecipeLibrary}
+                householdMembers={householdMembers}
                 session={displaySession}
                 onOpenUserCenter={() => navigateTo("user")}
                 familyProfile={familyProfile}
@@ -2362,6 +3585,7 @@ function App() {
                 mealLog={todayMealLog}
                 mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
+                onSetMealSource={setMealSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
               />
@@ -2372,9 +3596,16 @@ function App() {
                 category={category}
                 setCategory={setCategory}
                 recipes={filteredRecipes}
-                onAdd={addToday}
-                onUpdateQuantity={updateTodayQuantity}
-                menuQuantities={todayMenu}
+                allRecipes={recipes}
+                onAdd={addRecipeFromLibrary}
+                onUpdateQuantity={updateLibraryQuantity}
+                menuQuantities={libraryMenuQuantities}
+                cravedRecipeIds={wishPool.map((item) => item.recipeId).filter(Boolean)}
+                onCraveRecipe={addRecipeToWishPool}
+                parentLabel={libraryParentLabel}
+                targetMealSlot={libraryMealSlot}
+                targetMealLabel={libraryMealSlot ? slotLabelsById[libraryMealSlot] : ""}
+                onClearTargetMeal={() => setLibraryMealSlot(null)}
                 onOpenRecipe={openRecipe}
                 onDragStart={setDraggedRecipeId}
               />
@@ -2383,6 +3614,7 @@ function App() {
               <RecommendationsPage
                 recommendation={displayedRecommendation}
                 aiRecommendationLoading={aiRecommendationLoading}
+                preciseRecommendationEnabled={preciseRecommendationAvailable}
                 onRefresh={() => requestAiRecommendation()}
                 onAccept={() => {
                   addRecommendedToday();
@@ -2390,6 +3622,7 @@ function App() {
                 }}
                 onReject={(reason) => requestAiRecommendation(reason)}
                 onOpenRecipe={openRecipe}
+                onOpenRecipeLibrary={openRecipeLibrary}
                 onViewChange={navigateTo}
               />
             )}
@@ -2433,6 +3666,7 @@ function App() {
                 onSetDinnerSource={setDinnerSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
+                onOpenRecipeLibrary={openRecipeLibrary}
                 cloudSync={{
                   family,
                   signedIn,
@@ -2461,22 +3695,11 @@ function App() {
                 customItems={customItems}
                 newCustomItem={newCustomItem}
                 setNewCustomItem={setNewCustomItem}
-                pantryItems={pantryItems}
-                pantryExpirySummary={pantryExpirySummary}
-                newPantryItem={newPantryItem}
-                setNewPantryItem={setNewPantryItem}
-                newPantryAmount={newPantryAmount}
-                setNewPantryAmount={setNewPantryAmount}
-                newPantryExpiresOn={newPantryExpiresOn}
-                setNewPantryExpiresOn={setNewPantryExpiresOn}
                 onAddCustomItem={addCustomItem}
                 onRemoveCustomItem={removeCustomItem}
-                onAddPantryItem={addPantryItem}
-                onRemovePantryItem={removePantryItem}
                 onExcludeItem={excludeGroceryItem}
                 onRestoreItem={restoreGroceryItem}
                 onRestoreAllItems={restoreAllGroceryItems}
-                onMarkPantryItemsOwned={markPantryItemsOwned}
                 excludedItems={excludedGroceryItems}
                 onShare={shareGroceryList}
                 checkedItems={checkedItems}
@@ -2485,6 +3708,8 @@ function App() {
                   trackValidationEvent(validationEvents.groceryItemChecked, { key, checked });
                   if (checked) addGroceryItemToPantry(item);
                 }}
+                activeShareRequest={activeGroceryShareRequest}
+                onRefreshShare={refreshGroceryShareRequest}
                 cloudSync={{
                   family,
                   signedIn,
@@ -2496,40 +3721,8 @@ function App() {
                   onRefresh: refreshCloudGrocery,
                 }}
                 onOpenUserCenter={() => navigateTo("user")}
-                onOpenInventory={() => navigateTo("inventory")}
-                onOpenStats={() => navigateTo("stats")}
-              />
-            )}
-            {activeView === "inventory" && (
-              <InventoryPage
-                pantryItems={pantryItems}
-                pantryExpirySummary={pantryExpirySummary}
-                newPantryItem={newPantryItem}
-                setNewPantryItem={setNewPantryItem}
-                newPantryAmount={newPantryAmount}
-                setNewPantryAmount={setNewPantryAmount}
-                newPantryExpiresOn={newPantryExpiresOn}
-                setNewPantryExpiresOn={setNewPantryExpiresOn}
-                onAddPantryItem={addPantryItem}
-                onRemovePantryItem={removePantryItem}
-                onShare={shareInventorySummary}
-                cloudSync={{
-                  family,
-                  signedIn,
-                  autoSync: isHumiApiSession(humiSession),
-                  enabled: cloudGroceryEnabled,
-                  loading: cloudGroceryLoading,
-                  status: cloudGroceryStatus,
-                  onMigrate: migrateGroceryToCloud,
-                  onRefresh: refreshCloudGrocery,
-                }}
-                onOpenUserCenter={() => navigateTo("user")}
-                mealLogs={mealLogs}
-                mealCalendar={mealCalendar}
-                familyProfile={familyProfile}
-                nutritionGoals={nutritionGoals}
-                weekPlan={weekPlan}
-                mealPlan={mealPlan}
+                onPlanDinner={() => navigateTo("dashboard")}
+                shareMode={isWechatMiniProgramWebView() ? "mini" : "poster"}
               />
             )}
             {activeView === "stats" && (
@@ -2555,14 +3748,44 @@ function App() {
                 session={displaySession}
                 humiSession={humiSession}
                 family={family}
+                households={humiHouseholds}
                 familyProfile={familyProfile}
                 setFamilyProfile={saveFamilyProfile}
                 mealLogs={mealLogs}
                 nutritionGoals={nutritionGoals}
                 setNutritionGoals={setNutritionGoals}
                 recommendationFeedback={recommendationFeedback}
+                aiRecommendationStatus={aiRecommendationStatus}
+                preciseRecommendationAvailable={preciseRecommendationAvailable}
+                craveSignals={craveSignals}
+                wishPool={wishPool}
+                activeCraveRequest={activeCraveRequest}
+                craveRequestPending={craveRequestPending}
+                activeGroceryShareRequest={activeGroceryShareRequest}
+                activeWishShareRequest={activeWishShareRequest}
+                pendingJoinContext={pendingJoinContext}
+                onClearPendingJoinContext={() => setPendingJoinContext(null)}
+                householdMembers={householdMembers}
+                activeHouseholdInvite={activeHouseholdInvite}
+                onCreateHousehold={createAnotherHumiHousehold}
+                onSwitchHousehold={switchActiveHumiHousehold}
+                onCreateHouseholdInvite={createFamilyInviteCard}
+                onShareHouseholdInvite={() => shareHouseholdInvite()}
+                onAcceptPendingJoin={() => acceptPendingJoinAsMember()}
+                onPlanWish={planWishPoolItem}
+                onRemoveWish={removeWishPoolItem}
                 onExportValidationData={exportLocalValidationData}
                 onViewChange={navigateTo}
+                onOpenRecipeLibrary={openRecipeLibrary}
+                onAskFamily={openFamilyCravePanel}
+                onStartCraveRequest={startCraveRequest}
+                onShareCraveRequest={() => shareCraveRequest()}
+                onRefreshCraveRequest={refreshCraveRequest}
+                onFinishCraveRequest={finishCraveRequest}
+                onRefreshGroceryShare={refreshGroceryShareRequest}
+                onStartWishShare={startWishShareRequest}
+                onShareWishRequest={() => shareWishRequest()}
+                onRefreshWishShare={refreshWishShareRequest}
               />
             )}
           </div>
@@ -2608,8 +3831,189 @@ function App() {
   );
 }
 
+function getInitialCraveToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("crave") || "";
+}
+
+function getInitialGroceryShareToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("groceryShare") || "";
+}
+
+function getInitialMenuShareToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("menuShare") || "";
+}
+
+function getInitialWishShareToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("wishShare") || "";
+}
+
+function getInitialInviteToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("invite") || "";
+}
+
+function getInitialView() {
+  if (typeof window === "undefined") return "dashboard";
+  const view = new URLSearchParams(window.location.search).get("view");
+  const allowedViews = new Set(["dashboard", "today", "grocery", "user", "library", "recommendations", "planner", "calendar", "stats"]);
+  return allowedViews.has(view) ? view : "dashboard";
+}
+
+function isSharedGuestLanding() {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return Boolean(params.get("groceryShare") || params.get("menuShare") || params.get("wishShare") || params.get("shareSource") || params.get("view") === "grocery" || params.get("view") === "today");
+}
+
+function getDisplayName(session) {
+  return session?.user?.nickname
+    || session?.user?.name
+    || session?.user?.user_metadata?.name
+    || session?.user?.email?.split("@")[0]
+    || "";
+}
+
+function buildHouseholdMemberFromJoinContext(context = {}) {
+  const type = context.type === "grocery" ? "grocery" : context.type === "wish" ? "wish" : "crave";
+  const participantKey = String(context.participantKey || `${type}:${context.memberName || Date.now()}`);
+  const name = String(context.memberName || "家人").trim() || "家人";
+  return {
+    id: `member:${participantKey}`,
+    participantKey,
+    name,
+    role: "家人",
+    status: "正式成员",
+    source: type === "grocery" ? "买菜认领" : type === "wish" ? "想吃池" : "感觉征集",
+    householdName: context.householdName || "我家",
+    joinedAt: new Date().toISOString(),
+    lastSignal: type === "grocery"
+      ? context.claimStatus === "declined"
+        ? "这次暂时买不了"
+        : `认领买菜${context.itemCount ? ` · ${context.itemCount} 项` : ""}`
+      : type === "wish"
+        ? context.dishWish
+          ? `想吃“${context.dishWish}”`
+          : "写了一道想吃的菜"
+      : context.dishWish
+        ? `点了“${context.feelingTag || "随便都行"}”，还提到“${context.dishWish}”`
+        : `点了“${context.feelingTag || "随便都行"}”`,
+  };
+}
+
+function getLibraryParentLabel(activeView) {
+  if (activeView === "user") return "我的家";
+  if (activeView === "today") return "今晚菜单";
+  if (activeView === "planner") return "计划";
+  return "发现";
+}
+
+function buildCraveUrl(token) {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("crave", token);
+  return url.toString();
+}
+
+function buildHouseholdInviteUrl(token) {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("invite", token);
+  url.searchParams.set("shareSource", "invite");
+  return url.toString();
+}
+
+function buildWishShareUrl(token) {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("wishShare", token);
+  url.searchParams.set("shareSource", "wish");
+  return url.toString();
+}
+
+function buildMenuShareUrl(token) {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("menuShare", token);
+  url.searchParams.set("shareSource", "today_menu");
+  return url.toString();
+}
+
+function buildGroceryShareItems(groceryItems = [], customItems = [], checkedItems = {}) {
+  const recipeItems = groceryItems.map((item) => ({
+    id: item.key,
+    name: item.name,
+    amount: formatRawAmount(item),
+    category: item.category || item.type || "",
+    checked: Boolean(checkedItems[item.key]),
+  }));
+  const manualItems = customItems.map((item) => ({
+    id: item.key,
+    name: item.name,
+    amount: item.amount || "自定义",
+    category: "顺手买",
+    checked: Boolean(checkedItems[item.key]),
+  }));
+  return [...recipeItems, ...manualItems].slice(0, 80);
+}
+
+async function copyShareUrl(url, successMessage) {
+  if (!url || typeof navigator === "undefined") return;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = url;
+    input.setAttribute("readonly", "readonly");
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    input.remove();
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("humi:copied-share-url", { detail: { successMessage } }));
+  }
+}
+
 function normalizeName(value) {
-  return value.trim().toLowerCase();
+  return String(value || "").trim().toLowerCase();
+}
+
+function findRecipeByName(name) {
+  const normalized = normalizeName(name);
+  if (!normalized) return null;
+  return recipes.find((recipe) => {
+    const recipeName = normalizeName(recipe.name);
+    return recipeName === normalized || recipeName.includes(normalized) || normalized.includes(recipeName);
+  }) ?? null;
+}
+
+function formatCloudSyncError(error) {
+  const message = error?.message ?? "";
+  if (!message) return "暂时没连上我的家，稍后再试一次。";
+  if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("Load failed")) {
+    return "网络或服务器暂时连不上，已保留本机数据，稍后可以重试。";
+  }
+  if (message.includes("401") || message.includes("UNAUTHORIZED") || message.includes("登录")) {
+    return "登录状态可能过期了，请到我的家重新登录后再同步。";
+  }
+  if (message.includes("timeout") || message.includes("超时")) {
+    return "同步等待超时，本机数据还在，稍后可以再点刷新。";
+  }
+  return message;
 }
 
 function validationEventsToCsv(events = []) {
@@ -2628,7 +4032,6 @@ function validationEventsToCsv(events = []) {
 function EntryTableMotion() {
   return (
     <div className="entry-table-motion fixed inset-0 z-[90] overflow-hidden bg-white text-ink">
-      <div className="entry-table-motion__glow" />
       <div className="entry-decision-copy">
         <p className="entry-decision-line entry-decision-line--one">今天吃什么？</p>
         <div className="entry-decision-options">
@@ -2657,7 +4060,7 @@ function getFlowMotion(currentView, nextView) {
   if (currentView === nextView) return null;
   if (currentView === "dashboard" && nextView === "today") return "dish-to-menu";
   if ((currentView === "planner" || currentView === "today") && nextView === "grocery") return "ingredients";
-  if (currentView === "grocery" && (nextView === "inventory" || nextView === "user")) return "pantry";
+  if (currentView === "grocery" && nextView === "user") return "pantry";
   if (nextView === "user" || nextView === "stats") return "portrait";
   return "soft";
 }
@@ -2684,8 +4087,27 @@ function orderPlanDaysFrom(startDay) {
   return [...weekPlanDays.slice(startIndex), ...weekPlanDays.slice(0, startIndex)];
 }
 
+function formatPreciseRecommendationStatus(entitlement) {
+  if (entitlement?.cached) return "这次复用了已算好的精准推荐，没有消耗尝鲜额度。";
+  if (entitlement?.paid) return "给你重新想好了一组。";
+  if (Number.isFinite(entitlement?.trialRemaining)) {
+    return entitlement.trialRemaining > 0
+      ? `给你重新想好了一组。精准尝鲜还剩 ${entitlement.trialRemaining} 次。`
+      : "给你重新想好了一组。精准尝鲜已用完，之后会自动回到基础推荐。";
+  }
+  return "给你重新想好了一组。";
+}
+
+function isPreciseTrialUsedError(error) {
+  const message = String(error?.message || "");
+  return message.includes("precise_trial_used") || message.includes("精准推荐尝鲜额度已用完");
+}
+
 function formatAiError(error) {
   const message = error?.message ?? "今晚建议暂时没想好。";
+  if (isPreciseTrialUsedError(error)) {
+    return "精准推荐尝鲜已用完；基础推荐仍可无限使用。";
+  }
   if (message.includes("DEEPSEEK_API_KEY")) {
     return "今晚建议还没准备好。";
   }
@@ -2705,11 +4127,6 @@ function formatAiError(error) {
     return "暂时只能保存在本机。";
   }
   return message;
-}
-
-function formatInventoryShareSection(title, items) {
-  if (items.length === 0) return `${title}\n- 无`;
-  return `${title}\n${items.map((item) => `- ${item.name}${item.amount ? ` ${item.amount}` : ""}${item.expiresOn ? ` 提醒日期 ${item.expiresOn}` : ""}`).join("\n")}`;
 }
 
 function createHumiSessionFamily(humiSession) {

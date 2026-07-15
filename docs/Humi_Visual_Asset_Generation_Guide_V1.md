@@ -18,10 +18,17 @@ Do not directly replace production assets before visual confirmation.
 
 - Brand name: `Humi`
 - Slogan: `让每顿饭都有安排`
-- Brand green: `#D4EB5A`
+- UI primary: `#111111`
 - Primary text: `#111111`
-- Warm background: `#F5F4F1`
-- Brand character: warm, modern, restrained, family-oriented, lightly editorial
+- UI background: `#FFFFFF`
+- Dish image background: warm off-white paper tone is allowed inside food artwork only
+- Brand character: black-and-white lifestyle people, warm, modern, restrained, family-oriented, lightly editorial
+
+Deprecated for Humi UI and poster assets:
+
+- Acid green as a primary brand surface.
+- Monster, seed, plant-growth, anime, sticker, or childish character systems.
+- SVG-like placeholder line art as final production illustration.
 
 Official app icons:
 
