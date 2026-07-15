@@ -11,14 +11,14 @@
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-user-ui-integration` |
-| API 部署提交 | `2c53017c` |
-| GitHub Pages deployment | 已记录 `29419413488` / success / PR #20 merge `ff43889` |
+| API 部署提交 | `537d171` |
+| GitHub Pages deployment | `29429284963` / success / PR #22 merge `537d171` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.67` |
 | 小程序描述 | `完善家庭菜单与协作功能` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 当前重构 UI 下的核心菜单、三餐选择、家庭协作、成员权限和分享桥门禁已通过；目标候选为 `1.1.67`，完成主线部署与上传后等待用户手机复验，尚未提交微信审核 |
+| 当前状态 | 当前重构 UI 下的核心菜单、三餐选择、家庭协作、成员权限和分享桥门禁已通过；H5/API 已部署，小程序 `1.1.67` 已上传并在 DevTools 确认 `h5v=1.1.67`、业务首屏可见、Errors 0，等待用户手机复验，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -66,6 +66,10 @@
 | 2026-07-15 | codex@mbp-m5pro | PR #18 / #19 / #20 / GitHub Pages | 通过 | 五入口 UI、功能验收门禁和 `h5v=1.1.66` 依次合入；当前 `main` 为 `ff43889`；Pages run `29419413488` success |
 | 2026-07-15 | codex@mbp-m5pro | production product/collaboration smoke | 通过 | 产品 smoke 86/86，五个一级入口、138 道菜库、三餐手选、计划清单、征集、成员权限、多家庭和三类游客协作均通过，页面错误 0；证据 `private:///Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260715T133332Z` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-smoke-20260715-ui-function-closure` |
 | 2026-07-15 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.66` / `适配新版五入口与家庭协作` / package `21.6 KB` / DevTools 打开 `h5v=1.1.66`、五个主入口可见、Errors 0；preview QR SHA-256 `157aed0c55b3ee7d71c26c407d8faae55c7facbf979d66ac069a97934c95dfaf`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.66` |
+| 2026-07-15 | codex@mbp-m5pro | PR #22 / GitHub Pages | 通过 | 当前重构 UI 下的 1.1 核心菜单与家庭协作合入 `main@537d171`；Pages run `29429284963` success |
+| 2026-07-15 | codex@mbp-m5pro | 生产 API 备份 / 部署 / restart | 通过 | 备份 `/opt/humi/backups/20260715T154337Z`；同步 `main@537d171`；`humi-api.service` active；health、monitor、online readiness 通过 |
+| 2026-07-15 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 138 道完整菜库、三餐显式选择、家庭权限、多家庭隔离和协作落地页均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.67-20260715` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.67-20260715` |
+| 2026-07-15 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.67` / `完善家庭菜单与协作功能` / package `24.1 KB` / DevTools 打开 `h5v=1.1.67`、业务首屏与五主入口可见、Errors 0；唯一 warning 为微信基础库 `getSystemInfo` HarmonyOS 兼容提示；preview QR SHA-256 `8027c0683101f830d8c486881692c3a7c9a511786ceda39f23ab648764ed637c`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.67` |
 | 2026-07-15 | codex@mbp-m5pro | `npm run release:status` | 工程门禁通过，验收门禁继续阻止审核 | `engineeringGatesReady=true`；`candidateValidationReady=false` 与 `releaseEvidenceReady=false`，原因仅为真实家庭样本、微信审核/发布、发布后 P0 和 24 小时监控尚未执行 |
 
 ## 3. 生产 API 补部署证据
