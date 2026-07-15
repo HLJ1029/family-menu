@@ -2,8 +2,8 @@ import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const WECHAT_SUBMIT_VERSION = "1.1.65";
-export const WECHAT_SUBMIT_DESCRIPTION = "增加首屏白屏兜底";
+export const WECHAT_SUBMIT_VERSION = "1.1.66";
+export const WECHAT_SUBMIT_DESCRIPTION = "适配新版五入口与家庭协作";
 export const DEFAULT_WECHAT_SUBMIT_DIR_PREFIX = `wechat-submit-${WECHAT_SUBMIT_VERSION}-`;
 
 export function getEvidenceBaseDir() {
