@@ -5,7 +5,7 @@ import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 export function TodayMenu({
   todayRecipes,
@@ -59,9 +59,12 @@ export function TodayMenu({
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
-        <div className="rounded-[20px] border border-line bg-white p-5 text-ink shadow-card">
-          <p className="text-base font-black text-ink/55">今晚菜单先空着</p>
-          <p className="mt-1 text-sm font-bold leading-6 text-ink/38">回【今晚】定一顿，或从下面补一道菜。</p>
+        <div className="grid items-center gap-4 rounded-[20px] border border-line bg-white p-5 text-ink shadow-card sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div>
+            <p className="text-base font-black text-ink/55">今晚菜单先空着</p>
+            <p className="mt-1 text-sm font-bold leading-6 text-ink/38">回【今晚】定一顿，或从下面补一道菜。</p>
+          </div>
+          <HumiScene scene="dashboard" size="sm" className="mx-auto sm:mx-0" decorative />
         </div>
         <QuickAddRecipes
           todayRecipes={todayRecipes}
@@ -97,12 +100,7 @@ export function TodayMenu({
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
         <div className="relative overflow-hidden rounded-[32px] border border-line bg-white p-6 pr-24 text-ink shadow-card md:p-8 md:pr-36">
-          <HumiPeek
-            variant="dinner-ready"
-            size="lg"
-            className="absolute -bottom-6 -right-4 opacity-95"
-            contextKey="today-ready-peek"
-          />
+          <HumiScene scene="feedbackFull" size="md" className="absolute bottom-1 right-2" decorative />
           <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>

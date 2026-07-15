@@ -16,6 +16,7 @@ import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
 import { formatCraveReason, summarizeCraveVotes } from "../lib/collaboration";
 import { AccountAvatar } from "./AppShell";
+import { HumiScene } from "./ui/HumiScene";
 import { BreakfastQuickPicker } from "./BreakfastQuickPicker";
 import { CraveCollectingSheet, CraveStarterSheet } from "./CraveSheet";
 import { DishImage } from "./ui/DishImage";
@@ -290,7 +291,8 @@ export function Dashboard({
         )}
 
         <div className="relative z-10 pt-16">
-          <div>
+          <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_250px] md:items-end">
+            <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-ink/42">今晚吃什么</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-0.04em] sm:text-5xl md:text-6xl">
               {dinnerReady ? todayRecipes.map((recipe) => recipe.name).join(" + ") : recommendation.title}
@@ -306,6 +308,13 @@ export function Dashboard({
               </p>
             )}
             {!craveSelectionMode && dinnerActions}
+            </div>
+            <HumiScene
+              scene={dinnerReady ? "feedbackFull" : aiRecommendationLoading ? "loadingMenu" : "dashboard"}
+              size="page"
+              className="mx-auto md:mx-0 md:justify-self-end"
+              eager
+            />
           </div>
 
           <div className="tonight-card-swap mt-6 grid gap-4 md:mt-8 md:grid-cols-2" key={recommendation.title}>

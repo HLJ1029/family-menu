@@ -8,6 +8,7 @@ import {
 } from "../lib/humiApi";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
+import { HumiScene } from "./ui/HumiScene";
 
 const PARTICIPANT_KEY = "humi:invite-participant-key:v1";
 
@@ -150,9 +151,7 @@ export function InviteLanding({ token, humiSession, onJoined, onClose }) {
                 {invite.inviterName || "主厨"}邀请你一起看菜单、清单和今晚征集。加入后才会成为正式家庭成员。
               </p>
             </div>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ink text-white">
-              <UsersRound size={22} />
-            </span>
+            <HumiScene scene={joined ? "inviteAccepted" : "inviteJoin"} size="sm" className="shrink-0" decorative />
           </div>
 
           <div className="mt-6 rounded-[24px] bg-canvas p-5">

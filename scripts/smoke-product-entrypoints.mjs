@@ -139,12 +139,13 @@ try {
   const dashboardLibraryEntry = page.getByTestId("dashboard-library-entry");
   const dashboardLibraryLabelLines = await page.getByTestId("dashboard-library-entry-label").evaluate((node) => node.getClientRects().length);
   await dashboardLibraryEntry.click();
-  const dashboardLibraryTitle = page.getByRole("heading", { name: "全部菜品库" }).first();
+  const dashboardLibraryTitle = page.getByRole("heading", { name: "发现", exact: true });
   await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
+  await waitForTransientUi(page);
   const dashboardLibraryOpened = await dashboardLibraryTitle.isVisible();
   const libraryPrimaryNav = page.getByTestId("mobile-primary-navigation");
   const libraryPrimaryNavCount = await libraryPrimaryNav.getByRole("button").count();
-  const libraryParentNavActive = await page.getByTestId("mobile-nav-dashboard").getAttribute("aria-current");
+  const libraryParentNavActive = await page.getByTestId("mobile-nav-library").getAttribute("aria-current");
   const libraryPrimaryNavLayout = await libraryPrimaryNav.evaluate((nav) => {
     const navBox = nav.getBoundingClientRect();
     const items = [...nav.querySelectorAll("button")].map((button) => {
@@ -158,7 +159,7 @@ try {
     return {
       navWidth: Math.round(navBox.width * 100) / 100,
       items,
-      equalColumns: items.length === 3
+      equalColumns: items.length === 5
         && Math.max(...items.map((item) => item.width)) - Math.min(...items.map((item) => item.width)) < 2,
     };
   });
@@ -181,8 +182,8 @@ try {
 
   await openTodayMenu(page);
   await page.getByRole("button", { name: "发现新菜" }).first().click();
-  await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 15_000 });
-  const discoveryTitle = await page.getByRole("heading", { name: "全部菜品库" }).first().isVisible();
+  await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
+  const discoveryTitle = await page.getByRole("heading", { name: "发现", exact: true }).isVisible();
   await page.getByRole("heading", { name: "今晚已安排" }).waitFor({ timeout: 15_000 });
   const selectedRecipeCount = await page.locator('[data-testid="selected-recipes-panel"] article').count();
   const recipeCards = await page.getByTestId("recipe-card").count();
@@ -213,7 +214,7 @@ try {
   const breakfastQuickPicker = page.getByTestId("breakfast-quick-picker");
   await breakfastQuickPicker.waitFor({ timeout: 15_000 });
   const breakfastQuickOptionCount = await page.getByTestId("breakfast-quick-options").getByRole("button").count();
-  const breakfastSkippedDinnerLibrary = await page.getByRole("heading", { name: "全部菜品库" }).count() === 0;
+  const breakfastSkippedDinnerLibrary = await page.getByRole("heading", { name: "发现", exact: true }).count() === 0;
   const breakfastBeforePick = await readTodayMealSlot(page, "breakfast");
   const breakfastQuickScreenshot = join(evidenceDir, "breakfast-quick-picker-mobile.png");
   await waitForTransientUi(page);
@@ -240,8 +241,8 @@ try {
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const plannerEntry = page.getByTestId("dashboard-planner-entry");
   await plannerEntry.click();
-  await page.getByRole("heading", { name: "想连排几天" }).first().waitFor({ timeout: 15_000 });
-  const dashboardPlannerOpened = await page.getByRole("heading", { name: "想连排几天" }).first().isVisible();
+  await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).waitFor({ timeout: 15_000 });
+  const dashboardPlannerOpened = await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).isVisible();
   const plannerGrocerySummary = page.getByTestId("planner-grocery-summary");
   const plannerGrocerySummaryVisible = await plannerGrocerySummary.isVisible();
   const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
@@ -332,19 +333,19 @@ try {
   const checks = [
     { key: "tonight-primary-action-is-in-first-viewport", ok: tonightViewport.primaryInFirstViewport, actual: tonightViewport.primaryBox },
     { key: "tonight-hero-has-one-solid-primary-action", ok: tonightViewport.heroHierarchy.solidActionCount === 1, actual: tonightViewport.heroHierarchy },
-    { key: "tonight-hero-has-no-permanent-scene-illustration", ok: !tonightViewport.heroHierarchy.hasPermanentSceneIllustration, actual: tonightViewport.heroHierarchy },
+    { key: "tonight-hero-has-context-scene-illustration", ok: tonightViewport.heroHierarchy.hasPermanentSceneIllustration, actual: tonightViewport.heroHierarchy },
     { key: "breakfast-and-lunch-follow-dinner-decision", ok: tonightViewport.mealRhythmAfterPrimary },
     { key: "tonight-do-writes-menu-and-dinner-plan", ok: tonightViewport.menuWritten && tonightViewport.dinnerPlanWritten, actual: tonightViewport.decisionState },
     { key: "tonight-do-auto-generates-grocery", ok: tonightViewport.groceryGenerated, actual: tonightViewport.groceryCheckboxCount },
     { key: "dashboard-self-pick-opens-full-library", ok: dashboardLibraryOpened },
     { key: "dashboard-library-entry-label-stays-on-one-line", ok: dashboardLibraryLabelLines === 1, actual: dashboardLibraryLabelLines },
-    { key: "library-child-page-keeps-three-primary-tabs", ok: libraryPrimaryNavCount === 3, actual: libraryPrimaryNavCount },
-    { key: "library-child-page-belongs-to-tonight-tab", ok: libraryParentNavActive === "page", actual: libraryParentNavActive },
+    { key: "library-child-page-keeps-five-primary-tabs", ok: libraryPrimaryNavCount === 5, actual: libraryPrimaryNavCount },
+    { key: "library-child-page-belongs-to-discovery-tab", ok: libraryParentNavActive === "page", actual: libraryParentNavActive },
     {
       key: "library-child-page-primary-tabs-are-visible-and-equal",
       ok: libraryPrimaryNavLayout.equalColumns
         && libraryPrimaryNavLayout.items.every((item) => item.visible)
-        && libraryPrimaryNavLayout.items.map((item) => item.text).join("|") === "今晚|清单|我的家",
+        && libraryPrimaryNavLayout.items.map((item) => item.text).join("|") === "今晚|发现|计划|清单|我的家",
       actual: libraryPrimaryNavLayout,
     },
     { key: "library-child-page-back-returns-tonight", ok: libraryBackReturnsTonight },
@@ -363,7 +364,7 @@ try {
     { key: "lunch-empty-before-user-pick", ok: lunchBeforePick.length === 0, actual: lunchBeforePick },
     { key: "lunch-home-saves-user-picked-dish", ok: lunchAfterPick.some((entry) => entry.recipeId === "potato-shreds"), actual: lunchAfterPick },
     { key: "lunch-does-not-default-to-seaweed-soup", ok: !lunchAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: lunchAfterPick },
-    { key: "dashboard-planner-entry-opens-optional-week-plan", ok: dashboardPlannerOpened },
+    { key: "dashboard-planner-entry-opens-week-plan", ok: dashboardPlannerOpened },
     { key: "week-plan-shows-grocery-summary-action", ok: plannerGrocerySummaryVisible },
     { key: "week-plan-grocery-summary-opens-shared-list", ok: plannerSummaryOpenedGrocery },
     { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },
@@ -554,7 +555,7 @@ async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
     });
     return {
       solidActionCount: solidButtons.length,
-      hasPermanentSceneIllustration: Boolean(hero.querySelector('[title="今晚菜单生活场景"]')),
+      hasPermanentSceneIllustration: Boolean(hero.querySelector('img[alt="一家人准备吃晚饭"]')),
     };
   });
   const screenshot = join(evidenceDir, "tonight-first-viewport-mobile.png");
@@ -937,8 +938,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const memberDietSummaryReadonly = await page.getByTestId("family-constraints-readonly").isVisible();
   const dietScreenshot = join(evidenceDir, "member-diet-readonly-mobile.png");
   await page.getByTestId("family-constraints-readonly").screenshot({ path: dietScreenshot });
-  await page.getByRole("button", { name: "全部菜品库" }).click();
-  await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 15_000 });
+  await page.getByTestId("mobile-nav-library").click();
+  await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
   const memberLibraryWantButton = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" }).getByRole("button", { name: "加入想吃池子" });
   const memberLibraryUsesWantAction = await memberLibraryWantButton.isVisible();
   await memberLibraryWantButton.click();

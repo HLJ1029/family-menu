@@ -6,6 +6,7 @@ import { getDayMeals, mealSlots } from "../lib/mealPlan";
 import { getRecipe, recipes } from "../lib/recipes";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
+import { HumiScene } from "./ui/HumiScene";
 
 const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const dayLabels = ["一", "二", "三", "四", "五", "六", "日"];
@@ -82,6 +83,17 @@ export function Planner({
 
   return (
     <section className="grid gap-5">
+      <section className="grid gap-4 rounded-[28px] border border-line bg-white p-5 shadow-card sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center md:p-6">
+        <div>
+          <p className="eyebrow">这一周</p>
+          <h2 className="mt-2 text-2xl font-black tracking-normal sm:text-3xl">先把几顿重要的饭安排好</h2>
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-ink/52">
+            从今晚开始安排，清单和营养日历会跟着更新。
+          </p>
+        </div>
+        <HumiScene scene="planner" size="page" className="mx-auto sm:mx-0" eager />
+      </section>
+
       {/* Week date strip */}
       <Card>
         <div className="flex justify-between">

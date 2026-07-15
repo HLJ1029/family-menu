@@ -1,5 +1,6 @@
 import { Minus, Plus } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
+import { HumiScene } from "./ui/HumiScene";
 import { normalizeMealEntries } from "../lib/mealPlan";
 
 export function Library({
@@ -58,13 +59,16 @@ export function Library({
             <p className="mt-1 text-xs font-bold leading-5 text-ink/45">只有点选后才会写入这一餐。</p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-xs font-black text-ink/45">{recipeSource.length} 道</span>
-          {pickingMeal && (
-            <button type="button" onClick={onClearTargetMeal} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-ink/56">
-              改加今晚
-            </button>
-          )}
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-ink/45">{recipeSource.length} 道</span>
+            {pickingMeal && (
+              <button type="button" onClick={onClearTargetMeal} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-ink/56">
+                改加今晚
+              </button>
+            )}
+          </div>
+          <HumiScene scene="discover" size="sm" decorative />
         </div>
       </div>
 
