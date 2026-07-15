@@ -1,7 +1,7 @@
 import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
 import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
-import { auxiliaryNavItems, getNavItem, mobileNavItems, navItems } from "./navigation";
+import { auxiliaryNavItems, getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
 import { humiAvatarScenes } from "./ui/brandScenes";
 import { stableHash } from "./ui/characterIllustrations";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
@@ -188,18 +188,22 @@ export function Topbar({ activeView, titleOverride, query, setQuery, session, on
 }
 
 export function MobileTabbar({ activeView, onChange }) {
+  const activePrimaryView = getPrimaryNavId(activeView);
   return (
     <nav
+      data-testid="mobile-primary-navigation"
       className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {
         const Icon = item.icon;
-        const active = item.id === activeView;
+        const active = item.id === activePrimaryView;
         return (
           <button
             key={item.id}
             type="button"
+            data-testid={`mobile-nav-${item.id}`}
+            aria-current={active ? "page" : undefined}
             onClick={() => onChange(item.id)}
             className={`relative grid min-w-0 place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[10px] font-black transition sm:text-[11px] ${
               active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"

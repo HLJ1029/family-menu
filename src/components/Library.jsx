@@ -19,6 +19,7 @@ export function Library({
   onClearTargetMeal,
   onOpenRecipe,
   onDragStart,
+  canManageHousehold = true,
 }) {
   const quantityByRecipe = Object.fromEntries(menuQuantities.map((item) => [item.recipeId, item.quantity]));
   const cravedSet = new Set(cravedRecipeIds);
@@ -46,6 +47,7 @@ export function Library({
           label={pickingMeal ? `${targetMealLabel || "这一餐"}已选择` : "今晚已安排"}
           onOpen={onOpenRecipe}
           onUpdateQuantity={onUpdateQuantity}
+          canManageHousehold={canManageHousehold}
         />
       )}
 
@@ -148,6 +150,7 @@ export function Library({
               onCrave={onCraveRecipe}
               onOpen={onOpenRecipe}
               onDragStart={onDragStart}
+              canManageHousehold={canManageHousehold}
             />
           ))}
         </div>
@@ -163,7 +166,7 @@ export function Library({
   );
 }
 
-function SelectedRecipesPanel({ recipes, label, onOpen, onUpdateQuantity }) {
+function SelectedRecipesPanel({ recipes, label, onOpen, onUpdateQuantity, canManageHousehold }) {
   return (
     <section data-testid="selected-recipes-panel" className="mb-5 rounded-[24px] border border-line bg-white p-4 shadow-card sm:p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -197,7 +200,7 @@ function SelectedRecipesPanel({ recipes, label, onOpen, onUpdateQuantity }) {
               <p className="mt-1 text-xs font-bold text-ink/45">
                 {recipe.categories[0]} · {recipe.timeMinutes} min
               </p>
-              <div className="mt-2 flex items-center gap-2">
+              {canManageHousehold && <div className="mt-2 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onUpdateQuantity(recipe.id, -1)}
@@ -215,7 +218,7 @@ function SelectedRecipesPanel({ recipes, label, onOpen, onUpdateQuantity }) {
                 >
                   <Plus size={14} />
                 </button>
-              </div>
+              </div>}
             </div>
           </article>
         ))}
@@ -224,12 +227,12 @@ function SelectedRecipesPanel({ recipes, label, onOpen, onUpdateQuantity }) {
   );
 }
 
-function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, craved, onCrave, onOpen, onDragStart }) {
+function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, craved, onCrave, onOpen, onDragStart, canManageHousehold }) {
   return (
     <article
       data-testid="recipe-card"
-      draggable
-      onDragStart={() => onDragStart(recipe.id)}
+      draggable={canManageHousehold}
+      onDragStart={canManageHousehold ? () => onDragStart(recipe.id) : undefined}
       onClick={() => onOpen(recipe.id)}
       className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
     >
@@ -259,12 +262,14 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, craved, onCrave
             </span>
           </div>
         </div>
-        <RecipeQuantityControl
-          recipe={recipe}
-          quantity={quantity}
-          onAdd={onAdd}
-          onUpdateQuantity={onUpdateQuantity}
-        />
+        {canManageHousehold && (
+          <RecipeQuantityControl
+            recipe={recipe}
+            quantity={quantity}
+            onAdd={onAdd}
+            onUpdateQuantity={onUpdateQuantity}
+          />
+        )}
         <button
           type="button"
           onClick={(event) => {
@@ -274,7 +279,9 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, craved, onCrave
           className={`absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full shadow-card transition hover:scale-105 ${
             craved ? "bg-ink text-white" : "bg-white/92 text-ink"
           }`}
-          aria-label={craved ? `${recipe.name} 已在想吃池` : `想吃 ${recipe.name}`}
+          aria-label={canManageHousehold
+            ? craved ? `${recipe.name} 已在想吃池` : `想吃 ${recipe.name}`
+            : craved ? `${recipe.name} 已在想吃池子` : "加入想吃池子"}
         >
           <Heart size={18} fill={craved ? "currentColor" : "none"} />
         </button>

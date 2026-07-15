@@ -317,7 +317,7 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   assert.equal(vote?.feelingTag, "想喝汤", "crave vote should save guest feeling");
   assert.equal(vote?.dishWish, "番茄汤", "crave vote should save optional dish wish");
   assert.equal(vote?.temporary, true, "crave vote should stay temporary before login");
-  assert(vote?.participantKey, "crave vote should expose participant key for member merge");
+  assert(!vote?.participantKey, "public crave response must not expose a guest participant key");
 
   await page.getByRole("button", { name: "加入这个家，看今晚定了啥" }).click();
   await page.getByRole("heading", { name: "刚才的感觉已经保留" }).waitFor({ timeout: 10000 });
@@ -326,7 +326,8 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   assert.equal(pending?.type, "crave", "joining after crave should create pending join context");
   assert.equal(pending?.memberName, "阿宁", "pending crave context should keep guest name");
   assert.equal(pending?.dishWish, "番茄汤", "pending crave context should keep dish wish");
-  assert.equal(pending?.participantKey, vote.participantKey, "pending crave context should keep the same participant key");
+  const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:crave-participant-key:v1"));
+  assert.equal(pending?.participantKey, localParticipantKey, "pending crave context should keep the local participant key");
   await page.close();
 }
 
@@ -369,7 +370,7 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   assert.equal(claim?.memberName, "阿宁", "grocery claim should save guest name");
   assert.equal(claim?.status, "claimed", "grocery claim should save claimed status");
   assert.deepEqual(claim?.itemIds, ["tomato", "egg"], "grocery claim should include selected items");
-  assert(claim?.participantKey, "grocery claim should expose participant key for member merge");
+  assert(!claim?.participantKey, "public grocery response must not expose a guest participant key");
   const tomato = updated.request?.items?.find((item) => item.id === "tomato");
   assert.equal(tomato?.checked, true, "guest should be able to mark a claimed item as bought");
 
@@ -379,7 +380,8 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   assert.equal(pending?.type, "grocery", "joining after grocery claim should create pending join context");
   assert.equal(pending?.memberName, "阿宁", "pending grocery context should keep guest name");
   assert.equal(pending?.itemCount, 2, "pending grocery context should keep item count");
-  assert.equal(pending?.participantKey, claim.participantKey, "pending grocery context should keep the same participant key");
+  const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:grocery-claim-participant-key:v1"));
+  assert.equal(pending?.participantKey, localParticipantKey, "pending grocery context should keep the local participant key");
   await page.close();
 }
 
@@ -490,7 +492,7 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   assert.equal(wish?.dishName, "糖醋排骨", "wish share should save guest dish name");
   assert.equal(wish?.note, "周末做", "wish share should save guest note");
   assert.equal(wish?.temporary, true, "wish share should stay temporary before login");
-  assert(wish?.participantKey, "wish share should expose participant key for member merge");
+  assert(!wish?.participantKey, "public wish response must not expose a guest participant key");
 
   await guestPage.getByRole("button", { name: "加入这个家" }).click();
   await guestPage.getByRole("heading", { name: "刚才写的想吃已经保留" }).waitFor({ timeout: 10000 });
@@ -498,7 +500,8 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   assert.equal(pending?.type, "wish", "joining after wish share should create pending join context");
   assert.equal(pending?.memberName, "阿宁", "pending wish context should keep guest name");
   assert.equal(pending?.dishWish, "糖醋排骨", "pending wish context should keep dish wish");
-  assert.equal(pending?.participantKey, wish.participantKey, "pending wish context should keep the same participant key");
+  const localParticipantKey = await guestPage.evaluate(() => localStorage.getItem("humi:wish-participant-key:v1"));
+  assert.equal(pending?.participantKey, localParticipantKey, "pending wish context should keep the local participant key");
   await guestPage.close();
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -806,9 +809,8 @@ async function verifyCraveDeadlineFallbackFlow({ browser, apiBaseUrl, webBaseUrl
           signal.recipeIds.length > 0
         );
     }, null, { timeout: 10000 });
-    await page.getByRole("button", { name: "问问大家想吃啥" }).click();
-    await page.getByText("已收口").waitFor({ timeout: 10000 });
     await page.getByText("确认菜单").waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "就做这些" }).waitFor({ timeout: 10000 });
   } finally {
     await context.close();
   }
@@ -1108,7 +1110,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
     await page.getByText(/基础推荐/).first().waitFor({ timeout: 10000 });
     await page.getByText("刚才的感觉已经保留").waitFor({ timeout: 10000 });
     await page.getByText("点“收进家庭成员”后，这次临时参与才会合并成正式成员记录。").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "家庭信息与忌口" }).click();
+    await page.getByRole("button", { name: "修改忌口" }).click();
     await page.getByRole("heading", { name: "人数和忌口" }).waitFor({ timeout: 10000 });
     await page.getByText("软口味来源").waitFor({ timeout: 10000 });
     await page.getByText("绝不想吃 / 不能吃").waitFor({ timeout: 10000 });
@@ -1132,7 +1134,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
       0,
       "my home settings should not ask users to maintain shopping tolerance",
     );
-    await page.getByRole("button", { name: "家庭信息与忌口" }).click();
+    await page.getByRole("button", { name: "修改忌口" }).click();
     await page.getByRole("button", { name: "收进家庭成员" }).click();
     await page.waitForFunction(() => {
       const value = localStorage.getItem("humi:pending-join-context:v1");
@@ -1434,6 +1436,8 @@ async function verifyLibraryMealPlanningFlow({ browser, webBaseUrl, expectedReci
     });
     assert.equal(primaryDinnerBeforeBreakfast, true, "tonight primary action should appear before breakfast/lunch light recording");
     await page.getByRole("button", { name: "选早餐吃什么" }).click();
+    await page.getByRole("heading", { name: "早餐吃什么" }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "更多早餐选择" }).click();
     await page.getByRole("heading", { name: "给早餐选菜" }).first().waitFor({ timeout: 10000 });
     const mealLogsBeforeBreakfastPick = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}"));
     assert.equal(
@@ -1442,9 +1446,9 @@ async function verifyLibraryMealPlanningFlow({ browser, webBaseUrl, expectedReci
       "breakfast should not be recorded as home before the user picks a dish",
     );
     await page.getByText(`共 ${expectedRecipeCount} 道`).waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "加入 西红柿炒鸡蛋" }).click();
+    await page.getByRole("button", { name: "加入 白米粥" }).click();
     await page.getByRole("heading", { name: "早餐已选择" }).waitFor({ timeout: 10000 });
-    await page.getByText("西红柿炒鸡蛋").first().waitFor({ timeout: 10000 });
+    await page.getByText("白米粥").first().waitFor({ timeout: 10000 });
 
     await page.goto(`${webBaseUrl}/?view=dashboard`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "记录午餐来源" }).waitFor({ state: "visible", timeout: 10000 });
@@ -1474,7 +1478,7 @@ async function verifyLibraryMealPlanningFlow({ browser, webBaseUrl, expectedReci
     const todayKey = formatLocalDateKey();
     const breakfastRecipeIds = mealPlan?.[todayKey]?.breakfast?.map((entry) => entry.recipeId) ?? [];
     const lunchRecipeIds = mealPlan?.[todayKey]?.lunch?.map((entry) => entry.recipeId) ?? [];
-    assert(breakfastRecipeIds.includes("tomato-egg"), "breakfast should record the dish the user selected");
+    assert(breakfastRecipeIds.includes("plain-rice-porridge"), "breakfast should record the dish the user selected");
     assert(!breakfastRecipeIds.includes("seaweed-egg-soup"), "breakfast should not default to seaweed egg soup");
     assert(lunchRecipeIds.includes("garlic-broccoli"), "lunch should record the dish the user selected");
     assert(!lunchRecipeIds.includes("seaweed-egg-soup"), "lunch should not default to seaweed egg soup");

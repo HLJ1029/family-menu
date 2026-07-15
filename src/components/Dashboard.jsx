@@ -8,12 +8,13 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { feelingTags } from "../lib/collaboration";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
 import { getRecipe } from "../lib/recipes";
 import { AccountAvatar } from "./AppShell";
+import { BreakfastQuickPicker } from "./BreakfastQuickPicker";
 import { CraveAudiencePicker } from "./CraveAudiencePicker";
 import { DishImage } from "./ui/DishImage";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
@@ -27,7 +28,7 @@ const dinnerSources = [
 ];
 
 const dinnerConfirmations = [
-  { id: "all", label: "做了" },
+  { id: "all", label: "全部做了" },
   { id: "partial", label: "吃了一部分" },
   { id: "missed", label: "换了别的" },
 ];
@@ -70,6 +71,8 @@ export function Dashboard({
   pantryItemCount = 0,
   onAddPantryHints,
   onPickForMeal,
+  breakfastChoices = [],
+  onChooseBreakfast,
   onOpenRecipeLibrary,
   householdMembers = [],
   session,
@@ -82,14 +85,17 @@ export function Dashboard({
   onSetMealSource,
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
+  canManageHousehold = true,
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [craveOpen, setCraveOpen] = useState(false);
   const [mealSourceSlotOpen, setMealSourceSlotOpen] = useState(null);
+  const [breakfastPickerOpen, setBreakfastPickerOpen] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
   const [selectedCraveRecipeIds, setSelectedCraveRecipeIds] = useState([]);
   const [selectedCraveAudience, setSelectedCraveAudience] = useState([]);
+  const autoFinishedCraveRef = useRef("");
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
   const recommendedItems = getRecommendationItems(recommendation);
@@ -132,6 +138,10 @@ export function Dashboard({
   }, [cravePanelOpenSignal]);
 
   useEffect(() => {
+    if (activeCraveRequest?.token) setCraveOpen(true);
+  }, [activeCraveRequest?.token]);
+
+  useEffect(() => {
     if (!activeCraveRequest || dinnerReady) return;
     setSelectedCraveRecipeIds(recommendedRecipes.map((recipe) => recipe.id));
   }, [activeCraveRequest?.token, activeCraveRequest?.status, dinnerReady, recommendedRecipeIds]);
@@ -140,12 +150,17 @@ export function Dashboard({
     if (!activeCraveRequest || dinnerReady || craveRequestPending || activeCraveRequest.status !== "open") return;
     const deadlineTime = getCraveDeadlineTime(activeCraveRequest);
     if (!deadlineTime) return;
+    const autoFinishKey = `${activeCraveRequest.token}:${deadlineTime}`;
     const msUntilDeadline = deadlineTime - Date.now();
     if (msUntilDeadline <= 0) {
+      if (autoFinishedCraveRef.current === autoFinishKey) return;
+      autoFinishedCraveRef.current = autoFinishKey;
       onFinishCraveRequest?.(activeCraveRequest.starterFeeling || selectedFeeling || "随便都行");
       return;
     }
     const timer = window.setTimeout(() => {
+      if (autoFinishedCraveRef.current === autoFinishKey) return;
+      autoFinishedCraveRef.current = autoFinishKey;
       onFinishCraveRequest?.(activeCraveRequest.starterFeeling || selectedFeeling || "随便都行");
     }, msUntilDeadline);
     return () => window.clearTimeout(timer);
@@ -174,11 +189,11 @@ export function Dashboard({
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5 overflow-hidden">
-      <section className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
+      <section data-testid="tonight-hero" className="relative min-w-0 overflow-hidden rounded-[32px] border border-line bg-canvas p-5 text-ink shadow-card md:p-8">
         <div className="absolute left-5 top-5 z-10">
           <p className="text-sm font-black uppercase tracking-[0.16em] text-ink">HUMI</p>
         </div>
-        <div className="absolute right-5 top-5 z-10">
+        <div className="absolute right-5 top-5 z-30">
           <AccountAvatar session={session} onClick={onOpenUserCenter} compact />
         </div>
         {arranging && (
@@ -215,6 +230,7 @@ export function Dashboard({
               onOpenRecommendationFeedback={onOpenRecommendationFeedback}
               onToggleCrave={() => setCraveOpen((current) => !current)}
               onOpenRecipeLibrary={onOpenRecipeLibrary}
+              canManageHousehold={canManageHousehold}
             />
             {!dinnerReady && aiRecommendationStatus && (
               <div className="mt-4 rounded-[20px] border border-line bg-white px-4 py-3 text-xs font-black leading-5 text-ink/58 shadow-card">
@@ -254,22 +270,24 @@ export function Dashboard({
           <SecondaryMealStrip
             mealSummaries={todayMealSummaries}
             onPickForMeal={onPickForMeal}
+            onOpenBreakfastPicker={() => setBreakfastPickerOpen(true)}
             mealSourceSlotOpen={mealSourceSlotOpen}
             setMealSourceSlotOpen={setMealSourceSlotOpen}
             mealLabelById={mealLabelById}
             mealLog={mealLog}
             onSetMealSource={onSetMealSource}
+            canManageHousehold={canManageHousehold}
           />
-          {pantryConfirmations.length > 0 && (
+          {canManageHousehold && pantryConfirmations.length > 0 && (
             <PantryUseConfirmation
               items={pantryConfirmations}
               onConfirm={onConfirmPantryItem}
             />
           )}
-          {!dinnerReady && pantryItemCount === 0 && (
+          {canManageHousehold && !dinnerReady && pantryItemCount === 0 && (
             <PantryQuickHint onAdd={onAddPantryHints} />
           )}
-          {!dinnerReady && craveOpen && (
+          {canManageHousehold && !dinnerReady && craveOpen && (
             <div className="relative mt-5 overflow-hidden rounded-[24px] border border-line bg-white p-4 pr-24">
               <HumiPeek
                 variant="share-to-family"
@@ -377,7 +395,10 @@ export function Dashboard({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onFinishCraveRequest?.(selectedFeeling)}
+                    onClick={() => {
+                      onFinishCraveRequest?.(selectedFeeling);
+                      setCraveOpen(false);
+                    }}
                     disabled={craveRequestPending}
                     className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink disabled:opacity-50"
                   >
@@ -455,7 +476,7 @@ export function Dashboard({
                   ? "今晚菜单已同步进本周计划，采购清单会自动汇总。"
                   : `${recommendation.reason || formatProfileSummary(familyProfile)} ${aiRecommendationStatus}`}
               </p>
-              {!profileReady && (
+              {canManageHousehold && !profileReady && (
                 <button
                   type="button"
                   onClick={onOpenUserCenter}
@@ -480,6 +501,21 @@ export function Dashboard({
         showConfirmation={dinnerReady}
         dinnerReady={dinnerReady}
         onViewChange={onViewChange}
+        canManageHousehold={canManageHousehold}
+      />
+      <BreakfastQuickPicker
+        open={breakfastPickerOpen}
+        recipes={breakfastChoices}
+        selectedRecipeIds={(todayMeals.breakfast ?? []).map((entry) => entry.recipeId)}
+        onSelect={(recipeId) => {
+          onChooseBreakfast?.(recipeId);
+          setBreakfastPickerOpen(false);
+        }}
+        onBrowseAll={() => {
+          setBreakfastPickerOpen(false);
+          onPickForMeal?.("breakfast", "早餐");
+        }}
+        onClose={() => setBreakfastPickerOpen(false)}
       />
     </div>
   );
@@ -495,6 +531,7 @@ function PrimaryDinnerActions({
   onOpenRecommendationFeedback,
   onToggleCrave,
   onOpenRecipeLibrary,
+  canManageHousehold,
 }) {
   const showPrimaryDinnerAction = dinnerReady || !craveMenuReady;
   return (
@@ -502,14 +539,16 @@ function PrimaryDinnerActions({
       {showPrimaryDinnerAction && (
         <button
           type="button"
+          data-testid="tonight-primary-action"
           onClick={dinnerReady ? () => onViewChange("today") : arrangeTonight}
+          disabled={!canManageHousehold && !dinnerReady}
           className="tonight-arrange-button col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-1 sm:col-span-1 sm:px-7"
         >
           {dinnerReady ? <CheckCircle2 size={19} /> : <Utensils size={19} />}
-          {dinnerReady ? "查看今晚菜单" : "今晚就做"}
+          {dinnerReady ? "查看今晚菜单" : canManageHousehold ? "今晚就做" : "等主厨安排"}
         </button>
       )}
-      <button
+      {(canManageHousehold || dinnerReady) && <button
         type="button"
         onClick={dinnerReady ? () => onViewChange("grocery") : () => onRequestAiRecommendation()}
         disabled={!dinnerReady && aiRecommendationLoading}
@@ -521,8 +560,8 @@ function PrimaryDinnerActions({
           <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
         )}
         {dinnerReady ? "查看清单" : "换一组"}
-      </button>
-      {!dinnerReady && (
+      </button>}
+      {canManageHousehold && !dinnerReady && (
         <button
           type="button"
           onClick={onOpenRecommendationFeedback}
@@ -531,7 +570,7 @@ function PrimaryDinnerActions({
           不想吃
         </button>
       )}
-      {!dinnerReady && (
+      {canManageHousehold && !dinnerReady && (
         <button
           type="button"
           onClick={onToggleCrave}
@@ -543,11 +582,12 @@ function PrimaryDinnerActions({
       )}
       <button
         type="button"
+        data-testid="dashboard-library-entry"
         onClick={onOpenRecipeLibrary}
         className="col-span-2 inline-flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-1 sm:col-span-1 sm:px-7 sm:text-base"
       >
         <Sparkles size={18} />
-        全部菜品库
+        <span data-testid="dashboard-library-entry-label">全部菜品库</span>
       </button>
     </div>
   );
@@ -556,14 +596,16 @@ function PrimaryDinnerActions({
 function SecondaryMealStrip({
   mealSummaries,
   onPickForMeal,
+  onOpenBreakfastPicker,
   mealSourceSlotOpen,
   setMealSourceSlotOpen,
   mealLabelById,
   mealLog,
   onSetMealSource,
+  canManageHousehold,
 }) {
   return (
-    <section className="mt-5 rounded-[24px] border border-line bg-white/72 p-3">
+    <section data-testid="meal-rhythm-panel" className="mt-5 rounded-[24px] border border-line bg-white/72 p-3">
       <div className="flex items-center justify-between gap-3 px-1">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">早午餐轻记录</p>
         <span className="text-xs font-bold text-ink/42">不催，不默认写入</span>
@@ -572,17 +614,18 @@ function SecondaryMealStrip({
         {mealSummaries.filter((slot) => slot.id !== "dinner").map((slot) => {
           const source = slot.source;
           const shouldPickDirectly = slot.id === "breakfast" && slot.count === 0 && (!source || source === "home");
+          const MealSummaryElement = canManageHousehold ? "button" : "div";
           return (
-            <button
+            <MealSummaryElement
               key={slot.id}
-              type="button"
-              onClick={() => {
+              type={canManageHousehold ? "button" : undefined}
+              onClick={canManageHousehold ? () => {
                 if (shouldPickDirectly) {
-                  onPickForMeal?.(slot.id);
+                  onOpenBreakfastPicker?.();
                   return;
                 }
                 setMealSourceSlotOpen((current) => (current === slot.id ? null : slot.id));
-              }}
+              } : undefined}
               className="rounded-[20px] border border-line bg-white p-3 text-left transition hover:border-ink/30"
             >
               <span className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{slot.label}</span>
@@ -595,11 +638,11 @@ function SecondaryMealStrip({
                           ? mealSourceLabels[source] ?? "已记录"
                           : slot.id === "breakfast" ? "选早餐吃什么" : "记录午餐来源"}
               </span>
-            </button>
+            </MealSummaryElement>
           );
         })}
       </div>
-      {mealSourceSlotOpen && (
+      {canManageHousehold && mealSourceSlotOpen && (
         <MealSourcePanel
           slotLabel={mealLabelById[mealSourceSlotOpen] ?? "这一餐"}
           source={mealLog?.mealSources?.[mealSourceSlotOpen]}
@@ -996,6 +1039,7 @@ export function DinnerLogPanel({
   showConfirmation,
   dinnerReady = false,
   onViewChange,
+  canManageHousehold = true,
 }) {
   const sourceStats = buildSourceStats(mealLogs);
   const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady, sourceStats);
@@ -1006,6 +1050,18 @@ export function DinnerLogPanel({
   const helperText = dinnerReady
     ? "点一下就够了。做了会默认把今晚菜单计入画像；换了或出去吃也没关系。"
     : "没安排晚饭也可以顺手记来源；不记录也合法。";
+
+  if (!canManageHousehold) {
+    return (
+      <section data-testid="dinner-log-readonly" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <p className="eyebrow">晚间轻确认</p>
+        <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">{title}</h2>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+          {dinnerReady ? "主厨安排后，家人可以在这里查看今晚记录。" : "主厨还没有记录这顿晚饭。"}
+        </p>
+      </section>
+    );
+  }
 
   function quickConfirm(action) {
     if (action === "done") {

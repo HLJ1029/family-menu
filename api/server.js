@@ -1,5 +1,5 @@
 import http from "node:http";
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
@@ -21,14 +21,9 @@ const config = {
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
   deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
   deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-  // 精准推荐有真实 API 成本：匿名用户永远走前端基础推荐；登录用户先走缓存，再消耗尝鲜额度。
+  // 基础推荐默认走本地规则；只有登录用户显式请求精准能力时才允许消耗 DeepSeek。
   aiRateLimit: Number(process.env.HUMI_AI_RATE_LIMIT || 30),
   aiRateWindowMs: Number(process.env.HUMI_AI_RATE_WINDOW_MS || 60000),
-  aiPreciseTrialLimit: Number(process.env.HUMI_AI_PRECISE_TRIAL_LIMIT || 3),
-  aiCacheTtlMs: Number(process.env.HUMI_AI_CACHE_TTL_MS || 24 * 60 * 60 * 1000),
-  collaborationRateLimit: Number(process.env.HUMI_COLLABORATION_RATE_LIMIT || 120),
-  collaborationRateWindowMs: Number(process.env.HUMI_COLLABORATION_RATE_WINDOW_MS || 60000),
-  requestBodyLimitBytes: Number(process.env.HUMI_REQUEST_BODY_LIMIT_BYTES || 64 * 1024),
 };
 
 if (!config.sessionSecret) {
@@ -48,9 +43,6 @@ export function createHumiApiServer() {
       }
 
       const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
-      if (isCollaborationWriteRequest(request.method, url.pathname)) {
-        enforceCollaborationWriteLimit(request);
-      }
       if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/health") {
         if (request.method === "HEAD") {
           response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
@@ -118,6 +110,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const householdInviteWantMatch = url.pathname.match(/^\/household-invites\/([^/]+)\/wants$/);
+      if (request.method === "POST" && householdInviteWantMatch) {
+        await handleAddHouseholdInviteWant(request, response, householdInviteWantMatch[1]);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/state") {
         await handleGetState(request, response);
         return;
@@ -148,27 +146,20 @@ export function createHumiApiServer() {
         return;
       }
 
-      const craveRequestMatch = url.pathname.match(/^\/crave-requests\/([^/]+)$/);
-      if (request.method === "GET" && craveRequestMatch) {
-        await handleGetCraveRequest(response, craveRequestMatch[1]);
+      if (request.method === "POST" && url.pathname === "/grocery-shares") {
+        await handleCreateGroceryShare(request, response);
         return;
       }
 
-      const craveVoteMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/votes$/);
-      if (request.method === "POST" && craveVoteMatch) {
-        await handleCraveVote(request, response, craveVoteMatch[1]);
+      const groceryShareMatch = url.pathname.match(/^\/grocery-shares\/([^/]+)$/);
+      if (request.method === "GET" && groceryShareMatch) {
+        await handleGetGroceryShare(response, groceryShareMatch[1]);
         return;
       }
 
-      const craveJoinMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/join$/);
-      if (request.method === "POST" && craveJoinMatch) {
-        await handleJoinCraveRequest(request, response, craveJoinMatch[1]);
-        return;
-      }
-
-      const craveCloseMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/close$/);
-      if (request.method === "POST" && craveCloseMatch) {
-        await handleCloseCraveRequest(request, response, craveCloseMatch[1]);
+      const groceryShareClaimMatch = url.pathname.match(/^\/grocery-shares\/([^/]+)\/claims$/);
+      if (request.method === "POST" && groceryShareClaimMatch) {
+        await handleClaimGroceryShare(request, response, groceryShareClaimMatch[1]);
         return;
       }
 
@@ -177,9 +168,9 @@ export function createHumiApiServer() {
         return;
       }
 
-      const groceryShareMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)$/);
-      if (request.method === "GET" && groceryShareMatch) {
-        await handleGetGroceryShareRequest(response, groceryShareMatch[1]);
+      const batchGroceryShareMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)$/);
+      if (request.method === "GET" && batchGroceryShareMatch) {
+        await handleGetGroceryShareRequest(response, batchGroceryShareMatch[1]);
         return;
       }
 
@@ -232,6 +223,30 @@ export function createHumiApiServer() {
       const wishJoinMatch = url.pathname.match(/^\/wish-share-requests\/([^/]+)\/join$/);
       if (request.method === "POST" && wishJoinMatch) {
         await handleJoinWishShare(request, response, wishJoinMatch[1]);
+        return;
+      }
+
+      const craveRequestMatch = url.pathname.match(/^\/crave-requests\/([^/]+)$/);
+      if (request.method === "GET" && craveRequestMatch) {
+        await handleGetCraveRequest(response, craveRequestMatch[1]);
+        return;
+      }
+
+      const craveVoteMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/votes$/);
+      if (request.method === "POST" && craveVoteMatch) {
+        await handleCraveVote(request, response, craveVoteMatch[1]);
+        return;
+      }
+
+      const craveJoinMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/join$/);
+      if (request.method === "POST" && craveJoinMatch) {
+        await handleJoinCraveRequest(request, response, craveJoinMatch[1]);
+        return;
+      }
+
+      const craveCloseMatch = url.pathname.match(/^\/crave-requests\/([^/]+)\/close$/);
+      if (request.method === "POST" && craveCloseMatch) {
+        await handleCloseCraveRequest(request, response, craveCloseMatch[1]);
         return;
       }
 
@@ -345,7 +360,8 @@ async function handleSaveState(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
-  const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body));
+  const householdId = stringValue(body.householdId || body.state?.householdId, 80);
+  const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body), householdId);
   const household = await store.getHouseholdForUser(user.id);
   const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 200, {
@@ -373,8 +389,8 @@ async function handleCreateHousehold(request, response) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   const household = await store.createHouseholdForUser(user.id, {
-    householdName: stringValue(body.householdName || body.name) || "我的家",
-    memberName: stringValue(body.memberName) || user.displayName,
+    householdName: stringValue(body.householdName || body.name, 32) || "我的家",
+    memberName: stringValue(body.memberName, 32) || user.displayName,
   });
   const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 201, {
@@ -389,7 +405,7 @@ async function handleSetActiveHousehold(request, response) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    const household = await store.setActiveHouseholdForUser(user.id, stringValue(body.householdId));
+    const household = await store.setActiveHouseholdForUser(user.id, stringValue(body.householdId, 80));
     const state = await store.getState(user.id);
     const households = await store.getHouseholdsForUser(user.id);
     sendJson(response, 200, {
@@ -398,7 +414,9 @@ async function handleSetActiveHousehold(request, response) {
       households: toHumiFamilies(households, user),
     });
   } catch (error) {
-    if (error.code === "household_not_found") throw httpError(404, "household_not_found", "没有找到这个家，可能还没有加入。");
+    if (error.code === "household_not_found") {
+      throw httpError(404, "household_not_found", "没有找到这个家，可能还没有加入。");
+    }
     throw error;
   }
 }
@@ -410,13 +428,17 @@ async function handleCreateHouseholdInvite(request, response) {
   const body = await readJson(request);
   try {
     const invite = await store.createHouseholdInvite(user.id, {
-      householdId: stringValue(body.householdId),
-      inviterName: stringValue(body.inviterName) || user.displayName,
+      householdId: stringValue(body.householdId, 80),
+      inviterName: stringValue(body.inviterName, 32) || user.displayName,
     });
     sendJson(response, 201, { invite: toPublicHouseholdInvite(invite) });
   } catch (error) {
-    if (error.code === "household_not_found") throw httpError(404, "household_not_found", "没有找到这个家，暂时不能邀请家人。");
-    if (error.code === "forbidden") throw httpError(403, "forbidden", "只有主厨能邀请家人加入这个家。");
+    if (error.code === "household_not_found") {
+      throw httpError(404, "household_not_found", "没有找到这个家，暂时不能邀请家人。");
+    }
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能邀请家人加入这个家。");
+    }
     throw error;
   }
 }
@@ -427,6 +449,30 @@ async function handleGetHouseholdInvite(response, token) {
   sendJson(response, 200, { invite: toPublicHouseholdInvite(invite) });
 }
 
+async function handleAddHouseholdInviteWant(request, response, token) {
+  const body = await readJson(request);
+  try {
+    const result = await store.addHouseholdInviteWant(token, {
+      participantKey: stringValue(body.participantKey, 80),
+      memberName: stringValue(body.memberName, 32),
+      title: stringValue(body.title, 40),
+    });
+    if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
+    sendJson(response, 201, {
+      invite: toPublicHouseholdInvite(result.invite),
+      want: toPublicWantToEatItem(result.want),
+    });
+  } catch (error) {
+    if (error.code === "invite_closed") {
+      throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    }
+    if (error.code === "missing_participant_key" || error.code === "missing_want_title") {
+      throw httpError(400, error.code, "请写下想吃的菜，再告诉主厨。");
+    }
+    throw error;
+  }
+}
+
 async function handleJoinHouseholdInvite(request, response, token) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
@@ -434,38 +480,37 @@ async function handleJoinHouseholdInvite(request, response, token) {
   const body = await readJson(request);
   try {
     const result = await store.acceptHouseholdInvite(token, user.id, {
-      memberName: stringValue(body.memberName) || user.displayName,
+      memberName: stringValue(body.memberName, 32) || user.displayName,
+      participantKey: stringValue(body.participantKey, 80),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
-    await sendHouseholdJoinResult(response, user, { invite: toPublicHouseholdInvite(result.invite) });
+    const state = await store.getState(user.id);
+    const households = await store.getHouseholdsForUser(user.id);
+    sendJson(response, 200, {
+      invite: toPublicHouseholdInvite(result.invite),
+      state,
+      family: toHumiFamily(result.household, user),
+      households: toHumiFamilies(households, user),
+    });
   } catch (error) {
-    if (error.code === "invite_closed") throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    if (error.code === "invite_closed") {
+      throw httpError(410, "invite_closed", "这个家庭邀请已经关闭。");
+    }
     throw error;
   }
 }
 
 async function handleRecommend(request, response) {
-  const auth = await requireAuth(request);
-  enforceAiAccess(auth.userId);
-  const user = await store.getUser(auth.userId);
-  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
-  const cacheKey = buildAiRecommendationCacheKey(body);
-  const cached = await store.getCachedAiRecommendation(cacheKey, config.aiCacheTtlMs);
-  const access = await getPreciseRecommendationAccess(user);
-  if (cached) {
-    sendJson(response, 200, {
-      ...cached.result,
-      source: cached.result?.source ? `${cached.result.source}_cached` : "deepseek_cached",
-      entitlement: {
-        ...access,
-        cached: true,
-      },
-    });
+  if (body.mode !== "precise") {
+    sendJson(response, 200, buildBasicRecommendation(body));
     return;
   }
-  if (!access.allowed) {
-    throw httpError(402, "precise_trial_used", "精准推荐尝鲜额度已用完；基础推荐仍可无限使用。");
+  const auth = await requireAuth(request);
+  enforceAiAccess(request);
+  const accessStatus = await store.getPreciseRecommendationAccess(auth.userId);
+  if (!accessStatus.canUse) {
+    throw httpError(402, "precise_trial_exhausted", "精准推荐尝鲜已用完，基础推荐仍可无限使用。");
   }
   if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
   const result = await generateMealRecommendation(body, {
@@ -473,22 +518,38 @@ async function handleRecommend(request, response) {
     model: config.deepseekModel,
     baseUrl: config.deepseekBaseUrl,
   });
-  await store.saveCachedAiRecommendation(cacheKey, result);
-  const nextUsage = access.paid ? await store.getAiUsage(user.id) : await store.recordAiRecommendationUse(user.id);
-  sendJson(response, 200, {
-    ...result,
-    entitlement: buildPreciseRecommendationEntitlement(user, nextUsage, false),
-  });
+  const recommendationAccess = await store.consumePreciseRecommendationAccess(auth.userId);
+  sendJson(response, 200, { ...result, recommendationAccess });
+}
+
+function buildBasicRecommendation(payload = {}) {
+  const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+  if (candidates.length === 0) {
+    throw httpError(400, "missing_candidates", "缺少可推荐的菜谱。");
+  }
+  const candidateIds = new Set(candidates.map((candidate) => stringValue(candidate.id)).filter(Boolean));
+  const fallbackIds = Array.isArray(payload.ruleFallback?.recipeIds)
+    ? payload.ruleFallback.recipeIds.map((id) => stringValue(id)).filter((id) => candidateIds.has(id))
+    : [];
+  const recipeIds = [...new Set(fallbackIds.length > 0 ? fallbackIds : [...candidateIds])].slice(0, 2);
+  return {
+    recipeIds,
+    reason: stringValue(payload.ruleFallback?.reason) || "已按家庭画像和本地规则给你一组基础推荐。",
+    explanation: {
+      pantry: "基础版已参考家里现有信号。",
+      preference: "基础版已参考家庭偏好标签。",
+      grocery: "基础版会尽量控制主要采购缺口。",
+    },
+    source: "rule",
+  };
 }
 
 async function handleExplain(request, response) {
   const auth = await requireAuth(request);
-  enforceAiAccess(auth.userId);
-  const user = await store.getUser(auth.userId);
-  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const access = await getPreciseRecommendationAccess(user);
-  if (!access.allowed) {
-    throw httpError(402, "precise_trial_used", "精准推荐尝鲜额度已用完；基础推荐仍可无限使用。");
+  enforceAiAccess(request);
+  const accessStatus = await store.getPreciseRecommendationAccess(auth.userId);
+  if (!accessStatus.canUse) {
+    throw httpError(402, "precise_trial_exhausted", "精准解释尝鲜已用完，基础推荐说明仍可直接查看。");
   }
   if (!config.deepseekApiKey) throw httpError(503, "deepseek_not_configured", "DEEPSEEK_API_KEY 未配置。");
   const body = await readJson(request);
@@ -497,65 +558,73 @@ async function handleExplain(request, response) {
     model: config.deepseekModel,
     baseUrl: config.deepseekBaseUrl,
   });
-  const nextUsage = access.paid ? await store.getAiUsage(user.id) : await store.recordAiRecommendationUse(user.id);
-  sendJson(response, 200, {
-    ...result,
-    entitlement: buildPreciseRecommendationEntitlement(user, nextUsage, false),
-  });
+  const recommendationAccess = await store.consumePreciseRecommendationAccess(auth.userId);
+  sendJson(response, 200, { ...result, recommendationAccess });
 }
 
 async function handleCreateCraveRequest(request, response) {
   const auth = await requireAuth(request);
-  const user = await store.getUser(auth.userId);
-  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    const craveRequest = await store.createCraveRequest(body, user.id);
+    const craveRequest = await store.createCraveRequest(body, auth.userId);
     sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
   } catch (error) {
-    if (error.code === "forbidden") throw httpError(403, "forbidden", "只有主厨能发起这个家的征集。");
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能发起这个家的征集。");
+    }
     throw error;
   }
 }
 
-async function handleGetCraveRequest(response, token) {
-  const craveRequest = await store.getCraveRequest(token);
-  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
-}
-
-async function handleCraveVote(request, response, token) {
-  const body = await readJson(request);
-  const craveRequest = await store.addCraveVote(token, body);
-  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
-}
-
-async function handleJoinCraveRequest(request, response, token) {
+async function handleCreateGroceryShare(request, response) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    const craveRequest = await store.claimCraveVote(token, user.id, body);
-    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-    await sendHouseholdJoinResult(response, user, { request: toPublicCraveRequest(craveRequest) });
+    const share = await store.createGroceryShare(user.id, {
+      householdName: stringValue(body.householdName, 32),
+      initiatorName: stringValue(body.initiatorName, 32) || user.displayName,
+      items: sanitizeGroceryShareItems(body.items),
+    });
+    sendJson(response, 201, { share: toPublicGroceryShare(share) });
   } catch (error) {
-    if (error.code === "missing_participant_key") throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");
-    if (error.code === "vote_not_found") throw httpError(404, "vote_not_found", "没有找到你刚才的投票，可以直接回 Humi 查看。");
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+    }
     throw error;
   }
 }
 
-async function handleCloseCraveRequest(request, response, token) {
+async function handleGetGroceryShare(response, token) {
+  const share = await store.getGroceryShare(token);
+  if (!share) throw httpError(404, "grocery_share_not_found", "这个买菜清单已经失效。");
+  sendJson(response, 200, { share: toPublicGroceryShare(share) });
+}
+
+async function handleClaimGroceryShare(request, response, token) {
+  const auth = await getOptionalAuth(request);
+  const user = auth?.userId ? await store.getUser(auth.userId) : null;
   const body = await readJson(request);
   try {
-    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret);
-    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+    const share = await store.claimGroceryShareItem(token, {
+      itemKey: stringValue(body.itemKey, 160),
+      participantKey: stringValue(body.participantKey, 80),
+      memberId: user?.id || "",
+      memberName: stringValue(body.memberName, 32) || user?.displayName || "家人",
+      status: stringValue(body.status, 16),
+    });
+    if (!share) throw httpError(404, "grocery_share_not_found", "这个买菜清单已经失效。");
+    sendJson(response, 200, { share: toPublicGroceryShare(share) });
   } catch (error) {
-    if (error.code === "forbidden") {
-      throw httpError(403, "forbidden", "只有发起者能结束这次征集。");
+    if (error.code === "grocery_item_not_found") {
+      throw httpError(404, "grocery_item_not_found", "清单里没有这项食材。");
+    }
+    if (error.code === "grocery_item_claimed") {
+      throw httpError(409, "grocery_item_claimed", `${error.claim?.memberName || "家人"}已经在买这项食材。`);
+    }
+    if (error.code === "grocery_item_done") {
+      throw httpError(409, "grocery_item_done", `${error.claim?.memberName || "家人"}已经买到这项食材。`);
     }
     throw error;
   }
@@ -568,9 +637,14 @@ async function handleCreateGroceryShareRequest(request, response) {
   const body = await readJson(request);
   try {
     const groceryRequest = await store.createGroceryShareRequest(body, user.id);
-    sendJson(response, 201, { request: toPublicGroceryShareRequest(groceryRequest), ownerSecret: groceryRequest.ownerSecret });
+    sendJson(response, 201, {
+      request: toPublicGroceryShareRequest(groceryRequest),
+      ownerSecret: groceryRequest.ownerSecret,
+    });
   } catch (error) {
-    if (error.code === "forbidden") throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+    }
     throw error;
   }
 }
@@ -605,8 +679,12 @@ async function handleJoinGroceryShare(request, response, token) {
     if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
     await sendHouseholdJoinResult(response, user, { request: toPublicGroceryShareRequest(groceryRequest) });
   } catch (error) {
-    if (error.code === "missing_participant_key") throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
-    if (error.code === "claim_not_found") throw httpError(404, "claim_not_found", "没有找到你刚才的买菜参与记录。");
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+    }
+    if (error.code === "claim_not_found") {
+      throw httpError(404, "claim_not_found", "没有找到你刚才的买菜参与记录。");
+    }
     throw error;
   }
 }
@@ -620,7 +698,9 @@ async function handleCreateMenuShareRequest(request, response) {
     const menuRequest = await store.createMenuShareRequest(body, user.id);
     sendJson(response, 201, { request: toPublicMenuShareRequest(menuRequest) });
   } catch (error) {
-    if (error.code === "forbidden") throw httpError(403, "forbidden", "只有主厨能分享这个家的今晚菜单。");
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的今晚菜单。");
+    }
     throw error;
   }
 }
@@ -638,9 +718,14 @@ async function handleCreateWishShareRequest(request, response) {
   const body = await readJson(request);
   try {
     const wishRequest = await store.createWishShareRequest(body, user.id);
-    sendJson(response, 201, { request: toPublicWishShareRequest(wishRequest), ownerSecret: wishRequest.ownerSecret });
+    sendJson(response, 201, {
+      request: toPublicWishShareRequest(wishRequest),
+      ownerSecret: wishRequest.ownerSecret,
+    });
   } catch (error) {
-    if (error.code === "forbidden") throw httpError(403, "forbidden", "只有主厨能分享这个家的想吃入口。");
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的想吃入口。");
+    }
     throw error;
   }
 }
@@ -668,8 +753,12 @@ async function handleJoinWishShare(request, response, token) {
     if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
     await sendHouseholdJoinResult(response, user, { request: toPublicWishShareRequest(wishRequest) });
   } catch (error) {
-    if (error.code === "missing_participant_key") throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
-    if (error.code === "wish_not_found") throw httpError(404, "wish_not_found", "没有找到你刚才的想吃记录。");
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+    }
+    if (error.code === "wish_not_found") {
+      throw httpError(404, "wish_not_found", "没有找到你刚才的想吃记录。");
+    }
     throw error;
   }
 }
@@ -686,14 +775,74 @@ async function sendHouseholdJoinResult(response, user, payload = {}) {
   });
 }
 
-const aiRateBuckets = new Map();
-const collaborationRateBuckets = new Map();
+async function handleGetCraveRequest(response, token) {
+  const craveRequest = await store.getCraveRequest(token);
+  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+}
 
-function enforceAiAccess(bucketKey) {
+async function handleCraveVote(request, response, token) {
+  const body = await readJson(request);
+  const craveRequest = await store.addCraveVote(token, body);
+  if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+}
+
+async function handleJoinCraveRequest(request, response, token) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const craveRequest = await store.claimCraveVote(token, user.id, {
+      participantKey: body.participantKey,
+      memberName: body.memberName || user.displayName,
+    });
+    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+    const household = await store.getHouseholdForUser(user.id);
+    const households = await store.getHouseholdsForUser(user.id);
+    const state = await store.getState(user.id);
+    sendJson(response, 200, {
+      request: toPublicCraveRequest(craveRequest),
+      family: toHumiFamily(household, user),
+      households: toHumiFamilies(households, user),
+      state,
+    });
+  } catch (error) {
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");
+    }
+    if (error.code === "vote_not_found") {
+      throw httpError(404, "vote_not_found", "没有找到你刚才的投票，可以直接回 Humi 查看。");
+    }
+    throw error;
+  }
+}
+
+async function handleCloseCraveRequest(request, response, token) {
+  const body = await readJson(request);
+  const auth = await getOptionalAuth(request);
+  try {
+    const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary, auth?.userId);
+    if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
+    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有发起者能结束这次征集。");
+    }
+    throw error;
+  }
+}
+
+// 精准推荐仍按客户端 IP 限流，避免登录态被滥用刷 DeepSeek 额度。
+const aiRateBuckets = new Map();
+
+function enforceAiAccess(request) {
+  const ip = getClientIp(request);
   const now = Date.now();
-  const bucket = aiRateBuckets.get(bucketKey);
+  const bucket = aiRateBuckets.get(ip);
   if (!bucket || now >= bucket.resetAt) {
-    aiRateBuckets.set(bucketKey, { count: 1, resetAt: now + config.aiRateWindowMs });
+    aiRateBuckets.set(ip, { count: 1, resetAt: now + config.aiRateWindowMs });
     return;
   }
   if (bucket.count >= config.aiRateLimit) {
@@ -702,115 +851,67 @@ function enforceAiAccess(bucketKey) {
   bucket.count += 1;
 }
 
-function enforceCollaborationWriteLimit(request) {
-  const now = Date.now();
-  const bucketKey = getRequestClientKey(request);
-  const bucket = collaborationRateBuckets.get(bucketKey);
-  if (!bucket || now >= bucket.resetAt) {
-    collaborationRateBuckets.set(bucketKey, { count: 1, resetAt: now + config.collaborationRateWindowMs });
-    pruneExpiredRateBuckets(collaborationRateBuckets, now);
-    return;
+function getClientIp(request) {
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.length > 0) {
+    return forwarded.split(",")[0].trim();
   }
-  if (bucket.count >= config.collaborationRateLimit) {
-    throw httpError(429, "rate_limited", "协作操作过于频繁，请稍后再试。");
-  }
-  bucket.count += 1;
-}
-
-function isCollaborationWriteRequest(method, pathname) {
-  if (method !== "POST") return false;
-  return pathname === "/crave-requests" ||
-    /^\/crave-requests\/[^/]+\/(votes|close|join)$/.test(pathname) ||
-    pathname === "/grocery-share-requests" ||
-    /^\/grocery-share-requests\/[^/]+\/(claims|join|items\/[^/]+\/check)$/.test(pathname) ||
-    pathname === "/menu-share-requests" ||
-    pathname === "/wish-share-requests" ||
-    /^\/wish-share-requests\/[^/]+\/(wishes|join)$/.test(pathname);
-}
-
-function getRequestClientKey(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  return forwarded || request.socket?.remoteAddress || "unknown";
-}
-
-function pruneExpiredRateBuckets(buckets, now) {
-  if (buckets.size < 5000) return;
-  for (const [key, bucket] of buckets) {
-    if (now >= bucket.resetAt) buckets.delete(key);
-  }
-}
-
-async function getPreciseRecommendationAccess(user) {
-  const usage = await store.getAiUsage(user.id);
-  return buildPreciseRecommendationEntitlement(user, usage, false);
-}
-
-function buildPreciseRecommendationEntitlement(user, usage = {}, cached = false) {
-  const paid = hasPaidPrecisePlan(user);
-  const used = Number(usage.preciseRecommendationUses || 0);
-  const trialLimit = Math.max(0, config.aiPreciseTrialLimit);
-  const trialRemaining = paid ? null : Math.max(0, trialLimit - used);
-  return {
-    allowed: paid || trialRemaining > 0,
-    paid,
-    trialLimit,
-    trialUsed: paid ? 0 : Math.min(used, trialLimit),
-    trialRemaining,
-    cached,
-  };
-}
-
-function hasPaidPrecisePlan(user = {}) {
-  return ["paid", "premium", "family_pro"].includes(user.plan)
-    || ["paid", "premium", "family_pro"].includes(user.subscriptionPlan)
-    || user.preciseRecommendationEnabled === true;
-}
-
-function buildAiRecommendationCacheKey(payload = {}) {
-  const normalized = {
-    candidateIds: (payload.candidates ?? []).map((item) => item.id).filter(Boolean).sort(),
-    pantryItems: (payload.pantryItems ?? []).map((item) => [item.name, item.amount]).sort(),
-    familyProfile: payload.familyProfile ?? {},
-    compactFamilyPrompt: payload.compactFamilyPrompt ?? "",
-    familyPreferences: payload.familyPreferences ?? [],
-    recentRecipeIds: payload.recentRecipeIds ?? [],
-    recentFeedback: payload.recentFeedback ?? [],
-    currentMissingItems: payload.currentMissingItems ?? [],
-    ruleFallback: {
-      recipeIds: payload.ruleFallback?.recipeIds ?? [],
-      reason: payload.ruleFallback?.reason ?? "",
-    },
-  };
-  return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
+  return request.socket?.remoteAddress || "unknown";
 }
 
 function toPublicCraveRequest(request) {
   return {
     id: request.id,
     token: request.token,
-    householdId: request.householdId || "",
-    ownerId: request.ownerId || "",
+    householdId: request.householdId,
     householdName: request.householdName,
     initiatorName: request.initiatorName,
+    recipientCount: (request.recipientIds ?? []).length,
     mealType: request.mealType,
-    starterFeeling: request.starterFeeling,
-    targetParticipantNames: Array.isArray(request.targetParticipantNames) ? request.targetParticipantNames : [],
+    initialFeelingTag: request.initialFeelingTag || "随便都行",
     status: request.status,
+    deadlineAt: request.deadlineAt,
+    resultSummary: request.resultSummary ? {
+      dishes: (request.resultSummary.dishes ?? []).map((dish) => ({
+        name: dish.name,
+        timeMinutes: dish.timeMinutes,
+      })),
+      reason: request.resultSummary.reason,
+      generatedAt: request.resultSummary.generatedAt,
+    } : undefined,
     votes: (request.votes ?? []).map((vote) => ({
       id: vote.id,
-      participantKey: vote.participantKey,
       memberName: vote.memberName,
       feelingTag: vote.feelingTag,
       dishWish: vote.dishWish,
       note: vote.note,
       temporary: vote.temporary,
-      memberId: vote.temporary ? undefined : vote.memberId,
-      mergedAt: vote.mergedAt,
+      claimedAt: vote.claimedAt,
       createdAt: vote.createdAt,
     })),
     createdAt: request.createdAt,
-    deadlineAt: request.deadlineAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toPublicGroceryShare(share) {
+  return {
+    id: share.id,
+    token: share.token,
+    householdId: share.householdId,
+    householdName: share.householdName,
+    initiatorName: share.initiatorName,
+    status: share.status,
+    items: (share.items ?? []).map((item) => ({
+      key: item.key,
+      name: item.name,
+      amount: item.amount,
+      type: item.type,
+      source: item.source,
+    })),
+    claims: share.claims ?? {},
+    createdAt: share.createdAt,
+    updatedAt: share.updatedAt,
   };
 }
 
@@ -833,7 +934,6 @@ function toPublicGroceryShareRequest(request) {
     })),
     claims: (request.claims ?? []).map((claim) => ({
       id: claim.id,
-      participantKey: claim.participantKey,
       memberName: claim.memberName,
       status: claim.status,
       itemIds: Array.isArray(claim.itemIds) ? claim.itemIds : [],
@@ -884,7 +984,6 @@ function toPublicWishShareRequest(request) {
     status: request.status,
     wishes: (request.wishes ?? []).map((wish) => ({
       id: wish.id,
-      participantKey: wish.participantKey,
       memberName: wish.memberName,
       dishName: wish.dishName,
       note: wish.note,
@@ -898,6 +997,32 @@ function toPublicWishShareRequest(request) {
   };
 }
 
+function toPublicHouseholdInvite(invite) {
+  return {
+    id: invite.id,
+    token: invite.token,
+    householdId: invite.householdId,
+    householdName: invite.householdName,
+    inviterName: invite.inviterName,
+    status: invite.status,
+    acceptedCount: (invite.acceptedMemberIds ?? []).length,
+    createdAt: invite.createdAt,
+    updatedAt: invite.updatedAt,
+  };
+}
+
+function toPublicWantToEatItem(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    memberName: item.memberName,
+    status: item.status,
+    temporary: Boolean(item.temporary),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
 async function requireAuth(request) {
   const token = getBearerToken(request);
   if (!token) throw httpError(401, "missing_token", "Authorization bearer token is required.");
@@ -905,6 +1030,14 @@ async function requireAuth(request) {
   const payload = verifySessionToken(token, config.sessionSecret);
   if (!payload) throw httpError(401, "invalid_token", "Session is invalid or expired.");
   return { userId: payload.sub, token };
+}
+
+async function getOptionalAuth(request) {
+  const token = getBearerToken(request);
+  if (!token) return null;
+  if (await store.isTokenRevoked(token)) return null;
+  const payload = verifySessionToken(token, config.sessionSecret);
+  return payload ? { userId: payload.sub, token } : null;
 }
 
 function sendAuthSession(response, user) {
@@ -951,20 +1084,6 @@ function toHumiFamilies(households = [], user) {
   return households.map((household) => toHumiFamily(household, user));
 }
 
-function toPublicHouseholdInvite(invite) {
-  return {
-    id: invite.id,
-    token: invite.token,
-    householdId: invite.householdId,
-    householdName: invite.householdName,
-    inviterName: invite.inviterName,
-    status: invite.status,
-    acceptedCount: (invite.acceptedMemberIds ?? []).length,
-    createdAt: invite.createdAt,
-    updatedAt: invite.updatedAt,
-  };
-}
-
 function sanitizeProfile(profile = {}) {
   return {
     planningMode: stringValue(profile.planningMode),
@@ -986,19 +1105,71 @@ function sanitizeAppState(state = {}) {
     mealCalendar: sanitizeCalendar(state.mealCalendar),
     mealLogs: sanitizeObjectMap(state.mealLogs, 120),
     checkedItems: sanitizeBooleanMap(state.checkedItems, 400),
+    groceryClaims: sanitizeGroceryClaims(state.groceryClaims),
     customItems: sanitizeList(state.customItems, sanitizeGroceryLikeItem, 200),
     excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
     pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
     familyProfile: sanitizeProfile(state.familyProfile),
+    wantToEatItems: sanitizeList(state.wantToEatItems, sanitizeWantToEatItem, 200),
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
+    recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
-    craveSignals: sanitizeList(state.craveSignals, sanitizeCraveSignalItem, 50),
-    wishPool: sanitizeList(state.wishPool, sanitizeWishPoolItem, 80),
-    activeCraveRequest: sanitizeActiveCraveRequestState(state.activeCraveRequest),
-    activeGroceryShareRequest: sanitizeGroceryShareState(state.activeGroceryShareRequest),
-    activeWishShareRequest: sanitizeWishShareState(state.activeWishShareRequest),
-    pendingJoinContext: sanitizePendingJoinContext(state.pendingJoinContext),
-    householdMembers: sanitizeList(state.householdMembers, sanitizeHouseholdMemberItem, 80),
+    craveSignals: sanitizeList(state.craveSignals, sanitizeCraveSignal, 50),
+    activeCraveRequest: sanitizeCollaborationState(state.activeCraveRequest),
+    activeGroceryShareRequest: sanitizeCollaborationState(state.activeGroceryShareRequest),
+    activeWishShareRequest: sanitizeCollaborationState(state.activeWishShareRequest),
+    householdMembers: sanitizeList(state.householdMembers, sanitizeHouseholdMemberState, 50),
+  };
+}
+
+function sanitizeHouseholdMemberState(member = {}) {
+  return {
+    id: stringValue(member.id, 180),
+    memberId: stringValue(member.memberId, 180),
+    name: stringValue(member.name, 32),
+    role: member.role === "owner" ? "owner" : "member",
+    status: member.status === "pending" ? "pending" : "active",
+    joinedAt: stringValue(member.joinedAt, 40),
+  };
+}
+
+function sanitizeCollaborationState(value) {
+  if (!value || typeof value !== "object") return null;
+  const sanitized = sanitizeObjectMap(value, 48);
+  delete sanitized.ownerSecret;
+  delete sanitized.secret;
+  return sanitized;
+}
+
+function sanitizeCraveSignal(signal = {}) {
+  const token = stringValue(signal.token || signal.requestToken, 180);
+  if (!token) return null;
+  return {
+    id: stringValue(signal.id, 180),
+    token,
+    requestToken: token,
+    householdName: stringValue(signal.householdName, 32),
+    initiatorName: stringValue(signal.initiatorName, 32),
+    feelingTag: stringValue(signal.feelingTag, 32),
+    mealType: stringValue(signal.mealType, 24) || "dinner",
+    status: signal.status === "closed" ? "closed" : "open",
+    deadlineAt: stringValue(signal.deadlineAt, 40),
+    recipientCount: Math.max(0, Math.min(20, Number.parseInt(signal.recipientCount, 10) || 0)),
+    votes: sanitizeList(signal.votes, (vote) => ({
+      id: stringValue(vote?.id, 180),
+      memberId: stringValue(vote?.memberId, 180),
+      memberName: stringValue(vote?.memberName, 32) || "家人",
+      feelingTag: stringValue(vote?.feelingTag, 32),
+      dishWish: stringValue(vote?.dishWish, 80),
+      note: stringValue(vote?.note, 120),
+      temporary: Boolean(vote?.temporary),
+      claimedAt: stringValue(vote?.claimedAt, 40),
+      createdAt: stringValue(vote?.createdAt, 40),
+    }), 50),
+    resultSummary: signal.resultSummary ? sanitizeObjectMap(signal.resultSummary, 20) : undefined,
+    createdAt: stringValue(signal.createdAt, 40),
+    updatedAt: stringValue(signal.updatedAt, 40),
+    generatedAt: stringValue(signal.generatedAt, 40),
   };
 }
 
@@ -1019,7 +1190,7 @@ function sanitizeWeekPlan(value = {}) {
   return Object.fromEntries(
     days.map((day) => [
       day,
-      Array.isArray(value?.[day]) ? value[day].map(stringValue).filter(Boolean).slice(0, 20) : [],
+      Array.isArray(value?.[day]) ? value[day].map((item) => stringValue(item)).filter(Boolean).slice(0, 20) : [],
     ]),
   );
 }
@@ -1031,7 +1202,7 @@ function sanitizeCalendar(value = {}) {
       .slice(-120)
       .map(([key, recipeIds]) => [
         key,
-        Array.isArray(recipeIds) ? recipeIds.map(stringValue).filter(Boolean).slice(0, 20) : [],
+        Array.isArray(recipeIds) ? recipeIds.map((item) => stringValue(item)).filter(Boolean).slice(0, 20) : [],
       ]),
   );
 }
@@ -1087,6 +1258,42 @@ function sanitizeGroceryLikeItem(item = {}) {
   };
 }
 
+function sanitizeGroceryShareItems(items = []) {
+  return sanitizeList(items, (item) => ({
+    key: stringValue(item?.key, 160),
+    name: stringValue(item?.name, 80),
+    amount: stringValue(item?.amount, 80),
+    type: stringValue(item?.type || "ingredient", 40),
+    source: stringValue(item?.source, 80),
+  }), 120).filter((item) => item.key && item.name);
+}
+
+function sanitizeGroceryClaims(value = {}) {
+  return Object.fromEntries(
+    Object.entries(value ?? {})
+      .slice(0, 400)
+      .map(([key, claim]) => {
+        const itemKey = stringValue(key, 180);
+        const memberId = stringValue(claim?.memberId);
+        const itemName = stringValue(claim?.itemName, 80);
+        if (!itemKey || !memberId || !itemName) return null;
+        return [
+          itemKey,
+          {
+            itemKey,
+            itemName,
+            memberId,
+            memberName: stringValue(claim?.memberName) || "家人",
+            status: claim?.status === "done" ? "done" : "claimed",
+            claimedAt: stringValue(claim?.claimedAt),
+            completedAt: stringValue(claim?.completedAt),
+          },
+        ];
+      })
+      .filter(Boolean),
+  );
+}
+
 function sanitizePantryItem(item = {}) {
   const name = stringValue(item.name);
   if (!name) return null;
@@ -1096,6 +1303,25 @@ function sanitizePantryItem(item = {}) {
     amount: stringValue(item.amount),
     expiresOn: dateValue(item.expiresOn),
     source: stringValue(item.source),
+  };
+}
+
+function sanitizeWantToEatItem(item = {}) {
+  const title = stringValue(item.title);
+  if (!title) return null;
+  return {
+    id: stringValue(item.id) || `want:${Date.now()}`,
+    title,
+    recipeId: stringValue(item.recipeId),
+    note: stringValue(item.note),
+    memberId: stringValue(item.memberId),
+    memberName: stringValue(item.memberName) || "家人",
+    status: item.status === "done" ? "done" : "open",
+    temporary: Boolean(item.temporary),
+    source: stringValue(item.source, 40),
+    createdAt: stringValue(item.createdAt),
+    updatedAt: stringValue(item.updatedAt),
+    completedAt: stringValue(item.completedAt),
   };
 }
 
@@ -1109,194 +1335,11 @@ function sanitizeFeedbackItem(item = {}) {
   };
 }
 
-function sanitizeCraveSignalItem(item = {}) {
+function sanitizeRecommendationAccess(access = {}) {
   return {
-    id: stringValue(item.id),
-    requestToken: stringValue(item.requestToken),
-    householdId: stringValue(item.householdId),
-    ownerId: stringValue(item.ownerId),
-    householdName: stringValue(item.householdName || "我家"),
-    initiatorName: stringValue(item.initiatorName || "主厨"),
-    feelingTag: stringValue(item.feelingTag || "随便都行"),
-    voteCount: Math.max(0, Math.min(20, Number.parseInt(item.voteCount, 10) || 0)),
-    votes: sanitizeList(item.votes, sanitizeCraveVoteItem, 20),
-    createdAt: stringValue(item.createdAt),
-    updatedAt: stringValue(item.updatedAt),
-    recipeIds: stringList(item.recipeIds).slice(0, 12),
-  };
-}
-
-function sanitizeCraveVoteItem(item = {}) {
-  return {
-    id: stringValue(item.id),
-    participantKey: stringValue(item.participantKey),
-    memberName: stringValue(item.memberName || "家人"),
-    feelingTag: stringValue(item.feelingTag || "随便都行"),
-    dishWish: stringValue(item.dishWish),
-    note: stringValue(item.note),
-    temporary: item.temporary !== false,
-    createdAt: stringValue(item.createdAt),
-    mergedAt: stringValue(item.mergedAt),
-  };
-}
-
-function sanitizeActiveCraveRequestState(request = null) {
-  if (!request?.token) return null;
-  return {
-    id: stringValue(request.id),
-    token: stringValue(request.token),
-    ownerSecret: stringValue(request.ownerSecret),
-    householdId: stringValue(request.householdId),
-    ownerId: stringValue(request.ownerId),
-    householdName: stringValue(request.householdName || "我家"),
-    initiatorName: stringValue(request.initiatorName || "主厨"),
-    mealType: stringValue(request.mealType || "dinner"),
-    status: request.status === "closed" ? "closed" : "open",
-    starterFeeling: stringValue(request.starterFeeling || "随便都行"),
-    targetParticipantNames: stringList(request.targetParticipantNames).slice(0, 12),
-    audience: sanitizeList(request.audience, sanitizeAudienceItem, 20),
-    votes: sanitizeList(request.votes, sanitizeCraveVoteItem, 40),
-    createdAt: stringValue(request.createdAt),
-    deadlineAt: stringValue(request.deadlineAt),
-    updatedAt: stringValue(request.updatedAt),
-  };
-}
-
-function sanitizeWishPoolItem(item = {}) {
-  const recipeId = stringValue(item.recipeId);
-  const name = stringValue(item.name);
-  if (!recipeId && !name) return null;
-  return {
-    id: stringValue(item.id || `wish:${recipeId || name}`),
-    participantKey: stringValue(item.participantKey),
-    recipeId,
-    name,
-    source: stringValue(item.source),
-    temporary: item.temporary !== false,
-    createdAt: stringValue(item.createdAt),
-    mergedAt: stringValue(item.mergedAt),
-  };
-}
-
-function sanitizeWishShareState(request = null) {
-  if (!request?.token) return null;
-  return {
-    id: stringValue(request.id),
-    token: stringValue(request.token),
-    ownerSecret: stringValue(request.ownerSecret),
-    householdId: stringValue(request.householdId),
-    ownerId: stringValue(request.ownerId),
-    householdName: stringValue(request.householdName || "我家"),
-    initiatorName: stringValue(request.initiatorName || "主厨"),
-    title: stringValue(request.title || "家里最近想吃什么"),
-    status: request.status === "closed" ? "closed" : "open",
-    wishes: sanitizeList(request.wishes, sanitizeWishShareEntryItem, 60),
-    createdAt: stringValue(request.createdAt),
-    updatedAt: stringValue(request.updatedAt),
-  };
-}
-
-function sanitizeAudienceItem(item = {}) {
-  const name = stringValue(item.name || "家人");
-  if (!name) return null;
-  return {
-    id: stringValue(item.id || name),
-    name,
-    meta: stringValue(item.meta),
-  };
-}
-
-function sanitizeWishShareEntryItem(item = {}) {
-  return {
-    id: stringValue(item.id),
-    participantKey: stringValue(item.participantKey),
-    memberName: stringValue(item.memberName || "家人"),
-    dishName: stringValue(item.dishName || item.name),
-    note: stringValue(item.note),
-    temporary: item.temporary !== false,
-    createdAt: stringValue(item.createdAt),
-    mergedAt: stringValue(item.mergedAt),
-  };
-}
-
-function sanitizePendingJoinContext(context = null) {
-  if (!context?.type) return null;
-  const type = context.type === "grocery" ? "grocery" : context.type === "wish" ? "wish" : context.type === "crave" ? "crave" : "";
-  if (!type) return null;
-  return {
-    type,
-    token: stringValue(context.token),
-    participantKey: stringValue(context.participantKey),
-    householdName: stringValue(context.householdName || "我家"),
-    initiatorName: stringValue(context.initiatorName || "主厨"),
-    memberName: stringValue(context.memberName || "家人"),
-    feelingTag: type === "crave" ? stringValue(context.feelingTag || "随便都行") : "",
-    dishWish: type === "crave" || type === "wish" ? stringValue(context.dishWish) : "",
-    claimStatus: type === "grocery" && context.claimStatus === "declined" ? "declined" : type === "grocery" ? "claimed" : "",
-    itemCount: type === "grocery" ? Math.max(0, Math.min(80, Number.parseInt(context.itemCount, 10) || 0)) : 0,
-    createdAt: stringValue(context.createdAt),
-  };
-}
-
-function sanitizeHouseholdMemberItem(member = {}) {
-  const name = stringValue(member.name || "家人");
-  if (!name) return null;
-  return {
-    id: stringValue(member.id || member.participantKey || `member:${name}`),
-    participantKey: stringValue(member.participantKey),
-    name,
-    role: member.role === "主厨" ? "主厨" : "家人",
-    status: "正式成员",
-    source: stringValue(member.source),
-    householdName: stringValue(member.householdName || "我家"),
-    lastSignal: stringValue(member.lastSignal),
-    joinedAt: stringValue(member.joinedAt),
-  };
-}
-
-function sanitizeGroceryShareState(request = null) {
-  if (!request?.token) return null;
-  return {
-    id: stringValue(request.id),
-    token: stringValue(request.token),
-    ownerSecret: stringValue(request.ownerSecret),
-    householdId: stringValue(request.householdId),
-    ownerId: stringValue(request.ownerId),
-    householdName: stringValue(request.householdName),
-    initiatorName: stringValue(request.initiatorName),
-    title: stringValue(request.title),
-    status: stringValue(request.status || "open"),
-    items: sanitizeList(request.items, sanitizeGroceryShareItem, 80),
-    claims: sanitizeList(request.claims, sanitizeGroceryShareClaimItem, 40),
-    createdAt: stringValue(request.createdAt),
-    updatedAt: stringValue(request.updatedAt),
-  };
-}
-
-function sanitizeGroceryShareItem(item = {}) {
-  const id = stringValue(item.id);
-  const name = stringValue(item.name);
-  if (!id || !name) return null;
-  return {
-    id,
-    name,
-    amount: stringValue(item.amount),
-    category: stringValue(item.category),
-    checked: Boolean(item.checked),
-  };
-}
-
-function sanitizeGroceryShareClaimItem(item = {}) {
-  return {
-    id: stringValue(item.id),
-    participantKey: stringValue(item.participantKey),
-    memberName: stringValue(item.memberName || "家人"),
-    status: item.status === "declined" ? "declined" : "claimed",
-    itemIds: stringList(item.itemIds).slice(0, 80),
-    note: stringValue(item.note),
-    temporary: item.temporary !== false,
-    createdAt: stringValue(item.createdAt),
-    mergedAt: stringValue(item.mergedAt),
+    plan: access.plan === "plus" ? "plus" : "free",
+    preciseTrialRemaining: Math.max(0, Math.min(20, Number.parseInt(access.preciseTrialRemaining, 10) || 0)),
+    preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
   };
 }
 
@@ -1333,11 +1376,11 @@ function getProfileCompletedCount(profile = {}) {
 }
 
 function stringList(value) {
-  return Array.isArray(value) ? value.map(stringValue).filter(Boolean).slice(0, 24) : [];
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean).slice(0, 24) : [];
 }
 
-function stringValue(value) {
-  return typeof value === "string" ? value.trim().slice(0, 80) : "";
+function stringValue(value, maxLength = 80) {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
 function createPhoneHash(countryCode, phoneNumber) {
@@ -1346,17 +1389,7 @@ function createPhoneHash(countryCode, phoneNumber) {
 
 async function readJson(request) {
   const chunks = [];
-  let receivedBytes = 0;
-  let payloadTooLarge = false;
-  for await (const chunk of request) {
-    receivedBytes += chunk.length;
-    if (receivedBytes > config.requestBodyLimitBytes) {
-      payloadTooLarge = true;
-      continue;
-    }
-    chunks.push(chunk);
-  }
-  if (payloadTooLarge) throw httpError(413, "payload_too_large", "请求内容过大。");
+  for await (const chunk of request) chunks.push(chunk);
   if (chunks.length === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));

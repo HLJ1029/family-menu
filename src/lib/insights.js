@@ -287,7 +287,7 @@ function buildRatioTarget(key, label, value, target) {
 function buildNarrativeInsights({ sourceBreakdown, ratios, targetProgress, hasConfirmedMeals }) {
   const insights = [];
   if (!hasConfirmedMeals) {
-    insights.push("确认餐次还不够，先用本周计划做弱参考。");
+    insights.push("确认餐次还不够，先用最近连排计划做弱参考。");
   }
   if ((sourceBreakdown.counts.delivery ?? 0) + (sourceBreakdown.counts.outside ?? 0) >= 3) {
     insights.push("本月外卖/外食偏多，可以先把两顿家常快手菜排进计划。");

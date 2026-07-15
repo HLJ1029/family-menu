@@ -85,8 +85,8 @@ await check("api-recommend", async () => {
       },
     }),
   });
-  if (data?.source !== "deepseek") {
-    throw new Error(`Expected source=deepseek, got ${JSON.stringify(data).slice(0, 200)}`);
+  if (data?.source !== "rule") {
+    throw new Error(`Expected source=rule for public basic recommendation, got ${JSON.stringify(data).slice(0, 200)}`);
   }
   return { status, source: data.source, recipeIds: data.recipeIds };
 });

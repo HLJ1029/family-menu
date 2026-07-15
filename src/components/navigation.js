@@ -26,4 +26,11 @@ export function getNavItem(id) {
   return [...navItems, ...auxiliaryNavItems].find((item) => item.id === id);
 }
 
+export function getPrimaryNavId(id) {
+  if (["today", "recommendations"].includes(id)) return "dashboard";
+  if (id === "calendar") return "planner";
+  if (id === "stats") return "user";
+  return navItems.some((item) => item.id === id) ? id : "dashboard";
+}
+
 export const mobileNavItems = navItems;

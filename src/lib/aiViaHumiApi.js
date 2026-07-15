@@ -1,6 +1,6 @@
 // 前端调用自建 AI 端点（/recommend、/explain），替代 Supabase Edge Function。
-// 精准推荐需要 Humi 登录态；游客继续走前端基础推荐，服务端负责缓存、尝鲜额度和付费边界。
-// 由 VITE_HUMI_AI_VIA_API==="1" 开启；未开启时调用方回基础推荐，不再走旧 Supabase AI。
+// 精准模式需要登录主厨身份，并由服务端统一执行家庭额度与付费闸门。
+// 由 VITE_HUMI_AI_VIA_API==="1" 开启；未开启时调用方继续走 Supabase（见 aiRecommendation/aiExplanation）。
 import { readHumiSession } from "./humiIdentity";
 
 const DEFAULT_HUMI_API_BASE_URL = "https://api.humi-home.com";

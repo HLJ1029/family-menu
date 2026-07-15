@@ -17,7 +17,9 @@ export function normalizeHumiApiError(error, context = "collaboration") {
       ? "同步连接失败，请检查网络后重试。"
       : "协作连接失败，请检查网络后重试。");
   }
-  return error instanceof Error ? error : new Error(context === "sync" ? "Humi 账号同步暂时不可用。" : "Humi 协作暂时不可用。");
+  return error instanceof Error
+    ? error
+    : new Error(context === "sync" ? "Humi 账号同步暂时不可用。" : "Humi 协作暂时不可用。");
 }
 
 export async function loadHumiState(session) {
@@ -29,13 +31,63 @@ export function loadHumiStateEnvelope(session) {
   return humiApiRequest("/state", { session });
 }
 
-export async function saveHumiState(session, state) {
+export async function saveHumiState(session, state, householdId = state?.householdId) {
   const data = await humiApiRequest("/state", {
     method: "PUT",
     session,
-    body: { state },
+    body: { state, householdId },
   });
   return data.state ?? null;
+}
+
+export async function loadHumiHouseholds(session) {
+  return humiApiRequest("/households", { session });
+}
+
+export async function createHumiHousehold(session, payload) {
+  return humiApiRequest("/households", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function switchHumiHousehold(session, householdId) {
+  return humiApiRequest("/households/active", {
+    method: "POST",
+    session,
+    body: { householdId },
+  });
+}
+
+export async function createHouseholdInvite(session, payload) {
+  return humiApiRequest("/household-invites", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function loadHouseholdInvite(token) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}`);
+}
+
+export async function submitHouseholdInviteWant(token, payload = {}) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}/wants`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function joinHouseholdInvite(token, session, payload = {}) {
+  if (!token) throw new Error("家庭邀请不完整。");
+  return humiApiRequest(`/household-invites/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
 }
 
 export async function logoutHumiSession(session) {
@@ -46,40 +98,11 @@ export async function logoutHumiSession(session) {
   });
 }
 
-export function loadHumiHouseholds(session) {
-  return humiApiRequest("/households", { session });
-}
-
-export function createHumiHousehold(session, payload) {
-  return humiApiRequest("/households", { method: "POST", session, body: payload });
-}
-
-export function switchHumiHousehold(session, householdId) {
-  return humiApiRequest("/households/active", { method: "POST", session, body: { householdId } });
-}
-
-export function createHouseholdInvite(session, payload) {
-  return humiApiRequest("/household-invites", { method: "POST", session, body: payload });
-}
-
-export function loadHouseholdInvite(token) {
-  if (!token) throw new Error("家庭邀请链接不完整。");
-  return humiPublicRequest(`/household-invites/${encodeURIComponent(token)}`);
-}
-
-export function joinHouseholdInvite(token, session, payload = {}) {
-  if (!token) throw new Error("家庭邀请链接不完整。");
-  return humiApiRequest(`/household-invites/${encodeURIComponent(token)}/join`, { method: "POST", session, body: payload });
-}
-
 export async function createCraveRequest(payload, session = null) {
   if (isHumiApiSession(session)) {
     return humiApiRequest("/crave-requests", { method: "POST", session, body: payload });
   }
-  return humiPublicRequest("/crave-requests", {
-    method: "POST",
-    body: payload,
-  });
+  return humiPublicRequest("/crave-requests", { method: "POST", body: payload });
 }
 
 export async function loadCraveRequest(token) {
@@ -95,27 +118,60 @@ export async function submitCraveVote(token, vote) {
   });
 }
 
-export function joinCraveRequest(token, session, payload) {
+export async function joinCraveRequest(token, session, payload) {
   if (!token) throw new Error("征集链接不完整。");
-  return humiApiRequest(`/crave-requests/${encodeURIComponent(token)}/join`, { method: "POST", session, body: payload });
-}
-
-export async function closeCraveRequest(token, ownerSecret) {
-  if (!token) throw new Error("征集链接不完整。");
-  return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/close`, {
+  return humiApiRequest(`/crave-requests/${encodeURIComponent(token)}/join`, {
     method: "POST",
-    body: { ownerSecret },
+    session,
+    body: payload,
   });
 }
 
+export async function closeCraveRequest(token, ownerSecret, payload = {}, session = null) {
+  if (!token) throw new Error("征集链接不完整。");
+  const requester = session ? humiApiRequest : humiPublicRequest;
+  return requester(`/crave-requests/${encodeURIComponent(token)}/close`, {
+    method: "POST",
+    ...(session ? { session } : {}),
+    body: { ownerSecret, ...payload },
+  });
+}
+
+export async function createGroceryShare(session, payload) {
+  return humiApiRequest("/grocery-shares", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function loadGroceryShare(token) {
+  if (!token) throw new Error("买菜清单不完整。");
+  return humiPublicRequest(`/grocery-shares/${encodeURIComponent(token)}`);
+}
+
+export async function claimGroceryShareItem(token, payload, session = null) {
+  if (!token) throw new Error("买菜清单不完整。");
+  if (isHumiApiSession(session)) {
+    return humiApiRequest(`/grocery-shares/${encodeURIComponent(token)}/claims`, {
+      method: "POST",
+      session,
+      body: payload,
+    });
+  }
+  return humiPublicRequest(`/grocery-shares/${encodeURIComponent(token)}/claims`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+// Compatibility contract for the user's batch-claim UI. The API keeps these
+// routes while newer clients can use the item-level grocery share functions above.
 export async function createGroceryShareRequest(payload, session = null) {
   if (isHumiApiSession(session)) {
     return humiApiRequest("/grocery-share-requests", { method: "POST", session, body: payload });
   }
-  return humiPublicRequest("/grocery-share-requests", {
-    method: "POST",
-    body: payload,
-  });
+  return humiPublicRequest("/grocery-share-requests", { method: "POST", body: payload });
 }
 
 export async function loadGroceryShareRequest(token) {
@@ -142,17 +198,18 @@ export async function updateGroceryShareItemChecked(token, itemId, checked) {
 
 export function joinGroceryShareRequest(token, session, payload) {
   if (!token) throw new Error("清单链接不完整。");
-  return humiApiRequest(`/grocery-share-requests/${encodeURIComponent(token)}/join`, { method: "POST", session, body: payload });
+  return humiApiRequest(`/grocery-share-requests/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
 }
 
 export async function createMenuShareRequest(payload, session = null) {
   if (isHumiApiSession(session)) {
     return humiApiRequest("/menu-share-requests", { method: "POST", session, body: payload });
   }
-  return humiPublicRequest("/menu-share-requests", {
-    method: "POST",
-    body: payload,
-  });
+  return humiPublicRequest("/menu-share-requests", { method: "POST", body: payload });
 }
 
 export async function loadMenuShareRequest(token) {
@@ -164,10 +221,7 @@ export async function createWishShareRequest(payload, session = null) {
   if (isHumiApiSession(session)) {
     return humiApiRequest("/wish-share-requests", { method: "POST", session, body: payload });
   }
-  return humiPublicRequest("/wish-share-requests", {
-    method: "POST",
-    body: payload,
-  });
+  return humiPublicRequest("/wish-share-requests", { method: "POST", body: payload });
 }
 
 export async function loadWishShareRequest(token) {
@@ -185,7 +239,11 @@ export async function submitWishShareEntry(token, wish) {
 
 export function joinWishShareRequest(token, session, payload) {
   if (!token) throw new Error("想吃入口不完整。");
-  return humiApiRequest(`/wish-share-requests/${encodeURIComponent(token)}/join`, { method: "POST", session, body: payload });
+  return humiApiRequest(`/wish-share-requests/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
 }
 
 async function humiApiRequest(path, { method = "GET", session, body } = {}) {

@@ -1,0 +1,196 @@
+import { execFile } from "node:child_process";
+import { readdir, stat, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+const DEFAULT_PRIVATE_DIR = "/Users/honglijie/.humi-release-evidence";
+const EVIDENCE_PREFIX = "miniprogram-share-card-preview-";
+const REQUIRED_SCREENSHOTS = [
+  ["crave-card.png", "crave 小程序分享卡片预览截图"],
+  ["crave-landing.png", "crave token 打开后的免登录投票落地页截图"],
+  ["invite-card.png", "invite 小程序分享卡片预览截图"],
+  ["invite-landing.png", "invite token 打开后的加入家庭落地页截图"],
+  ["grocery-card.png", "grocery 小程序分享卡片预览截图"],
+  ["grocery-landing.png", "grocery token 打开后的免登录认领落地页截图"],
+];
+const CARD_SCREENSHOTS = REQUIRED_SCREENSHOTS.filter(([file]) => file.endsWith("-card.png"));
+const TRIGGER_GUIDE = [
+  {
+    key: "crave",
+    file: "crave-card.png",
+    title: "crave / 今晚征集口味",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【我的家】或【今晚】里的“问问大家/今晚征集单”。",
+      "选择一个感觉，生成征集单卡片。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应包含“今晚征集口味，点一下就行”，path 应带 `?crave=` token。",
+    ],
+  },
+  {
+    key: "invite",
+    file: "invite-card.png",
+    title: "invite / 邀请家人",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【我的家】，找到邀请家人的分享动作。",
+      "生成邀请家人卡片。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应为“某某邀请你加入某个家”的语义，path 应带 `?invite=` token。",
+    ],
+  },
+  {
+    key: "grocery",
+    file: "grocery-card.png",
+    title: "grocery / 买菜清单",
+    steps: [
+      "打开预览二维码进入 Humi 小程序。",
+      "进入【清单】，确保今晚菜单已有待买食材。",
+      "点击清单页的买菜分享动作。",
+      "点击页面里的分享动作，或点小程序右上角菜单里的转发。",
+      "分享预览标题应为“某某发来买菜清单/若干项买菜清单”的语义，path 应带 `?grocery=` token。",
+    ],
+  },
+];
+
+const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
+const previewQr = join(evidenceDir, "preview-qr.png");
+const shareExpectations = await loadShareExpectations();
+const screenshotRows = await evidenceStatusRows(evidenceDir);
+const expectedJson = join(evidenceDir, "share-card-expected.json");
+const checklistPath = join(evidenceDir, "share-card-qa-checklist.md");
+
+await writeFile(expectedJson, JSON.stringify(shareExpectations, null, 2));
+await writeFile(checklistPath, buildChecklist({ evidenceDir, previewQr, shareExpectations, screenshotRows }));
+
+if (process.env.HUMI_SHARE_QA_NO_OPEN !== "1") {
+  await openPath(evidenceDir);
+  await openPath(previewQr);
+  await openPath(checklistPath);
+}
+
+const lines = [
+  "Humi 1.1 小程序分享卡片复核准备好了",
+  "",
+  `私有证据目录：${evidenceDir}`,
+  `预览二维码：${previewQr}`,
+  `核对清单：${checklistPath}`,
+  `预期数据：${expectedJson}`,
+  "",
+  "当前流程：",
+  "1. H5 landing 图可用 npm run release:wechat:share:landings 自动生成。",
+  "2. 运行 npm run release:wechat:share:devtools 打开微信开发者工具、预览二维码和核对清单。",
+  "3. 如 H5 内分享入口不稳定，先运行 npm run release:wechat:share:direct-previews 生成三张直达原生分享确认页的预览二维码。",
+  "4. 微信原生 card 图需要开发者工具或真机实际调出，推荐用 npm run release:wechat:share:cards:capture -- --interactive 框选卡片保存，或用 npm run release:wechat:share:cards:import 导入已有截图。",
+  "5. 截图齐全后运行 evidence 和 complete 完成 P1 收口。",
+  "",
+  "原生 card 触发顺序：",
+  ...TRIGGER_GUIDE.flatMap((item, index) => [
+    `${index + 1}. ${item.title} → 保存为 ${item.file}`,
+    ...item.steps.map((step) => `   - ${step}`),
+  ]),
+  "",
+  "原生 card 截图文件名：",
+  ...CARD_SCREENSHOTS.map(([file, description], index) => `${index + 1}. ${file}：${description}`),
+  "",
+  "补齐后运行：",
+  "npm run release:wechat:share:evidence",
+  "npm run release:wechat:share:complete",
+  "npm run release:closure",
+  "",
+  "关联文档：docs/humi-1.1-miniprogram-share-card-qa.md",
+].join("\n");
+
+console.log(lines);
+
+async function findLatestEvidenceDir() {
+  const baseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR;
+  const entries = await readdir(baseDir, { withFileTypes: true });
+  const candidates = entries
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(EVIDENCE_PREFIX))
+    .map((entry) => entry.name)
+    .sort();
+  const latest = candidates[candidates.length - 1];
+  if (!latest) {
+    throw new Error(`No ${EVIDENCE_PREFIX}* directory found under ${baseDir}.`);
+  }
+  return join(baseDir, latest);
+}
+
+async function evidenceStatusRows(evidenceDir) {
+  return Promise.all(REQUIRED_SCREENSHOTS.map(async ([file, description]) => {
+    try {
+      const fileStat = await stat(join(evidenceDir, file));
+      return `| ${fileStat.isFile() && fileStat.size > 0 ? "[x]" : "[ ]"} | \`${file}\` | ${description} | ${fileStat.size} bytes |`;
+    } catch {
+      return `| [ ] | \`${file}\` | ${description} | missing |`;
+    }
+  }));
+}
+
+async function openPath(path) {
+  try {
+    await execFileAsync("open", [path], { timeout: 10_000 });
+  } catch (error) {
+    console.warn(`Unable to open ${path}: ${error.message}`);
+  }
+}
+
+async function loadShareExpectations() {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/check-miniprogram-share-cards.mjs"], {
+    timeout: 20_000,
+  });
+  return JSON.parse(stdout);
+}
+
+function buildChecklist({ evidenceDir, previewQr, shareExpectations, screenshotRows }) {
+  const expectedRows = shareExpectations.results
+    .map((item) => `| ${item.name} | ${item.title} | \`${item.path}\` | \`${item.launchUrl}\` |`)
+    .join("\n");
+  return [
+    "# Humi 1.1 小程序分享卡片 QA 清单",
+    "",
+    `生成时间：${new Date().toISOString()}`,
+    `私有证据目录：\`${evidenceDir}\``,
+    `预览二维码：\`${previewQr}\``,
+    "",
+    "## 预期分享数据",
+    "",
+    "| 类型 | 标题 | 小程序 path | H5 落地 URL |",
+    "| --- | --- | --- | --- |",
+    expectedRows,
+    "",
+    "## 截图清单",
+    "",
+    "| 完成 | 文件名 | 内容 | 当前状态 |",
+    "| --- | --- | --- | --- |",
+    screenshotRows.join("\n"),
+    "",
+    "## 原生卡片触发步骤",
+    "",
+    ...TRIGGER_GUIDE.flatMap((item) => [
+      `### ${item.title}`,
+      "",
+      `保存文件：\`${item.file}\``,
+      "",
+      ...item.steps.map((step, index) => `${index + 1}. ${step}`),
+      "",
+    ]),
+    "## 视觉通过标准",
+    "",
+    "- 分享卡片标题与上表一致，且卡片打开后带对应 token。",
+    "- 落地页不被登录墙挡住，能免登录参与 crave/grocery，invite 能进入加入家庭流程。",
+    "- 截图保存为 PNG，文件名必须与截图清单完全一致。",
+    "- H5 landing 图可用 `npm run release:wechat:share:landings` 自动补齐。",
+    "- QA 开始时可用 `npm run release:wechat:share:devtools` 打开微信开发者工具、预览二维码和本清单。",
+    "- 若 H5 内点击分享没有跳到原生确认页，可运行 `npm run release:wechat:share:direct-previews` 生成 `direct-preview/*-preview-qr.png`，分别直达 `pages/share/index` 的 crave/invite/grocery 确认页。",
+    "- 微信原生 card 图推荐用 `npm run release:wechat:share:cards:capture -- --interactive` 框选卡片区域保存；不加参数则保存整屏。",
+    "- 已有截图可用 `npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots` 导入。",
+    "- 补齐后运行 `npm run release:wechat:share:evidence`，确认每张图输出 size、尺寸和 SHA256。",
+    "- 人工视觉确认三张原生 card 后，运行 `npm run release:wechat:share:complete` 勾选提审前 P1。",
+    "- 最后运行 `npm run release:closure` 确认是否仍停在生产候选完善与内测验证；真实候选复盘未达标前不进入微信审核准备。",
+    "",
+  ].join("\n");
+}

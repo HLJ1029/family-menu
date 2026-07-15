@@ -11,10 +11,9 @@ const DEFAULT_DATA = {
   profiles: {},
   states: {},
   householdStates: {},
-  aiUsage: {},
-  aiRecommendationCache: [],
   craveRequests: [],
   householdInvites: [],
+  groceryShares: [],
   groceryShareRequests: [],
   menuShareRequests: [],
   wishShareRequests: [],
@@ -139,26 +138,42 @@ export class HumiStore {
   async ensureHouseholdForUser(userId, options = {}) {
     await this.load();
     const existing = this.findActiveHouseholdByMember(userId);
-    if (!existing) return this.createHouseholdForUser(userId, options);
-    const member = existing.members.find((item) => item.memberId === userId);
-    const nextName = sanitizeText(options.memberName, "", 32);
-    if (member && nextName && member.nickname !== nextName) {
-      member.nickname = nextName;
-      member.updatedAt = new Date().toISOString();
-      existing.updatedAt = member.updatedAt;
-      await this.save();
+    if (existing) {
+      const member = existing.members.find((item) => item.memberId === userId);
+      const nextName = sanitizeText(options.memberName, "", 32);
+      if (member && nextName && member.nickname !== nextName) {
+        member.nickname = nextName;
+        member.updatedAt = new Date().toISOString();
+        existing.updatedAt = member.updatedAt;
+        await this.save();
+      }
+      return existing;
     }
-    return existing;
+
+    return this.createHouseholdForUser(userId, options);
   }
 
   async ensureOwnedHouseholdForUser(userId, options = {}) {
-    const household = await this.ensureHouseholdForUser(userId, options);
-    if (household.ownerId !== userId) {
-      const error = new Error("Only the household owner can start household actions.");
-      error.code = "forbidden";
-      throw error;
+    await this.load();
+    const existing = this.findActiveHouseholdByMember(userId);
+    if (existing) {
+      if (existing.ownerId !== userId) {
+        const error = new Error("Only the household owner can start household actions.");
+        error.code = "forbidden";
+        throw error;
+      }
+      const member = existing.members.find((item) => item.memberId === userId);
+      const nextName = sanitizeText(options.memberName, "", 32);
+      if (member && nextName && member.nickname !== nextName) {
+        member.nickname = nextName;
+        member.updatedAt = new Date().toISOString();
+        existing.updatedAt = member.updatedAt;
+        await this.save();
+      }
+      return existing;
     }
-    return household;
+
+    return this.createHouseholdForUser(userId, options);
   }
 
   buildHousehold(userId, options = {}) {
@@ -168,14 +183,16 @@ export class HumiStore {
       id: randomUUID(),
       name: sanitizeText(options.householdName, "我的家", 32),
       ownerId: userId,
-      members: [{
-        memberId: userId,
-        nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "主厨",
-        role: "owner",
-        status: "formal",
-        joinedAt: now,
-        updatedAt: now,
-      }],
+      members: [
+        {
+          memberId: userId,
+          nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "主厨",
+          role: "owner",
+          status: "formal",
+          joinedAt: now,
+          updatedAt: now,
+        },
+      ],
       createdAt: now,
       updatedAt: now,
     };
@@ -190,7 +207,7 @@ export class HumiStore {
     const existingMember = household.members.find((item) => item.memberId === userId);
     if (existingMember) {
       existingMember.status = "formal";
-      existingMember.role ||= "member";
+      existingMember.role = existingMember.role || "member";
       existingMember.nickname = sanitizeText(options.memberName, "", 32) || existingMember.nickname || user?.displayName || "家人";
       existingMember.updatedAt = now;
     } else {
@@ -225,6 +242,7 @@ export class HumiStore {
       error.code = "forbidden";
       throw error;
     }
+
     const owner = this.data.users.find((item) => item.id === ownerUserId);
     const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
     const now = new Date().toISOString();
@@ -251,6 +269,58 @@ export class HumiStore {
     return this.data.householdInvites.find((item) => item.token === token) ?? null;
   }
 
+  async addHouseholdInviteWant(token, payload = {}) {
+    await this.load();
+    const invite = this.data.householdInvites.find((item) => item.token === token);
+    if (!invite) return null;
+    if (invite.status !== "open") {
+      const error = new Error("Invite is closed.");
+      error.code = "invite_closed";
+      throw error;
+    }
+    const participantKey = sanitizeText(payload.participantKey, "", 80);
+    if (!participantKey) {
+      const error = new Error("Participant key is required.");
+      error.code = "missing_participant_key";
+      throw error;
+    }
+    const title = sanitizeText(payload.title, "", 40);
+    if (!title) {
+      const error = new Error("Want title is required.");
+      error.code = "missing_want_title";
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const temporaryMemberId = `temporary:${participantKey}`;
+    const currentState = this.data.householdStates[invite.householdId] ?? {};
+    const currentItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+    const existing = currentItems.find((item) => item.memberId === temporaryMemberId && item.status !== "done");
+    const want = {
+      id: existing?.id || `want:${randomUUID()}`,
+      title,
+      recipeId: "",
+      note: "",
+      memberId: temporaryMemberId,
+      memberName: sanitizeText(payload.memberName, "家人", 32),
+      status: "open",
+      temporary: true,
+      source: "household_invite",
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      completedAt: "",
+    };
+    this.data.householdStates[invite.householdId] = {
+      ...currentState,
+      householdId: invite.householdId,
+      wantToEatItems: [want, ...currentItems.filter((item) => item.id !== want.id)].slice(0, 200),
+      updatedAt: now,
+    };
+    invite.updatedAt = now;
+    await this.save();
+    return { invite, want };
+  }
+
   async acceptHouseholdInvite(token, userId, options = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
@@ -262,11 +332,127 @@ export class HumiStore {
     }
     const household = await this.addHouseholdMember(invite.householdId, userId, options);
     const now = new Date().toISOString();
+    const participantKey = sanitizeText(options.participantKey, "", 80);
+    if (participantKey) {
+      const temporaryMemberId = `temporary:${participantKey}`;
+      const currentState = this.data.householdStates[invite.householdId] ?? {};
+      this.data.householdStates[invite.householdId] = {
+        ...currentState,
+        wantToEatItems: (Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : []).map((item) => (
+          item.memberId === temporaryMemberId
+            ? {
+                ...item,
+                memberId: userId,
+                memberName: sanitizeText(options.memberName, item.memberName || "家人", 32),
+                temporary: false,
+                updatedAt: now,
+              }
+            : item
+        )),
+        updatedAt: now,
+      };
+    }
     invite.acceptedMemberIds = [...new Set([...(invite.acceptedMemberIds ?? []), userId])];
     invite.acceptedAt = now;
     invite.updatedAt = now;
     await this.save();
     return { invite, household };
+  }
+
+  async createGroceryShare(ownerUserId, payload = {}) {
+    await this.load();
+    const household = await this.ensureOwnedHouseholdForUser(ownerUserId, {
+      householdName: payload.householdName,
+      memberName: payload.initiatorName,
+    });
+    const owner = this.data.users.find((item) => item.id === ownerUserId);
+    const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
+    const now = new Date().toISOString();
+    const share = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      householdId: household.id,
+      householdName: household.name,
+      initiatorId: ownerUserId,
+      initiatorName: sanitizeText(payload.initiatorName, "", 32) || ownerMember?.nickname || owner?.displayName || "主厨",
+      status: "open",
+      items: sanitizeGroceryShareItems(payload.items),
+      claims: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.groceryShares.unshift(share);
+    this.data.groceryShares = this.data.groceryShares.slice(0, 2000);
+    await this.save();
+    return share;
+  }
+
+  async getGroceryShare(token) {
+    await this.load();
+    return this.data.groceryShares.find((item) => item.token === token) ?? null;
+  }
+
+  async claimGroceryShareItem(token, payload = {}) {
+    await this.load();
+    const share = this.data.groceryShares.find((item) => item.token === token);
+    if (!share) return null;
+    if (share.status !== "open") return share;
+    const itemKey = sanitizeText(payload.itemKey, "", 160);
+    const item = share.items.find((entry) => entry.key === itemKey);
+    if (!item) {
+      const error = new Error("Grocery item not found.");
+      error.code = "grocery_item_not_found";
+      throw error;
+    }
+    const now = new Date().toISOString();
+    const memberId = sanitizeText(payload.memberId, "", 100)
+      || `temporary:${sanitizeText(payload.participantKey, "", 80) || randomUUID()}`;
+    const currentClaim = share.claims[itemKey];
+    if (currentClaim?.memberId && currentClaim.memberId !== memberId) {
+      const error = new Error("Grocery item has already been claimed.");
+      error.code = currentClaim.status === "done" ? "grocery_item_done" : "grocery_item_claimed";
+      error.claim = currentClaim;
+      throw error;
+    }
+    const status = payload.status === "done" || currentClaim?.memberId === memberId ? "done" : "claimed";
+    const claim = {
+      itemKey,
+      itemName: item.name,
+      memberId,
+      memberName: sanitizeText(payload.memberName, "家人", 32),
+      status,
+      claimedAt: currentClaim?.claimedAt || now,
+      completedAt: status === "done" ? now : "",
+      updatedAt: now,
+      temporary: !sanitizeText(payload.memberId, "", 100),
+    };
+    share.claims[itemKey] = claim;
+    share.updatedAt = now;
+    this.syncGroceryClaimToHouseholdState(share.householdId, claim);
+    await this.save();
+    return share;
+  }
+
+  syncGroceryClaimToHouseholdState(householdId, claim) {
+    if (!householdId || !claim?.itemKey) return;
+    const currentState = this.data.householdStates[householdId] ?? {};
+    this.data.householdStates[householdId] = {
+      ...currentState,
+      householdId,
+      groceryClaims: {
+        ...(currentState.groceryClaims ?? {}),
+        [claim.itemKey]: {
+          itemKey: claim.itemKey,
+          itemName: claim.itemName,
+          memberId: claim.memberId,
+          memberName: claim.memberName,
+          status: claim.status,
+          claimedAt: claim.claimedAt,
+          completedAt: claim.completedAt,
+        },
+      },
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   async saveProfile(userId, profile) {
@@ -302,11 +488,26 @@ export class HumiStore {
     return this.data.householdStates[household.id] ?? null;
   }
 
-  async saveState(userId, state) {
+  async saveState(userId, state, householdId = "") {
     await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
+    const household = householdId
+      ? this.findHouseholdsByMember(userId).find((item) => item.id === householdId)
+      : await this.ensureHouseholdForUser(userId);
+    if (!household) {
+      const error = new Error("Household not found for user.");
+      error.code = "household_not_found";
+      throw error;
+    }
+    const currentState = this.data.householdStates[household.id] ?? {};
+    const writableState = household.ownerId === userId
+      ? state
+      : mergeMemberWritableState(currentState, state, userId);
     const nextState = {
-      ...state,
+      ...writableState,
+      recommendationAccess: mergeClientRecommendationAccess(
+        currentState.recommendationAccess,
+        writableState.recommendationAccess,
+      ),
       householdId: household.id,
       updatedAt: new Date().toISOString(),
     };
@@ -314,6 +515,40 @@ export class HumiStore {
     this.data.states[userId] = nextState;
     await this.save();
     return this.data.householdStates[household.id];
+  }
+
+  async getPreciseRecommendationAccess(userId) {
+    await this.load();
+    const household = await this.ensureHouseholdForUser(userId);
+    const state = this.data.householdStates[household.id] ?? {};
+    const access = normalizeRecommendationAccess(state.recommendationAccess);
+    return {
+      access,
+      canUse: access.plan === "plus" || access.preciseTrialRemaining > 0,
+    };
+  }
+
+  async consumePreciseRecommendationAccess(userId) {
+    await this.load();
+    const household = await this.ensureHouseholdForUser(userId);
+    const currentState = this.data.householdStates[household.id] ?? {};
+    const access = normalizeRecommendationAccess(currentState.recommendationAccess);
+    const nextAccess = access.plan === "plus"
+      ? { ...access, preciseUsed: access.preciseUsed + 1 }
+      : {
+        ...access,
+        preciseTrialRemaining: Math.max(0, access.preciseTrialRemaining - 1),
+        preciseUsed: access.preciseUsed + 1,
+      };
+    this.data.householdStates[household.id] = {
+      ...currentState,
+      householdId: household.id,
+      recommendationAccess: nextAccess,
+      updatedAt: new Date().toISOString(),
+    };
+    this.data.states[userId] = this.data.householdStates[household.id];
+    await this.save();
+    return nextAccess;
   }
 
   async revokeToken(token) {
@@ -327,62 +562,10 @@ export class HumiStore {
     return this.data.revokedTokens.includes(token);
   }
 
-  async getAiUsage(userId) {
-    await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
-    this.data.aiUsage ??= {};
-    return this.data.aiUsage[household.id] ?? { preciseRecommendationUses: 0 };
-  }
-
-  async recordAiRecommendationUse(userId) {
-    await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
-    this.data.aiUsage ??= {};
-    const current = this.data.aiUsage[household.id] ?? { preciseRecommendationUses: 0 };
-    this.data.aiUsage[household.id] = {
-      ...current,
-      preciseRecommendationUses: Number(current.preciseRecommendationUses || 0) + 1,
-      updatedAt: new Date().toISOString(),
-    };
-    await this.save();
-    return this.data.aiUsage[household.id];
-  }
-
-  async getCachedAiRecommendation(cacheKey, maxAgeMs) {
-    await this.load();
-    this.data.aiRecommendationCache ??= [];
-    const cached = this.data.aiRecommendationCache.find((item) => item.cacheKey === cacheKey);
-    if (!cached) return null;
-    const ageMs = Date.now() - Date.parse(cached.createdAt || 0);
-    if (!Number.isFinite(ageMs) || ageMs > maxAgeMs) return null;
-    return cached;
-  }
-
-  async saveCachedAiRecommendation(cacheKey, result) {
-    await this.load();
-    this.data.aiRecommendationCache ??= [];
-    const now = new Date().toISOString();
-    this.data.aiRecommendationCache = [
-      {
-        id: randomUUID(),
-        cacheKey,
-        result,
-        createdAt: now,
-      },
-      ...this.data.aiRecommendationCache.filter((item) => item.cacheKey !== cacheKey),
-    ].slice(0, 500);
-    await this.save();
-  }
-
   async createCraveRequest(payload = {}, ownerUserId = null) {
     await this.load();
-    const nowMs = Date.now();
-    const now = new Date(nowMs).toISOString();
-    const defaultDeadlineAt = new Date(nowMs + 30 * 60 * 1000).toISOString();
-    const requestedDeadlineAt = sanitizeText(payload.deadlineAt, "", 40);
-    const deadlineAt = Number.isFinite(new Date(requestedDeadlineAt).getTime())
-      ? requestedDeadlineAt
-      : defaultDeadlineAt;
+    const now = new Date().toISOString();
+    const deadlineAt = resolveCraveDeadline(payload.deadlineAt, now);
     const token = randomUUID().replaceAll("-", "");
     const ownerSecret = randomUUID().replaceAll("-", "");
     const household = ownerUserId
@@ -391,21 +574,26 @@ export class HumiStore {
         memberName: payload.initiatorName,
       })
       : null;
+    const householdMemberIds = new Set((household?.members ?? []).map((member) => member.memberId));
+    const recipientIds = [...new Set((Array.isArray(payload.recipientIds) ? payload.recipientIds : [])
+      .map((memberId) => sanitizeText(memberId, "", 80))
+      .filter((memberId) => memberId && memberId !== ownerUserId && householdMemberIds.has(memberId)))]
+      .slice(0, 20);
     const request = {
       id: randomUUID(),
       token,
       ownerSecret,
-      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
-      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+      householdId: household?.id ?? null,
+      initiatorId: ownerUserId ?? null,
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      recipientIds,
       mealType: sanitizeText(payload.mealType, "dinner", 24),
-      starterFeeling: sanitizeText(payload.starterFeeling, "随便都行", 32),
-      targetParticipantNames: sanitizeTextList(payload.targetParticipantNames, 12, 32),
+      initialFeelingTag: sanitizeText(payload.initialFeelingTag || payload.starterFeeling, "随便都行", 32),
       status: "open",
+      deadlineAt,
       votes: [],
       createdAt: now,
-      deadlineAt,
       updatedAt: now,
     };
     this.data.craveRequests.unshift(request);
@@ -417,8 +605,7 @@ export class HumiStore {
   async getCraveRequest(token) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token) ?? null;
-    const closedByDeadline = expireCraveRequestIfNeeded(request);
-    if (closedByDeadline) await this.save();
+    if (expireCraveRequestIfNeeded(request)) await this.save();
     return request;
   }
 
@@ -426,8 +613,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    const closedByDeadline = expireCraveRequestIfNeeded(request);
-    if (closedByDeadline) {
+    if (expireCraveRequestIfNeeded(request)) {
       await this.save();
       return request;
     }
@@ -439,7 +625,7 @@ export class HumiStore {
       participantKey,
       memberName: sanitizeText(vote.memberName, "家人", 32),
       feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32),
-      dishWish: sanitizeText(vote.dishWish, "", 40),
+      dishWish: sanitizeText(vote.dishWish, "", 80),
       note: sanitizeText(vote.note, "", 80),
       temporary: vote.temporary !== false,
       createdAt: now,
@@ -457,29 +643,45 @@ export class HumiStore {
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
     const participantKey = sanitizeText(claim.participantKey, "", 80);
-    if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
+    if (!participantKey) {
+      const error = new Error("participantKey is required.");
+      error.code = "missing_participant_key";
+      throw error;
+    }
+
     const vote = request.votes.find((item) => item.participantKey === participantKey);
-    if (!vote) throw codedError("vote_not_found", "Temporary vote not found.");
+    if (!vote) {
+      const error = new Error("Temporary vote not found.");
+      error.code = "vote_not_found";
+      throw error;
+    }
+
     const user = this.data.users.find((item) => item.id === userId);
     const now = new Date().toISOString();
     vote.memberId = userId;
     vote.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || vote.memberName || "家人";
     vote.temporary = false;
-    vote.mergedAt = now;
-    if (request.householdId) await this.addHouseholdMember(request.householdId, userId, { memberName: vote.memberName });
+    vote.claimedAt = now;
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: vote.memberName });
+    }
     request.updatedAt = now;
     await this.save();
     return request;
   }
 
-  async closeCraveRequest(token, ownerSecret) {
+  async closeCraveRequest(token, ownerSecret, resultSummary = null, ownerUserId = null) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    if (request.ownerSecret !== ownerSecret) {
+    const authenticatedOwner = Boolean(ownerUserId && request.initiatorId === ownerUserId);
+    if (!authenticatedOwner && request.ownerSecret !== ownerSecret) {
       const error = new Error("Owner secret mismatch.");
       error.code = "forbidden";
       throw error;
+    }
+    if (resultSummary) {
+      request.resultSummary = sanitizeCraveResultSummary(resultSummary);
     }
     request.status = "closed";
     request.updatedAt = new Date().toISOString();
@@ -496,19 +698,17 @@ export class HumiStore {
       })
       : null;
     const now = new Date().toISOString();
-    const token = randomUUID().replaceAll("-", "");
-    const ownerSecret = randomUUID().replaceAll("-", "");
-    const items = Array.isArray(payload.items) ? payload.items.slice(0, 80).map((item, index) => ({
+    const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
       id: sanitizeText(item.id, `item-${index}`, 80),
       name: sanitizeText(item.name, "食材", 40),
       amount: sanitizeText(item.amount, "", 40),
       category: sanitizeText(item.category, "", 40),
       checked: Boolean(item.checked),
-    })) : [];
+    }));
     const request = {
       id: randomUUID(),
-      token,
-      ownerSecret,
+      token: randomUUID().replaceAll("-", ""),
+      ownerSecret: randomUUID().replaceAll("-", ""),
       householdId: household?.id || sanitizeText(payload.householdId, "", 80),
       ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
@@ -520,6 +720,7 @@ export class HumiStore {
       createdAt: now,
       updatedAt: now,
     };
+    this.data.groceryShareRequests ??= [];
     this.data.groceryShareRequests.unshift(request);
     this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
     await this.save();
@@ -528,14 +729,14 @@ export class HumiStore {
 
   async getGroceryShareRequest(token) {
     await this.load();
+    this.data.groceryShareRequests ??= [];
     return this.data.groceryShareRequests.find((item) => item.token === token) ?? null;
   }
 
   async addGroceryShareClaim(token, claim = {}) {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
-    if (!request) return null;
-    if (request.status !== "open") return request;
+    if (!request || request.status !== "open") return request;
     const now = new Date().toISOString();
     const participantKey = sanitizeText(claim.participantKey, "", 80) || randomUUID();
     const claimStatus = claim.status === "declined" ? "declined" : "claimed";
@@ -560,8 +761,7 @@ export class HumiStore {
   async updateGroceryShareItemChecked(token, itemId, checked) {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
-    if (!request) return null;
-    if (request.status !== "open") return request;
+    if (!request || request.status !== "open") return request;
     const item = request.items.find((entry) => entry.id === itemId);
     if (!item) return request;
     item.checked = Boolean(checked);
@@ -584,7 +784,9 @@ export class HumiStore {
     participantClaim.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || participantClaim.memberName || "家人";
     participantClaim.temporary = false;
     participantClaim.mergedAt = now;
-    if (request.householdId) await this.addHouseholdMember(request.householdId, userId, { memberName: participantClaim.memberName });
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: participantClaim.memberName });
+    }
     request.updatedAt = now;
     await this.save();
     return request;
@@ -599,18 +801,17 @@ export class HumiStore {
       })
       : null;
     const now = new Date().toISOString();
-    const token = randomUUID().replaceAll("-", "");
-    const dishes = Array.isArray(payload.dishes) ? payload.dishes.slice(0, 20).map((dish, index) => ({
+    const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
       id: sanitizeText(dish.id, `dish-${index}`, 80),
       recipeId: sanitizeText(dish.recipeId || dish.id, "", 80),
       name: sanitizeText(dish.name, "一道菜", 48),
       quantity: Math.max(1, Math.min(12, Number.parseInt(dish.quantity, 10) || 1)),
       category: sanitizeText(dish.category, "", 40),
       timeMinutes: Math.max(0, Math.min(240, Number.parseInt(dish.timeMinutes, 10) || 0)),
-    })).filter((dish) => dish.name) : [];
+    })).filter((dish) => dish.name);
     const request = {
       id: randomUUID(),
-      token,
+      token: randomUUID().replaceAll("-", ""),
       householdId: household?.id || sanitizeText(payload.householdId, "", 80),
       ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
@@ -644,12 +845,10 @@ export class HumiStore {
       })
       : null;
     const now = new Date().toISOString();
-    const token = randomUUID().replaceAll("-", "");
-    const ownerSecret = randomUUID().replaceAll("-", "");
     const request = {
       id: randomUUID(),
-      token,
-      ownerSecret,
+      token: randomUUID().replaceAll("-", ""),
+      ownerSecret: randomUUID().replaceAll("-", ""),
       householdId: household?.id || sanitizeText(payload.householdId, "", 80),
       ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
       householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
@@ -675,10 +874,8 @@ export class HumiStore {
 
   async addWishShareEntry(token, wish = {}) {
     await this.load();
-    this.data.wishShareRequests ??= [];
     const request = this.data.wishShareRequests.find((item) => item.token === token);
-    if (!request) return null;
-    if (request.status !== "open") return request;
+    if (!request || request.status !== "open") return request;
     const now = new Date().toISOString();
     const participantKey = sanitizeText(wish.participantKey, "", 80) || randomUUID();
     const nextWish = {
@@ -712,10 +909,16 @@ export class HumiStore {
     wish.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || wish.memberName || "家人";
     wish.temporary = false;
     wish.mergedAt = now;
-    if (request.householdId) await this.addHouseholdMember(request.householdId, userId, { memberName: wish.memberName });
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: wish.memberName });
+    }
     request.updatedAt = now;
     await this.save();
     return request;
+  }
+
+  findHouseholdByMember(userId) {
+    return this.findHouseholdsByMember(userId)[0] ?? null;
   }
 
   findActiveHouseholdByMember(userId) {
@@ -726,16 +929,10 @@ export class HumiStore {
 
   findHouseholdsByMember(userId) {
     return this.data.households.filter((household) => (
-      Array.isArray(household.members) &&
-      household.members.some((member) => member.memberId === userId && member.status === "formal")
+      Array.isArray(household.members)
+      && household.members.some((member) => member.memberId === userId && member.status === "formal")
     ));
   }
-}
-
-function codedError(code, message) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
 }
 
 function normalizePhone(value = "") {
@@ -752,6 +949,104 @@ function maskPhoneNumber(phoneNumber) {
   return `${phoneNumber.slice(0, 3)}****${phoneNumber.slice(-4)}`;
 }
 
+function sanitizeText(value, fallback = "", maxLength = 80) {
+  const text = String(value ?? "").trim().replace(/\s+/g, " ");
+  return (text || fallback).slice(0, maxLength);
+}
+
+function codedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function sanitizeClaimItemIds(itemIds, items = [], fallbackToAll = false) {
+  const validIds = new Set(items.map((item) => item.id));
+  const sanitized = [...new Set((Array.isArray(itemIds) ? itemIds : [])
+    .map((itemId) => sanitizeText(itemId, "", 80))
+    .filter((itemId) => validIds.has(itemId)))];
+  if (sanitized.length > 0 || !fallbackToAll) return sanitized;
+  return [...validIds];
+}
+
+function sanitizeCraveResultSummary(summary = {}) {
+  const dishes = Array.isArray(summary.dishes) ? summary.dishes : [];
+  return {
+    dishes: dishes
+      .map((dish) => ({
+        name: sanitizeText(dish?.name, "", 40),
+        timeMinutes: Number.isFinite(Number(dish?.timeMinutes)) ? Number(dish.timeMinutes) : null,
+      }))
+      .filter((dish) => dish.name)
+      .slice(0, 4),
+    reason: sanitizeText(summary.reason, "", 180),
+    generatedAt: sanitizeText(summary.generatedAt, new Date().toISOString(), 40),
+  };
+}
+
+function normalizeRecommendationAccess(access = {}) {
+  const parsedTrialRemaining = Number.parseInt(access.preciseTrialRemaining, 10);
+  return {
+    plan: access.plan === "plus" ? "plus" : "free",
+    preciseTrialRemaining: Math.max(0, Math.min(20, Number.isFinite(parsedTrialRemaining) ? parsedTrialRemaining : 3)),
+    preciseUsed: Math.max(0, Number.parseInt(access.preciseUsed, 10) || 0),
+  };
+}
+
+function mergeClientRecommendationAccess(currentAccess = {}, clientAccess = {}) {
+  const current = normalizeRecommendationAccess(currentAccess);
+  const incoming = normalizeRecommendationAccess(clientAccess);
+  return {
+    plan: current.plan,
+    preciseTrialRemaining: current.plan === "plus"
+      ? current.preciseTrialRemaining
+      : Math.min(current.preciseTrialRemaining, incoming.preciseTrialRemaining),
+    preciseUsed: Math.max(current.preciseUsed, incoming.preciseUsed),
+  };
+}
+
+function mergeMemberWritableState(currentState = {}, incomingState = {}, userId) {
+  const existingWantItems = Array.isArray(currentState.wantToEatItems) ? currentState.wantToEatItems : [];
+  const incomingWantItems = (Array.isArray(incomingState.wantToEatItems) ? incomingState.wantToEatItems : [])
+    .filter((item) => item.memberId === userId);
+  const preservedWantItems = existingWantItems.filter((item) => item.memberId !== userId);
+
+  const existingClaims = currentState.groceryClaims && typeof currentState.groceryClaims === "object"
+    ? currentState.groceryClaims
+    : {};
+  const incomingClaims = incomingState.groceryClaims && typeof incomingState.groceryClaims === "object"
+    ? incomingState.groceryClaims
+    : {};
+  const preservedClaims = Object.fromEntries(
+    Object.entries(existingClaims).filter(([, claim]) => claim?.memberId !== userId),
+  );
+  const ownClaims = Object.fromEntries(
+    Object.entries(incomingClaims).filter(([, claim]) => claim?.memberId === userId),
+  );
+  const completedOwnKeys = Object.values(ownClaims)
+    .filter((claim) => claim?.status === "done" && claim.itemKey)
+    .map((claim) => claim.itemKey);
+
+  return {
+    ...currentState,
+    wantToEatItems: [...preservedWantItems, ...incomingWantItems].slice(0, 200),
+    groceryClaims: { ...preservedClaims, ...ownClaims },
+    checkedItems: {
+      ...(currentState.checkedItems ?? {}),
+      ...Object.fromEntries(completedOwnKeys.map((key) => [key, true])),
+    },
+  };
+}
+
+function resolveCraveDeadline(value, createdAt) {
+  const explicitTime = Date.parse(String(value ?? ""));
+  if (Number.isFinite(explicitTime)) {
+    return new Date(explicitTime).toISOString();
+  }
+  const createdTime = Date.parse(createdAt);
+  return new Date((Number.isFinite(createdTime) ? createdTime : Date.now()) + 30 * 60 * 1000).toISOString();
+}
+
 function expireCraveRequestIfNeeded(request) {
   if (!request || request.status !== "open") return false;
   const deadlineTime = Date.parse(request.deadlineAt || "");
@@ -762,19 +1057,15 @@ function expireCraveRequestIfNeeded(request) {
   return true;
 }
 
-function sanitizeText(value, fallback = "", maxLength = 80) {
-  const text = String(value ?? "").trim().replace(/\s+/g, " ");
-  return (text || fallback).slice(0, maxLength);
-}
-
-function sanitizeTextList(value, maxItems = 20, maxLength = 80) {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(value.map((item) => sanitizeText(item, "", maxLength)).filter(Boolean))].slice(0, maxItems);
-}
-
-function sanitizeClaimItemIds(value, requestItems = [], defaultAll = true) {
-  const allowedIds = new Set((requestItems ?? []).map((item) => item.id));
-  const ids = Array.isArray(value) ? value.map((item) => sanitizeText(item, "", 80)).filter(Boolean) : [];
-  const filtered = ids.filter((id) => allowedIds.has(id));
-  return [...new Set(filtered.length > 0 || !defaultAll ? filtered : [...allowedIds])].slice(0, 80);
+function sanitizeGroceryShareItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      key: sanitizeText(item?.key, "", 160),
+      name: sanitizeText(item?.name, "", 80),
+      amount: sanitizeText(item?.amount, "", 80),
+      type: sanitizeText(item?.type, "ingredient", 40),
+      source: sanitizeText(item?.source, "", 80),
+    }))
+    .filter((item) => item.key && item.name)
+    .slice(0, 120);
 }

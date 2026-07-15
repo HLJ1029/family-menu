@@ -20,6 +20,7 @@ export function TodayMenu({
   onSetDinnerSource,
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
+  canManageHousehold = true,
 }) {
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
@@ -47,13 +48,13 @@ export function TodayMenu({
             让 Humi 先给一组，或者直接去全部菜品挑一道。
           </p>
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <button
+            {canManageHousehold && <button
               type="button"
               onClick={() => onViewChange("dashboard")}
               className="min-h-12 rounded-full bg-ink px-5 text-sm font-black text-white"
             >
               回到今晚推荐
-            </button>
+            </button>}
             <button
               type="button"
               onClick={() => onOpenRecipeLibrary?.()}
@@ -73,14 +74,15 @@ export function TodayMenu({
           showConfirmation={false}
           dinnerReady={false}
           onViewChange={onViewChange}
+          canManageHousehold={canManageHousehold}
         />
-        <CloudInlineStatus
+        {canManageHousehold && <CloudInlineStatus
           {...cloudSync}
           localLabel="本机今晚菜单"
           pendingLabel="今晚菜单待保存"
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
-        />
+        />}
       </section>
     );
   }
@@ -106,14 +108,14 @@ export function TodayMenu({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
+              {canManageHousehold && <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <ShoppingBasket size={18} />
                 查看采购清单
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => onOpenRecipe(todayRecipes[0]?.id)}
@@ -164,7 +166,7 @@ export function TodayMenu({
                     <h3 className="mt-2 text-2xl font-black tracking-[-0.03em]">{recipe.name}</h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink/56">{recipe.description}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1 rounded-full border border-line bg-canvas p-1">
+                  {canManageHousehold && <div className="flex shrink-0 items-center gap-1 rounded-full border border-line bg-canvas p-1">
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(recipe.id, -1)}
@@ -182,18 +184,18 @@ export function TodayMenu({
                     >
                       <Plus size={17} />
                     </button>
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  {canManageHousehold && <button
                     type="button"
                     onClick={() => onOpenRecipe(recipe.id)}
                     className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
                   >
                     <Utensils size={16} />
                     查看做法
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={() => onUpdateQuantity(recipe.id, -(recipe.menuQuantity ?? 1))}
@@ -213,13 +215,13 @@ export function TodayMenu({
           onOpenRecipeLibrary={onOpenRecipeLibrary}
         />
 
-        <CloudInlineStatus
+        {canManageHousehold && <CloudInlineStatus
           {...cloudSync}
           localLabel="本机今晚菜单"
           pendingLabel="今晚菜单待保存"
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
-        />
+        />}
 
         <DinnerLogPanel
           mealLog={mealLog}
@@ -231,6 +233,7 @@ export function TodayMenu({
           showConfirmation
           dinnerReady
           onViewChange={onViewChange}
+          canManageHousehold={canManageHousehold}
         />
 
       </div>

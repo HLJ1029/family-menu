@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Plus, Search, X } from "lucide-react";
+import { CalendarDays, Plus, Search, ShoppingBasket, X } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
 import { getCurrentPlanDay } from "../lib/date";
 import { getDayMeals, mealSlots } from "../lib/mealPlan";
@@ -34,6 +34,8 @@ export function Planner({
   onRemoveMeal,
   cloudSync,
   onViewChange,
+  groceryItemCount = 0,
+  canManageHousehold = true,
 }) {
   const currentDay = getCurrentPlanDay();
   const currentIndex = days.indexOf(currentDay);
@@ -57,6 +59,7 @@ export function Planner({
   });
 
   function openPicker(day, slotId = "dinner") {
+    if (!canManageHousehold) return;
     setPickerTarget({ day, slotId, dateKey: weekDateKeys[day] });
     setPickerQuery("");
   }
@@ -96,6 +99,26 @@ export function Planner({
         </div>
         <HumiScene scene="planner" size="xl" className="mx-auto" eager />
       </section>
+
+      <button
+        type="button"
+        data-testid="planner-grocery-summary"
+        onClick={() => onViewChange("grocery")}
+        className="flex w-full items-center justify-between gap-4 rounded-[24px] border border-line bg-white p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:border-ink/20 sm:p-5"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-canvas text-ink">
+            <ShoppingBasket size={19} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-ink/35">本周采购摘要</span>
+            <span className="mt-1 block truncate text-base font-black">计划已汇总到买菜清单</span>
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
+          {groceryItemCount} 项
+        </span>
+      </button>
 
       {/* Week date strip */}
       <Card>
@@ -148,14 +171,14 @@ export function Planner({
               <div key={slot.id} className="py-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">{slot.label}</p>
-                  <button
+                  {canManageHousehold && <button
                     type="button"
                     onClick={() => openPicker(selectedDay, slot.id)}
                     className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink"
                   >
                     <Plus size={13} />
                     添加
-                  </button>
+                  </button>}
                 </div>
                 <div className="mt-3 grid gap-2">
                   {entries.length === 0 && (
@@ -181,7 +204,7 @@ export function Planner({
                           {recipe.name}
                           {entry.quantity > 1 && <span className="ml-2 text-xs text-ink/38">x{entry.quantity}</span>}
                         </span>
-                        <button
+                        {canManageHousehold && <button
                           type="button"
                           onClick={() => {
                             if (selectedDateKey && onRemoveMeal) onRemoveMeal(selectedDateKey, slot.id, recipe.id);
@@ -191,7 +214,7 @@ export function Planner({
                           aria-label={`移除 ${recipe.name}`}
                         >
                           <X size={13} />
-                        </button>
+                        </button>}
                       </div>
                     );
                   })}
@@ -202,13 +225,13 @@ export function Planner({
         </div>
       </Card>
 
-      <CloudInlineStatus
+      {canManageHousehold && <CloudInlineStatus
         {...cloudSync}
         localLabel="本地一周计划"
         pendingLabel="一周计划待保存"
         enabledLabel="已保存一周计划"
         migrateLabel={cloudSync?.enabled ? "重新保存本机计划" : "保存一周计划"}
-      />
+      />}
 
       {/* Recipe picker modal */}
       {pickerTarget && (

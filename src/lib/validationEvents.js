@@ -9,6 +9,7 @@ export const validationEvents = {
   recommendationRejected: "recommendation_rejected",
   recommendationRejectedReason: "recommendation_rejected_reason",
   dinnerSourceSelected: "dinner_source_selected",
+  mealSourceSelected: "meal_source_selected",
   mealConfirmed: "meal_confirmed",
   groceryViewed: "grocery_viewed",
   groceryItemChecked: "grocery_item_checked",
@@ -66,6 +67,7 @@ export function buildValidationSummary(events = readValidationEvents()) {
     recommendationAcceptanceRate: seen > 0 ? Math.round((accepted / seen) * 100) : 0,
     rejectedReasonCaptureRate: rejected > 0 ? Math.round((rejectedWithReason / rejected) * 100) : 0,
     dinnerSourceSelected: sources.length,
+    mealSourceSelected: count(validationEvents.mealSourceSelected),
     groceryViewed: count(validationEvents.groceryViewed),
     posterGenerated: count(validationEvents.posterGenerated),
     topRejectedReasons: Object.entries(reasonCounts)

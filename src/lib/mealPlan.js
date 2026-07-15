@@ -1,4 +1,7 @@
-import { createDefaultWeekPlan } from "./recipes";
+import { createDefaultWeekPlan } from "./recipes.js";
+import { normalizeMealEntries } from "./mealState.js";
+
+export { normalizeMealEntries, normalizeMealLogs } from "./mealState.js";
 
 export const mealSlots = [
   { id: "breakfast", label: "早餐", shortLabel: "早" },
@@ -10,17 +13,6 @@ export const mealSlotIds = mealSlots.map((slot) => slot.id);
 
 export function createEmptyDayMeals() {
   return Object.fromEntries(mealSlotIds.map((slotId) => [slotId, []]));
-}
-
-export function normalizeMealEntries(entries = []) {
-  return Array.isArray(entries)
-    ? entries
-      .map((entry) => ({
-        recipeId: typeof entry?.recipeId === "string" ? entry.recipeId : typeof entry === "string" ? entry : "",
-        quantity: Math.max(1, Number.parseInt(entry?.quantity, 10) || 1),
-      }))
-      .filter((entry) => entry.recipeId)
-    : [];
 }
 
 export function normalizeDayMeals(dayMeals = {}) {

@@ -38,7 +38,8 @@ export function StatsPage({
   const maxCategoryCount = Math.max(...insights.categoryMix.map((item) => item.count), 1);
 
   return (
-    <section className="grid gap-5">
+    <section data-testid="nutrition-reflection-page" className="grid gap-5">
+      <h2 className="sr-only">营养回看</h2>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="relative overflow-hidden rounded-[30px] border border-line bg-white p-6 text-ink shadow-card md:p-8 md:pr-64">
           <HumiScene scene="achievement" size="xl" className="absolute bottom-2 right-3 hidden md:grid" />

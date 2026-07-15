@@ -21,6 +21,7 @@ export function RecommendationsPage({
   onOpenRecipe,
   onOpenRecipeLibrary,
   onViewChange,
+  canManageHousehold = true,
 }) {
   const items = getRecommendationItems(recommendation);
   const totalMinutes = items.reduce((total, item) => total + item.recipe.timeMinutes, 0);
@@ -44,15 +45,15 @@ export function RecommendationsPage({
               适合 {recommendation.familySize ?? 2} 人 · {items.length} 道 · 预计 {totalMinutes || 25} 分钟 · {hasStaple ? "已有主食" : "建议补主食"}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-              <button
+              {canManageHousehold && <button
                 type="button"
                 onClick={onAccept}
                 className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white sm:col-span-1"
               >
                 <Utensils size={19} />
                 今晚就做
-              </button>
-              <button
+              </button>}
+              {canManageHousehold && <button
                 type="button"
                 onClick={onRefresh}
                 disabled={aiRecommendationLoading}
@@ -60,7 +61,7 @@ export function RecommendationsPage({
               >
                 <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
                 {refreshLabel}
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
@@ -140,7 +141,7 @@ export function RecommendationsPage({
         )}
       </section>
 
-      <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-24 shadow-card">
+      {canManageHousehold && <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-24 shadow-card">
         <HumiPeek
           variant="menu-rejected"
           size="md"
@@ -161,7 +162,7 @@ export function RecommendationsPage({
             </button>
           ))}
         </div>
-      </section>
+      </section>}
     </section>
   );
 }

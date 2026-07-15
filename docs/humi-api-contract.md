@@ -2,11 +2,12 @@
 
 默认域名：`https://api.humi-home.com`
 
-当前生产状态（2026-06-24）：
+当前生产状态（2026-07-14）：
 
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
+- 小程序 1.1.67 使用本合同，并包含多家庭定向保存、协作状态持久化与临时身份隐私收口；部署时按生产 runbook 备份、重启并复跑线上 smoke。
 
 本地启动：
 
@@ -120,10 +121,10 @@ Authorization: Bearer <accessToken>
 
 ## 微信账号状态
 
-- `GET /state`：读取当前微信用户保存的菜单、计划、清单、库存、画像和反馈。
-- `PUT /state`：保存当前微信用户的菜单、计划、清单、库存、画像和反馈。
+- `GET /state`：读取当前微信用户所在家庭保存的菜单、计划、清单、后台已有、画像、推荐额度和协作状态。
+- `PUT /state`：保存当前微信用户所在家庭的菜单、计划、清单、后台已有、画像、推荐额度和协作状态。
 
-`/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。首发用于小程序审核闭环：用户通过微信登录后，今日菜单、一周三餐计划、购物清单、家中库存和基础画像会保存到 Humi API，换设备或重新进入小程序可恢复。
+`/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。当前 1.1 使用家庭级共享状态：正式家庭成员读取同一份 `householdStates[householdId]`，切换家庭后状态隔离。
 
 状态字段兼容旧版 `todayMenu`、`weekPlan`、`mealCalendar`，新版新增 `mealPlan`：
 
@@ -138,6 +139,105 @@ Authorization: Bearer <accessToken>
   }
 }
 ```
+
+## 家庭与邀请
+
+- `GET /households`：读取当前用户加入的家庭列表和当前家庭。
+- `POST /households`：创建一个新家庭，并把创建者设为 `owner`。
+- `POST /households/active`：切换当前家庭。
+- `POST /household-invites`：仅主厨/owner 可创建家庭邀请。
+- `GET /household-invites/:token`：公开读取邀请摘要。
+- `POST /household-invites/:token/wants`：临时家人凭邀请 token 免登录丢一道想吃；同一临时身份重复提交会更新自己的未完成条目。
+- `POST /household-invites/:token/join`：登录后加入家庭，成为正式成员。
+
+家庭角色边界：
+
+- `owner` 可发起家庭邀请、发起征集、管理这个家。
+- `member` 可共享菜单、清单、征集记录和买菜认领。
+- `member` 不能代替主厨发起这个家的感觉征集或生成这个家的买菜分享卡片；服务端返回 403。
+- 免登录临时参与者只能投感觉、认领买菜、丢想吃，不能拥有或管理家庭。
+- 邀请页提交想吃时携带本机 `participantKey`；正式加入同一个家后，该条目归并到微信成员身份。
+- 用户主动维护的信息只保留忌口/过敏等硬约束；软口味与营养回看由感觉征集、想吃和确认做饭等行为形成，不要求填写设置表。
+
+## 感觉征集
+
+`POST /crave-requests`
+
+- 登录主厨调用时绑定当前家庭，返回 `request` 和 `ownerSecret`。
+- 登录普通成员调用当前家庭征集会返回 `403 forbidden`；家人只能参与投感觉，不能拥有征集。
+- `request.deadlineAt` 必须公开返回，默认 `createdAt + 30 分钟`。
+- 小程序分享卡片使用 `request.token` 进入 H5 落地页。
+
+`GET /crave-requests/:token`
+
+- 公开读取征集摘要、公开票数、截止时间和可选的 `resultSummary`。
+- 不返回 `ownerSecret`。
+
+`POST /crave-requests/:token/votes`
+
+公开免登录提交临时投票：
+
+```json
+{
+  "participantKey": "local-temporary-id",
+  "memberName": "家人",
+  "feelingTag": "想喝汤",
+  "note": "想吃紫菜蛋花汤",
+  "temporary": true
+}
+```
+
+`POST /crave-requests/:token/join`
+
+- 登录后把本机 `participantKey` 对应的临时投票合并为正式成员投票。
+- 若请求有关联家庭，会把当前用户加入该家庭。
+
+`POST /crave-requests/:token/close`
+
+主厨端用 `ownerSecret` 结束征集，可附带结果摘要：
+
+```json
+{
+  "ownerSecret": "secret-from-create",
+  "resultSummary": {
+    "dishes": [{ "name": "番茄炒蛋", "timeMinutes": 15 }],
+    "reason": "已揉合 2 个家人回复。",
+    "generatedAt": "2026-07-02T00:00:00.000Z"
+  }
+}
+```
+
+公开响应里的 `resultSummary` 只用于家人落地页展示“今晚定了”，不是权威菜单存储；正式菜单仍在家庭 `/state.todayMenu` 和 `/state.mealPlan` 里。
+
+## 买菜协作
+
+- `POST /grocery-shares`：登录用户把当前清单生成可分享 token。
+- 当前家庭的普通成员调用 `POST /grocery-shares` 返回 `403 forbidden`；家人只能认领或标记买到清单项。
+- `GET /grocery-shares/:token`：公开读取清单摘要。
+- `POST /grocery-shares/:token/claims`：免登录或登录成员认领/标记买到某项食材，并同步回家庭 `groceryClaims`。
+- 已被其他成员认领或买到的项不能被第二个成员覆盖；服务端返回 `409 grocery_item_claimed` 或 `409 grocery_item_done`，前端应展示“已有人在买/已买到”而不是继续完成。
+
+买菜认领是免费协作能力，不按次数计费。
+
+## 推荐与成本闸门
+
+`POST /recommend`
+
+- `mode !== "precise"`：基础推荐，低成本路径，可公开调用，用本地规则/缓存兜底。
+- `mode === "precise"`：必须登录；服务端读取家庭共享 `recommendationAccess`。
+- 免费家庭 `preciseTrialRemaining <= 0` 时返回 HTTP `402 precise_trial_exhausted`。
+- Plus 家庭不限精准次数。
+- 成功调用真实 DeepSeek 后，服务端更新并返回最新 `recommendationAccess`。
+
+`POST /explain`
+
+- 精准解释复用同一套登录与额度闸门。
+- 当前前端默认展示已有本地/精准理由，不主动消耗 DeepSeek 解释额度。
+
+成本原则：
+
+- 感觉征集、买菜认领、清单、基础推荐永远免费不限次数。
+- 高成本精准 API 才进入尝鲜额度/Plus 家庭版。
 
 ## 发布前平台配置
 

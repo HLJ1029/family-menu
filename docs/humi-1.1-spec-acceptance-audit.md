@@ -1,0 +1,119 @@
+# Humi 1.1 Spec Acceptance Audit
+
+更新日期：2026-07-14
+执行设备：codex@mbp-m5pro
+
+本文档把三份 1.1 策划书收敛成验收清单：
+
+- `/Users/honglijie/Downloads/humi 家庭协作 spec.md`
+- `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
+- `/Users/honglijie/Downloads/humi 结构重构 spec.md`
+
+当前结论：1.1 台账 70 个需求 ID 均存在，可实现项已按当前重构 UI 完成；小程序候选为 `1.1.67`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；1.1 继续完整提供核心家庭菜单与协作体验。现在不提交微信审核，先完成真实微信验收。
+
+## 1. 当前发布事实
+
+- 当前 `main`、GitHub Pages、线上 readiness 和下一步动作以 `npm run release:status` 输出为准。
+- 本轮可验收工作区：`/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure`；本地地址：`http://127.0.0.1:4174/`。
+- AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
+- 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
+- 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
+- 最新小程序候选：`1.1.67` / `完善家庭菜单与协作功能` / AppID `wx4040b89f3b363416`。
+- 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
+- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260714T124938Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
+
+## 2. 验收矩阵
+
+| 规格要求 | 当前状态 | 证据 |
+| --- | --- | --- |
+| 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
+| 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片；产品 smoke 在 138 道菜中真实点击青椒土豆丝 `补进今晚`，验证同步进入今晚菜单和当日晚餐计划 |
+| 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
+| 完整菜品库保持【今晚】子页面导航关系 | 已完成 | `getPrimaryNavId` 将菜品库归属【今晚】；产品 smoke 验证三主 tab 等宽可见、【今晚】保持激活、返回键回今晚、顶部头像进入【我的家】 |
+| 【今晚菜单】加菜不降级为列表 | 已完成 | 【今晚】首屏 `全部菜品` 可直接进入完整菜品子页；`src/components/TodayMenu.jsx` 的内嵌选菜区也保留图片卡片和 `发现新菜` 入口 |
+| 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
+| 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
+| 【今晚】首屏只有一个实心主操作，次级动作不抢主线 | 已完成 | `精准推荐` 与 `问问大家` 已降为文字弱入口，常驻场景插图移除；产品 smoke 验证 `tonight-hero-has-one-solid-primary-action` 和 `tonight-hero-has-no-permanent-scene-illustration`，第一道推荐菜进入手机首屏 |
+| `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
+| 早餐/午餐纳入数据但不抢晚饭主线 | 已完成 | `Dashboard.jsx` 将 `MealRhythmPanel` 放到晚饭决策与确认之后；产品 smoke 校验 DOM 顺序；`src/lib/mealPlan.js` 支持 `breakfast/lunch/dinner` |
+| 早餐/午餐在家吃时由用户选菜，不擅自记录默认菜 | 已完成 | 早餐先打开常吃早餐轻选层，`更多早餐选择` 才进入早餐分类；产品 smoke 分别验证早餐与午餐选择前为空，且只写入用户点选菜，不会默认紫菜蛋花汤 |
+| 清单汇总三餐食材 | 已完成 | `src/lib/mealPlan.js` 的 `mealPlanEntriesForGroceries` 与 `src/lib/insights.js` 将 `mealPlan` 纳入 grocery 汇总；`validate:api` 覆盖三餐 state |
+| 库存完全隐形，不做页面、数量或批量维护 | 已完成 | `InventoryPage.jsx` 已删除；`GroceryList.jsx` 移除“后台已有”面板、数量与批处理；`release:product:smoke` 验证清单页不暴露维护界面 |
+| 清单勾选反推后台已有，做饭确认扣减 | 已完成 | 产品 smoke 在独立手机会话真实勾选西红柿，验证隐藏 `pantryItems` 写入；随后点“做了”，验证西红柿扣减且晚饭 `mealLogs` 写入 |
+| 忌口是硬约束，软口味不做设置表 | 已完成 | `validate:recommendation` 覆盖硬忌口；`ProfileOnboarding.jsx` 与 `UserCenter.jsx` 只暴露忌口/过敏硬约束，不再要求填写规划模式、晚饭目标、买菜接受度或营养目标 |
+| 用户唯一主动维护的是忌口，不填写软口味/规划/营养目标表 | 已完成 | 首次引导允许“没有忌口，直接开始”；【我的家】只暴露“修改忌口”，口味与营养继续作为行为回馈；产品 smoke 验证旧软画像控件不存在 |
+| 营养分析是行为反馈层，不是目标管理页 | 已完成 | `StatsPage.jsx` 只提供近期状态、营养回看和参考范围，不再出现“目标完成度”“营养目标看板”或“修改目标”；产品 smoke 真实进入该页验证 |
+| 【我的家】从资料页升级为协作主场 | 已完成 | `UserCenter.jsx` 顺序为“饭线索 → 家庭动态 → 想吃池 → 成员/账号设置”；征集单默认收起，点击“问问大家”才展开；产品 smoke 验证动态位于账号设置之前 |
+| 【我的家】协作内容先于账号设置，使用后隐藏自我介绍 | 已完成 | 产品 smoke 验证 `family-activity-section` 与 `want-to-eat-section` 均位于 `cloud-account-section` 前；有真实动态时不再显示解释性常驻文案 |
+| 协作动态沉淀认领、做饭确认和想吃 | 已完成 | `UserCenter.jsx` 的 `groceryActivity/dinnerActivity/wantActivity`；产品 smoke 验证三类动态的用户可见文案 |
+| 主厨/家人角色边界 | 已完成 | `api/store.js` 的 owner/member 检查；`validate:api` 覆盖普通成员征集、邀请、清单分享 403；产品 smoke 验证家人不能改菜单、不能编辑家庭忌口，早午餐仅只读展示 |
+| 一人多家可见切换且数据隔离 | 已完成 | 产品 smoke 在【我的家】真实切换“小家 → 爸妈家”，验证 `/households/active` 被调用、当前家标题更新，并载入爸妈家的青椒土豆丝菜单 |
+| 征集发起先选择家庭成员 | 已完成 | `CraveStarterSheet` 默认勾选当前家庭其他正式成员，并把 `recipientIds` 提交到 API；无成员时仍可生成公开征集卡 |
+| 成员只能写自己的参与数据 | 已完成 | `api/store.js` 的 `mergeMemberWritableState` 只合并本人想吃条目和买菜认领；菜单、画像、权益保持主厨版本；界面上家人逛菜品库时加入想吃池而非补进菜单，也只能维护自己的想吃条目 |
+| 协作发起必须登录，家人参与仍免登录 | 已完成 | `api/server.js` 对征集与清单创建要求主厨会话并校验 owner；`validate:api` 覆盖匿名 401、家人 403，公开 vote/claim 仍可用 |
+| 家人打开分享卡片先免登录参与 | 已完成 | `CraveLanding.jsx` 可投感觉、`GroceryShareLanding.jsx` 可认领买菜、`InviteLanding.jsx` 可丢想吃；三者都使用公开 token 与临时身份，无需先登录 |
+| 家人点完感觉后再引导加入家庭 | 已完成 | `CraveLanding.jsx` 点感觉后展示结果/加入引导；`/crave-requests/:token/join` 合并临时 vote |
+| 感觉标签控制在低思考范围，并包含“随便都行” | 已完成 | `Dashboard.jsx` 和 `CraveLanding.jsx` 提供 `随便都行/辣一点/清淡点/想喝汤/想吃肉/想吃素/不想动/想暖胃/开胃 / 酸` |
+| 主厨可“我自己做主”，单人也能走完 | 已完成 | 产品 smoke 用仅主厨家庭真实点击“我自己做主”，验证不创建分享请求、直接出菜单并自动写入计划与清单 |
+| 等待态可手动出菜单，超时有退路 | 已完成 | 产品 smoke 刷新后看到“家人小林 · 想喝汤”并保留“现在出菜单”；另用过期持久化征集验证无人回复仍按主厨感觉出菜单 |
+| 征集状态跨会话恢复，超时后主厨身份安全收口 | 已完成 | API 安全保存 `craveSignals` 且去除 owner secret；产品 smoke 从过期持久化征集自动出菜单，并用 Bearer 主厨会话关闭 |
+| 家人选填备注默认折叠 | 已完成 | `CraveVoteSheet` 首屏只显示“想补一句？”弱操作；游客 smoke 先确认输入框不存在，展开后仍可提交 |
+| 征集结果可勾选收敛到今晚菜单和清单 | 已完成 | 产品 smoke 在征集结果点击 `就做选中的 2 道`，验证两道菜同步写入今晚菜单与当日晚餐计划，并自动生成买菜清单 |
+| 每道菜展示“为什么推它” | 已完成 | `Dashboard.jsx` 的 `buildDishReason` 结合家人感觉、后台已有、忌口和推荐来源 |
+| 晚间轻确认包含“不记录” | 已完成 | `Dashboard.jsx` 的 `dinnerSources` 包含 `skip/不记录`，晚饭确认区也有 `不记录` |
+| 买菜认领可回传，且防重复认领/覆盖 | 已完成 | `GroceryShareLanding.jsx` 与 `api/store.js` claims；`validate:api` 覆盖 409 冲突 |
+| 想吃池子可由家人/主厨沉淀并参与推荐 | 已完成 | 正式成员在 `UserCenter.jsx` 维护自己的条目；临时家人从邀请卡免登录提交，加入后归并正式身份；`src/lib/recommendation/rules.js` 使用 `wantToEatItems` 排序 |
+| 精准推荐走成本闸门，基础功能免费无限 | 已完成 | `api/server.js` `/recommend` 与 `/explain` 鉴权/402；`UserCenter.jsx` 推荐权益文案；`validate:api` 覆盖 |
+| 精准推荐缓存复用 | 已完成 | `src/main.jsx` 的 `buildPreciseRecommendationCacheKey` 与本地缓存路径 |
+| 推荐参考本家最近饮食且不跨请求污染 | 已完成 | `collectRecentRecipeIds` 每次从本家周计划与 `mealLogs` 建集；`validate:recommendation` 同时验证降重与请求隔离 |
+| 历史感觉和做饭确认会反哺后续推荐 | 已完成 | `collectLearnedCraveVotes` 只读取已结束征集；`collectMealHistoryTaste` 从确认吃过的菜提取常做类型轻加分，同时保留同一道菜近期降权；`validate:recommendation` 覆盖 |
+| 推荐权益不可由客户端升级 | 已完成 | `api/store.js` 的 `mergeClientRecommendationAccess` 保持服务端 plan，次数只能消耗不能恢复；`validate:api` 覆盖伪造 Plus 和重置次数 |
+| 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
+| 三类分享落地页游客烟测 | 已完成 | `release:collaboration:smoke` 用新游客上下文验证征集免登录投票、清单免登录认领、邀请免登录丢想吃且先展示价值后登录，并确认不会自动发起微信登录 |
+| 小程序分享路径覆盖 `crave`/`invite`/`grocery` | 已完成 | `miniprogram/pages/index/index.js` 与 H5 落地页组件覆盖三类 token |
+| 清单分享、感觉征集与家庭邀请确实唤起小程序原生分享页 | 已完成 | `miniProgramShare.js` 以原生 `navigateTo` 成功/失败回调为准，不再把缺少跳转能力误报为“已打开”；`validate:share-bridge` 覆盖三类子页、缺失能力、失败、异常与无 token，`release:product:smoke` 覆盖入口点击 |
+| 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
+| 发布材料去除旧“首页/周计划/库存管理”主路径口径 | 已完成 | `docs/miniprogram-launch-readiness.md`、`docs/launch-day-runbook.md`、`docs/miniprogram-review-materials.md` 已更新为 1.1 三 tab 口径 |
+
+## 3. 仍未完成或仍需外部确认
+
+| 项目 | 状态 | 下一步 |
+| --- | --- | --- |
+| 家庭订阅真实支付结算 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 不接支付下单、回调验签、订单和权益发放闭环 |
+| Plus 深度协调、完整版画像与一周计划打包 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 保留基础画像、营养回看和连排能力，不做 Plus 版差异 |
+| 三类小程序原生分享发送框视觉复核 | 已完成 | 2026-07-14 当前候选三类发送框均显示虚拟好友、发送动作和正确业务标题；`release:wechat:share:evidence` 与 `release:wechat:share:complete` 通过，证据位于 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457` |
+| 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
+| 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
+| 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
+| 生产真机全路径证据 | 待小程序发布后验证 | 发布后用真实微信验证普通启动、`crave`、`invite`、`grocery`、微信登录、清单回传，并记录到 `docs/humi-1.1-release-evidence-log.md` |
+
+## 4. 当前建议顺序
+
+1. 运行完整本地门禁；需要复现时可用 `http://127.0.0.1:4174/`，确认核心菜单、家庭协作、三类分享、数据与安全检查仍全部通过。
+2. 当前 H5/API 与小程序 `1.1.67` 候选必须以本次合并主线为同一基线。
+3. 用户在微信开发者工具体验版或真实微信中验收 `1.1.67`。未通过就继续修复并上传新的候选，不进入审核。
+4. 真机体验通过后准备 10–20 个家庭灰度；反馈进入私有候选执行包，不把真实身份信息写进仓库。
+5. 灰度无 P0/P1 且用户动作当下确认后，才进入微信公众平台审核；审核通过后发布并登记 24 小时监控与真机证据。
+
+## 5. 验证命令
+
+发布前至少跑：
+
+```bash
+npm run release:status
+npm run release:spec:audit
+npm run build
+npm run validate:api
+npm run validate:recommendation
+npm run release:check
+npm run release:check:online
+/Users/honglijie/AI-HQ/scripts/secret-scan.sh
+```
+
+生产 API 恢复 SSH 并补部署后，再跑：
+
+```bash
+npm run deploy:api:check
+npm run monitor:prod
+npm run release:check:online
+```

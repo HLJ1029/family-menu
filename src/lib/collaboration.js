@@ -10,32 +10,19 @@ export const feelingTags = [
   "开胃 / 酸",
 ];
 
-export function createLocalCraveRequest({
-  householdId = "",
-  ownerId = "",
-  householdName = "我家",
-  initiatorName = "主厨",
-  mealType = "dinner",
-  targetParticipantNames = [],
-} = {}) {
-  const nowMs = Date.now();
-  const createdAt = new Date(nowMs).toISOString();
+export function createLocalCraveRequest({ householdName = "我家", initiatorName = "主厨", mealType = "dinner" } = {}) {
   const token = `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   return {
     id: token,
     token,
     ownerSecret: `owner-${Math.random().toString(36).slice(2, 14)}`,
-    householdId,
-    ownerId,
     householdName,
     initiatorName,
     mealType,
-    targetParticipantNames,
     status: "open",
     votes: [],
-    createdAt,
-    deadlineAt: new Date(nowMs + 30 * 60 * 1000).toISOString(),
-    updatedAt: createdAt,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -57,6 +44,23 @@ export function summarizeCraveVotes(votes = []) {
   return [...counts.entries()]
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+export function collectLearnedCraveVotes(signals = [], { excludeToken = "" } = {}) {
+  return signals
+    .filter((signal) => signal && signal.token !== excludeToken)
+    .filter((signal) => signal.status === "closed" || !signal.token)
+    .flatMap((signal) => {
+      if (Array.isArray(signal.votes) && signal.votes.length > 0) return signal.votes;
+      if (!signal.feelingTag) return [];
+      return [{
+        feelingTag: signal.feelingTag,
+        createdAt: signal.createdAt,
+        memberName: signal.initiatorName || "主厨",
+      }];
+    })
+    .filter((vote) => vote?.feelingTag && vote.feelingTag !== "随便都行")
+    .slice(0, 12);
 }
 
 export function formatCraveReason(votes = []) {

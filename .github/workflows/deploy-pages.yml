@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -45,10 +46,37 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry-2.outputs.page_url || steps.deployment-retry-3.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before retry 2
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages retry 2
+        id: deployment-retry-2
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before retry 3
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry-2.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages retry 3
+        id: deployment-retry-3
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry-2.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Verify Pages deployment
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry-2.outcome == 'failure' && steps.deployment-retry-3.outcome == 'failure'
+        run: |
+          echo "GitHub Pages deployment failed after 3 attempts."
+          exit 1

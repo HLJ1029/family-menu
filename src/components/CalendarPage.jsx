@@ -15,7 +15,7 @@ import { DishImage } from "./ui/DishImage";
 import { HumiScene } from "./ui/HumiScene";
 import { MiniMeal } from "./ui/MiniMeal";
 
-export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
+export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe, canManageHousehold = true }) {
   const todayKey = formatDateKey(new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [visibleMonthKey, setVisibleMonthKey] = useState(todayKey);
@@ -40,6 +40,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   });
 
   function openPicker() {
+    if (!canManageHousehold) return;
     setPickerOpen(true);
     setPickerQuery("");
   }
@@ -178,7 +179,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                     : "未来日期可以提前规划食谱。"}
                 </p>
               </div>
-              {!selectedIsPast && (
+              {!selectedIsPast && canManageHousehold && (
                 <button
                   type="button"
                   onClick={openPicker}
@@ -202,7 +203,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   {selectedRecipes.map((recipe) => (
                     <div key={`${selectedDateKey}-${recipe.id}`} className="relative">
                       <MiniMeal recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
-                      {!selectedIsPast && (
+                      {!selectedIsPast && canManageHousehold && (
                         <button
                           type="button"
                           onClick={() => onRemove(selectedDateKey, recipe.id)}

@@ -22,9 +22,13 @@ export async function trackAppEvent({ eventName, userId, familyId, payload = {} 
 
   try {
     const supabase = await getSupabase();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const sessionUserId = sessionData?.session?.user?.id;
+    if (sessionError || !sessionUserId) return false;
+
     const { error } = await supabase.from("app_events").insert({
       event_name: eventName,
-      user_id: userId ?? null,
+      user_id: userId ?? sessionUserId,
       family_id: familyId ?? null,
       session_id: getEventSessionId(),
       payload,

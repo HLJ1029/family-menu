@@ -38,10 +38,10 @@ export async function saveMemberPreference({ familyId, memberId, preference }) {
   const { error: insertError } = await supabase.from("member_preferences").insert({
     family_id: familyId,
     member_id: memberId,
-    likes: preference.likes,
+    likes: [],
     dislikes: preference.dislikes,
     allergies: preference.allergies,
-    goals: preference.goals,
+    goals: [],
   });
 
   if (insertError) throw insertError;
@@ -63,10 +63,8 @@ export async function inviteFamilyMember({ familyId, email }) {
 
 export function normalizePreference(preference = {}) {
   return {
-    likes: cleanList(preference.likes),
     dislikes: cleanList(preference.dislikes),
     allergies: cleanList(preference.allergies),
-    goals: cleanList(preference.goals),
   };
 }
 
@@ -79,19 +77,15 @@ export function parsePreferenceText(value) {
 
 export function preferenceToDraft(preference) {
   return {
-    likes: preference.likes.join("、"),
     dislikes: preference.dislikes.join("、"),
     allergies: preference.allergies.join("、"),
-    goals: preference.goals.join("、"),
   };
 }
 
 export function draftToPreference(draft) {
   return {
-    likes: parsePreferenceText(draft.likes ?? ""),
     dislikes: parsePreferenceText(draft.dislikes ?? ""),
     allergies: parsePreferenceText(draft.allergies ?? ""),
-    goals: parsePreferenceText(draft.goals ?? ""),
   };
 }
 

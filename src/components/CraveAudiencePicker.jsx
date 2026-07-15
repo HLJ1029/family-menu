@@ -67,10 +67,11 @@ export function CraveAudiencePicker({ members = [], onChange, className = "" }) 
 export function normalizeAudienceMembers(members = []) {
   const normalized = members
     .filter(Boolean)
+    .filter((member) => member.role !== "主厨" && member.role !== "owner")
     .map((member, index) => {
       const name = String(member.name || member.nickname || member.email || "家人").trim() || "家人";
       return {
-        id: String(member.participantKey || member.id || member.memberId || `member:${index}:${name}`),
+        id: String(member.participantKey || member.memberId || member.id || `member:${index}:${name}`),
         name,
         meta: member.status === "正式成员"
           ? `${member.role || "家人"} · 已加入`

@@ -185,6 +185,7 @@ function App() {
   );
   const [recommendationFeedback, setRecommendationFeedback] = useLocalStorageState("family-menu:recommendation-feedback", []);
   const [craveSignals, setCraveSignals] = useLocalStorageState("humi:crave-signals:v1", []);
+  const [groceryClaims, setGroceryClaims] = useLocalStorageState("humi:grocery-claims:v1", {});
   const [wishPool, setWishPool] = useLocalStorageState("humi:wish-pool:v1", []);
   const [activeCraveRequest, setActiveCraveRequest] = useLocalStorageState("humi:active-crave-request:v1", null);
   const [activeGroceryShareRequest, setActiveGroceryShareRequest] = useLocalStorageState("humi:active-grocery-share-request:v1", null);
@@ -214,6 +215,9 @@ function App() {
   const preciseRecommendationAvailable = isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && !preciseRecommendationBlocked;
   const sharedGuestLanding = isSharedGuestLanding();
   const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
+  const currentHouseholdMemberId = family?.currentMemberId || humiSession?.user?.id || displaySession?.user?.id || "";
+  const currentHouseholdMemberName = getDisplayName(displaySession) || "家人";
+  const canManageHousehold = !isHumiApiSession(humiSession) || family?.role !== "member";
   const todayDateKey = formatDateKey(new Date());
   const weekDateKeys = useMemo(() => {
     const weekStart = getWeekStartDate();
@@ -231,6 +235,7 @@ function App() {
     [],
   );
   const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
+  const breakfastChoices = useMemo(() => buildBreakfastChoices(mealLogs), [mealLogs]);
   const libraryMenuQuantities = useMemo(() => {
     if (libraryMealSlot && libraryMealSlot !== "dinner") {
       return (todayMeals[libraryMealSlot] ?? []).map((entry) => ({
@@ -241,6 +246,7 @@ function App() {
     return todayMenu;
   }, [libraryMealSlot, todayMeals, todayMenu]);
   const humiStateSnapshot = useMemo(() => ({
+    householdId: family?.id || "",
     todayMenu,
     weekPlan,
     mealPlan,
@@ -254,7 +260,15 @@ function App() {
     nutritionGoals,
     recommendationFeedback,
     craveSignals,
+    groceryClaims,
     wishPool,
+    wantToEatItems: wishPool.map((item) => ({
+      ...item,
+      title: item.title || item.name,
+      memberId: item.memberId || currentHouseholdMemberId,
+      memberName: item.memberName || currentHouseholdMemberName,
+      status: item.status === "done" ? "done" : "open",
+    })),
     activeCraveRequest,
     activeGroceryShareRequest,
     activeWishShareRequest,
@@ -267,6 +281,7 @@ function App() {
     checkedItems,
     customItems,
     excludedGroceryKeys,
+    family?.id,
     familyProfile,
     householdMembers,
     mealPlan,
@@ -277,6 +292,9 @@ function App() {
     pendingJoinContext,
     recommendationFeedback,
     craveSignals,
+    groceryClaims,
+    currentHouseholdMemberId,
+    currentHouseholdMemberName,
     wishPool,
     todayMenu,
     weekPlan,
@@ -298,6 +316,7 @@ function App() {
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || humiStateLoadedRef.current) return;
     let active = true;
+    let completed = false;
     humiStateLoadedRef.current = true;
     humiStateHydratingRef.current = true;
     setFamily(createHumiSessionFamily(humiSession));
@@ -313,6 +332,7 @@ function App() {
         const data = await loadHumiStateEnvelope(humiSession);
         if (!active) return;
         applyHumiStateEnvelope(data, { preservePendingJoin: pendingJoinContext });
+        completed = true;
       } catch (error) {
         if (active) {
           setCloudSyncStatus(formatCloudSyncError(error));
@@ -332,6 +352,10 @@ function App() {
     loadWechatState();
     return () => {
       active = false;
+      if (!completed) {
+        humiStateLoadedRef.current = false;
+        humiStateHydratingRef.current = false;
+      }
     };
   }, [
     humiSession,
@@ -341,6 +365,7 @@ function App() {
     setCustomItems,
     setExcludedGroceryKeys,
     setFamilyProfile,
+    setGroceryClaims,
     setMealCalendar,
     setMealPlan,
     setMealLogs,
@@ -350,15 +375,15 @@ function App() {
     setWishPool,
     setTodayMenu,
     setWeekPlan,
-    todayDateKey,
-    weekDateKeys,
   ]);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !humiStateLoadedRef.current || humiStateHydratingRef.current) return;
+    const targetHouseholdId = humiStateSnapshot.householdId;
     const timer = window.setTimeout(async () => {
+      if (humiStateHydratingRef.current || !targetHouseholdId || family?.id !== targetHouseholdId) return;
       try {
-        await saveHumiState(humiSession, humiStateSnapshot);
+        await saveHumiState(humiSession, humiStateSnapshot, targetHouseholdId);
         setCloudSyncStatus("今晚菜单和一周计划已保存到微信账号。");
         setCloudGroceryStatus("清单已保存到微信账号。");
       } catch (error) {
@@ -368,7 +393,7 @@ function App() {
     }, 900);
 
     return () => window.clearTimeout(timer);
-  }, [humiSession, humiStateSnapshot]);
+  }, [family?.id, humiSession, humiStateSnapshot]);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !pendingJoinContext?.type || !pendingJoinContext?.token || !pendingJoinContext?.participantKey) return undefined;
@@ -753,28 +778,49 @@ function App() {
     () => groceryItems.filter((item) => isGroceryItemOwned(item)),
     [excludedGrocerySet, groceryItems, pantryNameSet],
   );
-  const activeCravePreferences = useMemo(() => {
-    if (!activeCraveRequest || activeCraveRequest.status !== "closed" || todayMenu.length > 0) return [];
-    return buildCravePreferencesFromVotes(activeCraveRequest.votes ?? [], activeCraveRequest.starterFeeling || "");
-  }, [activeCraveRequest, todayMenu.length]);
+  const learnedCraveVotes = useMemo(
+    () => collectLearnedCraveVotes(craveSignals, activeCraveRequest),
+    [activeCraveRequest, craveSignals],
+  );
   const todayRecommendation = useMemo(
-    () =>
-      buildTodayRecommendation({
+    () => {
+      const nextRecommendation = buildTodayRecommendation({
         pantryItems,
         weekPlan,
+        mealLogs,
         groceryItems: visibleGroceryItems,
         todayRecipes,
         familyMembers,
         familyProfile,
-        cravePreferences: activeCravePreferences,
-      }),
-    [activeCravePreferences, familyMembers, familyProfile, pantryItems, todayRecipes, visibleGroceryItems, weekPlan],
+        wantToEatItems: wishPool,
+        craveVotes: learnedCraveVotes,
+      });
+      const starterFeeling = activeCraveRequest?.status === "closed"
+        ? activeCraveRequest.starterFeeling || activeCraveRequest.feelingTag || ""
+        : "";
+      if (!starterFeeling || starterFeeling === "随便都行" || (activeCraveRequest?.votes?.length ?? 0) > 0) {
+        return nextRecommendation;
+      }
+      return {
+        ...nextRecommendation,
+        reason: `先按发起时选的“${starterFeeling}”来。 ${nextRecommendation.reason}`,
+      };
+    },
+    [activeCraveRequest, familyMembers, familyProfile, learnedCraveVotes, mealLogs, pantryItems, todayRecipes, visibleGroceryItems, weekPlan, wishPool],
   );
 
   useEffect(() => {
     const closedCraveVoteCount = activeCraveRequest?.status === "closed" && todayMenu.length === 0
       ? activeCraveRequest.votes?.length ?? 0
       : 0;
+    const latestSoloCraveFeeling = !activeCraveRequest && todayMenu.length === 0
+      ? craveSignals.find((signal) => (
+          signal?.feelingTag &&
+          signal.feelingTag !== "随便都行" &&
+          Array.isArray(signal.recipeIds) &&
+          signal.recipeIds.length > 0
+        ))?.feelingTag || ""
+      : "";
     setAiExplanation("");
     setAiExplanationStatus(
       closedCraveVoteCount > 0
@@ -784,14 +830,21 @@ function App() {
         : "先给你一组搭配理由；Humi 会慢慢记住家里的习惯。",
     );
     setAiRecommendation(null);
+    const closedStarterFeeling = activeCraveRequest?.status === "closed"
+      ? activeCraveRequest.starterFeeling || activeCraveRequest.feelingTag || ""
+      : "";
     setAiRecommendationStatus(
       closedCraveVoteCount > 0
         ? `已按 ${closedCraveVoteCount} 个家人回复揉合出一组，勾一下就能落进今晚菜单。`
+        : closedStarterFeeling && closedStarterFeeling !== "随便都行"
+          ? `已先按“${closedStarterFeeling}”揉合出一组。`
+        : latestSoloCraveFeeling
+          ? `已先按“${latestSoloCraveFeeling}”揉合出一组。`
         : signedIn
         ? "先按家里现有情况给你安排；推荐会继续参考家庭画像和口味。"
         : "先按家里现有情况给你安排；之后会继续参考家庭画像和口味。",
     );
-  }, [activeCraveRequest, signedIn, todayMenu.length, todayRecommendation.title]);
+  }, [activeCraveRequest, craveSignals, signedIn, todayMenu.length, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
 
   useEffect(() => {
@@ -848,6 +901,12 @@ function App() {
     showNotice.timer = window.setTimeout(() => setNotice(null), 1800);
   }
 
+  function requireHouseholdManager() {
+    if (canManageHousehold) return true;
+    showNotice("只有主厨能修改家庭菜单和计划");
+    return false;
+  }
+
   function applyHumiStateEnvelope(data = {}, status = {}) {
     if (data.family) setFamily(data.family);
     if (Array.isArray(data.households)) setHumiHouseholds(data.households);
@@ -874,6 +933,7 @@ function App() {
       setNutritionGoals(getDefaultNutritionGoals(defaultFamilyProfile));
       setRecommendationFeedback([]);
       setCraveSignals([]);
+      setGroceryClaims({});
       setWishPool([]);
       setActiveCraveRequest(null);
       setActiveGroceryShareRequest(null);
@@ -910,8 +970,9 @@ function App() {
     setNutritionGoals(state.nutritionGoals ?? getDefaultNutritionGoals(state.familyProfile ?? defaultFamilyProfile));
     setRecommendationFeedback(Array.isArray(state.recommendationFeedback) ? state.recommendationFeedback : []);
     setCraveSignals(Array.isArray(state.craveSignals) ? state.craveSignals : []);
-    setWishPool(Array.isArray(state.wishPool) ? state.wishPool : []);
-    setActiveCraveRequest(state.activeCraveRequest ?? null);
+    setGroceryClaims(state.groceryClaims && typeof state.groceryClaims === "object" ? state.groceryClaims : {});
+    setWishPool(normalizeWishPoolState(state));
+    setActiveCraveRequest(restoreActiveCraveRequest(state));
     setActiveGroceryShareRequest(state.activeGroceryShareRequest ?? null);
     setActiveWishShareRequest(state.activeWishShareRequest ?? null);
     setPendingJoinContext(status.preservePendingJoin ?? state.pendingJoinContext ?? null);
@@ -976,6 +1037,7 @@ function App() {
   }
 
   function assignMealRecipe(dateKey, slotId, recipeId, quantity = 1) {
+    if (!requireHouseholdManager()) return;
     const recipe = getRecipe(recipeId);
     const slotLabel = slotLabelsById[slotId] ?? "餐次";
     updateMealPlanSlot(dateKey, slotId, (entries) => upsertMealEntry(entries, recipeId, quantity));
@@ -989,6 +1051,7 @@ function App() {
   }
 
   function removeMealRecipe(dateKey, slotId, recipeId) {
+    if (!requireHouseholdManager()) return;
     updateMealPlanSlot(dateKey, slotId, (entries) => removeMealEntry(entries, recipeId));
     if (dateKey === todayDateKey && slotId === "dinner") {
       const nextMenu = todayMenu.filter((item) => item.recipeId !== recipeId);
@@ -998,6 +1061,7 @@ function App() {
   }
 
   function addToday(recipeId, quantity = 1) {
+    if (!requireHouseholdManager()) return;
     const recipe = getRecipe(recipeId);
     const currentDay = getCurrentPlanDay();
     const todayKey = formatDateKey(new Date());
@@ -1043,6 +1107,7 @@ function App() {
   }
 
   function addRecommendedToday() {
+    if (!requireHouseholdManager()) return;
     acceptRecommendationItems();
   }
 
@@ -1109,6 +1174,8 @@ function App() {
         initiatorName: getDisplayName(displaySession) ?? "主厨",
         mealType: "dinner",
         starterFeeling: safeFeeling,
+        initialFeelingTag: safeFeeling,
+        recipientIds: audience.map((person) => person.id).filter(Boolean),
         targetParticipantNames: audience.map((person) => person.name).filter(Boolean),
       }, isHumiApiSession(humiSession) ? humiSession : null);
       const nextRequest = {
@@ -1134,17 +1201,19 @@ function App() {
     const votes = request?.votes ?? [];
     const primaryVote = votes.find((vote) => vote.feelingTag && vote.feelingTag !== "随便都行");
     const safeFeeling = primaryVote?.feelingTag || request?.starterFeeling || fallbackFeeling || "随便都行";
-    const cravePreferences = buildCravePreferencesFromVotes(votes, safeFeeling);
+    const currentCraveVotes = collectLearnedCraveVotes(craveSignals, request, safeFeeling);
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
     const alternateRuleRecommendation = buildTodayRecommendation({
       pantryItems,
       weekPlan,
+      mealLogs,
       groceryItems: visibleGroceryItems,
       todayRecipes,
       familyMembers,
       familyProfile,
+      wantToEatItems: wishPool,
+      craveVotes: currentCraveVotes,
       excludedRecipeIds: safeFeeling === "随便都行" ? [] : currentRecipeIds,
-      cravePreferences,
     });
     const voteReason = votes.length > 0
       ? `照顾到：${votes.map(formatCraveVoteSummary).join(" · ")}。`
@@ -1154,7 +1223,7 @@ function App() {
     const nextRecommendation = {
       ...alternateRuleRecommendation,
       source: "rule",
-      reason: `${alternateRuleRecommendation.reason} ${voteReason}`,
+      reason: `${voteReason} ${alternateRuleRecommendation.reason}`,
     };
     upsertCraveSignal({
       request,
@@ -1232,17 +1301,6 @@ function App() {
     return true;
   }
 
-  function buildCravePreferencesFromVotes(votes = [], fallbackFeeling = "") {
-    const values = [];
-    if (fallbackFeeling) values.push(fallbackFeeling);
-    votes.forEach((vote) => {
-      if (vote.feelingTag) values.push(vote.feelingTag);
-      if (vote.dishWish) values.push(vote.dishWish);
-      if (vote.note) values.push(vote.note);
-    });
-    return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
-  }
-
   function formatCraveVoteSummary(vote) {
     const name = vote.memberName || "家人";
     const feeling = vote.feelingTag || "随便都行";
@@ -1288,8 +1346,13 @@ function App() {
     try {
       const latest = await loadCraveRequest(request.token);
       const mergedRequest = { ...request, ...latest.request };
-      if (request.ownerSecret && mergedRequest.status === "open") {
-        await closeCraveRequest(request.token, request.ownerSecret);
+      if ((request.ownerSecret || isHumiApiSession(humiSession)) && mergedRequest.status === "open") {
+        await closeCraveRequest(
+          request.token,
+          request.ownerSecret,
+          {},
+          isHumiApiSession(humiSession) ? humiSession : null,
+        );
       }
       setActiveCraveRequest({ ...mergedRequest, status: "closed" });
       collectGuestDishWishes(mergedRequest.votes);
@@ -1297,6 +1360,7 @@ function App() {
       setCraveRequestStatus("已按这次征集出菜单。");
     } catch (error) {
       setCraveRequestStatus(error.message || "出菜单失败，先按当前回复本地揉合。");
+      setActiveCraveRequest({ ...request, status: "closed" });
       applyCraveRecommendation({ request });
     } finally {
       setCraveRequestPending(false);
@@ -1309,11 +1373,11 @@ function App() {
     setCraveRequestPending(false);
   }
 
-  function pickForMeal(slotId) {
+  function pickForMeal(slotId, initialCategory = "全部") {
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
     setLibraryMealSlot(slotId);
     setLibraryParentLabel("今晚菜单");
-    setCategory("全部");
+    setCategory(initialCategory);
     setQuery("");
     navigateTo("library");
     showNotice(`选择${slotLabel}吃什么`);
@@ -1326,6 +1390,38 @@ function App() {
     setCategory(nextCategory);
     setQuery("");
     navigateTo("library");
+  }
+
+  function chooseBreakfast(recipeId) {
+    const entries = [{ recipeId, quantity: 1 }];
+    const now = new Date().toISOString();
+    updateMealPlanSlot(todayDateKey, "breakfast", () => entries);
+    updateTodayMealLog({
+      mealSources: {
+        ...(todayMealLog.mealSources ?? {}),
+        breakfast: "home",
+      },
+      meals: {
+        ...(todayMealLog.meals ?? {}),
+        breakfast: {
+          ...(todayMealLog.meals?.breakfast ?? {}),
+          source: "home",
+          selectionMode: "explicit",
+          consumedEntries: entries,
+          quickRecordedAt: now,
+          updatedAt: now,
+        },
+      },
+      pantryConsumedRecipeIds: consumePantryForMealEntries(entries),
+    });
+    trackValidationEvent(validationEvents.mealSourceSelected, {
+      mealSlot: "breakfast",
+      source: "home",
+      recipeIds: [recipeId],
+      dateKey: todayDateKey,
+      interaction: "quick_pick",
+    });
+    showNotice(`${getRecipe(recipeId)?.name ?? "早餐"} 已记为今天早餐`);
   }
 
   function addRecipeFromLibrary(recipeId) {
@@ -1350,19 +1446,24 @@ function App() {
     const recipe = getRecipe(recipeId);
     if (!recipe) return;
     setWishPool((current) => {
-      if (current.some((item) => item.recipeId === recipeId)) return current;
+      const memberId = currentHouseholdMemberId;
+      if (current.some((item) => item.recipeId === recipeId && (!memberId || item.memberId === memberId))) return current;
       return [
         {
           id: `wish:${Date.now()}:${recipeId}`,
           recipeId,
           name: recipe.name,
+          title: recipe.name,
+          memberId,
+          memberName: currentHouseholdMemberName,
+          status: "open",
           createdAt: new Date().toISOString(),
           source: libraryMealSlot ? slotLabelsById[libraryMealSlot] || "这一餐" : "全部菜品",
         },
         ...current,
       ].slice(0, 30);
     });
-    showNotice(`${recipe.name} 已放进想吃池`);
+    showNotice(`${recipe.name} 已放进想吃池子`);
   }
 
   function collectGuestDishWishes(votes = []) {
@@ -1511,10 +1612,28 @@ function App() {
   }
 
   function removeWishPoolItem(idOrRecipeId) {
-    setWishPool((current) => current.filter((item) => item.id !== idOrRecipeId && item.recipeId !== idOrRecipeId));
+    setWishPool((current) => current.filter((item) => {
+      const matches = item.id === idOrRecipeId || item.recipeId === idOrRecipeId;
+      if (!matches) return true;
+      return !canManageHousehold && item.memberId !== currentHouseholdMemberId;
+    }));
   }
 
-  function planWishPoolItem(recipeId) {
+  function planWishPoolItem(itemOrRecipeId) {
+    const wishItem = typeof itemOrRecipeId === "object"
+      ? itemOrRecipeId
+      : wishPool.find((item) => item.id === itemOrRecipeId || item.recipeId === itemOrRecipeId);
+    const recipeId = wishItem?.recipeId || (typeof itemOrRecipeId === "string" ? itemOrRecipeId : "");
+    if (!canManageHousehold) {
+      if (!wishItem || wishItem.memberId !== currentHouseholdMemberId) return;
+      setWishPool((current) => current.map((item) => (
+        item.id === wishItem.id
+          ? { ...item, status: "done", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+          : item
+      )));
+      showNotice(`${wishItem.name || wishItem.title || "这道菜"} 已标记为安排`);
+      return;
+    }
     if (!recipeId) {
       setCategory("全部");
       setQuery("");
@@ -1563,6 +1682,7 @@ function App() {
   }
 
   function setDinnerSource(source) {
+    if (!requireHouseholdManager()) return;
     const recordedBy = getDisplayName(displaySession) || "我";
     if (source === "home") {
       const consumedEntries = todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }));
@@ -1603,6 +1723,7 @@ function App() {
   }
 
   function setMealSource(slotId, source) {
+    if (!requireHouseholdManager()) return;
     const slotLabel = slotLabelsById[slotId] ?? "这一餐";
     markMealSource(slotId, source);
     const labels = {
@@ -1615,6 +1736,7 @@ function App() {
   }
 
   function markMealSource(slotId, source) {
+    if (!requireHouseholdManager()) return;
     const recordedBy = getDisplayName(displaySession) || "我";
     updateTodayMealLog({
       mealSources: {
@@ -1639,6 +1761,7 @@ function App() {
   }
 
   function setDinnerConfirmation(confirmation) {
+    if (!requireHouseholdManager()) return;
     const confirmedBy = getDisplayName(displaySession) || "我";
     const consumedEntries = confirmation === "all"
       ? todayMenu.map((item) => ({ recipeId: item.recipeId, quantity: item.quantity }))
@@ -1668,6 +1791,7 @@ function App() {
   }
 
   function toggleConsumedRecipe(recipeId) {
+    if (!requireHouseholdManager()) return;
     const currentEntries = todayMealLog.consumedEntries ?? todayMenu.map((item) => ({
       recipeId: item.recipeId,
       quantity: item.quantity,
@@ -1731,6 +1855,7 @@ function App() {
   }
 
   function planRecommendedWeek() {
+    if (!requireHouseholdManager()) return;
     const currentDay = getCurrentPlanDay();
     const orderedDays = orderPlanDaysFrom(currentDay);
     const existingIds = new Set(Object.values(weekPlan).flat());
@@ -1743,10 +1868,13 @@ function App() {
         const recommendation = buildTodayRecommendation({
           pantryItems,
           weekPlan: nextWeekPlan,
+          mealLogs,
           groceryItems: visibleGroceryItems,
           todayRecipes: [],
           familyMembers,
           familyProfile,
+          wantToEatItems: wishPool,
+          craveVotes: learnedCraveVotes,
           excludedRecipeIds: [...existingIds],
         });
         const recipeId = recommendation.recipes.find((recipe) => !existingIds.has(recipe.id))?.id;
@@ -1806,16 +1934,17 @@ function App() {
   async function requestAiRecommendation(feedbackReason = null) {
     setRecommendationFeedbackOpen(false);
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
-    const cravePreferencesForRefresh = activeCravePreferences;
     const alternateRuleRecommendation = buildTodayRecommendation({
       pantryItems,
       weekPlan,
+      mealLogs,
       groceryItems: visibleGroceryItems,
       todayRecipes,
       familyMembers,
       familyProfile,
+      wantToEatItems: wishPool,
+      craveVotes: learnedCraveVotes,
       excludedRecipeIds: currentRecipeIds,
-      cravePreferences: cravePreferencesForRefresh,
     });
     trackProductEvent(appEvents.recommendationRequest, {
       hasFeedback: Boolean(feedbackReason),
@@ -1919,6 +2048,7 @@ function App() {
   }
 
   function updateTodayQuantity(recipeId, delta) {
+    if (!requireHouseholdManager()) return;
     const nextMenu = todayMenu
       .map((item) =>
         item.recipeId === recipeId
@@ -1984,6 +2114,7 @@ function App() {
   }
 
   function assignPlan(day, recipeId) {
+    if (!requireHouseholdManager()) return;
     if ((weekPlan[day] ?? []).includes(recipeId)) {
       showNotice(`已在${day}计划中`);
       return;
@@ -2004,6 +2135,7 @@ function App() {
   }
 
   function removePlanRecipe(day, recipeId) {
+    if (!requireHouseholdManager()) return;
     const dateKey = weekDateKeys[day] ?? todayDateKey;
     if (day === getCurrentPlanDay()) {
       removeMealRecipe(dateKey, "dinner", recipeId);
@@ -2018,6 +2150,7 @@ function App() {
   }
 
   function assignDatePlan(dateKey, recipeId) {
+    if (!requireHouseholdManager()) return;
     const recipe = getRecipe(recipeId);
     if ((mealCalendar[dateKey] ?? []).includes(recipeId)) {
       showNotice(`${recipe?.name ?? "菜品"} 已在该日计划中`);
@@ -2032,6 +2165,7 @@ function App() {
   }
 
   function removeDatePlan(dateKey, recipeId) {
+    if (!requireHouseholdManager()) return;
     if (dateKey === formatDateKey(new Date())) {
       removeMealRecipe(dateKey, "dinner", recipeId);
       showNotice("已从今晚安排移除");
@@ -3574,6 +3708,8 @@ function App() {
                 pantryItemCount={pantryItems.length}
                 onAddPantryHints={addPantryHints}
                 onPickForMeal={pickForMeal}
+                breakfastChoices={breakfastChoices}
+                onChooseBreakfast={chooseBreakfast}
                 onOpenRecipeLibrary={openRecipeLibrary}
                 householdMembers={householdMembers}
                 session={displaySession}
@@ -3588,6 +3724,7 @@ function App() {
                 onSetMealSource={setMealSource}
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
+                canManageHousehold={canManageHousehold}
               />
             )}
             {activeView === "library" && (
@@ -3608,6 +3745,7 @@ function App() {
                 onClearTargetMeal={() => setLibraryMealSlot(null)}
                 onOpenRecipe={openRecipe}
                 onDragStart={setDraggedRecipeId}
+                canManageHousehold={canManageHousehold}
               />
             )}
             {activeView === "recommendations" && (
@@ -3624,6 +3762,7 @@ function App() {
                 onOpenRecipe={openRecipe}
                 onOpenRecipeLibrary={openRecipeLibrary}
                 onViewChange={navigateTo}
+                canManageHousehold={canManageHousehold}
               />
             )}
             {activeView === "planner" && (
@@ -3638,7 +3777,9 @@ function App() {
                 onRemoveMeal={removeMealRecipe}
                 onShare={shareWeekPlan}
                 onViewChange={navigateTo}
+                groceryItemCount={visibleGroceryItems.length}
                 onGenerateWeek={planRecommendedWeek}
+                canManageHousehold={canManageHousehold}
                 cloudSync={{
                   family,
                   signedIn,
@@ -3667,6 +3808,7 @@ function App() {
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
                 onOpenRecipeLibrary={openRecipeLibrary}
+                canManageHousehold={canManageHousehold}
                 cloudSync={{
                   family,
                   signedIn,
@@ -3686,6 +3828,7 @@ function App() {
                 onAssign={assignDatePlan}
                 onRemove={removeDatePlan}
                 onOpenRecipe={openRecipe}
+                canManageHousehold={canManageHousehold}
               />
             )}
             {activeView === "grocery" && (
@@ -3762,6 +3905,7 @@ function App() {
                 activeCraveRequest={activeCraveRequest}
                 craveRequestPending={craveRequestPending}
                 activeGroceryShareRequest={activeGroceryShareRequest}
+                groceryClaims={groceryClaims}
                 activeWishShareRequest={activeWishShareRequest}
                 pendingJoinContext={pendingJoinContext}
                 onClearPendingJoinContext={() => setPendingJoinContext(null)}
@@ -3786,6 +3930,8 @@ function App() {
                 onStartWishShare={startWishShareRequest}
                 onShareWishRequest={() => shareWishRequest()}
                 onRefreshWishShare={refreshWishShareRequest}
+                canManageHousehold={canManageHousehold}
+                currentMemberId={currentHouseholdMemberId}
               />
             )}
           </div>
@@ -3838,7 +3984,8 @@ function getInitialCraveToken() {
 
 function getInitialGroceryShareToken() {
   if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("groceryShare") || "";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("groceryShare") || params.get("grocery") || "";
 }
 
 function getInitialMenuShareToken() {
@@ -4016,6 +4163,45 @@ function formatCloudSyncError(error) {
   return message;
 }
 
+function buildBreakfastChoices(logs = {}) {
+  const recentRecipeIds = Object.entries(logs)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .flatMap(([, log]) => log?.meals?.breakfast?.consumedEntries ?? [])
+    .map((entry) => entry?.recipeId)
+    .filter(Boolean);
+  const quickBreakfastRecipeIds = recipes
+    .filter((recipe) => recipe.categories.includes("早餐"))
+    .sort((left, right) => left.timeMinutes - right.timeMinutes)
+    .map((recipe) => recipe.id);
+  return [...new Set([...recentRecipeIds, ...quickBreakfastRecipeIds])]
+    .map((recipeId) => getRecipe(recipeId))
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function collectLearnedCraveVotes(signals = [], activeRequest = null, fallbackFeeling = "") {
+  const activeVotes = Array.isArray(activeRequest?.votes) ? activeRequest.votes : [];
+  const signalVotes = (Array.isArray(signals) ? signals : []).flatMap((signal) => {
+    if (Array.isArray(signal?.votes) && signal.votes.length > 0) return signal.votes;
+    return signal?.feelingTag ? [{ feelingTag: signal.feelingTag }] : [];
+  });
+  const starterFeeling = activeRequest?.starterFeeling || activeRequest?.feelingTag || fallbackFeeling;
+  const combined = [
+    ...activeVotes,
+    ...(starterFeeling ? [{ feelingTag: starterFeeling }] : []),
+    ...signalVotes,
+  ];
+  const seen = new Set();
+  return combined.filter((vote) => {
+    const feelingTag = String(vote?.feelingTag || "").trim();
+    if (!feelingTag || feelingTag === "随便都行") return false;
+    const key = `${feelingTag}:${String(vote?.dishWish || "").trim()}:${String(vote?.note || "").trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+}
+
 function validationEventsToCsv(events = []) {
   const headers = ["createdAt", "eventName", "sessionId", "payload"];
   const rows = events.map((event) => [
@@ -4127,6 +4313,33 @@ function formatAiError(error) {
     return "暂时只能保存在本机。";
   }
   return message;
+}
+
+function normalizeWishPoolState(state = {}) {
+  const items = Array.isArray(state.wantToEatItems)
+    ? state.wantToEatItems
+    : Array.isArray(state.wishPool)
+      ? state.wishPool
+      : [];
+  return items.map((item) => ({
+    ...item,
+    name: item.name || item.title || "一道菜",
+    title: item.title || item.name || "一道菜",
+    status: item.status === "done" ? "done" : "open",
+  }));
+}
+
+function restoreActiveCraveRequest(state = {}) {
+  if (state.activeCraveRequest?.token) return state.activeCraveRequest;
+  const signal = (Array.isArray(state.craveSignals) ? state.craveSignals : [])
+    .find((item) => item?.status !== "closed" && (item?.token || item?.requestToken));
+  if (!signal) return null;
+  return {
+    ...signal,
+    token: signal.token || signal.requestToken,
+    starterFeeling: signal.starterFeeling || signal.feelingTag || "随便都行",
+    status: signal.status || "open",
+  };
 }
 
 function createHumiSessionFamily(humiSession) {

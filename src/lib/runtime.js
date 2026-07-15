@@ -70,10 +70,18 @@ export function requestMiniProgramShare(payload = {}, options = {}) {
 function postMiniProgramSharePayload(miniProgram, payload = {}) {
   if (!miniProgram?.postMessage) return;
   try {
+    const messageType = {
+      crave: "humi:share-crave",
+      grocery: "humi:share-grocery",
+      invite: "humi:share-household-invite",
+      menu: "humi:share-menu",
+      today_menu: "humi:share-menu",
+      wish: "humi:share-wish",
+    }[payload.type] || "humi:share";
     miniProgram.postMessage({
       data: {
-        type: "humi:share",
-        payload,
+        ...payload,
+        type: messageType,
       },
     });
   } catch {

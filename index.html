@@ -16,9 +16,116 @@
     <link rel="apple-touch-icon" href="icons/humi-apple-touch-icon.png" />
     <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     <title>Humi</title>
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #f7f7f5;
+        color: #111111;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .humi-boot-fallback {
+        box-sizing: border-box;
+        display: grid;
+        min-height: 100vh;
+        min-height: 100dvh;
+        place-items: center;
+        padding: 32px 24px;
+      }
+
+      .humi-boot-fallback__content {
+        width: min(100%, 352px);
+      }
+
+      .humi-boot-fallback__brand {
+        margin: 0 0 72px;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .humi-boot-fallback__title {
+        margin: 0;
+        font-size: 38px;
+        font-weight: 900;
+        letter-spacing: 0;
+        line-height: 1.15;
+      }
+
+      .humi-boot-fallback__body {
+        margin: 18px 0 0;
+        color: #777777;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.8;
+      }
+
+      .humi-boot-fallback__spinner {
+        width: 22px;
+        height: 22px;
+        margin-top: 28px;
+        border: 3px solid #d8d8d4;
+        border-top-color: #111111;
+        border-radius: 50%;
+        animation: humi-boot-spin 0.8s linear infinite;
+      }
+
+      .humi-boot-fallback__retry {
+        box-sizing: border-box;
+        display: block;
+        visibility: hidden;
+        width: 100%;
+        min-height: 54px;
+        margin-top: 28px;
+        padding: 16px 20px;
+        border-radius: 27px;
+        background: #111111;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+        text-align: center;
+        text-decoration: none;
+        animation: humi-boot-reveal 0s 6s forwards;
+      }
+
+      @keyframes humi-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes humi-boot-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .humi-boot-fallback__spinner {
+          animation-duration: 1.6s;
+        }
+      }
+    </style>
+    <script src="/vendor/jweixin-1.6.0.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="humi-boot-fallback" class="humi-boot-fallback" aria-live="polite">
+        <section class="humi-boot-fallback__content">
+          <p class="humi-boot-fallback__brand">Humi</p>
+          <h1 class="humi-boot-fallback__title">正在打开今晚菜单。</h1>
+          <p class="humi-boot-fallback__body">正在同步家里的菜单和协作记录。</p>
+          <div class="humi-boot-fallback__spinner" aria-hidden="true"></div>
+          <a class="humi-boot-fallback__retry" href="">重新加载</a>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

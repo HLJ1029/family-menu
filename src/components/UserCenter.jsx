@@ -36,6 +36,7 @@ export function UserCenter({
   activeCraveRequest,
   craveRequestPending = false,
   activeGroceryShareRequest,
+  groceryClaims: persistedGroceryClaims = {},
   activeWishShareRequest,
   pendingJoinContext,
   onClearPendingJoinContext,
@@ -60,6 +61,8 @@ export function UserCenter({
   onStartWishShare,
   onShareWishRequest,
   onRefreshWishShare,
+  canManageHousehold = true,
+  currentMemberId = "",
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
@@ -108,7 +111,7 @@ export function UserCenter({
     aiRecommendationStatus,
   });
   const activeCraveVotes = activeCraveRequest?.votes ?? [];
-  const groceryClaims = activeGroceryShareRequest?.claims ?? [];
+  const groceryClaims = mergeGroceryClaims(activeGroceryShareRequest?.claims, persistedGroceryClaims);
   const groceryItems = activeGroceryShareRequest?.items ?? [];
   const wishShareWishes = activeWishShareRequest?.wishes ?? [];
   const householdParticipants = buildHouseholdParticipants({
@@ -151,10 +154,12 @@ export function UserCenter({
   });
   const familyActivity = [
     ...buildActiveCraveActivities(activeCraveRequest),
-    ...(activeGroceryShareRequest?.claims ?? []).slice(0, 3).map((item) => ({
+    ...groceryClaims.slice(0, 3).map((item) => ({
       id: item.id,
       title: item.status === "claimed"
-        ? `${item.memberName || "家人"}来买 ${Array.isArray(item.itemIds) && item.itemIds.length > 0 ? `${item.itemIds.length} 项` : "菜"}`
+        ? item.itemName
+          ? `${item.memberName || "家人"}在买 ${item.itemName}`
+          : `${item.memberName || "家人"}来买 ${Array.isArray(item.itemIds) && item.itemIds.length > 0 ? `${item.itemIds.length} 项` : "菜"}`
         : `${item.memberName || "家人"}暂时买不了`,
       meta: formatGroceryClaimMeta(activeGroceryShareRequest, item),
     })),
@@ -229,19 +234,19 @@ export function UserCenter({
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <button
+              {canManageHousehold && <button
                 type="button"
                 onClick={openCraveComposer}
                 className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/18 bg-canvas px-5 text-sm font-black text-ink"
               >
                 问问大家
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => onViewChange("dashboard")}
                 className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink"
               >
-                继续安排今晚
+                {canManageHousehold ? "继续安排今晚" : "查看今晚安排"}
               </button>
             </div>
           </div>
@@ -270,8 +275,9 @@ export function UserCenter({
             <HomeActionTile
               label="感觉征集"
               value={activeCraveRequest?.token ? `${activeCraveVotes.length} 个回复` : "还没发起"}
-              actionLabel={activeCraveRequest?.token ? "刷新" : "发起"}
-              onClick={activeCraveRequest?.token ? onRefreshCraveRequest : openCraveComposer}
+              actionLabel={activeCraveRequest?.token ? "刷新" : canManageHousehold ? "发起" : "等主厨"}
+              onClick={activeCraveRequest?.token ? onRefreshCraveRequest : canManageHousehold ? openCraveComposer : undefined}
+              disabled={!activeCraveRequest?.token && !canManageHousehold}
             />
             <HomeActionTile
               label="买菜认领"
@@ -282,8 +288,8 @@ export function UserCenter({
             <HomeActionTile
               label="想吃池"
               value={activeWishShareRequest?.token ? `${wishShareWishes.length} 个想吃` : `${wishPool.length} 道`}
-              actionLabel={activeWishShareRequest?.token ? "刷新" : "收集"}
-              onClick={activeWishShareRequest?.token ? onRefreshWishShare : onStartWishShare}
+              actionLabel={activeWishShareRequest?.token ? "刷新" : canManageHousehold ? "收集" : "去添加"}
+              onClick={activeWishShareRequest?.token ? onRefreshWishShare : canManageHousehold ? onStartWishShare : onOpenRecipeLibrary}
             />
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -315,7 +321,7 @@ export function UserCenter({
             </button>
           </div>
         </section>
-        {craveComposerOpen && (
+        {canManageHousehold && craveComposerOpen && (
           <FamilyCraveComposer
             activeRequest={activeCraveRequest}
             votes={activeCraveVotes}
@@ -363,13 +369,13 @@ export function UserCenter({
                 家人点过的感觉、买菜参与、想吃池和三餐记录会一起长成家庭画像。
               </p>
             </div>
-            <button
+            {canManageHousehold && <button
               type="button"
               onClick={() => onViewChange("dashboard")}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
             >
               继续安排今晚
-            </button>
+            </button>}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {familyPulseRows.map((row) => (
@@ -379,7 +385,7 @@ export function UserCenter({
         </section>
         )}
         {familyActivity.length > 0 && (
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">家庭动态</p>
@@ -388,13 +394,13 @@ export function UserCenter({
                 感觉征集、三餐记录和清单协作会沉淀在这里。设置放后面，需要改时再进。
               </p>
             </div>
-            <button
+            {canManageHousehold && <button
               type="button"
               onClick={openCraveComposer}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
             >
               问问大家
-            </button>
+            </button>}
             {activeGroceryShareRequest?.token && (
               <button
                 type="button"
@@ -421,7 +427,7 @@ export function UserCenter({
         </section>
         )}
         {(wishPool.length > 0 || activeWishShareRequest?.token) && (
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">想吃池</p>
@@ -430,29 +436,29 @@ export function UserCenter({
                 从全部菜品点“想吃”会沉淀到这里。安排晚饭时可以一键拿出来做。
               </p>
             </div>
-            <button
+            {canManageHousehold && <button
               type="button"
               onClick={activeWishShareRequest?.token ? onShareWishRequest : onStartWishShare}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
             >
               {activeWishShareRequest?.token ? "分享想吃入口" : "让家人写想吃"}
-            </button>
+            </button>}
           </div>
           <div className="mt-4 grid gap-3">
             {wishPool.length > 0 ? (
               wishPool.slice(0, 6).map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
+                <div key={item.id} data-testid="want-to-eat-row" className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-ink">{item.name}</p>
                     <p className="mt-1 text-xs font-bold text-ink/42">{item.source || "全部菜品"}</p>
                   </div>
-                  <div className="flex shrink-0 gap-2">
+                  {(canManageHousehold || item.memberId === currentMemberId) && <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
-                      onClick={() => onPlanWish?.(item.recipeId)}
+                      onClick={() => onPlanWish?.(item)}
                       className="rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
                     >
-                      {item.recipeId ? "今晚做" : "去挑菜"}
+                      {canManageHousehold ? item.recipeId ? "今晚做" : "去挑菜" : "标记安排"}
                     </button>
                     <button
                       type="button"
@@ -461,7 +467,7 @@ export function UserCenter({
                     >
                       移除
                     </button>
-                  </div>
+                  </div>}
                 </div>
               ))
             ) : (
@@ -508,12 +514,14 @@ export function UserCenter({
           )}
         </section>
 
-        <CloudAccount
-          {...authProps}
-          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-          family={family}
-          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-        />
+        <div data-testid="cloud-account-section">
+          <CloudAccount
+            {...authProps}
+            session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+            family={family}
+            hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+          />
+        </div>
 
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -528,14 +536,20 @@ export function UserCenter({
               {formatHardProfileSummary(familyProfile)}
             </span>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <UtilityButton icon={UserRound} label="家庭信息与忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+          {canManageHousehold ? <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UtilityButton icon={UserRound} label="家庭信息与忌口" ariaLabel="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
             <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
             <UtilityButton icon={Users} label="家人忌口" onClick={() => setActiveSettings(activeSettings === "preferences" ? null : "preferences")} />
-          </div>
+          </div> : (
+            <div data-testid="family-constraints-readonly" className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">家庭饮食约束</p>
+              <p className="mt-2 text-sm font-black leading-6 text-ink/68">{formatHardProfileSummary(familyProfile)}</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-ink/45">由主厨统一维护，家人查看即可。</p>
+            </div>
+          )}
         </section>
 
-        {activeSettings === "profile" && (
+        {canManageHousehold && activeSettings === "profile" && (
           <FamilyProfilePanel
             session={session}
             signedIn={signedIn}
@@ -543,7 +557,7 @@ export function UserCenter({
             setProfile={setFamilyProfile}
           />
         )}
-        {activeSettings === "goals" && (
+        {canManageHousehold && activeSettings === "goals" && (
           <NutritionGoalsPanel
             profile={familyProfile}
             goals={nutritionGoals}
@@ -551,7 +565,7 @@ export function UserCenter({
           />
         )}
         <CloudSyncPanel {...cloudMenuProps} />
-        {activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
+        {canManageHousehold && activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
       </div>
 
       <aside className="hidden content-start gap-5 xl:grid">
@@ -676,7 +690,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
   }
 
   return (
-    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section data-testid="diet-constraints-panel" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="eyebrow">家庭信息</p>
@@ -968,6 +982,14 @@ function buildHomeHeroState({
     { label: "想吃池", value: `${Math.max(wishPool.length, wishShareWishes.length)} 道` },
   ];
 
+  if (family?.role === "member") {
+    return {
+      title: `${family.name || "我家"}里的家人`,
+      subtitle: "可以查看主厨的安排、补充自己的想吃和参与买菜；家庭菜单与忌口由主厨统一维护。",
+      stats,
+    };
+  }
+
   if (pendingJoinContext?.type) {
     const name = pendingJoinContext.memberName || "家人";
     return {
@@ -1200,12 +1222,13 @@ function mergeParticipantMeta(current = "", next = "") {
   return `${current} ${next}`;
 }
 
-function HomeActionTile({ label, value, actionLabel, onClick }) {
+function HomeActionTile({ label, value, actionLabel, onClick, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-16 items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas p-3 text-left transition hover:border-ink/20"
+      disabled={disabled}
+      className="flex min-h-16 items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas p-3 text-left transition hover:border-ink/20 disabled:cursor-default disabled:opacity-60"
     >
       <span className="min-w-0">
         <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">{label}</span>
@@ -1284,6 +1307,7 @@ function PortraitReceiptPreview({ digest, tierDigest, onViewChange }) {
         </button>
         <button
           type="button"
+          aria-label="营养分析"
           onClick={() => onViewChange("stats")}
           className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink/58"
         >
@@ -1370,7 +1394,7 @@ function HouseholdActions({
   const isOwner = family.role !== "member";
 
   return (
-    <div className="mt-5 border-t border-line pt-5">
+    <div data-testid="household-switcher" className="mt-5 border-t border-line pt-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">当前家庭空间</p>
@@ -1468,10 +1492,11 @@ function ParticipantRow({ participant }) {
   );
 }
 
-function UtilityButton({ icon: Icon, label, onClick }) {
+function UtilityButton({ icon: Icon, label, ariaLabel, onClick }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       onClick={onClick}
       className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:border-ink hover:bg-ink hover:text-white"
     >
@@ -1835,6 +1860,24 @@ function WishShareSummary({ request, onRefresh, onShare }) {
   );
 }
 
+function mergeGroceryClaims(activeClaims = [], persistedClaims = {}) {
+  const merged = [
+    ...(Array.isArray(activeClaims) ? activeClaims : []),
+    ...(Array.isArray(persistedClaims) ? persistedClaims : Object.values(persistedClaims ?? {})),
+  ];
+  const seen = new Set();
+  return merged.filter((claim) => {
+    if (!claim) return false;
+    const key = claim.id || `${claim.itemKey || "item"}:${claim.memberId || claim.memberName || "member"}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map((claim) => ({
+    ...claim,
+    id: claim.id || `grocery-claim:${claim.itemKey || "item"}:${claim.memberId || claim.memberName || "member"}`,
+  }));
+}
+
 function formatGroceryClaimMeta(request, claim) {
   if (claim.status === "declined") return claim.note ? `暂时买不了 · ${claim.note}` : "暂时买不了";
   const itemIds = Array.isArray(claim.itemIds) ? claim.itemIds : [];
@@ -1934,7 +1977,7 @@ function buildMealLogActivities(mealLogs = {}) {
       if (log?.source || log?.confirmation || consumedNames.length > 0) {
         mealParts.push(`晚饭${confirmationText}`);
       }
-      const actor = log?.confirmedBy || log?.recordedBy || log?.mealRecordedBy?.lunch || log?.mealRecordedBy?.breakfast || "";
+      const actor = log?.confirmedBy || log?.recordedBy || log?.actorName || log?.mealRecordedBy?.lunch || log?.mealRecordedBy?.breakfast || "";
       return {
         id: `meal-log:${dateKey}`,
         title: actor ? `${actor}记下了今天吃饭` : "今天吃得怎么样",
