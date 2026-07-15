@@ -1,9 +1,10 @@
-import { ArrowLeft, CalendarDays, ChefHat, Search, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
 import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
-import { getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
+import { auxiliaryNavItems, getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
+import { humiAvatarScenes } from "./ui/brandScenes";
+import { HumiScene } from "./ui/HumiScene";
 import { stableHash } from "./ui/characterIllustrations";
-import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
 export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
@@ -25,10 +26,7 @@ export function IcpFooter({ compact = false }) {
 
 export function Sidebar({ activeView, onChange }) {
   const primaryActiveView = getPrimaryNavId(activeView);
-  const quickLinks = [
-    { id: "library", label: "全部菜品库", icon: Sparkles },
-    { id: "planner", label: "想连排几天", icon: CalendarDays },
-  ];
+  const quickLinks = auxiliaryNavItems.filter((item) => item.id !== "recommendations");
 
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-48px)] w-72 shrink-0 flex-col rounded-[28px] border border-line/80 bg-white/78 p-5 shadow-card backdrop-blur-xl lg:flex">
@@ -61,7 +59,7 @@ export function Sidebar({ activeView, onChange }) {
         })}
       </nav>
       <div className="mt-6 border-t border-line pt-4">
-        <p className="mb-2 px-4 text-xs font-black uppercase tracking-[0.18em] text-ink/35">可选</p>
+        <p className="mb-2 px-4 text-xs font-black uppercase tracking-[0.18em] text-ink/35">细看</p>
         <div className="space-y-1">
           {quickLinks.map((item) => {
             const Icon = item.icon;
@@ -85,14 +83,9 @@ export function Sidebar({ activeView, onChange }) {
       <button
         type="button"
         onClick={() => onChange("user")}
-        className="relative mt-auto overflow-hidden rounded-[24px] border border-line bg-canvas p-4 pr-20 text-left transition hover:-translate-y-0.5 hover:border-ink/20"
+        className="relative mt-auto overflow-hidden rounded-[24px] border border-line bg-canvas p-4 pr-24 text-left transition hover:-translate-y-0.5 hover:border-ink/20"
       >
-        <HumiPeek
-          variant="cooking"
-          size="md"
-          className="absolute -bottom-3 -right-3 opacity-95"
-          contextKey="sidebar-cooking-peek"
-        />
+        <HumiScene scene="recipe" size="sm" className="absolute bottom-0 right-0" decorative />
         <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
           从今晚吃啥，到买菜清单和家人反馈，都帮你顺一顺。
@@ -107,11 +100,7 @@ export function AccountAvatar({ session, onClick, compact = false, label = "回�
   const displayName = session?.user?.displayName;
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const identitySeed = email || displayName || (isWechatMiniProgram ? "wechat-mini-program" : "guest");
-  const avatars = [
-    "/assets/brand/avatars/humi-avatar-f-01.webp",
-    "/assets/brand/avatars/humi-avatar-m-01.webp",
-  ];
-  const avatarSrc = avatars[stableHash(identitySeed) % avatars.length];
+  const avatar = humiAvatarScenes[stableHash(identitySeed) % humiAvatarScenes.length];
 
   return (
     <button
@@ -123,9 +112,9 @@ export function AccountAvatar({ session, onClick, compact = false, label = "回�
       aria-label={label}
       title={label}
     >
-      {avatarSrc ? (
+      {avatar?.src ? (
         <img
-          src={avatarSrc}
+          src={avatar.src}
           alt=""
           className="h-full w-full scale-[0.96] object-contain object-center"
           loading="lazy"
@@ -196,7 +185,7 @@ export function MobileTabbar({ activeView, onChange }) {
     <nav
       data-testid="mobile-primary-navigation"
       aria-label="主导航"
-      className="fixed inset-x-3 z-30 grid grid-cols-3 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
+      className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {

@@ -7,6 +7,7 @@ import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { CraveCollectingSheet, CraveStarterSheet } from "./CraveSheet";
 import { Card } from "./ui/Card";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
 
@@ -316,19 +317,22 @@ export function UserCenter({
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
             <div>
               <p className="eyebrow">家里的饭线索</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{familyReflections[0]?.title}</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{familyReflections[0]?.text}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => onViewChange("dashboard")}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
-            >
-              安排今晚
-            </button>
+            <div className="grid justify-items-center gap-2 sm:justify-items-end">
+              <HumiScene scene="user" size="sm" decorative />
+              <button
+                type="button"
+                onClick={() => onViewChange("dashboard")}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
+              >
+                安排今晚
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
@@ -401,7 +405,8 @@ export function UserCenter({
           <div className="mt-4 grid gap-3">
             {familyActivity.length > 0 ? (
               familyActivity.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
+                <div key={item.id} className="grid items-center gap-3 rounded-[20px] border border-line bg-canvas p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+                  <HumiScene scene="feedbackExcited" size="sm" className="mx-auto sm:mx-0" decorative />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-ink">{item.title}</p>
                     <p className="mt-1 text-xs font-bold text-ink/42">{item.meta}</p>
@@ -410,8 +415,11 @@ export function UserCenter({
                 </div>
               ))
             ) : (
-              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-                还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的饭线索。
+              <div className="grid items-center gap-3 rounded-[20px] border border-line bg-canvas p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <p className="text-sm font-bold leading-6 text-ink/52">
+                  还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的饭线索。
+                </p>
+                <HumiScene scene="craveThinking" size="sm" className="mx-auto sm:mx-0" decorative />
               </div>
             )}
           </div>

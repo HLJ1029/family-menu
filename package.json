@@ -11,6 +11,7 @@
     "generate:dish-thumbs": "node scripts/generate-dish-thumbnails.mjs",
     "generate:dish-webp": "node scripts/generate-dish-webp.mjs",
     "validate:characters": "node scripts/validate-character-illustrations.mjs",
+    "validate:brand-scenes": "node scripts/validate-brand-scenes.mjs",
     "validate:data": "node scripts/validate-recipes.mjs",
     "validate:images": "node scripts/validate-dish-assets.mjs",
     "validate:palette": "node scripts/validate-neutral-palette.mjs",

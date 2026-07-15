@@ -1,6 +1,6 @@
 import { Check, ShieldAlert } from "lucide-react";
 import { getPlanningMode, profileOptions } from "../lib/profile";
-import { HumiBrandIllustration } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
   const draft = {
@@ -61,15 +61,9 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
                 退出
               </button>
             </div>
-            <div className="rounded-[28px] border border-line bg-canvas p-4">
-              <HumiBrandIllustration
-                variant="profile-preferences"
-                size="xl"
-                className="mx-auto"
-                title="家庭画像生活场景"
-                contextKey="profile-onboarding-hero"
-              />
-              <p className="mt-2 text-center text-sm font-black text-ink">家庭菜单画像</p>
+            <div>
+              <HumiScene scene="user" size="page" className="mx-auto" eager />
+              <p className="mt-2 text-center text-sm font-black text-ink">先从不能吃的开始</p>
               <p className="mt-1 text-center text-xs font-bold leading-5 text-ink/52">{buddyText}</p>
             </div>
           </div>

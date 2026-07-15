@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, Loader2, ShoppingBasket } from "lucide-react";
 import { claimGroceryShareItem, loadGroceryShare } from "../lib/humiApi";
+import { HumiScene } from "./ui/HumiScene";
 
 const PARTICIPANT_KEY = "humi:grocery-participant-key:v1";
 
@@ -103,9 +104,12 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
                 {share.initiatorName || "主厨"}发来的清单。点“我来买”就会回传到这个家，不用先做设置。
               </p>
             </div>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ink text-white">
-              <ShoppingBasket size={22} />
-            </span>
+            <HumiScene
+              scene={openItems.length === 0 ? "groceryBought" : "groceryClaim"}
+              size="sm"
+              className="shrink-0"
+              decorative
+            />
           </div>
 
           <input
@@ -161,7 +165,7 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
               );
             }) : (
               <div className="rounded-[24px] bg-canvas p-5 text-center">
-                <CheckCircle2 className="mx-auto" size={28} />
+                <HumiScene scene="groceryBought" size="md" className="mx-auto" decorative />
                 <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">这份清单都处理好了</h2>
                 <p className="mt-2 text-sm font-bold leading-6 text-ink/52">回到 Humi 就能看今晚菜单。</p>
               </div>

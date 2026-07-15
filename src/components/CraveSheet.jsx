@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock3, MessageCircleHeart, Send, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
 import { feelingTags, summarizeCraveVotes } from "../lib/collaboration";
+import { HumiScene } from "./ui/HumiScene";
 
 export function CraveStarterSheet({
   selectedFeeling,
@@ -232,13 +233,12 @@ export function CraveClosedSheet({ request, status, onClose }) {
 }
 
 function CraveSheetShell({ eyebrow, title, subtitle, statusLabel, children, footer, compact = false }) {
+  const scene = statusLabel === "已提交" || statusLabel === "已结束" ? "craveSubmitted" : "craveThinking";
   return (
     <section className={`relative overflow-hidden rounded-[28px] border border-line bg-canvas shadow-card ${compact ? "p-4" : "p-5 sm:p-6"}`}>
-      <div className="absolute right-4 top-4 grid h-12 w-12 place-items-center rounded-[18px] bg-ink text-white">
-        <MessageCircleHeart size={22} />
-      </div>
+      <HumiScene scene={scene} size="sm" className="absolute right-3 top-2" decorative />
       <div className="absolute bottom-4 right-5 text-[3.5rem] font-black leading-none text-ink/[0.035] sm:text-[4.5rem]">HUMI</div>
-      <div className="relative pr-14">
+      <div className="relative pr-24">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">{eyebrow}</p>
           <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink/45">{statusLabel}</span>

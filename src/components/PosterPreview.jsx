@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Download, RefreshCw, Share2, X } from "lucide-react";
-import { HumiIllustrationPanel } from "./ui/HumiBrandIllustration";
+import { humiPosterScenes } from "./ui/brandScenes";
+import { HumiScene } from "./ui/HumiScene";
 
 export function PosterPreview({ poster, loading, onClose, onSave, onShare, onRegenerate }) {
   useEffect(() => {
@@ -113,11 +114,11 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
           </div>
 
           <div className="mt-auto hidden items-center gap-4 rounded-[22px] bg-white p-4 md:flex">
-            <HumiIllustrationPanel
-              variant="poster-share"
+            <HumiScene
+              scene={humiPosterScenes[0]}
               size="sm"
-              className="shrink-0 p-2"
-              contextKey="poster-preview-peek"
+              className="shrink-0"
+              decorative
             />
             <p className="text-sm font-bold leading-6 text-ink/52">
               小提示：在 iPhone 或微信里打开时，优先使用“分享海报”；如果系统不支持文件分享，就点“保存 PNG”。

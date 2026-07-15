@@ -1,6 +1,7 @@
 import { CheckCircle2, RefreshCw, ShoppingBasket, Utensils } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 const rejectReasons = [
   { id: "too_much_work", label: "太麻烦" },
@@ -26,7 +27,7 @@ export function RecommendationsPage({
   return (
     <section className="grid min-w-0 grid-cols-1 gap-5">
       <section className="overflow-hidden rounded-[32px] border border-line bg-white text-ink shadow-card">
-        <div className="p-5 md:p-6">
+        <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end md:p-6">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Humi 推荐</p>
             <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">
@@ -63,6 +64,12 @@ export function RecommendationsPage({
               </button>
             </div>
           </div>
+          <HumiScene
+            scene={aiRecommendationLoading ? "loadingMenu" : "feedbackExcited"}
+            size="page"
+            className="mx-auto sm:mx-0"
+            eager
+          />
         </div>
       </section>
 

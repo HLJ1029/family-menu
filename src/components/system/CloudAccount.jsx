@@ -1,6 +1,6 @@
 import { Cloud, KeyRound, Link, LogOut, Mail, Plus, ShieldCheck } from "lucide-react";
 import { getSupabase, isSupabaseConfigured } from "../../lib/supabase/client";
-import { HumiPeek } from "../ui/HumiBrandIllustration";
+import { HumiScene } from "../ui/HumiScene";
 
 export function CloudAccount({
   authEmail,
@@ -54,11 +54,11 @@ export function CloudAccount({
   return (
     <section data-testid="cloud-account-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       {!compactTitle && (
-        <HumiPeek
-          variant={family ? "family-taste-talk" : "profile"}
+        <HumiScene
+          scene={family ? "user" : "emptyFamily"}
           size="sm"
-          className="absolute right-4 top-4 opacity-85"
-          contextKey="cloud-account-peek"
+          className="absolute right-3 top-2"
+          decorative
         />
       )}
       {!compactTitle && (
@@ -88,11 +88,11 @@ export function CloudAccount({
           </div>
           {family ? (
             <div className="relative overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
-              <HumiPeek
-                variant="family-taste-talk"
+              <HumiScene
+                scene="syncSuccess"
                 size="sm"
-                className="absolute -bottom-2 right-3 opacity-90"
-                contextKey="cloud-account-family-card"
+                className="absolute -bottom-1 right-2"
+                decorative
               />
               <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>

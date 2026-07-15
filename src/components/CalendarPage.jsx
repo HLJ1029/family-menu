@@ -12,7 +12,7 @@ import {
 import { getRecipe, nutritionFor, recipes } from "../lib/recipes";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiIllustrationPanel } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 import { MiniMeal } from "./ui/MiniMeal";
 
 export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
@@ -98,7 +98,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }, 80);
               }}
-              className="rounded-full bg-ink px-4 py-2 text-xs font-black"
+              className="rounded-full bg-ink px-4 py-2 text-xs font-black text-white"
             >
               今天
             </button>
@@ -112,12 +112,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
             </button>
             </div>
           </div>
-          <HumiIllustrationPanel
-            variant="weekly"
-            title="日历里看节奏"
-            size="md"
-            contextKey="calendar-hero"
-          />
+          <HumiScene scene="calendar" size="page" className="mx-auto md:mx-0" eager />
         </div>
 
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">

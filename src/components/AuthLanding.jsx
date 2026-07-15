@@ -1,12 +1,10 @@
 import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
-import { recipes } from "../lib/recipes";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
 import { CloudAccount } from "./system/CloudAccount";
-import { DishImage } from "./ui/DishImage";
-import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 
 export function AuthLanding({ authProps, onContinueGuest }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -14,7 +12,6 @@ export function AuthLanding({ authProps, onContinueGuest }) {
     !isWechatMiniProgram &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("devAuth") === "email";
-  const featuredRecipe = recipes[0];
 
   return (
     <main className="min-h-screen overflow-hidden bg-canvas px-6 py-8 text-ink">
@@ -36,27 +33,12 @@ export function AuthLanding({ authProps, onContinueGuest }) {
           </div>
         ) : (
           <>
-            <div className="relative mx-auto grid aspect-square w-full max-w-[360px] place-items-center">
-              <div className="absolute inset-8 rounded-full bg-ink/35 blur-3xl" />
-              <div className="absolute inset-1 rounded-full bg-ink/5 blur-2xl" />
-              <DishImage
-                recipe={featuredRecipe}
-                variant="hero"
-                alt=""
-                loading="eager"
-                fetchPriority="high"
-                className="relative h-[82%] w-[82%] rounded-full bg-white object-cover shadow-[0_30px_90px_rgba(17,17,17,0.12)]"
-              />
-              <div className="absolute bottom-5 left-5 rounded-[22px] border border-line bg-white/88 px-4 py-3 text-left shadow-card backdrop-blur-xl">
-                <p className="text-sm font-black text-ink">先安排今晚</p>
-                <p className="mt-1 text-xs font-bold text-ink/42">Humi</p>
+            <div className="mx-auto grid w-full max-w-[420px] justify-items-center gap-4 text-center">
+              <HumiScene scene="wechatLogin" size="hero" className="w-full" eager />
+              <div>
+                <p className="text-2xl font-black tracking-normal text-ink">先安排今晚</p>
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/48">登录后，菜单、清单和家里的口味会一起保存。</p>
               </div>
-              <HumiPeek
-                variant="dinner-decision-hero"
-                size="lg"
-                className="absolute -right-4 bottom-2"
-                contextKey="auth-landing-peek"
-              />
             </div>
 
             <MobileAuthChoices onContinueGuest={onContinueGuest} />

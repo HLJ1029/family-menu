@@ -2,7 +2,8 @@ import { Activity, BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket,
 import { buildMealInsights } from "../lib/insights";
 import { getNutritionSummary, NutritionRings } from "./CalendarPage";
 import { Card } from "./ui/Card";
-import { HumiIllustrationPanel, HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiScene } from "./ui/HumiScene";
 import { StatBlock } from "./ui/StatsBlocks";
 
 export function StatsPage({
@@ -40,26 +41,23 @@ export function StatsPage({
     <section className="grid gap-5" data-testid="nutrition-reflection-page">
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="relative overflow-hidden rounded-[30px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <div className="absolute right-5 top-5 hidden md:block">
-            <HumiIllustrationPanel
-              variant="family-taste-talk"
-              size="md"
-              tone="dark"
-              contextKey="stats-hero"
-            />
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Meal reflection</p>
+              <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+                这段时间，家里怎么吃
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
+                按早餐、午餐、晚餐一起回看；已确认的餐次会优先进入趋势，帮助下次更懂这一家的饭。
+              </p>
+              {!insights.hasConfirmedMeals && (
+                <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
+                  样本不足，当前先用今日菜单和最近三餐计划做弱参考
+                </p>
+              )}
+            </div>
+            <HumiScene scene="achievement" size="page" className="mx-auto md:mx-0" imageClassName="invert" decorative />
           </div>
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Meal reflection</p>
-          <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            这段时间，家里怎么吃
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-            按早餐、午餐、晚餐一起回看；已确认的餐次会优先进入趋势，帮助下次更懂这一家的饭。
-          </p>
-          {!insights.hasConfirmedMeals && (
-            <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
-              样本不足，当前先用今日菜单和最近三餐计划做弱参考
-            </p>
-          )}
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             <StatBlock label="已确认餐次" value={String(insights.confirmedMeals.length)} />
             <StatBlock label="平均时长" value={`${averageTime} min`} />

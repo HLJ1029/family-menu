@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown, HandCoins, PackageCheck, Plus, RotateCcw, Share2, Trash2 } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
+import { HumiScene } from "./ui/HumiScene";
 
 export function GroceryList({
   items,
@@ -203,7 +204,7 @@ function ShoppingChecklist({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div>
           <p className="eyebrow">买菜清单</p>
           <h3 className="card-title">去买这些就够了</h3>
@@ -211,9 +212,16 @@ function ShoppingChecklist({
             这里汇总已安排三餐要买的食材；买到后勾一下，进度会自动更新。
           </p>
         </div>
-        <span key={checkedItemCount} className="grocery-count-pop min-w-[118px] shrink-0 whitespace-nowrap rounded-full bg-canvas px-4 py-2 text-center text-xs font-black leading-none text-ink/55">
-          已完成 {checkedItemCount}/{totalItemCount}
-        </span>
+        <div className="grid justify-items-center gap-2 sm:justify-items-end">
+          <span key={checkedItemCount} className="grocery-count-pop min-w-[132px] shrink-0 whitespace-nowrap rounded-full bg-canvas px-4 py-2 text-center text-xs font-black leading-none text-ink/55">
+            已完成 {checkedItemCount}/{totalItemCount}
+          </span>
+          <HumiScene
+            scene={totalItemCount > 0 && checkedItemCount === totalItemCount ? "groceryBought" : "grocery"}
+            size="sm"
+            decorative
+          />
+        </div>
       </div>
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-canvas">
         <div
