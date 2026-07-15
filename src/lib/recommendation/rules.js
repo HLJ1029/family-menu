@@ -143,6 +143,7 @@ export function buildTodayRecommendation({
     }),
     inventoryHits,
     expiringHits,
+    matchedPantryItems,
     preferenceHits,
     wantIntentHits,
     feelingHits,
@@ -258,6 +259,17 @@ export function recipeViolatesHardAvoid(recipe, {
 } = {}) {
   const signals = hardAvoidSignals ?? buildHardAvoidSignals(collectFamilyPreference(familyMembers, familyProfile));
   return matchesSignals(recipe, signals);
+}
+
+export function getHardAvoidSignals({ familyMembers = [], familyProfile = {} } = {}) {
+  return buildHardAvoidSignals(collectFamilyPreference(familyMembers, familyProfile));
+}
+
+export function recipeMatchesHardAvoid(recipe, context = {}) {
+  return recipeViolatesHardAvoid(recipe, {
+    ...context,
+    hardAvoidSignals: context.hardAvoidSignals ?? getHardAvoidSignals(context),
+  });
 }
 
 function selectDinnerSet({ primary, scored, fallbackRecipes, hardAvoidSignals, targetDishCount }) {

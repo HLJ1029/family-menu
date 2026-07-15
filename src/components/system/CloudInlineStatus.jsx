@@ -3,6 +3,7 @@ import { Cloud, RefreshCw, UploadCloud } from "lucide-react";
 export function CloudInlineStatus({
   family,
   signedIn = false,
+  autoSync = false,
   enabled,
   loading,
   status,
@@ -11,7 +12,6 @@ export function CloudInlineStatus({
   enabledLabel,
   migrateLabel,
   refreshLabel = "从云端刷新",
-  primaryAction = true,
   onMigrate,
   onRefresh,
   onOpenUserCenter,
@@ -28,24 +28,24 @@ export function CloudInlineStatus({
             {enabled ? enabledLabel : family ? pendingLabel : signedIn ? "还没创建我的家" : localLabel}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            {loading ? "正在保存..." : status}
+            {loading ? (autoSync ? "正在同步..." : "正在保存...") : status}
           </p>
         </div>
       </div>
 
       {family ? (
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <button
-            type="button"
-            onClick={onMigrate}
-            disabled={loading}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45 ${
-              primaryAction ? "bg-ink text-white" : "border border-line bg-canvas text-ink/62"
-            }`}
-          >
-            <UploadCloud size={16} className={primaryAction ? "text-white" : ""} />
-            {migrateLabel}
-          </button>
+          {!autoSync && (
+            <button
+              type="button"
+              onClick={onMigrate}
+              disabled={loading}
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <UploadCloud size={16} />
+              {migrateLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={onRefresh}

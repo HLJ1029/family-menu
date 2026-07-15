@@ -5,16 +5,39 @@ export function isHumiApiSession(session) {
   return Boolean(session?.accessToken && session?.user?.provider === "wechat");
 }
 
+export function normalizeHumiApiError(error, context = "collaboration") {
+  if (error?.name === "AbortError") {
+    return new Error(context === "sync"
+      ? "同步连接超时，请检查网络后重试。"
+      : "协作连接超时，请检查网络后重试。");
+  }
+  const message = String(error?.message || "");
+  if (error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message)) {
+    return new Error(context === "sync"
+      ? "同步连接失败，请检查网络后重试。"
+      : "协作连接失败，请检查网络后重试。");
+  }
+  return error instanceof Error
+    ? error
+    : new Error(context === "sync" ? "Humi 账号同步暂时不可用。" : "Humi 协作暂时不可用。");
+}
+
 export async function loadHumiState(session) {
+  const data = await loadHumiStateEnvelope(session);
+  return data.state ?? null;
+}
+
+export function loadHumiStateEnvelope(session) {
   return humiApiRequest("/state", { session });
 }
 
-export async function saveHumiState(session, state) {
-  return humiApiRequest("/state", {
+export async function saveHumiState(session, state, householdId = state?.householdId) {
+  const data = await humiApiRequest("/state", {
     method: "PUT",
     session,
-    body: { state },
+    body: { state, householdId },
   });
+  return data.state ?? null;
 }
 
 export async function loadHumiHouseholds(session) {
@@ -75,12 +98,11 @@ export async function logoutHumiSession(session) {
   });
 }
 
-export async function createCraveRequest(payload, session) {
-  return humiApiRequest("/crave-requests", {
-    method: "POST",
-    session,
-    body: payload,
-  });
+export async function createCraveRequest(payload, session = null) {
+  if (isHumiApiSession(session)) {
+    return humiApiRequest("/crave-requests", { method: "POST", session, body: payload });
+  }
+  return humiPublicRequest("/crave-requests", { method: "POST", body: payload });
 }
 
 export async function loadCraveRequest(token) {
@@ -143,6 +165,87 @@ export async function claimGroceryShareItem(token, payload, session = null) {
   });
 }
 
+// Compatibility contract for the user's batch-claim UI. The API keeps these
+// routes while newer clients can use the item-level grocery share functions above.
+export async function createGroceryShareRequest(payload, session = null) {
+  if (isHumiApiSession(session)) {
+    return humiApiRequest("/grocery-share-requests", { method: "POST", session, body: payload });
+  }
+  return humiPublicRequest("/grocery-share-requests", { method: "POST", body: payload });
+}
+
+export async function loadGroceryShareRequest(token) {
+  if (!token) throw new Error("清单链接不完整。");
+  return humiPublicRequest(`/grocery-share-requests/${encodeURIComponent(token)}`);
+}
+
+export async function submitGroceryShareClaim(token, claim) {
+  if (!token) throw new Error("清单链接不完整。");
+  return humiPublicRequest(`/grocery-share-requests/${encodeURIComponent(token)}/claims`, {
+    method: "POST",
+    body: claim,
+  });
+}
+
+export async function updateGroceryShareItemChecked(token, itemId, checked) {
+  if (!token) throw new Error("清单链接不完整。");
+  if (!itemId) throw new Error("食材不完整。");
+  return humiPublicRequest(`/grocery-share-requests/${encodeURIComponent(token)}/items/${encodeURIComponent(itemId)}/check`, {
+    method: "POST",
+    body: { checked },
+  });
+}
+
+export function joinGroceryShareRequest(token, session, payload) {
+  if (!token) throw new Error("清单链接不完整。");
+  return humiApiRequest(`/grocery-share-requests/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export async function createMenuShareRequest(payload, session = null) {
+  if (isHumiApiSession(session)) {
+    return humiApiRequest("/menu-share-requests", { method: "POST", session, body: payload });
+  }
+  return humiPublicRequest("/menu-share-requests", { method: "POST", body: payload });
+}
+
+export async function loadMenuShareRequest(token) {
+  if (!token) throw new Error("菜单链接不完整。");
+  return humiPublicRequest(`/menu-share-requests/${encodeURIComponent(token)}`);
+}
+
+export async function createWishShareRequest(payload, session = null) {
+  if (isHumiApiSession(session)) {
+    return humiApiRequest("/wish-share-requests", { method: "POST", session, body: payload });
+  }
+  return humiPublicRequest("/wish-share-requests", { method: "POST", body: payload });
+}
+
+export async function loadWishShareRequest(token) {
+  if (!token) throw new Error("想吃入口不完整。");
+  return humiPublicRequest(`/wish-share-requests/${encodeURIComponent(token)}`);
+}
+
+export async function submitWishShareEntry(token, wish) {
+  if (!token) throw new Error("想吃入口不完整。");
+  return humiPublicRequest(`/wish-share-requests/${encodeURIComponent(token)}/wishes`, {
+    method: "POST",
+    body: wish,
+  });
+}
+
+export function joinWishShareRequest(token, session, payload) {
+  if (!token) throw new Error("想吃入口不完整。");
+  return humiApiRequest(`/wish-share-requests/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
 async function humiApiRequest(path, { method = "GET", session, body } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const controller = new AbortController();
@@ -164,10 +267,7 @@ async function humiApiRequest(path, { method = "GET", session, body } = {}) {
     }
     return data;
   } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error("同步连接超时，请检查网络后重试。");
-    }
-    throw error;
+    throw normalizeHumiApiError(error, "sync");
   } finally {
     globalThis.clearTimeout(timer);
   }
@@ -192,10 +292,7 @@ async function humiPublicRequest(path, { method = "GET", body } = {}) {
     }
     return data;
   } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error("协作连接超时，请检查网络后重试。");
-    }
-    throw error;
+    throw normalizeHumiApiError(error, "collaboration");
   } finally {
     globalThis.clearTimeout(timer);
   }

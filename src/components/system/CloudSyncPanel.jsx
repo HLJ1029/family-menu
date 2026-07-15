@@ -2,6 +2,7 @@ import { Cloud, ShoppingBasket, UploadCloud } from "lucide-react";
 
 export function CloudSyncPanel({
   family,
+  autoSync = false,
   cloudMenuEnabled,
   cloudMenuLoading,
   cloudSyncStatus,
@@ -20,7 +21,7 @@ export function CloudSyncPanel({
       <SyncCard
         icon={Cloud}
         eyebrow="Save"
-        title="今晚菜单和连排计划"
+        title="今晚菜单和一周计划"
         description={
           cloudMenuEnabled
             ? `${family.name} 已经记住这些菜单。`
@@ -28,6 +29,7 @@ export function CloudSyncPanel({
         }
         loading={cloudMenuLoading}
         status={cloudSyncStatus}
+        autoSync={autoSync}
         primaryLabel="保存本机菜单"
         secondaryLabel="刷新菜单"
         onPrimary={onMigrateLocalMenus}
@@ -39,11 +41,12 @@ export function CloudSyncPanel({
         title="食材清单"
         description={
           cloudGroceryEnabled
-            ? "买菜勾选和清单调整已经保存在这个家。"
+            ? "买菜勾选会顺手记住，不需要单独维护。"
             : "菜单保存后，再把买菜时会改动的清单也保存起来。"
         }
         loading={cloudGroceryLoading}
         status={cloudGroceryStatus}
+        autoSync={autoSync}
         primaryLabel="保存食材清单"
         secondaryLabel="刷新食材清单"
         onPrimary={onMigrateLocalGrocery}
@@ -60,6 +63,7 @@ function SyncCard({
   description,
   loading,
   status,
+  autoSync,
   primaryLabel,
   secondaryLabel,
   onPrimary,
@@ -78,16 +82,18 @@ function SyncCard({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={onPrimary}
-          disabled={loading}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <UploadCloud size={17} />
-          {primaryLabel}
-        </button>
+      <div className={`mt-5 grid gap-2 ${autoSync ? "" : "sm:grid-cols-2"}`}>
+        {!autoSync && (
+          <button
+            type="button"
+            onClick={onPrimary}
+            disabled={loading}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <UploadCloud size={17} />
+            {primaryLabel}
+          </button>
+        )}
         <button
           type="button"
           onClick={onSecondary}
@@ -99,7 +105,7 @@ function SyncCard({
       </div>
 
       <p className="mt-4 rounded-[20px] bg-canvas p-4 text-xs font-bold leading-5 text-ink/50">
-        {loading ? "正在保存..." : status}
+        {loading ? (autoSync ? "正在同步..." : "正在保存...") : status}
       </p>
     </section>
   );

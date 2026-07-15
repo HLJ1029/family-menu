@@ -146,16 +146,15 @@ export function RecipeDetailDrawer({
           <section className="relative mt-5 overflow-hidden rounded-[26px] border border-line bg-white p-5 shadow-card">
             <HumiScene
               scene={isLastStep ? "achievement" : "recipe"}
-              size="sm"
-              className="absolute right-3 top-2"
-              decorative
+              size="md"
+              className="absolute right-3 top-2 hidden opacity-90 sm:grid"
             />
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="eyebrow">Cooking mode</p>
                 <h3 className="card-title">跟做步骤</h3>
               </div>
-              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
+              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
                 {cookingStep + 1}/{recipe.steps.length}
               </span>
             </div>
@@ -280,7 +279,7 @@ export function RecipeDetailDrawer({
                 <p className="eyebrow">Cooking mode</p>
                 <h3 className="card-title">跟做步骤</h3>
               </div>
-              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black">
+              <span className="rounded-full bg-ink px-3 py-1 text-xs font-black text-white">
                 {cookingStep + 1}/{recipe.steps.length}
               </span>
             </div>
@@ -349,7 +348,7 @@ export function RecipeDetailDrawer({
           {recipe.tips && (
             <section className="mt-5 rounded-[24px] border border-line bg-white p-5 shadow-card">
               <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-ink">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-ink text-white">
                   <Sparkles size={18} />
                 </div>
                 <div>
@@ -378,7 +377,7 @@ export function RecipeDetailDrawer({
               <button
                 type="button"
                 onClick={() => onUpdateTodayQuantity(recipe.id, 1)}
-                className="grid h-12 place-items-center rounded-full bg-ink"
+                className="grid h-12 place-items-center rounded-full bg-ink text-white"
                 aria-label="增加份数"
               >
                 <Plus size={18} />
@@ -448,7 +447,7 @@ function IngredientPanel({ title, items }) {
             <span className="font-bold text-ink/72">
               {item.name}
               {item.required === false && <em className="ml-2 text-xs not-italic text-ink/35">可选</em>}
-              {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/35">常备</em>}
+              {item.pantryItem && <em className="ml-2 text-xs not-italic text-ink/35">可跳过</em>}
             </span>
             <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black">{formatRawAmount(item)}</span>
           </li>

@@ -3,15 +3,15 @@ import { useState } from "react";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { auxiliaryNavItems, getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
 import { humiAvatarScenes } from "./ui/brandScenes";
-import { HumiScene } from "./ui/HumiScene";
 import { stableHash } from "./ui/characterIllustrations";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
 export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
 
 export function IcpFooter({ compact = false }) {
   return (
-    <footer className={`mx-auto w-full max-w-[1480px] px-4 text-center text-xs font-bold text-ink/42 md:px-6 ${compact ? "pb-5 pt-2" : "pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-8 lg:pb-8"}`}>
+    <footer className={`mx-auto w-full max-w-[1480px] px-4 text-center text-xs font-bold text-ink/42 md:px-6 ${compact ? "pb-5 pt-2" : "pb-[calc(9rem+env(safe-area-inset-bottom))] pt-8 lg:pb-8"}`}>
       <a
         href={ICP_RECORD_URL}
         target="_blank"
@@ -25,7 +25,6 @@ export function IcpFooter({ compact = false }) {
 }
 
 export function Sidebar({ activeView, onChange }) {
-  const primaryActiveView = getPrimaryNavId(activeView);
   const quickLinks = auxiliaryNavItems.filter((item) => item.id !== "recommendations");
 
   return (
@@ -42,7 +41,7 @@ export function Sidebar({ activeView, onChange }) {
       <nav className="space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = item.id === primaryActiveView;
+          const active = item.id === activeView;
           return (
             <button
               key={item.id}
@@ -83,9 +82,14 @@ export function Sidebar({ activeView, onChange }) {
       <button
         type="button"
         onClick={() => onChange("user")}
-        className="relative mt-auto overflow-hidden rounded-[24px] border border-line bg-canvas p-4 pr-24 text-left transition hover:-translate-y-0.5 hover:border-ink/20"
+        className="relative mt-auto overflow-hidden rounded-[24px] border border-line bg-canvas p-4 pr-20 text-left transition hover:-translate-y-0.5 hover:border-ink/20"
       >
-        <HumiScene scene="recipe" size="sm" className="absolute bottom-0 right-0" decorative />
+        <HumiPeek
+          variant="cooking"
+          size="md"
+          className="absolute -bottom-3 -right-3 opacity-95"
+          contextKey="sidebar-cooking-peek"
+        />
         <p className="mt-4 text-sm font-black">家里的饭，慢慢记住</p>
         <p className="mt-1 text-xs leading-5 text-ink/52">
           从今晚吃啥，到买菜清单和家人反馈，都帮你顺一顺。
@@ -95,7 +99,7 @@ export function Sidebar({ activeView, onChange }) {
   );
 }
 
-export function AccountAvatar({ session, onClick, compact = false, label = "回到 Humi 首页" }) {
+export function AccountAvatar({ session, onClick, compact = false }) {
   const email = session?.user?.email;
   const displayName = session?.user?.displayName;
   const isWechatMiniProgram = isWechatMiniProgramWebView();
@@ -109,8 +113,8 @@ export function AccountAvatar({ session, onClick, compact = false, label = "回�
       className={`motion-card grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 ${
         compact ? "h-11 w-11" : "h-12 w-12"
       }`}
-      aria-label={label}
-      title={label}
+      aria-label="打开我的家"
+      title="打开我的家"
     >
       {avatar?.src ? (
         <img
@@ -127,33 +131,37 @@ export function AccountAvatar({ session, onClick, compact = false, label = "回�
   );
 }
 
-export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter, onBack }) {
+export function Topbar({ activeView, titleOverride, query, setQuery, session, onOpenUserCenter, onBack }) {
   const activeItem = getNavItem(activeView);
-  const title = activeItem?.label ?? "Humi";
+  const title = titleOverride || activeItem?.label || "Humi";
   const [searchOpen, setSearchOpen] = useState(Boolean(query));
 
   return (
-    <header className="sticky top-0 z-20 mb-5 flex flex-col gap-4 rounded-b-[24px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-7 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none">
-      <div>
+    <header className={`relative z-20 mb-4 flex gap-3 rounded-b-[20px] border-b border-line bg-white pb-3 pt-[env(safe-area-inset-top)] shadow-card lg:static lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:border-b-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:shadow-none ${
+      searchOpen ? "flex-col" : "flex-row items-start justify-between"
+    }`}>
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-ink/45">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
-            aria-label="返回上一页"
-          >
-            <ArrowLeft size={17} />
-          </button>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink shadow-card transition hover:-translate-y-0.5 hover:border-ink/20"
+              aria-label="返回上一页"
+            >
+              <ArrowLeft size={17} />
+            </button>
+          )}
           <span className="h-2 w-2 rounded-full bg-ink" />
           Humi
         </div>
-        <h1 className="mt-2 max-w-3xl text-2xl font-black tracking-normal md:text-3xl">
+        <h1 className="mt-2 max-w-3xl text-2xl font-black tracking-[-0.03em] sm:text-3xl md:text-4xl">
           {title}
         </h1>
       </div>
-      <div className="flex items-center gap-3">
+      <div className={`flex shrink-0 items-center gap-3 ${searchOpen ? "w-full" : ""}`}>
         {searchOpen ? (
-          <div className="flex items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
+          <div className="flex w-full items-center gap-3 rounded-[22px] border border-line bg-white px-4 py-3 shadow-card lg:w-[390px]">
             <Search size={18} className="text-ink/38" />
             <input
               value={query}
@@ -173,24 +181,23 @@ export function Topbar({ activeView, query, setQuery, session, onOpenUserCenter,
             <Search size={18} />
           </button>
         )}
-        <AccountAvatar session={session} onClick={onOpenUserCenter} label="打开我的家" />
+        <AccountAvatar session={session} onClick={onOpenUserCenter} />
       </div>
     </header>
   );
 }
 
 export function MobileTabbar({ activeView, onChange }) {
-  const primaryActiveView = getPrimaryNavId(activeView);
+  const activePrimaryView = getPrimaryNavId(activeView);
   return (
     <nav
       data-testid="mobile-primary-navigation"
-      aria-label="主导航"
       className="fixed inset-x-3 z-30 grid grid-cols-5 rounded-[26px] border border-line bg-white p-2 shadow-lift transition-transform duration-300 lg:hidden"
       style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {mobileNavItems.map((item) => {
         const Icon = item.icon;
-        const active = item.id === primaryActiveView;
+        const active = item.id === activePrimaryView;
         return (
           <button
             key={item.id}
@@ -198,7 +205,7 @@ export function MobileTabbar({ activeView, onChange }) {
             data-testid={`mobile-nav-${item.id}`}
             aria-current={active ? "page" : undefined}
             onClick={() => onChange(item.id)}
-            className={`relative grid place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[11px] font-black transition ${
+            className={`relative grid min-w-0 place-items-center gap-1 overflow-hidden rounded-[20px] py-2 text-[10px] font-black transition sm:text-[11px] ${
               active ? "nav-tab-active bg-ink text-white shadow-card" : "text-ink/45 hover:text-ink"
             }`}
           >

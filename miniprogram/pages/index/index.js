@@ -6,9 +6,13 @@ Page({
     launchCraveToken: "",
     launchInviteToken: "",
     launchGroceryToken: "",
+    launchWishToken: "",
+    launchMenuToken: "",
     shareCrave: null,
     shareInvite: null,
     shareGrocery: null,
+    shareWish: null,
+    shareMenu: null,
     loginPending: false,
     loginError: "",
     webViewError: "",
@@ -23,19 +27,48 @@ Page({
     const launchCraveToken = options.crave || "";
     const launchInviteToken = options.invite || "";
     const launchGroceryToken = options.grocery || "";
-    if (launchGroceryToken) {
+    const launchGroceryShareToken = options.groceryShare || launchGroceryToken;
+    const launchWishToken = options.wishShare || "";
+    const launchMenuToken = options.menuShare || "";
+    if (launchWishToken) {
       this.setData({
-        launchGroceryToken,
+        launchWishToken,
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareMenu: null,
+        shareWish: { token: launchWishToken, householdName: "我家", initiatorName: "主厨" }
+      });
+      this.openWebView(appendQuery(getHumiH5Url(), { wishShare: launchWishToken, channel: "wechat-miniprogram" }));
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (launchMenuToken) {
+      this.setData({
+        launchMenuToken,
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareWish: null,
+        shareMenu: { token: launchMenuToken, householdName: "我家", title: "今晚菜单已经安排好" }
+      });
+      this.openWebView(appendQuery(getHumiH5Url(), { menuShare: launchMenuToken, channel: "wechat-miniprogram" }));
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (launchGroceryShareToken) {
+      this.setData({
+        launchGroceryToken: launchGroceryShareToken,
         shareCrave: null,
         shareInvite: null,
         shareGrocery: {
-          token: launchGroceryToken,
+          token: launchGroceryShareToken,
           householdName: "我家",
           initiatorName: "主厨",
           itemCount: 0
         },
       });
-      this.openWebView(appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" }));
+      this.openWebView(appendQuery(getHumiH5Url(), { groceryShare: launchGroceryShareToken, channel: "wechat-miniprogram" }));
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
@@ -139,6 +172,36 @@ Page({
           householdName: latestMessage.householdName || "我家",
           initiatorName: latestMessage.initiatorName || "主厨",
           itemCount: latestMessage.itemCount || 0
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (latestMessage?.type === "humi:share-wish" && latestMessage?.token) {
+      this.setData({
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareMenu: null,
+        shareWish: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我家",
+          initiatorName: latestMessage.initiatorName || "主厨"
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
+    if (latestMessage?.type === "humi:share-menu" && latestMessage?.token) {
+      this.setData({
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareWish: null,
+        shareMenu: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我家",
+          title: latestMessage.title || "今晚菜单已经安排好"
         }
       });
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
@@ -295,6 +358,20 @@ Page({
   },
 
   onShareAppMessage() {
+    const shareWish = this.data.shareWish;
+    if (shareWish?.token) {
+      return {
+        title: `${shareWish.initiatorName}想收集家里最近想吃的菜`,
+        path: `/pages/index/index?wishShare=${encodeURIComponent(shareWish.token)}`
+      };
+    }
+    const shareMenu = this.data.shareMenu;
+    if (shareMenu?.token) {
+      return {
+        title: shareMenu.title || `${shareMenu.householdName}今晚菜单已经安排好`,
+        path: `/pages/index/index?menuShare=${encodeURIComponent(shareMenu.token)}`
+      };
+    }
     const shareGrocery = this.data.shareGrocery;
     if (shareGrocery?.token) {
       const itemCount = Number(shareGrocery.itemCount || 0);
@@ -302,7 +379,7 @@ Page({
         title: itemCount > 0
           ? `${shareGrocery.initiatorName}发来 ${itemCount} 项买菜清单`
           : `${shareGrocery.initiatorName}发来买菜清单`,
-        path: `/pages/index/index?grocery=${encodeURIComponent(shareGrocery.token)}`
+        path: `/pages/index/index?groceryShare=${encodeURIComponent(shareGrocery.token)}`
       };
     }
     const shareInvite = this.data.shareInvite;
@@ -326,9 +403,17 @@ Page({
   },
 
   buildH5Url() {
+    const launchWishToken = this.data.launchWishToken;
+    if (launchWishToken) {
+      return appendQuery(getHumiH5Url(), { wishShare: launchWishToken, channel: "wechat-miniprogram" });
+    }
+    const launchMenuToken = this.data.launchMenuToken;
+    if (launchMenuToken) {
+      return appendQuery(getHumiH5Url(), { menuShare: launchMenuToken, channel: "wechat-miniprogram" });
+    }
     const launchGroceryToken = this.data.launchGroceryToken;
     if (launchGroceryToken) {
-      return appendQuery(getHumiH5Url(), { grocery: launchGroceryToken, channel: "wechat-miniprogram" });
+      return appendQuery(getHumiH5Url(), { groceryShare: launchGroceryToken, channel: "wechat-miniprogram" });
     }
     const launchInviteToken = this.data.launchInviteToken;
     if (launchInviteToken) {

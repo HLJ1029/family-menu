@@ -1,22 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Check, ChefHat, Cloud, LogOut, Phone, Plus, Share2, ShieldAlert, Sparkles, Trash2, UserRound, Users, Utensils } from "lucide-react";
-import { formatProfileSummary, profileOptions } from "../lib/profile";
+import { useState } from "react";
+import { BarChart3, Check, ChefHat, Cloud, Heart, LogOut, MessageCircleHeart, Phone, Plus, Share2, ShieldAlert, ShoppingBasket, SlidersHorizontal, Sparkles, UserRound, Users } from "lucide-react";
+import { feelingTags } from "../lib/collaboration";
+import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insights";
+import { formatHardProfileSummary, profileOptions } from "../lib/profile";
+import { getRecipe } from "../lib/recipes";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
 import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
-import { CraveCollectingSheet, CraveStarterSheet } from "./CraveSheet";
+import { CraveAudiencePicker } from "./CraveAudiencePicker";
+import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { HumiScene } from "./ui/HumiScene";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
-
-const quickWantRecipes = [
-  { id: "tomato-egg", name: "西红柿炒鸡蛋" },
-  { id: "potato-beef", name: "土豆烧牛肉" },
-  { id: "mapo-tofu", name: "麻婆豆腐" },
-  { id: "wintermelon-rib-soup", name: "冬瓜排骨汤" },
-];
 
 export function UserCenter({
   authProps,
@@ -29,31 +26,43 @@ export function UserCenter({
   familyProfile,
   setFamilyProfile,
   mealLogs = {},
+  nutritionGoals,
+  setNutritionGoals,
   recommendationFeedback = [],
-  recommendationAccess,
-  wantToEatItems = [],
+  aiRecommendationStatus = "",
+  preciseRecommendationAvailable = false,
   craveSignals = [],
-  groceryClaims = {},
+  wishPool = [],
   activeCraveRequest,
-  onCopyCraveLink,
-  onRefreshCraveRequest,
-  onGenerateFromCrave,
-  onStartCraveRequest,
-  onDecideAlone,
+  craveRequestPending = false,
+  activeGroceryShareRequest,
+  groceryClaims: persistedGroceryClaims = {},
+  activeWishShareRequest,
+  pendingJoinContext,
+  onClearPendingJoinContext,
+  householdMembers = [],
+  activeHouseholdInvite,
   onCreateHousehold,
   onSwitchHousehold,
-  activeHouseholdInvite,
   onCreateHouseholdInvite,
   onShareHouseholdInvite,
+  onAcceptPendingJoin,
+  onPlanWish,
+  onRemoveWish,
   onExportValidationData,
   onViewChange,
   onOpenRecipeLibrary,
   onAskFamily,
-  onAddWantToEat,
-  onAddWantRecipe,
-  onAddWantToToday,
-  onCompleteWantToEat,
-  onRemoveWantToEat,
+  onStartCraveRequest,
+  onShareCraveRequest,
+  onRefreshCraveRequest,
+  onFinishCraveRequest,
+  onRefreshGroceryShare,
+  onStartWishShare,
+  onShareWishRequest,
+  onRefreshWishShare,
+  canManageHousehold = true,
+  currentMemberId = "",
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
@@ -61,76 +70,108 @@ export function UserCenter({
   const signOutLabel = humiSession ? "退出并重新验证微信登录" : "退出账号";
   const [activeSettings, setActiveSettings] = useState(null);
   const [phoneBindStatus, setPhoneBindStatus] = useState("");
-  const [wantTitle, setWantTitle] = useState("");
-  const [wantNote, setWantNote] = useState("");
-  const [familyFeelingTag, setFamilyFeelingTag] = useState("随便都行");
-  const [familyCraveStatus, setFamilyCraveStatus] = useState("");
-  const [familyCraveOpen, setFamilyCraveOpen] = useState(false);
+  const [craveComposerOpen, setCraveComposerOpen] = useState(false);
+  const [selectedCraveFeeling, setSelectedCraveFeeling] = useState("随便都行");
+  const [selectedCraveAudience, setSelectedCraveAudience] = useState([]);
   const [newHouseholdName, setNewHouseholdName] = useState("");
-  const [selectedCraveMemberIds, setSelectedCraveMemberIds] = useState([]);
-  const familyCraveRef = useRef(null);
   const phoneVerified = Boolean(humiSession?.user?.phoneVerified);
   const phoneMasked = humiSession?.user?.phoneMasked;
-  const currentUserId = humiSession?.user?.id || session?.user?.id || "";
-  const currentFamilyMember = family?.members?.find((member) => member.memberId === currentUserId);
-  const familyRole = family?.role || currentFamilyMember?.role || (family?.members?.length ? "member" : "owner");
-  const canManageHouseholdMenu = !family || familyRole === "owner";
-  const familyMembers = family?.members ?? [];
-  const askableFamilyMembers = familyMembers.filter((member) => (
-    member?.memberId && member.memberId !== currentUserId && member.status !== "temporary"
-  ));
-  const askableMemberKey = askableFamilyMembers.map((member) => member.memberId).join("|");
   const sourceSummary = Object.values(mealLogs).reduce(
     (summary, log) => {
       if (log?.source === "home") summary.home += 1;
       if (log?.source === "delivery") summary.delivery += 1;
       if (log?.source === "outside") summary.outside += 1;
       if (log?.confirmation === "all") summary.confirmed += 1;
+      if (log?.mealSources?.breakfast && log.mealSources.breakfast !== "skip") summary.breakfast += 1;
+      if (log?.mealSources?.lunch && log.mealSources.lunch !== "skip") summary.lunch += 1;
       return summary;
     },
-    { home: 0, delivery: 0, outside: 0, confirmed: 0 },
+    { home: 0, delivery: 0, outside: 0, confirmed: 0, breakfast: 0, lunch: 0 },
   );
   const validationSummary = buildValidationSummary(readValidationEvents());
-  const topReasons = validationSummary.topRejectedReasons.length > 0
-    ? validationSummary.topRejectedReasons
-    : recommendationFeedback.slice(0, 3).map((item) => ({ label: item.reasonLabel, value: 1 }));
-  const craveFeelingEntries = extractCraveFeelingEntries(craveSignals);
-  const groceryActivity = Object.values(groceryClaims)
-    .filter((claim) => claim?.itemName && claim?.memberName)
-    .sort((left, right) => String(right.completedAt || right.claimedAt || "").localeCompare(String(left.completedAt || left.claimedAt || "")))
-    .slice(0, 2)
-    .map((claim) => ({
-      id: `claim:${claim.itemKey}:${claim.memberId}`,
-      title: claim.status === "done"
-        ? `${claim.memberName}已经买到 ${claim.itemName}`
-        : `${claim.memberName}在买 ${claim.itemName}`,
-      meta: "买菜协作",
-    }));
-  const dinnerActivity = Object.entries(mealLogs)
-    .filter(([, log]) => log?.actorName && log?.confirmation && log.confirmation !== "skip")
-    .sort(([, left], [, right]) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")))
-    .slice(0, 1)
-    .map(([dateKey, log]) => ({
-      id: `meal:${dateKey}:${log.updatedAt || log.confirmation}`,
-      title: buildDinnerActivityTitle(log),
-      meta: "晚饭确认",
-    }));
-  const wantActivity = wantToEatItems
-    .filter((item) => item.status !== "done" && item.memberName)
-    .slice(0, 2)
-    .map((item) => ({
-      id: `activity:${item.id}`,
-      title: `${item.memberName}想吃 ${item.title}`,
-      meta: "想吃池子",
-    }));
+  const tasteReflections = buildTasteReflections({
+    craveSignals,
+    wishPool,
+    mealLogs,
+    recommendationFeedback,
+  });
+  const familyPortraitDigest = buildFamilyPortraitDigest({
+    tasteReflections,
+    sourceSummary,
+    activeCraveVotes: activeCraveRequest?.votes ?? [],
+    groceryClaims: activeGroceryShareRequest?.claims ?? [],
+    wishPool,
+    recommendationFeedback,
+    validationSummary,
+  });
+  const experienceTierDigest = buildExperienceTierDigest({
+    signedIn,
+    humiSession,
+    preciseRecommendationAvailable,
+    aiRecommendationStatus,
+  });
+  const activeCraveVotes = activeCraveRequest?.votes ?? [];
+  const groceryClaims = mergeGroceryClaims(activeGroceryShareRequest?.claims, persistedGroceryClaims);
+  const groceryItems = activeGroceryShareRequest?.items ?? [];
+  const wishShareWishes = activeWishShareRequest?.wishes ?? [];
+  const householdParticipants = buildHouseholdParticipants({
+    session,
+    humiSession,
+    signedIn,
+    activeCraveRequest,
+    activeGroceryShareRequest,
+    activeWishShareRequest,
+    pendingJoinContext,
+    householdMembers,
+    craveSignals,
+  });
+  const checkedGroceryItems = groceryItems.filter((item) => item.checked).length;
+  const declinedGroceryClaims = groceryClaims.filter((claim) => claim.status === "declined").length;
+  const claimedGroceryClaims = groceryClaims.filter((claim) => claim.status === "claimed").length;
+  const checkedGroceryNames = groceryItems.filter((item) => item.checked).map((item) => item.name);
+  const pendingGroceryNames = groceryItems.filter((item) => !item.checked).map((item) => item.name);
+  const homeHero = buildHomeHeroState({
+    signedIn,
+    family,
+    pendingJoinContext,
+    activeCraveVotes,
+    groceryItems,
+    checkedGroceryItems,
+    claimedGroceryClaims,
+    declinedGroceryClaims,
+    wishPool,
+    wishShareWishes,
+    sourceSummary,
+    householdParticipants,
+  });
+  const familyPulseRows = buildFamilyPulseRows({
+    tasteReflections,
+    sourceSummary,
+    activeCraveVotes,
+    groceryClaims,
+    wishPool,
+    householdParticipants,
+  });
   const familyActivity = [
-    ...groceryActivity,
-    ...dinnerActivity,
-    ...craveFeelingEntries.slice(0, 4).map((item) => ({
+    ...buildActiveCraveActivities(activeCraveRequest),
+    ...groceryClaims.slice(0, 3).map((item) => ({
       id: item.id,
-      title: item.feelingTag === "随便都行"
-        ? `${item.memberName || "有人"}说随便都行`
-        : `${item.memberName || "有人"}想要：${item.feelingTag}`,
+      title: item.status === "claimed"
+        ? item.itemName
+          ? `${item.memberName || "家人"}在买 ${item.itemName}`
+          : `${item.memberName || "家人"}来买 ${Array.isArray(item.itemIds) && item.itemIds.length > 0 ? `${item.itemIds.length} 项` : "菜"}`
+        : `${item.memberName || "家人"}暂时买不了`,
+      meta: formatGroceryClaimMeta(activeGroceryShareRequest, item),
+    })),
+    ...(activeWishShareRequest?.wishes ?? []).slice(0, 3).map((item) => ({
+      id: item.id,
+      title: `${item.memberName || "家人"}想吃：${item.dishName || "一道菜"}`,
+      meta: item.note ? `想吃池 · ${item.note}` : "想吃池征集",
+    })),
+    ...buildMealLogActivities(mealLogs),
+    ...craveSignals.slice(0, 4).map((item) => ({
+      id: item.id,
+      title: item.feelingTag === "随便都行" ? "有人说随便都行" : `有人想要：${item.feelingTag}`,
       meta: "感觉征集",
     })),
     ...recommendationFeedback.slice(0, 2).map((item) => ({
@@ -138,22 +179,12 @@ export function UserCenter({
       title: `不想吃：${item.reasonLabel}`,
       meta: "晚饭反馈",
     })),
-    ...wantActivity,
-  ].slice(0, 6);
-  const openWantItems = wantToEatItems.filter((item) => item.status !== "done").slice(0, 6);
-  const doneWantItems = wantToEatItems.filter((item) => item.status === "done").slice(0, 3);
-  const preciseTrialRemaining = Math.max(0, Number.parseInt(recommendationAccess?.preciseTrialRemaining, 10) || 0);
-  const precisePlanLabel = recommendationAccess?.plan === "plus" ? "Plus 家庭版" : "免费版";
-  const familyReflections = buildFamilyReflections({
-    mealLogs,
-    craveSignals,
-    wantToEatItems,
-    sourceSummary,
-  });
-
-  useEffect(() => {
-    setSelectedCraveMemberIds(askableFamilyMembers.map((member) => member.memberId));
-  }, [askableMemberKey]);
+    ...wishPool.slice(0, 2).map((item) => ({
+      id: item.id,
+      title: `想吃：${item.name}`,
+      meta: item.source ? `想吃池 · ${item.source}` : "想吃池",
+    })),
+  ].slice(0, 5);
 
   function handleBindPhone() {
     if (!isWechatMiniProgram || !humiSession) {
@@ -167,246 +198,223 @@ export function UserCenter({
     setPhoneBindStatus("当前环境暂时无法唤起手机号授权，请在微信小程序内重试。");
   }
 
-  function submitWantToEat(event) {
-    event.preventDefault();
-    onAddWantToEat?.({ title: wantTitle, note: wantNote });
-    setWantTitle("");
-    setWantNote("");
+  function openCraveComposer() {
+    setCraveComposerOpen(true);
   }
 
-  function startFamilyCrave() {
-    setFamilyCraveOpen(true);
-    if (activeCraveRequest?.token) {
-      setFamilyCraveStatus("今晚征集单已经在我的家展开，直接在下方分享、刷新回复或出菜单。");
-      window.setTimeout(() => {
-        familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 40);
-      return;
-    }
-    setFamilyCraveStatus("正在把今晚征集单放到我的家。");
-    window.setTimeout(() => {
-      familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
-    if (onStartCraveRequest) {
-      Promise.resolve(onStartCraveRequest(familyFeelingTag, selectedCraveMemberIds)).then((request) => {
-        setFamilyCraveStatus(
-          request?.token
-            ? "今晚征集单已在我的家展开，点“复制/分享”发给家人。"
-            : "已记录这次口味线索；如果分享卡片没生成，可以回到【今晚】再试一次。",
-        );
-      });
-      return;
-    }
-    if (onAskFamily) {
-      onAskFamily();
-      setFamilyCraveStatus("已发起问问大家。");
-    } else {
-      setFamilyCraveStatus("请先回【今晚】发起问问大家。");
-    }
+  function startCraveFromHome() {
+    setCraveComposerOpen(true);
+    onStartCraveRequest?.(selectedCraveFeeling, { audience: selectedCraveAudience });
   }
 
-  function openFamilyCraveStarter() {
-    setFamilyCraveOpen(true);
-    if (activeCraveRequest?.token) {
-      startFamilyCrave();
-      return;
-    }
-    setFamilyCraveStatus("先在下方选好要问的家人和一个感觉，再生成征集卡片。");
-    window.setTimeout(() => {
-      familyCraveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
-  }
-
-  function toggleCraveMember(memberId) {
-    setSelectedCraveMemberIds((current) => current.includes(memberId)
-      ? current.filter((id) => id !== memberId)
-      : [...current, memberId]);
-  }
-
-  function decideFamilyAlone() {
-    if (onDecideAlone) {
-      onDecideAlone(familyFeelingTag);
-      return;
-    }
+  async function finishCraveFromHome(feeling = selectedCraveFeeling) {
+    await onFinishCraveRequest?.(feeling);
+    setCraveComposerOpen(false);
     onViewChange("dashboard");
   }
-
-  const wantToEatPanel = (
-    <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">想吃池子</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想到什么，先丢进来</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            家人随手写一句，主厨排今晚时可以直接放进菜单。
-          </p>
-        </div>
-        <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
-          待安排 {openWantItems.length}
-        </span>
-      </div>
-
-      <form className="mt-4 grid gap-2" onSubmit={submitWantToEat}>
-        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-          <input
-            value={wantTitle}
-            onChange={(event) => setWantTitle(event.target.value)}
-            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-            placeholder="例如：想吃牛肉面"
-          />
-          <input
-            value={wantNote}
-            onChange={(event) => setWantNote(event.target.value)}
-            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-            placeholder="补一句，可不填"
-          />
-          <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-            <Plus size={16} />
-            加入
-          </button>
-        </div>
-      </form>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {quickWantRecipes.map((recipe) => (
-          <button
-            key={recipe.id}
-            type="button"
-            onClick={() => onAddWantRecipe?.(recipe.id)}
-            className="rounded-full border border-line bg-canvas px-3 py-2 text-xs font-black text-ink/58 transition hover:border-ink/20 hover:text-ink"
-          >
-            + {recipe.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 grid gap-3">
-        {openWantItems.length > 0 ? openWantItems.map((item) => (
-          <WantToEatRow
-            key={item.id}
-            item={item}
-            canAddToday={canManageHouseholdMenu}
-            canEdit={canManageHouseholdMenu || item.memberId === currentUserId}
-            onAddToday={() => onAddWantToToday?.(item)}
-            onDone={() => onCompleteWantToEat?.(item.id)}
-            onRemove={() => onRemoveWantToEat?.(item.id)}
-          />
-        )) : (
-          <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-            可以先写“想吃面”“想吃辣”，也可以点上面的快捷菜。
-          </div>
-        )}
-      </div>
-
-      {doneWantItems.length > 0 && (
-        <div className="mt-4 rounded-[20px] bg-canvas p-4">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">已安排</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {doneWantItems.map((item) => (
-              <span key={item.id} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52">
-                {item.title}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  );
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
       <div className="grid gap-5">
-        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-            <div>
-              <p className="eyebrow">家里的饭线索</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{familyReflections[0]?.title}</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{familyReflections[0]?.text}</p>
-            </div>
-            <div className="grid justify-items-center gap-2 sm:justify-items-end">
-              <HumiScene scene="user" size="sm" decorative />
-              <button
-                type="button"
-                onClick={() => onViewChange("dashboard")}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink"
-              >
-                安排今晚
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
-            <StatusRow label="征集动态" value={`${craveFeelingEntries.length} 条`} />
-            <StatusRow label="想吃待安排" value={`${openWantItems.length} 个`} />
-          </div>
-          {familyReflections.length > 1 && (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {familyReflections.slice(1, 3).map((item) => (
-                <div key={item.title} className="rounded-[22px] border border-line bg-canvas p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">{item.meta}</p>
-                  <p className="mt-2 text-sm font-black leading-6 text-ink">{item.title}</p>
-                  <p className="mt-1 text-xs font-bold leading-5 text-ink/48">{item.text}</p>
+        <section className="grid gap-4 overflow-hidden rounded-[28px] border border-line bg-white p-5 text-ink shadow-card md:grid-cols-[1fr_250px] md:items-center md:p-8">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/42">我的家</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-black tracking-[-0.04em] sm:text-4xl md:text-6xl">
+              {homeHero.title}
+            </h2>
+            <p className="mt-3 max-w-xl text-sm font-bold leading-7 text-ink/58">
+              {homeHero.subtitle}
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {homeHero.stats.map((item) => (
+                <div key={item.label} className="rounded-[16px] bg-canvas p-2 sm:p-3">
+                  <p className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-ink/38 sm:text-[11px]">{item.label}</p>
+                  <p className="mt-1 truncate text-sm font-black text-ink sm:text-base">{item.value}</p>
                 </div>
               ))}
             </div>
-          )}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {canManageHousehold && <button
+                type="button"
+                onClick={openCraveComposer}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/18 bg-canvas px-5 text-sm font-black text-ink"
+              >
+                问问大家
+              </button>}
+              <button
+                type="button"
+                onClick={() => onViewChange("dashboard")}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink"
+              >
+                {canManageHousehold ? "继续安排今晚" : "查看今晚安排"}
+              </button>
+            </div>
+          </div>
+          <HumiScene scene="user" size="page" className="mx-auto" eager />
         </section>
 
-        <section ref={familyCraveRef} data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        {pendingJoinContext?.type && (
+          <PendingJoinCard
+            context={pendingJoinContext}
+            signedIn={signedIn}
+            onClear={onClearPendingJoinContext}
+            onAccept={onAcceptPendingJoin}
+          />
+        )}
+        <section className="rounded-[24px] border border-line bg-white p-4 shadow-card">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">协作主场</p>
+              <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">今晚先看这三件事</h3>
+              <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
+                画像回执：{familyPortraitDigest.evidenceCount} 条线索 · {familyPortraitDigest.nextMove}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <HomeActionTile
+              label="感觉征集"
+              value={activeCraveRequest?.token ? `${activeCraveVotes.length} 个回复` : "还没发起"}
+              actionLabel={activeCraveRequest?.token ? "刷新" : canManageHousehold ? "发起" : "等主厨"}
+              onClick={activeCraveRequest?.token ? onRefreshCraveRequest : canManageHousehold ? openCraveComposer : undefined}
+              disabled={!activeCraveRequest?.token && !canManageHousehold}
+            />
+            <HomeActionTile
+              label="买菜认领"
+              value={activeGroceryShareRequest?.token ? `已买 ${checkedGroceryItems}/${groceryItems.length}` : "去清单分享"}
+              actionLabel={activeGroceryShareRequest?.token ? "刷新" : "打开"}
+              onClick={activeGroceryShareRequest?.token ? onRefreshGroceryShare : () => onViewChange("grocery")}
+            />
+            <HomeActionTile
+              label="想吃池"
+              value={activeWishShareRequest?.token ? `${wishShareWishes.length} 个想吃` : `${wishPool.length} 道`}
+              actionLabel={activeWishShareRequest?.token ? "刷新" : canManageHousehold ? "收集" : "去添加"}
+              onClick={activeWishShareRequest?.token ? onRefreshWishShare : canManageHousehold ? onStartWishShare : onOpenRecipeLibrary}
+            />
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas px-3 py-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">画像回执</span>
+                <span className="mt-1 block truncate text-sm font-black text-ink">
+                  {familyPortraitDigest.evidenceCount} 条线索 · 下一顿：{familyPortraitDigest.nextMove}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink/58">
+                用它安排
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenRecipeLibrary}
+              className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas px-3 py-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">全部菜品库</span>
+                <span className="mt-1 block truncate text-sm font-black text-ink">推荐外的完整菜品库</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink/58">去挑</span>
+            </button>
+          </div>
+        </section>
+        {canManageHousehold && craveComposerOpen && (
+          <FamilyCraveComposer
+            activeRequest={activeCraveRequest}
+            votes={activeCraveVotes}
+            pending={craveRequestPending}
+            selectedFeeling={selectedCraveFeeling}
+            onSelectFeeling={setSelectedCraveFeeling}
+            audienceMembers={householdMembers}
+            onAudienceChange={setSelectedCraveAudience}
+            onStart={startCraveFromHome}
+            onShare={onShareCraveRequest}
+            onRefresh={onRefreshCraveRequest}
+            onFinish={finishCraveFromHome}
+            onClose={() => setCraveComposerOpen(false)}
+          />
+        )}
+        {activeGroceryShareRequest?.token && (
+          <GroceryCollaborationSummary
+            request={activeGroceryShareRequest}
+            checkedNames={checkedGroceryNames}
+            pendingNames={pendingGroceryNames}
+            onRefresh={onRefreshGroceryShare}
+          />
+        )}
+        {activeWishShareRequest?.token && (
+          <WishShareSummary
+            request={activeWishShareRequest}
+            onRefresh={onRefreshWishShare}
+            onShare={onShareWishRequest}
+          />
+        )}
+        {familyPortraitDigest.evidenceCount > 0 && (
+          <PortraitReceiptPreview
+            digest={familyPortraitDigest}
+            tierDigest={experienceTierDigest}
+            onViewChange={onViewChange}
+          />
+        )}
+        {familyPortraitDigest.evidenceCount > 0 && (
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">这周家里的饭</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">Humi 正在记住这些变化</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                家人点过的感觉、买菜参与、想吃池和三餐记录会一起长成家庭画像。
+              </p>
+            </div>
+            {canManageHousehold && <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
+            >
+              继续安排今晚
+            </button>}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {familyPulseRows.map((row) => (
+              <FamilyPulseCard key={row.id} row={row} />
+            ))}
+          </div>
+        </section>
+        )}
+        {familyActivity.length > 0 && (
+        <section data-testid="family-activity-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="eyebrow">家庭动态</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">最近大家怎么想吃</h3>
-              {familyActivity.length === 0 && (
-                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                  第一次协作后，大家点过的感觉、买菜认领和晚饭反馈会留在这里。
-                </p>
-              )}
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                感觉征集、三餐记录和清单协作会沉淀在这里。设置放后面，需要改时再进。
+              </p>
             </div>
-            {canManageHouseholdMenu && (
+            {canManageHousehold && <button
+              type="button"
+              onClick={openCraveComposer}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
+            >
+              问问大家
+            </button>}
+            {activeGroceryShareRequest?.token && (
               <button
                 type="button"
-                onClick={openFamilyCraveStarter}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+                onClick={onRefreshGroceryShare}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
               >
-                {activeCraveRequest?.token ? "查看征集单" : "问问大家"}
+                刷新买菜
               </button>
             )}
           </div>
-          {familyCraveStatus && (
-            <div className="mt-4 rounded-[20px] border border-line bg-canvas px-4 py-3 text-sm font-black leading-6 text-ink/62">
-              {familyCraveStatus}
-            </div>
-          )}
-          {activeCraveRequest?.token && (
-            <div className="mt-4">
-              <CraveCollectingSheet
-                request={activeCraveRequest}
-                onCopyCraveLink={onCopyCraveLink}
-                onRefreshCraveRequest={onRefreshCraveRequest}
-                onGenerateFromCrave={onGenerateFromCrave}
-                canManage={canManageHouseholdMenu}
-                compact
-              />
-            </div>
-          )}
-          {!activeCraveRequest?.token && canManageHouseholdMenu && familyCraveOpen && (
-            <CraveStarterSheet
-              selectedFeeling={familyFeelingTag}
-              onSelectFeeling={setFamilyFeelingTag}
-              members={askableFamilyMembers}
-              selectedMemberIds={selectedCraveMemberIds}
-              onToggleMember={toggleCraveMember}
-              onStart={startFamilyCrave}
-              onDecideAlone={decideFamilyAlone}
-              compact
-            />
-          )}
           <div className="mt-4 grid gap-3">
             {familyActivity.length > 0 ? (
               familyActivity.map((item) => (
-                <div key={item.id} className="grid items-center gap-3 rounded-[20px] border border-line bg-canvas p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-                  <HumiScene scene="feedbackExcited" size="sm" className="mx-auto sm:mx-0" decorative />
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-ink">{item.title}</p>
                     <p className="mt-1 text-xs font-bold text-ink/42">{item.meta}</p>
@@ -414,176 +422,153 @@ export function UserCenter({
                   <span className="h-2 w-2 shrink-0 rounded-full bg-ink" />
                 </div>
               ))
+            ) : null}
+          </div>
+        </section>
+        )}
+        {(wishPool.length > 0 || activeWishShareRequest?.token) && (
+        <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">想吃池</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想吃的，先放这里</h3>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                从全部菜品点“想吃”会沉淀到这里。安排晚饭时可以一键拿出来做。
+              </p>
+            </div>
+            {canManageHousehold && <button
+              type="button"
+              onClick={activeWishShareRequest?.token ? onShareWishRequest : onStartWishShare}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
+            >
+              {activeWishShareRequest?.token ? "分享想吃入口" : "让家人写想吃"}
+            </button>}
+          </div>
+          <div className="mt-4 grid gap-3">
+            {wishPool.length > 0 ? (
+              wishPool.slice(0, 6).map((item) => (
+                <div key={item.id} data-testid="want-to-eat-row" className="flex items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas p-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-ink">{item.name}</p>
+                    <p className="mt-1 text-xs font-bold text-ink/42">{item.source || "全部菜品"}</p>
+                  </div>
+                  {(canManageHousehold || item.memberId === currentMemberId) && <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onPlanWish?.(item)}
+                      className="rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
+                    >
+                      {canManageHousehold ? item.recipeId ? "今晚做" : "去挑菜" : "标记安排"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveWish?.(item.id)}
+                      className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/52"
+                    >
+                      移除
+                    </button>
+                  </div>}
+                </div>
+              ))
             ) : (
-              <div className="grid items-center gap-3 rounded-[20px] border border-line bg-canvas p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <p className="text-sm font-bold leading-6 text-ink/52">
-                  还没有协作动态。今晚先点一次“问问大家想吃啥”，这里就会开始长出你家的饭线索。
-                </p>
-                <HumiScene scene="craveThinking" size="sm" className="mx-auto sm:mx-0" decorative />
+              <div className="rounded-[20px] border border-line bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+                还没有想吃的菜。去全部菜品逛一逛，看到想吃的先点一下心形。
               </div>
             )}
           </div>
         </section>
-        {wantToEatPanel}
-        <FamilyRolePanel
-          signedIn={signedIn}
-          family={family}
-          role={familyRole}
-          members={familyMembers}
-          currentUserId={currentUserId}
-          activeInvite={activeHouseholdInvite}
-          onCreateInvite={onCreateHouseholdInvite}
-          onShareInvite={onShareHouseholdInvite}
-        />
-        <HouseholdSwitcher
-          signedIn={signedIn}
-          family={family}
-          households={households}
-          newHouseholdName={newHouseholdName}
-          onNameChange={setNewHouseholdName}
-          onCreate={() => {
-            onCreateHousehold?.(newHouseholdName || "另一个家");
-            setNewHouseholdName("");
-          }}
-          onSwitch={onSwitchHousehold}
-        />
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+        )}
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="eyebrow">推荐权益</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">基础免费，精准升级</h3>
+              <p className="eyebrow">家庭成员</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">谁正在参与这顿饭</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                感觉征集、清单、买菜认领和基础推荐都不限次数。精准推荐才会调用高成本 API，适合作为家庭付费点。
+                主厨是正式拥有者；分享卡片点进来的家人先以临时身份参与，加入后再成为正式成员。
               </p>
             </div>
-            <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
-              {precisePlanLabel}
+            <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
+              {householdParticipants.length} 人/身份
             </span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <StatusRow label="基础推荐" value="无限" />
-            <StatusRow label="精准尝鲜" value={recommendationAccess?.plan === "plus" ? "不限" : `${preciseTrialRemaining} 次`} />
-            <StatusRow label="已用精准" value={`${Math.max(0, Number.parseInt(recommendationAccess?.preciseUsed, 10) || 0)} 次`} />
-          </div>
-          <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">收费边界</p>
-            <p className="mt-2 text-sm font-bold leading-6 text-ink/54">
-              不按家人数、不按征集次数收费；付费只落在更准的 API 推荐、深度家庭协调和完整版画像回顾上。
-            </p>
-          </div>
-        </section>
-        <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-28 shadow-card">
-          <HumiPeek
-            variant="menu-rejected"
-            size="sm"
-            className="absolute right-4 top-12 opacity-85"
-            contextKey="user-center-feedback-peek"
-          />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="eyebrow">饮食画像</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">吃饭画像慢慢反射</h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                只有确认“全部吃了”的晚餐才进入营养分析；外卖和外食只记录来源。
-              </p>
-            </div>
-            <span className="min-w-[92px] shrink-0 whitespace-nowrap rounded-full bg-ink px-3 py-2 text-center text-xs font-black leading-none text-white">
-              已确认 {sourceSummary.confirmed} 次
-            </span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <StatusRow label="在家做" value={`${sourceSummary.home} 次`} />
-            <StatusRow label="点外卖" value={`${sourceSummary.delivery} 次`} />
-            <StatusRow label="外面吃" value={`${sourceSummary.outside} 次`} />
           </div>
           <div className="mt-4 grid gap-3">
-            {familyReflections.map((item) => (
-              <div key={item.title} className="rounded-[22px] border border-line bg-canvas p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">{item.meta}</p>
-                <h4 className="mt-2 text-lg font-black tracking-[-0.02em]">{item.title}</h4>
-                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">{item.text}</p>
-              </div>
+            {householdParticipants.map((participant) => (
+              <ParticipantRow key={participant.id} participant={participant} />
             ))}
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <StatusRow label="推荐接受率" value={`${validationSummary.recommendationAcceptanceRate}%`} />
-            <StatusRow label="拒绝原因采集" value={`${validationSummary.rejectedReasonCaptureRate}%`} />
-            <StatusRow label="清单查看" value={`${validationSummary.groceryViewed} 次`} />
-          </div>
-          <div className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">晚饭反馈</p>
-            <h4 className="mt-2 text-lg font-black">常见不想吃原因</h4>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {topReasons.length > 0 ? (
-                topReasons.map((reason) => (
-                  <span key={reason.label} className="rounded-full bg-white px-3 py-2 text-xs font-black text-ink/60">
-                    {reason.label} · {reason.value}
-                  </span>
-                ))
-              ) : (
-                <span className="text-sm font-bold text-ink/45">你标记“不想吃”后，这里会慢慢整理原因。</span>
-              )}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => onViewChange("dashboard")}
-                className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
-              >
-                继续安排今晚
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <UtilityButton icon={BarChart3} label="营养分析" onClick={() => onViewChange("stats")} />
-            <UtilityButton icon={ChefHat} label="全部菜品库" onClick={onOpenRecipeLibrary} />
-          </div>
+          {signedIn && family && (
+            <HouseholdActions
+              family={family}
+              households={households}
+              activeInvite={activeHouseholdInvite}
+              newHouseholdName={newHouseholdName}
+              onNameChange={setNewHouseholdName}
+              onCreate={() => {
+                onCreateHousehold?.(newHouseholdName || "另一个家");
+                setNewHouseholdName("");
+              }}
+              onSwitch={onSwitchHousehold}
+              onCreateInvite={onCreateHouseholdInvite}
+              onShareInvite={onShareHouseholdInvite}
+            />
+          )}
         </section>
+
+        <div data-testid="cloud-account-section">
+          <CloudAccount
+            {...authProps}
+            session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
+            family={family}
+            hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
+          />
+        </div>
 
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="eyebrow">{canManageHouseholdMenu ? "设置" : "家庭忌口"}</p>
-              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
-                {canManageHouseholdMenu ? "需要改时再进入" : "主厨统一维护"}
-              </h3>
+              <p className="eyebrow">设置</p>
+              <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">需要改时再进入</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {canManageHouseholdMenu
-                  ? "这里只改家里不能吃的东西。其他口味由感觉征集和做饭确认慢慢学，不需要维护。"
-                  : "这里展示全家共用的忌口和过敏；需要调整时由主厨修改，避免多人同时覆盖。"}
+                忌口和营养目标需要改时再进来；软口味会从日常协作里学习。
               </p>
             </div>
             <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/45">
-              {formatProfileSummary(familyProfile)}
+              {formatHardProfileSummary(familyProfile)}
             </span>
           </div>
-          <div className="mt-4 grid gap-2">
-            {canManageHouseholdMenu ? (
-              <UtilityButton icon={ShieldAlert} label="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
-            ) : (
-              <div data-testid="family-constraints-readonly" className="rounded-[18px] border border-line bg-canvas px-4 py-3 text-sm font-black text-ink/58">
-                {formatProfileSummary(familyProfile)}
-              </div>
-            )}
-          </div>
+          {canManageHousehold ? <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UtilityButton icon={UserRound} label="家庭信息与忌口" ariaLabel="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
+            <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
+            <UtilityButton icon={Users} label="家人忌口" onClick={() => setActiveSettings(activeSettings === "preferences" ? null : "preferences")} />
+          </div> : (
+            <div data-testid="family-constraints-readonly" className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">家庭饮食约束</p>
+              <p className="mt-2 text-sm font-black leading-6 text-ink/68">{formatHardProfileSummary(familyProfile)}</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-ink/45">由主厨统一维护，家人查看即可。</p>
+            </div>
+          )}
         </section>
 
-        {canManageHouseholdMenu && activeSettings === "profile" && (
+        {canManageHousehold && activeSettings === "profile" && (
           <FamilyProfilePanel
+            session={session}
+            signedIn={signedIn}
             profile={familyProfile}
             setProfile={setFamilyProfile}
           />
         )}
-        <CloudAccount
-          {...authProps}
-          session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-          family={family}
-          hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-        />
+        {canManageHousehold && activeSettings === "goals" && (
+          <NutritionGoalsPanel
+            profile={familyProfile}
+            goals={nutritionGoals}
+            setGoals={setNutritionGoals}
+          />
+        )}
         <CloudSyncPanel {...cloudMenuProps} />
+        {canManageHousehold && activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
       </div>
 
-      <aside className="grid content-start gap-5">
+      <aside className="hidden content-start gap-5 xl:grid">
         <Card className="relative overflow-hidden pr-24">
           <HumiPeek
             variant={family ? "profile" : "family-taste-talk"}
@@ -653,7 +638,7 @@ export function UserCenter({
                   ? "菜单、画像和清单会优先跟随 Humi 账号。"
                   : wechatLoginEnabled
                   ? "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"
-                  : "未登录也能先安排晚饭；核心菜单、计划和清单保存在当前设备。"}
+                  : "首发先不要求登录；核心菜单、计划和清单保存在当前设备。"}
               </p>
             </div>
           </div>
@@ -681,331 +666,14 @@ export function UserCenter({
   );
 }
 
-function FamilyRolePanel({ signedIn, family, role, members, currentUserId, activeInvite, onCreateInvite, onShareInvite }) {
-  const isOwner = role === "owner";
-  const isMember = role === "member";
-  const roleLabel = isOwner ? "主厨" : isMember ? "家人" : "身份确认中";
-  const memberCount = members.length || (family ? 1 : 0);
-
-  return (
-    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">家庭身份</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
-            {family ? `${family.name}里的${roleLabel}` : signedIn ? "先创建我的家" : "登录后再加入我的家"}
-          </h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            主厨负责发起征集、定菜单和管理家庭忌口；家人可以点感觉、认领买菜、丢想吃。临时点过感觉的人不会自动拥有家庭数据，登录加入后才变成正式成员。
-          </p>
-        </div>
-        <span className="w-fit rounded-full bg-ink px-3 py-2 text-xs font-black text-white">
-          {family ? `${memberCount} 人` : "未建立"}
-        </span>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <PermissionCard
-          icon={ChefHat}
-          title="主厨能力"
-          active={isOwner || !family}
-          lines={["发起问问大家", "定今晚菜单", "管理家庭忌口"]}
-        />
-        <PermissionCard
-          icon={Users}
-          title="家人能力"
-          active={isMember && Boolean(family)}
-          lines={["点一个感觉", "认领买菜项", "加入想吃池子"]}
-        />
-      </div>
-
-      {family && (
-        <div className="mt-4 rounded-[24px] border border-line bg-canvas p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">邀请家人</p>
-              <h4 className="mt-2 text-xl font-black tracking-[-0.03em]">把这个家发给家人</h4>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {isOwner
-                  ? "生成小程序卡片后，家人点开并登录就会成为正式成员。"
-                  : "你已经在这个家里了；只有主厨能生成新的家庭邀请卡片。"}
-              </p>
-            </div>
-            {isOwner ? (
-              <button type="button" onClick={onCreateInvite} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-                <Share2 size={16} />
-                邀请家人
-              </button>
-            ) : (
-              <span className="w-fit rounded-full bg-white px-3 py-2 text-xs font-black text-ink/45">成员</span>
-            )}
-          </div>
-          {activeInvite?.token && isOwner && (
-            <div className="mt-3 flex flex-col gap-2 rounded-[18px] border border-line bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-ink">{activeInvite.householdName || family.name} 的邀请卡片已准备好</p>
-                <p className="mt-1 text-xs font-bold text-ink/42">已加入 {activeInvite.acceptedCount || 0} 人 · 点击后会唤起小程序分享</p>
-              </div>
-              <button type="button" onClick={onShareInvite} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink">
-                <Share2 size={14} />
-                再分享
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {family && (
-        <div className="mt-4 grid gap-2">
-          {members.slice(0, 6).map((member) => (
-            <div key={member.memberId} className="flex items-center justify-between gap-3 rounded-[18px] border border-line bg-canvas p-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-ink">
-                  {member.nickname || "家人"}{member.memberId === currentUserId ? " · 我" : ""}
-                </p>
-                <p className="mt-1 text-xs font-bold text-ink/42">
-                  {formatHouseholdRole(member.role)} · {formatHouseholdStatus(member.status)}
-                </p>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-black ${member.role === "owner" ? "bg-ink text-white" : "bg-white text-ink/52"}`}>
-                {formatHouseholdRole(member.role)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function HouseholdSwitcher({ signedIn, family, households, newHouseholdName, onNameChange, onCreate, onSwitch }) {
-  if (!signedIn) return null;
-  const visibleHouseholds = households.length > 0 ? households : family ? [family] : [];
-
-  return (
-    <section data-testid="household-switcher" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">多个家</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">当前用的是 {family?.name || "我的家"}</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            小家、父母家可以分开保存菜单、清单和画像。现在默认仍只用一个家，需要时再切换。
-          </p>
-        </div>
-        <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
-          {visibleHouseholds.length || 1} 个家
-        </span>
-      </div>
-
-      <div className="mt-4 grid gap-2">
-        {visibleHouseholds.map((household) => {
-          const active = household.id === family?.id;
-          return (
-            <button
-              key={household.id}
-              type="button"
-              onClick={() => !active && onSwitch?.(household.id)}
-              className={`flex min-h-14 items-center justify-between gap-3 rounded-[18px] border px-4 text-left transition ${
-                active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink hover:border-ink/30"
-              }`}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-black">{household.name || "我的家"}</span>
-                <span className={`mt-1 block text-xs font-bold ${active ? "text-white/62" : "text-ink/42"}`}>
-                  {formatHouseholdRole(household.role)} · {(household.members ?? []).length || 1} 人
-                </span>
-              </span>
-              {active ? <Check size={18} /> : <Users size={18} />}
-            </button>
-          );
-        })}
-      </div>
-
-      {onCreate && (
-        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input
-            value={newHouseholdName}
-            onChange={(event) => onNameChange?.(event.target.value)}
-            className="min-h-12 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
-            placeholder="例如：爸妈家"
-          />
-          <button type="button" onClick={onCreate} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-            <Plus size={16} />
-            新建一个家
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function PermissionCard({ icon: Icon, title, active, lines }) {
-  return (
-    <div className={`rounded-[22px] border p-4 ${active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink"}`}>
-      <div className="flex items-center gap-2">
-        <Icon size={18} />
-        <p className="text-sm font-black">{title}</p>
-      </div>
-      <div className={`mt-3 grid gap-2 text-xs font-bold leading-5 ${active ? "text-white/70" : "text-ink/52"}`}>
-        {lines.map((line) => (
-          <div key={line} className="flex items-center gap-2">
-            <Check size={14} />
-            <span>{line}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function WantToEatRow({ item, canAddToday, canEdit, onAddToday, onDone, onRemove }) {
-  return (
-    <div data-testid="want-to-eat-row" className="rounded-[20px] border border-line bg-canvas p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-base font-black">{item.title}</p>
-          <p className="mt-1 text-xs font-bold text-ink/42">
-            {item.memberName || "家人"}想吃{item.note ? ` · ${item.note}` : ""}
-          </p>
-        </div>
-        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-ink/45">
-          待安排
-        </span>
-      </div>
-      {(canAddToday || canEdit) && <div className={`mt-3 grid gap-2 ${canAddToday && canEdit ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-        {canAddToday && (
-          <button type="button" onClick={onAddToday} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-ink px-4 text-xs font-black text-white">
-            <Utensils size={14} />
-            今晚就吃
-          </button>
-        )}
-        {canEdit && (
-          <button type="button" onClick={onDone} className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-            标记安排
-          </button>
-        )}
-        {canEdit && (
-          <button type="button" onClick={onRemove} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-black text-ink/62">
-            <Trash2 size={13} />
-            移除
-          </button>
-        )}
-      </div>}
-    </div>
-  );
-}
-
-function buildDinnerActivityTitle(log = {}) {
-  const actorName = log.actorName || "主厨";
-  if (log.confirmation === "all") return `${actorName}确认今晚已做饭`;
-  if (log.confirmation === "partial") return `${actorName}确认今晚做了一部分`;
-  if (log.confirmation === "changed") return `${actorName}说今晚换了别的`;
-  if (log.confirmation === "outside") return `${actorName}说今晚在外面吃`;
-  return `${actorName}更新了今晚的饭`;
-}
-
-function buildFamilyReflections({ mealLogs = {}, craveSignals = [], wantToEatItems = [], sourceSummary = {} }) {
-  const reflections = [];
-  const feelingCounts = extractCraveFeelingEntries(craveSignals).reduce((summary, item) => {
-    const tag = item.feelingTag;
-    if (!tag || tag === "随便都行") return summary;
-    summary[tag] = (summary[tag] ?? 0) + 1;
-    return summary;
-  }, {});
-  const topFeeling = Object.entries(feelingCounts).sort((a, b) => b[1] - a[1])[0];
-  if (topFeeling) {
-    reflections.push({
-      meta: "感觉趋势",
-      title: `最近更常有人想要「${topFeeling[0]}」`,
-      text: topFeeling[1] > 1
-        ? `已经出现 ${topFeeling[1]} 次。之后揉合菜单时，Humi 会优先把这个感觉当成软偏好。`
-        : "这条感觉已经记下来了，后面家人再点几次就会长成更稳定的饭线索。",
-    });
-  }
-
-  const mealSlotSummary = Object.values(mealLogs ?? {}).reduce(
-    (summary, log) => {
-      const breakfastSource = log?.meals?.breakfast?.source;
-      const lunchSource = log?.meals?.lunch?.source;
-      if (breakfastSource === "home") summary.breakfast += 1;
-      if (lunchSource === "home") summary.lunchHome += 1;
-      if (lunchSource === "delivery" || lunchSource === "outside") summary.lunchAway += 1;
-      return summary;
-    },
-    { breakfast: 0, lunchHome: 0, lunchAway: 0 },
-  );
-  if (mealSlotSummary.breakfast > 0) {
-    reflections.push({
-      meta: "早餐记录",
-      title: `早餐已经顺手记了 ${mealSlotSummary.breakfast} 次`,
-      text: "早餐不做复杂推荐，只保留轻量记录和清单信号，避免把早上变成另一套任务。",
-    });
-  }
-  if (mealSlotSummary.lunchHome + mealSlotSummary.lunchAway > 0) {
-    reflections.push({
-      meta: "午餐来源",
-      title: mealSlotSummary.lunchAway > mealSlotSummary.lunchHome ? "午餐最近更多在外解决" : "午餐也开始进入家庭节奏",
-      text: mealSlotSummary.lunchAway > mealSlotSummary.lunchHome
-        ? "这不会被当成断更；Humi 只记录来源，晚饭仍然是主决策。"
-        : "在家做的午餐会进清单，外卖和外食只进画像，不额外打扰。",
-    });
-  }
-
-  const openWantCount = wantToEatItems.filter((item) => item.status !== "done").length;
-  const doneWantCount = wantToEatItems.filter((item) => item.status === "done").length;
-  if (openWantCount > 0 || doneWantCount > 0) {
-    reflections.push({
-      meta: "想吃池子",
-      title: openWantCount > 0 ? `还有 ${openWantCount} 个想吃的等安排` : `已经安排过 ${doneWantCount} 个想吃的`,
-      text: "这些不是设置表，而是家人自然丢进来的感觉线索，会慢慢喂给今晚推荐。",
-    });
-  }
-
-  if (sourceSummary.home > 0 && reflections.length < 3) {
-    reflections.push({
-      meta: "晚饭反馈",
-      title: `最近在家做了 ${sourceSummary.home} 次`,
-      text: sourceSummary.delivery + sourceSummary.outside > sourceSummary.home
-        ? "外卖和外食也被温和记下来了，后面会用来判断哪天更适合省事菜单。"
-        : "确认做了的晚饭会进入画像和营养回看，换了别的也不会扣分。",
-    });
-  }
-
-  if (reflections.length === 0) {
-    reflections.push({
-      meta: "画像刚开始",
-      title: "先用几次，Humi 会慢慢看见你家",
-      text: "感觉征集、早餐轻记、午餐来源和晚间确认都会成为画像材料，不需要额外填表。",
-    });
-  }
-
-  return reflections.slice(0, 3);
-}
-
-function extractCraveFeelingEntries(craveSignals = []) {
-  return craveSignals.flatMap((signal) => {
-    const votes = Array.isArray(signal?.votes) ? signal.votes : [];
-    if (votes.length > 0) {
-      return votes.map((vote, index) => ({
-        id: vote.id || `${signal.id || signal.token || "crave"}:vote:${index}`,
-        feelingTag: vote.feelingTag || "随便都行",
-        memberName: vote.memberName || "家人",
-        createdAt: vote.createdAt || signal.createdAt,
-      }));
-    }
-    if (!signal?.feelingTag) return [];
-    return [{
-      id: signal.id || signal.token || `crave:${signal.createdAt || signal.feelingTag}`,
-      feelingTag: signal.feelingTag,
-      memberName: signal.memberName || "有人",
-      createdAt: signal.createdAt,
-    }];
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-}
-
-function FamilyProfilePanel({ profile, setProfile }) {
+function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
   const [draft, setDraft] = useState(profile);
   const [status, setStatus] = useState("");
+  const hardAvoidCount = (draft.dislikes?.length ?? 0) + (draft.allergies?.length ?? 0);
+
+  function updateValue(key, value) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
 
   function toggleListValue(key, value) {
     setDraft((current) => {
@@ -1018,25 +686,55 @@ function FamilyProfilePanel({ profile, setProfile }) {
 
   function saveProfile() {
     setProfile(draft);
-    setStatus("忌口已保存，之后推荐会把这些当成硬约束避开。");
+    setStatus("硬避开项已保存。软口味会继续从感觉征集、想吃池和晚饭确认里学习。");
   }
 
   return (
     <section data-testid="diet-constraints-panel" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="eyebrow">硬约束</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家里不能吃什么</h3>
+          <p className="eyebrow">家庭信息</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">人数和忌口</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            只维护会让推荐直接出错的忌口和过敏。其他口味会从家人的自然动作里学习。
+            这里只维护会影响信任的硬信息。喜欢、偏辣、想省事这类软口味，会从自然动作里慢慢长出来。
           </p>
         </div>
-        <span className="w-fit rounded-full bg-ink px-3 py-1 text-xs font-black text-white">只填一次</span>
+        <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/58">
+          {hardAvoidCount > 0 ? `${hardAvoidCount} 项硬避开` : "可随时补充"}
+        </span>
       </div>
 
+      {!session?.user && !signedIn && (
+        <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
+          可以先填写体验；创建我的家后，菜单、清单状态和画像线索会一起保存。
+        </div>
+      )}
+
       <div className="mt-5 grid gap-4">
-        <ProfileStep icon={ShieldAlert} title="忌口与过敏">
-          <p className="mb-2 text-xs font-bold text-ink/42">这些会作为硬约束避开</p>
+        <ProfileStep icon={Users} title="家里几个人吃饭">
+          <div className="grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((size) => (
+              <ChoiceButton
+                key={size}
+                active={Number(draft.familySize) === size}
+                label={size === 4 ? "4人+" : `${size}人`}
+                onClick={() => updateValue("familySize", size)}
+              />
+            ))}
+          </div>
+          <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-between rounded-[18px] bg-canvas px-4">
+            <span className="text-sm font-black">有孩子一起吃</span>
+            <input
+              type="checkbox"
+              checked={Boolean(draft.hasChildren)}
+              onChange={(event) => updateValue("hasChildren", event.target.checked)}
+              className="h-5 w-5 accent-black"
+            />
+          </label>
+        </ProfileStep>
+
+        <ProfileStep icon={ShieldAlert} title="绝不想吃 / 不能吃">
+          <p className="mb-2 text-xs font-bold text-ink/42">这类今晚不要推</p>
           <TagChoices
             options={profileOptions.dislikes}
             values={draft.dislikes}
@@ -1052,9 +750,16 @@ function FamilyProfilePanel({ profile, setProfile }) {
 
       </div>
 
-      <div className="mt-5 rounded-[20px] bg-canvas p-4">
-        <p className="text-xs font-black text-ink/38">软口味自动学习</p>
-        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">感觉征集、想吃池子和确认做过的菜会慢慢形成画像，无需手动填写。</p>
+      <div className="mt-5 border-t border-line pt-4">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">软口味来源</p>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/58">
+          Humi 会优先从“问问大家”、想吃池、换一组原因和晚饭确认里学习，不再要求你手动填一张口味表。
+        </p>
+      </div>
+
+      <div className="mt-4 border-t border-line pt-4">
+        <p className="text-xs font-black text-ink/38">当前家庭信息</p>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatHardProfileSummary(draft)}</p>
       </div>
 
       {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
@@ -1065,17 +770,136 @@ function FamilyProfilePanel({ profile, setProfile }) {
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
         <Check size={17} className="text-white" />
-        保存忌口
+        保存家庭画像
       </button>
     </section>
   );
 }
 
+function NutritionGoalsPanel({ profile, goals, setGoals }) {
+  const normalizedGoals = normalizeNutritionGoals(profile, goals);
+  const [draft, setDraft] = useState(normalizedGoals);
+  const [status, setStatus] = useState("");
+
+  function updateNumber(key, value) {
+    setDraft((current) => ({ ...current, [key]: Number(value) }));
+  }
+
+  function resetToModeDefaults() {
+    const defaults = getDefaultNutritionGoals(profile);
+    setDraft(defaults);
+    setGoals(defaults);
+    setStatus("已恢复当前规划模式的默认目标。");
+  }
+
+  function saveGoals() {
+    const nextGoals = {
+      ...draft,
+      caloriesKcalMax: Number(draft.caloriesKcalMax),
+      proteinGMin: Number(draft.proteinGMin),
+      fatGMax: Number(draft.fatGMax),
+      carbsGMax: Number(draft.carbsGMax),
+      vegetableRatioMin: Number(draft.vegetableRatioMin),
+      proteinRatioMin: Number(draft.proteinRatioMin),
+      quickRatioMin: Number(draft.quickRatioMin),
+      homeCookRatioMin: Number(draft.homeCookRatioMin),
+    };
+    setGoals(nextGoals);
+    setStatus("营养目标已保存在本机。");
+  }
+
+  return (
+    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">营养目标</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">每顿晚餐参考目标</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            这里只管理晚餐估算目标，不代表全天摄入，也不替代专业营养建议。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={resetToModeDefaults}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-canvas px-4 text-xs font-black text-ink/62 transition hover:text-ink"
+        >
+          使用模式默认
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <GoalInput label="热量上限" value={draft.caloriesKcalMax} unit="kcal" min={300} max={900} step={10} onChange={(value) => updateNumber("caloriesKcalMax", value)} />
+        <GoalInput label="蛋白质下限" value={draft.proteinGMin} unit="g" min={8} max={50} step={1} onChange={(value) => updateNumber("proteinGMin", value)} />
+        <GoalInput label="脂肪上限" value={draft.fatGMax} unit="g" min={8} max={45} step={1} onChange={(value) => updateNumber("fatGMax", value)} />
+        <GoalInput label="碳水上限" value={draft.carbsGMax} unit="g" min={30} max={120} step={1} onChange={(value) => updateNumber("carbsGMax", value)} />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <RatioInput label="蔬菜比例" value={draft.vegetableRatioMin} onChange={(value) => updateNumber("vegetableRatioMin", value)} />
+        <RatioInput label="蛋白类比例" value={draft.proteinRatioMin} onChange={(value) => updateNumber("proteinRatioMin", value)} />
+        <RatioInput label="省时菜比例" value={draft.quickRatioMin} onChange={(value) => updateNumber("quickRatioMin", value)} />
+        <RatioInput label="在家做比例" value={draft.homeCookRatioMin} onChange={(value) => updateNumber("homeCookRatioMin", value)} />
+      </div>
+
+      {status && <p className="mt-3 text-xs font-bold text-ink/45">{status}</p>}
+
+      <button
+        type="button"
+        onClick={saveGoals}
+        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+      >
+        <Check size={17} className="text-white" />
+        保存营养目标
+      </button>
+    </section>
+  );
+}
+
+function GoalInput({ label, value, unit, min, max, step, onChange }) {
+  return (
+    <label className="rounded-[20px] bg-canvas p-4">
+      <span className="flex items-center justify-between gap-3 text-sm font-black">
+        <span>{label}</span>
+        <span className="text-ink/48">{Math.round(value)}{unit}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-3 w-full accent-black"
+      />
+    </label>
+  );
+}
+
+function RatioInput({ label, value, onChange }) {
+  return (
+    <label className="rounded-[20px] bg-canvas p-4">
+      <span className="flex items-center justify-between gap-3 text-sm font-black">
+        <span>{label}</span>
+        <span className="text-ink/48">{Math.round(value * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min={0.1}
+        max={0.8}
+        step={0.05}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-3 w-full accent-black"
+      />
+    </label>
+  );
+}
+
 function ProfileStep({ icon: Icon, title, children }) {
   return (
-    <div className="rounded-[22px] border border-line bg-canvas p-4">
+    <div className="border-t border-line pt-4 first:border-t-0 first:pt-0">
       <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-white text-ink">
+        <span className="grid h-9 w-9 place-items-center rounded-2xl bg-canvas text-ink">
           <Icon size={17} />
         </span>
         <p className="font-black">{title}</p>
@@ -1128,32 +952,1296 @@ function getIdentityLabel({ session, humiSession }) {
   return "未登录";
 }
 
-function formatHouseholdRole(role) {
-  return role === "owner" ? "主厨" : "家人";
+function getUserDisplayName({ session, humiSession } = {}) {
+  return humiSession?.user?.displayName
+    || session?.user?.nickname
+    || session?.user?.name
+    || session?.user?.user_metadata?.name
+    || session?.user?.email?.split("@")[0]
+    || "我";
 }
 
-function formatHouseholdStatus(status) {
-  return status === "formal" || status === "active" ? "已加入" : "临时参与";
+function buildHomeHeroState({
+  signedIn,
+  family,
+  pendingJoinContext,
+  activeCraveVotes = [],
+  groceryItems = [],
+  checkedGroceryItems = 0,
+  claimedGroceryClaims = 0,
+  declinedGroceryClaims = 0,
+  wishPool = [],
+  wishShareWishes = [],
+  sourceSummary = {},
+  householdParticipants = [],
+}) {
+  const familyMemberCount = Math.max(0, householdParticipants.length - 1);
+  const stats = [
+    { label: "感觉回复", value: `${activeCraveVotes.length} 个` },
+    { label: "买菜进展", value: groceryItems.length > 0 ? `${checkedGroceryItems}/${groceryItems.length} 项` : `${claimedGroceryClaims} 人` },
+    { label: "想吃池", value: `${Math.max(wishPool.length, wishShareWishes.length)} 道` },
+  ];
+
+  if (family?.role === "member") {
+    return {
+      title: `${family.name || "我家"}里的家人`,
+      subtitle: "可以查看主厨的安排、补充自己的想吃和参与买菜；家庭菜单与忌口由主厨统一维护。",
+      stats,
+    };
+  }
+
+  if (pendingJoinContext?.type) {
+    const name = pendingJoinContext.memberName || "家人";
+    return {
+      title: `${name}刚刚参与了。`,
+      subtitle: buildPendingHeroSubtitle(pendingJoinContext),
+      stats,
+    };
+  }
+
+  if (activeCraveVotes.length > 0) {
+    const names = activeCraveVotes
+      .slice(0, 3)
+      .map((vote) => vote.memberName || "家人")
+      .join("、");
+    return {
+      title: `今晚收到 ${activeCraveVotes.length} 个感觉。`,
+      subtitle: `${names}已经点过想吃的感觉；刷新后可以直接按这些回复出菜单。`,
+      stats,
+    };
+  }
+
+  if (claimedGroceryClaims > 0 || checkedGroceryItems > 0) {
+    return {
+      title: "买菜有人接上了。",
+      subtitle: `清单 ${groceryItems.length} 项，已买 ${checkedGroceryItems}/${groceryItems.length || 0}；${claimedGroceryClaims} 人认领${declinedGroceryClaims > 0 ? `，${declinedGroceryClaims} 人买不了` : ""}。`,
+      stats,
+    };
+  }
+
+  if (wishShareWishes.length > 0) {
+    return {
+      title: `家人写了 ${wishShareWishes.length} 个想吃。`,
+      subtitle: "刷新想吃池后，主厨可以决定哪一道进入今晚菜单。",
+      stats,
+    };
+  }
+
+  if (wishPool.length > 0) {
+    return {
+      title: `想吃池里有 ${wishPool.length} 道菜。`,
+      subtitle: `最新是“${wishPool[0]?.name || "一道菜"}”，今晚可以直接拿出来安排。`,
+      stats,
+    };
+  }
+
+  if (sourceSummary.confirmed > 0 || sourceSummary.breakfast > 0 || sourceSummary.lunch > 0) {
+    return {
+      title: "三餐记录开始成形。",
+      subtitle: `早餐 ${sourceSummary.breakfast || 0} 次 · 午餐 ${sourceSummary.lunch || 0} 次 · 晚饭确认 ${sourceSummary.confirmed || 0} 次；画像正在成形。`,
+      stats,
+    };
+  }
+
+  return {
+    title: signedIn ? "今晚可以从这里问大家。" : "先把今晚这顿顺起来。",
+    subtitle: signedIn
+      ? family
+        ? `现在有 ${familyMemberCount} 个家人/身份在这个家里；问一次感觉，动态就会沉淀到这里。`
+        : "已经登录。创建我的家后，菜单、清单和家人反馈就会一起保存。"
+      : "感觉、清单和画像先存在本机；要让家人一起用，再登录保存。",
+    stats,
+  };
+}
+
+function buildPendingHeroSubtitle(context = {}) {
+  if (context.type === "wish") {
+    return context.dishWish
+      ? `${context.memberName || "家人"}写了想吃“${context.dishWish}”，可以收进想吃池继续安排。`
+      : `${context.memberName || "家人"}写回了一道想吃的菜，可以收进家庭动态。`;
+  }
+  if (context.type === "crave") {
+    return context.dishWish
+      ? `${context.memberName || "家人"}点了“${context.feelingTag || "随便都行"}”，还提到“${context.dishWish}”。`
+      : `${context.memberName || "家人"}点了“${context.feelingTag || "随便都行"}”，这次感觉会影响今晚菜单。`;
+  }
+  if (context.claimStatus === "declined") {
+    return `${context.memberName || "家人"}这次暂时买不了，主厨刷新后能看到这个状态。`;
+  }
+  return `${context.memberName || "家人"}刚刚认领了买菜${context.itemCount ? ` · ${context.itemCount} 项` : ""}。`;
+}
+
+function buildHouseholdParticipants({
+  session,
+  humiSession,
+  signedIn,
+  activeCraveRequest,
+  activeGroceryShareRequest,
+  activeWishShareRequest,
+  pendingJoinContext,
+  householdMembers = [],
+  craveSignals = [],
+}) {
+  const rows = [{
+    id: "owner",
+    name: getUserDisplayName({ session, humiSession }),
+    role: "主厨",
+    status: signedIn ? "正式成员" : "本机主厨",
+    meta: signedIn ? "可以发起征集、定菜单、管理这个家。" : "可以先体验完整流程；登录后保存为这个家的拥有者。",
+    icon: ChefHat,
+    priority: 0,
+  }];
+  const seen = new Set(["owner"]);
+
+  function addParticipant({ key, name, role = "家人", status = "临时参与", meta, icon = UserRound, priority = 10 }) {
+    const safeName = String(name || "家人").trim() || "家人";
+    const safeKey = key || `${role}:${safeName}`;
+    const normalizedKey = safeKey.toLowerCase();
+    const existingIndex = rows.findIndex((item) => item.key === normalizedKey);
+    if (existingIndex >= 0) {
+      const existing = rows[existingIndex];
+      rows[existingIndex] = {
+        ...existing,
+        meta: mergeParticipantMeta(existing.meta, meta),
+        icon: existing.icon || icon,
+        priority: Math.min(existing.priority ?? priority, priority),
+      };
+      return;
+    }
+    if (seen.has(normalizedKey)) return;
+    seen.add(normalizedKey);
+    rows.push({
+      id: normalizedKey,
+      key: normalizedKey,
+      name: safeName,
+      role,
+      status,
+      meta,
+      icon,
+      priority,
+    });
+  }
+
+  householdMembers.forEach((member) => {
+    addParticipant({
+      key: member.participantKey || member.id || `member:${member.name}`,
+      name: member.name || "家人",
+      role: member.role || "家人",
+      status: member.status || "正式成员",
+      meta: member.lastSignal ? `${member.source || "家庭成员"} · ${member.lastSignal}` : `${member.source || "家庭成员"}加入。`,
+      icon: Users,
+      priority: 1,
+    });
+  });
+
+  if (pendingJoinContext?.type) {
+    const isCrave = pendingJoinContext.type === "crave";
+    const isWish = pendingJoinContext.type === "wish";
+    addParticipant({
+      key: pendingJoinContext.participantKey || `pending:${pendingJoinContext.type}:${pendingJoinContext.memberName}`,
+      name: pendingJoinContext.memberName || "家人",
+      role: "家人",
+      status: "待转正",
+      meta: isWish
+        ? pendingJoinContext.dishWish
+          ? `刚才写了想吃“${pendingJoinContext.dishWish}”。`
+          : "刚才写了一道想吃的菜。"
+        : isCrave
+        ? pendingJoinContext.dishWish
+          ? `刚才点了“${pendingJoinContext.feelingTag || "随便都行"}”，还提到“${pendingJoinContext.dishWish}”。`
+          : `刚才点了“${pendingJoinContext.feelingTag || "随便都行"}”。`
+        : pendingJoinContext.claimStatus === "declined"
+          ? "刚才表示这次暂时买不了。"
+          : `刚才认领了买菜${pendingJoinContext.itemCount ? ` · ${pendingJoinContext.itemCount} 项` : ""}。`,
+      icon: isWish ? Heart : isCrave ? MessageCircleHeart : ShoppingBasket,
+      priority: 1,
+    });
+  }
+
+  (activeCraveRequest?.votes ?? []).forEach((vote) => {
+    addParticipant({
+      key: vote.participantKey || `crave:${vote.memberName}`,
+      name: vote.memberName || "家人",
+      role: "家人",
+      status: vote.temporary === false ? "正式成员" : "临时参与",
+      meta: vote.dishWish
+        ? `点了“${vote.feelingTag || "随便都行"}”，还提到“${vote.dishWish}”。`
+        : `点了“${vote.feelingTag || "随便都行"}”。`,
+      icon: MessageCircleHeart,
+      priority: 2,
+    });
+  });
+
+  (activeGroceryShareRequest?.claims ?? []).forEach((claim) => {
+    addParticipant({
+      key: claim.participantKey || `grocery:${claim.memberName}`,
+      name: claim.memberName || "家人",
+      role: "家人",
+      status: claim.temporary === false ? "正式成员" : "临时参与",
+      meta: claim.status === "declined"
+        ? claim.note ? `暂时买不了：${claim.note}` : "暂时买不了。"
+        : `认领了买菜${Array.isArray(claim.itemIds) && claim.itemIds.length > 0 ? ` · ${claim.itemIds.length} 项` : ""}。`,
+      icon: ShoppingBasket,
+      priority: 3,
+    });
+  });
+
+  (activeWishShareRequest?.wishes ?? []).forEach((wish) => {
+    addParticipant({
+      key: wish.participantKey || `wish:${wish.memberName}`,
+      name: wish.memberName || "家人",
+      role: "家人",
+      status: wish.temporary === false ? "正式成员" : "临时参与",
+      meta: wish.note
+        ? `想吃“${wish.dishName || "一道菜"}”：${wish.note}`
+        : `想吃“${wish.dishName || "一道菜"}”。`,
+      icon: Heart,
+      priority: 4,
+    });
+  });
+
+  craveSignals.flatMap((signal) => signal.votes ?? []).forEach((vote) => {
+    addParticipant({
+      key: vote.participantKey || `signal:${vote.memberName}`,
+      name: vote.memberName || "家人",
+      role: "家人",
+      status: vote.temporary === false ? "正式成员" : "临时参与",
+      meta: `之前点过“${vote.feelingTag || "随便都行"}”。`,
+      icon: MessageCircleHeart,
+      priority: 5,
+    });
+  });
+
+  return rows.sort((a, b) => (a.priority ?? 10) - (b.priority ?? 10)).slice(0, 8);
+}
+
+function mergeParticipantMeta(current = "", next = "") {
+  if (!next) return current;
+  if (!current) return next;
+  if (current.includes(next)) return current;
+  return `${current} ${next}`;
+}
+
+function HomeActionTile({ label, value, actionLabel, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-16 items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas p-3 text-left transition hover:border-ink/20 disabled:cursor-default disabled:opacity-60"
+    >
+      <span className="min-w-0">
+        <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">{label}</span>
+        <span className="mt-1 block truncate text-sm font-black text-ink">{value}</span>
+      </span>
+      <span className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-ink/58">
+        {actionLabel}
+      </span>
+    </button>
+  );
 }
 
 function StatusRow({ label, value }) {
   return (
-    <div className="rounded-[18px] bg-canvas p-4">
+    <div className="rounded-[18px] border border-line bg-white p-4">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{label}</p>
       <p className="mt-1 break-all text-sm font-black">{value}</p>
     </div>
   );
 }
 
-function UtilityButton({ icon: Icon, label, onClick }) {
+function FamilyPulseCard({ row }) {
+  const Icon = row.icon || Sparkles;
+  return (
+    <article className="rounded-[22px] border border-line bg-canvas p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-ink">
+          <Icon size={18} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">{row.label}</p>
+          <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">{row.title}</h4>
+          <p className="mt-1 text-sm font-bold leading-6 text-ink/54">{row.text}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function PortraitReceiptPreview({ digest, tierDigest, onViewChange }) {
+  return (
+    <section className="rounded-[24px] border border-line bg-white p-4 shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">画像回执</p>
+          <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">自然动作已经在生成画像</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            {digest.summary}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-ink px-3 py-1.5 text-xs font-black text-white">
+          {digest.evidenceCount} 条
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <ReceiptPreviewField label="当前判断" value={digest.leadingSignal} />
+        <ReceiptPreviewField label="下一顿会用" value={digest.nextMove} />
+        <ReceiptPreviewField label="质量层" value={digest.qualityLayer} />
+      </div>
+      <div className="mt-3 rounded-[18px] bg-canvas p-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">体验边界</p>
+        <p className="mt-1 text-sm font-black leading-6 text-ink">
+          免费无限：感觉征集、买菜认领、想吃池、清单、基础推荐。
+        </p>
+        <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+          精准质量层：{tierDigest.badge}。{tierDigest.rows.find((row) => row.id === "tier-precise")?.value}
+        </p>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onViewChange("dashboard")}
+          className="inline-flex min-h-10 items-center justify-center rounded-full border border-ink bg-white px-4 text-xs font-black text-ink"
+        >
+          用它安排今晚
+        </button>
+        <button
+          type="button"
+          aria-label="营养分析"
+          onClick={() => onViewChange("stats")}
+          className="inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-canvas px-4 text-xs font-black text-ink/58"
+        >
+          看完整分析
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ReceiptPreviewField({ label, value }) {
+  return (
+    <div className="rounded-[16px] border border-line bg-canvas px-3 py-2">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-ink/35">{label}</p>
+      <p className="mt-1 truncate text-sm font-black text-ink">{value}</p>
+    </div>
+  );
+}
+
+function PendingJoinCard({ context, signedIn, onClear, onAccept }) {
+  const isCrave = context.type === "crave";
+  const isWish = context.type === "wish";
+  const title = isWish ? "刚才写的想吃已经保留" : isCrave ? "刚才的感觉已经保留" : "刚才的买菜参与已经保留";
+  const detail = isWish
+    ? `${context.memberName || "家人"}写了想吃“${context.dishWish || "一道菜"}”。`
+    : isCrave
+    ? `${context.memberName || "家人"}点了“${context.feelingTag || "随便都行"}”${context.dishWish ? `，还提到“${context.dishWish}”` : ""}。`
+    : context.claimStatus === "declined"
+      ? `${context.memberName || "家人"}这次暂时买不了。`
+      : `${context.memberName || "家人"}认领了 ${context.itemCount || 0} 项买菜。`;
+  return (
+    <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">加入这个家</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">{title}</h3>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            {detail}
+          </p>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            {signedIn
+              ? "你已经在 Humi 里。点“收进家庭成员”后，这次临时参与才会合并成正式成员记录。"
+              : "现在只是临时参与，可以继续看今晚菜单和清单；登录后再转成正式成员。"}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
+          {context.householdName || "我家"}
+        </span>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {signedIn && (
+          <button
+            type="button"
+            onClick={onAccept}
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
+          >
+            收进家庭成员
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex min-h-10 items-center justify-center rounded-full border border-ink bg-white px-4 text-xs font-black text-ink"
+        >
+          稍后处理
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function HouseholdActions({
+  family,
+  households,
+  activeInvite,
+  newHouseholdName,
+  onNameChange,
+  onCreate,
+  onSwitch,
+  onCreateInvite,
+  onShareInvite,
+}) {
+  const visibleHouseholds = households.length > 0 ? households : [family];
+  const isOwner = family.role !== "member";
+
+  return (
+    <div data-testid="household-switcher" className="mt-5 border-t border-line pt-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">当前家庭空间</p>
+          <h4 className="mt-1 text-xl font-black tracking-[-0.03em]">{family.name || "我的家"}</h4>
+          <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
+            {isOwner ? "你是主厨，可以邀请家人；不同家庭的菜单、清单和画像会分开保存。" : "你是家人，可以参与菜单、清单和征集；邀请新成员由主厨发起。"}
+          </p>
+        </div>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={onCreateInvite}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white"
+          >
+            <Share2 size={16} />
+            邀请家人
+          </button>
+        )}
+      </div>
+
+      {activeInvite?.token && isOwner && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black">家庭邀请卡片已准备好</p>
+            <p className="mt-1 text-xs font-bold text-ink/42">已加入 {activeInvite.acceptedCount || 0} 人</p>
+          </div>
+          <button type="button" onClick={onShareInvite} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line px-4 text-xs font-black">
+            <Share2 size={14} />
+            再分享
+          </button>
+        </div>
+      )}
+
+      {visibleHouseholds.length > 1 && (
+        <div className="mt-4">
+          <p className="text-xs font-black text-ink/48">切换家庭</p>
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {visibleHouseholds.map((household) => {
+              const active = household.id === family.id;
+              return (
+                <button
+                  key={household.id}
+                  type="button"
+                  onClick={() => !active && onSwitch?.(household.id)}
+                  className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-black ${active ? "border-ink bg-ink text-white" : "border-line bg-canvas text-ink"}`}
+                >
+                  {active ? <Check size={15} /> : <Users size={15} />}
+                  {household.name || "我的家"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {onCreate && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            value={newHouseholdName}
+            onChange={(event) => onNameChange?.(event.target.value)}
+            className="min-h-11 min-w-0 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none focus:border-ink/30"
+            placeholder="例如：爸妈家"
+            maxLength={30}
+          />
+          <button type="button" onClick={onCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">
+            <Plus size={16} />
+            新建一个家
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ParticipantRow({ participant }) {
+  const Icon = participant.icon || UserRound;
+  return (
+    <div className="grid grid-cols-[44px_1fr] gap-3 rounded-[20px] border border-line bg-canvas p-4">
+      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-ink">
+        <Icon size={18} />
+      </span>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-sm font-black text-ink">{participant.name}</p>
+          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-ink/54">
+            {participant.role}
+          </span>
+          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-ink/54">
+            {participant.status}
+          </span>
+        </div>
+        <p className="mt-1 text-xs font-bold leading-5 text-ink/48">{participant.meta}</p>
+      </div>
+    </div>
+  );
+}
+
+function UtilityButton({ icon: Icon, label, ariaLabel, onClick }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       onClick={onClick}
-      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-canvas px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:bg-ink hover:text-ink"
+      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 transition hover:-translate-y-0.5 hover:border-ink hover:bg-ink hover:text-white"
     >
       <Icon size={17} />
       {label}
     </button>
   );
+}
+
+function FamilyCraveComposer({
+  activeRequest,
+  votes = [],
+  pending,
+  selectedFeeling,
+  onSelectFeeling,
+  audienceMembers = [],
+  onAudienceChange,
+  onStart,
+  onShare,
+  onRefresh,
+  onFinish,
+  onClose,
+}) {
+  const hasRequest = Boolean(activeRequest?.token);
+  const primaryFeelingTags = feelingTags.filter((tag) => tag !== "随便都行");
+
+  return (
+    <section className="mt-4 rounded-[24px] border border-line bg-white p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">感觉征集单</p>
+          <h4 className="mt-1 text-xl font-black tracking-[-0.04em]">
+            {hasRequest ? "征集单已经在路上" : "今晚想问问大家什么感觉？"}
+          </h4>
+          <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
+            {hasRequest
+              ? "家人打开卡片后免登录点一个感觉；回复会回到这里。"
+              : "先选一个兜底感觉。家人没人回，也能按这个和家里忌口直接出菜单。"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-fit rounded-full border border-line bg-canvas px-4 py-2 text-xs font-black text-ink/52"
+        >
+          收起
+        </button>
+      </div>
+
+      {!hasRequest && (
+        <>
+          <CraveAudiencePicker
+            members={audienceMembers}
+            onChange={onAudienceChange}
+            className="mt-4"
+          />
+          <div className="mt-4 rounded-[20px] border border-line bg-canvas p-3">
+            <CraveReceiptTemplate selectedFeeling={selectedFeeling} />
+          </div>
+          <div className="mt-4 grid gap-2">
+            <button
+              type="button"
+              onClick={() => onSelectFeeling("随便都行")}
+              className={`min-h-12 rounded-[18px] border px-4 text-sm font-black transition ${
+                selectedFeeling === "随便都行"
+                  ? "border-ink bg-ink text-white"
+                  : "border-line bg-canvas text-ink hover:border-ink/30"
+              }`}
+            >
+              随便，都行
+            </button>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {primaryFeelingTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => onSelectFeeling(tag)}
+                  className={`min-h-10 rounded-full border px-3 text-xs font-black transition ${
+                    selectedFeeling === tag
+                      ? "border-ink bg-ink text-white"
+                      : "border-line bg-canvas text-ink/62 hover:border-ink/30 hover:text-ink"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onStart}
+              disabled={pending}
+              className="min-h-11 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {pending ? "正在准备" : "发起征集"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onFinish?.(selectedFeeling)}
+              disabled={pending}
+              className="min-h-11 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              我自己做主
+            </button>
+          </div>
+        </>
+      )}
+
+      {hasRequest && (
+        <div className="mt-4 grid gap-3">
+          <CraveReceipt
+            request={activeRequest}
+            votes={votes}
+            fallbackFeeling={selectedFeeling}
+          />
+          <div className="rounded-[20px] border border-line bg-canvas p-3">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">
+              {activeRequest.status === "closed" ? "已收口" : "等待回复"}
+            </p>
+            <p className="mt-2 text-lg font-black">
+              {votes.length > 0 ? `收到 ${votes.length} 个感觉` : "还没人回复，也可以直接出菜单"}
+            </p>
+            <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+              {activeCraveMeta(activeRequest, votes)}
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={onShare}
+              disabled={pending}
+              className="min-h-11 rounded-full bg-ink px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              分享征集单
+            </button>
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={pending}
+              className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              刷新回复
+            </button>
+            <button
+              type="button"
+              onClick={() => onFinish?.(selectedFeeling)}
+              disabled={pending || activeRequest.status === "closed"}
+              className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              就这些，出菜单
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CraveReceiptTemplate({ selectedFeeling }) {
+  const fallbackFeeling = selectedFeeling || "随便都行";
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">征集单模板</p>
+          <p className="mt-2 text-lg font-black">我家今晚要做饭，你想吃点啥？</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+            家人点开第一屏就是感觉标签，不需要登录、不需要加入家庭。
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink/54">
+          待发起
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <ReceiptField label="兜底感觉" value={fallbackFeeling} />
+        <ReceiptField label="家人动作" value="免登录点感觉" />
+        <ReceiptField label="主厨收口" value="刷新后出菜单" />
+      </div>
+    </div>
+  );
+}
+
+function CraveReceipt({ request, votes = [], fallbackFeeling = "随便都行" }) {
+  const receiptNo = formatCraveReceiptNo(request);
+  const statusLabel = request?.status === "closed" ? "已收口" : "征集中";
+  const starterFeeling = request?.starterFeeling || fallbackFeeling || "随便都行";
+  const audienceLabel = formatAudienceLabel(request);
+  const latestVote = votes[0];
+
+  return (
+    <section className="rounded-[22px] border border-ink bg-ink p-4 text-white">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">Humi Taste Receipt</p>
+          <h4 className="mt-2 text-2xl font-black tracking-[-0.04em]">今晚口味征集单</h4>
+          <p className="mt-1 text-xs font-bold leading-5 text-white/58">
+            {receiptNo} · {statusLabel} · {formatCraveReceiptTime(request?.createdAt)}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink">
+          {votes.length} 个回复
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <ReceiptField dark label="兜底感觉" value={starterFeeling} />
+        <ReceiptField dark label="目标家人" value={audienceLabel} />
+        <ReceiptField dark label="最新回复" value={latestVote ? `${latestVote.memberName || "家人"} · ${latestVote.feelingTag || "随便都行"}` : "等待家人"} />
+        <ReceiptField dark label="收口动作" value={request?.status === "closed" ? "已进入菜单揉合" : "可随时出菜单"} />
+      </div>
+      <div className="mt-3 rounded-[18px] border border-white/12 bg-white/[0.06] p-3">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">回复明细</p>
+        <div className="mt-2 grid gap-2">
+          {votes.length > 0 ? (
+            votes.map((vote) => (
+              <div key={vote.id || vote.participantKey || vote.createdAt || vote.memberName} className="flex items-center justify-between gap-3 rounded-[14px] bg-white/[0.08] px-3 py-2">
+                <span className="min-w-0 truncate text-sm font-black">{vote.memberName || "家人"}</span>
+                <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink">
+                  {vote.dishWish ? `${vote.feelingTag || "随便都行"} · ${vote.dishWish}` : vote.feelingTag || "随便都行"}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm font-bold leading-6 text-white/58">
+              家人回复后会按一人一行出现在这里；没人回也能按兜底感觉和忌口出菜单。
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReceiptField({ label, value, dark = false }) {
+  return (
+    <div className={`rounded-[16px] px-3 py-2 ${dark ? "bg-white/[0.08]" : "bg-white"}`}>
+      <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${dark ? "text-white/38" : "text-ink/35"}`}>{label}</p>
+      <p className={`mt-1 truncate text-sm font-black ${dark ? "text-white" : "text-ink"}`}>{value}</p>
+    </div>
+  );
+}
+
+function formatCraveReceiptNo(request) {
+  const token = String(request?.token || request?.id || "").replace(/\W/g, "").toUpperCase();
+  return token ? `CRAVE-${token.slice(0, 6)}` : "CRAVE-DRAFT";
+}
+
+function formatCraveReceiptTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "刚刚创建";
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function GroceryCollaborationSummary({ request, checkedNames = [], pendingNames = [], onRefresh }) {
+  const claims = request?.claims ?? [];
+  const claimed = claims.filter((claim) => claim.status === "claimed");
+  const declined = claims.filter((claim) => claim.status === "declined");
+  return (
+    <section className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">买菜协作</p>
+          <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">谁买了，谁买不了</h4>
+          <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+            {checkedNames.length > 0
+              ? `已买：${checkedNames.slice(0, 3).join("、")}${checkedNames.length > 3 ? "…" : ""}`
+              : "还没有标记已买的食材。"}
+            {pendingNames.length > 0 ? ` 待买：${pendingNames.slice(0, 3).join("、")}${pendingNames.length > 3 ? "…" : ""}` : " 清单已经买齐。"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="inline-flex min-h-10 w-fit items-center justify-center rounded-full bg-white px-4 text-xs font-black text-ink"
+        >
+          刷新买菜
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2">
+        {[...claimed, ...declined].length > 0 ? (
+          [...claimed, ...declined].slice(0, 5).map((claim) => (
+            <div key={claim.id || claim.participantKey || claim.createdAt} className="rounded-[18px] bg-white p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-black">{claim.memberName || "家人"}</p>
+                <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black ${
+                  claim.status === "declined" ? "bg-canvas text-ink/52" : "bg-ink text-white"
+                }`}
+                >
+                  {claim.status === "declined" ? "买不了" : `认领 ${claim.itemIds?.length ?? 0} 项`}
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-bold leading-5 text-ink/45">
+                {formatGroceryClaimMeta(request, claim)}
+              </p>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[18px] bg-white px-4 py-3 text-sm font-bold leading-6 text-ink/52">
+            清单已经发出。家人认领或标记已买后，会回到这里。
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function WishShareSummary({ request, onRefresh, onShare }) {
+  const wishes = request?.wishes ?? [];
+  return (
+    <section className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">想吃征集</p>
+          <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">家人正在写想吃的菜</h4>
+          <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+            {wishes.length > 0
+              ? `已经收到 ${wishes.length} 个想吃回复，刷新后会沉淀到想吃池。`
+              : "把入口发给家人，家人免登录写一道菜。"}
+          </p>
+        </div>
+        <div className="flex w-fit flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onShare}
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
+          >
+            分享入口
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-4 text-xs font-black text-ink"
+          >
+            刷新想吃
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2">
+        {wishes.length > 0 ? (
+          wishes.slice(0, 5).map((wish) => (
+            <div key={wish.id || wish.participantKey || wish.createdAt} className="rounded-[18px] bg-white p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-black">{wish.dishName || "一道菜"}</p>
+                <span className="shrink-0 rounded-full bg-canvas px-3 py-1.5 text-xs font-black text-ink/52">
+                  {wish.memberName || "家人"}
+                </span>
+              </div>
+              {wish.note && (
+                <p className="mt-2 text-xs font-bold leading-5 text-ink/45">{wish.note}</p>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[18px] bg-white px-4 py-3 text-sm font-bold leading-6 text-ink/52">
+            这里会显示家人写回来的菜名，不会直接改今晚菜单。
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function mergeGroceryClaims(activeClaims = [], persistedClaims = {}) {
+  const merged = [
+    ...(Array.isArray(activeClaims) ? activeClaims : []),
+    ...(Array.isArray(persistedClaims) ? persistedClaims : Object.values(persistedClaims ?? {})),
+  ];
+  const seen = new Set();
+  return merged.filter((claim) => {
+    if (!claim) return false;
+    const key = claim.id || `${claim.itemKey || "item"}:${claim.memberId || claim.memberName || "member"}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map((claim) => ({
+    ...claim,
+    id: claim.id || `grocery-claim:${claim.itemKey || "item"}:${claim.memberId || claim.memberName || "member"}`,
+  }));
+}
+
+function formatGroceryClaimMeta(request, claim) {
+  if (claim.status === "declined") return claim.note ? `暂时买不了 · ${claim.note}` : "暂时买不了";
+  const itemIds = Array.isArray(claim.itemIds) ? claim.itemIds : [];
+  const claimedItems = (request?.items ?? []).filter((item) => itemIds.includes(item.id));
+  const checkedCount = claimedItems.filter((item) => item.checked).length;
+  const progress = claimedItems.length > 0 ? `已买 ${checkedCount}/${claimedItems.length}` : "买菜协作";
+  const itemNames = claimedItems.map((item) => item.name).slice(0, 3).join("、");
+  const itemText = itemNames ? ` · ${itemNames}${claimedItems.length > 3 ? "…" : ""}` : "";
+  return claim.note ? `${progress}${itemText} · ${claim.note}` : `${progress}${itemText}`;
+}
+
+function activeCraveMeta(request, votes = []) {
+  if (votes.length > 0) {
+    return votes
+      .slice(0, 3)
+      .map((vote) => {
+        const name = vote.memberName || "家人";
+        const feeling = vote.feelingTag || "随便都行";
+        return vote.dishWish ? `${name}：${feeling} / ${vote.dishWish}` : `${name}：${feeling}`;
+      })
+      .join(" · ");
+  }
+  return request.status === "closed"
+    ? "没人回复也可以按家庭忌口和省心程度出菜单。"
+    : "卡片发出去后，回复会自动回到这里。";
+}
+
+function formatAudienceLabel(request = {}) {
+  const names = Array.isArray(request.targetParticipantNames) && request.targetParticipantNames.length > 0
+    ? request.targetParticipantNames
+    : Array.isArray(request.audience)
+      ? request.audience.map((person) => person?.name).filter(Boolean)
+      : [];
+  return names.length > 0 ? names.join("、") : "家人";
+}
+
+function buildActiveCraveActivities(request) {
+  if (!request?.token) return [];
+  const votes = request.votes ?? [];
+  const statusText = request.status === "closed" ? "已结束" : "征集中";
+  return [
+    {
+      id: `active-crave:${request.token}`,
+      title: votes.length > 0 ? `${statusText}：收到 ${votes.length} 个感觉` : `${statusText}：等待家人点感觉`,
+      meta: votes.length > 0 ? activeCraveMeta(request, votes) : "感觉征集",
+    },
+    ...votes.slice(0, 3).map((vote) => ({
+      id: `active-crave:${request.token}:${vote.id || vote.participantKey || vote.memberName || vote.createdAt}`,
+      title: `${vote.memberName || "家人"}想要：${vote.feelingTag || "随便都行"}`,
+      meta: vote.dishWish ? `还提到：${vote.dishWish}` : "本次征集回复",
+    })),
+  ];
+}
+
+function buildMealLogActivities(mealLogs = {}) {
+  const sourceLabels = {
+    home: "在家做",
+    delivery: "点外卖",
+    outside: "在外吃",
+    skip: "先不记",
+  };
+  return Object.entries(mealLogs ?? {})
+    .filter(([, log]) =>
+      log?.source ||
+      log?.confirmation ||
+      log?.consumedEntries?.length ||
+      [log?.mealSources?.breakfast, log?.mealSources?.lunch].some((source) => source && source !== "skip"),
+    )
+    .sort(([dateA, logA], [dateB, logB]) => {
+      const timeA = Date.parse(logA?.updatedAt || dateA);
+      const timeB = Date.parse(logB?.updatedAt || dateB);
+      return (Number.isFinite(timeB) ? timeB : 0) - (Number.isFinite(timeA) ? timeA : 0);
+    })
+    .slice(0, 3)
+    .map(([dateKey, log]) => {
+      const source = sourceLabels[log?.source] || "晚饭已记录";
+      const consumedNames = (log?.consumedEntries ?? [])
+        .map((entry) => getRecipe(entry.recipeId)?.name)
+        .filter(Boolean)
+        .slice(0, 2);
+      const confirmationText = log?.confirmation === "all"
+        ? consumedNames.length > 0
+          ? `做了 ${consumedNames.join("、")}${(log?.consumedEntries?.length ?? 0) > consumedNames.length ? "…" : ""}`
+          : "确认做了"
+        : log?.confirmation === "missed"
+          ? "换了别的"
+          : log?.confirmation === "partial"
+            ? "吃了一部分"
+            : source;
+      const mealParts = [];
+      if (log?.mealSources?.breakfast && log.mealSources.breakfast !== "skip") {
+        mealParts.push(`早餐${sourceLabels[log.mealSources.breakfast] || "已记录"}`);
+      }
+      if (log?.mealSources?.lunch && log.mealSources.lunch !== "skip") {
+        mealParts.push(`午餐${sourceLabels[log.mealSources.lunch] || "已记录"}`);
+      }
+      if (log?.source || log?.confirmation || consumedNames.length > 0) {
+        mealParts.push(`晚饭${confirmationText}`);
+      }
+      const actor = log?.confirmedBy || log?.recordedBy || log?.actorName || log?.mealRecordedBy?.lunch || log?.mealRecordedBy?.breakfast || "";
+      return {
+        id: `meal-log:${dateKey}`,
+        title: actor ? `${actor}记下了今天吃饭` : "今天吃得怎么样",
+        meta: `${formatActivityDateLabel(dateKey)} · ${mealParts.join(" · ")}`,
+      };
+    });
+}
+
+function formatActivityDateLabel(dateKey = "") {
+  const today = new Date();
+  const todayKey = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+  if (dateKey === todayKey) return "今天";
+  const parts = String(dateKey).split("-");
+  if (parts.length === 3) return `${Number(parts[1])}/${Number(parts[2])}`;
+  return "最近";
+}
+
+function buildFamilyPulseRows({
+  tasteReflections = [],
+  sourceSummary = {},
+  activeCraveVotes = [],
+  groceryClaims = [],
+  wishPool = [],
+  householdParticipants = [],
+}) {
+  const feelingText = tasteReflections.find((item) => item.id === "feeling")?.value || "还没有家人回复，先从今晚问一次开始。";
+  const wishText = tasteReflections.find((item) => item.id === "wish")?.value || "想吃池还空着。";
+  const homeCount = Number(sourceSummary.home || 0);
+  const awayCount = Number(sourceSummary.delivery || 0) + Number(sourceSummary.outside || 0);
+  const confirmedCount = Number(sourceSummary.confirmed || 0);
+  const breakfastCount = Number(sourceSummary.breakfast || 0);
+  const lunchCount = Number(sourceSummary.lunch || 0);
+  const mealRecordCount = breakfastCount + lunchCount + confirmedCount;
+  const participantCount = Math.max(0, householdParticipants.length - 1);
+  const claimedCount = groceryClaims.filter((claim) => claim.status === "claimed").length;
+
+  return [
+    {
+      id: "family-feeling",
+      icon: MessageCircleHeart,
+      label: "感觉趋势",
+      title: feelingText.startsWith("还没有") ? "还没形成趋势" : feelingText,
+      text: activeCraveVotes.length > 0
+        ? `本次已经收到 ${activeCraveVotes.length} 个回复，会影响今晚菜单。`
+        : "每次点一个感觉，都会慢慢变成你家的口味线索。",
+    },
+    {
+      id: "family-rhythm",
+      icon: BarChart3,
+      label: "三餐节奏",
+      title: mealRecordCount > 0 ? `已留下 ${mealRecordCount} 条三餐记录` : "还在等第一条记录",
+      text: mealRecordCount > 0
+        ? `早餐 ${breakfastCount} 次 · 午餐 ${lunchCount} 次 · 晚饭确认 ${confirmedCount} 次；晚饭在家做 ${homeCount} 次，外食/外卖 ${awayCount} 次。`
+        : "早餐选一次、午餐记来源或晚饭点确认，画像就会开始反射。",
+    },
+    {
+      id: "family-collaboration",
+      icon: Users,
+      label: "协作参与",
+      title: participantCount > 0 ? `${participantCount} 个家人/身份参与过` : "先从一个家人开始",
+      text: claimedCount > 0
+        ? `买菜已有 ${claimedCount} 次认领；临时身份加入后会合并成正式成员。`
+        : "感觉回复、买菜认领和想吃池都会沉淀到这里。",
+    },
+    {
+      id: "family-wish",
+      icon: Heart,
+      label: "想吃池",
+      title: wishPool.length > 0 ? `${wishPool.length} 道想吃` : "还没有想吃池",
+      text: wishPool.length > 0 ? wishText : "去全部菜品点心形，下一次安排晚饭时就能直接拿来做。",
+    },
+  ];
+}
+
+function buildFamilyPortraitDigest({
+  tasteReflections = [],
+  sourceSummary = {},
+  activeCraveVotes = [],
+  groceryClaims = [],
+  wishPool = [],
+  recommendationFeedback = [],
+  validationSummary = {},
+}) {
+  const feelingReflection = tasteReflections.find((item) => item.id === "feeling");
+  const wishReflection = tasteReflections.find((item) => item.id === "wish");
+  const sourceReflection = tasteReflections.find((item) => item.id === "source");
+  const feedbackReflection = tasteReflections.find((item) => item.id === "feedback");
+  const confirmedCount = Number(sourceSummary.confirmed || 0);
+  const breakfastCount = Number(sourceSummary.breakfast || 0);
+  const lunchCount = Number(sourceSummary.lunch || 0);
+  const mealRecordCount = breakfastCount + lunchCount + confirmedCount;
+  const claimedCount = groceryClaims.filter((claim) => claim.status === "claimed").length;
+  const evidenceCount = activeCraveVotes.length + wishPool.length + mealRecordCount + claimedCount + recommendationFeedback.length;
+  const hasUsefulEvidence = evidenceCount > 0;
+  const leadingSignal = activeCraveVotes.length > 0
+    ? `${activeCraveVotes.length} 个本次感觉`
+    : wishPool.length > 0
+      ? `${wishPool.length} 道想吃`
+      : mealRecordCount > 0
+        ? `${mealRecordCount} 条三餐记录`
+        : "等待第一条线索";
+  const nextMove = activeCraveVotes.length > 0
+    ? "先照顾本次感觉"
+    : wishPool.length > 0
+      ? "优先补想吃池"
+      : mealRecordCount > 0
+        ? "延续吃饭节奏"
+        : "先给省心组合";
+  const summary = hasUsefulEvidence
+    ? `Humi 已经把 ${evidenceCount} 条自然动作整理成画像线索。下一次推荐会先看本次感觉，再参考想吃池、三餐记录和避雷原因。`
+    : "还没有足够画像也没关系。先安排一顿，点一次感觉或确认一次晚饭，Humi 就会开始形成你家的回执。";
+
+  return {
+    evidenceCount,
+    leadingSignal,
+    nextMove,
+    qualityLayer: validationSummary.rejectedReasonCaptureRate > 0 ? "已开始避雷" : "基础画像可用",
+    summary,
+    rows: [
+      {
+        id: "portrait-feeling",
+        label: "感觉证据",
+        value: feelingReflection?.value || "还没有家人回复，先从今晚问一次开始。",
+      },
+      {
+        id: "portrait-wish",
+        label: "想吃证据",
+        value: wishReflection?.value || "想吃池还空着，看到想吃的先点心形。",
+      },
+      {
+        id: "portrait-rhythm",
+        label: "三餐节奏",
+        value: sourceReflection?.value || "早餐、午餐来源和晚饭确认会一起形成你家的吃饭节奏。",
+      },
+      {
+        id: "portrait-avoid",
+        label: "避雷线索",
+        value: feedbackReflection?.value || "点过“不想吃”的原因会变成下次推荐的避雷线索。",
+      },
+    ],
+  };
+}
+
+function buildExperienceTierDigest({
+  signedIn = false,
+  humiSession = null,
+  preciseRecommendationAvailable = false,
+  aiRecommendationStatus = "",
+}) {
+  const statusText = String(aiRecommendationStatus || "").trim();
+  const preciseBlocked = statusText.includes("尝鲜已用完") || statusText.includes("基础推荐仍可无限使用");
+  const preciseState = preciseRecommendationAvailable
+    ? "精准质量层可用"
+    : preciseBlocked
+      ? "精准尝鲜已用完"
+      : signedIn
+        ? "等待精准入口"
+        : "登录后可尝鲜精准";
+  const summary = preciseRecommendationAvailable
+    ? "协作、清单和基础推荐继续免费无限；当前可以尝试精准 API 推荐，它会消耗真实算力，所以只作为质量层。"
+    : preciseBlocked
+      ? "精准推荐尝鲜已经收口；基础推荐、感觉征集、买菜认领、想吃池和清单仍然不按次数收费。"
+      : "当前先用免费基础能力跑完整闭环。登录后可以尝鲜精准 API 推荐，但协作和基础推荐不会因为次数被卡住。";
+
+  return {
+    preciseAvailable: preciseRecommendationAvailable,
+    badge: preciseState,
+    summary,
+    rows: [
+      {
+        id: "tier-free-collaboration",
+        label: "免费无限",
+        value: "感觉征集、买菜认领、想吃池、清单、基础推荐",
+      },
+      {
+        id: "tier-precise",
+        label: "精准质量层",
+        value: preciseRecommendationAvailable
+          ? "已可用：会结合家庭画像和反馈重新核对菜单"
+          : preciseBlocked
+            ? "尝鲜已用完：继续自动回到基础推荐"
+            : signedIn
+              ? "登录态已在，等待精准推荐入口触发"
+              : "需要登录后尝鲜，不影响基础功能",
+      },
+      {
+        id: "tier-owner",
+        label: "拥有者边界",
+        value: humiSession?.user ? "主厨身份可保存家庭画像和云端状态" : "家人可免登录参与；拥有和保存需要主厨登录",
+      },
+    ],
+  };
+}
+
+function buildTasteReflections({ craveSignals = [], wishPool = [], mealLogs = {}, recommendationFeedback = [] }) {
+  const rows = [];
+  const feelingCounts = new Map();
+  craveSignals.forEach((signal) => {
+    const votes = Array.isArray(signal.votes) && signal.votes.length > 0
+      ? signal.votes
+      : [{ feelingTag: signal.feelingTag }];
+    votes.forEach((vote) => {
+      const tag = vote?.feelingTag || "随便都行";
+      feelingCounts.set(tag, (feelingCounts.get(tag) ?? 0) + 1);
+    });
+  });
+
+  const topFeeling = [...feelingCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  rows.push({
+    id: "feeling",
+    label: "最近想法",
+    value: topFeeling
+      ? `${topFeeling[0]} · 出现 ${topFeeling[1]} 次`
+      : "还没有家人回复，先从今晚问一次开始。",
+  });
+
+  rows.push({
+    id: "wish",
+    label: "想吃池",
+    value: wishPool.length > 0
+      ? `${wishPool.length} 道想吃，最新是 ${wishPool[0]?.name ?? "一道菜"}`
+      : "还没收藏想吃的菜，去全部菜品点心形就会沉淀。",
+  });
+
+  const confirmedLogs = Object.values(mealLogs).filter((log) => log?.confirmation === "all");
+  const breakfastCount = Object.values(mealLogs).filter(
+    (log) => log?.mealSources?.breakfast && log.mealSources.breakfast !== "skip",
+  ).length;
+  const lunchCount = Object.values(mealLogs).filter(
+    (log) => log?.mealSources?.lunch && log.mealSources.lunch !== "skip",
+  ).length;
+  const homeCount = confirmedLogs.filter((log) => log?.source === "home").length;
+  const deliveryCount = confirmedLogs.filter((log) => log?.source === "delivery").length;
+  const outsideCount = confirmedLogs.filter((log) => log?.source === "outside").length;
+  const topSource = [
+    ["在家做", homeCount],
+    ["点外卖", deliveryCount],
+    ["外面吃", outsideCount],
+  ].sort((a, b) => b[1] - a[1])[0];
+  rows.push({
+    id: "source",
+    label: "三餐节奏",
+    value: breakfastCount + lunchCount + confirmedLogs.length > 0
+      ? `早餐 ${breakfastCount} 次 · 午餐 ${lunchCount} 次 · 晚饭确认 ${confirmedLogs.length} 次${topSource?.[1] > 0 ? `，晚饭${topSource[0]}最多` : ""}。`
+      : "早餐、午餐来源和晚饭确认会一起形成你家的吃饭节奏。",
+  });
+
+  const reasonCounts = new Map();
+  recommendationFeedback.forEach((item) => {
+    const label = item.reasonLabel || "不合适";
+    reasonCounts.set(label, (reasonCounts.get(label) ?? 0) + 1);
+  });
+  const topReason = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  rows.push({
+    id: "feedback",
+    label: "避雷方向",
+    value: topReason
+      ? `最近最常避开：${topReason[0]}。`
+      : "点过“不想吃”的原因会变成下次推荐的避雷线索。",
+  });
+
+  return rows;
 }

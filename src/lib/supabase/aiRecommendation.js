@@ -1,21 +1,8 @@
-import { getSupabase, isSupabaseConfigured } from "./client";
-import { resolveFunctionError } from "./functionError";
 import { isHumiAiViaApiEnabled, recommendMealsViaApi } from "../aiViaHumiApi";
 
 export async function recommendMeals(context) {
   if (isHumiAiViaApiEnabled) {
     return recommendMealsViaApi(context);
   }
-  if (!isSupabaseConfigured) {
-    throw new Error("Supabase is not configured.");
-  }
-
-  const supabase = await getSupabase();
-  const { data, error } = await supabase.functions.invoke("recommend-meals", {
-    body: context,
-  });
-
-  if (error) throw await resolveFunctionError(error);
-  if (data?.error) throw new Error(data.error);
-  return data;
+  throw new Error("精准推荐 API 未开启，已回到基础推荐。");
 }

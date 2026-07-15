@@ -131,22 +131,6 @@ img {
     animation: nav-tab-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  .trend-hero {
-    isolation: isolate;
-  }
-
-  .trend-hero::before {
-    content: "";
-    position: absolute;
-    inset: -40%;
-    z-index: -1;
-    background:
-      radial-gradient(circle at 28% 30%, rgba(17, 17, 17, 0.06), transparent 18%),
-      radial-gradient(circle at 76% 18%, rgba(17, 17, 17, 0.04), transparent 16%),
-      radial-gradient(circle at 70% 78%, rgba(255, 255, 255, 0.16), transparent 20%);
-    animation: trend-aurora 8s ease-in-out infinite alternate;
-  }
-
   .trend-button {
     position: relative;
     overflow: hidden;
@@ -319,21 +303,6 @@ img {
     animation: entry-table-fade 1360ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .entry-table-motion__glow {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(78vw, 420px);
-    height: min(78vw, 420px);
-    border-radius: 999px;
-    background:
-      radial-gradient(circle at 50% 50%, rgba(17, 17, 17, 0.14), transparent 34%),
-      radial-gradient(circle at 64% 36%, rgba(17, 17, 17, 0.05), transparent 42%);
-    filter: blur(20px);
-    transform: translate(-50%, -50%);
-    animation: entry-glow 1180ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
   .entry-table-motion__plate {
     position: absolute;
     left: 50%;
@@ -343,9 +312,7 @@ img {
     height: min(54vw, 280px);
     border-radius: 999px;
     border: 1px solid rgba(17, 17, 17, 0.12);
-    background:
-      radial-gradient(circle at 50% 50%, rgba(17, 17, 17, 0.06), transparent 36%),
-      rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.9);
     box-shadow: inset 0 0 0 22px rgba(17, 17, 17, 0.03), 0 30px 100px rgba(0, 0, 0, 0.12);
     animation: entry-plate 920ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both;
   }
@@ -371,7 +338,7 @@ img {
   .entry-table-motion__dish--two {
     right: 30px;
     top: 44px;
-    background: rgba(17, 17, 17, 0.48);
+    background: #6b6b6b;
     --dish-x: 82px;
     --dish-y: -58px;
     animation-delay: 90ms;
@@ -494,15 +461,6 @@ img {
   100% {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes trend-aurora {
-  0% {
-    transform: translate3d(-2%, -1%, 0) rotate(0deg) scale(1);
-  }
-  100% {
-    transform: translate3d(2%, 1%, 0) rotate(8deg) scale(1.04);
   }
 }
 
@@ -741,21 +699,6 @@ img {
   }
   100% {
     opacity: 0;
-  }
-}
-
-@keyframes entry-glow {
-  0% {
-    opacity: 0;
-    transform: scale(0.72);
-  }
-  48% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 0.65;
-    transform: scale(1);
   }
 }
 

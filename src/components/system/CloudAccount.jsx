@@ -1,6 +1,6 @@
 import { Cloud, KeyRound, Link, LogOut, Mail, Plus, ShieldCheck } from "lucide-react";
 import { getSupabase, isSupabaseConfigured } from "../../lib/supabase/client";
-import { HumiScene } from "../ui/HumiScene";
+import { HumiPeek } from "../ui/HumiBrandIllustration";
 
 export function CloudAccount({
   authEmail,
@@ -52,13 +52,13 @@ export function CloudAccount({
   }
 
   return (
-    <section data-testid="cloud-account-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
+    <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
       {!compactTitle && (
-        <HumiScene
-          scene={family ? "user" : "emptyFamily"}
+        <HumiPeek
+          variant={family ? "family-taste-talk" : "profile"}
           size="sm"
-          className="absolute right-3 top-2"
-          decorative
+          className="absolute right-4 top-4 opacity-85"
+          contextKey="cloud-account-peek"
         />
       )}
       {!compactTitle && (
@@ -72,9 +72,9 @@ export function CloudAccount({
             <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
               {signedIn
                 ? family
-                  ? "Humi 会把菜单、食材清单和家庭画像保存在这个家里。"
-                  : "已经登录。创建我的家后，菜单、食材清单和忌口线索会一起保存。"
-                : "创建我的家后，Humi 会记住菜单、食材清单和家庭画像。也可以先直接体验。"}
+                  ? "Humi 会把菜单、清单和画像线索保存在这个家里。"
+                  : "已经登录。创建我的家后，菜单、清单和画像线索会一起保存。"
+                : "创建我的家后，Humi 会记住菜单、清单和画像线索。也可以先直接体验。"}
             </p>
           </div>
         </div>
@@ -87,17 +87,17 @@ export function CloudAccount({
             <p className="mt-1 text-sm font-black">已登录 Humi</p>
           </div>
           {family ? (
-            <div className="relative overflow-hidden rounded-[22px] border border-line bg-canvas p-4 pr-20">
-              <HumiScene
-                scene="syncSuccess"
+            <div className="relative overflow-hidden rounded-[22px] bg-canvas/70 p-4 pr-20">
+              <HumiPeek
+                variant="family-taste-talk"
                 size="sm"
-                className="absolute -bottom-1 right-2"
-                decorative
+                className="absolute -bottom-2 right-3 opacity-90"
+                contextKey="cloud-account-family-card"
               />
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">我的家</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">当前家庭空间</p>
               <p className="mt-1 text-xl font-black tracking-[-0.04em]">{family.name}</p>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-                以后菜单、食材清单和家庭画像都会保存在这里。
+                已连接。菜单、清单和画像线索会自动保存在这里。
               </p>
             </div>
           ) : (
@@ -138,7 +138,8 @@ export function CloudAccount({
         <div className="mt-5 rounded-[22px] bg-canvas p-4">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">游客体验</p>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/58">
-            现在可以直接安排晚饭、生成今晚菜单和食材清单；在正式小程序里会用微信身份同步到你的家。
+            现在可以直接安排晚饭、保存今晚菜单和食材清单。小程序正式验证前会接入微信登录，
+            这里先不放账号入口。
           </p>
         </div>
       ) : (

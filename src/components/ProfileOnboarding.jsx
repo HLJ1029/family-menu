@@ -1,5 +1,5 @@
-import { Check, ShieldAlert } from "lucide-react";
-import { getPlanningMode, profileOptions } from "../lib/profile";
+import { Check, ShieldAlert, Users } from "lucide-react";
+import { formatHardProfileSummary, profileOptions } from "../lib/profile";
 import { HumiScene } from "./ui/HumiScene";
 
 export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
@@ -29,50 +29,61 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
   function finish() {
     onComplete({
       ...draft,
-      planningMode: getPlanningMode(draft.planningMode).id,
+      hardAvoidReviewed: true,
     });
   }
 
-  const hasAvoidRules = draft.allergies.length > 0 || draft.dislikes.length > 0;
-  const buddyText = hasAvoidRules
-    ? "这些会作为硬约束避开，先保证家里人不能吃的别被推上桌。"
-    : "没有忌口也可以直接开始。其他口味会从感觉征集和做饭记录里慢慢学。";
-
   return (
     <main className="min-h-screen bg-canvas px-4 py-5 text-ink">
-      <div className="mx-auto grid min-h-[calc(100vh-2.5rem)] w-full max-w-[960px] content-center gap-5">
-        <section className="overflow-hidden rounded-[32px] border border-line bg-white p-6 text-ink shadow-card md:p-8">
-          <div className="grid gap-6 md:grid-cols-[1fr_170px] md:items-end">
-            <div className="flex items-start justify-between gap-4 md:block">
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">HUMI</p>
-                <h1 className="mt-5 max-w-2xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                  先记住家里不能吃的。
-                </h1>
-                <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                  忌口会作为硬约束避开；没有也可以直接开始。其他口味以后从自然使用里慢慢学。
-                </p>
-              </div>
+      <div className="mx-auto grid min-h-[calc(100vh-2.5rem)] w-full max-w-[760px] content-center">
+        <section className="rounded-[28px] border border-line bg-white p-5 shadow-card md:p-7">
+          <div className="grid gap-4 sm:grid-cols-[1fr_180px] sm:items-start">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">HUMI</p>
+              <h1 className="mt-3 max-w-2xl text-3xl font-black tracking-[-0.04em] md:text-4xl">
+                先确认家里不能吃的
+              </h1>
+              <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-ink/52">
+                人数影响份量，忌口影响安全。喜欢什么不用填，Humi 会从日常选择里慢慢学。
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
               <button
                 type="button"
                 onClick={onSignOut}
-                className="shrink-0 rounded-full border border-ink/16 px-4 py-2 text-xs font-black text-ink/58 transition hover:border-ink/28 hover:text-ink md:mt-6"
+                className="shrink-0 rounded-full border border-line px-4 py-2 text-xs font-black text-ink/58 transition hover:border-ink hover:text-ink"
               >
                 退出
               </button>
-            </div>
-            <div>
-              <HumiScene scene="user" size="page" className="mx-auto" eager />
-              <p className="mt-2 text-center text-sm font-black text-ink">先从不能吃的开始</p>
-              <p className="mt-1 text-center text-xs font-bold leading-5 text-ink/52">{buddyText}</p>
+              <HumiScene scene="user" size="md" className="hidden sm:grid" />
             </div>
           </div>
-        </section>
 
-        <section className="rounded-[32px] border border-line bg-white p-5 shadow-card md:p-6">
-          <div className="grid gap-5">
-            <ProfileBlock icon={ShieldAlert} title="家里不能吃什么">
-              <p className="mb-2 text-xs font-bold text-ink/42">这些会被 Humi 当成硬约束避开</p>
+          <div className="mt-6 grid gap-6">
+            <ProfileBlock icon={Users} title="家里几个人吃饭">
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((size) => (
+                  <ChoiceButton
+                    key={size}
+                    active={Number(draft.familySize) === size}
+                    label={size === 4 ? "4人+" : `${size}人`}
+                    onClick={() => updateProfile({ familySize: size })}
+                  />
+                ))}
+              </div>
+              <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-between rounded-[18px] bg-canvas px-4">
+                <span className="text-sm font-black">有孩子一起吃</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.hasChildren)}
+                  onChange={(event) => updateProfile({ hasChildren: event.target.checked })}
+                  className="h-5 w-5 accent-black"
+                />
+              </label>
+            </ProfileBlock>
+
+            <ProfileBlock icon={ShieldAlert} title="绝不想吃 / 不能吃">
+              <p className="mb-2 text-xs font-bold text-ink/42">这类今晚不要推</p>
               <TagChoices
                 options={profileOptions.dislikes}
                 values={draft.dislikes}
@@ -85,14 +96,11 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
                 onToggle={(value) => toggleListValue("allergies", value)}
               />
             </ProfileBlock>
-
           </div>
 
           <div className="mt-5 rounded-[22px] bg-canvas p-4">
-            <p className="text-xs font-black text-ink/38">其他口味不用填</p>
-            <p className="mt-2 text-sm font-bold leading-6 text-ink/62">
-              Humi 会从家人点的感觉、真正做过的菜和想吃池子里慢慢学，不需要维护口味表。
-            </p>
+            <p className="text-xs font-black text-ink/38">当前画像</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatHardProfileSummary(draft)}</p>
           </div>
 
           <button
@@ -101,7 +109,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
             className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white transition hover:-translate-y-0.5"
           >
             <Check size={18} />
-            {hasAvoidRules ? "保存忌口，开始使用" : "没有忌口，直接开始"}
+            开始使用 Humi
           </button>
         </section>
       </div>

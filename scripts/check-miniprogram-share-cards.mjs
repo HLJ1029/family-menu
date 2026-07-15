@@ -61,13 +61,51 @@ const cases = [
     },
     expectedShare: {
       title: "小林发来 6 项买菜清单",
-      path: "/pages/index/index?grocery=grocery-token-123",
+      path: "/pages/index/index?groceryShare=grocery-token-123",
     },
-    launchOptions: { grocery: "grocery-token-123" },
-    expectedLaunchUrl: "https://www.humi-home.com/?grocery=grocery-token-123&channel=wechat-miniprogram",
+    launchOptions: { groceryShare: "grocery-token-123" },
+    expectedLaunchUrl: "https://www.humi-home.com/?groceryShare=grocery-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨发来买菜清单",
-      path: "/pages/index/index?grocery=grocery-token-123",
+      path: "/pages/index/index?groceryShare=grocery-token-123",
+    },
+  },
+  {
+    name: "wish",
+    message: {
+      type: "humi:share-wish",
+      token: "wish-token-123",
+      householdName: "周末家",
+      initiatorName: "小林",
+    },
+    expectedShare: {
+      title: "小林想收集家里最近想吃的菜",
+      path: "/pages/index/index?wishShare=wish-token-123",
+    },
+    launchOptions: { wishShare: "wish-token-123" },
+    expectedLaunchUrl: "https://www.humi-home.com/?wishShare=wish-token-123&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "主厨想收集家里最近想吃的菜",
+      path: "/pages/index/index?wishShare=wish-token-123",
+    },
+  },
+  {
+    name: "today_menu",
+    message: {
+      type: "humi:share-menu",
+      token: "menu-token-123",
+      householdName: "周末家",
+      title: "周末家今晚菜单",
+    },
+    expectedShare: {
+      title: "周末家今晚菜单",
+      path: "/pages/index/index?menuShare=menu-token-123",
+    },
+    launchOptions: { menuShare: "menu-token-123" },
+    expectedLaunchUrl: "https://www.humi-home.com/?menuShare=menu-token-123&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "今晚菜单已经安排好",
+      path: "/pages/index/index?menuShare=menu-token-123",
     },
   },
 ];

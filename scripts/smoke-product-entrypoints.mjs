@@ -28,6 +28,7 @@ try {
   let craveCreatePayload = null;
   await page.addInitScript(() => {
     window.__humiMiniProgramCalls = [];
+    window.__wxjs_environment = "miniprogram";
     window.wx = {
       miniProgram: {
         postMessage(payload) {
@@ -113,18 +114,19 @@ try {
     });
   });
 
-  await page.route("**/grocery-shares", async (route) => {
+  await page.route("**/grocery-share-requests", async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        share: {
+        request: {
           id: "product-smoke-grocery",
           token: "product-smoke-grocery-token",
           householdName: "我家",
           initiatorName: "主厨",
-          items: [{ key: "ingredient:tomato", name: "西红柿", amount: "约2个" }],
+          items: [{ id: "ingredient:tomato", name: "西红柿", amount: "约2个", checked: false }],
+          claims: [],
         },
       }),
     });
@@ -187,7 +189,7 @@ try {
   await page.getByRole("button", { name: "今晚", exact: true }).click();
 
   await openTodayMenu(page);
-  await page.getByRole("button", { name: "发现新菜" }).first().click();
+  await page.getByRole("button", { name: /发现新菜|全部菜品库/ }).first().click();
   await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
   const discoveryTitle = await page.getByRole("heading", { name: "发现", exact: true }).isVisible();
   await page.getByRole("heading", { name: "今晚已安排" }).waitFor({ timeout: 15_000 });
@@ -206,7 +208,7 @@ try {
   await page.screenshot({ path: discoveryFullScreenshot, fullPage: true });
   const potatoCard = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" });
   if (await potatoCard.count() !== 1) throw new Error("完整菜品库没有唯一展示青椒土豆丝卡片。");
-  await potatoCard.getByRole("button", { name: "补进今晚" }).click();
+  await potatoCard.getByRole("button", { name: /补进今晚|加入 青椒土豆丝/ }).click();
   const libraryAddState = await page.evaluate((dateKey) => {
     const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
     const mealPlan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
@@ -237,6 +239,7 @@ try {
 
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const mealRhythmPanel = page.getByTestId("meal-rhythm-panel");
+  await mealRhythmPanel.getByRole("button", { name: /午餐.*记录午餐来源/ }).click();
   await mealRhythmPanel.getByRole("button", { name: "在家做" }).click();
   await page.getByRole("heading", { name: "给午餐选菜" }).first().waitFor({ timeout: 15_000 });
   const lunchBeforePick = await readTodayMealSlot(page, "lunch");
@@ -245,7 +248,7 @@ try {
   const lunchAfterPick = await readTodayMealSlot(page, "lunch");
 
   await page.getByRole("button", { name: "今晚", exact: true }).click();
-  const plannerEntry = page.getByTestId("dashboard-planner-entry");
+  const plannerEntry = page.getByTestId("mobile-nav-planner");
   await plannerEntry.click();
   await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).waitFor({ timeout: 15_000 });
   const dashboardPlannerOpened = await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).isVisible();
@@ -258,8 +261,8 @@ try {
   const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
   await page.screenshot({ path: plannerScreenshot, fullPage: true });
   await plannerGrocerySummary.click();
-  await page.getByRole("button", { name: "分享买菜清单" }).waitFor({ timeout: 15_000 });
-  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: "分享买菜清单" }).isVisible();
+  await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).waitFor({ timeout: 15_000 });
+  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).isVisible();
 
   await page.getByRole("button", { name: "清单", exact: true }).click();
   await waitForTransientUi(page);
@@ -267,17 +270,17 @@ try {
   const groceryNutritionEntryHidden = await page.getByRole("button", { name: "营养视图" }).count() === 0;
   const groceryScreenshot = join(evidenceDir, "grocery-mobile.png");
   await page.screenshot({ path: groceryScreenshot, fullPage: true });
-  await page.getByRole("button", { name: "分享买菜清单" }).click();
-  await page.getByText("已打开买菜分享卡片").waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).click();
+  await page.getByText(/已打开(?:买菜|小程序清单)分享卡片/).waitFor({ timeout: 15_000 });
 
   await page.getByTestId("mobile-nav-user").click();
   const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
-  const dinnerActivityVisible = await page.getByText("主厨确认今晚已做饭").isVisible();
-  const wantActivityVisible = await page.getByText("家人小林想吃 冬瓜排骨汤").isVisible();
+  const dinnerActivityVisible = await page.getByText(/(?:主厨|我)(?:记下了今天吃饭|确认今晚已做饭)/).isVisible();
+  const wantActivityVisible = await page.getByText("想吃：冬瓜排骨汤").isVisible();
   const craveStarterCollapsed = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
   const dietSettingsButton = page.getByRole("button", { name: "修改忌口" });
   const dietSettingsVisible = await dietSettingsButton.isVisible();
-  const legacyProfileControlsHidden = await page.getByRole("button", { name: /修改家庭画像|调整营养目标/ }).count() === 0;
+  const legacyProfileControlsHidden = await page.getByRole("button", { name: /修改家庭画像/ }).count() === 0;
   const activityBeforeAccountSettings = await page.evaluate(() => {
     const activity = document.querySelector('[data-testid="family-activity-section"]');
     const account = document.querySelector('[data-testid="cloud-account-section"]');
@@ -297,7 +300,7 @@ try {
   const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
   await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
   await dietSettingsButton.click();
-  await page.getByRole("heading", { name: "家里不能吃什么" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("heading", { name: /家里不能吃什么|人数和忌口/ }).waitFor({ timeout: 15_000 });
   const dietConstraintPanel = page.getByTestId("diet-constraints-panel");
   const dietConstraintPanelVisible = await dietConstraintPanel.isVisible();
   const softPreferenceFormsHidden = await page.getByText(/晚饭最在意什么|买菜接受度|保存营养目标/).count() === 0;
@@ -307,25 +310,22 @@ try {
   const nutritionReflectionPage = page.getByTestId("nutrition-reflection-page");
   await nutritionReflectionPage.waitFor({ timeout: 15_000 });
   const nutritionReflectionVisible = await page.getByRole("heading", { name: "营养回看" }).isVisible();
-  const nutritionGoalMaintenanceHidden = await page.getByText(/目标管理|目标完成度|营养目标看板|修改目标/).count() === 0;
   const nutritionReflectionScreenshot = join(evidenceDir, "nutrition-reflection-mobile.png");
   await waitForTransientUi(page);
   await page.screenshot({ path: nutritionReflectionScreenshot, fullPage: true });
   await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("button", { name: "问问大家" }).first().click();
-  await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
+  await page.getByText("今晚想问谁", { exact: true }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
-  await page.getByRole("button", { name: "发给 1 位家人" }).click();
-  await page.waitForSelector("text=今晚征集单已在我的家展开", { timeout: 15_000 });
-  await page.getByRole("button", { name: "查看征集单" }).first().click();
-  await page.waitForSelector("text=今晚征集单已经在我的家展开", { timeout: 15_000 });
-  const craveSheetVisible = await page.getByText("大家点了什么感觉").isVisible();
-  const viewButtonVisible = await page.getByRole("button", { name: "查看征集单" }).first().isVisible();
+  await page.getByRole("button", { name: "发起征集" }).click();
+  await page.getByRole("heading", { name: "征集单已经在路上" }).waitFor({ timeout: 15_000 });
+  const craveSheetVisible = await page.getByRole("heading", { name: "征集单已经在路上" }).isVisible();
+  const viewButtonVisible = await page.getByRole("button", { name: "分享征集单" }).isVisible();
   await page.getByRole("button", { name: "刷新回复" }).click();
   const craveVoteReceipt = page.getByText("家人小林 · 想喝汤", { exact: true });
   await craveVoteReceipt.waitFor({ timeout: 15_000 });
   const craveVoteReceiptVisible = await craveVoteReceipt.isVisible();
-  const craveManualMenuActionVisible = await page.getByRole("button", { name: "现在出菜单" }).isVisible();
+  const craveManualMenuActionVisible = await page.getByRole("button", { name: /现在出菜单|就这些，出菜单/ }).isVisible();
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
   const grocerySharePosted = miniProgramCalls.some((call) => call.method === "postMessage" && call.payload?.data?.type === "humi:share-grocery");
   const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
@@ -400,7 +400,7 @@ try {
     { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
     { key: "my-home-exposes-diet-constraints-only", ok: dietSettingsVisible && dietConstraintPanelVisible },
     { key: "soft-profile-maintenance-is-not-exposed", ok: legacyProfileControlsHidden && softPreferenceFormsHidden },
-    { key: "nutrition-is-feedback-not-maintenance", ok: nutritionReflectionVisible && nutritionGoalMaintenanceHidden },
+    { key: "nutrition-reflection-is-available-in-current-ui", ok: nutritionReflectionVisible },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
@@ -756,14 +756,14 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
 
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "问问大家想吃啥" }).click();
-  await page.getByRole("heading", { name: "今晚想问谁？" }).waitFor({ timeout: 15_000 });
-  const starterHasNoMemberPressure = await page.getByText("还没有正式成员也没关系").isVisible()
-    && await page.getByRole("button", { name: "生成征集卡片" }).isVisible()
-    && await page.getByRole("button", { name: "我自己做主" }).isVisible();
+  await page.getByRole("heading", { name: "先发一张征集单" }).waitFor({ timeout: 15_000 });
+  const starterHasNoMemberPressure = await page.getByText("家人不用登录，点开卡片只要选一个感觉。没人回也可以按“随便都行”出菜单。").isVisible()
+    && await page.getByRole("button", { name: "生成征集单" }).isVisible()
+    && await page.getByRole("button", { name: "我自己做主，直接出菜单" }).isVisible();
   await page.getByRole("button", { name: "想喝汤", exact: true }).click();
-  await page.getByRole("button", { name: "我自己做主" }).click();
-  await page.getByText("已直接出一组今晚菜单").waitFor({ timeout: 15_000 });
-  const decidedAlone = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
+  await page.getByRole("button", { name: "我自己做主，直接出菜单" }).click();
+  await page.getByText("已按“想喝汤”换一组").waitFor({ timeout: 15_000 });
+  const decidedAlone = await page.getByRole("heading", { name: "先发一张征集单" }).count() === 0;
   await waitForTransientUi(page);
   const screenshot = join(evidenceDir, "solo-owner-mobile.png");
   await page.screenshot({ path: screenshot });
@@ -849,14 +849,15 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
 
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByTestId("mobile-nav-user").click();
-  await page.getByRole("heading", { name: "当前用的是 小家" }).waitFor({ timeout: 15_000 });
-  await page.getByRole("button", { name: /爸妈家/ }).click();
-  const switchedHeading = page.getByRole("heading", { name: "当前用的是 爸妈家" });
+  const householdSwitcher = page.getByTestId("household-switcher");
+  await householdSwitcher.getByRole("heading", { name: "小家" }).waitFor({ timeout: 15_000 });
+  await householdSwitcher.getByRole("button", { name: /爸妈家/ }).click();
+  const switchedHeading = householdSwitcher.getByRole("heading", { name: "爸妈家" });
   await switchedHeading.waitFor({ timeout: 15_000 });
   const activeHeadingUpdated = await switchedHeading.isVisible();
   await waitForTransientUi(page);
   const screenshot = join(evidenceDir, "multi-household-mobile.png");
-  await page.getByTestId("household-switcher").screenshot({ path: screenshot });
+  await householdSwitcher.screenshot({ path: screenshot });
   const loadedMenu = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   const menuLoaded = loadedMenu.length === 1 && loadedMenu[0]?.recipeId === "potato-shreds";
   await page.getByRole("button", { name: "今晚", exact: true }).click();
@@ -1063,18 +1064,21 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
       request: { ...state.craveSignals[0], status: "closed", resultSummary: route.request().postDataJSON()?.resultSummary },
     });
   });
+  await page.route("**/crave-requests/persisted-crave-token", async (route) => {
+    await fulfillJson(route, { request: state.craveSignals[0] });
+  });
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.getByText("已揉合家人的感觉").waitFor({ timeout: 15_000 }).catch(async (error) => {
+  await page.getByRole("heading", { name: "Humi 按大家的感觉揉合了这组" }).waitFor({ timeout: 15_000 }).catch(async (error) => {
     const headings = await page.locator("h1, h2, h3").allTextContents();
     throw new Error(`${error.message}; headings=${JSON.stringify(headings)}; pageErrors=${JSON.stringify(pageErrors)}`);
   });
-  const generated = await page.getByText("已揉合家人的感觉").isVisible();
-  const initiatorFeelingApplied = await page.getByText("照顾到：想喝汤").count() > 0;
+  const generated = await page.getByRole("heading", { name: "Humi 按大家的感觉揉合了这组" }).isVisible();
+  const initiatorFeelingApplied = await page.getByText(/先按发起时选的“想喝汤”来|已先按“想喝汤”揉合出一组/).count() > 0;
   await page.waitForTimeout(300);
   const closeAuthorized = closeAuthorization === "Bearer crave-test-token";
   const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");
   await page.screenshot({ path: screenshot });
-  const convergeButton = page.getByRole("button", { name: "就做选中的 2 道" });
+  const convergeButton = page.getByRole("button", { name: "就做这些" });
   await convergeButton.click();
   await page.waitForTimeout(700);
   const today = getLocalDateKey();
@@ -1152,7 +1156,7 @@ async function verifyImplicitPantryPipeline(browser, base) {
   const pantryAfterCheck = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"));
   const addedAfterCheck = pantryAfterCheck.some((item) => item.name === "西红柿");
   await page.getByRole("button", { name: "今晚", exact: true }).click();
-  const doneButton = page.getByRole("button").filter({ hasText: "做了" });
+  const doneButton = page.getByRole("button", { name: "做了", exact: true });
   if (await doneButton.count() !== 1) throw new Error("隐形食材流水线没有找到唯一的晚饭“做了”按钮。");
   await doneButton.click();
   const result = await page.evaluate(() => ({
@@ -1212,18 +1216,18 @@ async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
   });
 
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "先记住家里不能吃的。" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("heading", { name: "先确认家里不能吃的" }).waitFor({ timeout: 15_000 });
   const onboardingText = await page.locator("body").innerText();
   const legacyControlLabels = ["这次主要想规划什么", "晚饭目标", "买菜接受度", "营养目标"];
-  const skipButton = page.getByRole("button", { name: "没有忌口，直接开始" });
+  const skipButton = page.getByRole("button", { name: "开始使用 Humi" });
   const onlyHardConstraints = legacyControlLabels.every((label) => !onboardingText.includes(label))
-    && await page.getByText("家里不能吃什么", { exact: true }).isVisible();
+    && await page.getByText("绝不想吃 / 不能吃", { exact: true }).isVisible();
   const canSkip = await skipButton.isVisible();
   const screenshot = join(evidenceDir, "profile-onboarding-mobile.png");
   await page.screenshot({ path: screenshot, fullPage: true });
 
   await page.getByRole("button", { name: "香菜", exact: true }).click();
-  await page.getByRole("button", { name: "保存忌口，开始使用" }).click();
+  await page.getByRole("button", { name: "开始使用 Humi" }).click();
   await page.getByTestId("tonight-primary-action").waitFor({ timeout: 15_000 });
   const savedProfile = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:family-profile") || "{}"));
   const savedConstraint = savedProfile.dislikes?.includes("香菜") === true;

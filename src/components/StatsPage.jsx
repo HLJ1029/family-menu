@@ -1,4 +1,4 @@
-import { Activity, BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket, Sparkles } from "lucide-react";
+import { BarChart3, CalendarDays, ChefHat, ListChecks, ShoppingBasket, Sparkles, Target } from "lucide-react";
 import { buildMealInsights } from "../lib/insights";
 import { getNutritionSummary, NutritionRings } from "./CalendarPage";
 import { Card } from "./ui/Card";
@@ -38,30 +38,27 @@ export function StatsPage({
   const maxCategoryCount = Math.max(...insights.categoryMix.map((item) => item.count), 1);
 
   return (
-    <section className="grid gap-5" data-testid="nutrition-reflection-page">
+    <section data-testid="nutrition-reflection-page" className="grid gap-5">
+      <h2 className="sr-only">营养回看</h2>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="relative overflow-hidden rounded-[30px] bg-ink p-6 text-white shadow-lift md:p-8">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-white">Meal reflection</p>
-              <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                这段时间，家里怎么吃
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/62">
-                按早餐、午餐、晚餐一起回看；已确认的餐次会优先进入趋势，帮助下次更懂这一家的饭。
-              </p>
-              {!insights.hasConfirmedMeals && (
-                <p className="mt-4 inline-flex rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-black text-white/72">
-                  样本不足，当前先用今日菜单和最近三餐计划做弱参考
-                </p>
-              )}
-            </div>
-            <HumiScene scene="achievement" size="page" className="mx-auto md:mx-0" imageClassName="invert" decorative />
-          </div>
+        <section className="relative overflow-hidden rounded-[30px] border border-line bg-white p-6 text-ink shadow-card md:p-8 md:pr-64">
+          <HumiScene scene="achievement" size="xl" className="absolute bottom-2 right-3 hidden md:grid" />
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/42">饮食画像</p>
+          <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
+            {insights.goals.label}
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-ink/58">
+            按早餐、午餐、晚餐一起做目标管理；已确认的餐次优先纳入营养目标。
+          </p>
+          {!insights.hasConfirmedMeals && (
+            <p className="mt-4 inline-flex rounded-full bg-canvas px-4 py-2 text-xs font-black text-ink/62">
+              样本不足，当前先用今日菜单和本周三餐计划做弱参考
+            </p>
+          )}
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <StatBlock label="已确认餐次" value={String(insights.confirmedMeals.length)} />
-            <StatBlock label="平均时长" value={`${averageTime} min`} />
-            <StatBlock label="待买食材" value={String(groceryItems.length)} />
+            <StatBlock label="已确认餐次" value={String(insights.confirmedMeals.length)} tone="light" />
+            <StatBlock label="平均时长" value={`${averageTime} min`} tone="light" />
+            <StatBlock label="待买食材" value={String(groceryItems.length)} tone="light" />
           </div>
         </section>
 
@@ -74,14 +71,14 @@ export function StatsPage({
           />
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">Reference range</p>
-              <h3 className="card-title">近期状态</h3>
+              <p className="eyebrow">Goal progress</p>
+              <h3 className="card-title">目标完成度</h3>
             </div>
-            <Activity size={22} />
+            <Target size={22} />
           </div>
           <div className="mt-6 grid gap-3">
             {insights.targetProgress.slice(0, 4).map((item) => (
-              <ReferenceRow key={item.key} item={item} />
+              <TargetRow key={item.key} item={item} />
             ))}
           </div>
         </Card>
@@ -91,8 +88,8 @@ export function StatsPage({
         <Card>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">每顿估算</p>
-              <h3 className="card-title">营养回看</h3>
+              <p className="eyebrow">每顿参考</p>
+              <h3 className="card-title">营养目标看板</h3>
             </div>
             <NutritionRings summary={monthSummary} size="sm" />
           </div>
@@ -104,7 +101,7 @@ export function StatsPage({
           </div>
           <div className="mt-5 grid gap-3">
             {insights.targetProgress.slice(4).map((item) => (
-              <ReferenceRow key={item.key} item={item} compact />
+              <TargetRow key={item.key} item={item} compact />
             ))}
           </div>
           <p className="mt-4 text-xs font-bold leading-5 text-ink/42">
@@ -162,7 +159,7 @@ export function StatsPage({
               ))
             ) : (
               <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold text-ink/50">
-                暂无统计数据。先回【今晚】安排一顿，或在“想连排几天”里轻量补几餐。
+                暂无统计数据。先回首页安排今日菜单，或在一周计划里补齐三餐。
               </p>
             )}
           </div>
@@ -177,9 +174,9 @@ export function StatsPage({
             <ListChecks size={22} />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <ActionButton icon={CalendarDays} title="想连排几天" text="需要时再计划" onClick={() => onViewChange("planner")} />
-            <ActionButton icon={ShoppingBasket} title="查看清单" text="确认要买的食材" onClick={() => onViewChange("grocery")} />
-            <ActionButton icon={BarChart3} title="回到我的家" text="看家庭饭线索" onClick={() => onViewChange("user")} />
+            <ActionButton icon={CalendarDays} title="调整计划" text="补齐目标短板" onClick={() => onViewChange("planner")} />
+            <ActionButton icon={ShoppingBasket} title="查看食材" text="确认采购清单" onClick={() => onViewChange("grocery")} />
+            <ActionButton icon={BarChart3} title="修改目标" text="去我的家设置" onClick={() => onViewChange("user")} />
           </div>
         </Card>
       </div>
@@ -187,14 +184,14 @@ export function StatsPage({
   );
 }
 
-function ReferenceRow({ item, compact = false }) {
+function TargetRow({ item, compact = false }) {
   const value = item.unit === "%" ? `${Math.round(item.value * 100)}%` : `${Math.round(item.value)}${item.unit}`;
   const target = item.unit === "%" ? `${Math.round(item.target * 100)}%` : `${Math.round(item.target)}${item.unit}`;
   return (
     <div className={`rounded-[18px] bg-canvas ${compact ? "p-3" : "p-4"}`}>
       <div className="flex items-center justify-between gap-3 text-sm font-black">
         <span>{item.label}</span>
-        <span className={item.ok ? "text-ink/45" : "text-ink"}>{value} · 参考 {target}</span>
+        <span className={item.ok ? "text-ink/45" : "text-ink"}>{value} / {target}</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
         <div
@@ -202,9 +199,7 @@ function ReferenceRow({ item, compact = false }) {
           style={{ width: `${Math.min(item.percent, 1) * 100}%` }}
         />
       </div>
-      <p className="mt-2 text-xs font-bold text-ink/45">
-        {item.ok ? "最近记录落在参考范围" : "这只是近期趋势提醒，不需要额外设置目标"}
-      </p>
+      <p className="mt-2 text-xs font-bold text-ink/45">{item.hint}</p>
     </div>
   );
 }
@@ -223,11 +218,11 @@ function ActionButton({ icon: Icon, title, text, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[20px] bg-canvas p-4 text-left transition hover:-translate-y-0.5 hover:bg-ink"
+      className="group rounded-[20px] border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-ink hover:bg-ink hover:text-white"
     >
       <Icon size={20} />
       <p className="mt-3 font-black">{title}</p>
-      <p className="mt-1 text-xs font-bold text-ink/50">{text}</p>
+      <p className="mt-1 text-xs font-bold text-ink/50 group-hover:text-white/62">{text}</p>
     </button>
   );
 }

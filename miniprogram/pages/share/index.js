@@ -39,7 +39,33 @@ function buildShareData(options = {}) {
       eyebrow: "买菜清单",
       body: "家里要买的东西都在这张卡片里，点开就能认领和标记买到。",
       meta: itemCount > 0 ? `${itemCount} 项待买` : "待确认",
-      path: `/pages/index/index?grocery=${encodeURIComponent(token)}`
+      path: `/pages/index/index?groceryShare=${encodeURIComponent(token)}`
+    };
+  }
+
+  if (type === "wish") {
+    return {
+      type,
+      token,
+      householdName,
+      title: `${initiatorName}想收集家里最近想吃的菜`,
+      eyebrow: "想吃池",
+      body: "写一道最近想吃的菜就行，主厨会在安排晚饭时看到。",
+      meta: "免登录写一道",
+      path: `/pages/index/index?wishShare=${encodeURIComponent(token)}`
+    };
+  }
+
+  if (type === "menu" || type === "today_menu") {
+    return {
+      type: "menu",
+      token,
+      householdName,
+      title: normalizeText(options.title) || `${householdName}今晚菜单已经安排好`,
+      eyebrow: "今晚菜单",
+      body: "点开就能看今晚吃什么，以及这顿饭的安排。",
+      meta: "今晚一起吃",
+      path: `/pages/index/index?menuShare=${encodeURIComponent(token)}`
     };
   }
 

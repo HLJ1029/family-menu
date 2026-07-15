@@ -118,7 +118,6 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               scene={humiPosterScenes[0]}
               size="sm"
               className="shrink-0"
-              decorative
             />
             <p className="text-sm font-bold leading-6 text-ink/52">
               小提示：在 iPhone 或微信里打开时，优先使用“分享海报”；如果系统不支持文件分享，就点“保存 PNG”。

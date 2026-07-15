@@ -56,12 +56,14 @@ Every poster must include `HUMI`.
 
 Use it as a quiet brand signature, usually near the bottom or a corner. Do not use it as a huge watermark.
 
-### Brand Green
+### Brand Mark
 
-Primary accent color:
+Humi's current brand direction no longer uses the old acid-green visual system for poster output.
+
+Primary mark color:
 
 ```text
-#D4EB5A
+#111111
 ```
 
 Use it for:
@@ -72,7 +74,7 @@ Use it for:
 - Highlight number
 - Small brand block
 
-Avoid using it as a full-poster background.
+Avoid using saturated color blocks as a poster background. Share cards should feel white, clean, and editorial.
 
 ### Black Heavy Title
 
@@ -86,15 +88,27 @@ The marker underline is a core Humi recognition element.
 
 It should feel like a casual highlighter mark under a title or dish name. It should not look like a button background.
 
-### Paper Texture
+### Background
 
 Base background:
 
 ```text
-#F5F4F1
+#FFFFFF
 ```
 
-Use a subtle warm paper texture or soft grain. The poster should feel tactile, but not dirty.
+Use pure white or a very subtle warm off-white inside framed elements only. The poster should feel clear and premium, not yellowed.
+
+### Humi Brand Characters
+
+Poster templates should use the approved black-and-white Humi lifestyle characters as small editorial stamps.
+
+Rules:
+
+- Use transparent PNG/WebP assets from `public/assets/brand/characters`.
+- Use different poses for different poster contexts.
+- Keep character art secondary to the dish image and headline.
+- Do not generate new characters at share time.
+- Do not use the old monster visual system in Humi poster output.
 
 ### Emotional Copy
 
@@ -124,9 +138,9 @@ Rules:
 ## Color System
 
 ```text
-Background: #F5F4F1
+Background: #FFFFFF
 Primary text: #111111
-Accent green: #D4EB5A
+Accent/mark: #111111
 Card white: #FFFFFF
 Muted text: rgba(17, 17, 17, 0.52)
 Fine line: rgba(17, 17, 17, 0.12)
@@ -199,10 +213,10 @@ Structure:
 - Small official Humi app icon in the upper-left.
 - Quiet `HUMI` signature near the icon.
 - One large rounded dish image area in the upper half.
-- `今晚吃什么？` below the image with a brand-green marker underline.
+- `今晚吃什么？` below the image with a black marker underline.
 - Large dish name below the question.
 - Minimal time/taste metadata.
-- Bottom emotional copy and small `HUMI` signature.
+- Bottom emotional copy, a small Humi character stamp, and small `HUMI` signature.
 
 Rules:
 
@@ -305,7 +319,7 @@ Structure:
 - Warm paper background.
 - Small official Humi app icon in the upper-left.
 - Large headline: `买完这些 晚饭就稳了`.
-- Brand-green marker under the title, positioned as support rather than covering the text.
+- Black marker under the title, positioned as support rather than covering the text.
 - A white memo card with ingredients on the left and seasonings on the right.
 - No exact spoon/count accounting in the visual hierarchy.
 - Bottom emotional copy and `HUMI` signature.
@@ -331,7 +345,7 @@ Use it for:
 
 Structure:
 
-- Black background with Humi green glow.
+- White background with black Humi mark and a small character stamp.
 - Large headline: `菜买好 饭就快了`.
 - One tilted paper note with a short checklist.
 - Green tape as a physical note cue.

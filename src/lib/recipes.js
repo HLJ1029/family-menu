@@ -1,8 +1,8 @@
-import recipes from "../../data/recipes.json";
+import recipes from "../../data/recipes.json" with { type: "json" };
 
 export { recipes };
 
-const APP_BASE_PATH = import.meta.env.BASE_URL || "/";
+const APP_BASE_PATH = import.meta.env?.BASE_URL || "/";
 const LEGACY_GITHUB_PAGES_BASE = "/family-menu/";
 
 export function createDefaultWeekPlan() {

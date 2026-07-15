@@ -123,6 +123,39 @@ try {
           votes: [],
           createdAt: new Date().toISOString(),
         }],
+        activeCraveRequest: {
+          token: "active-crave-state-smoke",
+          ownerSecret: "must-not-leak-to-members",
+          householdName: "测试家",
+          starterFeeling: "清淡点",
+          status: "open",
+          votes: [],
+        },
+        activeGroceryShareRequest: {
+          token: "active-grocery-state-smoke",
+          householdName: "测试家",
+          status: "open",
+          items: [{ id: "milk", name: "牛奶" }],
+          claims: [],
+        },
+        activeWishShareRequest: {
+          token: "active-wish-state-smoke",
+          householdName: "测试家",
+          status: "open",
+          wishes: [],
+        },
+        pendingJoinContext: {
+          type: "crave",
+          token: "active-crave-state-smoke",
+          participantKey: "must-stay-on-this-device",
+        },
+        householdMembers: [{
+          id: "temporary-member",
+          name: "临时家人",
+          role: "member",
+          status: "pending",
+          participantKey: "must-not-sync-to-household",
+        }],
         familyProfile: { familySize: 3, goals: ["省时"] },
       },
     },
@@ -144,7 +177,13 @@ try {
   assert(loadedState?.recommendationAccess?.preciseTrialRemaining === 2, "state should load recommendation access");
   assert(loadedState?.wantToEatItems?.[0]?.recipeId === "mapo-tofu", "state should load want-to-eat pool");
   assert(loadedState?.craveSignals?.[0]?.token === "crave-state-smoke-token", "state should persist active crave signal across sessions");
+  assert(loadedState?.activeCraveRequest?.token === "active-crave-state-smoke", "state should persist the active crave request");
+  assert(!loadedState?.activeCraveRequest?.ownerSecret, "shared active crave state must not expose the owner secret");
+  assert(loadedState?.activeGroceryShareRequest?.token === "active-grocery-state-smoke", "state should persist the active grocery request");
+  assert(loadedState?.activeWishShareRequest?.token === "active-wish-state-smoke", "state should persist the active wish request");
   assert(!loadedState?.craveSignals?.[0]?.ownerSecret, "shared state must not expose crave owner secret");
+  assert(loadedState?.pendingJoinContext === undefined, "shared state must not persist a device's temporary join credential");
+  assert(loadedState?.householdMembers?.[0]?.participantKey === undefined, "shared member mirrors must strip temporary participant keys");
   assert(
     loadedStateEnvelope.family?.members?.some((member) => member.memberId === login.user.id),
     "owner household should include owner member",
@@ -215,6 +254,24 @@ try {
     body: { householdId: secondHousehold.family.id },
   });
   assert(switchedAgain.state?.todayMenu?.[0]?.recipeId === "mapo-tofu", "second household should keep separate state");
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...loadedState,
+        todayMenu: [{ recipeId: "tomato-egg", quantity: 3 }],
+      },
+    },
+  });
+  const activeSecondAfterDelayedOriginalSave = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    activeSecondAfterDelayedOriginalSave.state?.todayMenu?.[0]?.recipeId === "mapo-tofu",
+    "a delayed save for the original household must not overwrite the active second household",
+  );
   await request(`${baseUrl}/households/active`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -239,6 +296,7 @@ try {
       participantKey: "participant-smoke",
       memberName: "家人",
       feelingTag: "辣一点",
+      dishWish: "番茄汤",
       temporary: true,
     },
   });
@@ -252,6 +310,7 @@ try {
     body: { participantKey: "participant-smoke" },
   });
   assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
+  assert(joinedCrave.request?.votes?.[0]?.dishWish === "番茄汤", "crave vote should preserve the optional dish wish");
   assert(!joinedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose formal member ids");
   assert(
     joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
@@ -516,6 +575,88 @@ try {
     ownerStateAfterGroceryClaim.state?.groceryClaims?.["custom:milk"]?.status === "claimed",
     "temporary grocery claim should sync into household state",
   );
+
+  const batchGrocery = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdName: "测试家",
+      initiatorName: "主厨",
+      items: [
+        { id: "tomato", name: "西红柿", amount: "2个", category: "蔬菜" },
+        { id: "egg", name: "鸡蛋", amount: "4个", category: "蛋奶" },
+      ],
+    },
+  });
+  assert(batchGrocery.request?.items?.length === 2, "batch grocery share should expose the user's complete list");
+  const batchClaim = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    body: {
+      participantKey: "batch-grocery-guest",
+      memberName: "买菜家人",
+      itemIds: ["tomato", "egg"],
+      status: "claimed",
+      note: "下班路上买",
+    },
+  });
+  assert(batchClaim.request?.claims?.[0]?.itemIds?.length === 2, "batch grocery share should claim multiple items at once");
+  const checkedBatchGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/items/tomato/check`, {
+    method: "POST",
+    body: { checked: true },
+  });
+  assert(checkedBatchGrocery.request?.items?.find((item) => item.id === "tomato")?.checked, "batch grocery item should be checkable");
+
+  const menuShare = await request(`${baseUrl}/menu-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdName: "测试家",
+      initiatorName: "主厨",
+      title: "今晚菜单",
+      dishes: [{ id: "tomato-egg", name: "西红柿炒鸡蛋", quantity: 1, timeMinutes: 15 }],
+      groceryCount: 2,
+    },
+  });
+  const publicMenuShare = await request(`${baseUrl}/menu-share-requests/${menuShare.request.token}`);
+  assert(publicMenuShare.request?.dishes?.[0]?.name === "西红柿炒鸡蛋", "menu share should open without login");
+
+  const wishShare = await request(`${baseUrl}/wish-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "测试家", initiatorName: "主厨", title: "最近想吃什么" },
+  });
+  const wishEntry = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    body: {
+      participantKey: "wish-guest",
+      memberName: "想吃的家人",
+      dishName: "红烧肉",
+      note: "周末吃",
+    },
+  });
+  assert(wishEntry.request?.wishes?.[0]?.dishName === "红烧肉", "wish share should receive a guest dish request");
+
+  const collaborationGuest = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `collaboration-guest-${runId}` },
+  });
+  const joinedBatchGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: { participantKey: "batch-grocery-guest", memberName: "买菜家人" },
+  });
+  assert(joinedBatchGrocery.family?.id === loadedStateEnvelope.family.id, "batch grocery guest should join the source household");
+
+  const wishGuest = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `wish-guest-${runId}` },
+  });
+  const joinedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+    body: { participantKey: "wish-guest", memberName: "想吃的家人" },
+  });
+  assert(joinedWish.family?.id === loadedStateEnvelope.family.id, "wish guest should join the source household");
 
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",

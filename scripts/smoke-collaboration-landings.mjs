@@ -22,9 +22,10 @@ try {
   const authRequests = [];
   let craveVotePayload = null;
   let groceryClaimPayload = null;
-  let inviteWantPayload = null;
+  let wishPayload = null;
   let craveRequest = buildCraveRequest();
   let groceryShare = buildGroceryShare();
+  let wishRequest = buildWishRequest();
 
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
@@ -51,23 +52,39 @@ try {
     };
     await fulfillJson(route, { request: craveRequest });
   });
-  await page.route("**/grocery-shares/grocery-guest-smoke", async (route) => {
-    await fulfillJson(route, { share: groceryShare });
+  await page.route("**/grocery-share-requests/grocery-guest-smoke", async (route) => {
+    await fulfillJson(route, { request: groceryShare });
   });
-  await page.route("**/grocery-shares/grocery-guest-smoke/claims", async (route) => {
+  await page.route("**/grocery-share-requests/grocery-guest-smoke/claims", async (route) => {
     groceryClaimPayload = route.request().postDataJSON();
     groceryShare = {
       ...groceryShare,
-      claims: {
-        [groceryClaimPayload.itemKey]: {
-          itemKey: groceryClaimPayload.itemKey,
-          memberId: `temporary:${groceryClaimPayload.participantKey}`,
+      claims: [{
+          id: "grocery-claim-smoke",
+          itemIds: groceryClaimPayload.itemIds,
+          participantKey: groceryClaimPayload.participantKey,
           memberName: groceryClaimPayload.memberName || "家人",
           status: groceryClaimPayload.status || "claimed",
-        },
-      },
+        }],
     };
-    await fulfillJson(route, { share: groceryShare });
+    await fulfillJson(route, { request: groceryShare });
+  });
+  await page.route("**/wish-share-requests/wish-guest-smoke", async (route) => {
+    await fulfillJson(route, { request: wishRequest });
+  });
+  await page.route("**/wish-share-requests/wish-guest-smoke/wishes", async (route) => {
+    wishPayload = route.request().postDataJSON();
+    wishRequest = {
+      ...wishRequest,
+      wishes: [{
+        id: "wish-entry-smoke",
+        dishName: wishPayload.dishName,
+        memberName: wishPayload.memberName || "家人",
+        participantKey: wishPayload.participantKey,
+        temporary: true,
+      }],
+    };
+    await fulfillJson(route, { request: wishRequest });
   });
   await page.route("**/household-invites/invite-guest-smoke", async (route) => {
     await fulfillJson(route, {
@@ -79,50 +96,42 @@ try {
       },
     });
   });
-  await page.route("**/household-invites/invite-guest-smoke/wants", async (route) => {
-    inviteWantPayload = route.request().postDataJSON();
-    await fulfillJson(route, {
-      want: {
-        id: "invite-want-smoke",
-        title: inviteWantPayload.title,
-        memberName: inviteWantPayload.memberName || "家人",
-        temporary: true,
-      },
-    });
-  });
-
   await page.goto(withQuery(baseUrl, "crave", "crave-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "你想吃点啥？" }).waitFor({ timeout: 15_000 });
-  const craveFirstScreen = await page.getByText("免登录参与").isVisible();
-  const initiatorContextVisible = await page.getByText("主厨阿杰家今晚要做饭。不用想菜名，点一个感觉就行。").isVisible();
+  const craveFirstScreen = await page.getByText(/不用登录，不用想菜名，点一个感觉就行/).isVisible();
+  const initiatorContextVisible = await page.getByText("主厨阿杰家今晚要做饭", { exact: true }).isVisible();
   const craveNoteCollapsed = await page.getByPlaceholder("想补一句？可不填").count() === 0;
   const craveFirstScreenScreenshot = join(evidenceDir, "crave-guest-first-screen-mobile.png");
   await page.screenshot({ path: craveFirstScreenScreenshot });
   await page.getByRole("button", { name: "辣一点" }).click();
-  await page.getByRole("button", { name: "想补一句？" }).click();
-  await page.getByPlaceholder("想补一句？可不填").fill("想吃麻婆豆腐");
-  await page.getByRole("button", { name: "提交征集单" }).click();
-  await page.getByRole("heading", { name: "收到！主厨会看着安排" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "想补一句？选填" }).click();
+  await page.getByPlaceholder("比如：别太辣、想快一点").fill("想吃麻婆豆腐");
+  await page.getByRole("button", { name: "发给主厨" }).click();
+  await page.getByRole("heading", { name: "收到！" }).waitFor({ timeout: 15_000 });
   const craveScreenshot = join(evidenceDir, "crave-guest-mobile.png");
   await page.screenshot({ path: craveScreenshot });
 
-  await page.goto(withQuery(baseUrl, "grocery", "grocery-guest-smoke"), { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "顺路带这些" }).waitFor({ timeout: 15_000 });
-  const groceryFirstScreen = await page.getByText("不用先做设置").isVisible();
+  await page.goto(withQuery(baseUrl, "groceryShare", "grocery-guest-smoke"), { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "顺路带这些就够了" }).waitFor({ timeout: 15_000 });
+  const groceryFirstScreen = await page.getByText("不用登录。先认领，买的时候照着勾；主厨刷新后会看到进展。").isVisible();
   const groceryFirstScreenScreenshot = join(evidenceDir, "grocery-guest-first-screen-mobile.png");
   await page.screenshot({ path: groceryFirstScreenScreenshot });
-  await page.getByRole("button", { name: "我来买" }).first().click();
-  await page.getByText("牛奶 已认领。").waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "我来买 1 项" }).click();
+  await page.getByRole("heading", { name: "已认领" }).waitFor({ timeout: 15_000 });
   const groceryScreenshot = join(evidenceDir, "grocery-guest-mobile.png");
   await page.screenshot({ path: groceryScreenshot });
+
+  await page.goto(withQuery(baseUrl, "wishShare", "wish-guest-smoke"), { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "你最近想吃什么？" }).waitFor({ timeout: 15_000 });
+  await page.getByPlaceholder("比如：糖醋排骨、番茄牛腩、凉拌黄瓜").fill("牛肉面");
+  await page.getByRole("button", { name: "发给主厨" }).click();
+  await page.getByRole("heading", { name: "收到，已经放进想吃池候选。" }).waitFor({ timeout: 15_000 });
+  const wishScreenshot = join(evidenceDir, "wish-guest-mobile.png");
+  await page.screenshot({ path: wishScreenshot });
 
   await page.goto(withQuery(baseUrl, "invite", "invite-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "加入 周末小家" }).waitFor({ timeout: 15_000 });
   const inviteValueVisible = await page.getByRole("heading", { name: "一家人的饭放在一起" }).isVisible();
-  await page.getByPlaceholder("例如：牛肉面").fill("牛肉面");
-  await page.getByPlaceholder("怎么称呼你？").fill("想吃面的家人");
-  await page.getByRole("button", { name: "告诉主厨" }).click();
-  await page.getByText("“牛肉面”已放进这个家的想吃池。").waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "加入这个家" }).click();
   await page.getByText("请从微信小程序里打开这个邀请，登录后就能加入。").waitFor({ timeout: 15_000 });
   const inviteScreenshot = join(evidenceDir, "invite-guest-mobile.png");
@@ -134,9 +143,9 @@ try {
     { key: "crave-vote-posted-without-login", ok: craveVotePayload?.feelingTag === "辣一点", actual: craveVotePayload },
     { key: "crave-note-can-feed-want-pool", ok: craveVotePayload?.note === "想吃麻婆豆腐", actual: craveVotePayload?.note },
     { key: "grocery-first-screen-is-guest-usable", ok: groceryFirstScreen },
-    { key: "grocery-claim-posted-without-login", ok: groceryClaimPayload?.itemKey === "custom:milk", actual: groceryClaimPayload },
+    { key: "grocery-claim-posted-without-login", ok: groceryClaimPayload?.itemIds?.includes("custom:milk"), actual: groceryClaimPayload },
+    { key: "wish-posted-without-login", ok: wishPayload?.dishName === "牛肉面", actual: wishPayload },
     { key: "invite-shows-value-before-login", ok: inviteValueVisible },
-    { key: "invite-guest-want-posted-without-login", ok: inviteWantPayload?.title === "牛肉面", actual: inviteWantPayload },
     { key: "landings-do-not-auto-login", ok: authRequests.length === 0, actual: authRequests },
     { key: "page-errors", ok: pageErrors.length === 0, actual: pageErrors },
   ];
@@ -150,6 +159,7 @@ try {
       craveSubmitted: craveScreenshot,
       groceryFirstScreen: groceryFirstScreenScreenshot,
       groceryClaimed: groceryScreenshot,
+      wishSubmitted: wishScreenshot,
       invite: inviteScreenshot,
     },
     checks,
@@ -185,8 +195,19 @@ function buildGroceryShare() {
     token: "grocery-guest-smoke",
     householdName: "周末小家",
     initiatorName: "主厨阿杰",
-    items: [{ key: "custom:milk", name: "牛奶", amount: "1盒", source: "早餐" }],
-    claims: {},
+    items: [{ id: "custom:milk", name: "牛奶", amount: "1盒", source: "早餐", checked: false }],
+    claims: [],
+  };
+}
+
+function buildWishRequest() {
+  return {
+    id: "wish-guest-smoke",
+    token: "wish-guest-smoke",
+    householdName: "周末小家",
+    initiatorName: "主厨阿杰",
+    status: "open",
+    wishes: [],
   };
 }
 

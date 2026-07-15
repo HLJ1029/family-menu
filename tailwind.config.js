@@ -7,6 +7,7 @@ export default {
         canvas: "#FFFFFF",
         ink: "#111111",
         acid: "#111111",
+        apricot: "#F5F5F5",
         line: "#ECECEC",
       },
       boxShadow: {

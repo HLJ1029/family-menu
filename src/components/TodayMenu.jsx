@@ -1,33 +1,27 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, Search, Share2, ShoppingBasket, Sparkles, Trash2, Utensils } from "lucide-react";
-import { nutritionFor, recipes } from "../lib/recipes";
+import { Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { nutritionFor } from "../lib/recipes";
 import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
-import { HumiScene } from "./ui/HumiScene";
+import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export function TodayMenu({
   todayRecipes,
   groceryItems,
-  onAddToday,
   onUpdateQuantity,
   onOpenRecipe,
   onViewChange,
-  onOpenLibraryDiscovery,
+  onOpenRecipeLibrary,
   cloudSync,
   onShare,
   mealLog,
   mealLogs,
   onSetDinnerSource,
   onSetDinnerConfirmation,
-  onQuickDinnerConfirm,
   onToggleConsumedRecipe,
+  canManageHousehold = true,
 }) {
-  const [showAddPanel, setShowAddPanel] = useState(true);
-  const [quickAddPreset, setQuickAddPreset] = useState("all");
-  const addPanelRef = useRef(null);
-  const logPanelRef = useRef(null);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -44,54 +38,51 @@ export function TodayMenu({
   );
   const hasStaple = todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"));
 
-  function showAddPreset(preset) {
-    setShowAddPanel(true);
-    setQuickAddPreset(preset ?? "all");
-    window.setTimeout(() => {
-      addPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
-  }
-
-  function scrollToLog() {
-    logPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   if (todayRecipes.length === 0) {
     return (
       <section className="grid gap-5">
-        <div className="grid items-center gap-4 rounded-[20px] border border-line bg-white p-5 text-ink shadow-card sm:grid-cols-[minmax(0,1fr)_auto]">
-          <div>
-            <p className="text-base font-black text-ink/55">今晚菜单先空着</p>
-            <p className="mt-1 text-sm font-bold leading-6 text-ink/38">回【今晚】定一顿，或从下面补一道菜。</p>
+        <Card>
+          <p className="eyebrow">今晚菜单</p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">今晚可以从这里开始</h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+            让 Humi 先给一组，或者直接去全部菜品挑一道。
+          </p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            {canManageHousehold && <button
+              type="button"
+              onClick={() => onViewChange("dashboard")}
+              className="min-h-12 rounded-full bg-ink px-5 text-sm font-black text-white"
+            >
+              回到今晚推荐
+            </button>}
+            <button
+              type="button"
+              onClick={() => onOpenRecipeLibrary?.()}
+              className="min-h-12 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink"
+            >
+              自己挑菜
+            </button>
           </div>
-          <HumiScene scene="dashboard" size="sm" className="mx-auto sm:mx-0" decorative />
-        </div>
-        <QuickAddRecipes
-          todayRecipes={todayRecipes}
-          onAddToday={onAddToday}
-          onOpenRecipe={onOpenRecipe}
-          onViewChange={onViewChange}
-          onOpenLibraryDiscovery={onOpenLibraryDiscovery}
-        />
+        </Card>
         <DinnerLogPanel
           mealLog={mealLog}
           mealLogs={mealLogs}
           onSetDinnerSource={onSetDinnerSource}
           onSetDinnerConfirmation={onSetDinnerConfirmation}
-          onQuickDinnerConfirm={onQuickDinnerConfirm}
           onToggleConsumedRecipe={onToggleConsumedRecipe}
           todayRecipes={todayRecipes}
           showConfirmation={false}
           dinnerReady={false}
           onViewChange={onViewChange}
+          canManageHousehold={canManageHousehold}
         />
-        <CloudInlineStatus
+        {canManageHousehold && <CloudInlineStatus
           {...cloudSync}
           localLabel="本机今晚菜单"
           pendingLabel="今晚菜单待保存"
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
-        />
+        />}
       </section>
     );
   }
@@ -100,26 +91,31 @@ export function TodayMenu({
     <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="grid gap-5">
         <div className="relative overflow-hidden rounded-[32px] border border-line bg-white p-6 pr-24 text-ink shadow-card md:p-8 md:pr-36">
-          <HumiScene scene="feedbackFull" size="md" className="absolute bottom-1 right-2" decorative />
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Today menu</p>
+          <HumiPeek
+            variant="dinner-ready"
+            size="lg"
+            className="absolute -bottom-6 -right-4 opacity-95"
+            contextKey="today-ready-peek"
+          />
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">今晚菜单</p>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-                今晚安排完成。
+              <h2 className="max-w-3xl text-3xl font-black tracking-[-0.04em] md:text-5xl">
+                {todayRecipes.map((recipe) => recipe.name).join(" + ")}
               </h2>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-ink/58">
-                {todayRecipes.map((recipe) => recipe.name).join("、")}，预计已经同步到连排计划。还可以继续加菜或加主食。
+              <p className="mt-3 max-w-xl text-sm font-bold leading-7 text-ink/52">
+                {todayRecipes.length} 道 · {totalDishes} 份 · 待买 {groceryItems.length} 项
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
+              {canManageHousehold && <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
               >
                 <ShoppingBasket size={18} />
                 查看采购清单
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => onOpenRecipe(todayRecipes[0]?.id)}
@@ -130,73 +126,14 @@ export function TodayMenu({
               </button>
               <button
                 type="button"
-                onClick={() => showAddPreset("all")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Plus size={18} />
-                加一道菜
-              </button>
-              <button
-                type="button"
-                onClick={() => showAddPreset("staple")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Plus size={18} />
-                加主食
-              </button>
-              <button
-                type="button"
-                onClick={scrollToLog}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
-              >
-                <Utensils size={18} />
-                记录这顿
-              </button>
-              <button
-                type="button"
                 onClick={onShare}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Share2 size={18} />
-                生成海报
+                分享菜单
               </button>
             </div>
           </div>
-        </div>
-
-        {showAddPanel && (
-          <QuickAddRecipes
-            ref={addPanelRef}
-            forcedPreset={quickAddPreset}
-            todayRecipes={todayRecipes}
-            onAddToday={onAddToday}
-            onOpenRecipe={onOpenRecipe}
-            onViewChange={onViewChange}
-            onOpenLibraryDiscovery={onOpenLibraryDiscovery}
-          />
-        )}
-
-        <CloudInlineStatus
-          {...cloudSync}
-          localLabel="本机今晚菜单"
-          pendingLabel="今晚菜单待保存"
-          enabledLabel="已保存今晚菜单"
-          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
-        />
-
-        <div ref={logPanelRef}>
-          <DinnerLogPanel
-            mealLog={mealLog}
-            mealLogs={mealLogs}
-            onSetDinnerSource={onSetDinnerSource}
-            onSetDinnerConfirmation={onSetDinnerConfirmation}
-            onQuickDinnerConfirm={onQuickDinnerConfirm}
-            onToggleConsumedRecipe={onToggleConsumedRecipe}
-            todayRecipes={todayRecipes}
-            showConfirmation
-            dinnerReady
-            onViewChange={onViewChange}
-          />
         </div>
 
         <div className="grid gap-4">
@@ -229,7 +166,7 @@ export function TodayMenu({
                     <h3 className="mt-2 text-2xl font-black tracking-[-0.03em]">{recipe.name}</h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink/56">{recipe.description}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1 rounded-full border border-line bg-canvas p-1">
+                  {canManageHousehold && <div className="flex shrink-0 items-center gap-1 rounded-full border border-line bg-canvas p-1">
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(recipe.id, -1)}
@@ -242,23 +179,23 @@ export function TodayMenu({
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(recipe.id, 1)}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-ink text-white transition hover:scale-105"
+                      className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-ink transition hover:border-ink"
                       aria-label={`增加 ${recipe.name}`}
                     >
                       <Plus size={17} />
                     </button>
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  {canManageHousehold && <button
                     type="button"
                     onClick={() => onOpenRecipe(recipe.id)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
                   >
-                    <Utensils size={16} className="text-white" />
+                    <Utensils size={16} />
                     查看做法
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={() => onUpdateQuantity(recipe.id, -(recipe.menuQuantity ?? 1))}
@@ -272,9 +209,36 @@ export function TodayMenu({
             </article>
           ))}
         </div>
+
+        <OpenRecipeLibraryPanel
+          hasStaple={hasStaple}
+          onOpenRecipeLibrary={onOpenRecipeLibrary}
+        />
+
+        {canManageHousehold && <CloudInlineStatus
+          {...cloudSync}
+          localLabel="本机今晚菜单"
+          pendingLabel="今晚菜单待保存"
+          enabledLabel="已保存今晚菜单"
+          migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
+        />}
+
+        <DinnerLogPanel
+          mealLog={mealLog}
+          mealLogs={mealLogs}
+          onSetDinnerSource={onSetDinnerSource}
+          onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onToggleConsumedRecipe={onToggleConsumedRecipe}
+          todayRecipes={todayRecipes}
+          showConfirmation
+          dinnerReady
+          onViewChange={onViewChange}
+          canManageHousehold={canManageHousehold}
+        />
+
       </div>
 
-      <aside className="grid content-start gap-5">
+      <aside className="hidden content-start gap-5 xl:grid">
         <Card>
           <p className="eyebrow">Menu summary</p>
           <h3 className="card-title">今日概览</h3>
@@ -304,244 +268,41 @@ export function TodayMenu({
   );
 }
 
-const QuickAddRecipes = forwardRef(function QuickAddRecipes({
-  todayRecipes,
-  onAddToday,
-  onOpenRecipe,
-  onViewChange,
-  onOpenLibraryDiscovery,
-  forcedPreset,
-}, ref) {
-  const [keyword, setKeyword] = useState("");
-  const [activePreset, setActivePreset] = useState("all");
-  const todayRecipeIds = useMemo(() => new Set(todayRecipes.map((recipe) => recipe.id)), [todayRecipes]);
-  const hasStaple = useMemo(
-    () => todayRecipes.some((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食")),
-    [todayRecipes],
-  );
-  const stapleRecipes = useMemo(
-    () => recipes
-      .filter((recipe) => recipe.categories.includes("主食") || recipe.tags?.includes("主食"))
-      .slice(0, 4),
-    [],
-  );
-  const visibleRecipes = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    return recipes
-      .filter((recipe) => {
-        if (activePreset === "staple" && !recipe.categories.includes("主食") && !recipe.tags?.includes("主食")) return false;
-        if (activePreset === "quick" && recipe.timeMinutes > 25) return false;
-        if (activePreset === "protein" && !recipe.categories.some((category) => ["肉类", "鱼虾", "蛋类"].includes(category))) return false;
-        if (!normalizedKeyword) return true;
-        return [
-          recipe.name,
-          recipe.description,
-          ...recipe.categories,
-          ...(recipe.tags ?? []),
-          ...recipe.ingredients.map((item) => item.name),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedKeyword);
-      })
-      .slice(0, 30);
-  }, [activePreset, keyword]);
-
-  useEffect(() => {
-    if (forcedPreset) setActivePreset(forcedPreset);
-  }, [forcedPreset]);
-
-  function openFullLibrary() {
-    setKeyword("");
-    if (onOpenLibraryDiscovery) {
-      onOpenLibraryDiscovery();
-      return;
-    }
-    onViewChange?.("library");
-  }
-
+function OpenRecipeLibraryPanel({ hasStaple, onOpenRecipeLibrary }) {
   return (
-    <section
-      ref={ref}
-      className="scroll-mt-24 rounded-[28px] border border-line bg-white p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] shadow-card md:p-5 md:pb-5"
-    >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <section className="rounded-[28px] border border-line bg-white p-4 shadow-card md:p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="eyebrow">Pick dishes</p>
-          <h3 className="mt-1 text-2xl font-black">逛逛今晚还能加什么</h3>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            家常菜、快手菜、汤菜都在这里，看到想吃的就顺手加进今晚。
+          <p className="eyebrow">Dish library</p>
+          <h3 className="mt-1 text-2xl font-black">去全部菜品挑</h3>
+          <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-ink/52">
+            菜品库会完整展示所有菜，已安排的菜会置顶，方便边看边调整。
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:w-[420px]">
-          <div className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-canvas px-4">
-            <Search size={17} className="text-ink/38" />
-            <input
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-ink/35"
-              placeholder="搜索菜名、食材"
-            />
-          </div>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={openFullLibrary}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5 sm:border sm:border-ink sm:bg-white sm:text-ink"
+            onClick={() => onOpenRecipeLibrary?.()}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
           >
-            <Sparkles size={16} />
-            发现新菜
+            <Plus size={18} />
+            全部菜品库
           </button>
-        </div>
-      </div>
-
-      {!hasStaple && stapleRecipes.length > 0 && (
-        <div className="mt-4 rounded-[22px] border border-line bg-canvas p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">Staple</p>
-              <p className="mt-1 text-sm font-black">补一个主食，营养统计会一起计入</p>
-            </div>
+          {!hasStaple && (
             <button
               type="button"
-              onClick={() => setActivePreset("staple")}
-              className="shrink-0 rounded-full bg-ink px-3 py-2 text-xs font-black text-white"
+              onClick={() => onOpenRecipeLibrary?.("主食")}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
             >
-              看主食
+              <Plus size={18} />
+              挑主食
             </button>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {stapleRecipes.map((recipe) => (
-              <button
-                key={recipe.id}
-                type="button"
-                onClick={() => onAddToday(recipe.id)}
-                className="flex min-h-12 items-center justify-between gap-3 rounded-[18px] bg-white px-3 text-left text-sm font-black transition hover:-translate-y-0.5"
-              >
-                <span className="truncate">{recipe.name}</span>
-                <span className="rounded-full bg-ink px-2.5 py-1 text-xs text-white">加入</span>
-              </button>
-            ))}
-          </div>
+          )}
         </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {[
-          ["all", "全部"],
-          ["staple", "主食"],
-          ["quick", "25分钟内"],
-          ["protein", "蛋白类"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActivePreset(id)}
-            className={`rounded-full border px-3 py-2 text-xs font-black transition ${
-              activePreset === id
-                ? "border-ink bg-ink text-white"
-                : "border-line bg-canvas text-ink/54 hover:border-ink/20 hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:gap-5">
-        {visibleRecipes.map((recipe) => {
-          const inTodayMenu = todayRecipeIds.has(recipe.id);
-          return (
-            <article
-              key={recipe.id}
-              className="group cursor-pointer overflow-hidden rounded-[24px] border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift"
-              onClick={() => onOpenRecipe(recipe.id)}
-            >
-              <button
-                type="button"
-                onClick={() => onOpenRecipe(recipe.id)}
-                className="block w-full text-left"
-                aria-label={`查看 ${recipe.name} 菜谱`}
-              >
-                <div className="relative aspect-[4/5] overflow-hidden bg-canvas">
-                  <DishImage
-                    recipe={recipe}
-                    variant="thumb"
-                    alt={recipe.name}
-                    loading="lazy"
-                    sizes="(min-width: 1024px) 33vw, 50vw"
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-ink/76 via-ink/20 to-transparent" />
-                  <div className="absolute left-3 top-3 rounded-full bg-white/92 px-3 py-1 text-[11px] font-black text-ink shadow-card backdrop-blur">
-                    {recipe.categories[0]}
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3 text-white">
-                    <h4 className="line-clamp-2 text-lg font-black leading-tight tracking-[-0.03em]">
-                      {recipe.name}
-                    </h4>
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-black text-white/84">
-                      <span className="rounded-full bg-white/18 px-2 py-1 backdrop-blur">
-                        {recipe.timeMinutes} min
-                      </span>
-                      <span className="rounded-full bg-white/18 px-2 py-1 backdrop-blur">
-                        {recipe.difficulty}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-              <div className="grid gap-3 p-3">
-                <p className="line-clamp-2 min-h-10 text-xs font-bold leading-5 text-ink/54">
-                  {recipe.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onAddToday(recipe.id);
-                  }}
-                  className={`inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-full px-3 text-sm font-black transition ${
-                    inTodayMenu
-                      ? "border border-line bg-white text-ink hover:border-ink/20"
-                      : "bg-ink text-white hover:-translate-y-0.5"
-                  }`}
-                >
-                  <Plus size={14} className={inTodayMenu ? "text-ink/45" : "text-white"} />
-                  {inTodayMenu ? "再加一份" : "补进今晚"}
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      {visibleRecipes.length === 0 && (
-        <div className="mt-4 rounded-[24px] border border-dashed border-line bg-canvas p-5 text-center">
-          <p className="text-base font-black text-ink">没找到这道菜</p>
-          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            先换个关键词，或者打开完整菜品页慢慢逛。
-          </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setKeyword("")}
-              className="min-h-11 rounded-full border border-line bg-white px-4 text-sm font-black text-ink"
-            >
-              清空搜索
-            </button>
-            <button
-              type="button"
-              onClick={openFullLibrary}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white"
-            >
-              <Sparkles size={16} />
-              去自己挑
-            </button>
-          </div>
-        </div>
-      )}
     </section>
   );
-});
+}
 
 function SummaryTile({ label, value }) {
   return (

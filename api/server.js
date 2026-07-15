@@ -163,6 +163,69 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/grocery-share-requests") {
+        await handleCreateGroceryShareRequest(request, response);
+        return;
+      }
+
+      const batchGroceryShareMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)$/);
+      if (request.method === "GET" && batchGroceryShareMatch) {
+        await handleGetGroceryShareRequest(response, batchGroceryShareMatch[1]);
+        return;
+      }
+
+      const groceryClaimMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)\/claims$/);
+      if (request.method === "POST" && groceryClaimMatch) {
+        await handleGroceryShareClaim(request, response, groceryClaimMatch[1]);
+        return;
+      }
+
+      const groceryItemCheckMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)\/items\/([^/]+)\/check$/);
+      if (request.method === "POST" && groceryItemCheckMatch) {
+        await handleGroceryShareItemCheck(request, response, groceryItemCheckMatch[1], groceryItemCheckMatch[2]);
+        return;
+      }
+
+      const groceryJoinMatch = url.pathname.match(/^\/grocery-share-requests\/([^/]+)\/join$/);
+      if (request.method === "POST" && groceryJoinMatch) {
+        await handleJoinGroceryShare(request, response, groceryJoinMatch[1]);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/menu-share-requests") {
+        await handleCreateMenuShareRequest(request, response);
+        return;
+      }
+
+      const menuShareMatch = url.pathname.match(/^\/menu-share-requests\/([^/]+)$/);
+      if (request.method === "GET" && menuShareMatch) {
+        await handleGetMenuShareRequest(response, menuShareMatch[1]);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/wish-share-requests") {
+        await handleCreateWishShareRequest(request, response);
+        return;
+      }
+
+      const wishShareMatch = url.pathname.match(/^\/wish-share-requests\/([^/]+)$/);
+      if (request.method === "GET" && wishShareMatch) {
+        await handleGetWishShareRequest(response, wishShareMatch[1]);
+        return;
+      }
+
+      const wishEntryMatch = url.pathname.match(/^\/wish-share-requests\/([^/]+)\/wishes$/);
+      if (request.method === "POST" && wishEntryMatch) {
+        await handleWishShareEntry(request, response, wishEntryMatch[1]);
+        return;
+      }
+
+      const wishJoinMatch = url.pathname.match(/^\/wish-share-requests\/([^/]+)\/join$/);
+      if (request.method === "POST" && wishJoinMatch) {
+        await handleJoinWishShare(request, response, wishJoinMatch[1]);
+        return;
+      }
+
       const craveRequestMatch = url.pathname.match(/^\/crave-requests\/([^/]+)$/);
       if (request.method === "GET" && craveRequestMatch) {
         await handleGetCraveRequest(response, craveRequestMatch[1]);
@@ -297,7 +360,8 @@ async function handleSaveState(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
-  const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body));
+  const householdId = stringValue(body.householdId || body.state?.householdId, 80);
+  const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body), householdId);
   const household = await store.getHouseholdForUser(user.id);
   const households = await store.getHouseholdsForUser(user.id);
   sendJson(response, 200, {
@@ -566,6 +630,151 @@ async function handleClaimGroceryShare(request, response, token) {
   }
 }
 
+async function handleCreateGroceryShareRequest(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const groceryRequest = await store.createGroceryShareRequest(body, user.id);
+    sendJson(response, 201, {
+      request: toPublicGroceryShareRequest(groceryRequest),
+      ownerSecret: groceryRequest.ownerSecret,
+    });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+    }
+    throw error;
+  }
+}
+
+async function handleGetGroceryShareRequest(response, token) {
+  const groceryRequest = await store.getGroceryShareRequest(token);
+  if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
+  sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
+}
+
+async function handleGroceryShareClaim(request, response, token) {
+  const body = await readJson(request);
+  const groceryRequest = await store.addGroceryShareClaim(token, body);
+  if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
+  sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
+}
+
+async function handleGroceryShareItemCheck(request, response, token, itemId) {
+  const body = await readJson(request);
+  const groceryRequest = await store.updateGroceryShareItemChecked(token, decodeURIComponent(itemId), Boolean(body.checked));
+  if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
+  sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
+}
+
+async function handleJoinGroceryShare(request, response, token) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const groceryRequest = await store.claimGroceryShareParticipant(token, user.id, body);
+    if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
+    await sendHouseholdJoinResult(response, user, { request: toPublicGroceryShareRequest(groceryRequest) });
+  } catch (error) {
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+    }
+    if (error.code === "claim_not_found") {
+      throw httpError(404, "claim_not_found", "没有找到你刚才的买菜参与记录。");
+    }
+    throw error;
+  }
+}
+
+async function handleCreateMenuShareRequest(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const menuRequest = await store.createMenuShareRequest(body, user.id);
+    sendJson(response, 201, { request: toPublicMenuShareRequest(menuRequest) });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的今晚菜单。");
+    }
+    throw error;
+  }
+}
+
+async function handleGetMenuShareRequest(response, token) {
+  const menuRequest = await store.getMenuShareRequest(token);
+  if (!menuRequest) throw httpError(404, "menu_share_not_found", "这个菜单链接已经失效。");
+  sendJson(response, 200, { request: toPublicMenuShareRequest(menuRequest) });
+}
+
+async function handleCreateWishShareRequest(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const wishRequest = await store.createWishShareRequest(body, user.id);
+    sendJson(response, 201, {
+      request: toPublicWishShareRequest(wishRequest),
+      ownerSecret: wishRequest.ownerSecret,
+    });
+  } catch (error) {
+    if (error.code === "forbidden") {
+      throw httpError(403, "forbidden", "只有主厨能分享这个家的想吃入口。");
+    }
+    throw error;
+  }
+}
+
+async function handleGetWishShareRequest(response, token) {
+  const wishRequest = await store.getWishShareRequest(token);
+  if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
+  sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
+}
+
+async function handleWishShareEntry(request, response, token) {
+  const body = await readJson(request);
+  const wishRequest = await store.addWishShareEntry(token, body);
+  if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
+  sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
+}
+
+async function handleJoinWishShare(request, response, token) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    const wishRequest = await store.claimWishShareParticipant(token, user.id, body);
+    if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
+    await sendHouseholdJoinResult(response, user, { request: toPublicWishShareRequest(wishRequest) });
+  } catch (error) {
+    if (error.code === "missing_participant_key") {
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+    }
+    if (error.code === "wish_not_found") {
+      throw httpError(404, "wish_not_found", "没有找到你刚才的想吃记录。");
+    }
+    throw error;
+  }
+}
+
+async function sendHouseholdJoinResult(response, user, payload = {}) {
+  const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
+  const state = await store.getState(user.id);
+  sendJson(response, 200, {
+    ...payload,
+    state,
+    family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
+  });
+}
+
 async function handleGetCraveRequest(response, token) {
   const craveRequest = await store.getCraveRequest(token);
   if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
@@ -674,6 +883,7 @@ function toPublicCraveRequest(request) {
       id: vote.id,
       memberName: vote.memberName,
       feelingTag: vote.feelingTag,
+      dishWish: vote.dishWish,
       note: vote.note,
       temporary: vote.temporary,
       claimedAt: vote.claimedAt,
@@ -702,6 +912,88 @@ function toPublicGroceryShare(share) {
     claims: share.claims ?? {},
     createdAt: share.createdAt,
     updatedAt: share.updatedAt,
+  };
+}
+
+function toPublicGroceryShareRequest(request) {
+  return {
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId || "",
+    ownerId: request.ownerId || "",
+    householdName: request.householdName,
+    initiatorName: request.initiatorName,
+    title: request.title,
+    status: request.status,
+    items: (request.items ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      amount: item.amount,
+      category: item.category,
+      checked: item.checked,
+    })),
+    claims: (request.claims ?? []).map((claim) => ({
+      id: claim.id,
+      memberName: claim.memberName,
+      status: claim.status,
+      itemIds: Array.isArray(claim.itemIds) ? claim.itemIds : [],
+      note: claim.note,
+      temporary: claim.temporary,
+      memberId: claim.temporary ? undefined : claim.memberId,
+      mergedAt: claim.mergedAt,
+      createdAt: claim.createdAt,
+    })),
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
+}
+
+function toPublicMenuShareRequest(request) {
+  return {
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId || "",
+    ownerId: request.ownerId || "",
+    householdName: request.householdName,
+    initiatorName: request.initiatorName,
+    title: request.title,
+    status: request.status,
+    dishes: (request.dishes ?? []).map((dish) => ({
+      id: dish.id,
+      recipeId: dish.recipeId,
+      name: dish.name,
+      quantity: dish.quantity,
+      category: dish.category,
+      timeMinutes: dish.timeMinutes,
+    })),
+    groceryCount: request.groceryCount,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
+}
+
+function toPublicWishShareRequest(request) {
+  return {
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId || "",
+    ownerId: request.ownerId || "",
+    householdName: request.householdName,
+    initiatorName: request.initiatorName,
+    title: request.title,
+    status: request.status,
+    wishes: (request.wishes ?? []).map((wish) => ({
+      id: wish.id,
+      memberName: wish.memberName,
+      dishName: wish.dishName,
+      note: wish.note,
+      temporary: wish.temporary,
+      memberId: wish.temporary ? undefined : wish.memberId,
+      mergedAt: wish.mergedAt,
+      createdAt: wish.createdAt,
+    })),
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
   };
 }
 
@@ -823,15 +1115,39 @@ function sanitizeAppState(state = {}) {
     recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
     recommendationFeedback: sanitizeList(state.recommendationFeedback, sanitizeFeedbackItem, 50),
     craveSignals: sanitizeList(state.craveSignals, sanitizeCraveSignal, 50),
+    activeCraveRequest: sanitizeCollaborationState(state.activeCraveRequest),
+    activeGroceryShareRequest: sanitizeCollaborationState(state.activeGroceryShareRequest),
+    activeWishShareRequest: sanitizeCollaborationState(state.activeWishShareRequest),
+    householdMembers: sanitizeList(state.householdMembers, sanitizeHouseholdMemberState, 50),
   };
 }
 
+function sanitizeHouseholdMemberState(member = {}) {
+  return {
+    id: stringValue(member.id, 180),
+    memberId: stringValue(member.memberId, 180),
+    name: stringValue(member.name, 32),
+    role: member.role === "owner" ? "owner" : "member",
+    status: member.status === "pending" ? "pending" : "active",
+    joinedAt: stringValue(member.joinedAt, 40),
+  };
+}
+
+function sanitizeCollaborationState(value) {
+  if (!value || typeof value !== "object") return null;
+  const sanitized = sanitizeObjectMap(value, 48);
+  delete sanitized.ownerSecret;
+  delete sanitized.secret;
+  return sanitized;
+}
+
 function sanitizeCraveSignal(signal = {}) {
-  const token = stringValue(signal.token, 180);
+  const token = stringValue(signal.token || signal.requestToken, 180);
   if (!token) return null;
   return {
     id: stringValue(signal.id, 180),
     token,
+    requestToken: token,
     householdName: stringValue(signal.householdName, 32),
     initiatorName: stringValue(signal.initiatorName, 32),
     feelingTag: stringValue(signal.feelingTag, 32),
@@ -844,6 +1160,7 @@ function sanitizeCraveSignal(signal = {}) {
       memberId: stringValue(vote?.memberId, 180),
       memberName: stringValue(vote?.memberName, 32) || "家人",
       feelingTag: stringValue(vote?.feelingTag, 32),
+      dishWish: stringValue(vote?.dishWish, 80),
       note: stringValue(vote?.note, 120),
       temporary: Boolean(vote?.temporary),
       claimedAt: stringValue(vote?.claimedAt, 40),

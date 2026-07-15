@@ -14,6 +14,9 @@ const DEFAULT_DATA = {
   craveRequests: [],
   householdInvites: [],
   groceryShares: [],
+  groceryShareRequests: [],
+  menuShareRequests: [],
+  wishShareRequests: [],
   revokedTokens: [],
 };
 
@@ -485,9 +488,16 @@ export class HumiStore {
     return this.data.householdStates[household.id] ?? null;
   }
 
-  async saveState(userId, state) {
+  async saveState(userId, state, householdId = "") {
     await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
+    const household = householdId
+      ? this.findHouseholdsByMember(userId).find((item) => item.id === householdId)
+      : await this.ensureHouseholdForUser(userId);
+    if (!household) {
+      const error = new Error("Household not found for user.");
+      error.code = "household_not_found";
+      throw error;
+    }
     const currentState = this.data.householdStates[household.id] ?? {};
     const writableState = household.ownerId === userId
       ? state
@@ -579,7 +589,7 @@ export class HumiStore {
       initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
       recipientIds,
       mealType: sanitizeText(payload.mealType, "dinner", 24),
-      initialFeelingTag: sanitizeText(payload.initialFeelingTag, "随便都行", 32),
+      initialFeelingTag: sanitizeText(payload.initialFeelingTag || payload.starterFeeling, "随便都行", 32),
       status: "open",
       deadlineAt,
       votes: [],
@@ -594,13 +604,19 @@ export class HumiStore {
 
   async getCraveRequest(token) {
     await this.load();
-    return this.data.craveRequests.find((item) => item.token === token) ?? null;
+    const request = this.data.craveRequests.find((item) => item.token === token) ?? null;
+    if (expireCraveRequestIfNeeded(request)) await this.save();
+    return request;
   }
 
   async addCraveVote(token, vote = {}) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
+    if (expireCraveRequestIfNeeded(request)) {
+      await this.save();
+      return request;
+    }
     if (request.status !== "open") return request;
     const now = new Date().toISOString();
     const participantKey = sanitizeText(vote.participantKey, "", 80) || randomUUID();
@@ -609,6 +625,7 @@ export class HumiStore {
       participantKey,
       memberName: sanitizeText(vote.memberName, "家人", 32),
       feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32),
+      dishWish: sanitizeText(vote.dishWish, "", 80),
       note: sanitizeText(vote.note, "", 80),
       temporary: vote.temporary !== false,
       createdAt: now,
@@ -672,6 +689,234 @@ export class HumiStore {
     return request;
   }
 
+  async createGroceryShareRequest(payload = {}, ownerUserId = null) {
+    await this.load();
+    const household = ownerUserId
+      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
+        householdName: payload.householdName,
+        memberName: payload.initiatorName,
+      })
+      : null;
+    const now = new Date().toISOString();
+    const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
+      id: sanitizeText(item.id, `item-${index}`, 80),
+      name: sanitizeText(item.name, "食材", 40),
+      amount: sanitizeText(item.amount, "", 40),
+      category: sanitizeText(item.category, "", 40),
+      checked: Boolean(item.checked),
+    }));
+    const request = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      ownerSecret: randomUUID().replaceAll("-", ""),
+      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
+      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      title: sanitizeText(payload.title, "Humi 买菜清单", 48),
+      status: "open",
+      items,
+      claims: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.groceryShareRequests ??= [];
+    this.data.groceryShareRequests.unshift(request);
+    this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
+    await this.save();
+    return request;
+  }
+
+  async getGroceryShareRequest(token) {
+    await this.load();
+    this.data.groceryShareRequests ??= [];
+    return this.data.groceryShareRequests.find((item) => item.token === token) ?? null;
+  }
+
+  async addGroceryShareClaim(token, claim = {}) {
+    await this.load();
+    const request = this.data.groceryShareRequests.find((item) => item.token === token);
+    if (!request || request.status !== "open") return request;
+    const now = new Date().toISOString();
+    const participantKey = sanitizeText(claim.participantKey, "", 80) || randomUUID();
+    const claimStatus = claim.status === "declined" ? "declined" : "claimed";
+    const nextClaim = {
+      id: randomUUID(),
+      participantKey,
+      memberName: sanitizeText(claim.memberName, "家人", 32),
+      status: claimStatus,
+      itemIds: sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined"),
+      note: sanitizeText(claim.note, "", 80),
+      temporary: claim.temporary !== false,
+      createdAt: now,
+    };
+    const existingIndex = request.claims.findIndex((item) => item.participantKey === participantKey);
+    if (existingIndex >= 0) request.claims[existingIndex] = nextClaim;
+    else request.claims.push(nextClaim);
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
+  async updateGroceryShareItemChecked(token, itemId, checked) {
+    await this.load();
+    const request = this.data.groceryShareRequests.find((item) => item.token === token);
+    if (!request || request.status !== "open") return request;
+    const item = request.items.find((entry) => entry.id === itemId);
+    if (!item) return request;
+    item.checked = Boolean(checked);
+    request.updatedAt = new Date().toISOString();
+    await this.save();
+    return request;
+  }
+
+  async claimGroceryShareParticipant(token, userId, claim = {}) {
+    await this.load();
+    const request = this.data.groceryShareRequests.find((item) => item.token === token);
+    if (!request) return null;
+    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
+    const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
+    if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
+    const user = this.data.users.find((item) => item.id === userId);
+    const now = new Date().toISOString();
+    participantClaim.memberId = userId;
+    participantClaim.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || participantClaim.memberName || "家人";
+    participantClaim.temporary = false;
+    participantClaim.mergedAt = now;
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: participantClaim.memberName });
+    }
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
+  async createMenuShareRequest(payload = {}, ownerUserId = null) {
+    await this.load();
+    const household = ownerUserId
+      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
+        householdName: payload.householdName,
+        memberName: payload.initiatorName,
+      })
+      : null;
+    const now = new Date().toISOString();
+    const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
+      id: sanitizeText(dish.id, `dish-${index}`, 80),
+      recipeId: sanitizeText(dish.recipeId || dish.id, "", 80),
+      name: sanitizeText(dish.name, "一道菜", 48),
+      quantity: Math.max(1, Math.min(12, Number.parseInt(dish.quantity, 10) || 1)),
+      category: sanitizeText(dish.category, "", 40),
+      timeMinutes: Math.max(0, Math.min(240, Number.parseInt(dish.timeMinutes, 10) || 0)),
+    })).filter((dish) => dish.name);
+    const request = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
+      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
+      status: "open",
+      dishes,
+      groceryCount: Math.max(0, Math.min(200, Number.parseInt(payload.groceryCount, 10) || 0)),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.menuShareRequests ??= [];
+    this.data.menuShareRequests.unshift(request);
+    this.data.menuShareRequests = this.data.menuShareRequests.slice(0, 2000);
+    await this.save();
+    return request;
+  }
+
+  async getMenuShareRequest(token) {
+    await this.load();
+    this.data.menuShareRequests ??= [];
+    return this.data.menuShareRequests.find((item) => item.token === token) ?? null;
+  }
+
+  async createWishShareRequest(payload = {}, ownerUserId = null) {
+    await this.load();
+    const household = ownerUserId
+      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
+        householdName: payload.householdName,
+        memberName: payload.initiatorName,
+      })
+      : null;
+    const now = new Date().toISOString();
+    const request = {
+      id: randomUUID(),
+      token: randomUUID().replaceAll("-", ""),
+      ownerSecret: randomUUID().replaceAll("-", ""),
+      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
+      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+      title: sanitizeText(payload.title, "家里最近想吃什么", 48),
+      status: "open",
+      wishes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.wishShareRequests ??= [];
+    this.data.wishShareRequests.unshift(request);
+    this.data.wishShareRequests = this.data.wishShareRequests.slice(0, 2000);
+    await this.save();
+    return request;
+  }
+
+  async getWishShareRequest(token) {
+    await this.load();
+    this.data.wishShareRequests ??= [];
+    return this.data.wishShareRequests.find((item) => item.token === token) ?? null;
+  }
+
+  async addWishShareEntry(token, wish = {}) {
+    await this.load();
+    const request = this.data.wishShareRequests.find((item) => item.token === token);
+    if (!request || request.status !== "open") return request;
+    const now = new Date().toISOString();
+    const participantKey = sanitizeText(wish.participantKey, "", 80) || randomUUID();
+    const nextWish = {
+      id: randomUUID(),
+      participantKey,
+      memberName: sanitizeText(wish.memberName, "家人", 32),
+      dishName: sanitizeText(wish.dishName, "想吃的菜", 40),
+      note: sanitizeText(wish.note, "", 80),
+      temporary: wish.temporary !== false,
+      createdAt: now,
+    };
+    const existingIndex = request.wishes.findIndex((item) => item.participantKey === participantKey);
+    if (existingIndex >= 0) request.wishes[existingIndex] = nextWish;
+    else request.wishes.push(nextWish);
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
+  async claimWishShareParticipant(token, userId, claim = {}) {
+    await this.load();
+    const request = this.data.wishShareRequests.find((item) => item.token === token);
+    if (!request) return null;
+    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
+    const wish = request.wishes.find((item) => item.participantKey === participantKey);
+    if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
+    const user = this.data.users.find((item) => item.id === userId);
+    const now = new Date().toISOString();
+    wish.memberId = userId;
+    wish.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || wish.memberName || "家人";
+    wish.temporary = false;
+    wish.mergedAt = now;
+    if (request.householdId) {
+      await this.addHouseholdMember(request.householdId, userId, { memberName: wish.memberName });
+    }
+    request.updatedAt = now;
+    await this.save();
+    return request;
+  }
+
   findHouseholdByMember(userId) {
     return this.findHouseholdsByMember(userId)[0] ?? null;
   }
@@ -707,6 +952,21 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function codedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function sanitizeClaimItemIds(itemIds, items = [], fallbackToAll = false) {
+  const validIds = new Set(items.map((item) => item.id));
+  const sanitized = [...new Set((Array.isArray(itemIds) ? itemIds : [])
+    .map((itemId) => sanitizeText(itemId, "", 80))
+    .filter((itemId) => validIds.has(itemId)))];
+  if (sanitized.length > 0 || !fallbackToAll) return sanitized;
+  return [...validIds];
 }
 
 function sanitizeCraveResultSummary(summary = {}) {
@@ -780,11 +1040,21 @@ function mergeMemberWritableState(currentState = {}, incomingState = {}, userId)
 
 function resolveCraveDeadline(value, createdAt) {
   const explicitTime = Date.parse(String(value ?? ""));
-  if (Number.isFinite(explicitTime) && explicitTime > Date.now()) {
+  if (Number.isFinite(explicitTime)) {
     return new Date(explicitTime).toISOString();
   }
   const createdTime = Date.parse(createdAt);
   return new Date((Number.isFinite(createdTime) ? createdTime : Date.now()) + 30 * 60 * 1000).toISOString();
+}
+
+function expireCraveRequestIfNeeded(request) {
+  if (!request || request.status !== "open") return false;
+  const deadlineTime = Date.parse(request.deadlineAt || "");
+  if (!Number.isFinite(deadlineTime) || deadlineTime > Date.now()) return false;
+  request.status = "closed";
+  request.closedReason = "deadline";
+  request.updatedAt = new Date().toISOString();
+  return true;
 }
 
 function sanitizeGroceryShareItems(items = []) {

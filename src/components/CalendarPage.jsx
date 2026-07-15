@@ -15,7 +15,7 @@ import { DishImage } from "./ui/DishImage";
 import { HumiScene } from "./ui/HumiScene";
 import { MiniMeal } from "./ui/MiniMeal";
 
-export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe }) {
+export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe, canManageHousehold = true }) {
   const todayKey = formatDateKey(new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [visibleMonthKey, setVisibleMonthKey] = useState(todayKey);
@@ -40,6 +40,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   });
 
   function openPicker() {
+    if (!canManageHousehold) return;
     setPickerOpen(true);
     setPickerQuery("");
   }
@@ -71,20 +72,17 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
   return (
     <section className="grid gap-5">
       <Card>
-        <div className="mb-5 grid gap-4 md:grid-cols-[1fr_200px] md:items-center">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
-            <p className="eyebrow">Meal calendar</p>
-            <h3 className="card-title">{formatMonthTitle(visibleMonthKey)}</h3>
-            <p className="mt-2 text-sm font-bold text-ink/48">
-              点击某一天，会在月历下方展开当天饮食子页面。
-            </p>
+              <p className="eyebrow">饮食日历</p>
+              <h3 className="card-title">{formatMonthTitle(visibleMonthKey)}</h3>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-2">
+            <HumiScene scene="calendar" size="sm" className="mr-2 hidden md:grid" />
             <button
               type="button"
               onClick={() => changeMonth(-1)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-ink"
+              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white transition hover:border-ink hover:bg-ink hover:text-white"
               aria-label="上个月"
             >
               <ArrowLeft size={16} />
@@ -98,21 +96,19 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }, 80);
               }}
-              className="rounded-full bg-ink px-4 py-2 text-xs font-black text-white"
+              className="rounded-full border border-line bg-white px-4 py-2 text-xs font-black text-ink"
             >
               今天
             </button>
             <button
               type="button"
               onClick={() => changeMonth(1)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-canvas transition hover:bg-ink hover:text-ink"
+              className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white transition hover:border-ink hover:bg-ink hover:text-white"
               aria-label="下个月"
             >
               <ArrowRight size={16} />
             </button>
             </div>
-          </div>
-          <HumiScene scene="calendar" size="page" className="mx-auto md:mx-0" eager />
         </div>
 
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
@@ -134,6 +130,8 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                 key={dateKey}
                 type="button"
                 onClick={() => selectDate(dateKey)}
+                data-calendar-day={dateKey}
+                data-item-count={itemCount}
                 className={`relative grid min-h-[74px] place-items-center rounded-[18px] border p-2 text-center transition hover:-translate-y-0.5 sm:min-h-[104px] ${
                   isSelected
                     ? "calendar-day-selected border-ink bg-ink text-white shadow-lift"
@@ -144,12 +142,14 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   <span className="text-sm font-black sm:text-base">{date.getDate()}</span>
                   {isToday && <span className="h-1.5 w-1.5 rounded-full bg-ink" aria-label="今天" />}
                 </div>
-                <NutritionRings summary={summary} selected={isSelected} size="xs" />
-                <span className={`absolute bottom-2 rounded-full px-2 py-1 text-[10px] font-black ${
-                  isSelected ? "bg-white/12 text-white/72" : "bg-canvas text-ink/46"
-                }`}>
-                  {itemCount} 道
-                </span>
+                {itemCount > 0 && <NutritionRings summary={summary} selected={isSelected} size="xs" />}
+                {itemCount > 0 && (
+                  <span className={`absolute bottom-2 rounded-full px-2 py-1 text-[10px] font-black ${
+                    isSelected ? "bg-white/12 text-white/72" : "bg-canvas text-ink/46"
+                  }`}>
+                    {itemCount} 道
+                  </span>
+                )}
               </button>
             );
           })}
@@ -179,11 +179,11 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                     : "未来日期可以提前规划食谱。"}
                 </p>
               </div>
-              {!selectedIsPast && (
+              {!selectedIsPast && canManageHousehold && (
                 <button
                   type="button"
                   onClick={openPicker}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
                 >
                   <Plus size={17} />
                   添加菜品
@@ -203,7 +203,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   {selectedRecipes.map((recipe) => (
                     <div key={`${selectedDateKey}-${recipe.id}`} className="relative">
                       <MiniMeal recipe={recipe} onClick={() => onOpenRecipe(recipe.id)} />
-                      {!selectedIsPast && (
+                      {!selectedIsPast && canManageHousehold && (
                         <button
                           type="button"
                           onClick={() => onRemove(selectedDateKey, recipe.id)}
@@ -217,8 +217,8 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[22px] bg-canvas p-5 text-sm font-bold leading-6 text-ink/50">
-                  {selectedIsPast ? "这一天还没有饮食记录。" : "这一天还没有规划菜品。"}
+                <div className="rounded-[22px] bg-canvas p-5 text-sm font-bold leading-6 text-ink/45">
+                  {selectedIsPast ? "这一天暂时没有记录。" : "可以从这里补一道菜。"}
                 </div>
               )}
 
@@ -226,7 +226,7 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
                 <button
                   type="button"
                   onClick={openPicker}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/10 bg-canvas px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:bg-ink md:hidden"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-ink hover:text-white md:hidden"
                 >
                   <Plus size={17} />
                   为这一天添加菜品
@@ -236,19 +236,9 @@ export function CalendarPage({ mealCalendar, onAssign, onRemove, onOpenRecipe })
           </section>
         ) : (
           <div className="rounded-[24px] border border-dashed border-line bg-white/55 p-5 text-center text-sm font-bold text-ink/45">
-            选择一个日期后，这里会展开当天饮食子页面。
+            点一天，看看当天吃了什么。
           </div>
         )}
-
-        <Card>
-          <p className="eyebrow">How it works</p>
-          <h3 className="card-title">营养环说明</h3>
-          <div className="mt-4 grid gap-3 text-sm font-bold leading-6 text-ink/55">
-            <p>黑色环表示当天餐次完整度，按 3 道菜为满环。</p>
-            <p>内圈用深浅区分蔬菜/清爽类和蛋白类比例，不引入额外颜色。</p>
-            <p>当前先按菜谱分类和食材做家庭参考，不作为医学或健康诊断。</p>
-          </div>
-        </Card>
       </div>
 
       {pickerOpen && (
@@ -353,7 +343,7 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           radius={vegRadius}
           stroke={stroke}
           color={selected ? "rgba(255,255,255,0.72)" : "rgba(17,17,17,0.62)"}
-          trackColor={selected ? "rgba(255,255,255,0.12)" : "rgba(17,17,17,0.06)"}
+          trackColor={selected ? "rgba(255,255,255,0.10)" : "rgba(17,17,17,0.06)"}
           center={dimension / 2}
           delayClass="fitness-ring-delay-1"
         />
@@ -361,8 +351,8 @@ export function NutritionRings({ summary, selected = false, size = "sm" }) {
           progress={summary.proteinProgress}
           radius={proteinRadius}
           stroke={stroke}
-          color={selected ? "rgba(255,255,255,0.48)" : "rgba(17,17,17,0.36)"}
-          trackColor={selected ? "rgba(255,255,255,0.1)" : "rgba(17,17,17,0.05)"}
+          color={selected ? "rgba(255,255,255,0.46)" : "rgba(17,17,17,0.34)"}
+          trackColor={selected ? "rgba(255,255,255,0.07)" : "rgba(17,17,17,0.04)"}
           center={dimension / 2}
           delayClass="fitness-ring-delay-2"
         />

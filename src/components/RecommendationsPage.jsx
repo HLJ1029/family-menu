@@ -1,6 +1,6 @@
-import { CheckCircle2, RefreshCw, ShoppingBasket, Utensils } from "lucide-react";
+import { RefreshCw, ShoppingBasket, Sparkles, Utensils } from "lucide-react";
 import { DishImage } from "./ui/DishImage";
-import { HumiPeek } from "./ui/HumiBrandIllustration";
+import { HumiBrandCallout, HumiPeek } from "./ui/HumiBrandIllustration";
 import { HumiScene } from "./ui/HumiScene";
 
 const rejectReasons = [
@@ -14,46 +14,54 @@ const rejectReasons = [
 export function RecommendationsPage({
   recommendation,
   aiRecommendationLoading,
+  preciseRecommendationEnabled = false,
   onRefresh,
   onAccept,
   onReject,
   onOpenRecipe,
+  onOpenRecipeLibrary,
   onViewChange,
+  canManageHousehold = true,
 }) {
   const items = getRecommendationItems(recommendation);
   const totalMinutes = items.reduce((total, item) => total + item.recipe.timeMinutes, 0);
   const hasStaple = items.some((item) => item.recipe.categories.includes("主食") || item.recipe.tags?.includes("主食"));
+  const refreshLabel = preciseRecommendationEnabled ? "精准换一组" : "基础换一组";
+  const recommendationModeLabel = preciseRecommendationEnabled ? "精准推荐" : "基础推荐";
+  const recommendationModeText = preciseRecommendationEnabled
+    ? "会结合家庭画像、反馈和候选菜谱重新核对。"
+    : "先用本地规则快速换一组，基础推荐可以一直用。";
 
   return (
     <section className="grid min-w-0 grid-cols-1 gap-5">
       <section className="overflow-hidden rounded-[32px] border border-line bg-white text-ink shadow-card">
-        <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end md:p-6">
+        <div className="grid gap-6 p-6 md:grid-cols-[1fr_180px] md:items-end md:p-8">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/40">Humi 推荐</p>
-            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">
+            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-6xl">
               今晚先看这组。
             </h2>
-            <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-ink/58">
+            <p className="mt-4 max-w-2xl text-sm font-bold leading-7 text-ink/58">
               适合 {recommendation.familySize ?? 2} 人 · {items.length} 道 · 预计 {totalMinutes || 25} 分钟 · {hasStaple ? "已有主食" : "建议补主食"}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-              <button
+              {canManageHousehold && <button
                 type="button"
                 onClick={onAccept}
                 className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white sm:col-span-1"
               >
                 <Utensils size={19} />
                 今晚就做
-              </button>
-              <button
+              </button>}
+              {canManageHousehold && <button
                 type="button"
                 onClick={onRefresh}
                 disabled={aiRecommendationLoading}
                 className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-60"
               >
                 <RefreshCw size={18} className={aiRecommendationLoading ? "animate-spin" : ""} />
-                换一组
-              </button>
+                {refreshLabel}
+              </button>}
               <button
                 type="button"
                 onClick={() => onViewChange("grocery")}
@@ -62,14 +70,30 @@ export function RecommendationsPage({
                 <ShoppingBasket size={18} />
                 看清单
               </button>
+              <button
+                type="button"
+                onClick={() => onOpenRecipeLibrary?.()}
+                className="col-span-2 inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 sm:col-span-1"
+              >
+                <Sparkles size={18} />
+                全部菜品库
+              </button>
             </div>
           </div>
-          <HumiScene
-            scene={aiRecommendationLoading ? "loadingMenu" : "feedbackExcited"}
-            size="page"
-            className="mx-auto sm:mx-0"
-            eager
-          />
+          <div className="text-center">
+            <HumiScene
+              scene={aiRecommendationLoading ? "loadingMenu" : "discover"}
+              size="xl"
+              className="mx-auto"
+              eager
+            />
+            <p className="mt-2 text-sm font-black text-ink">
+              {aiRecommendationLoading ? "重新核对中" : recommendationModeLabel}
+            </p>
+            <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
+              {recommendationModeText}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -95,6 +119,14 @@ export function RecommendationsPage({
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
         <p className="eyebrow">为什么推荐</p>
         <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">安排依据</h3>
+        <HumiBrandCallout
+          variant={hasStaple ? "menu-accepted" : "fridge-priority"}
+          title={hasStaple ? "主食已经带上了" : "这组可能还要补主食"}
+          text="推荐依据会优先解释家里已有、需要补买和做饭时长。"
+          className="mt-4"
+          compact
+          contextKey={hasStaple ? "recommendation-staple" : "recommendation-missing"}
+        />
         <p className="mt-3 text-sm font-bold leading-7 text-ink/56">
           {recommendation.reason}
         </p>
@@ -109,7 +141,7 @@ export function RecommendationsPage({
         )}
       </section>
 
-      <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-24 shadow-card">
+      {canManageHousehold && <section className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 pr-24 shadow-card">
         <HumiPeek
           variant="menu-rejected"
           size="md"
@@ -130,7 +162,7 @@ export function RecommendationsPage({
             </button>
           ))}
         </div>
-      </section>
+      </section>}
     </section>
   );
 }
