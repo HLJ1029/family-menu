@@ -166,6 +166,12 @@ try {
   await page.getByRole("button", { name: "返回上一页" }).click();
   const libraryBackReturnsTonight = await page.getByTestId("tonight-hero").isVisible();
 
+  await page.getByTestId("mobile-nav-library").click();
+  await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
+  const discoveryPrimaryTabOpened = await dashboardLibraryTitle.isVisible()
+    && await page.getByTestId("mobile-nav-library").getAttribute("aria-current") === "page";
+  await page.getByTestId("mobile-nav-dashboard").click();
+
   await dashboardLibraryEntry.click();
   await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "打开我的家" }).click();
@@ -243,6 +249,10 @@ try {
   await plannerEntry.click();
   await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).waitFor({ timeout: 15_000 });
   const dashboardPlannerOpened = await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).isVisible();
+  await page.getByTestId("mobile-nav-dashboard").click();
+  await page.getByTestId("mobile-nav-planner").click();
+  await page.getByRole("heading", { name: "先把几顿重要的饭安排好" }).waitFor({ timeout: 15_000 });
+  const plannerPrimaryTabOpened = await page.getByTestId("mobile-nav-planner").getAttribute("aria-current") === "page";
   const plannerGrocerySummary = page.getByTestId("planner-grocery-summary");
   const plannerGrocerySummaryVisible = await plannerGrocerySummary.isVisible();
   const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
@@ -349,6 +359,7 @@ try {
       actual: libraryPrimaryNavLayout,
     },
     { key: "library-child-page-back-returns-tonight", ok: libraryBackReturnsTonight },
+    { key: "discovery-primary-tab-opens-full-library", ok: discoveryPrimaryTabOpened },
     { key: "child-page-avatar-opens-my-home", ok: childPageAvatarOpenedFamily },
     { key: "dashboard-avatar-opens-my-home", ok: dashboardAvatarOpenedFamily },
     { key: "full-library-title", ok: discoveryTitle },
@@ -365,6 +376,7 @@ try {
     { key: "lunch-home-saves-user-picked-dish", ok: lunchAfterPick.some((entry) => entry.recipeId === "potato-shreds"), actual: lunchAfterPick },
     { key: "lunch-does-not-default-to-seaweed-soup", ok: !lunchAfterPick.some((entry) => entry.recipeId === "seaweed-egg-soup"), actual: lunchAfterPick },
     { key: "dashboard-planner-entry-opens-week-plan", ok: dashboardPlannerOpened },
+    { key: "planner-primary-tab-opens-week-plan", ok: plannerPrimaryTabOpened },
     { key: "week-plan-shows-grocery-summary-action", ok: plannerGrocerySummaryVisible },
     { key: "week-plan-grocery-summary-opens-shared-list", ok: plannerSummaryOpenedGrocery },
     { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },

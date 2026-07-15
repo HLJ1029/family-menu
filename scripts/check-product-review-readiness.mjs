@@ -11,15 +11,16 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "auxiliary-child-navigation",
-    title: "辅助页保留三主 tab 和明确父级关系",
+    title: "辅助页保留五主 tab 和明确父级关系",
     path: "src/components/AppShell.jsx",
-    required: ["getPrimaryNavId", "mobile-primary-navigation", "aria-current", "label=\"打开我的家\""],
+    required: ["getPrimaryNavId", "mobile-primary-navigation", "grid-cols-5", "aria-current", "label=\"打开我的家\""],
     evidence: "scripts/smoke-product-entrypoints.mjs",
     evidenceRequired: [
-      "library-child-page-keeps-three-primary-tabs",
-      "library-child-page-belongs-to-tonight-tab",
+      "library-child-page-keeps-five-primary-tabs",
+      "library-child-page-belongs-to-discovery-tab",
       "library-child-page-primary-tabs-are-visible-and-equal",
       "library-child-page-back-returns-tonight",
+      "discovery-primary-tab-opens-full-library",
       "child-page-avatar-opens-my-home",
     ],
   },
@@ -144,7 +145,7 @@ const REQUIRED_CHECKS = [
     path: "src/components/Dashboard.jsx",
     required: ["tonight-primary-action", "meal-rhythm-panel", "!craveSelectionMode && dinnerActions"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["tonight-primary-action-is-in-first-viewport", "tonight-hero-has-one-solid-primary-action", "tonight-hero-has-no-permanent-scene-illustration", "breakfast-and-lunch-follow-dinner-decision", "tonight-do-writes-menu-and-dinner-plan", "tonight-do-auto-generates-grocery"],
+    evidenceRequired: ["tonight-primary-action-is-in-first-viewport", "tonight-hero-has-one-solid-primary-action", "tonight-hero-has-context-scene-illustration", "breakfast-and-lunch-follow-dinner-decision", "tonight-do-writes-menu-and-dinner-plan", "tonight-do-auto-generates-grocery"],
   },
   {
     key: "breakfast-lightweight-recording",
@@ -156,11 +157,11 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "optional-week-plan-flow",
-    title: "手机今晚可进入连排并汇总三餐清单",
+    title: "计划为一级入口且今晚保留连排快捷入口",
     path: "src/components/Dashboard.jsx",
     required: ["dashboard-planner-entry", "想连排几天？", "onViewChange(\"planner\")"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["dashboard-planner-entry-opens-optional-week-plan", "week-plan-shows-grocery-summary-action", "week-plan-grocery-summary-opens-shared-list"],
+    evidenceRequired: ["dashboard-planner-entry-opens-week-plan", "planner-primary-tab-opens-week-plan", "week-plan-shows-grocery-summary-action", "week-plan-grocery-summary-opens-shared-list"],
   },
   {
     key: "hard-constraint-only-profile-input",
@@ -224,7 +225,7 @@ const REQUIRED_CHECKS = [
     path: "package.json",
     required: ["release:product:smoke"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["www.humi-home.com", "全部菜品库", "查看征集单", "breakfast-does-not-default-to-seaweed-soup", "lunch-home-saves-user-picked-dish", "lunch-does-not-default-to-seaweed-soup", "grocery-share-opens-native-share-page", "crave-share-opens-native-share-page"],
+    evidenceRequired: ["www.humi-home.com", "full-library-title", "full-library-card-count", "查看征集单", "breakfast-does-not-default-to-seaweed-soup", "lunch-home-saves-user-picked-dish", "lunch-does-not-default-to-seaweed-soup", "grocery-share-opens-native-share-page", "crave-share-opens-native-share-page"],
   },
   {
     key: "native-share-card-evidence-gate",
