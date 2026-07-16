@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `cae5e14` |
-| GitHub Pages deployment | `29496037197` / success / PR #25 merge `cae5e14` |
+| GitHub Pages deployment | `29497490691` / success / PR #27 merge `c64322f` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.69` |
 | 小程序描述 | `恢复菜单和清单海报入口` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 小程序卡片分享继续使用原生确认页；今晚菜单和买菜清单已恢复独立海报入口。本地产品 smoke 89/89 且两张海报均生成成功；当前候选等待 H5 部署与小程序 `1.1.69` 上传，尚未提交微信审核 |
+| 当前状态 | 小程序卡片分享继续使用原生确认页；今晚菜单和买菜清单已恢复独立海报入口。H5 已部署，小程序 `1.1.69` 已上传并使用 `h5v=1.1.69`；生产产品 smoke 89/89 且两张海报均生成成功，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -75,6 +75,9 @@
 | 2026-07-16 | codex@mbp-m5pro | 生产 API 备份 / 部署 / restart | 通过 | 备份 `/opt/humi/backups/20260716T115336Z`；同步 `main@cae5e14`；`humi-api.service` active；health、recommend、monitor 与 online readiness 通过 |
 | 2026-07-16 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 138 道完整菜库、三餐显式选择、家庭权限、多家庭隔离、原生分享交接和四类游客协作均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.68-20260716` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.68-20260716` |
 | 2026-07-16 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.68` / `修复分享并优化应用文案` / package `26.7 KB` / `h5v=1.1.68`；preview QR SHA-256 `8def81b8dab24425e5fb150c838d365d8d32f6905a8f9482777e7eeb65402d83`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.68`；未提交审核 |
+| 2026-07-16 | codex@mbp-m5pro | PR #27 / GitHub Pages | 通过 | 菜单与清单海报入口恢复并纳入产品门禁；合入 `main@c64322f`；Pages run `29497490691` success |
+| 2026-07-16 | codex@mbp-m5pro | production product smoke / monitor / online readiness | 通过 | 产品 smoke 89/89；今晚菜单和买菜清单海报入口均可见，两张海报实际生成，页面错误 0；H5/API/recommend 与 online readiness 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.69-20260716` |
+| 2026-07-16 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.69` / `恢复菜单和清单海报入口` / package `26.7 KB` / `h5v=1.1.69`；preview QR SHA-256 `e02bfcd7851398e54ca3f78b173fb33c7824214925cd891888b42db1aae8ee14`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.69`；未提交审核 |
 
 ## 3. 生产 API 补部署证据
 
