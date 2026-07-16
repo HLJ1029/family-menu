@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-15
+更新日期：2026-07-16
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -10,15 +10,15 @@
 | 项目 | 当前值 |
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
-| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-user-ui-integration` |
-| API 部署提交 | `537d171` |
-| GitHub Pages deployment | `29429284963` / success / PR #22 merge `537d171` |
+| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
+| API 部署提交 | `cae5e14` |
+| GitHub Pages deployment | `29496037197` / success / PR #25 merge `cae5e14` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.67` |
-| 小程序描述 | `完善家庭菜单与协作功能` |
+| 小程序版本 | `1.1.68` |
+| 小程序描述 | `修复分享并优化应用文案` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 当前重构 UI 下的核心菜单、三餐选择、家庭协作、成员权限和分享桥门禁已通过；H5/API 已部署，小程序 `1.1.67` 已上传并在 DevTools 确认 `h5v=1.1.67`、业务首屏可见、Errors 0，等待用户手机复验，尚未提交微信审核 |
+| 当前状态 | 分享按钮已改为只有 WebView 真实离开并进入原生确认页后才算成功；高频机械文案已完成自然语言收口。H5/API 已部署，小程序 `1.1.68` 已上传并使用 `h5v=1.1.68`，生产产品与协作 smoke 页面错误 0，等待用户手机复验，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -71,6 +71,10 @@
 | 2026-07-15 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 138 道完整菜库、三餐显式选择、家庭权限、多家庭隔离和协作落地页均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.67-20260715` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.67-20260715` |
 | 2026-07-15 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.67` / `完善家庭菜单与协作功能` / package `24.1 KB` / DevTools 打开 `h5v=1.1.67`、业务首屏与五主入口可见、Errors 0；唯一 warning 为微信基础库 `getSystemInfo` HarmonyOS 兼容提示；preview QR SHA-256 `8027c0683101f830d8c486881692c3a7c9a511786ceda39f23ab648764ed637c`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.67` |
 | 2026-07-15 | codex@mbp-m5pro | `npm run release:status` | 工程门禁通过，验收门禁继续阻止审核 | `engineeringGatesReady=true`；`candidateValidationReady=false` 与 `releaseEvidenceReady=false`，原因仅为真实家庭样本、微信审核/发布、发布后 P0 和 24 小时监控尚未执行 |
+| 2026-07-16 | codex@mbp-m5pro | PR #25 / GitHub Pages | 通过 | 修复 H5 分享假成功并完成高频机械文案自然化；合入 `main@cae5e14`；Pages run `29496037197` success |
+| 2026-07-16 | codex@mbp-m5pro | 生产 API 备份 / 部署 / restart | 通过 | 备份 `/opt/humi/backups/20260716T115336Z`；同步 `main@cae5e14`；`humi-api.service` active；health、recommend、monitor 与 online readiness 通过 |
+| 2026-07-16 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 138 道完整菜库、三餐显式选择、家庭权限、多家庭隔离、原生分享交接和四类游客协作均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.68-20260716` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.68-20260716` |
+| 2026-07-16 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.68` / `修复分享并优化应用文案` / package `26.7 KB` / `h5v=1.1.68`；preview QR SHA-256 `8def81b8dab24425e5fb150c838d365d8d32f6905a8f9482777e7eeb65402d83`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.68`；未提交审核 |
 
 ## 3. 生产 API 补部署证据
 
@@ -78,16 +82,16 @@
 
 | 字段 | 记录 |
 | --- | --- |
-| 执行时间 | 2026-07-14 20:52 CST |
+| 执行时间 | 2026-07-16 19:53 CST |
 | 执行人 | codex@mbp-m5pro |
 | 可用 SSH target | `ubuntu@api.humi-home.com` + `~/.ssh/humi_tencent_lighthouse` |
-| 部署前备份路径 | `/opt/humi/backups/20260714T124938Z` |
-| 部署提交 | `2c53017c` |
+| 部署前备份路径 | `/opt/humi/backups/20260716T115336Z` |
+| 部署提交 | `cae5e14` |
 | 服务管理方式 | systemd / `humi-api.service` / `WorkingDirectory=/opt/humi` |
 | `npm run deploy:api:check` | 通过 |
 | `npm run monitor:prod` | 通过 |
 | `npm run release:check:online` | 通过 |
-| API smoke 结论 | 通过：`deadlineAt`、vote、`resultSummary`、public result、basic recommendation、precise 401、explain 401 |
+| API smoke 结论 | 通过：health 200、基础推荐 200、生产 monitor 与 online readiness 通过；本次只调整推荐降级文案，不改变 API 合同 |
 | 是否回滚 | 否 |
 
 重点 smoke：
@@ -109,14 +113,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.67` |
+| 提交版本 | `1.1.68` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.67` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.68` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -144,7 +148,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.67` |
+| 发布版本 | `1.1.68` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |
