@@ -187,6 +187,18 @@ try {
   await page.getByRole("button", { name: "今晚", exact: true }).click();
 
   await openTodayMenu(page);
+  const todayMenuPosterButton = page.getByRole("button", { name: "生成菜单海报", exact: true });
+  const todayMenuPosterEntryVisible = await todayMenuPosterButton.isVisible();
+  const todayMenuPosterEntryScreenshot = join(evidenceDir, "today-menu-poster-entry-mobile.png");
+  await page.screenshot({ path: todayMenuPosterEntryScreenshot, fullPage: true });
+  await todayMenuPosterButton.click();
+  await page.getByRole("heading", { name: "Humi 今晚菜单", exact: true }).waitFor({ timeout: 15_000 });
+  const todayMenuPosterImage = page.getByRole("img", { name: "Humi 今晚菜单海报预览" });
+  await todayMenuPosterImage.waitFor({ state: "visible", timeout: 15_000 });
+  const todayMenuPosterGenerated = await todayMenuPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const todayMenuPosterPreviewScreenshot = join(evidenceDir, "today-menu-poster-preview-mobile.png");
+  await page.screenshot({ path: todayMenuPosterPreviewScreenshot, fullPage: true });
+  await page.getByRole("button", { name: "关闭海报预览" }).first().click();
   await page.getByRole("button", { name: /发现新菜|全部菜品库/ }).first().click();
   await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
   const discoveryTitle = await page.getByRole("heading", { name: "发现", exact: true }).isVisible();
@@ -259,8 +271,8 @@ try {
   const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
   await page.screenshot({ path: plannerScreenshot, fullPage: true });
   await plannerGrocerySummary.click();
-  await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).waitFor({ timeout: 15_000 });
-  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).isVisible();
+  await page.getByRole("button", { name: "分享清单给家人", exact: true }).waitFor({ timeout: 15_000 });
+  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: "分享清单给家人", exact: true }).isVisible();
 
   await page.getByRole("button", { name: "清单", exact: true }).click();
   await waitForTransientUi(page);
@@ -268,7 +280,17 @@ try {
   const groceryNutritionEntryHidden = await page.getByRole("button", { name: "营养视图" }).count() === 0;
   const groceryScreenshot = join(evidenceDir, "grocery-mobile.png");
   await page.screenshot({ path: groceryScreenshot, fullPage: true });
-  await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).click();
+  const groceryPosterButton = page.getByRole("button", { name: "生成清单海报", exact: true });
+  const groceryPosterEntryVisible = await groceryPosterButton.isVisible();
+  await groceryPosterButton.click();
+  await page.getByRole("heading", { name: "Humi 购物清单", exact: true }).waitFor({ timeout: 15_000 });
+  const groceryPosterImage = page.getByRole("img", { name: "Humi 购物清单海报预览" });
+  await groceryPosterImage.waitFor({ state: "visible", timeout: 15_000 });
+  const groceryPosterGenerated = await groceryPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const groceryPosterPreviewScreenshot = join(evidenceDir, "grocery-poster-preview-mobile.png");
+  await page.screenshot({ path: groceryPosterPreviewScreenshot, fullPage: true });
+  await page.getByRole("button", { name: "关闭海报预览" }).first().click();
+  await page.getByRole("button", { name: "分享清单给家人", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
       call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=grocery")
@@ -379,6 +401,9 @@ try {
     { key: "planner-primary-tab-opens-week-plan", ok: plannerPrimaryTabOpened },
     { key: "week-plan-shows-grocery-summary-action", ok: plannerGrocerySummaryVisible },
     { key: "week-plan-grocery-summary-opens-shared-list", ok: plannerSummaryOpenedGrocery },
+    { key: "today-menu-poster-entry-is-visible", ok: todayMenuPosterEntryVisible },
+    { key: "grocery-poster-entry-is-visible", ok: groceryPosterEntryVisible },
+    { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
@@ -441,11 +466,14 @@ try {
     evidenceDir,
     screenshots: {
       tonightFirstViewportMobile: tonightViewport.screenshot,
+      todayMenuPosterEntryMobile: todayMenuPosterEntryScreenshot,
+      todayMenuPosterPreviewMobile: todayMenuPosterPreviewScreenshot,
       discoveryMobile: discoveryScreenshot,
       discoveryMobileFull: discoveryFullScreenshot,
       breakfastQuickPickerMobile: breakfastQuickScreenshot,
       userCraveMobile: userCraveScreenshot,
       groceryMobile: groceryScreenshot,
+      groceryPosterPreviewMobile: groceryPosterPreviewScreenshot,
       familyActivityMobile: familyActivityScreenshot,
       plannerMobile: plannerScreenshot,
       dietConstraintsMobile: dietConstraintScreenshot,

@@ -1,4 +1,4 @@
-import { Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
+import { ImageIcon, Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor } from "../lib/recipes";
 import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
@@ -15,6 +15,8 @@ export function TodayMenu({
   onOpenRecipeLibrary,
   cloudSync,
   onShare,
+  onCreatePoster,
+  shareMode = "poster",
   mealLog,
   mealLogs,
   onSetDinnerSource,
@@ -132,6 +134,16 @@ export function TodayMenu({
                 <Share2 size={18} />
                 分享菜单
               </button>
+              {shareMode === "mini" && (
+                <button
+                  type="button"
+                  onClick={onCreatePoster}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
+                >
+                  <ImageIcon size={18} />
+                  生成菜单海报
+                </button>
+              )}
             </div>
           </div>
         </div>

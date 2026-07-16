@@ -56,7 +56,7 @@ const packet = {
   ],
   evidenceLog: "docs/humi-1.1-release-evidence-log.md",
   requiredPlatformChecks: [
-    "Version 1.1.68 is visible in WeChat Mini Program version management.",
+    "Version 1.1.69 is visible in WeChat Mini Program version management.",
     "request valid domain includes https://api.humi-home.com.",
     "web-view business domain includes https://www.humi-home.com.",
     "Privacy guide matches docs/wechat-submit-copy-packet.md.",
@@ -65,7 +65,7 @@ const packet = {
   nextActions: submitReady
     ? [
       "Wait for user confirmation before changing WeChat platform state.",
-      "After confirmation, open WeChat public platform and prepare version 1.1.68 for review.",
+      "After confirmation, open WeChat public platform and prepare version 1.1.69 for review.",
       "Store private screenshots outside the repo.",
       "Only after the platform submit action is completed, record submit time, submitter, review status, and private evidence location in docs/humi-1.1-release-evidence-log.md.",
     ]

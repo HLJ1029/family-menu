@@ -2362,6 +2362,10 @@ function App() {
         showNotice(error.message || "清单分享暂时不可用");
       }
     }
+    await createGroceryListPoster();
+  }
+
+  async function createGroceryListPoster() {
     const text = formatShareText(visibleGroceryGroups, customItems);
     await openPosterPreview({
       type: "grocery_list",
@@ -2441,6 +2445,10 @@ function App() {
         showNotice(error.message || "菜单分享暂时不可用，先生成海报");
       }
     }
+    await createTodayMenuPosterPreview();
+  }
+
+  async function createTodayMenuPosterPreview() {
     const text = [
       "Humi 今晚菜单",
       "",
@@ -2556,7 +2564,7 @@ function App() {
     downloadPoster(posterPreview.blob, posterPreview.filename);
     trackProductEvent(appEvents.share, { type: posterPreview.type, method: "poster_save" });
     trackValidationEvent(validationEvents.posterSavedAttempted, { type: posterPreview.type });
-    showNotice("海报已保存到下载");
+    showNotice("图片已开始保存");
   }
 
   async function sharePosterPreview() {
@@ -2575,7 +2583,7 @@ function App() {
         type: posterPreview.type,
         method: method === "shared" ? "poster_native" : "poster_download",
       });
-      showNotice(method === "shared" ? "海报已打开分享面板" : "海报已保存到下载");
+      showNotice(method === "shared" ? "已打开分享面板" : "图片已开始保存");
     } catch {
       await shareText({
         type: posterPreview.type,
@@ -3808,6 +3816,8 @@ function App() {
                 onOpenRecipe={openRecipe}
                 onViewChange={navigateTo}
                 onShare={shareTodayMenu}
+                onCreatePoster={createTodayMenuPosterPreview}
+                shareMode={isWechatMiniProgramWebView() ? "mini" : "poster"}
                 mealLog={todayMealLog}
                 mealLogs={mealLogs}
                 onSetDinnerSource={setDinnerSource}
@@ -3851,6 +3861,7 @@ function App() {
                 onRestoreAllItems={restoreAllGroceryItems}
                 excludedItems={excludedGroceryItems}
                 onShare={shareGroceryList}
+                onCreatePoster={createGroceryListPoster}
                 checkedItems={checkedItems}
                 setCheckedItems={setCheckedItems}
                 onGroceryItemChecked={({ key, checked, item }) => {
