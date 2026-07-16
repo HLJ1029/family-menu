@@ -256,6 +256,23 @@ const REQUIRED_CHECKS = [
     ],
   },
   {
+    key: "poster-entrypoints-stay-visible",
+    title: "小程序卡片分享与菜单清单海报入口并存",
+    path: "src/main.jsx",
+    required: [
+      "onCreatePoster={createTodayMenuPosterPreview}",
+      "onCreatePoster={createGroceryListPoster}",
+      "createTodayMenuPoster",
+      "createGroceryPoster",
+    ],
+    evidence: "scripts/smoke-product-entrypoints.mjs",
+    evidenceRequired: [
+      "today-menu-poster-entry-is-visible",
+      "grocery-poster-entry-is-visible",
+      "poster-preview-generates-image",
+    ],
+  },
+  {
     key: "review-confirmation-gate",
     title: "微信审核动作必须显式确认",
     path: "scripts/prepare-wechat-submit-workspace.mjs",

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Cloud, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
+import { Check, ChevronDown, Cloud, ImageIcon, PackageCheck, Plus, RefreshCw, RotateCcw, Share2, Trash2, UploadCloud } from "lucide-react";
 import { formatAmount } from "../lib/grocery";
 import { Card } from "./ui/Card";
 import { HumiScene } from "./ui/HumiScene";
@@ -17,6 +17,7 @@ export function GroceryList({
   onRestoreAllItems,
   excludedItems,
   onShare,
+  onCreatePoster,
   checkedItems,
   setCheckedItems,
   cloudSync,
@@ -61,6 +62,7 @@ export function GroceryList({
           onRemoveItem={onExcludeItem}
           onRemoveCustomItem={onRemoveCustomItem}
           onShare={onShare}
+          onCreatePoster={onCreatePoster}
           onPlanDinner={onPlanDinner}
           shareMode={shareMode}
         />
@@ -231,6 +233,7 @@ function ShoppingChecklist({
   onRemoveItem,
   onRemoveCustomItem,
   onShare,
+  onCreatePoster,
   onPlanDinner,
   shareMode = "poster",
 }) {
@@ -334,14 +337,26 @@ function ShoppingChecklist({
       </div>
 
       {totalItemCount > 0 && (
-        <button
-          type="button"
-          onClick={onShare}
-          className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
-        >
-          <Share2 size={17} />
-          {shareMode === "mini" ? "分享清单给家人" : "生成清单海报"}
-        </button>
+        <div className={`mt-5 grid gap-2 ${shareMode === "mini" ? "sm:grid-cols-2" : ""}`}>
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
+          >
+            <Share2 size={17} />
+            {shareMode === "mini" ? "分享清单给家人" : "生成清单海报"}
+          </button>
+          {shareMode === "mini" && (
+            <button
+              type="button"
+              onClick={onCreatePoster}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
+            >
+              <ImageIcon size={17} />
+              生成清单海报
+            </button>
+          )}
+        </div>
       )}
     </Card>
   );

@@ -49,7 +49,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
                     <div className="absolute inset-0 animate-spin rounded-full border-[10px] border-transparent border-t-ink" />
                   </div>
                   <div>
-                    <p className="text-2xl font-black tracking-[-0.04em] text-ink">正在生成海报</p>
+                    <p className="text-2xl font-black text-ink">正在生成海报</p>
                     <p className="mt-2 text-sm font-bold leading-6 text-ink/50">
                       第一次加载菜图会慢一点。
                     </p>
@@ -63,14 +63,14 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
         <div className="flex min-h-0 flex-col p-5 md:p-7">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="eyebrow">Poster</p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-5xl">
+              <p className="eyebrow">分享图片</p>
+              <h2 className="mt-2 text-3xl font-black md:text-5xl">
                 {poster.title}
               </h2>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
                 {ready
-                  ? "已生成 1080 x 1440 海报，可以直接保存到相册，或打开系统分享面板发给家人。"
-                  : "Humi 正在把菜单和图片排成 1080 x 1440 海报。"}
+                  ? "图片已经准备好了。可以试着直接分享，也可以先保存下来再发给家人。"
+                  : "Humi 正在把这份内容整理成一张分享图。"}
               </p>
             </div>
             <button
@@ -100,7 +100,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
             >
               <Download size={18} className="text-white" />
-              保存 PNG
+              保存图片
             </button>
             <button
               type="button"
@@ -120,7 +120,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               className="shrink-0"
             />
             <p className="text-sm font-bold leading-6 text-ink/52">
-              小提示：在 iPhone 或微信里打开时，优先使用“分享海报”；如果系统不支持文件分享，就点“保存 PNG”。
+              如果微信没有弹出分享面板，可以先保存图片，再从聊天里发给家人。
             </p>
           </div>
         </div>
