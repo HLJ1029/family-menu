@@ -14,13 +14,13 @@
 ## 1. 当前发布事实
 
 - 当前 `main`、GitHub Pages、线上 readiness 和下一步动作以 `npm run release:status` 输出为准。
-- 本轮可验收工作区：`/Users/honglijie/agent-worktrees/humi/humi-1.1-spec-closure`；本地地址：`http://127.0.0.1:4174/`。
+- 本轮可验收工作区：`/Users/honglijie/agent-worktrees/humi/humi-1.1-release`；生产地址：`https://www.humi-home.com/`。
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
 - 最新小程序候选：`1.1.68` / `修复分享并优化应用文案` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
-- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260714T124938Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
+- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260716T115336Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
 ## 2. 验收矩阵
 
