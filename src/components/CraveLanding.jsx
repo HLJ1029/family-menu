@@ -46,7 +46,7 @@ export function CraveLanding({ token, onClose, onJoinFamily }) {
     event.preventDefault();
     setStatus("");
     if (request?.status === "closed") {
-      setStatus("这次征集已经收口，主厨正在安排菜单。");
+      setStatus("这次征集已经结束，主厨正在安排菜单。");
       return;
     }
     try {
@@ -60,7 +60,7 @@ export function CraveLanding({ token, onClose, onJoinFamily }) {
       });
       setRequest(data.request);
       if (data.request?.status === "closed") {
-        setStatus("这次征集已经收口，主厨正在安排菜单。");
+        setStatus("这次征集已经结束，主厨正在安排菜单。");
         setSubmitted(false);
         return;
       }
@@ -129,7 +129,7 @@ export function CraveLanding({ token, onClose, onJoinFamily }) {
           {request.status === "closed" ? (
             <div className="mt-6 rounded-[24px] bg-canvas p-5">
               <CheckCircle2 size={28} />
-              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">这次已经收口</h2>
+              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">这次征集已经结束</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
                 {request.initiatorName || "主厨"}已经开始安排今晚菜单。晚到也没关系，回到 Humi 还能继续看今晚安排和菜品库。
               </p>

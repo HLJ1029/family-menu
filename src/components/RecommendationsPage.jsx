@@ -29,7 +29,7 @@ export function RecommendationsPage({
   const refreshLabel = preciseRecommendationEnabled ? "精准换一组" : "基础换一组";
   const recommendationModeLabel = preciseRecommendationEnabled ? "精准推荐" : "基础推荐";
   const recommendationModeText = preciseRecommendationEnabled
-    ? "会结合家庭画像、反馈和候选菜谱重新核对。"
+    ? "会结合你家的口味、吃饭习惯和反馈再检查一遍。"
     : "先用本地规则快速换一组，基础推荐可以一直用。";
 
   return (

@@ -69,8 +69,8 @@ export function GroceryList({
           <Card>
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="eyebrow">按菜单核对</p>
-                <h3 className="card-title">每顿饭需要什么</h3>
+                <p className="eyebrow">照着菜单买</p>
+                <h3 className="card-title">每顿要买什么</h3>
               </div>
               <span className="rounded-full bg-canvas px-3 py-1 text-xs font-black text-ink/52">
                 {daySections.length} 天
@@ -95,8 +95,8 @@ export function GroceryList({
         <Card>
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="eyebrow">Manual list</p>
-              <h3 className="card-title">手动添加</h3>
+              <p className="eyebrow">顺手带上</p>
+              <h3 className="card-title">再加点别的</h3>
             </div>
             <Plus size={20} />
           </div>
@@ -171,9 +171,9 @@ function GroceryShareStatus({ request, onRefresh }) {
   const declinedCount = claims.filter((claim) => claim.status === "declined").length;
   const checkedCount = items.filter((item) => item.checked).length;
   const summary = items.length > 0
-    ? `已买 ${checkedCount}/${items.length}${claimedCount > 0 ? ` · ${claimedCount} 人认领` : ""}${declinedCount > 0 ? ` · ${declinedCount} 人买不了` : ""}`
+    ? `已买 ${checkedCount}/${items.length}${claimedCount > 0 ? ` · ${claimedCount} 人来买` : ""}${declinedCount > 0 ? ` · ${declinedCount} 人这次不方便` : ""}`
     : claimedCount > 0
-      ? `${claimedCount} 人认领`
+      ? `${claimedCount} 人来买`
       : "清单卡片已发出";
 
   return (
@@ -183,10 +183,10 @@ function GroceryShareStatus({ request, onRefresh }) {
           <PackageCheck size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">买菜协作</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">一起买菜</p>
           <p className="mt-1 text-sm font-black">{summary}</p>
           <p className="mt-2 text-xs font-bold leading-5 text-ink/48">
-            家人认领或勾选买到后，回到这里刷新，清单会同步已买状态。
+            家人说好自己买哪些，或者勾选已经买到后，回来刷新就能看到。
           </p>
         </div>
       </div>
@@ -196,7 +196,7 @@ function GroceryShareStatus({ request, onRefresh }) {
         className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-ink transition hover:-translate-y-0.5"
       >
         <RefreshCw size={15} />
-        刷新协作
+        看看最新进度
       </button>
     </div>
   );
@@ -214,7 +214,7 @@ function buildShoppingSections(items) {
     },
     {
       key: "seasonings",
-      title: "调料和按需项",
+      title: "调料和可选食材",
       note: "家里有就跳过，不需要专门维护。",
       items: seasoningItems,
     },

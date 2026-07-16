@@ -43,7 +43,7 @@ export function StatsPage({
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="relative overflow-hidden rounded-[30px] border border-line bg-white p-6 text-ink shadow-card md:p-8 md:pr-64">
           <HumiScene scene="achievement" size="xl" className="absolute bottom-2 right-3 hidden md:grid" />
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/42">饮食画像</p>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-ink/42">吃饭习惯</p>
           <h2 className="mt-4 max-w-xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
             {insights.goals.label}
           </h2>
@@ -112,8 +112,8 @@ export function StatsPage({
         <Card>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">Diet portrait</p>
-              <h3 className="card-title">本月饮食画像</h3>
+              <p className="eyebrow">这个月吃得怎么样</p>
+              <h3 className="card-title">本月吃饭回顾</h3>
             </div>
             <ChefHat size={22} />
           </div>

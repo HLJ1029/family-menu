@@ -25,66 +25,70 @@ export function buildMiniProgramShareUrl(payload = {}) {
 export function requestMiniProgramShare(payload = {}, options = {}) {
   if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.navigateTo) return Promise.resolve("unavailable");
+  if (!miniProgram?.redirectTo && !miniProgram?.navigateTo) return Promise.resolve("unavailable");
 
-  const timeoutMs = options.timeoutMs ?? 1200;
+  const timeoutMs = options.timeoutMs ?? 1800;
+  const confirmationMs = options.confirmationMs ?? 420;
   const url = buildMiniProgramShareUrl(payload);
-  postMiniProgramSharePayload(miniProgram, payload);
   return new Promise((resolve) => {
     let settled = false;
+    let attemptTimer = null;
+    let timeoutTimer = null;
+    const documentRef = window.document;
+    const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
     const finish = (status) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(timer);
+      window.clearTimeout(attemptTimer);
+      window.clearTimeout(timeoutTimer);
+      if (supportsPageConfirmation) {
+        documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("pagehide", handlePageLeave);
+        window.removeEventListener("beforeunload", handlePageLeave);
+      }
       resolve(status);
     };
-    const timer = window.setTimeout(() => finish("unavailable"), timeoutMs);
-    const tryRedirect = () => {
-      if (!miniProgram.redirectTo) {
+    const handlePageLeave = () => finish("handoff");
+    const handleVisibilityChange = () => {
+      if (documentRef.visibilityState === "hidden") finish("handoff");
+    };
+    if (supportsPageConfirmation) {
+      documentRef.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("pagehide", handlePageLeave);
+      window.addEventListener("beforeunload", handlePageLeave);
+    }
+    timeoutTimer = window.setTimeout(() => finish("unavailable"), timeoutMs);
+
+    const attempts = [
+      ["redirectTo", miniProgram.redirectTo],
+      ["navigateTo", miniProgram.navigateTo],
+    ].filter(([, method]) => typeof method === "function");
+
+    const runAttempt = (index) => {
+      if (settled) return;
+      const [, method] = attempts[index] ?? [];
+      if (!method) {
         finish("unavailable");
         return;
       }
       try {
-        miniProgram.redirectTo({
+        method.call(miniProgram, {
           url,
-          success: () => finish("opened"),
-          fail: () => finish("unavailable"),
+          success: () => {
+            if (!supportsPageConfirmation) {
+              finish("handoff");
+              return;
+            }
+            window.clearTimeout(attemptTimer);
+            attemptTimer = window.setTimeout(() => runAttempt(index + 1), confirmationMs);
+          },
+          fail: () => runAttempt(index + 1),
         });
       } catch {
-        finish("unavailable");
+        runAttempt(index + 1);
       }
     };
 
-    try {
-      miniProgram.navigateTo({
-        url,
-        success: () => finish("opened"),
-        fail: tryRedirect,
-      });
-    } catch {
-      tryRedirect();
-    }
+    runAttempt(0);
   });
-}
-
-function postMiniProgramSharePayload(miniProgram, payload = {}) {
-  if (!miniProgram?.postMessage) return;
-  try {
-    const messageType = {
-      crave: "humi:share-crave",
-      grocery: "humi:share-grocery",
-      invite: "humi:share-household-invite",
-      menu: "humi:share-menu",
-      today_menu: "humi:share-menu",
-      wish: "humi:share-wish",
-    }[payload.type] || "humi:share";
-    miniProgram.postMessage({
-      data: {
-        ...payload,
-        type: messageType,
-      },
-    });
-  } catch {
-    // Best-effort bridge: native share page navigation below is still the primary path.
-  }
 }

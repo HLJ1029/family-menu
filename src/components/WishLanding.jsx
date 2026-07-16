@@ -111,7 +111,7 @@ export function WishLanding({ token, onClose, onJoinFamily }) {
                 {request.initiatorName || "主厨"}想攒一点家里想吃的。
               </h1>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
-                写一道菜就行。{request.householdName ? `这是${request.householdName}的想吃池入口。` : ""} 主厨回到 Humi 刷新后会看到。
+                写一道菜就行。{request.householdName ? `这是${request.householdName}在收集最近想吃的菜。` : ""} 主厨回到 Humi 刷新后会看到。
               </p>
             </div>
             <HumiScene scene={submitted ? "wishSubmitted" : "wishWrite"} size="md" className="hidden sm:grid" eager />
@@ -120,9 +120,9 @@ export function WishLanding({ token, onClose, onJoinFamily }) {
           {submitted ? (
             <div className="mt-6 rounded-[24px] bg-canvas p-5">
               <CheckCircle2 size={28} />
-              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到，已经放进想吃池候选。</h2>
+              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到，已经记下了。</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {request.initiatorName || "主厨"}刷新后会看到“{dishName.trim()}”。之后安排晚饭时可以直接从想吃池拿出来。
+                {request.initiatorName || "主厨"}刷新后会看到“{dishName.trim()}”。之后安排晚饭时可以直接选它。
               </p>
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <button
@@ -160,7 +160,7 @@ export function WishLanding({ token, onClose, onJoinFamily }) {
                     <Heart size={19} />
                   </span>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">想吃池</p>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">最近想吃</p>
                     <h2 className="mt-1 text-2xl font-black tracking-[-0.04em]">你最近想吃什么？</h2>
                   </div>
                 </div>

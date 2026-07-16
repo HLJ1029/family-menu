@@ -341,8 +341,8 @@ function buildPreferenceExplanation(preferenceHits) {
 }
 
 function buildWantExplanation(wantIntentHits) {
-  if (wantIntentHits > 0) return `照顾到 ${wantIntentHits} 条想吃池子的待安排心愿。`;
-  return "想吃池子里还没有能直接匹配的菜，先按今晚可执行度安排。";
+  if (wantIntentHits > 0) return `照顾到最近记下的 ${wantIntentHits} 个想吃。`;
+  return "最近想吃里还没有能直接匹配的菜，先按今晚做起来方不方便来安排。";
 }
 
 function buildFeelingExplanation(feelingHits) {
@@ -606,7 +606,7 @@ function buildReason({ selected, inventoryHits, expiringHits, groceryItems, sele
     return `已把这次征集里的 ${feelingHits} 个感觉放进排序，同时继续避开家里的硬忌口。`;
   }
   if (wantIntentHits > 0) {
-    return `优先照顾想吃池子里的 ${wantIntentHits} 条待安排心愿，同时继续避开家里的硬忌口。`;
+    return `优先看看最近记下的 ${wantIntentHits} 个想吃，同时继续避开家里一定不能吃的东西。`;
   }
   if (mealHistoryHits > 0) {
     return `参考最近确认做过的菜，命中 ${mealHistoryHits} 个常做类型，同时降低了原菜重复。`;

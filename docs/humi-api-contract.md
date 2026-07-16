@@ -7,7 +7,7 @@
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 小程序 1.1.67 使用本合同，并包含多家庭定向保存、协作状态持久化与临时身份隐私收口；部署时按生产 runbook 备份、重启并复跑线上 smoke。
+- 小程序 1.1.68 使用本合同，并包含多家庭定向保存、协作状态持久化与临时身份隐私收口；部署时按生产 runbook 备份、重启并复跑线上 smoke。
 
 本地启动：
 

@@ -166,13 +166,13 @@ export function UserCenter({
     ...(activeWishShareRequest?.wishes ?? []).slice(0, 3).map((item) => ({
       id: item.id,
       title: `${item.memberName || "家人"}想吃：${item.dishName || "一道菜"}`,
-      meta: item.note ? `想吃池 · ${item.note}` : "想吃池征集",
+      meta: item.note ? `最近想吃 · ${item.note}` : "家人写下的想吃",
     })),
     ...buildMealLogActivities(mealLogs),
     ...craveSignals.slice(0, 4).map((item) => ({
       id: item.id,
       title: item.feelingTag === "随便都行" ? "有人说随便都行" : `有人想要：${item.feelingTag}`,
-      meta: "感觉征集",
+      meta: "问问大家",
     })),
     ...recommendationFeedback.slice(0, 2).map((item) => ({
       id: item.id,
@@ -182,7 +182,7 @@ export function UserCenter({
     ...wishPool.slice(0, 2).map((item) => ({
       id: item.id,
       title: `想吃：${item.name}`,
-      meta: item.source ? `想吃池 · ${item.source}` : "想吃池",
+      meta: item.source ? `最近想吃 · ${item.source}` : "最近想吃",
     })),
   ].slice(0, 5);
 
@@ -264,29 +264,31 @@ export function UserCenter({
         <section className="rounded-[24px] border border-line bg-white p-4 shadow-card">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">协作主场</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">今晚一起决定</p>
               <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">今晚先看这三件事</h3>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-                画像回执：{familyPortraitDigest.evidenceCount} 条线索 · {familyPortraitDigest.nextMove}
+                {familyPortraitDigest.evidenceCount > 0
+                  ? `Humi 已记住 ${familyPortraitDigest.evidenceCount} 次选择，${familyPortraitDigest.nextMove}`
+                  : "还不了解你家也没关系，先从一顿省心的晚饭开始"}
               </p>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <HomeActionTile
-              label="感觉征集"
+              label="大家想吃什么"
               value={activeCraveRequest?.token ? `${activeCraveVotes.length} 个回复` : "还没发起"}
               actionLabel={activeCraveRequest?.token ? "刷新" : canManageHousehold ? "发起" : "等主厨"}
               onClick={activeCraveRequest?.token ? onRefreshCraveRequest : canManageHousehold ? openCraveComposer : undefined}
               disabled={!activeCraveRequest?.token && !canManageHousehold}
             />
             <HomeActionTile
-              label="买菜认领"
+              label="买菜进度"
               value={activeGroceryShareRequest?.token ? `已买 ${checkedGroceryItems}/${groceryItems.length}` : "去清单分享"}
               actionLabel={activeGroceryShareRequest?.token ? "刷新" : "打开"}
               onClick={activeGroceryShareRequest?.token ? onRefreshGroceryShare : () => onViewChange("grocery")}
             />
             <HomeActionTile
-              label="想吃池"
+              label="最近想吃"
               value={activeWishShareRequest?.token ? `${wishShareWishes.length} 个想吃` : `${wishPool.length} 道`}
               actionLabel={activeWishShareRequest?.token ? "刷新" : canManageHousehold ? "收集" : "去添加"}
               onClick={activeWishShareRequest?.token ? onRefreshWishShare : canManageHousehold ? onStartWishShare : onOpenRecipeLibrary}
@@ -299,9 +301,11 @@ export function UserCenter({
               className="flex w-full items-center justify-between gap-3 rounded-[16px] border border-line bg-canvas px-3 py-2 text-left"
             >
               <span className="min-w-0">
-                <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">画像回执</span>
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-ink/35">Humi 记住了什么</span>
                 <span className="mt-1 block truncate text-sm font-black text-ink">
-                  {familyPortraitDigest.evidenceCount} 条线索 · 下一顿：{familyPortraitDigest.nextMove}
+                  {familyPortraitDigest.evidenceCount > 0
+                    ? `${familyPortraitDigest.evidenceCount} 次选择 · 下一顿${familyPortraitDigest.nextMove}`
+                    : "还没有记录，先安排今晚"}
                 </span>
               </span>
               <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-black text-ink/58">
@@ -366,7 +370,7 @@ export function UserCenter({
               <p className="eyebrow">这周家里的饭</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">Humi 正在记住这些变化</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                家人点过的感觉、买菜参与、想吃池和三餐记录会一起长成家庭画像。
+                家人想吃什么、谁去买菜和最近吃过什么，Humi 都会慢慢记住。
               </p>
             </div>
             {canManageHousehold && <button
@@ -391,7 +395,7 @@ export function UserCenter({
               <p className="eyebrow">家庭动态</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">最近大家怎么想吃</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                感觉征集、三餐记录和清单协作会沉淀在这里。设置放后面，需要改时再进。
+                家人的回复、三餐记录和买菜进度都会留在这里。
               </p>
             </div>
             {canManageHousehold && <button
@@ -430,10 +434,10 @@ export function UserCenter({
         <section data-testid="want-to-eat-section" className="relative overflow-hidden rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="eyebrow">想吃池</p>
+              <p className="eyebrow">最近想吃</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">平时想吃的，先放这里</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                从全部菜品点“想吃”会沉淀到这里。安排晚饭时可以一键拿出来做。
+                在全部菜品里点“想吃”，以后安排晚饭时可以直接从这里选。
               </p>
             </div>
             {canManageHousehold && <button
@@ -484,11 +488,11 @@ export function UserCenter({
               <p className="eyebrow">家庭成员</p>
               <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">谁正在参与这顿饭</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                主厨是正式拥有者；分享卡片点进来的家人先以临时身份参与，加入后再成为正式成员。
+                主厨负责菜单和家庭设置；通过分享卡片参与的人，也可以之后加入这个家。
               </p>
             </div>
             <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
-              {householdParticipants.length} 人/身份
+              {householdParticipants.length} 人
             </span>
           </div>
           <div className="mt-4 grid gap-3">
@@ -635,7 +639,7 @@ export function UserCenter({
               <p className="font-black">{humiSession ? "已通过微信登录" : wechatLoginEnabled ? "微信登录" : "游客模式"}</p>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/45">
                 {humiSession
-                  ? "菜单、画像和清单会优先跟随 Humi 账号。"
+                  ? "菜单、口味偏好和清单会优先跟随 Humi 账号。"
                   : wechatLoginEnabled
                   ? "小程序内会使用微信身份登录；游客仍可先完成晚饭安排。"
                   : "首发先不要求登录；核心菜单、计划和清单保存在当前设备。"}
@@ -686,7 +690,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
   function saveProfile() {
     setProfile(draft);
-    setStatus("硬避开项已保存。软口味会继续从感觉征集、想吃池和晚饭确认里学习。");
+    setStatus("忌口已经保存。其他口味会从问问大家、最近想吃和晚饭确认里慢慢了解。");
   }
 
   return (
@@ -706,7 +710,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
 
       {!session?.user && !signedIn && (
         <div className="mt-4 rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/52">
-          可以先填写体验；创建我的家后，菜单、清单状态和画像线索会一起保存。
+          可以先填写体验；创建我的家后，菜单、清单和口味偏好会一起保存。
         </div>
       )}
 
@@ -753,7 +757,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
       <div className="mt-5 border-t border-line pt-4">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">软口味来源</p>
         <p className="mt-2 text-sm font-bold leading-6 text-ink/58">
-          Humi 会优先从“问问大家”、想吃池、换一组原因和晚饭确认里学习，不再要求你手动填一张口味表。
+          Humi 会从“问问大家”、最近想吃、换一组的原因和晚饭确认里慢慢了解你家，不需要专门填一张口味表。
         </p>
       </div>
 
@@ -770,7 +774,7 @@ function FamilyProfilePanel({ session, signedIn, profile, setProfile }) {
         className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white transition hover:-translate-y-0.5"
       >
         <Check size={17} className="text-white" />
-        保存家庭画像
+        保存家庭偏好
       </button>
     </section>
   );
@@ -977,15 +981,15 @@ function buildHomeHeroState({
 }) {
   const familyMemberCount = Math.max(0, householdParticipants.length - 1);
   const stats = [
-    { label: "感觉回复", value: `${activeCraveVotes.length} 个` },
+    { label: "家人回复", value: `${activeCraveVotes.length} 个` },
     { label: "买菜进展", value: groceryItems.length > 0 ? `${checkedGroceryItems}/${groceryItems.length} 项` : `${claimedGroceryClaims} 人` },
-    { label: "想吃池", value: `${Math.max(wishPool.length, wishShareWishes.length)} 道` },
+    { label: "最近想吃", value: `${Math.max(wishPool.length, wishShareWishes.length)} 道` },
   ];
 
   if (family?.role === "member") {
     return {
       title: `${family.name || "我家"}里的家人`,
-      subtitle: "可以查看主厨的安排、补充自己的想吃和参与买菜；家庭菜单与忌口由主厨统一维护。",
+      subtitle: "可以看今晚的安排、补充想吃的菜，也可以一起买菜；菜单和忌口由主厨维护。",
       stats,
     };
   }
@@ -1022,14 +1026,14 @@ function buildHomeHeroState({
   if (wishShareWishes.length > 0) {
     return {
       title: `家人写了 ${wishShareWishes.length} 个想吃。`,
-      subtitle: "刷新想吃池后，主厨可以决定哪一道进入今晚菜单。",
+      subtitle: "刷新后就能看到这些菜，再决定今晚做哪一道。",
       stats,
     };
   }
 
   if (wishPool.length > 0) {
     return {
-      title: `想吃池里有 ${wishPool.length} 道菜。`,
+      title: `最近有 ${wishPool.length} 道想吃的菜。`,
       subtitle: `最新是“${wishPool[0]?.name || "一道菜"}”，今晚可以直接拿出来安排。`,
       stats,
     };
@@ -1038,7 +1042,7 @@ function buildHomeHeroState({
   if (sourceSummary.confirmed > 0 || sourceSummary.breakfast > 0 || sourceSummary.lunch > 0) {
     return {
       title: "三餐记录开始成形。",
-      subtitle: `早餐 ${sourceSummary.breakfast || 0} 次 · 午餐 ${sourceSummary.lunch || 0} 次 · 晚饭确认 ${sourceSummary.confirmed || 0} 次；画像正在成形。`,
+      subtitle: `早餐 ${sourceSummary.breakfast || 0} 次 · 午餐 ${sourceSummary.lunch || 0} 次 · 晚饭确认 ${sourceSummary.confirmed || 0} 次；Humi 正在慢慢了解你家的节奏。`,
       stats,
     };
   }
@@ -1047,9 +1051,9 @@ function buildHomeHeroState({
     title: signedIn ? "今晚可以从这里问大家。" : "先把今晚这顿顺起来。",
     subtitle: signedIn
       ? family
-        ? `现在有 ${familyMemberCount} 个家人/身份在这个家里；问一次感觉，动态就会沉淀到这里。`
+        ? `现在家里有 ${familyMemberCount} 位成员。问问大家，回复会留在这里。`
         : "已经登录。创建我的家后，菜单、清单和家人反馈就会一起保存。"
-      : "感觉、清单和画像先存在本机；要让家人一起用，再登录保存。",
+      : "菜单、清单和偏好会先存在本机；想和家人一起用时再登录。",
     stats,
   };
 }
@@ -1057,7 +1061,7 @@ function buildHomeHeroState({
 function buildPendingHeroSubtitle(context = {}) {
   if (context.type === "wish") {
     return context.dishWish
-      ? `${context.memberName || "家人"}写了想吃“${context.dishWish}”，可以收进想吃池继续安排。`
+      ? `${context.memberName || "家人"}写了想吃“${context.dishWish}”，以后安排晚饭时可以直接选。`
       : `${context.memberName || "家人"}写回了一道想吃的菜，可以收进家庭动态。`;
   }
   if (context.type === "crave") {
@@ -1068,7 +1072,7 @@ function buildPendingHeroSubtitle(context = {}) {
   if (context.claimStatus === "declined") {
     return `${context.memberName || "家人"}这次暂时买不了，主厨刷新后能看到这个状态。`;
   }
-  return `${context.memberName || "家人"}刚刚认领了买菜${context.itemCount ? ` · ${context.itemCount} 项` : ""}。`;
+  return `${context.memberName || "家人"}说可以去买菜${context.itemCount ? ` · ${context.itemCount} 项` : ""}。`;
 }
 
 function buildHouseholdParticipants({
@@ -1086,14 +1090,14 @@ function buildHouseholdParticipants({
     id: "owner",
     name: getUserDisplayName({ session, humiSession }),
     role: "主厨",
-    status: signedIn ? "正式成员" : "本机主厨",
-    meta: signedIn ? "可以发起征集、定菜单、管理这个家。" : "可以先体验完整流程；登录后保存为这个家的拥有者。",
+    status: signedIn ? "已加入" : "当前设备",
+    meta: signedIn ? "可以问大家、定菜单和管理这个家。" : "可以先体验；登录后把这个家保存下来。",
     icon: ChefHat,
     priority: 0,
   }];
   const seen = new Set(["owner"]);
 
-  function addParticipant({ key, name, role = "家人", status = "临时参与", meta, icon = UserRound, priority = 10 }) {
+  function addParticipant({ key, name, role = "家人", status = "通过分享参与", meta, icon = UserRound, priority = 10 }) {
     const safeName = String(name || "家人").trim() || "家人";
     const safeKey = key || `${role}:${safeName}`;
     const normalizedKey = safeKey.toLowerCase();
@@ -1127,7 +1131,7 @@ function buildHouseholdParticipants({
       key: member.participantKey || member.id || `member:${member.name}`,
       name: member.name || "家人",
       role: member.role || "家人",
-      status: member.status || "正式成员",
+      status: member.status === "正式成员" || member.status === "formal" ? "已加入" : member.status || "已加入",
       meta: member.lastSignal ? `${member.source || "家庭成员"} · ${member.lastSignal}` : `${member.source || "家庭成员"}加入。`,
       icon: Users,
       priority: 1,
@@ -1141,7 +1145,7 @@ function buildHouseholdParticipants({
       key: pendingJoinContext.participantKey || `pending:${pendingJoinContext.type}:${pendingJoinContext.memberName}`,
       name: pendingJoinContext.memberName || "家人",
       role: "家人",
-      status: "待转正",
+      status: "等待加入",
       meta: isWish
         ? pendingJoinContext.dishWish
           ? `刚才写了想吃“${pendingJoinContext.dishWish}”。`
@@ -1152,7 +1156,7 @@ function buildHouseholdParticipants({
           : `刚才点了“${pendingJoinContext.feelingTag || "随便都行"}”。`
         : pendingJoinContext.claimStatus === "declined"
           ? "刚才表示这次暂时买不了。"
-          : `刚才认领了买菜${pendingJoinContext.itemCount ? ` · ${pendingJoinContext.itemCount} 项` : ""}。`,
+          : `刚才说可以去买菜${pendingJoinContext.itemCount ? ` · ${pendingJoinContext.itemCount} 项` : ""}。`,
       icon: isWish ? Heart : isCrave ? MessageCircleHeart : ShoppingBasket,
       priority: 1,
     });
@@ -1163,7 +1167,7 @@ function buildHouseholdParticipants({
       key: vote.participantKey || `crave:${vote.memberName}`,
       name: vote.memberName || "家人",
       role: "家人",
-      status: vote.temporary === false ? "正式成员" : "临时参与",
+      status: vote.temporary === false ? "已加入" : "通过分享参与",
       meta: vote.dishWish
         ? `点了“${vote.feelingTag || "随便都行"}”，还提到“${vote.dishWish}”。`
         : `点了“${vote.feelingTag || "随便都行"}”。`,
@@ -1177,10 +1181,10 @@ function buildHouseholdParticipants({
       key: claim.participantKey || `grocery:${claim.memberName}`,
       name: claim.memberName || "家人",
       role: "家人",
-      status: claim.temporary === false ? "正式成员" : "临时参与",
+      status: claim.temporary === false ? "已加入" : "通过分享参与",
       meta: claim.status === "declined"
         ? claim.note ? `暂时买不了：${claim.note}` : "暂时买不了。"
-        : `认领了买菜${Array.isArray(claim.itemIds) && claim.itemIds.length > 0 ? ` · ${claim.itemIds.length} 项` : ""}。`,
+        : `说可以去买菜${Array.isArray(claim.itemIds) && claim.itemIds.length > 0 ? ` · ${claim.itemIds.length} 项` : ""}。`,
       icon: ShoppingBasket,
       priority: 3,
     });
@@ -1191,7 +1195,7 @@ function buildHouseholdParticipants({
       key: wish.participantKey || `wish:${wish.memberName}`,
       name: wish.memberName || "家人",
       role: "家人",
-      status: wish.temporary === false ? "正式成员" : "临时参与",
+      status: wish.temporary === false ? "已加入" : "通过分享参与",
       meta: wish.note
         ? `想吃“${wish.dishName || "一道菜"}”：${wish.note}`
         : `想吃“${wish.dishName || "一道菜"}”。`,
@@ -1205,7 +1209,7 @@ function buildHouseholdParticipants({
       key: vote.participantKey || `signal:${vote.memberName}`,
       name: vote.memberName || "家人",
       role: "家人",
-      status: vote.temporary === false ? "正式成员" : "临时参与",
+      status: vote.temporary === false ? "已加入" : "通过分享参与",
       meta: `之前点过“${vote.feelingTag || "随便都行"}”。`,
       icon: MessageCircleHeart,
       priority: 5,
@@ -1273,8 +1277,8 @@ function PortraitReceiptPreview({ digest, tierDigest, onViewChange }) {
     <section className="rounded-[24px] border border-line bg-white p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">画像回执</p>
-          <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">自然动作已经在生成画像</h3>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Humi 记住了什么</p>
+          <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">你的日常选择，正在让推荐更懂你家</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
             {digest.summary}
           </p>
@@ -1284,17 +1288,17 @@ function PortraitReceiptPreview({ digest, tierDigest, onViewChange }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <ReceiptPreviewField label="当前判断" value={digest.leadingSignal} />
-        <ReceiptPreviewField label="下一顿会用" value={digest.nextMove} />
-        <ReceiptPreviewField label="质量层" value={digest.qualityLayer} />
+        <ReceiptPreviewField label="最近记住" value={digest.leadingSignal} />
+        <ReceiptPreviewField label="下顿会先考虑" value={digest.nextMove} />
+        <ReceiptPreviewField label="推荐状态" value={digest.qualityLayer} />
       </div>
       <div className="mt-3 rounded-[18px] bg-canvas p-3">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">体验边界</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">哪些功能可以一直用</p>
         <p className="mt-1 text-sm font-black leading-6 text-ink">
-          免费无限：感觉征集、买菜认领、想吃池、清单、基础推荐。
+          问问大家、一起买菜、最近想吃、清单和基础推荐都可以一直用。
         </p>
         <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
-          精准质量层：{tierDigest.badge}。{tierDigest.rows.find((row) => row.id === "tier-precise")?.value}
+          更懂你家的推荐：{tierDigest.badge}。{tierDigest.rows.find((row) => row.id === "tier-precise")?.value}
         </p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -1349,8 +1353,8 @@ function PendingJoinCard({ context, signedIn, onClear, onAccept }) {
           </p>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
             {signedIn
-              ? "你已经在 Humi 里。点“收进家庭成员”后，这次临时参与才会合并成正式成员记录。"
-              : "现在只是临时参与，可以继续看今晚菜单和清单；登录后再转成正式成员。"}
+              ? "你已经登录 Humi。点“加入这个家”后，刚才的回复会和你的家庭账号放在一起。"
+              : "刚才的回复已经保留。登录后加入这个家，以后就能一起看菜单和清单。"}
           </p>
         </div>
         <span className="w-fit rounded-full bg-canvas px-3 py-2 text-xs font-black text-ink/52">
@@ -1364,7 +1368,7 @@ function PendingJoinCard({ context, signedIn, onClear, onAccept }) {
             onClick={onAccept}
             className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-black text-white"
           >
-            收进家庭成员
+            加入这个家
           </button>
         )}
         <button
@@ -1397,10 +1401,10 @@ function HouseholdActions({
     <div data-testid="household-switcher" className="mt-5 border-t border-line pt-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">当前家庭空间</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/38">现在看的家</p>
           <h4 className="mt-1 text-xl font-black tracking-[-0.03em]">{family.name || "我的家"}</h4>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
-            {isOwner ? "你是主厨，可以邀请家人；不同家庭的菜单、清单和画像会分开保存。" : "你是家人，可以参与菜单、清单和征集；邀请新成员由主厨发起。"}
+            {isOwner ? "你是主厨，可以邀请家人；不同家庭的菜单、清单和偏好会分开保存。" : "你是家人，可以看菜单、一起买菜，也能回复想吃什么；邀请新成员由主厨发起。"}
           </p>
         </div>
         {isOwner && (
@@ -1527,14 +1531,14 @@ function FamilyCraveComposer({
     <section className="mt-4 rounded-[24px] border border-line bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">感觉征集单</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">问问大家</p>
           <h4 className="mt-1 text-xl font-black tracking-[-0.04em]">
-            {hasRequest ? "征集单已经在路上" : "今晚想问问大家什么感觉？"}
+            {hasRequest ? "已经可以发给家人了" : "今晚想先照顾哪种感觉？"}
           </h4>
           <p className="mt-1 text-sm font-bold leading-6 text-ink/52">
             {hasRequest
               ? "家人打开卡片后免登录点一个感觉；回复会回到这里。"
-              : "先选一个兜底感觉。家人没人回，也能按这个和家里忌口直接出菜单。"}
+              : "先选一个大致方向。就算没人回复，Humi 也会按这个和家里的忌口来安排。"}
           </p>
         </div>
         <button
@@ -1615,7 +1619,7 @@ function FamilyCraveComposer({
           />
           <div className="rounded-[20px] border border-line bg-canvas p-3">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">
-              {activeRequest.status === "closed" ? "已收口" : "等待回复"}
+              {activeRequest.status === "closed" ? "征集已结束" : "等待回复"}
             </p>
             <p className="mt-2 text-lg font-black">
               {votes.length > 0 ? `收到 ${votes.length} 个感觉` : "还没人回复，也可以直接出菜单"}
@@ -1662,7 +1666,7 @@ function CraveReceiptTemplate({ selectedFeeling }) {
     <div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">征集单模板</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">家人会看到</p>
           <p className="mt-2 text-lg font-black">我家今晚要做饭，你想吃点啥？</p>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
             家人点开第一屏就是感觉标签，不需要登录、不需要加入家庭。
@@ -1673,9 +1677,9 @@ function CraveReceiptTemplate({ selectedFeeling }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <ReceiptField label="兜底感觉" value={fallbackFeeling} />
-        <ReceiptField label="家人动作" value="免登录点感觉" />
-        <ReceiptField label="主厨收口" value="刷新后出菜单" />
+        <ReceiptField label="没人回复时" value={fallbackFeeling} />
+        <ReceiptField label="家人怎么回" value="不用登录，点一下" />
+        <ReceiptField label="你回来后" value="刷新回复，再出菜单" />
       </div>
     </div>
   );
@@ -1683,7 +1687,7 @@ function CraveReceiptTemplate({ selectedFeeling }) {
 
 function CraveReceipt({ request, votes = [], fallbackFeeling = "随便都行" }) {
   const receiptNo = formatCraveReceiptNo(request);
-  const statusLabel = request?.status === "closed" ? "已收口" : "征集中";
+  const statusLabel = request?.status === "closed" ? "已结束" : "等大家回复";
   const starterFeeling = request?.starterFeeling || fallbackFeeling || "随便都行";
   const audienceLabel = formatAudienceLabel(request);
   const latestVote = votes[0];
@@ -1692,8 +1696,8 @@ function CraveReceipt({ request, votes = [], fallbackFeeling = "随便都行" })
     <section className="rounded-[22px] border border-ink bg-ink p-4 text-white">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">Humi Taste Receipt</p>
-          <h4 className="mt-2 text-2xl font-black tracking-[-0.04em]">今晚口味征集单</h4>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">今晚问问大家</p>
+          <h4 className="mt-2 text-2xl font-black tracking-[-0.04em]">大家今晚想吃什么</h4>
           <p className="mt-1 text-xs font-bold leading-5 text-white/58">
             {receiptNo} · {statusLabel} · {formatCraveReceiptTime(request?.createdAt)}
           </p>
@@ -1703,10 +1707,10 @@ function CraveReceipt({ request, votes = [], fallbackFeeling = "随便都行" })
         </span>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <ReceiptField dark label="兜底感觉" value={starterFeeling} />
-        <ReceiptField dark label="目标家人" value={audienceLabel} />
+        <ReceiptField dark label="没人回复时" value={starterFeeling} />
+        <ReceiptField dark label="问了谁" value={audienceLabel} />
         <ReceiptField dark label="最新回复" value={latestVote ? `${latestVote.memberName || "家人"} · ${latestVote.feelingTag || "随便都行"}` : "等待家人"} />
-        <ReceiptField dark label="收口动作" value={request?.status === "closed" ? "已进入菜单揉合" : "可随时出菜单"} />
+        <ReceiptField dark label="接下来" value={request?.status === "closed" ? "正在安排菜单" : "随时可以出菜单"} />
       </div>
       <div className="mt-3 rounded-[18px] border border-white/12 bg-white/[0.06] p-3">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">回复明细</p>
@@ -1722,7 +1726,7 @@ function CraveReceipt({ request, votes = [], fallbackFeeling = "随便都行" })
             ))
           ) : (
             <p className="text-sm font-bold leading-6 text-white/58">
-              家人回复后会按一人一行出现在这里；没人回也能按兜底感觉和忌口出菜单。
+              家人的回复会一条条出现在这里；没人回也能按你选的方向和忌口出菜单。
             </p>
           )}
         </div>
@@ -1759,7 +1763,7 @@ function GroceryCollaborationSummary({ request, checkedNames = [], pendingNames 
     <section className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">买菜协作</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">一起买菜</p>
           <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">谁买了，谁买不了</h4>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
             {checkedNames.length > 0
@@ -1786,7 +1790,7 @@ function GroceryCollaborationSummary({ request, checkedNames = [], pendingNames 
                   claim.status === "declined" ? "bg-canvas text-ink/52" : "bg-ink text-white"
                 }`}
                 >
-                  {claim.status === "declined" ? "买不了" : `认领 ${claim.itemIds?.length ?? 0} 项`}
+                  {claim.status === "declined" ? "这次买不了" : `负责 ${claim.itemIds?.length ?? 0} 项`}
                 </span>
               </div>
               <p className="mt-2 text-xs font-bold leading-5 text-ink/45">
@@ -1796,7 +1800,7 @@ function GroceryCollaborationSummary({ request, checkedNames = [], pendingNames 
           ))
         ) : (
           <div className="rounded-[18px] bg-white px-4 py-3 text-sm font-bold leading-6 text-ink/52">
-            清单已经发出。家人认领或标记已买后，会回到这里。
+            清单发出去后，谁来买、买了什么都会显示在这里。
           </div>
         )}
       </div>
@@ -1810,11 +1814,11 @@ function WishShareSummary({ request, onRefresh, onShare }) {
     <section className="mt-4 rounded-[22px] border border-line bg-canvas p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">想吃征集</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">问问最近想吃什么</p>
           <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">家人正在写想吃的菜</h4>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
             {wishes.length > 0
-              ? `已经收到 ${wishes.length} 个想吃回复，刷新后会沉淀到想吃池。`
+              ? `已经收到 ${wishes.length} 个回复，刷新后会放进“最近想吃”。`
               : "把入口发给家人，家人免登录写一道菜。"}
           </p>
         </div>
@@ -1883,7 +1887,7 @@ function formatGroceryClaimMeta(request, claim) {
   const itemIds = Array.isArray(claim.itemIds) ? claim.itemIds : [];
   const claimedItems = (request?.items ?? []).filter((item) => itemIds.includes(item.id));
   const checkedCount = claimedItems.filter((item) => item.checked).length;
-  const progress = claimedItems.length > 0 ? `已买 ${checkedCount}/${claimedItems.length}` : "买菜协作";
+  const progress = claimedItems.length > 0 ? `已买 ${checkedCount}/${claimedItems.length}` : "一起买菜";
   const itemNames = claimedItems.map((item) => item.name).slice(0, 3).join("、");
   const itemText = itemNames ? ` · ${itemNames}${claimedItems.length > 3 ? "…" : ""}` : "";
   return claim.note ? `${progress}${itemText} · ${claim.note}` : `${progress}${itemText}`;
@@ -1922,7 +1926,7 @@ function buildActiveCraveActivities(request) {
     {
       id: `active-crave:${request.token}`,
       title: votes.length > 0 ? `${statusText}：收到 ${votes.length} 个感觉` : `${statusText}：等待家人点感觉`,
-      meta: votes.length > 0 ? activeCraveMeta(request, votes) : "感觉征集",
+      meta: votes.length > 0 ? activeCraveMeta(request, votes) : "问问大家",
     },
     ...votes.slice(0, 3).map((vote) => ({
       id: `active-crave:${request.token}:${vote.id || vote.participantKey || vote.memberName || vote.createdAt}`,
@@ -2008,7 +2012,7 @@ function buildFamilyPulseRows({
   householdParticipants = [],
 }) {
   const feelingText = tasteReflections.find((item) => item.id === "feeling")?.value || "还没有家人回复，先从今晚问一次开始。";
-  const wishText = tasteReflections.find((item) => item.id === "wish")?.value || "想吃池还空着。";
+  const wishText = tasteReflections.find((item) => item.id === "wish")?.value || "最近还没有记下想吃的菜。";
   const homeCount = Number(sourceSummary.home || 0);
   const awayCount = Number(sourceSummary.delivery || 0) + Number(sourceSummary.outside || 0);
   const confirmedCount = Number(sourceSummary.confirmed || 0);
@@ -2022,11 +2026,11 @@ function buildFamilyPulseRows({
     {
       id: "family-feeling",
       icon: MessageCircleHeart,
-      label: "感觉趋势",
+      label: "最近想吃的感觉",
       title: feelingText.startsWith("还没有") ? "还没形成趋势" : feelingText,
       text: activeCraveVotes.length > 0
         ? `本次已经收到 ${activeCraveVotes.length} 个回复，会影响今晚菜单。`
-        : "每次点一个感觉，都会慢慢变成你家的口味线索。",
+        : "每次点一个感觉，Humi 都会更了解你家最近想吃什么。",
     },
     {
       id: "family-rhythm",
@@ -2035,22 +2039,22 @@ function buildFamilyPulseRows({
       title: mealRecordCount > 0 ? `已留下 ${mealRecordCount} 条三餐记录` : "还在等第一条记录",
       text: mealRecordCount > 0
         ? `早餐 ${breakfastCount} 次 · 午餐 ${lunchCount} 次 · 晚饭确认 ${confirmedCount} 次；晚饭在家做 ${homeCount} 次，外食/外卖 ${awayCount} 次。`
-        : "早餐选一次、午餐记来源或晚饭点确认，画像就会开始反射。",
+        : "记一次早餐、午餐或晚饭，Humi 就会慢慢了解你家的吃饭节奏。",
     },
     {
       id: "family-collaboration",
       icon: Users,
-      label: "协作参与",
-      title: participantCount > 0 ? `${participantCount} 个家人/身份参与过` : "先从一个家人开始",
+      label: "家人参与",
+      title: participantCount > 0 ? `${participantCount} 位家人参与过` : "先从一位家人开始",
       text: claimedCount > 0
-        ? `买菜已有 ${claimedCount} 次认领；临时身份加入后会合并成正式成员。`
-        : "感觉回复、买菜认领和想吃池都会沉淀到这里。",
+        ? `已经有 ${claimedCount} 次家人帮忙买菜；通过分享参与的人也可以加入这个家。`
+        : "家人的回复、买菜进度和最近想吃都会留在这里。",
     },
     {
       id: "family-wish",
       icon: Heart,
-      label: "想吃池",
-      title: wishPool.length > 0 ? `${wishPool.length} 道想吃` : "还没有想吃池",
+      label: "最近想吃",
+      title: wishPool.length > 0 ? `${wishPool.length} 道想吃` : "还没有记下想吃的菜",
       text: wishPool.length > 0 ? wishText : "去全部菜品点心形，下一次安排晚饭时就能直接拿来做。",
     },
   ];
@@ -2082,34 +2086,34 @@ function buildFamilyPortraitDigest({
       ? `${wishPool.length} 道想吃`
       : mealRecordCount > 0
         ? `${mealRecordCount} 条三餐记录`
-        : "等待第一条线索";
+        : "还没有记录";
   const nextMove = activeCraveVotes.length > 0
     ? "先照顾本次感觉"
     : wishPool.length > 0
-      ? "优先补想吃池"
+      ? "优先看看最近想吃"
       : mealRecordCount > 0
         ? "延续吃饭节奏"
         : "先给省心组合";
   const summary = hasUsefulEvidence
-    ? `Humi 已经把 ${evidenceCount} 条自然动作整理成画像线索。下一次推荐会先看本次感觉，再参考想吃池、三餐记录和避雷原因。`
-    : "还没有足够画像也没关系。先安排一顿，点一次感觉或确认一次晚饭，Humi 就会开始形成你家的回执。";
+    ? `Humi 已经记住 ${evidenceCount} 次选择。下次推荐会先看大家这次想吃什么，再参考最近想吃、三餐记录和换菜原因。`
+    : "还没有记录也没关系。先安排一顿，问一次大家或确认一次晚饭，Humi 就会慢慢了解你家。";
 
   return {
     evidenceCount,
     leadingSignal,
     nextMove,
-    qualityLayer: validationSummary.rejectedReasonCaptureRate > 0 ? "已开始避雷" : "基础画像可用",
+    qualityLayer: validationSummary.rejectedReasonCaptureRate > 0 ? "会避开不喜欢的" : "正在了解你家",
     summary,
     rows: [
       {
         id: "portrait-feeling",
-        label: "感觉证据",
+        label: "家人最近的感觉",
         value: feelingReflection?.value || "还没有家人回复，先从今晚问一次开始。",
       },
       {
         id: "portrait-wish",
-        label: "想吃证据",
-        value: wishReflection?.value || "想吃池还空着，看到想吃的先点心形。",
+        label: "最近想吃",
+        value: wishReflection?.value || "还没有记下想吃的菜，看到喜欢的先点心形。",
       },
       {
         id: "portrait-rhythm",
@@ -2118,8 +2122,8 @@ function buildFamilyPortraitDigest({
       },
       {
         id: "portrait-avoid",
-        label: "避雷线索",
-        value: feedbackReflection?.value || "点过“不想吃”的原因会变成下次推荐的避雷线索。",
+        label: "不太想吃什么",
+        value: feedbackReflection?.value || "点过“不想吃”的原因，下次推荐会尽量避开。",
       },
     ],
   };
@@ -2134,17 +2138,17 @@ function buildExperienceTierDigest({
   const statusText = String(aiRecommendationStatus || "").trim();
   const preciseBlocked = statusText.includes("尝鲜已用完") || statusText.includes("基础推荐仍可无限使用");
   const preciseState = preciseRecommendationAvailable
-    ? "精准质量层可用"
+    ? "更懂你家的推荐可用"
     : preciseBlocked
-      ? "精准尝鲜已用完"
+      ? "本次尝鲜已用完"
       : signedIn
-        ? "等待精准入口"
-        : "登录后可尝鲜精准";
+        ? "可以尝试更准的推荐"
+        : "登录后可以尝鲜";
   const summary = preciseRecommendationAvailable
-    ? "协作、清单和基础推荐继续免费无限；当前可以尝试精准 API 推荐，它会消耗真实算力，所以只作为质量层。"
+    ? "问问大家、清单和基础推荐都可以一直用；现在也可以试试更懂你家的推荐。"
     : preciseBlocked
-      ? "精准推荐尝鲜已经收口；基础推荐、感觉征集、买菜认领、想吃池和清单仍然不按次数收费。"
-      : "当前先用免费基础能力跑完整闭环。登录后可以尝鲜精准 API 推荐，但协作和基础推荐不会因为次数被卡住。";
+      ? "本次更准推荐的尝鲜已经用完；问问大家、一起买菜、最近想吃、清单和基础推荐仍然可以一直用。"
+      : "现在可以先用基础推荐。登录后能尝试更懂你家的推荐，其他功能不会受影响。";
 
   return {
     preciseAvailable: preciseRecommendationAvailable,
@@ -2154,23 +2158,23 @@ function buildExperienceTierDigest({
       {
         id: "tier-free-collaboration",
         label: "免费无限",
-        value: "感觉征集、买菜认领、想吃池、清单、基础推荐",
+        value: "问问大家、一起买菜、最近想吃、清单、基础推荐",
       },
       {
         id: "tier-precise",
-        label: "精准质量层",
+        label: "更懂你家的推荐",
         value: preciseRecommendationAvailable
-          ? "已可用：会结合家庭画像和反馈重新核对菜单"
+          ? "已可用：会结合你家的口味、习惯和反馈再检查一遍菜单"
           : preciseBlocked
             ? "尝鲜已用完：继续自动回到基础推荐"
             : signedIn
-              ? "登录态已在，等待精准推荐入口触发"
-              : "需要登录后尝鲜，不影响基础功能",
+              ? "已经登录，可以在推荐页尝试"
+              : "登录后可以尝鲜，不影响基础功能",
       },
       {
         id: "tier-owner",
-        label: "拥有者边界",
-        value: humiSession?.user ? "主厨身份可保存家庭画像和云端状态" : "家人可免登录参与；拥有和保存需要主厨登录",
+        label: "谁来保存这个家",
+        value: humiSession?.user ? "主厨可以保存这个家的菜单、偏好和进度" : "家人可以免登录参与；主厨登录后负责保存",
       },
     ],
   };
@@ -2200,10 +2204,10 @@ function buildTasteReflections({ craveSignals = [], wishPool = [], mealLogs = {}
 
   rows.push({
     id: "wish",
-    label: "想吃池",
+    label: "最近想吃",
     value: wishPool.length > 0
       ? `${wishPool.length} 道想吃，最新是 ${wishPool[0]?.name ?? "一道菜"}`
-      : "还没收藏想吃的菜，去全部菜品点心形就会沉淀。",
+      : "还没收藏想吃的菜，去全部菜品点一下心形就会出现在这里。",
   });
 
   const confirmedLogs = Object.values(mealLogs).filter((log) => log?.confirmation === "all");
@@ -2240,7 +2244,7 @@ function buildTasteReflections({ craveSignals = [], wishPool = [], mealLogs = {}
     label: "避雷方向",
     value: topReason
       ? `最近最常避开：${topReason[0]}。`
-      : "点过“不想吃”的原因会变成下次推荐的避雷线索。",
+      : "点过“不想吃”的原因，下次推荐会尽量避开。",
   });
 
   return rows;

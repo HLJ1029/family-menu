@@ -1,5 +1,5 @@
 <view class="share-shell">
-  <view>
+  <view class="share-content">
     <view class="brand-row">
       <view class="brand-dot"></view>
       <text>HUMI</text>
@@ -9,6 +9,12 @@
       <view class="eyebrow">{{eyebrow}}</view>
       <view class="title">{{title}}</view>
       <view class="body">{{body}}</view>
+      <view class="detail-list">
+        <view class="detail-row" wx:for="{{detailRows}}" wx:key="label">
+          <text class="detail-label">{{item.label}}</text>
+          <text class="detail-value">{{item.value}}</text>
+        </view>
+      </view>
       <view class="meta-row">
         <text>{{householdName}}</text>
         <text>{{meta}}</text>
@@ -17,7 +23,8 @@
   </view>
 
   <view class="actions">
-    <button class="primary-button" open-type="share">发送给家人</button>
+    <view class="share-helper">{{helper}}</view>
+    <button class="hero-share-button primary-button" open-type="share">{{actionLabel}}</button>
     <button class="ghost-button" bindtap="goBack">返回 Humi</button>
   </view>
 </view>

@@ -19,7 +19,7 @@
     "validate:api": "HUMI_WECHAT_MOCK=1 HUMI_API_DATA_FILE=/tmp/humi-api-smoke.json node scripts/smoke-humi-api.mjs",
     "validate:crave-template": "node scripts/check-crave-sheet-template.mjs",
     "validate:recommendation": "node scripts/check-recommendation-constraints.mjs",
-    "validate:share-bridge": "node scripts/check-mini-program-share-bridge.mjs",
+    "validate:share-bridge": "node scripts/validate-mini-share-runtime.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",

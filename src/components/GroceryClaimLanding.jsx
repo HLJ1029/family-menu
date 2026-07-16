@@ -60,7 +60,7 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
       setClaimed(true);
       setClaimStatus(nextStatus);
     } catch (error) {
-      setStatus(error.message || "暂时没认领成功，请稍后再试。");
+      setStatus(error.message || "暂时没能告诉主厨，请稍后再试。");
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +141,7 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
                 顺路带这些就够了
               </h1>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
-                不用登录。先认领，买的时候照着勾；主厨刷新后会看到进展。
+                不用登录。先选你方便买的，买到后照着勾；主厨刷新就能看到。
               </p>
             </div>
             <HumiScene
@@ -155,18 +155,18 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
           <div className="mt-5 grid grid-cols-3 gap-2">
             <SummaryPill label="清单" value={`${items.length} 项`} />
             <SummaryPill label="已买" value={`${checkedCount}/${items.length}`} />
-            <SummaryPill label="认领" value={`${claimedCount} 人`} />
+            <SummaryPill label="有人去买" value={`${claimedCount} 人`} />
           </div>
 
           {claims.length > 0 && (
             <div className="mt-4 rounded-[22px] border border-line bg-canvas p-3">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">协作进展</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">大家的进度</p>
               <div className="mt-2 grid gap-2">
                 {claims.slice(0, 4).map((claim) => (
                   <div key={claim.id || claim.participantKey || claim.createdAt} className="flex items-center justify-between gap-3 rounded-[16px] bg-white px-3 py-2">
                     <span className="min-w-0 truncate text-sm font-black">{claim.memberName || "家人"}</span>
                     <span className="shrink-0 rounded-full bg-canvas px-3 py-1.5 text-xs font-black text-ink/58">
-                      {claim.status === "declined" ? "暂时买不了" : `认领 ${claim.itemIds?.length ?? 0} 项`}
+                      {claim.status === "declined" ? "这次不方便" : `负责 ${claim.itemIds?.length ?? 0} 项`}
                     </span>
                   </div>
                 ))}
@@ -208,7 +208,7 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
             <div className="mt-6 rounded-[24px] bg-canvas p-5">
               {claimStatus === "declined" ? <XCircle size={28} /> : <CheckCircle2 size={28} />}
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">
-                {claimStatus === "declined" ? "已告诉主厨" : "已认领"}
+                {claimStatus === "declined" ? "已经告诉主厨" : "好，这些你来买"}
               </h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
                 {claimStatus === "declined"

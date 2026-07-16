@@ -113,11 +113,11 @@ try {
 
   await page.goto(withQuery(baseUrl, "groceryShare", "grocery-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "顺路带这些就够了" }).waitFor({ timeout: 15_000 });
-  const groceryFirstScreen = await page.getByText("不用登录。先认领，买的时候照着勾；主厨刷新后会看到进展。").isVisible();
+  const groceryFirstScreen = await page.getByText("不用登录。先选你方便买的，买到后照着勾；主厨刷新就能看到。").isVisible();
   const groceryFirstScreenScreenshot = join(evidenceDir, "grocery-guest-first-screen-mobile.png");
   await page.screenshot({ path: groceryFirstScreenScreenshot });
   await page.getByRole("button", { name: "我来买 1 项" }).click();
-  await page.getByRole("heading", { name: "已认领" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("heading", { name: "好，这些你来买" }).waitFor({ timeout: 15_000 });
   const groceryScreenshot = join(evidenceDir, "grocery-guest-mobile.png");
   await page.screenshot({ path: groceryScreenshot });
 
@@ -125,7 +125,7 @@ try {
   await page.getByRole("heading", { name: "你最近想吃什么？" }).waitFor({ timeout: 15_000 });
   await page.getByPlaceholder("比如：糖醋排骨、番茄牛腩、凉拌黄瓜").fill("牛肉面");
   await page.getByRole("button", { name: "发给主厨" }).click();
-  await page.getByRole("heading", { name: "收到，已经放进想吃池候选。" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("heading", { name: "收到，已经记下了。" }).waitFor({ timeout: 15_000 });
   const wishScreenshot = join(evidenceDir, "wish-guest-mobile.png");
   await page.screenshot({ path: wishScreenshot });
 

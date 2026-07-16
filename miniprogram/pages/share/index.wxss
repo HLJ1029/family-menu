@@ -7,7 +7,7 @@ page {
 .share-shell {
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 56rpx 40rpx 64rpx;
+  padding: 44rpx 36rpx 48rpx;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -31,10 +31,10 @@ page {
 }
 
 .share-card {
-  margin-top: 52rpx;
-  padding: 44rpx;
+  margin-top: 38rpx;
+  padding: 40rpx;
   border: 2rpx solid rgba(17, 17, 17, 0.1);
-  border-radius: 32rpx;
+  border-radius: 28rpx;
   background: #ffffff;
   box-shadow: 0 24rpx 80rpx rgba(17, 17, 17, 0.08);
 }
@@ -47,8 +47,8 @@ page {
 
 .title {
   margin-top: 18rpx;
-  font-size: 56rpx;
-  line-height: 1.08;
+  font-size: 50rpx;
+  line-height: 1.14;
   font-weight: 900;
 }
 
@@ -60,8 +60,38 @@ page {
   font-weight: 700;
 }
 
+.detail-list {
+  margin-top: 32rpx;
+  border-top: 2rpx solid rgba(17, 17, 17, 0.08);
+}
+
+.detail-row {
+  padding: 24rpx 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28rpx;
+  border-bottom: 2rpx solid rgba(17, 17, 17, 0.08);
+}
+
+.detail-label {
+  flex-shrink: 0;
+  color: rgba(17, 17, 17, 0.42);
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.detail-value {
+  max-width: 390rpx;
+  color: #111111;
+  font-size: 24rpx;
+  line-height: 1.45;
+  text-align: right;
+  font-weight: 800;
+}
+
 .meta-row {
-  margin-top: 36rpx;
+  margin-top: 28rpx;
   display: flex;
   justify-content: space-between;
   gap: 24rpx;
@@ -71,7 +101,17 @@ page {
 }
 
 .actions {
-  padding-top: 48rpx;
+  padding-top: 36rpx;
+}
+
+.share-helper {
+  margin-bottom: 18rpx;
+  padding: 0 20rpx;
+  color: rgba(17, 17, 17, 0.5);
+  font-size: 24rpx;
+  line-height: 1.5;
+  text-align: center;
+  font-weight: 700;
 }
 
 .primary-button,
