@@ -31,100 +31,83 @@ assert.equal(
   "/pages/share/index?type=crave&token=abc+123&householdName=%E6%88%91%E5%AE%B6",
 );
 
-globalThis.window = {
-  location: { search: "?channel=wechat-miniprogram" },
-  setTimeout,
-  clearTimeout,
-  postedMessages: [],
-  wx: {
-    miniProgram: {
-      postMessage(message) {
-        globalThis.window.postedMessages.push(message);
-      },
-      navigateTo({ url, success }) {
-        assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
-        success?.();
-      },
-    },
+const primaryNavigation = createRuntimeWindow({
+  redirectTo({ url, success, leavePage }) {
+    assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
+    success?.();
+    leavePage();
   },
-};
-
+  navigateTo() {
+    assert.fail("navigateTo should not run after redirectTo actually leaves the web-view");
+  },
+});
+globalThis.window = primaryNavigation.window;
 assert.equal(
-  await requestMiniProgramShare({ type: "grocery", token: "grocery-token", itemCount: 3 }, { timeoutMs: 20 }),
-  "opened",
+  await requestMiniProgramShare(
+    { type: "grocery", token: "grocery-token", itemCount: 3 },
+    { timeoutMs: 100, confirmationMs: 10 },
+  ),
+  "handoff",
+);
+
+const falsePositiveFallback = createRuntimeWindow({
+  redirectTo({ url, success }) {
+    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
+    success?.();
+  },
+  navigateTo({ url, success, leavePage }) {
+    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
+    success?.();
+    leavePage();
+  },
+});
+globalThis.window = falsePositiveFallback.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "crave", token: "retry-token" },
+    { timeoutMs: 100, confirmationMs: 10 },
+  ),
+  "handoff",
 );
 assert.deepEqual(
-  globalThis.window.postedMessages[0],
-  {
-    data: {
-      type: "humi:share",
-      payload: { type: "grocery", token: "grocery-token", itemCount: 3 },
-    },
+  falsePositiveFallback.calls,
+  ["redirectTo", "navigateTo"],
+  "a callback without a real page leave should fall back to the second native navigation method",
+);
+
+const fakeSuccessOnly = createRuntimeWindow({
+  redirectTo({ success }) {
+    success?.();
   },
-  "mini-program share should post payload to the host page before opening native share page",
-);
-
-globalThis.window.wx.miniProgram.navigateTo = ({ fail }) => {
-  fail?.({ errMsg: "navigateTo:fail" });
-};
-
+  navigateTo({ success }) {
+    success?.();
+  },
+});
+globalThis.window = fakeSuccessOnly.window;
 assert.equal(
-  await requestMiniProgramShare({ type: "crave", token: "bad-token" }, { timeoutMs: 20 }),
+  await requestMiniProgramShare(
+    { type: "today_menu", title: "今晚菜单" },
+    { timeoutMs: 80, confirmationMs: 10 },
+  ),
   "unavailable",
+  "native callbacks alone must not be reported as a successful share handoff",
 );
 
-globalThis.window.wx.miniProgram.redirectTo = ({ url, success }) => {
-  assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
-  success?.();
-};
-
+const allFailed = createRuntimeWindow({
+  redirectTo({ fail }) {
+    fail?.({ errMsg: "redirectTo:fail" });
+  },
+  navigateTo() {
+    throw new Error("navigateTo bridge unavailable");
+  },
+});
+globalThis.window = allFailed.window;
 assert.equal(
-  await requestMiniProgramShare({ type: "crave", token: "retry-token" }, { timeoutMs: 20 }),
-  "opened",
-);
-
-globalThis.window.wx.miniProgram.navigateTo = () => {
-  throw new Error("navigateTo bridge unavailable");
-};
-globalThis.window.wx.miniProgram.redirectTo = ({ url, success }) => {
-  assert.equal(url, "/pages/share/index?type=grocery&token=throw-token&itemCount=2");
-  success?.();
-};
-
-assert.equal(
-  await requestMiniProgramShare({ type: "grocery", token: "throw-token", itemCount: 2 }, { timeoutMs: 20 }),
-  "opened",
-);
-
-delete globalThis.window.wx.miniProgram.redirectTo;
-
-globalThis.window.wx.miniProgram.navigateTo = ({ url }) => {
-  assert.equal(url, "/pages/share/index?type=today_menu&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95");
-};
-
-assert.equal(
-  await requestMiniProgramShare({ type: "today_menu", title: "今晚菜单" }, { timeoutMs: 20 }),
+  await requestMiniProgramShare(
+    { type: "wish", token: "wish-token", householdName: "小家" },
+    { timeoutMs: 80, confirmationMs: 10 },
+  ),
   "unavailable",
-);
-
-globalThis.window.wx.miniProgram.navigateTo = ({ url, success }) => {
-  assert.equal(url, "/pages/share/index?type=today_menu&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95");
-  success?.();
-};
-
-assert.equal(
-  await requestMiniProgramShare({ type: "today_menu", title: "今晚菜单" }, { timeoutMs: 20 }),
-  "opened",
-);
-
-globalThis.window.wx.miniProgram.navigateTo = ({ url, success }) => {
-  assert.equal(url, "/pages/share/index?type=wish&token=wish-token&householdName=%E5%B0%8F%E5%AE%B6");
-  success?.();
-};
-
-assert.equal(
-  await requestMiniProgramShare({ type: "wish", token: "wish-token", householdName: "小家" }, { timeoutMs: 20 }),
-  "opened",
 );
 
 delete globalThis.window;
@@ -161,9 +144,6 @@ function assertMiniProgramSharePage(basePath, { requiresOpenTypeButton, supports
   assert.match(js, /onShow\s*\(/, `${basePath}.js should re-enable share menu on show`);
   if (basePath.endsWith("/index/index")) {
     assert.match(js, /humi:share/, `${basePath}.js should receive H5 share bridge messages`);
-    assert.match(js, /openSharePage\(params\)/, `${basePath}.js should route share messages through a share-page helper`);
-    assert.match(js, /wx\.navigateTo\s*\(/, `${basePath}.js should try native navigation to the share page`);
-    assert.match(js, /wx\.redirectTo\s*\(/, `${basePath}.js should fall back when native share-page navigation fails`);
   }
   assert.equal("enableShareAppMessage" in json, false, `${basePath}.json should not use unsupported enableShareAppMessage config`);
   assert.equal("enableShareTimeline" in json, false, `${basePath}.json should not use unsupported enableShareTimeline config`);
@@ -177,21 +157,73 @@ function assertNativeShareReceiptTemplate() {
   const js = readFileSync("miniprogram/pages/share/index.js", "utf8");
   const wxml = readFileSync("miniprogram/pages/share/index.wxml", "utf8");
   const wxss = readFileSync("miniprogram/pages/share/index.wxss", "utf8");
-  assert.match(wxml, /receiptRows/, "native share page should render receipt rows");
-  assert.match(wxml, /receipt-label/, "native share page should render receipt labels");
-  assert.match(wxss, /\.receipt-row/, "native share page should style receipt rows");
-  ["家人免登录点感觉", "回复会回到这张征集单", "家人免登录打开清单", "主厨刷新后看到认领和已买", "菜单会继续联动买菜清单", "家人免登录写想吃", "主厨刷新后收进想吃池"].forEach((copy) => {
+  assert.match(wxml, /detailRows/, "native share page should explain what the recipient and sender can do");
+  assert.match(wxml, /detail-label/, "native share page should render plain-language detail labels");
+  assert.match(wxss, /\.detail-row/, "native share page should style detail rows");
+  ["不用登录，点一个感觉就行", "刷新就能看到大家的回复", "可以直接查看，不用先登录", "刷新就能看到谁来买、买了什么", "对应的买菜清单", "不用登录，写一道菜就行", "刷新“最近想吃”就能看到"].forEach((copy) => {
     assert.match(js, new RegExp(copy), `native share template should include: ${copy}`);
   });
-  ["家人打开家庭邀请", "登录后成为正式成员", "共享菜单、清单和征集"].forEach((copy) => {
+  ["登录一次就能加入这个家", "菜单、清单和回复都在一起"].forEach((copy) => {
     assert.match(js, new RegExp(copy), `native household invite template should include: ${copy}`);
   });
-  ["转发给家人", "转发清单给家人", "转发菜单给家人", "转发想吃入口"].forEach((copy) => {
+  ["发给家人", "发清单给家人", "发菜单给家人", "发邀请给家人"].forEach((copy) => {
     assert.match(js, new RegExp(copy), `native share template should include primary action: ${copy}`);
   });
-  assert.match(js, /点黑色转发按钮发出小程序卡片/, "native share page should point users to the visible native share button");
+  assert.match(js, /点下面的黑色按钮，微信会让你选择要发给谁/, "native share page should explain the required native share tap");
   assert.doesNotMatch(js, /右上角|当前页面不可分享|点下方按钮/, "native share page should not guide users to the web-view menu or the wrong button position");
   assert.doesNotMatch(wxml, /右上角|当前页面不可分享|点下方按钮/, "native share markup should not guide users to the web-view menu or the wrong button position");
+}
+
+function createRuntimeWindow({ redirectTo, navigateTo }) {
+  const windowListeners = new Map();
+  const documentListeners = new Map();
+  const calls = [];
+  const document = {
+    visibilityState: "visible",
+    addEventListener(type, listener) {
+      const listeners = documentListeners.get(type) || new Set();
+      listeners.add(listener);
+      documentListeners.set(type, listeners);
+    },
+    removeEventListener(type, listener) {
+      documentListeners.get(type)?.delete(listener);
+    },
+  };
+  const runtimeWindow = {
+    location: { search: "?channel=wechat-miniprogram" },
+    document,
+    setTimeout,
+    clearTimeout,
+    addEventListener(type, listener) {
+      const listeners = windowListeners.get(type) || new Set();
+      listeners.add(listener);
+      windowListeners.set(type, listeners);
+    },
+    removeEventListener(type, listener) {
+      windowListeners.get(type)?.delete(listener);
+    },
+    wx: {
+      miniProgram: {},
+    },
+  };
+  const leavePage = () => {
+    document.visibilityState = "hidden";
+    documentListeners.get("visibilitychange")?.forEach((listener) => listener());
+    windowListeners.get("pagehide")?.forEach((listener) => listener());
+  };
+  if (redirectTo) {
+    runtimeWindow.wx.miniProgram.redirectTo = (options) => {
+      calls.push("redirectTo");
+      redirectTo({ ...options, leavePage });
+    };
+  }
+  if (navigateTo) {
+    runtimeWindow.wx.miniProgram.navigateTo = (options) => {
+      calls.push("navigateTo");
+      navigateTo({ ...options, leavePage });
+    };
+  }
+  return { window: runtimeWindow, calls };
 }
 
 function assertMiniProgramVisibleCopyKeepsPantryInvisible() {

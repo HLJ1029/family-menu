@@ -4,18 +4,39 @@ Page({
   onLoad(options = {}) {
     const data = buildShareData(options);
     this.setData(data);
+    this.enableShare();
+  },
+
+  onShow() {
+    this.enableShare();
+  },
+
+  enableShare() {
     wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
   },
 
   onShareAppMessage() {
     return {
       title: this.data.title,
-      path: this.data.path
+      path: this.data.path,
+      imageUrl: this.data.imageUrl || undefined
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: this.data.title,
+      query: String(this.data.path || "").split("?")[1] || ""
     };
   },
 
   goBack() {
-    wx.navigateBack();
+    const pages = typeof getCurrentPages === "function" ? getCurrentPages() : [];
+    if (pages.length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: "/pages/index/index" });
   }
 });
 
@@ -36,9 +57,15 @@ function buildShareData(options = {}) {
       token,
       householdName,
       title,
-      eyebrow: "买菜清单",
-      body: "家里要买的东西都在这张卡片里，点开就能认领和标记买到。",
-      meta: itemCount > 0 ? `${itemCount} 项待买` : "待确认",
+      eyebrow: "发买菜清单",
+      body: "家人打开后可以说自己买哪些，也能直接勾选已经买到的东西。",
+      meta: itemCount > 0 ? `${itemCount} 样要买` : "一起买更轻松",
+      actionLabel: "发清单给家人",
+      helper: "点下面的黑色按钮，微信会让你选择要发给谁。",
+      detailRows: [
+        { label: "家人打开后", value: "可以直接查看，不用先登录" },
+        { label: "你回来后", value: "刷新就能看到谁来买、买了什么" }
+      ],
       path: `/pages/index/index?groceryShare=${encodeURIComponent(token)}`
     };
   }
@@ -49,9 +76,15 @@ function buildShareData(options = {}) {
       token,
       householdName,
       title: `${initiatorName}想收集家里最近想吃的菜`,
-      eyebrow: "想吃池",
-      body: "写一道最近想吃的菜就行，主厨会在安排晚饭时看到。",
-      meta: "免登录写一道",
+      eyebrow: "问问最近想吃什么",
+      body: "家人写一道最近想吃的菜就行，你安排晚饭时会看到。",
+      meta: "写一道就够了",
+      actionLabel: "发给家人",
+      helper: "点下面的黑色按钮，微信会让你选择要发给谁。",
+      detailRows: [
+        { label: "家人打开后", value: "不用登录，写一道菜就行" },
+        { label: "你回来后", value: "刷新“最近想吃”就能看到" }
+      ],
       path: `/pages/index/index?wishShare=${encodeURIComponent(token)}`
     };
   }
@@ -63,8 +96,14 @@ function buildShareData(options = {}) {
       householdName,
       title: normalizeText(options.title) || `${householdName}今晚菜单已经安排好`,
       eyebrow: "今晚菜单",
-      body: "点开就能看今晚吃什么，以及这顿饭的安排。",
-      meta: "今晚一起吃",
+      body: "把今晚吃什么发给家人，大家打开就能看到菜单和要买的东西。",
+      meta: "今晚就吃这些",
+      actionLabel: "发菜单给家人",
+      helper: "点下面的黑色按钮，微信会让你选择要发给谁。",
+      detailRows: [
+        { label: "家人会看到", value: "今晚的菜和份数" },
+        { label: "菜单还会带上", value: "对应的买菜清单" }
+      ],
       path: `/pages/index/index?menuShare=${encodeURIComponent(token)}`
     };
   }
@@ -76,9 +115,15 @@ function buildShareData(options = {}) {
       token,
       householdName,
       title,
-      eyebrow: "家庭邀请",
-      body: "加入后可以一起看今晚菜单、买菜清单和家里的口味偏好。",
-      meta: "一起安排",
+      eyebrow: "邀请家人",
+      body: "加入后，家人可以一起看今晚菜单、买菜清单，也能告诉你最近想吃什么。",
+      meta: "一起安排家里的饭",
+      actionLabel: "发邀请给家人",
+      helper: "点下面的黑色按钮，微信会让你选择要发给谁。",
+      detailRows: [
+        { label: "家人打开后", value: "登录一次就能加入这个家" },
+        { label: "加入以后", value: "菜单、清单和回复都在一起" }
+      ],
       path: `/pages/index/index?invite=${encodeURIComponent(token)}`
     };
   }
@@ -89,9 +134,15 @@ function buildShareData(options = {}) {
     token,
     householdName,
     title,
-    eyebrow: "今晚征集口味",
-    body: "家人点一个感觉就能参与，Humi 会把大家的口味汇总成今晚菜单。",
-    meta: "免登录参与",
+    eyebrow: "问问大家今晚想吃什么",
+    body: "家人不用登录，点一个现在想吃的感觉就行。你回来后可以照着大家的回复安排。",
+    meta: "点一下就能回复",
+    actionLabel: "发给家人",
+    helper: "点下面的黑色按钮，微信会让你选择要发给谁。",
+    detailRows: [
+      { label: "家人打开后", value: "不用登录，点一个感觉就行" },
+      { label: "你回来后", value: "刷新就能看到大家的回复" }
+    ],
     path: `/pages/index/index?crave=${encodeURIComponent(token)}`
   };
 }

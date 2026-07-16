@@ -102,7 +102,7 @@
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
 | WX-01 | `crave`/`invite`/`grocery` 三类小程序卡片路径 | 已完成 | `release:wechat:share:selftest` |
-| WX-02 | 清单、征集与家庭邀请真实打开原生分享子页，失败不误报成功 | 已完成 | `validate:share-bridge` 覆盖缺失能力、跳转成功、跳转失败、异常与无 token；`release:product:smoke` 覆盖真实入口点击 |
+| WX-02 | 清单、征集与家庭邀请真实打开原生分享子页，失败不误报成功 | 已完成 | `validate:share-bridge` 验证 `redirectTo`、`navigateTo` 回退和 WebView 真实离开事件；仅有微信成功回调但页面未离开时判定失败。`release:product:smoke` 覆盖真实入口点击 |
 | WX-03 | 三类 token 落地页不自动登录 | 已完成 | `release:collaboration:smoke` |
 | WX-04 | 三类原生分享发送框在微信开发者工具完成视觉验收 | 已完成 | 2026-07-14 当前候选在微信开发者工具逐类打开 `crave`/`invite`/`grocery` 原生发送框；`release:wechat:share:evidence` 识别到虚拟好友、发送动作和对应业务语义，`release:wechat:share:complete` 已完成人工视觉确认。证据目录：`/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457` |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |

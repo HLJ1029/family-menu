@@ -766,7 +766,7 @@ function formatCraveDeadline(request = {}) {
   const deadlineTime = getCraveDeadlineTime(request);
   if (!deadlineTime) return "约 30 分钟后也可以直接出菜单";
   const minutesLeft = Math.ceil((deadlineTime - Date.now()) / 60000);
-  if (minutesLeft <= 0) return "已到可收口时间，正在出菜单";
+  if (minutesLeft <= 0) return "等待时间到了，正在出菜单";
   return `约 ${minutesLeft} 分钟后自动出菜单`;
 }
 
@@ -873,14 +873,14 @@ function CraveWaitingPanel({ request, votes = [], deadlineLabel }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">
-            {request.status === "closed" ? "已收口" : "征集中"}
+            {request.status === "closed" ? "征集已结束" : "等大家回复"}
           </p>
           <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">
             {hasVotes ? `收到 ${votes.length} 个感觉` : "征集单已经准备好"}
           </h4>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
             {request.status === "closed"
-              ? "Humi 会按这些回复揉合菜单；你还可以勾掉不想做的菜。"
+              ? "Humi 会照顾这些回复来安排菜单；你还可以去掉不想做的菜。"
               : "家人点完会出现在这里；没人回复也可以随时让 Humi 出菜单。"}
           </p>
           <p className="mt-1 text-xs font-black text-ink/38">目标家人：{audienceLabel}</p>
@@ -935,7 +935,7 @@ function CraveMenuConfirmation({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">确认菜单</p>
-          <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">Humi 按大家的感觉揉合了这组</h4>
+          <h4 className="mt-1 text-lg font-black tracking-[-0.03em]">Humi 照着大家的回复安排了这组</h4>
           <p className="mt-1 text-xs font-bold leading-5 text-ink/52">
             勾中就是今晚要做的菜；确认后会自动进入今晚菜单和买菜清单。
           </p>
@@ -1048,8 +1048,8 @@ export function DinnerLogPanel({
     ? `今晚安排了${arrangedDishNames}，做了吗？`
     : "今天这顿从哪里来";
   const helperText = dinnerReady
-    ? "点一下就够了。做了会默认把今晚菜单计入画像；换了或出去吃也没关系。"
-    : "没安排晚饭也可以顺手记来源；不记录也合法。";
+    ? "点一下就够了。Humi 会记住今晚最后吃了什么；换了或出去吃也没关系。"
+    : "没安排晚饭也可以顺手记一下从哪里吃；不想记就跳过。";
 
   if (!canManageHousehold) {
     return (
@@ -1096,7 +1096,7 @@ export function DinnerLogPanel({
         {mealLog?.confirmation === "all" && (
           <span className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-black text-white">
             <CheckCircle2 size={15} />
-            已计入饮食画像
+            已记下今晚吃了什么
           </span>
         )}
       </div>
@@ -1232,27 +1232,27 @@ function getDinnerSourceResult(source, dinnerReady, sourceStats) {
   if (source === "delivery") {
     return {
       title: `今晚记为外卖 · 本周第 ${sourceStats.delivery} 次`,
-      text: `${sourceStats.awayStreak >= 2 ? `连续 ${sourceStats.awayStreak} 天在外吃/点外卖。` : "已同步饮食画像。"} 明天建议安排一组清淡在家做菜单，比如番茄鸡蛋类 + 一道绿叶菜。`,
+      text: `${sourceStats.awayStreak >= 2 ? `连续 ${sourceStats.awayStreak} 天在外吃或点外卖。` : "已经记下今晚吃了什么。"} 明天可以安排一组清淡的家常菜，比如番茄鸡蛋配一道绿叶菜。`,
       actions: [
         { label: "返回首页", view: "dashboard", primary: true },
-        { label: "查看饮食画像", view: "stats" },
+        { label: "看看吃饭习惯", view: "stats" },
       ],
     };
   }
   if (source === "outside") {
     return {
       title: `今晚记为外食 · 本周第 ${sourceStats.outside} 次`,
-      text: "饮食画像已更新。明天回来打开 Humi，可以直接继续安排一组省时晚饭。",
+      text: "已经记下今晚在外面吃。明天打开 Humi，可以继续安排一组省时晚饭。",
       actions: [
         { label: "返回首页", view: "dashboard", primary: true },
-        { label: "查看饮食画像", view: "stats" },
+        { label: "看看吃饭习惯", view: "stats" },
       ],
     };
   }
   if (source === "skip") {
     return {
       title: "今天先不记录",
-      text: "今晚不会进入饮食画像，也不会影响后续推荐统计。",
+      text: "今晚不会留下记录，也不会影响之后的推荐。",
       actions: [{ label: "返回首页", view: "dashboard", primary: true }],
     };
   }

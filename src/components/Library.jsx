@@ -280,8 +280,8 @@ function RecipeCard({ recipe, onAdd, onUpdateQuantity, quantity, craved, onCrave
             craved ? "bg-ink text-white" : "bg-white/92 text-ink"
           }`}
           aria-label={canManageHousehold
-            ? craved ? `${recipe.name} 已在想吃池` : `想吃 ${recipe.name}`
-            : craved ? `${recipe.name} 已在想吃池子` : "加入想吃池子"}
+            ? craved ? `${recipe.name} 已在最近想吃` : `想吃 ${recipe.name}`
+            : craved ? `${recipe.name} 已记下` : "记到最近想吃"}
         >
           <Heart size={18} fill={craved ? "currentColor" : "none"} />
         </button>

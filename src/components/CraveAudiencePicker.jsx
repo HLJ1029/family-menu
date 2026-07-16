@@ -73,7 +73,7 @@ export function normalizeAudienceMembers(members = []) {
       return {
         id: String(member.participantKey || member.memberId || member.id || `member:${index}:${name}`),
         name,
-        meta: member.status === "正式成员"
+        meta: member.status === "正式成员" || member.status === "已加入"
           ? `${member.role || "家人"} · 已加入`
           : member.status || member.role || "家人",
       };

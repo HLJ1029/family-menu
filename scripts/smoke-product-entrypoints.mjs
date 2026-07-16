@@ -31,12 +31,10 @@ try {
     window.__wxjs_environment = "miniprogram";
     window.wx = {
       miniProgram: {
-        postMessage(payload) {
-          window.__humiMiniProgramCalls.push({ method: "postMessage", payload });
-        },
-        navigateTo(payload) {
-          window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
-          payload.success?.({ errMsg: "navigateTo:ok" });
+        redirectTo(payload) {
+          window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
+          payload.success?.({ errMsg: "redirectTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -271,7 +269,11 @@ try {
   const groceryScreenshot = join(evidenceDir, "grocery-mobile.png");
   await page.screenshot({ path: groceryScreenshot, fullPage: true });
   await page.getByRole("button", { name: /分享买菜清单|分享清单给家人|生成清单海报/ }).click();
-  await page.getByText(/已打开(?:买菜|小程序清单)分享卡片/).waitFor({ timeout: 15_000 });
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=grocery")
+    ),
+  );
 
   await page.getByTestId("mobile-nav-user").click();
   const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
@@ -318,8 +320,8 @@ try {
   await page.getByText("今晚想问谁", { exact: true }).waitFor({ timeout: 15_000 });
   const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
   await page.getByRole("button", { name: "发起征集" }).click();
-  await page.getByRole("heading", { name: "征集单已经在路上" }).waitFor({ timeout: 15_000 });
-  const craveSheetVisible = await page.getByRole("heading", { name: "征集单已经在路上" }).isVisible();
+  await page.getByRole("heading", { name: "已经可以发给家人了" }).waitFor({ timeout: 15_000 });
+  const craveSheetVisible = await page.getByRole("heading", { name: "已经可以发给家人了" }).isVisible();
   const viewButtonVisible = await page.getByRole("button", { name: "分享征集单" }).isVisible();
   await page.getByRole("button", { name: "刷新回复" }).click();
   const craveVoteReceipt = page.getByText("家人小林 · 想喝汤", { exact: true });
@@ -327,10 +329,8 @@ try {
   const craveVoteReceiptVisible = await craveVoteReceipt.isVisible();
   const craveManualMenuActionVisible = await page.getByRole("button", { name: /现在出菜单|就这些，出菜单/ }).isVisible();
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
-  const grocerySharePosted = miniProgramCalls.some((call) => call.method === "postMessage" && call.payload?.data?.type === "humi:share-grocery");
-  const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
-  const craveSharePosted = miniProgramCalls.some((call) => call.method === "postMessage" && call.payload?.data?.type === "humi:share-crave");
-  const craveShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
+  const groceryShareOpened = miniProgramCalls.some((call) => call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
+  const craveShareOpened = miniProgramCalls.some((call) => call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
   const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
@@ -379,11 +379,11 @@ try {
     { key: "planner-primary-tab-opens-week-plan", ok: plannerPrimaryTabOpened },
     { key: "week-plan-shows-grocery-summary-action", ok: plannerGrocerySummaryVisible },
     { key: "week-plan-grocery-summary-opens-shared-list", ok: plannerSummaryOpenedGrocery },
-    { key: "grocery-share-posts-miniprogram-card", ok: grocerySharePosted },
+    { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
-    { key: "crave-share-posts-miniprogram-card", ok: craveSharePosted },
+    { key: "crave-share-uses-native-handoff", ok: craveShareOpened },
     { key: "crave-share-opens-native-share-page", ok: craveShareOpened },
     { key: "crave-members-default-selected", ok: selectedFamilyMember === "true", actual: selectedFamilyMember },
     { key: "crave-create-keeps-selected-members", ok: craveCreatePayload?.recipientIds?.includes("product-smoke-member"), actual: craveCreatePayload?.recipientIds ?? [] },
@@ -606,12 +606,10 @@ async function installMiniProgramMock(page) {
     window.__humiMiniProgramCalls = [];
     window.wx = window.wx || {};
     window.wx.miniProgram = {
-      postMessage(payload) {
-        window.__humiMiniProgramCalls.push({ method: "postMessage", payload });
-      },
-      navigateTo(payload) {
-        window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
-        payload.success?.({ errMsg: "navigateTo:ok" });
+      redirectTo(payload) {
+        window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
+        payload.success?.({ errMsg: "redirectTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
       },
     };
   });
@@ -953,10 +951,10 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   await page.getByTestId("family-constraints-readonly").screenshot({ path: dietScreenshot });
   await page.getByTestId("mobile-nav-library").click();
   await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
-  const memberLibraryWantButton = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" }).getByRole("button", { name: "加入想吃池子" });
+  const memberLibraryWantButton = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" }).getByRole("button", { name: "记到最近想吃" });
   const memberLibraryUsesWantAction = await memberLibraryWantButton.isVisible();
   await memberLibraryWantButton.click();
-  await page.getByText("青椒土豆丝 已放进想吃池子").waitFor({ timeout: 15_000 });
+  await page.getByText("已经记下想吃 青椒土豆丝").waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "返回上一页" }).click();
   await page.getByRole("heading", { name: /里的家人$/ }).waitFor({ timeout: 15_000 });
   const memberWantAddedFromLibrary = await page.getByTestId("want-to-eat-row").filter({ hasText: "青椒土豆丝" }).isVisible();
@@ -1068,12 +1066,12 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
     await fulfillJson(route, { request: state.craveSignals[0] });
   });
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "Humi 按大家的感觉揉合了这组" }).waitFor({ timeout: 15_000 }).catch(async (error) => {
+  await page.getByRole("heading", { name: "Humi 照着大家的回复安排了这组" }).waitFor({ timeout: 15_000 }).catch(async (error) => {
     const headings = await page.locator("h1, h2, h3").allTextContents();
     throw new Error(`${error.message}; headings=${JSON.stringify(headings)}; pageErrors=${JSON.stringify(pageErrors)}`);
   });
-  const generated = await page.getByRole("heading", { name: "Humi 按大家的感觉揉合了这组" }).isVisible();
-  const initiatorFeelingApplied = await page.getByText(/先按发起时选的“想喝汤”来|已先按“想喝汤”揉合出一组/).count() > 0;
+  const generated = await page.getByRole("heading", { name: "Humi 照着大家的回复安排了这组" }).isVisible();
+  const initiatorFeelingApplied = await page.getByText(/先按发起时选的“想喝汤”来|已先按“想喝汤”安排出一组/).count() > 0;
   await page.waitForTimeout(300);
   const closeAuthorized = closeAuthorization === "Bearer crave-test-token";
   const screenshot = join(evidenceDir, "persisted-crave-deadline-mobile.png");

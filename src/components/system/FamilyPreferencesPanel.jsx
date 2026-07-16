@@ -24,7 +24,7 @@ export function FamilyPreferencesPanel({
           <p className="eyebrow">Hard rules</p>
           <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">家人忌口</h3>
           <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-            这里只维护不能踩的线。喜欢什么、最近想吃什么，会从感觉征集和晚饭确认里学习。
+            这里只填写一定要避开的东西。喜欢什么、最近想吃什么，Humi 会从家人的回复和晚饭记录里慢慢了解。
           </p>
         </div>
         <button

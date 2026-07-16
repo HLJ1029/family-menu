@@ -46,7 +46,7 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
         status: nextStatus,
       }, humiSession);
       setShare(data.share);
-      setStatus(nextStatus === "done" ? `${item.name} 已标记买到了。` : `${item.name} 已认领。`);
+      setStatus(nextStatus === "done" ? `${item.name} 已经买到了。` : `好，${item.name} 你来买。`);
     } catch (error) {
       setStatus(error.message || "暂时没回传成功，请稍后重试。");
     } finally {
@@ -136,7 +136,7 @@ export function GroceryShareLanding({ token, humiSession, onClose }) {
                       {claim && <p className="mt-2 text-xs font-black text-ink/55">{mine ? "你在买" : `${claim.memberName || "家人"}在买`}</p>}
                     </div>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink/45">
-                      {claimed ? mine ? "我认领了" : "已认领" : "待买"}
+                      {claimed ? mine ? "我来买" : "有人在买" : "待买"}
                     </span>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">

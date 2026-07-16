@@ -62,7 +62,7 @@ export function CraveStarterSheet({
             </div>
           ) : (
             <p className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
-              还没有正式成员也没关系，先生成卡片发给家人，对方仍可免登录参与。
+              还没有家人加入也没关系，先生成卡片发出去，对方不用登录也能回复。
             </p>
           )}
         </div>
@@ -121,7 +121,7 @@ export function CraveCollectingSheet({
             <div className="rounded-[18px] border border-line bg-white p-3 text-sm font-bold leading-6 text-ink/52">
               {canManage
                 ? "在小程序里点右上角分享给家人；家人免登录点完后，回到这里刷新。"
-                : "征集还在等待回复，主厨会负责收口并确定今晚菜单。"}
+                : "还在等大家回复，主厨最后会决定今晚吃什么。"}
             </div>
           )}
         </div>

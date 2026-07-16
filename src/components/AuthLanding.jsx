@@ -62,7 +62,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
 
   function handleWechatLogin() {
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
-      setStatus("正在唤起微信登录。登录后菜单、清单和画像线索会保存到微信账号。");
+      setStatus("正在打开微信登录。登录后，菜单、清单和你家的口味偏好会跟着账号保存。");
       return;
     }
     setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
@@ -125,9 +125,9 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             : entryIntent === "startCollaboration"
               ? "主厨登录后才能发起协作；家人点开卡片仍然免登录参与。"
             : isWechatMiniProgram
-              ? "微信登录后，菜单、画像和清单会跟着账号保存。"
+              ? "微信登录后，菜单、清单和你家的口味偏好会跟着账号保存。"
               : wechatLoginEnabled
-                ? "可以先体验 Humi。创建我的家后，菜单、画像和清单会跟着账号保存。"
+                ? "可以先体验 Humi。创建我的家后，菜单、清单和口味偏好会跟着账号保存。"
                 : "首发先不要求登录。菜单、计划和清单会保存在当前设备。"
         )}
       </div>

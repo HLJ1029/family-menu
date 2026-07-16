@@ -204,7 +204,7 @@ function App() {
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有情况给你安排；之后会继续参考家庭画像和口味。");
+  const [aiRecommendationStatus, setAiRecommendationStatus] = useState("先按家里现有的食材给你安排；之后会继续参考你家的口味和习惯。");
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [preciseRecommendationBlocked, setPreciseRecommendationBlocked] = useState(false);
   const [posterPreview, setPosterPreview] = useState(null);
@@ -308,8 +308,8 @@ function App() {
     setProfileOnboardingComplete(true);
     setAuthStatus("已通过微信登录 Humi。");
     setAuthGateIntent("");
-    setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-    setAiRecommendationStatus("已登录。推荐会继续参考家庭画像和口味反馈。");
+    setAiExplanationStatus("已登录。Humi 会继续根据你家的口味、习惯和晚饭反馈调整说明。");
+    setAiRecommendationStatus("已登录。推荐会继续参考你家的口味和反馈。");
     showNotice("已登录 Humi");
   }, [setOnboardingComplete, setProfileOnboardingComplete]);
 
@@ -835,14 +835,14 @@ function App() {
       : "";
     setAiRecommendationStatus(
       closedCraveVoteCount > 0
-        ? `已按 ${closedCraveVoteCount} 个家人回复揉合出一组，勾一下就能落进今晚菜单。`
+        ? `已照着 ${closedCraveVoteCount} 个家人回复安排了一组，勾一下就能加入今晚菜单。`
         : closedStarterFeeling && closedStarterFeeling !== "随便都行"
-          ? `已先按“${closedStarterFeeling}”揉合出一组。`
+          ? `已先按“${closedStarterFeeling}”安排了一组。`
         : latestSoloCraveFeeling
-          ? `已先按“${latestSoloCraveFeeling}”揉合出一组。`
+          ? `已先按“${latestSoloCraveFeeling}”安排了一组。`
         : signedIn
-        ? "先按家里现有情况给你安排；推荐会继续参考家庭画像和口味。"
-        : "先按家里现有情况给你安排；之后会继续参考家庭画像和口味。",
+        ? "先按家里现有的食材给你安排；推荐会继续参考你家的口味和习惯。"
+        : "先按家里现有的食材给你安排；之后会继续参考你家的口味和习惯。",
     );
   }, [activeCraveRequest, craveSignals, signedIn, todayMenu.length, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
@@ -1233,10 +1233,10 @@ function App() {
     setAiRecommendation(nextRecommendation);
     setAiRecommendationStatus(
       votes.length > 0
-        ? `收到 ${votes.length} 个家人感觉，已揉合出一组。`
+        ? `收到 ${votes.length} 个家人回复，已经安排出一组。`
         : safeFeeling === "随便都行"
           ? "没人回复也没关系。已按家庭忌口和省心程度给一组。"
-          : `已先按“${safeFeeling}”揉合出一组。`,
+          : `已先按“${safeFeeling}”安排出一组。`,
     );
     trackProductEvent(appEvents.recommendationRequest, {
       source: "crave_signal",
@@ -1292,9 +1292,12 @@ function App() {
       initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
       voteCount: request.votes?.length ?? 0,
     });
-    if (nativeShareStatus === "opened") {
-      showNotice("已打开小程序征集分享卡片");
+    if (nativeShareStatus === "handoff") {
       return true;
+    }
+    if (isWechatMiniProgramWebView()) {
+      showNotice("分享页没有打开，请再点一次");
+      return false;
     }
     await copyShareUrl(buildCraveUrl(request.token));
     showNotice("征集链接已复制");
@@ -1359,7 +1362,7 @@ function App() {
       applyCraveRecommendation({ request: mergedRequest });
       setCraveRequestStatus("已按这次征集出菜单。");
     } catch (error) {
-      setCraveRequestStatus(error.message || "出菜单失败，先按当前回复本地揉合。");
+      setCraveRequestStatus(error.message || "暂时没能生成菜单，先按当前回复在本机安排。");
       setActiveCraveRequest({ ...request, status: "closed" });
       applyCraveRecommendation({ request });
     } finally {
@@ -1463,7 +1466,7 @@ function App() {
         ...current,
       ].slice(0, 30);
     });
-    showNotice(`${recipe.name} 已放进想吃池子`);
+    showNotice(`已经记下想吃 ${recipe.name}`);
   }
 
   function collectGuestDishWishes(votes = []) {
@@ -1579,9 +1582,12 @@ function App() {
       initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
       wishCount: request.wishes?.length ?? 0,
     });
-    if (nativeShareStatus === "opened") {
-      showNotice("已打开小程序想吃分享卡片");
+    if (nativeShareStatus === "handoff") {
       return true;
+    }
+    if (isWechatMiniProgramWebView()) {
+      showNotice("分享页没有打开，请再点一次");
+      return false;
     }
     await copyShareUrl(buildWishShareUrl(request.token));
     showNotice("想吃入口链接已复制");
@@ -1962,7 +1968,7 @@ function App() {
     if (!preciseRecommendationAvailable) {
       setAiRecommendation({ ...alternateRuleRecommendation, source: "rule" });
       setAiRecommendationStatus(
-        signedIn ? "已经换成另一组；Humi 会继续参考家庭画像和家里现有。" : "已经换成另一组；之后会继续参考家庭画像和家里现有。",
+        signedIn ? "已经换成另一组；Humi 会继续参考你家的口味和现有食材。" : "已经换成另一组；之后会继续参考你家的口味和现有食材。",
       );
       trackProductEvent(appEvents.recommendationShown, {
         source: "rule",
@@ -2080,7 +2086,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考你家的口味和习惯。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -2107,7 +2113,7 @@ function App() {
       setAiRecommendation(null);
       setAiRecommendationStatus(
         signedIn
-          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考家庭画像和口味。"
+          ? "今晚菜单已清空。可以重新安排一组，推荐会继续参考你家的口味和习惯。"
           : "今晚菜单已清空。可以重新安排一组，Humi 会慢慢记住家里的口味。",
       );
     }
@@ -2347,10 +2353,11 @@ function App() {
           title: "Humi 买菜清单",
           itemCount: data.request.items?.length ?? 0,
         });
-        if (nativeShareStatus === "opened") {
-          showNotice("已打开小程序清单分享卡片");
+        if (nativeShareStatus === "handoff") {
           return;
         }
+        showNotice("分享页没有打开，请再点一次");
+        return;
       } catch (error) {
         showNotice(error.message || "清单分享暂时不可用");
       }
@@ -2381,11 +2388,11 @@ function App() {
         synced.checkedCount > 0
           ? `已同步 ${synced.checkedCount} 项已买`
           : claimedCount > 0
-            ? `已收到 ${claimedCount} 个买菜认领`
+            ? `已经有 ${claimedCount} 位家人愿意去买`
             : "还没有人认领买菜",
       );
     } catch (error) {
-      showNotice(error.message || "买菜认领暂时刷新失败");
+      showNotice(error.message || "买菜进度暂时没刷新出来");
     }
   }
 
@@ -2425,15 +2432,11 @@ function App() {
           itemCount: visibleGroceryItems.length,
           view: "today",
         });
-        if (nativeShareStatus === "opened") {
-          showNotice("已打开小程序菜单分享卡片");
+        if (nativeShareStatus === "handoff") {
           return;
         }
-        if (data.request?.token) {
-          await copyShareUrl(buildMenuShareUrl(data.request.token));
-          showNotice("今晚菜单链接已复制");
-          return;
-        }
+        showNotice("分享页没有打开，请再点一次");
+        return;
       } catch (error) {
         showNotice(error.message || "菜单分享暂时不可用，先生成海报");
       }
@@ -2637,8 +2640,8 @@ function App() {
           ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
           : "已登录 Humi。",
       );
-      setAiExplanationStatus("已登录。Humi 会继续根据你的家庭画像和晚饭反馈调整说明。");
-      setAiRecommendationStatus("已登录。推荐会继续参考家庭画像和口味反馈。");
+      setAiExplanationStatus("已登录。Humi 会继续根据你家的口味、习惯和晚饭反馈调整说明。");
+      setAiRecommendationStatus("已登录。推荐会继续参考你家的口味和反馈。");
       setOnboardingComplete(true);
       void trackAppEvent({
         eventName: appEvents.auth,
@@ -2850,7 +2853,7 @@ function App() {
         "组合尽量包含一道蛋白来源和一道蔬菜/汤/清爽类菜。",
         "如果家庭偏好、忌口、过敏与候选冲突，必须优先避开。",
         cravePreferences.length > 0
-          ? `本轮来自家人感觉征集，继续尽量照顾这些信号：${cravePreferences.join("、")}。`
+          ? `这轮会尽量照顾家人刚才的回复：${cravePreferences.join("、")}。`
           : "",
         `当前使用场景是${getPlanningMode(familyProfile.planningMode).label}，需要按该场景调整推荐理由和搭配重点。`,
         "本轮候选已排除用户刚看到的菜，不能重复上一组。",
@@ -3060,7 +3063,7 @@ function App() {
       });
       applyHumiStateEnvelope({ ...data, state: null }, {
         emptyMenu: "已创建新的家。这里还没有保存菜单。",
-        emptyGrocery: "这个家的清单和画像会单独保存。",
+        emptyGrocery: "这个家的清单和口味偏好会单独保存。",
       });
       showNotice(`已创建 ${data.family?.name || "新的家"}`);
     } catch (error) {
@@ -3082,7 +3085,7 @@ function App() {
       const data = await switchHumiHousehold(humiSession, householdId);
       applyHumiStateEnvelope(data, {
         loadedMenu: "已切换并读取当前家的菜单。",
-        loadedGrocery: "已切换并读取当前家的清单和画像。",
+        loadedGrocery: "已切换到这个家，清单和口味偏好也一起换好了。",
         emptyMenu: "已切换到这个家。这里还没有保存菜单。",
         emptyGrocery: "已切换到这个家。这里还没有保存清单。",
       });
@@ -3137,8 +3140,11 @@ function App() {
       householdName: invite.householdName || family?.name || "我的家",
       initiatorName: invite.inviterName || getDisplayName(displaySession) || "主厨",
     });
-    if (nativeStatus === "opened") {
-      showNotice("已打开家庭邀请卡片");
+    if (nativeStatus === "handoff") {
+      return;
+    }
+    if (isWechatMiniProgramWebView()) {
+      showNotice("分享页没有打开，请再点一次");
       return;
     }
     await copyShareUrl(buildHouseholdInviteUrl(invite.token));
@@ -3292,7 +3298,7 @@ function App() {
     if (!options.stayOnboarding) {
       setProfileOnboardingComplete(true);
       setActiveView("dashboard");
-      showNotice("画像已保存，开始安排菜单");
+      showNotice("家庭偏好已保存，开始安排菜单");
     }
   }
 
@@ -3377,7 +3383,7 @@ function App() {
     viewHistoryRef.current = ["dashboard"];
     setCravePanelOpenSignal(Date.now());
     window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
-    showNotice("已打开今晚的感觉征集");
+    showNotice("可以开始问问大家了");
   }
 
   function closeSharedLanding(paramName) {
@@ -3410,7 +3416,7 @@ function App() {
       showNotice("正在唤起微信登录，登录后会合并刚才的参与");
       return;
     }
-    showNotice(signedIn ? "已打开我的家，可以收进正式成员" : "登录后就能加入这个家");
+    showNotice(signedIn ? "已打开我的家，可以加入这个家" : "登录后就能加入这个家");
   }
 
   async function acceptPendingJoinAsMember(context = pendingJoinContext) {
@@ -3422,7 +3428,7 @@ function App() {
       if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
         showNotice("正在唤起微信登录");
       } else {
-        showNotice("登录后再把临时身份转为正式成员");
+        showNotice("登录后就能正式加入这个家");
       }
       return;
     }
@@ -3440,7 +3446,7 @@ function App() {
             : await joinWishShareRequest(context.token, humiSession, payload);
         applyHumiStateEnvelope(data, {
           loadedMenu: "已加入这个家，并读取共享菜单。",
-          loadedGrocery: "已加入这个家，并读取共享清单和画像。",
+          loadedGrocery: "已加入这个家，共享清单和口味偏好也加载好了。",
           emptyMenu: "已加入这个家。这里还没有保存菜单。",
           emptyGrocery: "已加入这个家。这里还没有保存清单。",
         });
@@ -4034,7 +4040,7 @@ function buildHouseholdMemberFromJoinContext(context = {}) {
     name,
     role: "家人",
     status: "正式成员",
-    source: type === "grocery" ? "买菜认领" : type === "wish" ? "想吃池" : "感觉征集",
+    source: type === "grocery" ? "一起买菜" : type === "wish" ? "最近想吃" : "问问大家",
     householdName: context.householdName || "我家",
     joinedAt: new Date().toISOString(),
     lastSignal: type === "grocery"

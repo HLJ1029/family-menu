@@ -321,7 +321,7 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
 
   await page.getByRole("button", { name: "加入这个家，看今晚定了啥" }).click();
   await page.getByRole("heading", { name: "刚才的感觉已经保留" }).waitFor({ timeout: 10000 });
-  await page.getByText("现在只是临时参与，可以继续看今晚菜单和清单；登录后再转成正式成员。").waitFor({ timeout: 10000 });
+  await page.getByText("刚才的回复已经保留。登录后加入这个家，以后就能一起看菜单和清单。").waitFor({ timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "crave", "joining after crave should create pending join context");
   assert.equal(pending?.memberName, "阿宁", "pending crave context should keep guest name");
@@ -335,7 +335,7 @@ async function verifyClosedCraveGuestFlow({ browser, token, webBaseUrl }) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   try {
     await page.goto(`${webBaseUrl}/?crave=${encodeURIComponent(token)}&shareSource=crave`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "这次已经收口" }).waitFor({ timeout: 10000 });
+    await page.getByRole("heading", { name: "这次征集已经结束" }).waitFor({ timeout: 10000 });
     await page.getByText("已经开始安排今晚菜单").waitFor({ timeout: 10000 });
     assert.equal(
       await page.getByRole("button", { name: "发给主厨" }).isVisible().catch(() => false),
@@ -436,8 +436,8 @@ async function verifyOwnerGroceryShareRefreshFlow({ browser, apiBaseUrl, webBase
 
   try {
     await page.goto(`${webBaseUrl}/?view=grocery`, { waitUntil: "domcontentloaded" });
-    await page.getByText("买菜协作").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "刷新协作" }).click();
+    await page.getByText("一起买菜").waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "看看最新进度" }).click();
     await page.waitForFunction(() => {
       const checkedItems = JSON.parse(localStorage.getItem("family-menu:checked-items") || "{}");
       const pantryItems = JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]");
@@ -484,7 +484,7 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   await guestPage.getByPlaceholder("怎么称呼你？可不填").fill("阿宁");
   await guestPage.getByPlaceholder("补一句：少辣、想清淡、周末再做...").fill("周末做");
   await guestPage.getByRole("button", { name: "发给主厨" }).click();
-  await guestPage.getByRole("heading", { name: "收到，已经放进想吃池候选。" }).waitFor({ timeout: 10000 });
+  await guestPage.getByRole("heading", { name: "收到，已经记下了。" }).waitFor({ timeout: 10000 });
 
   const updated = await request(`${apiBaseUrl}/wish-share-requests/${encodeURIComponent(token)}`);
   const wish = updated.request?.wishes?.[0];
@@ -1056,9 +1056,9 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
     await page.getByRole("heading", { name: "阿宁刚刚参与了。" }).waitFor({ timeout: 10000 });
     const homeHero = page.getByRole("heading", { name: "阿宁刚刚参与了。" }).locator("..");
     await homeHero.getByText("阿宁点了“想喝汤”，还提到“番茄汤”。", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText("协作主场").waitFor({ timeout: 10000 });
+    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
     await page.getByRole("heading", { name: "今晚先看这三件事" }).waitFor({ timeout: 10000 });
-    await page.getByText(/画像回执：\d+ 条线索/).waitFor({ timeout: 10000 });
+    await page.getByText(/Humi 已记住 \d+ 次选择/).waitFor({ timeout: 10000 });
     await page.getByText("这周家里的饭").waitFor({ timeout: 10000 });
     const heroBeforeFamilyPulse = await page.evaluate(() => {
       const heroHeading = [...document.querySelectorAll("h2")]
@@ -1080,7 +1080,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
     assert.equal(collaborationBeforeFamilyPulse, true, "my home collaboration hub should appear before family portrait reflection");
     const receiptHintBeforeFamilyPulse = await page.evaluate(() => {
       const receiptHint = [...document.querySelectorAll("p")]
-        .find((node) => node.textContent?.includes("画像回执："));
+        .find((node) => node.textContent?.includes("Humi 已记住"));
       const pulseHeading = [...document.querySelectorAll("h3")]
         .find((node) => node.textContent?.includes("Humi 正在记住这些变化"));
       if (!receiptHint || !pulseHeading) return false;
@@ -1101,15 +1101,15 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
     await page.getByText(/今天 · 晚饭做了 西红柿炒鸡蛋/).waitFor({ timeout: 10000 });
     await page.getByRole("heading", { name: "已留下 1 条三餐记录" }).waitFor({ timeout: 10000 });
     await page.getByRole("heading", { name: "1 道想吃" }).waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "自然动作已经在生成画像" }).waitFor({ timeout: 10000 });
-    await page.getByText("下一顿会用").first().waitFor({ timeout: 10000 });
-    await page.getByText(/条自然动作整理成画像线索/).first().waitFor({ timeout: 10000 });
-    await page.getByText("体验边界", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText(/免费无限：感觉征集/).waitFor({ timeout: 10000 });
-    await page.getByText(/精准质量层：/).waitFor({ timeout: 10000 });
+    await page.getByRole("heading", { name: "你的日常选择，正在让推荐更懂你家" }).waitFor({ timeout: 10000 });
+    await page.getByText("下顿会先考虑").first().waitFor({ timeout: 10000 });
+    await page.getByText(/Humi 已经记住 \d+ 次选择/).first().waitFor({ timeout: 10000 });
+    await page.getByText("哪些功能可以一直用", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText(/问问大家、一起买菜、最近想吃/).waitFor({ timeout: 10000 });
+    await page.getByText(/更懂你家的推荐：/).waitFor({ timeout: 10000 });
     await page.getByText(/基础推荐/).first().waitFor({ timeout: 10000 });
     await page.getByText("刚才的感觉已经保留").waitFor({ timeout: 10000 });
-    await page.getByText("点“收进家庭成员”后，这次临时参与才会合并成正式成员记录。").waitFor({ timeout: 10000 });
+    await page.getByText("你已经登录 Humi。点“加入这个家”后，刚才的回复会和你的家庭账号放在一起。").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "修改忌口" }).click();
     await page.getByRole("heading", { name: "人数和忌口" }).waitFor({ timeout: 10000 });
     await page.getByText("软口味来源").waitFor({ timeout: 10000 });
@@ -1135,7 +1135,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
       "my home settings should not ask users to maintain shopping tolerance",
     );
     await page.getByRole("button", { name: "修改忌口" }).click();
-    await page.getByRole("button", { name: "收进家庭成员" }).click();
+    await page.getByRole("button", { name: "加入这个家" }).click();
     await page.waitForFunction(() => {
       const value = localStorage.getItem("humi:pending-join-context:v1");
       return value === null || value === "null";
@@ -1177,8 +1177,8 @@ async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("当前家庭空间").first().waitFor({ timeout: 10000 });
-    await page.getByText("你是主厨，可以邀请家人；不同家庭的菜单、清单和画像会分开保存。").waitFor({ timeout: 10000 });
+    await page.getByText("现在看的家").first().waitFor({ timeout: 10000 });
+    await page.getByText("你是主厨，可以邀请家人；不同家庭的菜单、清单和偏好会分开保存。").waitFor({ timeout: 10000 });
 
     await page.getByRole("button", { name: "邀请家人" }).click();
     await page.getByText("家庭邀请卡片已准备好").waitFor({ timeout: 10000 });
@@ -1219,18 +1219,18 @@ async function verifyMyHomeCraveStartFlow({ browser, webBaseUrl }) {
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("协作主场").waitFor({ timeout: 10000 });
+    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "问问大家", exact: true }).click();
-    await page.getByText("今晚想问问大家什么感觉？").waitFor({ timeout: 10000 });
+    await page.getByText("今晚想先照顾哪种感觉？").waitFor({ timeout: 10000 });
     await page.getByText("今晚想问谁").waitFor({ timeout: 10000 });
-    await page.getByText("征集单模板").waitFor({ timeout: 10000 });
-    await page.getByText("家人动作").waitFor({ timeout: 10000 });
+    await page.getByText("家人会看到").waitFor({ timeout: 10000 });
+    await page.getByText("家人怎么回").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "想喝汤" }).click();
     await page.getByRole("button", { name: "发起征集" }).click();
-    await page.getByText("征集单已经在路上").waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "今晚口味征集单" }).waitFor({ timeout: 10000 });
+    await page.getByText("已经可以发给家人了").waitFor({ timeout: 10000 });
+    await page.getByRole("heading", { name: "大家今晚想吃什么" }).waitFor({ timeout: 10000 });
     await page.getByText(/CRAVE-[A-Z0-9]{6}/).waitFor({ timeout: 10000 });
-    await page.getByText("兜底感觉", { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText("没人回复时", { exact: true }).waitFor({ timeout: 10000 });
     await page.getByText("想喝汤").first().waitFor({ timeout: 10000 });
     const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
     assert(activeRequest?.token, "my home crave composer should create an active crave request");
@@ -1251,12 +1251,12 @@ async function verifyMyHomeFirstViewportHierarchy({ browser, webBaseUrl }) {
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("协作主场").waitFor({ timeout: 10000 });
+    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
     assert.equal(await page.getByRole("button", { name: "返回上一页" }).count(), 0, "my home is a root tab and should not show a back button");
     await page.getByRole("heading", { name: "今晚先看这三件事" }).waitFor({ timeout: 10000 });
     assert.equal(await page.getByRole("heading", { name: "今晚一家人进展" }).count(), 0, "my home should not repeat the collaboration hub");
     assert.equal(await page.getByRole("heading", { name: "吃饭画像慢慢反射" }).count(), 0, "my home should not repeat the portrait receipt");
-    assert.equal(await page.getByRole("heading", { name: "自然动作已经在生成画像" }).count(), 0, "empty portrait receipt should stay hidden until the first signal exists");
+    assert.equal(await page.getByRole("heading", { name: "你的日常选择，正在让推荐更懂你家" }).count(), 0, "empty preference summary should stay hidden until the first signal exists");
     const firstViewportInkButtons = await getFirstViewportInkButtonLabels(page);
     assert.equal(
       JSON.stringify(firstViewportInkButtons),
@@ -1287,13 +1287,13 @@ async function verifyMyHomeSoloFallbackFlow({ browser, webBaseUrl }) {
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("协作主场").waitFor({ timeout: 10000 });
+    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "问问大家", exact: true }).click();
-    await page.getByText("今晚想问问大家什么感觉？").waitFor({ timeout: 10000 });
+    await page.getByText("今晚想先照顾哪种感觉？").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "想喝汤" }).click();
     await page.getByRole("button", { name: "我自己做主" }).click();
     await page.getByText("今晚吃什么").waitFor({ timeout: 10000 });
-    await page.getByText(/已先按“想喝汤”揉合出一组/).waitFor({ timeout: 10000 });
+    await page.getByText(/已先按“想喝汤”安排了一组/).waitFor({ timeout: 10000 });
 
     await page.waitForFunction(() => {
       const craveSignals = JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]");
@@ -1325,7 +1325,7 @@ async function verifyDashboardSoloFallbackFlow({ browser, webBaseUrl }) {
     await page.getByRole("heading", { name: "先发一张征集单" }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "想喝汤" }).click();
     await page.getByRole("button", { name: "我自己做主，直接出菜单" }).click();
-    await page.getByText(/已先按“想喝汤”揉合出一组/).waitFor({ timeout: 10000 });
+    await page.getByText(/已先按“想喝汤”安排了一组/).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "今晚就做" }).click();
 
     await page.waitForFunction(() => {
@@ -1645,7 +1645,7 @@ async function verifyThreeMealPortraitFlow({ browser, webBaseUrl }) {
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "三餐记录开始成形。" }).waitFor({ timeout: 10000 });
-    await page.getByText("早餐 1 次 · 午餐 1 次 · 晚饭确认 1 次；画像正在成形。").waitFor({ timeout: 10000 });
+    await page.getByText("早餐 1 次 · 午餐 1 次 · 晚饭确认 1 次；Humi 正在慢慢了解你家的节奏。").waitFor({ timeout: 10000 });
     await page.getByText("阿宁记下了今天吃饭").waitFor({ timeout: 10000 });
     await page.getByText("今天 · 早餐在家做 · 午餐点外卖 · 晚饭做了 青椒土豆丝").waitFor({ timeout: 10000 });
     await page.getByText("已留下 3 条三餐记录").waitFor({ timeout: 10000 });

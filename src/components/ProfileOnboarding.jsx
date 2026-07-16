@@ -99,7 +99,7 @@ export function ProfileOnboarding({ profile, onComplete, onSignOut }) {
           </div>
 
           <div className="mt-5 rounded-[22px] bg-canvas p-4">
-            <p className="text-xs font-black text-ink/38">当前画像</p>
+            <p className="text-xs font-black text-ink/38">目前了解的偏好</p>
             <p className="mt-2 text-sm font-bold leading-6 text-ink/62">{formatHardProfileSummary(draft)}</p>
           </div>
 

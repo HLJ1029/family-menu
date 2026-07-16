@@ -534,7 +534,7 @@ function buildBasicRecommendation(payload = {}) {
   const recipeIds = [...new Set(fallbackIds.length > 0 ? fallbackIds : [...candidateIds])].slice(0, 2);
   return {
     recipeIds,
-    reason: stringValue(payload.ruleFallback?.reason) || "已按家庭画像和本地规则给你一组基础推荐。",
+    reason: stringValue(payload.ruleFallback?.reason) || "先照着你家的口味、现有食材和时间安排了一组。",
     explanation: {
       pantry: "基础版已参考家里现有信号。",
       preference: "基础版已参考家庭偏好标签。",

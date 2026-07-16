@@ -19,7 +19,7 @@ export const auxiliaryNavItems = [
   { id: "today", label: "今晚菜单", icon: CalendarDays },
   { id: "recommendations", label: "推荐详情", icon: Sparkles },
   { id: "calendar", label: "营养日历", icon: CalendarDays },
-  { id: "stats", label: "饮食画像", icon: ChefHat },
+  { id: "stats", label: "吃饭习惯", icon: ChefHat },
 ];
 
 export function getNavItem(id) {

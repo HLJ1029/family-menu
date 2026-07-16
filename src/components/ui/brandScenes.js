@@ -23,7 +23,7 @@ export const humiBrandScenes = {
   wechatLogin: asset("humi-state-wechat-login-01", "使用微信登录"),
   phoneBind: asset("humi-state-phone-bind-01", "绑定手机号"),
   emptyFamily: asset("humi-state-empty-family-01", "创建我的家"),
-  emptyWishPool: asset("humi-state-empty-wish-pool-01", "想吃池还是空的"),
+  emptyWishPool: asset("humi-state-empty-wish-pool-01", "还没有记下想吃的菜"),
   inviteJoin: asset("humi-invite-family-join-01", "加入一个家"),
   inviteAccepted: asset("humi-invite-family-accepted-01", "已经加入这个家"),
   craveThinking: asset("humi-crave-vote-thinking-01", "想想今晚想吃什么"),
