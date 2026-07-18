@@ -217,6 +217,35 @@ export async function loadMenuShareRequest(token) {
   return humiPublicRequest(`/menu-share-requests/${encodeURIComponent(token)}`);
 }
 
+export async function uploadPosterShare(session, blob) {
+  if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
+  if (!(blob instanceof Blob) || !["image/jpeg", "image/png"].includes(blob.type)) {
+    throw new Error("海报图片没有准备完整，请重新生成。");
+  }
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(`${getHumiApiBaseUrl()}/poster-shares`, {
+      method: "POST",
+      headers: {
+        "Content-Type": blob.type,
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: blob,
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "海报暂时没传到微信，请稍后再试。");
+    }
+    return data;
+  } catch (error) {
+    throw normalizeHumiApiError(error, "collaboration");
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+}
+
 export async function createWishShareRequest(payload, session = null) {
   if (isHumiApiSession(session)) {
     return humiApiRequest("/wish-share-requests", { method: "POST", session, body: payload });

@@ -11,8 +11,8 @@
 - 当前阶段是 1.1 生产候选完善与内测验证：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，继续保持工程门禁、产品验收和用户确认项可重复通过；最终进入微信公众平台审核前必须再次由用户确认。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
-- API 部署提交：`cae5e14`；部署前备份 `/opt/humi/backups/20260716T115336Z`。1.1.71 不改 API 合同。
-- 最新小程序候选：`1.1.71`，描述 `明确微信发送步骤并消除假成功`，AppID `wx4040b89f3b363416`。
+- API 当前生产基线提交：`cae5e14`；本轮 1.1.72 新增短期海报图片接口，合并后必须重新备份并部署 API。
+- 最新小程序候选：`1.1.72`，描述 `海报原生分享与保存到相册`，AppID `wx4040b89f3b363416`。
 - 已核验 H5：`https://www.humi-home.com/`，Pages run `29641009392` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
@@ -195,12 +195,12 @@ docs/wechat-submit-copy-packet.md
 
 提交版本：
 
-- 版本：`1.1.71`
-- 描述：`明确微信发送步骤并消除假成功`
+- 版本：`1.1.72`
+- 描述：`海报原生分享与保存到相册`
 
 提交前必须确认：
 
-- request 合法域名包含 `https://api.humi-home.com`
+- request 与 downloadFile 合法域名均包含 `https://api.humi-home.com`
 - web-view 业务域名包含 `https://www.humi-home.com`
 - 隐私政策为 `https://www.humi-home.com/privacy.html`
 - 用户协议为 `https://www.humi-home.com/terms.html`
@@ -254,7 +254,7 @@ docs/humi-1.1-candidate-validation-forms.md
 
 ## 3. 当前不要做
 
-- 不要在真机验收期间无记录覆盖 `1.1.71`；发现 P0/P1 时先登记、修复、复测，再上传新的 1.1.x 候选。
+- 不要在真机验收期间无记录覆盖 `1.1.72`；发现 P0/P1 时先登记、修复、复测，再上传新的 1.1.x 候选。
 - 不要在 1.1 发布前清退 Supabase、改支付、改登录架构或改数据库存储。
 - 不要把微信后台截图、登录态、手机号、真实家庭名单提交到仓库。
 - 不要因为 `release:status ok=false` 就误判 H5 不可发；先看失败项是不是只有生产 API SSH。

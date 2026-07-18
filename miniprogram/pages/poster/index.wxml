@@ -1,0 +1,27 @@
+<view class="poster-shell">
+  <view class="brand-row">
+    <view class="brand-dot"></view>
+    <text>HUMI</text>
+  </view>
+
+  <view class="poster-heading">
+    <view class="eyebrow">分享图片</view>
+    <view class="title">{{title}}</view>
+  </view>
+
+  <view class="poster-frame" wx:if="{{imageUrl}}">
+    <image class="poster-image" src="{{imageUrl}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+  </view>
+  <view class="poster-missing" wx:else>
+    <view class="missing-title">海报没有准备完整</view>
+    <view class="missing-body">返回 Humi 重新生成后再试。</view>
+  </view>
+
+  <view class="poster-status">{{statusText}}</view>
+
+  <view class="actions">
+    <button class="primary-button" bindtap="sharePosterImage" loading="{{pending}}" disabled="{{pending || !token}}">发给家人</button>
+    <button class="secondary-button" bindtap="savePosterImage" disabled="{{pending || !token}}">保存到相册</button>
+    <button class="ghost-button" bindtap="goBack" disabled="{{pending}}">返回 Humi</button>
+  </view>
+</view>

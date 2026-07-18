@@ -7,7 +7,7 @@
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 小程序 1.1.71 使用本合同，并包含多家庭定向保存、五类协作分享、协作状态持久化与临时身份隐私收口；本轮 API 合同未变。
+- 小程序 1.1.72 使用本合同，并包含多家庭定向保存、五类协作分享、协作状态持久化、临时身份隐私收口与短期海报图片交接。
 
 本地启动：
 
@@ -27,6 +27,11 @@ npm run validate:api
 | --- | --- |
 | `HUMI_API_PORT` | 本地监听端口，默认 `8787` |
 | `HUMI_API_DATA_FILE` | 本地文件存储路径，默认 `.humi-api-data.json` |
+| `HUMI_POSTER_DIR` | 短期海报图片目录，默认与数据文件同级的 `.humi-posters` |
+| `HUMI_PUBLIC_BASE_URL` | 海报公开下载地址前缀，生产为 `https://api.humi-home.com` |
+| `HUMI_POSTER_MAX_BYTES` | 单张海报上限，默认 950KB，服务端硬上限 1MB |
+| `HUMI_POSTER_TTL_MS` | 海报保留时长，默认 24 小时，最低 1 小时 |
+| `HUMI_POSTER_RATE_LIMIT` | 单用户与 IP 每分钟上传上限，默认 12 次 |
 | `HUMI_SESSION_SECRET` | Humi session HMAC 密钥，生产必填 |
 | `HUMI_ALLOWED_ORIGINS` | CORS 允许来源，逗号分隔 |
 | `WECHAT_APP_ID` | 微信小程序 AppID |
@@ -218,6 +223,23 @@ Authorization: Bearer <accessToken>
 - 已被其他成员认领或买到的项不能被第二个成员覆盖；服务端返回 `409 grocery_item_claimed` 或 `409 grocery_item_done`，前端应展示“已有人在买/已买到”而不是继续完成。
 
 买菜认领是免费协作能力，不按次数计费。
+
+## 海报图片交接
+
+`POST /poster-shares`
+
+- 必须携带有效 Humi 微信登录会话。
+- 请求体是 Humi 在浏览器 Canvas 生成的 JPG 或 PNG 原始字节；服务端同时校验 `Content-Type` 和文件签名。
+- 单张默认不超过 950KB；前端在上传前压缩到 900KB 内，以兼容生产反向代理的 1MB 请求上限。
+- 返回不可预测的临时 token、图片格式、公开 URL、字节数和失效时间。
+- 同一用户与 IP 默认每分钟最多上传 12 张，超过返回 429。
+
+`GET /poster-shares/:token.jpg` / `GET /poster-shares/:token.png`
+
+- 小程序原生海报页用该地址执行 `wx.downloadFile`，随后才调起图片分享或相册保存。
+- 图片默认保留 24 小时；过期文件会删除并返回 410，未知 token 返回 404。
+- URL 仅以 192 位随机 token 作为短期访问能力，不包含用户、家庭、菜单或清单标识。
+- 海报不得作为长期家庭数据存储；失效后需要回到 Humi 重新生成。
 
 ## 推荐与成本闸门
 

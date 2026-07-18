@@ -26,6 +26,7 @@ try {
   const page = await context.newPage();
   const pageErrors = [];
   let craveCreatePayload = null;
+  const posterUploadRequests = [];
   await page.addInitScript(() => {
     window.__humiMiniProgramCalls = [];
     window.__wxjs_environment = "miniprogram";
@@ -180,6 +181,24 @@ try {
     });
   });
 
+  await page.route("**/poster-shares", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = route.request().postDataBuffer();
+    const contentType = route.request().headers()["content-type"] || "";
+    const format = contentType.includes("png") ? "png" : "jpg";
+    const sequence = posterUploadRequests.length + 1;
+    const token = `product_smoke_poster_token_${String(sequence).padStart(4, "0")}`;
+    posterUploadRequests.push({ size: body?.length || 0, contentType });
+    await fulfillJson(route, {
+      poster: {
+        token,
+        format,
+        url: `https://api.humi-home.com/poster-shares/${token}.${format}`,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+    });
+  });
+
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await seedGuestDinnerState(page);
   await page.reload({ waitUntil: "networkidle" });
@@ -248,6 +267,14 @@ try {
   const todayMenuPosterGenerated = await todayMenuPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
   const todayMenuPosterPreviewScreenshot = join(evidenceDir, "today-menu-poster-preview-mobile.png");
   await page.screenshot({ path: todayMenuPosterPreviewScreenshot, fullPage: true });
+  await page.getByRole("button", { name: "分享海报", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "navigateTo"
+      && call.payload?.url?.includes("/pages/poster/index?")
+      && call.payload?.url?.includes("action=share")
+    ),
+  );
   await page.getByRole("button", { name: "关闭海报预览" }).first().click();
   await page.getByRole("button", { name: "去微信发菜单", exact: true }).click();
   await page.waitForFunction(() =>
@@ -345,6 +372,14 @@ try {
   const groceryPosterGenerated = await groceryPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
   const groceryPosterPreviewScreenshot = join(evidenceDir, "grocery-poster-preview-mobile.png");
   await page.screenshot({ path: groceryPosterPreviewScreenshot, fullPage: true });
+  await page.getByRole("button", { name: "保存图片", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "navigateTo"
+      && call.payload?.url?.includes("/pages/poster/index?")
+      && call.payload?.url?.includes("action=save")
+    ),
+  );
   await page.getByRole("button", { name: "关闭海报预览" }).first().click();
   await page.getByRole("button", { name: "去微信发清单", exact: true }).click();
   await page.waitForFunction(() =>
@@ -424,8 +459,18 @@ try {
   const menuShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=today_menu"));
   const inviteShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite"));
   const wishShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish"));
+  const menuPosterNativeShareOpened = miniProgramCalls.some((call) =>
+    call.method === "navigateTo"
+    && call.payload?.url?.includes("/pages/poster/index?")
+    && call.payload?.url?.includes("action=share")
+  );
+  const groceryPosterNativeSaveOpened = miniProgramCalls.some((call) =>
+    call.method === "navigateTo"
+    && call.payload?.url?.includes("/pages/poster/index?")
+    && call.payload?.url?.includes("action=save")
+  );
   const nativeShareTypes = miniProgramCalls
-    .filter((call) => call.method === "navigateTo")
+    .filter((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?"))
     .map((call) => new URLSearchParams(String(call.payload?.url || "").split("?")[1] || "").get("type"));
   const nativeShareTypeCounts = Object.fromEntries(nativeShareTypes.map((type) => [
     type,
@@ -483,6 +528,16 @@ try {
     { key: "today-menu-poster-entry-is-visible", ok: todayMenuPosterEntryVisible },
     { key: "grocery-poster-entry-is-visible", ok: groceryPosterEntryVisible },
     { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
+    { key: "menu-poster-opens-native-image-share-page", ok: menuPosterNativeShareOpened },
+    { key: "grocery-poster-opens-native-album-save-page", ok: groceryPosterNativeSaveOpened },
+    {
+      key: "poster-uploads-stay-under-api-limit",
+      ok: posterUploadRequests.length === 2
+        && posterUploadRequests.every((request) => request.size > 0
+          && request.size <= 950 * 1024
+          && /^image\/(?:jpeg|png)/.test(request.contentType)),
+      actual: posterUploadRequests,
+    },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "menu-share-opens-native-share-page", ok: menuShareOpened },

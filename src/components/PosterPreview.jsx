@@ -69,8 +69,8 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               </h2>
               <p className="mt-3 text-sm font-bold leading-6 text-ink/52">
                 {ready
-                  ? "图片已经准备好了。可以试着直接分享，也可以先保存下来再发给家人。"
-                  : "Humi 正在把这份内容整理成一张分享图。"}
+                  ? "海报好了。发给家人，或者先留到相册里。"
+                  : "Humi 正在把这些内容排成一张海报。"}
               </p>
             </div>
             <button
@@ -120,7 +120,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               className="shrink-0"
             />
             <p className="text-sm font-bold leading-6 text-ink/52">
-              如果微信没有弹出分享面板，可以先保存图片，再从聊天里发给家人。
+              直接发送没反应时，先存到相册，再从聊天里发出去。
             </p>
           </div>
         </div>

@@ -5,13 +5,13 @@
 
 ## 1. 当前状态
 
-- 小程序版本：`1.1.71`
-- 版本描述：`明确微信发送步骤并消除假成功`
+- 小程序版本：`1.1.72`
+- 版本描述：`海报原生分享与保存到相册`
 - AppID：`wx4040b89f3b363416`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
 - 当前状态：H5 与小程序包已上传；提审前 P0/P1 已完成，当前不自动提交审核，需用户确认后进入微信公众平台提交。
-- 后端状态：1.1.71 只调整 H5 与小程序入口，不改生产 API；发布前后仍用 `npm run monitor:prod` 和 `npm run release:status` 复核。
+- 后端状态：1.1.72 新增短期海报图片接口；发布前后用 `npm run validate:api`、`npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 
 ## 2. 审核通过后立即执行

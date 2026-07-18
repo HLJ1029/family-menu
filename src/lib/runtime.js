@@ -25,11 +25,29 @@ export function buildMiniProgramShareUrl(payload = {}) {
 export function requestMiniProgramShare(payload = {}, options = {}) {
   if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
   if (!String(payload.token || "").trim()) return Promise.resolve("unavailable");
+  return requestMiniProgramPage(buildMiniProgramShareUrl(payload), options);
+}
+
+export function buildMiniProgramPosterUrl(payload = {}) {
+  const params = new URLSearchParams();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+  });
+  const query = params.toString();
+  return query ? `/pages/poster/index?${query}` : "/pages/poster/index";
+}
+
+export function requestMiniProgramPoster(payload = {}, options = {}) {
+  if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
+  if (!String(payload.token || "").trim()) return Promise.resolve("unavailable");
+  return requestMiniProgramPage(buildMiniProgramPosterUrl(payload), options);
+}
+
+function requestMiniProgramPage(url, options = {}) {
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram?.redirectTo && !miniProgram?.navigateTo) return Promise.resolve("unavailable");
 
   const timeoutMs = options.timeoutMs ?? 1800;
-  const url = buildMiniProgramShareUrl(payload);
   return new Promise((resolve) => {
     let settled = false;
     let timeoutTimer = null;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { buildMiniProgramShareUrl, requestMiniProgramShare } from "../src/lib/runtime.js";
+import { buildMiniProgramPosterUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramShare } from "../src/lib/runtime.js";
 
 const {
   buildHumiUrl,
@@ -14,6 +14,7 @@ const {
 const miniProgramApp = JSON.parse(readFileSync("miniprogram/app.json", "utf8"));
 assert(miniProgramApp.pages.includes("pages/index/index"), "mini program app.json should include index page");
 assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.json should include native share page");
+assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
 
 assertMiniProgramSharePage("miniprogram/pages/index/index", { requiresOpenTypeButton: false, supportsTimeline: false });
 assertMiniProgramSharePage("miniprogram/pages/share/index", { requiresOpenTypeButton: true, supportsTimeline: true });
@@ -46,6 +47,11 @@ assert.equal(
   );
 });
 
+assert.equal(
+  buildMiniProgramPosterUrl({ token: "poster-token", format: "jpg", title: "今晚菜单", action: "share" }),
+  "/pages/poster/index?token=poster-token&format=jpg&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95&action=share",
+);
+
 const primaryNavigation = createRuntimeWindow({
   navigateTo({ url, success }) {
     assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
@@ -64,6 +70,22 @@ assert.equal(
   "handoff",
 );
 assert.deepEqual(primaryNavigation.calls, ["navigateTo"]);
+
+const posterNavigation = createRuntimeWindow({
+  navigateTo({ url, success }) {
+    assert.equal(url, "/pages/poster/index?token=poster-token&format=jpg&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95&action=save");
+    success?.();
+  },
+});
+globalThis.window = posterNavigation.window;
+assert.equal(
+  await requestMiniProgramPoster(
+    { token: "poster-token", format: "jpg", title: "今晚菜单", action: "save" },
+    { timeoutMs: 100 },
+  ),
+  "handoff",
+);
+assert.deepEqual(posterNavigation.calls, ["navigateTo"]);
 
 const explicitFailureFallback = createRuntimeWindow({
   navigateTo({ url, fail }) {
@@ -197,8 +219,13 @@ function assertShareFeedbackDoesNotClaimUnverifiedSuccess() {
   const main = readFileSync("src/main.jsx", "utf8");
   const todayMenu = readFileSync("src/components/TodayMenu.jsx", "utf8");
   const groceryList = readFileSync("src/components/GroceryList.jsx", "utf8");
+  const posterPage = readFileSync("miniprogram/pages/poster/index.js", "utf8");
   assert.doesNotMatch(main, /已打开分享面板|清单已打开分享面板/, "share feedback must not claim that a system panel opened");
+  assert.doesNotMatch(main, /图片已开始保存/, "poster feedback must not claim a browser download reached the photo album");
   assert.match(main, /没能打开微信发送页，请再试一次/, "native share failures should be explicit and retryable");
+  assert.match(main, /requestMiniProgramPoster/, "mini-program posters should hand off to a native poster page");
+  assert.match(posterPage, /saveImageToPhotosAlbum/, "native poster page should save through the WeChat album API");
+  assert.match(posterPage, /showShareImageMenu/, "native poster page should share through the WeChat image menu");
   assert.match(todayMenu, /去微信发菜单/, "mini-program menu sharing should set the native handoff expectation");
   assert.match(groceryList, /去微信发清单/, "mini-program grocery sharing should set the native handoff expectation");
 }
@@ -260,6 +287,8 @@ function assertMiniProgramVisibleCopyKeepsPantryInvisible() {
     "miniprogram/pages/index/index.wxml",
     "miniprogram/pages/share/index.wxml",
     "miniprogram/pages/share/index.js",
+    "miniprogram/pages/poster/index.wxml",
+    "miniprogram/pages/poster/index.js",
   ].forEach((filePath) => {
     const source = readFileSync(filePath, "utf8");
     assert.doesNotMatch(

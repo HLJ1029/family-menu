@@ -49,6 +49,7 @@ import {
   createTodayMenuPoster,
   createWeekMenuPoster,
   downloadPoster,
+  preparePosterUploadBlob,
   sharePoster,
 } from "./lib/posters";
 import {
@@ -62,9 +63,9 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession, requestWechatLoginFromMiniProgram } from "./lib/humiIdentity";
-import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold } from "./lib/humiApi";
+import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { isHumiAiViaApiEnabled } from "./lib/aiViaHumiApi";
-import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramShare } from "./lib/runtime";
+import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
 import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { explainRecommendation } from "./lib/supabase/aiExplanation";
@@ -2542,14 +2543,14 @@ function App() {
     setPosterLoading(true);
     setPosterPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
-      return current ? { ...current, blob: null, url: "" } : null;
+      return current ? { ...current, blob: null, url: "", remotePoster: null } : null;
     });
     try {
       const blob = await posterPreview.createBlob();
       const url = URL.createObjectURL(blob);
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return current ? { ...current, blob, url } : null;
+        return current ? { ...current, blob, url, remotePoster: null } : null;
       });
       showNotice("换好一版海报了");
     } catch {
@@ -2559,16 +2560,67 @@ function App() {
     }
   }
 
-  function savePosterPreview() {
+  async function handoffPosterToMiniProgram(action) {
+    if (!isWechatMiniProgramWebView()) return false;
+    if (!posterPreview?.blob) {
+      showNotice("海报还没准备好");
+      return true;
+    }
+    if (!isHumiApiSession(humiSession)) {
+      if (requestWechatLoginFromMiniProgram()) {
+        showNotice("登录后重新生成海报，就能保存到相册或发给家人");
+      } else {
+        showNotice("请先在小程序里登录 Humi");
+      }
+      return true;
+    }
+
+    setPosterLoading(true);
+    try {
+      let remotePoster = posterPreview.remotePoster;
+      if (!remotePoster?.token) {
+        const uploadBlob = await preparePosterUploadBlob(posterPreview.blob);
+        const data = await uploadPosterShare(humiSession, uploadBlob);
+        remotePoster = data.poster;
+        setPosterPreview((current) => (
+          current?.blob === posterPreview.blob ? { ...current, remotePoster } : current
+        ));
+      }
+      const status = await requestMiniProgramPoster({
+        token: remotePoster.token,
+        format: remotePoster.format,
+        title: posterPreview.title,
+        action,
+      }, { timeoutMs: 2400 });
+      if (status === "handoff") {
+        trackProductEvent(appEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
+        trackValidationEvent(
+          action === "save" ? validationEvents.posterSavedAttempted : validationEvents.posterSharedIntent,
+          { type: posterPreview.type, method: "mini_program" },
+        );
+      } else {
+        showNotice("没能打开微信海报页，请再试一次");
+      }
+    } catch (error) {
+      showNotice(error.message || "海报暂时没传到微信，请稍后再试");
+    } finally {
+      setPosterLoading(false);
+    }
+    return true;
+  }
+
+  async function savePosterPreview() {
     if (!posterPreview) return;
+    if (await handoffPosterToMiniProgram("save")) return;
     downloadPoster(posterPreview.blob, posterPreview.filename);
     trackProductEvent(appEvents.share, { type: posterPreview.type, method: "poster_save" });
     trackValidationEvent(validationEvents.posterSavedAttempted, { type: posterPreview.type });
-    showNotice("图片已开始保存");
+    showNotice("浏览器正在保存图片");
   }
 
   async function sharePosterPreview() {
     if (!posterPreview) return;
+    if (await handoffPosterToMiniProgram("share")) return;
     setPosterLoading(true);
     trackValidationEvent(validationEvents.posterSharedIntent, { type: posterPreview.type });
     try {
@@ -2583,7 +2635,7 @@ function App() {
         type: posterPreview.type,
         method: method === "shared" ? "poster_native" : "poster_download",
       });
-      if (method === "downloaded") showNotice("图片已开始保存");
+      if (method === "downloaded") showNotice("浏览器正在保存图片");
     } catch {
       await shareText({
         type: posterPreview.type,
