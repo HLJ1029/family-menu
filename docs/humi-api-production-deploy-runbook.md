@@ -3,23 +3,23 @@
 更新日期：2026-07-18
 执行设备：codex@mbp-m5pro
 
-本文档用于补部署 Humi API 1.1.37-1.1.54 的服务端增量。
+本文档记录 Humi API 1.1 服务端增量的生产部署与复验方法。
 
 ## 1. 当前事实
 
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前已审计内容提交：`cb5c15d`（API 部署预检已支持显式 SSH key）。
-- 最新 GitHub Pages：run `28628986271` / success / `npm run release:check:online` 已通过。
-- 最新小程序候选：`1.1.72` / `海报原生分享与保存到相册`。本次候选新增短期海报图片上传与公开下载接口，必须在 H5 和小程序体验版联调前部署 API。
+- 当前生产部署提交：`129da03`；部署前备份 `/opt/humi/backups/20260718T114140Z`。
+- 最新 GitHub Pages：run `29642978938` / success / `npm run release:check:online` 已通过。
+- 最新小程序候选：`1.1.72` / `海报原生分享与保存到相册`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
 
-## 2. 待补部署 API 增量
+## 2. 已部署 API 增量
 
-恢复 SSH 后，需要把以下已进入 `main`、已通过本地 smoke 的服务端能力部署到生产 API：
+以下已进入 `main`、通过本地 smoke 并部署到生产 API：
 
 - 1.1.37：感觉征集 `deadlineAt` 持久化并公开返回。
 - 1.1.38：`/recommend mode=precise` 服务端登录与额度闸门，免费家庭额度用完返回 402。

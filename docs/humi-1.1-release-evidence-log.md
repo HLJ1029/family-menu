@@ -11,14 +11,14 @@
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| API 部署提交 | `cae5e14` |
-| GitHub Pages deployment | `29641009392` / success / PR #31 merge `7733865` |
+| API 部署提交 | `129da03` |
+| GitHub Pages deployment | `29642978938` / success / PR #34 merge `129da03` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
 | 小程序版本 | `1.1.72` |
 | 小程序描述 | `海报原生分享与保存到相册` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页；菜单和清单海报已接入临时图片上传、微信原生图片分享与相册保存。`1.1.72` 使用 `h5v=1.1.72`，待本轮合并、生产部署和体验版上传后做真实手机验收；尚未提交微信审核 |
+| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页；菜单和清单海报已接入临时图片上传、微信原生图片分享与相册保存。`1.1.72` 已合并、生产部署并上传体验版；DevTools automator 已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过。尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -85,6 +85,11 @@
 | 2026-07-18 | codex@mbp-m5pro | PR #31 / GitHub Pages | 通过 | 五类分享的第二步微信发送提示、假成功清理与发布版本常量合入 `main@7733865`；Pages run `29641009392` success |
 | 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 五类 H5 分享入口各自只派发一次原生 `navigateTo`，无 `redirectTo`；菜单与清单海报均真实生成，138 道菜库及核心流程页面错误 0；协作 smoke 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.71-rerun-20260718` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.71-20260718` |
 | 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.71` / `明确微信发送步骤并消除假成功` / package `28.8 KB` / `h5v=1.1.71`；preview QR SHA-256 `feba01ff9043fed1ee118564bf6d3002907a0381e97a414217a40b7473dd8e3a`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.71`；未提交审核 |
+| 2026-07-18 | codex@mbp-m5pro | PR #34 / GitHub Pages | 通过 | 原生海报分享、短期海报接口和生产门禁合入 `main@129da03`；Pages run `29642978938` success |
+| 2026-07-18 | codex@mbp-m5pro | 生产 API 备份 / 部署 / restart | 通过 | 备份 `/opt/humi/backups/20260718T114140Z`；同步 `main@129da03`；`humi-api.service` active；health、poster endpoint、monitor 与 online readiness 通过 |
+| 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 产品核心路径、138 道菜库、五类分享桥接、菜单/清单海报生成与上传、四类游客协作均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.72-20260718` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.72-20260718` |
+| 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.72` / `海报原生分享与保存到相册` / package `43.1 KB` / `h5v=1.1.72`；preview QR SHA-256 `249472241ce8ddea623b6c1eddaa69af5459728c398d7f67479f137fc2e93027`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72`；未提交审核 |
+| 2026-07-18 | codex@mbp-m5pro | official miniprogram-automator / `wx.downloadFile` | P0 阻断 | 关闭合法域名跳过后请求 `https://api.humi-home.com/poster-shares/...jpg` 返回 `downloadFile:fail createDownloadTask:fail url not in domain list`；必须先在微信后台添加 downloadFile 合法域名，不能以 H5 或 DevTools 调试模式代替真机通过 |
 
 ## 3. 生产 API 补部署证据
 
@@ -92,16 +97,16 @@
 
 | 字段 | 记录 |
 | --- | --- |
-| 执行时间 | 2026-07-16 19:53 CST |
+| 执行时间 | 2026-07-18 19:41 CST |
 | 执行人 | codex@mbp-m5pro |
 | 可用 SSH target | `ubuntu@api.humi-home.com` + `~/.ssh/humi_tencent_lighthouse` |
-| 部署前备份路径 | `/opt/humi/backups/20260716T115336Z` |
-| 部署提交 | `cae5e14` |
+| 部署前备份路径 | `/opt/humi/backups/20260718T114140Z` |
+| 部署提交 | `129da03` |
 | 服务管理方式 | systemd / `humi-api.service` / `WorkingDirectory=/opt/humi` |
 | `npm run deploy:api:check` | 通过 |
 | `npm run monitor:prod` | 通过 |
 | `npm run release:check:online` | 通过 |
-| API smoke 结论 | 通过：health 200、基础推荐 200、生产 monitor 与 online readiness 通过；本次只调整推荐降级文案，不改变 API 合同 |
+| API smoke 结论 | 通过：health 200、基础推荐 200、未登录海报上传 401、缺失海报 404、生产 monitor 与 online readiness 通过 |
 | 是否回滚 | 否 |
 
 重点 smoke：
@@ -130,8 +135,8 @@
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.72` 列表 | 待填 | 待填 |  |
-| request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
+| 上传版本 `1.1.72` 列表 | 已有 CLI 证据，后台截图待填 | `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72` | 上传成功，尚未提审 |
+| request / downloadFile 合法域名 `api.humi-home.com` | P0 未完成 | 待后台截图 | automator 已确认 downloadFile 域名缺失；配置后必须重测 |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
 | 审核备注/提交页 | 待填 | 待填 |  |
