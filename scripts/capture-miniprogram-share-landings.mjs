@@ -54,27 +54,41 @@ try {
       token: tokens.craveToken,
       query: "crave",
       file: "crave-landing.png",
-      waitForText: "今晚征集单",
+      testId: "crave-share-landing",
     },
     {
       key: "invite",
       token: tokens.inviteToken,
       query: "invite",
       file: "invite-landing.png",
-      waitForText: "加入",
+      testId: "invite-share-landing",
     },
     {
       key: "grocery",
       token: tokens.groceryToken,
-      query: "grocery",
+      query: "groceryShare",
       file: "grocery-landing.png",
-      waitForText: "顺路带这些",
+      testId: "grocery-share-landing",
+    },
+    {
+      key: "wish",
+      token: tokens.wishToken,
+      query: "wishShare",
+      file: "wish-landing.png",
+      testId: "wish-share-landing",
+    },
+    {
+      key: "menu",
+      token: tokens.menuToken,
+      query: "menuShare",
+      file: "menu-landing.png",
+      testId: "menu-share-landing",
     },
   ]) {
     const page = await context.newPage();
     const url = `${H5_BASE_URL}?${item.query}=${encodeURIComponent(item.token)}&channel=wechat-miniprogram`;
     await page.goto(url, { waitUntil: "networkidle" });
-    await page.getByText(item.waitForText).first().waitFor({ timeout: 12_000 });
+    await page.getByTestId(item.testId).waitFor({ timeout: 12_000 });
     const path = join(evidenceDir, item.file);
     await page.screenshot({ path, fullPage: true });
     await page.close();
@@ -130,7 +144,7 @@ async function createShareTokens() {
     },
   });
 
-  const grocery = await request(`${API_BASE_URL}/grocery-shares`, {
+  const grocery = await request(`${API_BASE_URL}/grocery-share-requests`, {
     method: "POST",
     headers: authHeaders,
     body: {
@@ -144,10 +158,37 @@ async function createShareTokens() {
     },
   });
 
+  const wish = await request(`${API_BASE_URL}/wish-share-requests`, {
+    method: "POST",
+    headers: authHeaders,
+    body: {
+      householdName: "周末家",
+      initiatorName: "小林",
+      title: "最近想吃什么",
+    },
+  });
+
+  const menu = await request(`${API_BASE_URL}/menu-share-requests`, {
+    method: "POST",
+    headers: authHeaders,
+    body: {
+      householdName: "周末家",
+      initiatorName: "小林",
+      title: "香煎豆腐 + 番茄鸡蛋",
+      dishes: [
+        { id: "pan-fried-tofu", name: "香煎豆腐", quantity: 1, timeMinutes: 20 },
+        { id: "tomato-egg", name: "番茄鸡蛋", quantity: 1, timeMinutes: 15 },
+      ],
+      groceryCount: 6,
+    },
+  });
+
   return {
     craveToken: crave.request.token,
     inviteToken: invite.invite.token,
-    groceryToken: grocery.share.token,
+    groceryToken: grocery.request.token,
+    wishToken: wish.request.token,
+    menuToken: menu.request.token,
   };
 }
 

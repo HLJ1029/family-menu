@@ -40,7 +40,7 @@ if (openHardeningItems.length) {
     lines.push("3. 运行 npm run release:pre-review:evidence 生成私有证据总览，确认征集单视觉图和 H5 落地页已齐。");
     lines.push("4. 运行 npm run release:wechat:share:doctor 确认开发者工具 CLI、证据目录、桌面活跃状态和缺图清单。");
     lines.push("5. 运行 npm run release:wechat:share:devtools 打开小程序项目、预览二维码和核对清单。");
-    lines.push("6. 如 DevTools/H5 内分享入口不稳定，运行 npm run release:wechat:share:direct-previews 生成三张直达原生分享确认页二维码。");
+    lines.push("6. 如 DevTools/H5 内分享入口不稳定，运行 npm run release:wechat:share:direct-previews 生成五张直达原生分享确认页二维码。");
     lines.push("7. 如缺 landing 图，先运行 npm run release:wechat:share:landings 自动补齐；如缺 card 图，推荐运行 npm run release:wechat:share:cards:capture -- --interactive 框选保存，或用 npm run release:wechat:share:cards:import 导入已有截图。");
     lines.push("8. 截图补齐后运行 npm run release:wechat:share:evidence，再运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
   } else {
@@ -467,7 +467,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
         "运行 npm run release:candidate:privacy:check，确认最新私有候选包没有手机号、邮箱、微信号或真实姓名。",
         "运行 npm run release:candidate:prepare:selftest、npm run release:candidate:forms:preview:selftest、npm run release:candidate:plan:selftest、npm run release:candidate:dispatch:selftest、npm run release:candidate:dispatch:workbench:selftest、npm run release:candidate:invite:selftest、npm run release:candidate:desk:selftest、npm run release:candidate:record:draft:selftest、npm run release:candidate:record:selftest、npm run release:candidate:daily:selftest、npm run release:candidate:day:close:selftest 和 npm run release:candidate:privacy:selftest 确认工具可用。",
         "内测结果写入私有执行包后，运行 npm run release:candidate:review 判断是否达到 10 个真实体验、8 个今晚菜单、8 个清单、3 个协作样本且无 P0/P1。",
-        "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.69、域名、隐私保护指引、审核备注和证据目录仍可用。",
+        "运行 npm run release:wechat:check 只做只读预检，确认版本 1.1.70、域名、隐私保护指引、审核备注和证据目录仍可用。",
         "把需要用户确认的体验问题先在当前候选版本里继续修完；新增 P0/P1 时登记到 docs/humi-1.1-pre-review-hardening.md。",
         "只有用户明确说“现在进入微信审核”后，才运行 HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit 打开微信公众平台。",
         "真正提交审核后，再运行 npm run release:evidence:commands -- submit，按模板登记提交时间、状态和私有截图位置。",
@@ -479,7 +479,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
     return {
       title: "微信审核已提交，下一步是等待并登记审核结果。",
       actions: [
-        "等待微信公众平台给出 1.1.69 审核结果。",
+        "等待微信公众平台给出 1.1.70 审核结果。",
         "结果出来后运行 npm run release:evidence:commands -- review，按模板登记通过或驳回结论。",
         "如果驳回，把后台原因摘要写入 docs/launch-feedback-and-101-backlog.md，再判断是否需要 1.1.x。",
       ],
@@ -490,7 +490,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
     return {
       title: "微信审核结果已登记，下一步是发布审核通过版本。",
       actions: [
-        "如果审核结果是通过，进入微信公众平台版本管理，找到 1.1.69 并点击发布。",
+        "如果审核结果是通过，进入微信公众平台版本管理，找到 1.1.70 并点击发布。",
         "保存发布状态截图到私有位置，不要提交后台截图到仓库。",
         "发布后运行 npm run release:evidence:commands -- publish，按模板登记发布时间、发布人和私有证据位置。",
       ],
@@ -499,7 +499,7 @@ function getNextEvidenceStage(missing, submitEvidence) {
 
   if (missing.includes("## 7. 发布后 P0 真机验收证据")) {
     return {
-      title: "1.1.69 已发布，下一步是真机 P0 验收。",
+      title: "1.1.70 已发布，下一步是真机 P0 验收。",
       actions: [
         "用真实微信打开正式小程序，不只看开发者工具。",
         "按 docs/launch-day-runbook.md 跑【今晚】、问问大家、清单分享、我的家、重新登录等 P0 路径。",

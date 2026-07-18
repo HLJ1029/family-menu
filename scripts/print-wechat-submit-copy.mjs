@@ -6,7 +6,7 @@ const lines = [
   "版本信息",
   "- 小程序名称：Humi",
   "- AppID：wx4040b89f3b363416",
-  "- 上传版本：1.1.69",
+  "- 上传版本：1.1.70",
   "- 版本描述：恢复菜单和清单海报入口",
   "- H5 域名：https://www.humi-home.com/",
   "- API 域名：https://api.humi-home.com",
@@ -47,7 +47,7 @@ const lines = [
   "提交后记录到 docs/humi-1.1-release-evidence-log.md",
   "- 提交时间",
   "- 提交人",
-  "- 提交版本：1.1.69",
+  "- 提交版本：1.1.70",
   "- 审核单状态",
   "- 证据原件私有位置",
 ];

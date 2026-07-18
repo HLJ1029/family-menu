@@ -1,9 +1,19 @@
 Page({
-  data: buildShareData({}),
+  data: {
+    ...buildShareData({}),
+    canShare: false
+  },
 
   onLoad(options = {}) {
     const data = buildShareData(options);
-    this.setData(data);
+    const canShare = Boolean(data.token);
+    this.setData({
+      ...data,
+      canShare,
+      helper: canShare
+        ? data.helper
+        : "这份内容没有准备完整，请返回 Humi 重新打开。"
+    });
     this.enableShare();
   },
 
@@ -12,6 +22,10 @@ Page({
   },
 
   enableShare() {
+    if (!this.data.canShare) {
+      wx.hideShareMenu();
+      return;
+    }
     wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
   },
 

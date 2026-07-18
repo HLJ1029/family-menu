@@ -31,74 +31,84 @@ assert.equal(
   "/pages/share/index?type=crave&token=abc+123&householdName=%E6%88%91%E5%AE%B6",
 );
 
+[
+  ["crave", "crave-token"],
+  ["invite", "invite-token"],
+  ["grocery", "grocery-token"],
+  ["wish", "wish-token"],
+  ["today_menu", "menu-token"],
+].forEach(([type, token]) => {
+  assert.equal(
+    buildMiniProgramShareUrl({ type, token }),
+    `/pages/share/index?type=${type}&token=${token}`,
+    `${type} should open the tokenized native share page`,
+  );
+});
+
 const primaryNavigation = createRuntimeWindow({
-  redirectTo({ url, success, leavePage }) {
+  navigateTo({ url, success }) {
     assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
     success?.();
-    leavePage();
   },
-  navigateTo() {
-    assert.fail("navigateTo should not run after redirectTo actually leaves the web-view");
+  redirectTo() {
+    assert.fail("redirectTo should not run after navigateTo succeeds");
   },
 });
 globalThis.window = primaryNavigation.window;
 assert.equal(
   await requestMiniProgramShare(
     { type: "grocery", token: "grocery-token", itemCount: 3 },
-    { timeoutMs: 100, confirmationMs: 10 },
+    { timeoutMs: 100 },
   ),
   "handoff",
 );
+assert.deepEqual(primaryNavigation.calls, ["navigateTo"]);
 
-const falsePositiveFallback = createRuntimeWindow({
+const explicitFailureFallback = createRuntimeWindow({
+  navigateTo({ url, fail }) {
+    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
+    fail?.({ errMsg: "navigateTo:fail page stack limit" });
+  },
   redirectTo({ url, success }) {
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     success?.();
   },
-  navigateTo({ url, success, leavePage }) {
-    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
-    success?.();
-    leavePage();
-  },
 });
-globalThis.window = falsePositiveFallback.window;
+globalThis.window = explicitFailureFallback.window;
 assert.equal(
   await requestMiniProgramShare(
     { type: "crave", token: "retry-token" },
-    { timeoutMs: 100, confirmationMs: 10 },
+    { timeoutMs: 100 },
   ),
   "handoff",
 );
 assert.deepEqual(
-  falsePositiveFallback.calls,
-  ["redirectTo", "navigateTo"],
-  "a callback without a real page leave should fall back to the second native navigation method",
+  explicitFailureFallback.calls,
+  ["navigateTo", "redirectTo"],
+  "redirectTo should only run after navigateTo explicitly fails",
 );
 
-const fakeSuccessOnly = createRuntimeWindow({
-  redirectTo({ success }) {
-    success?.();
-  },
-  navigateTo({ success }) {
-    success?.();
+const callbacklessPageLeave = createRuntimeWindow({
+  navigateTo({ leavePage }) {
+    leavePage();
   },
 });
-globalThis.window = fakeSuccessOnly.window;
+globalThis.window = callbacklessPageLeave.window;
 assert.equal(
   await requestMiniProgramShare(
-    { type: "today_menu", title: "今晚菜单" },
-    { timeoutMs: 80, confirmationMs: 10 },
+    { type: "today_menu", token: "menu-token", title: "今晚菜单" },
+    { timeoutMs: 80 },
   ),
-  "unavailable",
-  "native callbacks alone must not be reported as a successful share handoff",
+  "handoff",
+  "leaving the web-view should confirm a handoff when the bridge omits callbacks",
 );
 
 const allFailed = createRuntimeWindow({
-  redirectTo({ fail }) {
-    fail?.({ errMsg: "redirectTo:fail" });
-  },
   navigateTo() {
     throw new Error("navigateTo bridge unavailable");
+  },
+  redirectTo({ fail }) {
+    fail?.({ errMsg: "redirectTo:fail" });
   },
 });
 globalThis.window = allFailed.window;
@@ -112,6 +122,14 @@ assert.equal(
 
 delete globalThis.window;
 assert.equal(await requestMiniProgramShare({ type: "crave", token: "abc" }, { timeoutMs: 20 }), "unavailable");
+
+globalThis.window = createRuntimeWindow({
+  navigateTo() {
+    assert.fail("a share without a token must not enter the native bridge");
+  },
+}).window;
+assert.equal(await requestMiniProgramShare({ type: "today_menu", title: "今晚菜单" }), "unavailable");
+delete globalThis.window;
 
 globalThis.window = {
   location: { search: "" },

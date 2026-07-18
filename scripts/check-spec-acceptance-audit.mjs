@@ -50,7 +50,7 @@ const REQUIRED_MATRIX_ITEMS = [
   "历史感觉和做饭确认会反哺后续推荐",
   "推荐权益不可由客户端升级",
   "黑白灰调色板",
-  "三类分享落地页游客烟测",
+  "五类分享落地页与游客参与烟测",
   "小程序分享路径覆盖",
   "小程序普通启动不被登录墙挡住",
   "发布材料去除旧",
@@ -62,11 +62,11 @@ const EXTERNAL_LEDGER_IDS = ["EXT-01", "EXT-02", "EXT-03"];
 const EXPECTED_EXTERNAL_STATUSES = new Map([
   ["家庭订阅真实支付结算", "暂缓"],
   ["Plus 深度协调、完整版画像与一周计划打包", "暂缓"],
-  ["三类小程序原生分享发送框视觉复核", "已完成"],
+  ["五类小程序原生分享发送框视觉复核", "已完成"],
   ["生产 API 补部署", "已完成"],
   ["微信公众平台提交审核/发布", "暂缓"],
   ["10-20 个家庭灰度名单与反馈表", "模板已准备，待填真实名单"],
-  ["生产真机全路径证据", "待小程序发布后验证"],
+  ["生产真机全路径证据", "待体验版验证"],
 ]);
 const REQUIRED_LEDGER_IDS = [
   ...numberedIds("STR", 1, 8),
@@ -283,10 +283,10 @@ function inspectCurrentOrder(content) {
   const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
   const required = [
     "http://127.0.0.1:4174/",
-    "核心菜单、家庭协作、三类分享、数据与安全检查",
+    "核心菜单、家庭协作、五类分享、数据与安全检查",
     "未通过就继续修",
-    "当前 H5/API 已部署",
-    "不重复执行部署或上传",
+    "本轮 H5 合并部署",
+    "API 合同未变",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];
@@ -346,6 +346,6 @@ function buildNextActions({ sourceSpecs, audit, hardening, ledger }) {
   if (ledger.openDecisionRows?.length) actions.push(`Confirm or defer the open product/payment scope: ${ledger.openDecisionRows.map((row) => row.id).join(", ")}.`);
   if (ledger.openNativeRows?.length) actions.push(`Capture and verify current native WeChat evidence: ${ledger.openNativeRows.map((row) => row.id).join(", ")}.`);
   if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
-  if (!actions.length) actions.push("All spec rows, product decisions, and current-candidate native evidence are complete; the production candidate is deployed and uploaded, so continue real-device acceptance without entering WeChat review.");
+  if (!actions.length) actions.push("All local spec rows, product decisions, and current-candidate native evidence are complete. Continue merge, H5 deployment, mini-program candidate upload, and real-device acceptance without entering WeChat review.");
   return actions;
 }

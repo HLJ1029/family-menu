@@ -26,11 +26,17 @@ const shareFiles = [
   ["invite-landing.png", "invite 加入家庭落地页", "h5-landing"],
   ["grocery-card.png", "grocery 微信原生分享卡片", "native-card"],
   ["grocery-landing.png", "grocery 免登录买菜认领落地页", "h5-landing"],
+  ["wish-card.png", "wish 微信原生分享卡片", "native-card"],
+  ["wish-landing.png", "wish 免登录写菜落地页", "h5-landing"],
+  ["menu-card.png", "menu 微信原生分享卡片", "native-card"],
+  ["menu-landing.png", "menu 免登录菜单落地页", "h5-landing"],
 ];
 const directPreviewFiles = [
   ["direct-preview/crave-preview-qr.png", "crave 直达原生分享确认页二维码", "direct-preview-qr"],
   ["direct-preview/invite-preview-qr.png", "invite 直达原生分享确认页二维码", "direct-preview-qr"],
   ["direct-preview/grocery-preview-qr.png", "grocery 直达原生分享确认页二维码", "direct-preview-qr"],
+  ["direct-preview/wish-preview-qr.png", "wish 直达原生分享确认页二维码", "direct-preview-qr"],
+  ["direct-preview/menu-preview-qr.png", "menu 直达原生分享确认页二维码", "direct-preview-qr"],
 ];
 
 const [gitState, hardening, latestCraveDir, latestShareDir] = await Promise.all([

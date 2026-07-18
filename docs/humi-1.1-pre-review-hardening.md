@@ -7,10 +7,10 @@
 
 ## 当前原则
 
-- 小程序候选更新为 `1.1.69`，但暂不提交审核。
+- 小程序候选更新为 `1.1.70`，但暂不提交审核。
 - `npm run release:status` 会读取本文件；只要仍有未勾选的 P0/P1 项，就不视为提审就绪。
-- `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、三张直达原生分享确认页二维码和三张微信原生 card 图缺口。
-- `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、三类小程序分享卡片证据、菜单与清单海报入口，以及微信审核显式确认护栏。
+- `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、五张直达原生分享确认页二维码和五张微信原生 card 图缺口。
+- `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、五类小程序分享卡片证据、菜单与清单海报入口，以及微信审核显式确认护栏。
 - `npm run validate:share-bridge` 会验证真实页面使用的分享运行时：优先进入原生分享页，微信只返回成功回调但 WebView 没有离开时会自动回退，始终没有真实页面交接则不会误报成功。
 - `npm run release:spec:audit` 会逐项核对 70 个需求 ID，并分别输出台账完整性、本地实现完成度与当前候选收口状态；当前候选原生分享证据未完成时必须保持 `specClosureReady=false`。
 - `docs/humi-1.1-requirement-ledger.md` 是逐项台账，区分已完成功能、明确列入 1.2 的付费增强和验收后才能做的外部动作。
@@ -69,10 +69,10 @@
   - 完成标准：状态名、主按钮、低思考标签和关闭/加入引导一致；不出现旧的临时链接感。
   - 验证：`npm run build`，`npm run validate:api`，`npm run validate:crave-template`，`npm run release:crave-template:visuals`，`npm run release:pre-review:evidence`。
   - 证据：`src/components/CraveSheet.jsx` 五个状态统一使用“今晚征集单”，按钮统一为“分享征集单/提交征集单/回到 Humi 看今晚”等单据语言；`scripts/check-crave-sheet-template.mjs` 已覆盖关键文案；`scripts/capture-crave-template-visuals.mjs` 会把主厨发起、主厨等待、家人投票、投票完成、征集结束五个真实组件状态截图到私有证据目录并输出 PNG 尺寸/SHA。
-- [x] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。
+- [x] P1 小程序卡片分享复核：`crave`、`invite`、`grocery`、`wish`、`menu` 五类分享都有明确标题、token 落地和对应游客路径。
   - 完成标准：小程序壳 `onShareAppMessage` 读取 H5 postMessage；普通打开不被登录墙挡住。
   - 验证：`npm run build`，`npm run release:wechat:share:selftest`，`npm run release:wechat:share:landings`，`npm run release:wechat:share:direct-previews`，`npm run release:pre-review:evidence`，`npm run release:wechat:share:devtools`，`npm run release:wechat:share:cards:capture -- --interactive`，`npm run release:wechat:share:evidence`，`npm run release:wechat:share:complete`，`npm run release:wechat:check`，最终用微信开发者工具/真机连调。
-  - 当前事实：代码层三类标题、path、token 落地和三张 H5 landing 均已通过；2026-07-14 当前候选在微信开发者工具逐类打开 `crave`、`invite`、`grocery` 原生发送框，三张截图均显示虚拟好友、发送动作和正确业务标题。`npm run release:wechat:share:evidence` 的 Vision OCR 与 `HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 npm run release:wechat:share:complete` 人工视觉确认均通过，证据目录为 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260713T1457`。
+  - 当前事实：当前候选已修复 H5 到原生分享页的重复跳转，并把 `wish`、`menu` 纳入同一门禁。2026-07-18 已重新取得五张 H5 landing、五张直达二维码和五类原生发送框；OCR 均识别到虚拟好友、发送动作和对应业务标题，证据目录为 `/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260718Th7nuXe`。
 - [x] P1 1.1 文档口径收敛：核心状态文档不得再把“立即提交微信审核”写成当前唯一下一步。
   - 完成标准：P0/P1 完成后，`release:next` 当前阶段为“1.1 生产候选完善与内测验证，暂不进入微信审核”；AI-HQ 状态同步该策略。
   - 验证：`npm run release:next`，`npm run release:status`，`npm run release:product:review`。
@@ -87,7 +87,7 @@
 ## 当前建议顺序
 
 1. 运行 1.1 完整本地门禁，确认核心菜单、家庭协作、原生分享、数据与安全检查没有回退。
-2. 用户完成 `1.1.69` 真机体验验收；未通过就继续修复并上传新的候选，不进入审核。
+2. 用户完成 `1.1.70` 真机体验验收；未通过就继续修复并上传新的候选，不进入审核。
 3. 用户验收通过后，再单独确认是否部署 H5/API 与上传新的小程序候选。
 4. 填写私有 U001-U020 候选反馈后，运行 `npm run release:candidate:review`，确认达到真实样本阈值且无 P0/P1。
 5. 候选复盘达标后，且用户动作当下确认，才按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台审核。

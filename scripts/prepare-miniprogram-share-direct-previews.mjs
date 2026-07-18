@@ -51,7 +51,31 @@ const previews = [
       itemCount: "6",
     }),
     expectedTitle: "小林发来 6 项买菜清单",
-    expectedPath: "/pages/index/index?grocery=grocery-token-123",
+    expectedPath: "/pages/index/index?groceryShare=grocery-token-123",
+  },
+  {
+    key: "wish",
+    pathName: "pages/share/index",
+    query: buildQuery({
+      type: "wish",
+      token: "wish-token-123",
+      householdName: "周末家",
+      initiatorName: "小林",
+    }),
+    expectedTitle: "小林想收集家里最近想吃的菜",
+    expectedPath: "/pages/index/index?wishShare=wish-token-123",
+  },
+  {
+    key: "menu",
+    pathName: "pages/share/index",
+    query: buildQuery({
+      type: "today_menu",
+      token: "menu-token-123",
+      householdName: "周末家",
+      title: "香煎豆腐 + 番茄鸡蛋",
+    }),
+    expectedTitle: "香煎豆腐 + 番茄鸡蛋",
+    expectedPath: "/pages/index/index?menuShare=menu-token-123",
   },
 ];
 
@@ -114,8 +138,8 @@ console.log(JSON.stringify({
   nextActions: [
     "Scan each direct-preview/*-preview-qr.png with WeChat or open it in WeChat DevTools.",
     "Each QR should land on pages/share/index and show the native share confirmation card.",
-    "Tap 发送给家人, capture the native WeChat share card as crave-card.png, invite-card.png, and grocery-card.png.",
-    "Run npm run release:wechat:share:evidence after all three native card screenshots are present.",
+    "Tap the black share button and confirm that each of the five flows opens the native WeChat contact picker.",
+    "Capture crave-card.png, invite-card.png, grocery-card.png, wish-card.png, and menu-card.png before running the evidence check.",
   ],
 }, null, 2));
 

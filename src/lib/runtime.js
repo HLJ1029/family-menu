@@ -24,22 +24,20 @@ export function buildMiniProgramShareUrl(payload = {}) {
 
 export function requestMiniProgramShare(payload = {}, options = {}) {
   if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
+  if (!String(payload.token || "").trim()) return Promise.resolve("unavailable");
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram?.redirectTo && !miniProgram?.navigateTo) return Promise.resolve("unavailable");
 
   const timeoutMs = options.timeoutMs ?? 1800;
-  const confirmationMs = options.confirmationMs ?? 420;
   const url = buildMiniProgramShareUrl(payload);
   return new Promise((resolve) => {
     let settled = false;
-    let attemptTimer = null;
     let timeoutTimer = null;
     const documentRef = window.document;
     const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
     const finish = (status) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(attemptTimer);
       window.clearTimeout(timeoutTimer);
       if (supportsPageConfirmation) {
         documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -60,8 +58,8 @@ export function requestMiniProgramShare(payload = {}, options = {}) {
     timeoutTimer = window.setTimeout(() => finish("unavailable"), timeoutMs);
 
     const attempts = [
-      ["redirectTo", miniProgram.redirectTo],
       ["navigateTo", miniProgram.navigateTo],
+      ["redirectTo", miniProgram.redirectTo],
     ].filter(([, method]) => typeof method === "function");
 
     const runAttempt = (index) => {
@@ -74,14 +72,7 @@ export function requestMiniProgramShare(payload = {}, options = {}) {
       try {
         method.call(miniProgram, {
           url,
-          success: () => {
-            if (!supportsPageConfirmation) {
-              finish("handoff");
-              return;
-            }
-            window.clearTimeout(attemptTimer);
-            attemptTimer = window.setTimeout(() => runAttempt(index + 1), confirmationMs);
-          },
+          success: () => finish("handoff"),
           fail: () => runAttempt(index + 1),
         });
       } catch {

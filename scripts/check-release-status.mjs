@@ -362,7 +362,7 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: "1.1.69",
+    miniProgramUploadedVersion: "1.1.70",
     miniProgramUploadDescription: "恢复菜单和清单海报入口",
   },
   requiredArtifacts: artifacts,

@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 const HARDENING_PATH = process.env.HUMI_PRE_REVIEW_HARDENING_PATH || "docs/humi-1.1-pre-review-hardening.md";
-const P1_OPEN = "- [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。";
-const P1_DONE = "- [x] P1 小程序卡片分享复核：`crave`、`invite`、`grocery` 三类分享在小程序内都有明确标题、token 落地和免登录参与路径。";
+const P1_OPEN = "- [ ] P1 小程序卡片分享复核：`crave`、`invite`、`grocery`、`wish`、`menu` 五类分享都有明确标题、token 落地和对应游客路径。";
+const P1_DONE = "- [x] P1 小程序卡片分享复核：`crave`、`invite`、`grocery`、`wish`、`menu` 五类分享都有明确标题、token 落地和对应游客路径。";
 
 const evidence = await runShareEvidenceCheck();
 if (!evidence.ok) {
@@ -89,7 +89,7 @@ async function runShareEvidenceCheck() {
 async function confirmVisualReview(data) {
   if (process.env.HUMI_SHARE_CARD_VISUAL_CONFIRMED === "1") return true;
   if (!process.stdin.isTTY) {
-    console.error("Set HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 after visually confirming all three native share card screenshots.");
+    console.error("Set HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 after visually confirming all five native share card screenshots.");
     return false;
   }
 
@@ -98,7 +98,7 @@ async function confirmVisualReview(data) {
     .map((item) => `${item.file} (${item.image.width}x${item.image.height}, ${item.size} bytes)`)
     .join("\n- ");
   console.log([
-    "确认前请打开私有证据目录，逐张看过三张微信原生分享卡片：",
+    "确认前请打开私有证据目录，逐张看过五张微信原生分享卡片：",
     `- ${files}`,
     "",
     "确认标准：标题、卡片类型、token 入口和免登录落地路径均符合 docs/humi-1.1-miniprogram-share-card-qa.md。",
@@ -106,7 +106,7 @@ async function confirmVisualReview(data) {
 
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question("已视觉确认三张原生卡片正确？输入 yes 继续：");
+    const answer = await rl.question("已视觉确认五张原生卡片正确？输入 yes 继续：");
     return answer.trim().toLowerCase() === "yes";
   } finally {
     rl.close();

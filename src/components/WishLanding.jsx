@@ -97,7 +97,7 @@ export function WishLanding({ token, onClose, onJoinFamily }) {
 
   return (
     <FullScreenShell>
-      <main className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
+      <main data-testid="wish-share-landing" className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
         <section className="relative overflow-hidden rounded-[32px] border border-line bg-white p-5 shadow-lift sm:p-8">
           <div className="absolute right-5 top-5 hidden rounded-full bg-canvas px-4 py-2 text-xs font-black text-ink/48 sm:block">
             免登录 · 写一道
