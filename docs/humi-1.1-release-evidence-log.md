@@ -18,7 +18,7 @@
 | 小程序版本 | `1.1.72` |
 | 小程序描述 | `海报原生分享与保存到相册` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页；菜单和清单海报已接入临时图片上传、微信原生图片分享与相册保存。`1.1.72` 已合并、生产部署并上传体验版；DevTools automator 已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过。尚未提交微信审核 |
+| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页；菜单和清单海报已接入临时图片上传、微信原生图片分享与相册保存。`1.1.72` 已合并、生产部署并上传体验版；DevTools 自动化已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过。尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -90,6 +90,7 @@
 | 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 产品核心路径、138 道菜库、五类分享桥接、菜单/清单海报生成与上传、四类游客协作均通过，页面错误 0；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.72-20260718` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.72-20260718` |
 | 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.72` / `海报原生分享与保存到相册` / package `43.1 KB` / `h5v=1.1.72`；preview QR SHA-256 `249472241ce8ddea623b6c1eddaa69af5459728c398d7f67479f137fc2e93027`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72`；未提交审核 |
 | 2026-07-18 | codex@mbp-m5pro | official miniprogram-automator / `wx.downloadFile` | P0 阻断 | 关闭合法域名跳过后请求 `https://api.humi-home.com/poster-shares/...jpg` 返回 `downloadFile:fail createDownloadTask:fail url not in domain list`；必须先在微信后台添加 downloadFile 合法域名，不能以 H5 或 DevTools 调试模式代替真机通过 |
+| 2026-07-18 | codex@mbp-m5pro | `npm run release:wechat:poster:domain` | P0 阻断可重复 | 仓库命令校验正式 AppID 与 `urlCheck: true` 后通过 DevTools 自动化调用 `wx.downloadFile`，稳定返回 `url not in domain list` 并以退出码 1 阻止误判；配置域名后用同一命令复测 |
 
 ## 3. 生产 API 补部署证据
 
@@ -136,7 +137,7 @@
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
 | 上传版本 `1.1.72` 列表 | 已有 CLI 证据，后台截图待填 | `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72` | 上传成功，尚未提审 |
-| request / downloadFile 合法域名 `api.humi-home.com` | P0 未完成 | 待后台截图 | automator 已确认 downloadFile 域名缺失；配置后必须重测 |
+| request / downloadFile 合法域名 `api.humi-home.com` | P0 未完成 | 待后台截图 | `release:wechat:poster:domain` 已确认 downloadFile 域名缺失；配置后必须重测 |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
 | 审核备注/提交页 | 待填 | 待填 |  |

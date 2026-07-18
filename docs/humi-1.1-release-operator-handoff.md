@@ -208,6 +208,14 @@ docs/wechat-submit-copy-packet.md
 
 当前第一项尚未满足。按微信官方路径进入「小程序后台 -> 开发 -> 开发管理 -> 开发设置 -> 服务器域名」，将 `https://api.humi-home.com` 加入 downloadFile 合法域名；保存后关闭开发者工具的域名跳过选项重测。普通 AppID 的 AppSecret access token 不能调用仅面向第三方平台代商家的 `wxa/modify_domain` 接口，不要继续重试或覆盖现有 access token。
 
+配置后运行：
+
+```bash
+npm run release:wechat:poster:domain
+```
+
+该命令通过微信开发者工具自动化协议、正式 AppID 和 `urlCheck: true` 执行一次 `wx.downloadFile` 域名探测；若仍返回 `url not in domain list` 会以失败退出。命令通过只证明微信已放行下载域名，不能代替手机上分别完成菜单海报真实分享和清单海报真实保存。
+
 完成证据：
 
 - 上传版本列表截图。

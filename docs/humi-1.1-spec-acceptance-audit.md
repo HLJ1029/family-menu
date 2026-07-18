@@ -9,7 +9,7 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-当前结论：1.1 台账 70 个需求 ID 均存在，可实现项已按当前重构 UI 完成；本轮小程序候选为 `1.1.72`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；1.1 继续完整提供核心家庭菜单与协作体验。现在不提交微信审核，先完成真实微信验收。
+当前结论：1.1 台账 71 个需求 ID 均存在，本地可实现项已按当前重构 UI 完成；本轮小程序候选为 `1.1.72`。新增 `WX-05` 单独追踪双海报真实下载、分享和保存，微信后台 downloadFile 合法域名配置并复测前 `specClosureReady` 必须保持 `false`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；现在不提交微信审核。
 
 ## 1. 当前发布事实
 
@@ -20,18 +20,18 @@
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
 - 最新小程序候选：`1.1.72` / `海报原生分享与保存到相册` / AppID `wx4040b89f3b363416`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
-- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260716T115336Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
+- 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260718T114140Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
 ## 2. 验收矩阵
 
 | 规格要求 | 当前状态 | 证据 |
 | --- | --- | --- |
-| 三 tab 定版：【今晚】/【清单】/【我的家】 | 已完成 | `src/components/navigation.js` 只暴露 `dashboard/grocery/user` 作为 `navItems` 和 `mobileNavItems` |
-| 发现/自己挑降为辅助页，并保留补菜通路 | 已完成 | `src/components/Library.jsx` 使用小红书式图片卡片；产品 smoke 在 138 道菜中真实点击青椒土豆丝 `补进今晚`，验证同步进入今晚菜单和当日晚餐计划 |
+| 五入口 UI 保持今晚决策主线 | 已完成 | `navigation.js` 暴露【今晚】/【发现】/【计划】/【清单】/【我的家】；产品 smoke 验证五入口等宽可见，同时【今晚】首屏只有一个实心主行动 |
+| 发现独立展示完整菜品库，并保留【今晚】快捷入口和补菜通路 | 已完成 | `Library.jsx` 使用小红书式图片卡片；产品 smoke 从【发现】和【今晚】两条入口进入 138 道菜库，并真实点击青椒土豆丝 `补进今晚` |
 | 推荐外提供完整菜品库子页面，已安排菜置顶 | 已完成 | `Library.jsx` 展示全部 138 道菜，将已安排菜从瀑布流移到顶部 `selected-recipes-panel`；`release:product:smoke` 校验置顶顺序与完整数量 |
-| 完整菜品库保持【今晚】子页面导航关系 | 已完成 | `getPrimaryNavId` 将菜品库归属【今晚】；产品 smoke 验证三主 tab 等宽可见、【今晚】保持激活、返回键回今晚、顶部头像进入【我的家】 |
+| 完整菜品库保持【发现】导航关系，从【今晚】快捷进入时可返回今晚 | 已完成 | `getPrimaryNavId` 将菜品库归属【发现】；产品 smoke 验证五入口、【发现】激活、快捷入口返回今晚、顶部头像进入【我的家】 |
 | 【今晚菜单】加菜不降级为列表 | 已完成 | 【今晚】首屏 `全部菜品` 可直接进入完整菜品子页；`src/components/TodayMenu.jsx` 的内嵌选菜区也保留图片卡片和 `发现新菜` 入口 |
-| 周计划降级为【今晚】辅助入口 | 已完成 | `navigation.js` 中 `planner` 为辅助项，展示文案为 `想连排几天` |
+| 计划独立入口不抢今晚主线 | 已完成 | 产品 smoke 分别从【计划】一级入口和【今晚】的“想连排几天”进入，并验证汇总清单 |
 | 【今晚】首屏主角是晚饭推荐和 `今晚就做` | 已完成 | `src/components/Dashboard.jsx` 把主行动放在推荐摘要后、菜品细节前；产品 smoke 在 390×844 视口实测主按钮完整位于底部导航上方 |
 | 【今晚】首屏只有一个实心主操作，次级动作不抢主线 | 已完成 | `精准推荐` 与 `问问大家` 已降为文字弱入口，常驻场景插图移除；产品 smoke 验证 `tonight-hero-has-one-solid-primary-action` 和 `tonight-hero-has-no-permanent-scene-illustration`，第一道推荐菜进入手机首屏 |
 | `今晚就做` 自动串联菜单、晚餐计划和清单 | 已完成 | 产品 smoke 用主厨身份点击首屏按钮，验证两道推荐同步写入 `todayMenu` 和当日晚餐 `mealPlan`，随后【清单】自动出现食材勾选项 |
@@ -74,7 +74,7 @@
 | 五类分享确实进入小程序原生分享页 | 已完成 | `runtime.js` 优先调用 `navigateTo`，只在明确失败时降级 `redirectTo`，成功回调立即确认交接且不会重复派发。`validate:share-bridge` 验证本地实现；当前候选五类原生发送框证据作为外部复核项单独保持开放 |
 | 小程序卡片分享与菜单/清单海报入口并存 | 已完成 | 今晚菜单操作区提供“生成菜单海报”，买菜清单分享区提供“生成清单海报”；两者不替换原生小程序卡片分享。`release:product:review` 防止入口再次被 UI 重构隐藏，`release:product:smoke` 实际生成并验证两张海报图片 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
-| 发布材料去除旧“首页/周计划/库存管理”主路径口径 | 已完成 | `docs/miniprogram-launch-readiness.md`、`docs/launch-day-runbook.md`、`docs/miniprogram-review-materials.md` 已更新为 1.1 三 tab 口径 |
+| 发布材料与当前五入口 UI 一致，不恢复旧库存维护主路径 | 已完成 | 产品 smoke 验证五入口，发布材料以当前重构 UI 为准；库存继续保持隐形流水线 |
 
 ## 3. 仍未完成或仍需外部确认
 
@@ -83,6 +83,7 @@
 | 家庭订阅真实支付结算 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 不接支付下单、回调验签、订单和权益发放闭环 |
 | Plus 深度协调、完整版画像与一周计划打包 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 保留基础画像、营养回看和连排能力，不做 Plus 版差异 |
 | 五类小程序原生分享发送框视觉复核 | 已完成 | 2026-07-18 当前候选五类发送框均显示虚拟好友、发送动作和正确业务标题；十张 card/landing 证据通过完整性与 OCR 语义门禁 |
+| 菜单/清单海报原生分享与保存 | P0 进行中 | `npm run release:wechat:poster:domain` 已确认 `https://api.humi-home.com` 不在 downloadFile 合法域名列表；后台配置后用同一命令复测，并各留一条真实分享/保存证据 |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
@@ -90,9 +91,9 @@
 
 ## 4. 当前建议顺序
 
-1. 运行完整本地门禁；需要复现时可用 `http://127.0.0.1:4174/`，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过。
-2. 本轮 H5 与短期海报 API 合并部署并上传小程序 `1.1.72` 后，三者以同一主线基线进入真机验收。
-3. 用户在微信开发者工具体验版或真实微信中验收 `1.1.72`。未通过就继续修复并上传新的候选，不进入审核。
+1. 运行完整门禁，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过；`1.1.72` 已完成 H5/API 部署和体验版上传。
+2. 在微信后台把 `https://api.humi-home.com` 加入 downloadFile 合法域名，关闭开发者工具域名跳过后重新执行 `npm run release:wechat:poster:domain`。
+3. 用户在真实微信中验收 `1.1.72` 的五类卡片与双海报。未通过就继续修复并上传新的候选，不进入审核。
 4. 真机体验通过后准备 10–20 个家庭灰度；反馈进入私有候选执行包，不把真实身份信息写进仓库。
 5. 灰度无 P0/P1 且用户动作当下确认后，才进入微信公众平台审核；审核通过后发布并登记 24 小时监控与真机证据。
 

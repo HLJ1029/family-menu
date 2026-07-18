@@ -12,7 +12,7 @@
 - `npm run release:pre-review:evidence` 会生成私有证据总览，集中展示征集单模板视觉图、小程序 H5 落地页截图、五张直达原生分享确认页二维码和五张微信原生 card 图缺口。
 - `npm run release:product:review` 会机器复核本页最容易反复讨论的产品锚点：发现新菜、我的家问问大家、今晚征集单模板、五类小程序分享卡片证据、菜单与清单海报入口，以及微信审核显式确认护栏。
 - `npm run validate:share-bridge` 会验证真实页面使用的分享运行时：优先进入原生分享页，微信只返回成功回调但 WebView 没有离开时会自动回退，始终没有真实页面交接则不会误报成功。
-- `npm run release:spec:audit` 会逐项核对 70 个需求 ID，并分别输出台账完整性、本地实现完成度与当前候选收口状态；当前候选原生分享证据未完成时必须保持 `specClosureReady=false`。
+- `npm run release:spec:audit` 会逐项核对 71 个需求 ID，并分别输出台账完整性、本地实现完成度与当前候选收口状态；`WX-05` 双海报真机证据未完成时必须保持 `specClosureReady=false`。
 - `docs/humi-1.1-requirement-ledger.md` 是逐项台账，区分已完成功能、明确列入 1.2 的付费增强和验收后才能做的外部动作。
 - P0/P1 完成后，再重新跑 `npm run release:next`；命令应停在“1.1 生产候选完善与内测验证，暂不进入微信审核”，不自动推动平台提交。
 - `npm run release:status` 的 `release.engineeringGatesReady=true` 只代表工程项健康；真实候选复盘也通过后，`release.candidateValidationReady=true` / `release:status ok=true` 才能进入微信审核准备讨论。
@@ -20,6 +20,9 @@
 
 ## P0/P1 收口项
 
+- [ ] P0 双海报真机下载与原生动作：微信后台 downloadFile 合法域名必须包含 `https://api.humi-home.com`；关闭调试域名跳过后下载成功，菜单海报真实调起图片分享，清单海报真实保存到相册。
+  - 当前证据：official miniprogram-automator 返回 `downloadFile:fail createDownloadTask:fail url not in domain list`，因此不能用 H5 海报生成成功或开发者工具调试模式代替真机通过。
+  - 完成标准：域名检查不再报 `url not in domain list`；菜单海报与清单海报各完成一次真实动作，并登记匿名设备/微信版本和结果。
 - [x] P1 完整菜品库与三餐手选：推荐外子页面展示全部菜品，今晚已安排菜固定在最上方；早餐和午餐在家做必须由用户选菜后才记录。
   - 完成标准：正常入口显示 138 道菜；已安排菜不混在卡片流底部；早餐/午餐不默认选择任何菜。
   - 验证：`npm run release:product:smoke`，查看 `discovery-mobile.png` 与 smoke manifest 的 breakfast checks。
@@ -87,7 +90,7 @@
 ## 当前建议顺序
 
 1. 运行 1.1 完整本地门禁，确认核心菜单、家庭协作、原生分享、数据与安全检查没有回退。
-2. 用户完成 `1.1.72` 真机体验验收；未通过就继续修复并上传新的候选，不进入审核。
-3. 用户验收通过后，再单独确认是否部署 H5/API 与上传新的小程序候选。
+2. 用户在微信后台配置 downloadFile 合法域名，Codex 关闭调试跳过复测通过后，再执行 `1.1.72` 真机体验验收；未通过就继续修复并上传新的候选，不进入审核。
+3. H5/API 与小程序 `1.1.72` 已部署/上传；除非修复产生新代码，否则不重复部署或覆盖候选。
 4. 填写私有 U001-U020 候选反馈后，运行 `npm run release:candidate:review`，确认达到真实样本阈值且无 P0/P1。
 5. 候选复盘达标后，且用户动作当下确认，才按 `docs/miniprogram-platform-submit-runbook.md` 进入微信公众平台审核。

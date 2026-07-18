@@ -308,7 +308,7 @@ const REQUIRED_CHECKS = [
     path: "scripts/prepare-wechat-submit-workspace.mjs",
     required: ["HUMI_WECHAT_REVIEW_ACTION_CONFIRMED", "Humi 1.1 微信提审工作台未打开"],
     evidence: "docs/humi-1.1-closure-map.md",
-    evidenceRequired: ["先完成产品功能，再谈审核", "不要自动提交审核", "再讨论候选内测与审核"],
+    evidenceRequired: ["先完成产品功能与真机配置，再谈审核", "不要自动提交审核", "再讨论候选内测与审核"],
   },
 ];
 
