@@ -31,10 +31,13 @@ try {
     window.__wxjs_environment = "miniprogram";
     window.wx = {
       miniProgram: {
+        navigateTo(payload) {
+          window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
+          payload.success?.({ errMsg: "navigateTo:ok" });
+        },
         redirectTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
           payload.success?.({ errMsg: "redirectTo:ok" });
-          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -293,7 +296,7 @@ try {
   await page.getByRole("button", { name: "分享清单给家人", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
-      call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=grocery")
+      call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery")
     ),
   );
 
@@ -351,8 +354,9 @@ try {
   const craveVoteReceiptVisible = await craveVoteReceipt.isVisible();
   const craveManualMenuActionVisible = await page.getByRole("button", { name: /现在出菜单|就这些，出菜单/ }).isVisible();
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
-  const groceryShareOpened = miniProgramCalls.some((call) => call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
-  const craveShareOpened = miniProgramCalls.some((call) => call.method === "redirectTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
+  const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
+  const craveShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
+  const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
   const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
@@ -406,6 +410,7 @@ try {
     { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
+    { key: "native-share-navigation-does-not-double-dispatch", ok: shareNavigationStayedSingle, actual: miniProgramCalls },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
     { key: "crave-share-uses-native-handoff", ok: craveShareOpened },
@@ -634,10 +639,13 @@ async function installMiniProgramMock(page) {
     window.__humiMiniProgramCalls = [];
     window.wx = window.wx || {};
     window.wx.miniProgram = {
+      navigateTo(payload) {
+        window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
+        payload.success?.({ errMsg: "navigateTo:ok" });
+      },
       redirectTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
         payload.success?.({ errMsg: "redirectTo:ok" });
-        window.dispatchEvent(new Event("pagehide"));
       },
     };
   });

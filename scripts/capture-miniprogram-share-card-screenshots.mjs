@@ -41,7 +41,29 @@ const CARD_FILES = [
       "进入【清单】，确保今晚菜单已有待买食材。",
       "点击清单页的买菜分享动作。",
       "点击页面分享动作，或点右上角菜单转发。",
-      "确认预览标题是“某某发来买菜清单/若干项买菜清单”的语义，path 带 ?grocery= token。",
+      "确认预览标题是“某某发来买菜清单/若干项买菜清单”的语义，path 带 ?groceryShare= token。",
+    ],
+  },
+  {
+    key: "wish",
+    file: "wish-card.png",
+    description: "wish 小程序分享卡片预览截图",
+    trigger: [
+      "进入【我的家】里的“最近想吃”。",
+      "点击分享入口进入原生分享确认页。",
+      "点击黑色分享按钮。",
+      "确认预览标题是“某某想收集家里最近想吃的菜”的语义，path 带 ?wishShare= token。",
+    ],
+  },
+  {
+    key: "menu",
+    file: "menu-card.png",
+    description: "menu 小程序分享卡片预览截图",
+    trigger: [
+      "确认今晚菜单并进入菜单详情。",
+      "点击“分享菜单”进入原生分享确认页。",
+      "点击黑色分享按钮。",
+      "确认预览标题展示今晚菜名，path 带 ?menuShare= token。",
     ],
   },
 ];

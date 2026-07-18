@@ -130,7 +130,7 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
 
   return (
     <LandingShell>
-      <main className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
+      <main data-testid="grocery-share-landing" className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
         <section className="rounded-[32px] border border-line bg-white p-5 shadow-lift sm:p-8">
           <div className="grid gap-5 sm:grid-cols-[1fr_150px] sm:items-start">
             <div>

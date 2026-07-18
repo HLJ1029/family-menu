@@ -1,19 +1,15 @@
 # Humi 1.1 小程序分享卡片复核
 
-更新日期：2026-07-13
+更新日期：2026-07-18
 设备：codex@mbp-m5pro
 
-本文档用于完成提审前最后一个 P1：`crave`、`invite`、`grocery` 三类小程序卡片分享复核。
+本文档用于完成当前候选五类小程序卡片分享复核：`crave`、`invite`、`grocery`、`wish`、`menu`。该复核服务于产品验收，不代表提交微信审核。
 
-2026-07-05 更新：`1.1.59` 起，H5 内的分享动作会先进入原生 `pages/share/index` 分享确认页，再由该页的 `open-type="share"` 触发微信卡片。不要再依赖 web-view `postMessage` 实时同步分享态；`postMessage` 只作为兼容兜底。
+2026-07-18 更新：H5 内的分享动作通过微信 JSSDK `navigateTo` 进入原生 `pages/share/index` 分享确认页，明确失败时才降级到 `redirectTo`；原生页再由 `open-type="share"` 触发微信发送框。一次点击只允许一次成功交接。
 
 ## 当前证据目录
 
-私有证据目录：
-
-```text
-/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260704T0522
-```
+私有证据目录由 `npm run release:wechat:share:prepare` 为当前候选创建或定位；不要复用历史候选的三类截图冒充当前证据。
 
 已生成：
 
@@ -22,8 +18,8 @@
 - `auto-preview-info.json`：CLI auto-preview 包体信息，当前包体 `16113` bytes。
 - `README.md`：私有证据说明。
 - `share-card-qa-checklist.md`：运行 `npm run release:wechat:share:prepare` 后生成的私有核对清单。
-- `share-card-expected.json`：运行 `npm run release:wechat:share:prepare` 后生成的三类分享标题、path 和落地 URL 预期数据。
-- `direct-preview/`：运行 `npm run release:wechat:share:direct-previews` 后生成的三张直达原生分享确认页预览二维码和 info 文件。
+- `share-card-expected.json`：运行 `npm run release:wechat:share:prepare` 后生成的五类分享标题、path 和落地 URL 预期数据。
+- `direct-preview/`：运行 `npm run release:wechat:share:direct-previews` 后生成的五张直达原生分享确认页预览二维码和 info 文件。
 
 代码层自测：
 
@@ -36,6 +32,8 @@ npm run release:wechat:share:selftest
 - `crave` 卡片标题、path、token 落地 URL。
 - `invite` 卡片标题、path、token 落地 URL。
 - `grocery` 卡片标题、path、token 落地 URL。
+- `wish` 卡片标题、path、token 落地 URL。
+- `menu` 卡片标题、path、token 落地 URL。
 
 ## 还需要的截图
 
@@ -49,6 +47,10 @@ npm run release:wechat:share:selftest
 | `invite-landing.png` | `invite` token 打开后的加入家庭落地页截图 |
 | `grocery-card.png` | `grocery` 小程序分享卡片预览截图 |
 | `grocery-landing.png` | `grocery` token 打开后的免登录认领落地页截图 |
+| `wish-card.png` | `wish` 小程序分享卡片预览截图 |
+| `wish-landing.png` | `wish` token 打开后的免登录写想吃落地页截图 |
+| `menu-card.png` | `menu` 小程序分享卡片预览截图 |
+| `menu-landing.png` | `menu` token 打开后的今晚菜单落地页截图 |
 
 ## 检查命令
 
@@ -58,7 +60,7 @@ npm run release:wechat:share:selftest
 npm run release:wechat:share:prepare
 ```
 
-该命令会先运行 `npm run release:wechat:share:selftest` 的同等逻辑，确认三类分享数据仍然正确，然后在私有证据目录写入 `share-card-qa-checklist.md` 和 `share-card-expected.json`。
+该命令会先运行 `npm run release:wechat:share:selftest` 的同等逻辑，确认五类分享数据仍然正确，然后在私有证据目录写入 `share-card-qa-checklist.md` 和 `share-card-expected.json`。
 
 先做一次本机 QA 体检：
 
@@ -78,7 +80,7 @@ npm run release:wechat:share:devtools
 
 ## 生成直达原生分享确认页预览
 
-如果 DevTools 里的 H5 WebView 没有触发微信 JSSDK 中继，或不想再从完整 H5 流程手动走到分享按钮，可以直接生成三张原生确认页预览二维码：
+如果需要单独核对原生确认页，可以直接生成五张原生确认页预览二维码：
 
 ```bash
 npm run release:wechat:share:direct-previews
@@ -89,10 +91,12 @@ npm run release:wechat:share:direct-previews
 - `direct-preview/crave-preview-qr.png`：直达 `pages/share/index?type=crave...`
 - `direct-preview/invite-preview-qr.png`：直达 `pages/share/index?type=invite...`
 - `direct-preview/grocery-preview-qr.png`：直达 `pages/share/index?type=grocery...`
+- `direct-preview/wish-preview-qr.png`：直达 `pages/share/index?type=wish...`
+- `direct-preview/menu-preview-qr.png`：直达 `pages/share/index?type=today_menu...`
 
-扫对应二维码或在开发者工具里打开后，页面应显示 Humi 原生分享确认卡；点击“发送给家人”后，再保存微信原生分享卡片截图为 `crave-card.png`、`invite-card.png`、`grocery-card.png`。这一步只用于提审前 QA 取证，不上传新版本、不提交审核、不发布。
+扫对应二维码或在开发者工具里打开后，页面应显示 Humi 原生分享确认卡；点击“发送给家人”后，再保存五张对应的 `*-card.png`。这一步只用于产品 QA 取证，不上传新版本、不提交审核、不发布。
 
-## 三张原生卡片怎么触发
+## 五张原生卡片怎么触发
 
 ### `crave-card.png` / 今晚征集口味
 
@@ -116,23 +120,39 @@ npm run release:wechat:share:direct-previews
 2. 进入【清单】，确保今晚菜单已有待买食材。
 3. 点击清单页的买菜分享动作。
 4. 点击页面里的分享动作，进入原生分享确认页后点“发送给家人”。
-5. 分享预览标题应为“某某发来买菜清单/若干项买菜清单”的语义，path 应带 `?grocery=` token。
+5. 分享预览标题应为“某某发来买菜清单/若干项买菜清单”的语义，path 应带 `?groceryShare=` token。
 
-自动生成三张 H5 落地页截图：
+### `wish-card.png` / 收集最近想吃
+
+1. 进入【我的家】的“最近想吃”。
+2. 点击“问问家人”或“分享想吃入口”。
+3. 进入原生分享确认页后点“发送给家人”。
+4. 标题应表达“想收集家里最近想吃的菜”，path 应带 `?wishShare=` token。
+
+### `menu-card.png` / 今晚菜单
+
+1. 先在【今晚】安排至少一道菜，再进入【今晚菜单】。
+2. 点击“分享菜单给家人”。
+3. 进入原生分享确认页后点“发送给家人”。
+4. 标题应表达“某个家今晚菜单”，path 应带 `?menuShare=` token。
+
+自动生成五张 H5 落地页截图：
 
 ```bash
 npm run release:wechat:share:landings
 ```
 
-该命令会启动本地 mock Humi API 和本地 H5，创建 `crave`、`invite`、`grocery` 三类真实 token，并自动保存：
+该命令会启动本地 mock Humi API 和本地 H5，创建五类真实 token，并自动保存：
 
 - `crave-landing.png`
 - `invite-landing.png`
 - `grocery-landing.png`
+- `wish-landing.png`
+- `menu-landing.png`
 
-这只能证明 token 打开后的 H5 落地页与免登录/加入流程入口，不替代微信原生分享卡片截图。三张 `*-card.png` 仍需微信开发者工具或真机生成。
+这只能证明 token 打开后的 H5 落地页与游客/加入流程入口，不替代微信原生分享卡片截图。五张 `*-card.png` 仍需微信开发者工具或真机生成。
 
-辅助保存三张微信原生卡片截图：
+辅助保存五张微信原生卡片截图：
 
 ```bash
 npm run release:wechat:share:cards:capture -- --interactive
@@ -143,19 +163,21 @@ npm run release:wechat:share:cards:capture -- --interactive
 - `crave-card.png`
 - `invite-card.png`
 - `grocery-card.png`
+- `wish-card.png`
+- `menu-card.png`
 
 因为微信原生分享卡片不在 H5 DOM 内，这一步仍需要开发者工具或真机把卡片实际调出来；脚本负责命名、截图和基础 PNG 校验。
 
-如果三张截图已经通过真机、微信开发者工具另存或 AirDrop 放在某个目录，也可以导入：
+如果五张截图已经通过真机、微信开发者工具另存或 AirDrop 放在某个目录，也可以导入：
 
 ```bash
 npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots
 ```
 
-导入命令会在来源目录中查找 `crave-card.png`、`invite-card.png`、`grocery-card.png`，或包含 `crave/invite/grocery/征集/邀请/清单/买菜` 等关键词的 PNG，并复制成正确文件名到私有证据目录。也可以显式指定三张图：
+导入命令会按五类文件名或中文业务关键词查找 PNG，并复制成正确文件名到私有证据目录。也可以显式指定五张图：
 
 ```bash
-npm run release:wechat:share:cards:import -- --crave /path/crave.png --invite /path/invite.png --grocery /path/grocery.png
+npm run release:wechat:share:cards:import -- --crave /path/crave.png --invite /path/invite.png --grocery /path/grocery.png --wish /path/wish.png --menu /path/menu.png
 ```
 
 检查截图是否齐全：
@@ -166,21 +188,21 @@ npm run release:wechat:share:evidence
 
 通过标准：
 
-- 六个截图文件全部存在、非空且为完整 PNG。
+- 十个截图文件全部存在、非空且为完整 PNG。
 - 分享卡片截图尺寸至少 `240x160` 且不小于 `8 KB`，落地页截图尺寸至少 `320x568` 且不小于 `16 KB`。
 - 命令输出每个文件的 size、图片尺寸和 SHA256。
-- Vision OCR 必须从每张 `*-card.png` 识别到 `虚拟好友`、`发送`，以及对应的征集/邀请/买菜语义；仅尺寸正确或文件名正确不再算通过。
+- Vision OCR 必须从每张 `*-card.png` 识别到 `虚拟好友`、`发送`，以及对应的征集/邀请/买菜/想吃/菜单语义；仅尺寸正确或文件名正确不再算通过。
 - 截图视觉上符合对应卡片和落地页行为。
 
 2026-07-13 复核结论：历史 `grocery-card.png` 通过新语义门禁；`crave-card.png` 只显示顶部分享菜单，`invite-card.png` 是无关桌面截图，均已作废并等待重新截取。
 
-视觉确认三张微信原生卡片正确后，运行收口命令：
+视觉确认五张微信原生卡片正确后，运行收口命令：
 
 ```bash
 npm run release:wechat:share:complete
 ```
 
-该命令会先重新跑截图证据门禁，然后要求执行人确认三张原生卡片视觉正确；确认后才会勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。非交互环境可在人工视觉确认后使用：
+该命令会先重新跑截图证据门禁，然后要求执行人确认五张原生卡片视觉正确；确认后才会勾选 `docs/humi-1.1-pre-review-hardening.md` 中的小程序卡片 P1。非交互环境可在人工视觉确认后使用：
 
 ```bash
 HUMI_SHARE_CARD_VISUAL_CONFIRMED=1 npm run release:wechat:share:complete

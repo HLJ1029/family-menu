@@ -97,7 +97,7 @@ export function InviteLanding({ token, humiSession, onJoined, onClose }) {
 
   return (
     <FullScreenShell>
-      <main className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
+      <main data-testid="invite-share-landing" className="mx-auto grid min-h-screen w-full max-w-2xl content-center px-5 py-8">
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-lift sm:p-8">
           <div className="grid gap-4 sm:grid-cols-[1fr_150px] sm:items-start">
             <div>

@@ -24,7 +24,8 @@
 
   <view class="actions">
     <view class="share-helper">{{helper}}</view>
-    <button class="hero-share-button primary-button" open-type="share">{{actionLabel}}</button>
+    <button wx:if="{{canShare}}" class="hero-share-button primary-button" open-type="share">{{actionLabel}}</button>
+    <button wx:else class="hero-share-button primary-button" disabled>返回重新准备</button>
     <button class="ghost-button" bindtap="goBack">返回 Humi</button>
   </view>
 </view>

@@ -264,33 +264,33 @@ export function UserCenter({
         <section className="rounded-[24px] border border-line bg-white p-4 shadow-card">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">今晚一起决定</p>
-              <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">今晚先看这三件事</h3>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">今晚一起商量</p>
+              <h3 className="mt-1 text-xl font-black tracking-[-0.03em]">家里现在有什么动静</h3>
               <p className="mt-1 text-xs font-bold leading-5 text-ink/48">
                 {familyPortraitDigest.evidenceCount > 0
-                  ? `Humi 已记住 ${familyPortraitDigest.evidenceCount} 次选择，${familyPortraitDigest.nextMove}`
-                  : "还不了解你家也没关系，先从一顿省心的晚饭开始"}
+                  ? `已经记下 ${familyPortraitDigest.evidenceCount} 次选择，今晚会${familyPortraitDigest.nextMove}`
+                  : "还没有新消息，先问问大家今晚想吃什么"}
               </p>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <HomeActionTile
-              label="大家想吃什么"
-              value={activeCraveRequest?.token ? `${activeCraveVotes.length} 个回复` : "还没发起"}
-              actionLabel={activeCraveRequest?.token ? "刷新" : canManageHousehold ? "发起" : "等主厨"}
+              label="今晚想吃什么"
+              value={activeCraveRequest?.token ? `${activeCraveVotes.length} 个回复` : "还没问大家"}
+              actionLabel={activeCraveRequest?.token ? "看看新回复" : canManageHousehold ? "去问问" : "等主厨发起"}
               onClick={activeCraveRequest?.token ? onRefreshCraveRequest : canManageHousehold ? openCraveComposer : undefined}
               disabled={!activeCraveRequest?.token && !canManageHousehold}
             />
             <HomeActionTile
               label="买菜进度"
-              value={activeGroceryShareRequest?.token ? `已买 ${checkedGroceryItems}/${groceryItems.length}` : "去清单分享"}
-              actionLabel={activeGroceryShareRequest?.token ? "刷新" : "打开"}
+              value={activeGroceryShareRequest?.token ? `已买 ${checkedGroceryItems}/${groceryItems.length}` : "还没有共享清单"}
+              actionLabel={activeGroceryShareRequest?.token ? "看看进度" : "打开清单"}
               onClick={activeGroceryShareRequest?.token ? onRefreshGroceryShare : () => onViewChange("grocery")}
             />
             <HomeActionTile
               label="最近想吃"
               value={activeWishShareRequest?.token ? `${wishShareWishes.length} 个想吃` : `${wishPool.length} 道`}
-              actionLabel={activeWishShareRequest?.token ? "刷新" : canManageHousehold ? "收集" : "去添加"}
+              actionLabel={activeWishShareRequest?.token ? "看看新想法" : canManageHousehold ? "问问家人" : "去添加"}
               onClick={activeWishShareRequest?.token ? onRefreshWishShare : canManageHousehold ? onStartWishShare : onOpenRecipeLibrary}
             />
           </div>

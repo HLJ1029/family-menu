@@ -61,6 +61,40 @@ const requiredFiles = [
     minHeight: 568,
     minBytes: 16_000,
   },
+  {
+    key: "wish-card",
+    file: "wish-card.png",
+    description: "wish 小程序分享卡片预览截图",
+    minWidth: 240,
+    minHeight: 160,
+    minBytes: 8_000,
+    visualMarkers: ["最近想吃", "想收集", "想吃的菜"],
+  },
+  {
+    key: "wish-landing",
+    file: "wish-landing.png",
+    description: "wish token 打开后的免登录写菜落地页截图",
+    minWidth: 320,
+    minHeight: 568,
+    minBytes: 16_000,
+  },
+  {
+    key: "menu-card",
+    file: "menu-card.png",
+    description: "menu 小程序分享卡片预览截图",
+    minWidth: 240,
+    minHeight: 160,
+    minBytes: 8_000,
+    visualMarkers: ["今晚菜单", "今晚安排", "香煎豆腐"],
+  },
+  {
+    key: "menu-landing",
+    file: "menu-landing.png",
+    description: "menu token 打开后的免登录菜单落地页截图",
+    minWidth: 320,
+    minHeight: 568,
+    minBytes: 16_000,
+  },
 ];
 
 const evidenceDir = process.env.HUMI_MINIPROGRAM_SHARE_EVIDENCE_DIR || await findLatestEvidenceDir();
@@ -81,7 +115,7 @@ const result = {
     ? buildNextActions({ evidenceDir, missing, missingCards, missingLandings })
     : [
       "All mini program share card evidence files are present and contain the expected native send-dialog text.",
-      "The three card screenshots show the DevTools virtual recipient, send action, and their crave/invite/grocery semantics.",
+      "The five card screenshots show the DevTools virtual recipient, send action, and the expected collaboration semantics.",
     ],
 };
 

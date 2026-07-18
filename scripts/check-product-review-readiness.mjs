@@ -236,7 +236,7 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "native-share-navigation-is-truthful",
-    title: "小程序分享只在原生子页面真实打开后报告成功",
+    title: "小程序分享使用单次原生子页面跳转",
     path: "src/lib/runtime.js",
     required: [
       "\"redirectTo\"",
@@ -248,8 +248,8 @@ const REQUIRED_CHECKS = [
     ],
     evidence: "scripts/validate-mini-share-runtime.mjs",
     evidenceRequired: [
-      "falsePositiveFallback",
-      "native callbacks alone must not be reported",
+      "explicitFailureFallback",
+      "redirectTo should only run after navigateTo explicitly fails",
       "\"handoff\"",
       "redirectTo",
       "navigateTo",
@@ -300,7 +300,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product anchors are covered and the 1.2 scope is locked. The production candidate is deployed and uploaded; continue real-device acceptance without entering WeChat review.",
+        "Product anchors are covered and the 1.2 scope is locked. Continue merge, deployment, mini-program candidate upload, and real-device acceptance without entering WeChat review.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",

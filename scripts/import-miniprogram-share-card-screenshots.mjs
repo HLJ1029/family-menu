@@ -26,6 +26,20 @@ const CARD_FILES = [
     env: "HUMI_GROCERY_CARD_SCREENSHOT",
     aliases: ["grocery-card", "grocery", "清单", "买菜"],
   },
+  {
+    key: "wish",
+    file: "wish-card.png",
+    description: "wish 小程序分享卡片预览截图",
+    env: "HUMI_WISH_CARD_SCREENSHOT",
+    aliases: ["wish-card", "wish", "想吃"],
+  },
+  {
+    key: "menu",
+    file: "menu-card.png",
+    description: "menu 小程序分享卡片预览截图",
+    env: "HUMI_MENU_CARD_SCREENSHOT",
+    aliases: ["menu-card", "menu", "菜单"],
+  },
 ];
 
 const args = parseArgs(process.argv.slice(2));
@@ -40,7 +54,7 @@ if (!sourceDir && !CARD_FILES.some((item) => process.env[item.env] || args[item.
     "Use one of:",
     "  npm run release:wechat:share:cards:import -- --source-dir /path/to/screenshots",
     "  HUMI_SHARE_CARD_SOURCE_DIR=/path/to/screenshots npm run release:wechat:share:cards:import",
-    "  HUMI_CRAVE_CARD_SCREENSHOT=/path/crave.png HUMI_INVITE_CARD_SCREENSHOT=/path/invite.png HUMI_GROCERY_CARD_SCREENSHOT=/path/grocery.png npm run release:wechat:share:cards:import",
+    "  HUMI_CRAVE_CARD_SCREENSHOT=/path/crave.png HUMI_INVITE_CARD_SCREENSHOT=/path/invite.png HUMI_GROCERY_CARD_SCREENSHOT=/path/grocery.png HUMI_WISH_CARD_SCREENSHOT=/path/wish.png HUMI_MENU_CARD_SCREENSHOT=/path/menu.png npm run release:wechat:share:cards:import",
   ].join("\n"));
   process.exit(1);
 }
@@ -115,6 +129,12 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === "--grocery") {
       result.grocery = next;
+      index += 1;
+    } else if (arg === "--wish") {
+      result.wish = next;
+      index += 1;
+    } else if (arg === "--menu") {
+      result.menu = next;
       index += 1;
     }
   }

@@ -125,7 +125,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
         "npm run release:next",
       ],
       userConfirmationsRequired: [
-        "视觉确认三张微信原生分享卡片确实符合 crave/invite/grocery 预期。",
+        "视觉确认五张微信原生分享卡片确实符合 crave/invite/grocery/wish/menu 预期。",
       ],
     };
   }
