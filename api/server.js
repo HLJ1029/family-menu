@@ -1,6 +1,7 @@
 import http from "node:http";
-import { createHmac } from "node:crypto";
-import { resolve } from "node:path";
+import { createHmac, randomBytes } from "node:crypto";
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
@@ -24,6 +25,12 @@ const config = {
   // 基础推荐默认走本地规则；只有登录用户显式请求精准能力时才允许消耗 DeepSeek。
   aiRateLimit: Number(process.env.HUMI_AI_RATE_LIMIT || 30),
   aiRateWindowMs: Number(process.env.HUMI_AI_RATE_WINDOW_MS || 60000),
+  posterDir: process.env.HUMI_POSTER_DIR || resolve(dirname(process.env.HUMI_API_DATA_FILE || resolve(".humi-api-data.json")), ".humi-posters"),
+  posterPublicBaseUrl: (process.env.HUMI_PUBLIC_BASE_URL || "https://api.humi-home.com").replace(/\/$/, ""),
+  posterMaxBytes: Math.min(1024 * 1024, Math.max(64 * 1024, Number(process.env.HUMI_POSTER_MAX_BYTES || 950 * 1024))),
+  posterTtlMs: Math.max(60 * 60 * 1000, Number(process.env.HUMI_POSTER_TTL_MS || 24 * 60 * 60 * 1000)),
+  posterRateLimit: Math.max(1, Number(process.env.HUMI_POSTER_RATE_LIMIT || 12)),
+  posterRateWindowMs: Math.max(10_000, Number(process.env.HUMI_POSTER_RATE_WINDOW_MS || 60_000)),
 };
 
 if (!config.sessionSecret) {
@@ -205,6 +212,17 @@ export function createHumiApiServer() {
 
       if (request.method === "POST" && url.pathname === "/wish-share-requests") {
         await handleCreateWishShareRequest(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/poster-shares") {
+        await handleCreatePosterShare(request, response);
+        return;
+      }
+
+      const posterShareMatch = url.pathname.match(/^\/poster-shares\/([A-Za-z0-9_-]{24,64})\.(jpg|png)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && posterShareMatch) {
+        await handleGetPosterShare(request, response, posterShareMatch[1], posterShareMatch[2]);
         return;
       }
 
@@ -834,6 +852,108 @@ async function handleCloseCraveRequest(request, response, token) {
   }
 }
 
+async function handleCreatePosterShare(request, response) {
+  const auth = await requireAuth(request);
+  enforcePosterUploadAccess(request, auth.userId);
+  const declaredLength = Number(request.headers["content-length"] || 0);
+  if (declaredLength > config.posterMaxBytes) {
+    throw httpError(413, "poster_too_large", "海报图片太大，请重新生成后再试。");
+  }
+
+  const body = await readBinary(request, config.posterMaxBytes);
+  const format = detectPosterFormat(body, request.headers["content-type"]);
+  if (!format) {
+    throw httpError(415, "invalid_poster_image", "只支持 Humi 生成的 JPG 或 PNG 海报。");
+  }
+
+  await mkdir(config.posterDir, { recursive: true, mode: 0o700 });
+  await cleanupExpiredPosters();
+  const token = randomBytes(24).toString("base64url");
+  const filename = `${token}.${format}`;
+  await writeFile(join(config.posterDir, filename), body, { mode: 0o600, flag: "wx" });
+  const expiresAt = new Date(Date.now() + config.posterTtlMs).toISOString();
+  sendJson(response, 201, {
+    poster: {
+      token,
+      format,
+      url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
+      expiresAt,
+      bytes: body.length,
+    },
+  });
+}
+
+async function handleGetPosterShare(request, response, token, format) {
+  const path = join(config.posterDir, `${token}.${format}`);
+  let fileInfo;
+  try {
+    fileInfo = await stat(path);
+  } catch (error) {
+    if (error.code === "ENOENT") throw httpError(404, "poster_not_found", "这张海报已经失效，请回到 Humi 重新生成。");
+    throw error;
+  }
+  if (Date.now() - fileInfo.mtimeMs > config.posterTtlMs) {
+    await unlink(path).catch(() => {});
+    throw httpError(410, "poster_expired", "这张海报已经过期，请回到 Humi 重新生成。");
+  }
+
+  response.writeHead(200, {
+    "Content-Type": format === "png" ? "image/png" : "image/jpeg",
+    "Content-Length": fileInfo.size,
+    "Cache-Control": "public, max-age=3600, immutable",
+    "Content-Disposition": `inline; filename="humi-poster.${format}"`,
+    "X-Content-Type-Options": "nosniff",
+  });
+  if (request.method === "HEAD") {
+    response.end();
+    return;
+  }
+  response.end(await readFile(path));
+}
+
+const posterRateBuckets = new Map();
+
+function enforcePosterUploadAccess(request, userId) {
+  const key = `${userId}:${getClientIp(request)}`;
+  const now = Date.now();
+  if (posterRateBuckets.size > 1000) {
+    for (const [bucketKey, candidate] of posterRateBuckets) {
+      if (now >= candidate.resetAt) posterRateBuckets.delete(bucketKey);
+    }
+  }
+  const bucket = posterRateBuckets.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    posterRateBuckets.set(key, { count: 1, resetAt: now + config.posterRateWindowMs });
+    return;
+  }
+  if (bucket.count >= config.posterRateLimit) {
+    throw httpError(429, "poster_rate_limited", "海报生成得有点快，请稍后再试。");
+  }
+  bucket.count += 1;
+}
+
+async function cleanupExpiredPosters() {
+  const entries = await readdir(config.posterDir, { withFileTypes: true }).catch(() => []);
+  const now = Date.now();
+  await Promise.all(entries.map(async (entry) => {
+    if (!entry.isFile() || !/^[A-Za-z0-9_-]{24,64}\.(jpg|png)$/.test(entry.name)) return;
+    const path = join(config.posterDir, entry.name);
+    const fileInfo = await stat(path).catch(() => null);
+    if (fileInfo && now - fileInfo.mtimeMs > config.posterTtlMs) {
+      await unlink(path).catch(() => {});
+    }
+  }));
+}
+
+function detectPosterFormat(body, contentType = "") {
+  const normalizedType = String(contentType).split(";")[0].trim().toLowerCase();
+  const isPng = body.length >= 8 && body.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isJpeg = body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff;
+  if (isPng && normalizedType === "image/png") return "png";
+  if (isJpeg && ["image/jpeg", "image/jpg"].includes(normalizedType)) return "jpg";
+  return "";
+}
+
 // 精准推荐仍按客户端 IP 限流，避免登录态被滥用刷 DeepSeek 额度。
 const aiRateBuckets = new Map();
 
@@ -1396,6 +1516,20 @@ async function readJson(request) {
   } catch {
     throw httpError(400, "invalid_json", "Request body must be JSON.");
   }
+}
+
+async function readBinary(request, maxBytes) {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of request) {
+    bytes += chunk.length;
+    if (bytes > maxBytes) {
+      throw httpError(413, "poster_too_large", "海报图片太大，请重新生成后再试。");
+    }
+    chunks.push(chunk);
+  }
+  if (bytes === 0) throw httpError(400, "missing_poster_image", "没有收到海报图片，请重新生成后再试。");
+  return Buffer.concat(chunks);
 }
 
 function getBearerToken(request) {

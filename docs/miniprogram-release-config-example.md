@@ -17,8 +17,9 @@
 
 - WebView 业务域名：`www.humi-home.com`
 - request 合法域名：`api.humi-home.com`
+- downloadFile 合法域名：`api.humi-home.com`
 - 业务域名校验文件已放入正式 H5 根目录
-- 隐私保护指引已按实际收集数据填写
+- 隐私保护指引已按实际能力填写，包括用户主动保存海报时写入系统相册
 
 发布前本地门禁：
 

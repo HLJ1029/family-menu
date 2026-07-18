@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/share/index",
+    "pages/poster/index",
     "pages/phone-bind/index"
   ],
   "window": {

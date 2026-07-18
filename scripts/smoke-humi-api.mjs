@@ -27,6 +27,54 @@ try {
   assert(login.accessToken, "login should return accessToken");
   assert(login.user?.provider === "wechat", "login should return wechat user");
 
+  const posterJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const unauthorizedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: { "Content-Type": "image/jpeg" },
+    body: posterJpeg,
+  });
+  assert(unauthorizedPoster.status === 401, "poster upload should require a WeChat session");
+  const uploadedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+    },
+    body: posterJpeg,
+  });
+  assert(uploadedPoster.status === 201, "poster upload should return 201");
+  assert(uploadedPoster.data.poster?.format === "jpg", "poster upload should detect JPEG");
+  assert(uploadedPoster.data.poster?.bytes === posterJpeg.length, "poster upload should report exact bytes");
+  assert(/^[A-Za-z0-9_-]{24,64}$/.test(uploadedPoster.data.poster?.token || ""), "poster upload should return an opaque token");
+  const posterPath = `/poster-shares/${uploadedPoster.data.poster.token}.jpg`;
+  const downloadedPoster = await rawRequest(`${baseUrl}${posterPath}`);
+  assert(downloadedPoster.status === 200, "uploaded poster should be publicly downloadable by opaque token");
+  assert(downloadedPoster.contentType === "image/jpeg", "poster download should keep image content type");
+  assert(Buffer.compare(downloadedPoster.buffer, posterJpeg) === 0, "poster download should return the uploaded bytes");
+  const posterHead = await rawRequest(`${baseUrl}${posterPath}`, { method: "HEAD" });
+  assert(posterHead.status === 200, "poster HEAD should succeed");
+  assert(posterHead.contentLength === String(posterJpeg.length), "poster HEAD should expose content length");
+  const invalidPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+    },
+    body: Buffer.from("not-an-image"),
+  });
+  assert(invalidPoster.status === 415, "poster upload should reject invalid image signatures");
+  const oversizedPoster = Buffer.alloc(951 * 1024, 0);
+  oversizedPoster.set([0xff, 0xd8, 0xff], 0);
+  const rejectedOversizedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+    },
+    body: oversizedPoster,
+  });
+  assert(rejectedOversizedPoster.status === 413, "poster upload should reject images over 950KB");
+
   const me = await request(`${baseUrl}/me`, {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
@@ -770,6 +818,27 @@ async function request(url, options = {}) {
     throw new Error(`${response.status} ${JSON.stringify(data)}`);
   }
   return data;
+}
+
+async function rawRequest(url, options = {}) {
+  const response = await fetch(url, {
+    method: options.method ?? "GET",
+    headers: options.headers ?? {},
+    body: options.body,
+  });
+  const contentType = String(response.headers.get("content-type") || "").split(";")[0];
+  const buffer = Buffer.from(await response.arrayBuffer());
+  let data = {};
+  if (contentType === "application/json" && buffer.length > 0) {
+    data = JSON.parse(buffer.toString("utf8"));
+  }
+  return {
+    status: response.status,
+    contentType,
+    contentLength: response.headers.get("content-length"),
+    buffer,
+    data,
+  };
 }
 
 async function assertUnauthorizedCreate(url, body, label) {

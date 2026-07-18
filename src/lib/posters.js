@@ -61,7 +61,7 @@ export async function createGroceryPoster({ items = [], customItems = [] }) {
 }
 
 export async function sharePoster({ blob, title, filename, text }) {
-  const file = new File([blob], filename, { type: "image/png" });
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
   if (navigator.canShare?.({ files: [file] }) && navigator.share) {
     try {
       await navigator.share({ title, text, files: [file] });
@@ -72,6 +72,40 @@ export async function sharePoster({ blob, title, filename, text }) {
   }
   downloadPoster(blob, filename);
   return "downloaded";
+}
+
+export async function preparePosterUploadBlob(blob, maxBytes = 900 * 1024) {
+  if (!(blob instanceof Blob)) throw new Error("Poster image is missing");
+  if (blob.size <= maxBytes && ["image/jpeg", "image/png"].includes(blob.type)) return blob;
+
+  const sourceUrl = URL.createObjectURL(blob);
+  try {
+    const image = await loadImageSafe(sourceUrl);
+    if (!image) throw new Error("Poster image could not be prepared for WeChat");
+    const attempts = [
+      { scale: 1, quality: 0.86 },
+      { scale: 0.88, quality: 0.8 },
+      { scale: 0.76, quality: 0.74 },
+      { scale: 0.64, quality: 0.68 },
+    ];
+    let smallest = null;
+    for (const attempt of attempts) {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(540, Math.round(image.naturalWidth * attempt.scale));
+      canvas.height = Math.max(720, Math.round(image.naturalHeight * attempt.scale));
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = COLORS.canvas;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const candidate = await canvasToBlob(canvas, "image/jpeg", attempt.quality);
+      if (!smallest || candidate.size < smallest.size) smallest = candidate;
+      if (candidate.size <= maxBytes) return candidate;
+    }
+    if (smallest?.size <= maxBytes) return smallest;
+    throw new Error("Poster image is still too large for WeChat");
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 }
 
 export function downloadPoster(blob, filename) {
@@ -89,6 +123,15 @@ async function createPosterBlob(draw) {
       if (blob) resolve(blob);
       else reject(new Error("Poster export failed"));
     }, "image/png");
+  });
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Poster export failed"));
+    }, type, quality);
   });
 }
 
