@@ -1,10 +1,10 @@
 # Humi 微信小程序迁移与首发清单 V2
 
-更新日期：2026-07-02
+更新日期：2026-07-18
 
 本文档是 Humi 小程序 WebView MVP 的历史执行基线。1.1 当前收口、阻塞项和下一步以 `npm run release:next`、`npm run release:closure`、`docs/humi-1.1-pre-review-hardening.md` 和 `docs/humi-1.1-spec-acceptance-audit.md` 为准；本文件中较早日期的 checklist 仅作为历史背景，不再单独作为当前提审门禁。
 
-当前状态（2026-07-18）：小程序候选 `1.1.70`（`修复实机分享并补齐五类协作`）基于当前重构 UI 与完整功能门禁准备；生产 H5 和小程序上传后继续做真实微信核心菜单与五类分享验收。当前不直接提交审核；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本同步记录继续保留在本文后半部分。
+当前状态（2026-07-18）：小程序候选 `1.1.71`（`明确微信发送步骤并消除假成功`）基于当前重构 UI 与完整功能门禁准备；生产 H5 和小程序上传后继续做真实微信核心菜单与五类分享验收。当前不直接提交审核；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本同步记录继续保留在本文后半部分。
 
 ## 1. 首发结论
 
