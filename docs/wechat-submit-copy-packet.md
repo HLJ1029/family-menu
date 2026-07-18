@@ -1,6 +1,6 @@
 # Humi 1.1 WeChat Submit Copy Packet
 
-更新日期：2026-07-03
+更新日期：2026-07-18
 执行设备：codex@mbp-m5pro
 
 本文档是微信公众平台提交审核时的“照抄包”。后台字段名称以微信公众平台实时页面为准；如果后台问题和本文档冲突，以后台为准并把差异记录到 `docs/humi-1.1-release-evidence-log.md`。
@@ -11,8 +11,8 @@
 | --- | --- |
 | 小程序名称 | `Humi` |
 | AppID | `wx4040b89f3b363416` |
-| 上传版本 | `1.1.70` |
-| 版本描述 | `恢复菜单和清单海报入口` |
+| 上传版本 | `1.1.71` |
+| 版本描述 | `明确微信发送步骤并消除假成功` |
 | H5 域名 | `https://www.humi-home.com/` |
 | API 域名 | `https://api.humi-home.com` |
 | 隐私政策 | `https://www.humi-home.com/privacy.html` |
@@ -114,7 +114,7 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 
 | 证据 | 建议文件名 |
 | --- | --- |
-| 上传版本 `1.1.70` 列表 | `humi-1.1.70-version-list.png` |
+| 上传版本 `1.1.71` 列表 | `humi-1.1.71-version-list.png` |
 | request 合法域名 | `humi-request-domain-api.png` |
 | web-view 业务域名 | `humi-webview-domain-www.png` |
 | 隐私保护指引关键项 | `humi-privacy-settings.png` |
@@ -127,6 +127,6 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 
 - 提交时间。
 - 提交人。
-- 提交版本：`1.1.70`。
+- 提交版本：`1.1.71`。
 - 审核单状态。
 - 证据原件私有位置。

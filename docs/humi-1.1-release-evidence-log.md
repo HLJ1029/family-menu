@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `cae5e14` |
-| GitHub Pages deployment | `29640444695` / success / PR #29 merge `7cab05c` |
+| GitHub Pages deployment | `29641009392` / success / PR #31 merge `7733865` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.70` |
-| 小程序描述 | `修复实机分享并补齐五类协作` |
+| 小程序版本 | `1.1.71` |
+| 小程序描述 | `明确微信发送步骤并消除假成功` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | H5 分享桥接已修复为单次原生跳转；五类 card/landing 证据通过；菜单与清单海报入口保留。H5 已部署，小程序 `1.1.70` 已上传并使用 `h5v=1.1.70`；生产产品与协作 smoke 通过，尚未提交微信审核 |
+| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页，页面不再把“准备好分享卡片”误报为已经发送；原生页明确提示需再点一次“选择家人发送”。五类 card/landing 与菜单、清单海报证据通过。H5 已部署，小程序 `1.1.71` 已上传并使用 `h5v=1.1.71`；生产产品与协作 smoke 通过，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -82,6 +82,9 @@
 | 2026-07-18 | codex@mbp-m5pro | 五类分享 card / landing 取证 | 通过 | `crave`、`invite`、`grocery`、`wish`、`menu` 五张 H5 landing 与五张 DevTools 原生发送框均通过 PNG 完整性、尺寸和 OCR 语义门禁；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260718Th7nuXe` |
 | 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 线上核心菜单、138 道菜库、三餐选择、家庭协作、菜单与清单海报和游客回传通过，页面错误 0；H5/API/recommend 与 online readiness 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.70-20260718` |
 | 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.70` / `修复实机分享并补齐五类协作` / package `28.8 KB` / `h5v=1.1.70`；preview QR SHA-256 `09413f566be6b2e7068b759587cda7999f5ed3fb14f8c295864b0858bccc5039`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.70`；未提交审核 |
+| 2026-07-18 | codex@mbp-m5pro | PR #31 / GitHub Pages | 通过 | 五类分享的第二步微信发送提示、假成功清理与发布版本常量合入 `main@7733865`；Pages run `29641009392` success |
+| 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 五类 H5 分享入口各自只派发一次原生 `navigateTo`，无 `redirectTo`；菜单与清单海报均真实生成，138 道菜库及核心流程页面错误 0；协作 smoke 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.71-rerun-20260718` 与 `private:///Users/honglijie/.humi-release-evidence/collaboration-production-1.1.71-20260718` |
+| 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.71` / `明确微信发送步骤并消除假成功` / package `28.8 KB` / `h5v=1.1.71`；preview QR SHA-256 `feba01ff9043fed1ee118564bf6d3002907a0381e97a414217a40b7473dd8e3a`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.71`；未提交审核 |
 
 ## 3. 生产 API 补部署证据
 
@@ -120,14 +123,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.70` |
+| 提交版本 | `1.1.71` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.70` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.71` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -155,7 +158,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.70` |
+| 发布版本 | `1.1.71` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

@@ -1,5 +1,10 @@
 import { readFile } from "node:fs/promises";
 
+import {
+  CURRENT_MINIPROGRAM_DESCRIPTION,
+  CURRENT_MINIPROGRAM_VERSION,
+} from "./release-candidate.mjs";
+
 const checks = [
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
@@ -109,6 +114,90 @@ const checks = [
 ];
 
 const failures = [];
+
+const currentCandidateDocs = [
+  {
+    path: "docs/humi-1.1-closure-map.md",
+    required: [`小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``],
+  },
+  {
+    path: "docs/humi-1.1-release-evidence-log.md",
+    required: [
+      `| 小程序版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
+      `| 小程序描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+    ],
+  },
+  {
+    path: "docs/humi-1.1-release-operator-handoff.md",
+    required: [
+      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+    ],
+  },
+  {
+    path: "docs/miniprogram-platform-submit-runbook.md",
+    required: [
+      `已上传版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
+      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+    ],
+  },
+  {
+    path: "docs/wechat-submit-copy-packet.md",
+    required: [
+      `| 上传版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
+      `| 版本描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+    ],
+  },
+  {
+    path: "docs/miniprogram-launch-readiness.md",
+    required: [
+      `小程序候选 \`${CURRENT_MINIPROGRAM_VERSION}\`（\`${CURRENT_MINIPROGRAM_DESCRIPTION}\`）`,
+    ],
+  },
+  {
+    path: "docs/humi-1.1-spec-acceptance-audit.md",
+    required: [
+      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+    ],
+  },
+  {
+    path: "docs/humi-1.1-pre-review-hardening.md",
+    required: [`小程序候选更新为 \`${CURRENT_MINIPROGRAM_VERSION}\``],
+  },
+  {
+    path: "docs/launch-day-runbook.md",
+    required: [
+      `小程序版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
+      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+    ],
+  },
+  {
+    path: "docs/humi-api-production-deploy-runbook.md",
+    required: [
+      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+    ],
+  },
+  {
+    path: "docs/humi-api-contract.md",
+    required: [`小程序 ${CURRENT_MINIPROGRAM_VERSION} 使用本合同`],
+  },
+];
+
+for (const doc of currentCandidateDocs) {
+  const content = await readFile(doc.path, "utf8");
+  for (const phrase of doc.required) {
+    if (!content.includes(phrase)) {
+      failures.push({ path: doc.path, phrase: `missing ${phrase}` });
+    }
+  }
+}
+
+const miniProgramConfig = await readFile("miniprogram/utils/config.js", "utf8");
+if (!miniProgramConfig.includes(`h5v=${CURRENT_MINIPROGRAM_VERSION}`)) {
+  failures.push({
+    path: "miniprogram/utils/config.js",
+    phrase: `missing h5v=${CURRENT_MINIPROGRAM_VERSION}`,
+  });
+}
 
 for (const check of checks) {
   const content = await readFile(check.path, "utf8");
@@ -385,6 +474,8 @@ const result = {
   checkedAt: new Date().toISOString(),
   scope: [
     ...checks.map((check) => check.path),
+    ...currentCandidateDocs.map((doc) => doc.path),
+    "miniprogram/utils/config.js",
     "scripts/print-release-map.mjs",
     "scripts/print-release-next-action.mjs",
     "scripts/check-release-status.mjs",
