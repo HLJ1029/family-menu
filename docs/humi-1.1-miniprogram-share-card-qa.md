@@ -132,7 +132,7 @@ npm run release:wechat:share:direct-previews
 ### `menu-card.png` / 今晚菜单
 
 1. 先在【今晚】安排至少一道菜，再进入【今晚菜单】。
-2. 点击“分享菜单给家人”。
+2. 点击“去微信发菜单”。
 3. 进入原生分享确认页后点“发送给家人”。
 4. 标题应表达“某个家今晚菜单”，path 应带 `?menuShare=` token。
 

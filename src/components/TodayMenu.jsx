@@ -132,7 +132,7 @@ export function TodayMenu({
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 {shareMode === "mini" ? <Share2 size={18} /> : <ImageIcon size={18} />}
-                {shareMode === "mini" ? "分享菜单给家人" : "生成菜单海报"}
+                {shareMode === "mini" ? "去微信发菜单" : "生成菜单海报"}
               </button>
               {shareMode === "mini" && (
                 <button

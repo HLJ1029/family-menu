@@ -133,6 +133,53 @@ try {
     });
   });
 
+  await page.route("**/menu-share-requests", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const payload = route.request().postDataJSON();
+    await fulfillJson(route, {
+      request: {
+        id: "product-smoke-menu",
+        token: "product-smoke-menu-token",
+        householdName: payload.householdName || "我家",
+        initiatorName: payload.initiatorName || "主厨",
+        title: payload.title || "我家今晚菜单",
+        dishes: payload.dishes || [],
+        groceryCount: payload.groceryCount || 0,
+      },
+    });
+  });
+
+  await page.route("**/household-invites", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await fulfillJson(route, {
+      invite: {
+        id: "product-smoke-invite",
+        token: "product-smoke-invite-token",
+        householdId: "product-smoke-family",
+        householdName: "我家",
+        inviterName: "主厨",
+        status: "active",
+        acceptedCount: 0,
+      },
+    });
+  });
+
+  await page.route("**/wish-share-requests", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await fulfillJson(route, {
+      ownerSecret: "product-smoke-wish-owner-secret",
+      request: {
+        id: "product-smoke-wish",
+        token: "product-smoke-wish-token",
+        householdName: "我家",
+        initiatorName: "主厨",
+        title: "家里最近想吃什么",
+        status: "collecting",
+        wishes: [],
+      },
+    });
+  });
+
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await seedGuestDinnerState(page);
   await page.reload({ waitUntil: "networkidle" });
@@ -202,6 +249,12 @@ try {
   const todayMenuPosterPreviewScreenshot = join(evidenceDir, "today-menu-poster-preview-mobile.png");
   await page.screenshot({ path: todayMenuPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "关闭海报预览" }).first().click();
+  await page.getByRole("button", { name: "去微信发菜单", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=today_menu")
+    ),
+  );
   await page.getByRole("button", { name: /发现新菜|全部菜品库/ }).first().click();
   await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
   const discoveryTitle = await page.getByRole("heading", { name: "发现", exact: true }).isVisible();
@@ -274,8 +327,8 @@ try {
   const plannerScreenshot = join(evidenceDir, "planner-mobile.png");
   await page.screenshot({ path: plannerScreenshot, fullPage: true });
   await plannerGrocerySummary.click();
-  await page.getByRole("button", { name: "分享清单给家人", exact: true }).waitFor({ timeout: 15_000 });
-  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: "分享清单给家人", exact: true }).isVisible();
+  await page.getByRole("button", { name: "去微信发清单", exact: true }).waitFor({ timeout: 15_000 });
+  const plannerSummaryOpenedGrocery = await page.getByRole("button", { name: "去微信发清单", exact: true }).isVisible();
 
   await page.getByRole("button", { name: "清单", exact: true }).click();
   await waitForTransientUi(page);
@@ -293,7 +346,7 @@ try {
   const groceryPosterPreviewScreenshot = join(evidenceDir, "grocery-poster-preview-mobile.png");
   await page.screenshot({ path: groceryPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "关闭海报预览" }).first().click();
-  await page.getByRole("button", { name: "分享清单给家人", exact: true }).click();
+  await page.getByRole("button", { name: "去微信发清单", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
       call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery")
@@ -326,6 +379,18 @@ try {
   ).count() === 0;
   const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
   await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
+  await page.getByRole("button", { name: "邀请家人", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite")
+    ),
+  );
+  await page.getByRole("button", { name: "让家人写想吃", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) =>
+      call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish")
+    ),
+  );
   await dietSettingsButton.click();
   await page.getByRole("heading", { name: /家里不能吃什么|人数和忌口/ }).waitFor({ timeout: 15_000 });
   const dietConstraintPanel = page.getByTestId("diet-constraints-panel");
@@ -356,6 +421,16 @@ try {
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
   const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
   const craveShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
+  const menuShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=today_menu"));
+  const inviteShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite"));
+  const wishShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish"));
+  const nativeShareTypes = miniProgramCalls
+    .filter((call) => call.method === "navigateTo")
+    .map((call) => new URLSearchParams(String(call.payload?.url || "").split("?")[1] || "").get("type"));
+  const nativeShareTypeCounts = Object.fromEntries(nativeShareTypes.map((type) => [
+    type,
+    nativeShareTypes.filter((candidate) => candidate === type).length,
+  ]));
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
   const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
   await page.screenshot({ path: userCraveScreenshot, fullPage: true });
@@ -410,6 +485,14 @@ try {
     { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
+    { key: "menu-share-opens-native-share-page", ok: menuShareOpened },
+    { key: "invite-share-opens-native-share-page", ok: inviteShareOpened },
+    { key: "wish-share-opens-native-share-page", ok: wishShareOpened },
+    {
+      key: "all-five-share-actions-dispatch-once",
+      ok: ["crave", "invite", "grocery", "wish", "today_menu"].every((type) => nativeShareTypeCounts[type] === 1),
+      actual: nativeShareTypeCounts,
+    },
     { key: "native-share-navigation-does-not-double-dispatch", ok: shareNavigationStayedSingle, actual: miniProgramCalls },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },

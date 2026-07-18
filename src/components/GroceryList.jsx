@@ -344,7 +344,7 @@ function ShoppingChecklist({
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white transition hover:-translate-y-0.5"
           >
             <Share2 size={17} />
-            {shareMode === "mini" ? "分享清单给家人" : "生成清单海报"}
+            {shareMode === "mini" ? "去微信发清单" : "生成清单海报"}
           </button>
           {shareMode === "mini" && (
             <button
