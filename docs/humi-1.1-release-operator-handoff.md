@@ -11,11 +11,12 @@
 - 当前阶段是 1.1 生产候选完善与内测验证：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，继续保持工程门禁、产品验收和用户确认项可重复通过；最终进入微信公众平台审核前必须再次由用户确认。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
-- API 当前生产基线提交：`cae5e14`；本轮 1.1.72 新增短期海报图片接口，合并后必须重新备份并部署 API。
+- API 当前生产基线提交：`129da03`；本轮 1.1.72 短期海报图片接口已备份并部署，备份路径 `/opt/humi/backups/20260718T114140Z`。
 - 最新小程序候选：`1.1.72`，描述 `海报原生分享与保存到相册`，AppID `wx4040b89f3b363416`。
-- 已核验 H5：`https://www.humi-home.com/`，Pages run `29641009392` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
+- 已核验 H5：`https://www.humi-home.com/`，Pages run `29642978938` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
+- 小程序 `1.1.72` 已上传体验版；当前 DevTools automator 明确返回 `url not in domain list`，微信后台 downloadFile 合法域名尚未配置，双海报真机验收不可判通过。
 
 ## 2. 先后顺序
 
@@ -204,6 +205,8 @@ docs/wechat-submit-copy-packet.md
 - web-view 业务域名包含 `https://www.humi-home.com`
 - 隐私政策为 `https://www.humi-home.com/privacy.html`
 - 用户协议为 `https://www.humi-home.com/terms.html`
+
+当前第一项尚未满足。按微信官方路径进入「小程序后台 -> 开发 -> 开发管理 -> 开发设置 -> 服务器域名」，将 `https://api.humi-home.com` 加入 downloadFile 合法域名；保存后关闭开发者工具的域名跳过选项重测。普通 AppID 的 AppSecret access token 不能调用仅面向第三方平台代商家的 `wxa/modify_domain` 接口，不要继续重试或覆盖现有 access token。
 
 完成证据：
 
