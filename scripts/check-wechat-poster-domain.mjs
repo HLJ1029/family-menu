@@ -1,0 +1,191 @@
+import { access, readFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { createServer } from "node:net";
+import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const DEFAULT_WECHAT_CLI = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
+const DEFAULT_PROBE_URL = "https://api.humi-home.com/health";
+const EXPECTED_ORIGIN = "https://api.humi-home.com";
+const EXPECTED_APP_ID = "wx4040b89f3b363416";
+
+const root = resolve(new URL("..", import.meta.url).pathname);
+const projectPath = resolve(root, "miniprogram");
+const projectConfigPath = resolve(projectPath, "project.config.json");
+const privateConfigPath = resolve(projectPath, "project.private.config.json");
+const cliPath = process.env.HUMI_WECHAT_DEVTOOLS_CLI || DEFAULT_WECHAT_CLI;
+const probeUrl = new URL(process.env.HUMI_POSTER_DOMAIN_PROBE_URL || DEFAULT_PROBE_URL);
+const timeout = Number(process.env.HUMI_WECHAT_AUTOMATOR_TIMEOUT_MS || 45_000);
+
+await assertReadable(cliPath, "WeChat DevTools CLI");
+assert(Number.isFinite(timeout) && timeout >= 10_000, "HUMI_WECHAT_AUTOMATOR_TIMEOUT_MS must be at least 10000.");
+assert(probeUrl.origin === EXPECTED_ORIGIN, `Probe URL must use ${EXPECTED_ORIGIN}.`);
+
+const projectConfig = JSON.parse(await readFile(projectConfigPath, "utf8"));
+assert(projectConfig.appid === EXPECTED_APP_ID, `Expected formal AppID ${EXPECTED_APP_ID}.`);
+assert(projectConfig.setting?.urlCheck === true, "miniprogram/project.config.json must keep setting.urlCheck=true.");
+
+const privateConfig = await readOptionalJson(privateConfigPath);
+assert(privateConfig?.setting?.urlCheck !== false, "project.private.config.json must not disable legal-domain checks.");
+
+let connection;
+let cliProcess;
+let result;
+try {
+  const port = await findAvailablePort();
+  cliProcess = spawn(cliPath, ["auto", "--project", projectPath, "--auto-port", String(port)], {
+    stdio: "ignore",
+  });
+  connection = await connectToDevTools(`ws://127.0.0.1:${port}`, timeout);
+  const response = await connection.send("App.callFunction", {
+    functionDeclaration: `function (url) {
+      return new Promise(function (resolveProbe) {
+        wx.downloadFile({
+          url: url,
+          success: function (downloadResponse) {
+            resolveProbe({ kind: "success", statusCode: downloadResponse.statusCode });
+          },
+          fail: function (error) {
+            resolveProbe({ kind: "fail", errMsg: error && error.errMsg ? error.errMsg : String(error) });
+          }
+        });
+      });
+    }`,
+    args: [probeUrl.toString()],
+  });
+  result = response.result;
+} finally {
+  await connection?.send("Tool.close", {}, 5_000).catch(() => {});
+  connection?.close();
+  cliProcess?.kill();
+}
+
+const errorMessage = result?.errMsg || "";
+const rejectedByDomainPolicy = /url not in domain list/i.test(errorMessage);
+const domainAllowed = result?.kind === "success" && !rejectedByDomainPolicy;
+const httpHealthy = domainAllowed && result.statusCode >= 200 && result.statusCode < 300;
+const report = {
+  ok: domainAllowed && httpHealthy,
+  checkedAt: new Date().toISOString(),
+  appId: projectConfig.appid,
+  projectPath,
+  probeUrl: probeUrl.toString(),
+  urlCheck: projectConfig.setting.urlCheck,
+  domainAllowed,
+  httpHealthy,
+  result,
+  nextAction: rejectedByDomainPolicy
+    ? `Add ${EXPECTED_ORIGIN} to the mini program downloadFile legal-domain list, then run this command again.`
+    : domainAllowed
+      ? "The domain gate passed. Continue with real-device menu poster sharing and grocery poster saving."
+      : "Inspect the DevTools connection or network failure, then run this command again.",
+};
+
+console.log(JSON.stringify(report, null, 2));
+if (!report.ok) process.exitCode = 1;
+
+async function assertReadable(path, label) {
+  try {
+    await access(path);
+  } catch {
+    throw new Error(`${label} not found: ${path}`);
+  }
+}
+
+async function readOptionalJson(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function findAvailablePort() {
+  const server = createServer();
+  await new Promise((resolveListen, rejectListen) => {
+    server.once("error", rejectListen);
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : null;
+  await new Promise((resolveClose, rejectClose) => server.close((error) => error ? rejectClose(error) : resolveClose()));
+  assert(port, "Unable to reserve an automation port.");
+  return port;
+}
+
+async function connectToDevTools(endpoint, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    try {
+      return await openProtocolConnection(endpoint, Math.min(2_000, deadline - Date.now()));
+    } catch (error) {
+      lastError = error;
+      await delay(500);
+    }
+  }
+  throw new Error(`Unable to connect to WeChat DevTools automation: ${lastError?.message || "timed out"}`);
+}
+
+function openProtocolConnection(endpoint, openTimeoutMs) {
+  return new Promise((resolveConnection, rejectConnection) => {
+    const socket = new WebSocket(endpoint);
+    const timer = setTimeout(() => {
+      socket.close();
+      rejectConnection(new Error("connection timed out"));
+    }, openTimeoutMs);
+    socket.addEventListener("open", () => {
+      clearTimeout(timer);
+      resolveConnection(createProtocolConnection(socket));
+    }, { once: true });
+    socket.addEventListener("error", () => {
+      clearTimeout(timer);
+      rejectConnection(new Error("connection refused"));
+    }, { once: true });
+  });
+}
+
+function createProtocolConnection(socket) {
+  let requestId = 0;
+  const pending = new Map();
+
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data));
+    if (!message.id || !pending.has(message.id)) return;
+    const request = pending.get(message.id);
+    pending.delete(message.id);
+    clearTimeout(request.timer);
+    if (message.error) request.reject(new Error(message.error.message || "DevTools protocol error"));
+    else request.resolve(message.result);
+  });
+
+  socket.addEventListener("close", () => {
+    for (const request of pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("WeChat DevTools automation connection closed."));
+    }
+    pending.clear();
+  });
+
+  return {
+    send(method, params = {}, requestTimeoutMs = timeout) {
+      const id = String(++requestId);
+      return new Promise((resolveRequest, rejectRequest) => {
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          rejectRequest(new Error(`${method} timed out.`));
+        }, requestTimeoutMs);
+        pending.set(id, { resolve: resolveRequest, reject: rejectRequest, timer });
+        socket.send(JSON.stringify({ id, method, params }));
+      });
+    },
+    close() {
+      socket.close();
+    },
+  };
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}

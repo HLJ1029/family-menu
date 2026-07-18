@@ -97,6 +97,7 @@
     "release:wechat:share:evidence": "node scripts/check-miniprogram-share-evidence.mjs",
     "release:wechat:share:landings": "node scripts/capture-miniprogram-share-landings.mjs",
     "release:wechat:share:selftest": "node scripts/check-miniprogram-share-cards.mjs",
+    "release:wechat:poster:domain": "node scripts/check-wechat-poster-domain.mjs",
     "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
   },
   "dependencies": {

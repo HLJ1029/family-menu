@@ -11,11 +11,11 @@ const HARDENING_PATH = "docs/humi-1.1-pre-review-hardening.md";
 const LEDGER_PATH = "docs/humi-1.1-requirement-ledger.md";
 
 const REQUIRED_MATRIX_ITEMS = [
-  "三 tab 定版",
-  "发现/自己挑降为辅助页",
-  "完整菜品库保持【今晚】子页面导航关系",
+  "五入口 UI 保持今晚决策主线",
+  "发现独立展示完整菜品库",
+  "完整菜品库保持【发现】导航关系",
   "【今晚菜单】加菜不降级为列表",
-  "周计划降级为【今晚】辅助入口",
+  "计划独立入口不抢今晚主线",
   "【今晚】首屏主角是晚饭推荐",
   "【今晚】首屏只有一个实心主操作",
   "早餐/午餐纳入数据但不抢晚饭主线",
@@ -53,16 +53,22 @@ const REQUIRED_MATRIX_ITEMS = [
   "五类分享落地页与游客参与烟测",
   "小程序分享路径覆盖",
   "小程序普通启动不被登录墙挡住",
-  "发布材料去除旧",
+  "发布材料与当前五入口 UI 一致",
 ];
 
 const DECISION_LEDGER_IDS = ["REC-07", "REC-08", "REC-09", "PAY-01"];
-const NATIVE_EVIDENCE_LEDGER_IDS = ["WX-04"];
+const NATIVE_EVIDENCE_LEDGER_IDS = ["WX-04", "WX-05"];
 const EXTERNAL_LEDGER_IDS = ["EXT-01", "EXT-02", "EXT-03"];
+const EXPECTED_EXTERNAL_LEDGER_STATUSES = new Map([
+  ["EXT-01", "已完成"],
+  ["EXT-02", "已完成"],
+  ["EXT-03", "待验收后外部动作"],
+]);
 const EXPECTED_EXTERNAL_STATUSES = new Map([
   ["家庭订阅真实支付结算", "暂缓"],
   ["Plus 深度协调、完整版画像与一周计划打包", "暂缓"],
   ["五类小程序原生分享发送框视觉复核", "已完成"],
+  ["菜单/清单海报原生分享与保存", "P0 进行中"],
   ["生产 API 补部署", "已完成"],
   ["微信公众平台提交审核/发布", "暂缓"],
   ["10-20 个家庭灰度名单与反馈表", "模板已准备，待填真实名单"],
@@ -79,7 +85,7 @@ const REQUIRED_LEDGER_IDS = [
   "CRV-E1", "CRV-E2", "CRV-F1",
   ...numberedIds("REC", 1, 9),
   "PAY-01",
-  ...numberedIds("WX", 1, 4),
+  ...numberedIds("WX", 1, 5),
   ...numberedIds("UI", 1, 7),
   ...EXTERNAL_LEDGER_IDS,
 ];
@@ -214,7 +220,7 @@ async function inspectLedger() {
       .filter((row) => row && !["进行中", "已完成"].includes(row.status));
     const invalidExternalRows = EXTERNAL_LEDGER_IDS
       .map((id) => rowsById.get(id))
-      .filter((row) => row && row.status !== "待验收后外部动作");
+      .filter((row) => row && row.status !== EXPECTED_EXTERNAL_LEDGER_STATUSES.get(row.id));
     const openDecisionRows = DECISION_LEDGER_IDS
       .map((id) => rowsById.get(id))
       .filter((row) => row?.status === "待用户决策");
@@ -282,11 +288,10 @@ function parseExternalRows(content) {
 function inspectCurrentOrder(content) {
   const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
   const required = [
-    "http://127.0.0.1:4174/",
     "核心菜单、家庭协作、五类分享、数据与安全检查",
+    "downloadFile 合法域名",
     "未通过就继续修",
-    "本轮 H5 合并部署",
-    "API 合同未变",
+    "已完成 H5/API 部署和体验版上传",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];

@@ -1,6 +1,6 @@
 # Humi 1.1 需求完成台账
 
-更新日期：2026-07-13
+更新日期：2026-07-18
 执行设备：codex@mbp-m5pro
 
 本台账是三份策划书的逐项完成性记录，不用“有页面”代替“行为已完成”：
@@ -20,14 +20,14 @@
 
 | ID | 策划要求 | 状态 | 权威证据 |
 | --- | --- | --- | --- |
-| STR-01 | 底部只有【今晚】/【清单】/【我的家】三 tab | 已完成 | `src/components/navigation.js`；`release:spec:audit` |
-| STR-02 | 完整菜品库是推荐外的辅助子页，手机端可从【今晚】发现并直接补菜 | 已完成 | 【今晚】首屏提供 `全部菜品` 次级入口；`release:product:smoke` 从该入口真实进入双列菜品库，检测 138 道菜，并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
+| STR-01 | 当前重构 UI 保留【今晚】/【发现】/【计划】/【清单】/【我的家】五入口，但晚饭决策仍是唯一首屏主线 | 已完成 | `src/components/navigation.js`；产品 smoke 验证五入口等宽可见，并验证【今晚】首屏只有一个实心主行动 |
+| STR-02 | 【发现】独立展示完整菜品库，同时【今晚】保留推荐外快捷入口与补菜通路 | 已完成 | 【今晚】首屏提供 `全部菜品` 次级入口，【发现】一级入口打开同一双列菜品库；产品 smoke 检测 138 道菜并点击青椒土豆丝 `补进今晚`，验证同步写入今晚菜单与晚餐计划 |
 | STR-03 | 今晚已安排菜固定在新菜流上方 | 已完成 | `selected-recipes-panel`；`arranged-dishes-before-library-filters` |
 | STR-04 | `今晚就做`/补菜后自动进今晚计划与清单 | 已完成 | 产品 smoke 真实点击 `今晚就做`，验证两道推荐同时写入 `todayMenu`、当日晚餐 `mealPlan`，并自动生成 24 个清单勾选项 |
-| STR-05 | 周计划降为“想连排几天”辅助入口，并可查看三餐汇总清单 | 已完成 | 【今晚】手机端 `dashboard-planner-entry`；周计划 `planner-grocery-summary`；产品 smoke 真实点击两级入口并打开清单 |
+| STR-05 | 【计划】保留独立入口但不抢【今晚】首屏，仍可从“想连排几天”进入并查看三餐汇总清单 | 已完成 | 产品 smoke 分别验证【今晚】辅助入口与【计划】一级入口，随后点击 `planner-grocery-summary` 打开共享清单 |
 | STR-06 | 搜索默认收起，需要时再展开 | 已完成 | `AppShell.jsx` 的 `searchOpen` |
 | STR-07 | 页级标题不抢主角 Display | 已完成 | `AppShell.jsx` 标题降为 24/30px |
-| STR-08 | 菜品库等辅助页保持所属主 tab 关系，返回与头像去向明确 | 已完成 | `getPrimaryNavId`；产品 smoke 验证菜品库保留三主 tab、【今晚】激活、返回今晚，顶部头像进入【我的家】 |
+| STR-08 | 菜品库保持【发现】导航关系，从【今晚】快捷进入时可返回今晚，顶部头像进入【我的家】 | 已完成 | `getPrimaryNavId`；产品 smoke 验证五入口、【发现】激活、快捷入口返回今晚和头像去向 |
 
 ## 2. 三餐、清单与隐形食材线索
 
@@ -105,6 +105,7 @@
 | WX-02 | 五类分享真实打开原生分享子页，失败不误报成功 | 已完成 | `validate:share-bridge` 验证 `navigateTo` 成功、明确失败后 `redirectTo` 降级、WebView 离开事件和单次派发；`release:product:smoke` 覆盖真实入口点击 |
 | WX-03 | 五类 token 落地页不强制登录 | 已完成 | `release:collaboration:smoke` 覆盖游客参与，`release:wechat:share:landings` 覆盖五类 landing |
 | WX-04 | 五类原生分享发送框在微信开发者工具完成视觉验收 | 已完成 | 2026-07-18 当前候选逐类打开 `crave`/`invite`/`grocery`/`wish`/`menu` 原生发送框；十张 card/landing 证据通过 PNG 完整性、尺寸与 OCR 语义门禁。私有证据：`/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260718Th7nuXe` |
+| WX-05 | 菜单/清单海报在关闭调试域名跳过后可下载，并真实分享或保存 | 进行中 | H5 生成、压缩、上传与原生页交接已完成；`npm run release:wechat:poster:domain` 当前返回 `downloadFile:fail ... url not in domain list`。需微信后台配置 `https://api.humi-home.com` 为 downloadFile 合法域名，再完成菜单海报分享和清单海报保存真机证据 |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |
@@ -117,8 +118,8 @@
 
 | ID | 项目 | 状态 | 触发条件 |
 | --- | --- | --- | --- |
-| EXT-01 | 部署本轮 H5/API | 待验收后外部动作 | 用户在 `http://127.0.0.1:4174/` 验收本轮功能后确认 |
-| EXT-02 | 上传新小程序版本 | 待验收后外部动作 | H5/API 部署并在开发者工具中连调后由用户确认 |
+| EXT-01 | 部署本轮 H5/API | 已完成 | PR #34 合入 `main@129da03`，Pages run `29642978938` success；API 备份 `/opt/humi/backups/20260718T114140Z` 后部署并通过生产 smoke |
+| EXT-02 | 上传新小程序版本 | 已完成 | 微信开发者工具 CLI 已上传 `1.1.72`，preview/upload 证据位于 `/Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72` |
 | EXT-03 | 微信审核/发布 | 待验收后外部动作 | 真实候选验收通过，且用户在动作当下明确确认 |
 
 ## 8. 本地完成证明
