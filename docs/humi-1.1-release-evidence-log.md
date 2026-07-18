@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-16
+更新日期：2026-07-18
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -12,13 +12,13 @@
 | 产品仓库 | `HLJ1029/family-menu` |
 | 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
 | API 部署提交 | `cae5e14` |
-| GitHub Pages deployment | `29497490691` / success / PR #27 merge `c64322f` |
+| GitHub Pages deployment | `29640444695` / success / PR #29 merge `7cab05c` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.69` |
-| 小程序描述 | `恢复菜单和清单海报入口` |
+| 小程序版本 | `1.1.70` |
+| 小程序描述 | `修复实机分享并补齐五类协作` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 小程序卡片分享继续使用原生确认页；今晚菜单和买菜清单已恢复独立海报入口。H5 已部署，小程序 `1.1.69` 已上传并使用 `h5v=1.1.69`；生产产品 smoke 89/89 且两张海报均生成成功，尚未提交微信审核 |
+| 当前状态 | H5 分享桥接已修复为单次原生跳转；五类 card/landing 证据通过；菜单与清单海报入口保留。H5 已部署，小程序 `1.1.70` 已上传并使用 `h5v=1.1.70`；生产产品与协作 smoke 通过，尚未提交微信审核 |
 
 ## 2. 发布前命令证据
 
@@ -78,6 +78,10 @@
 | 2026-07-16 | codex@mbp-m5pro | PR #27 / GitHub Pages | 通过 | 菜单与清单海报入口恢复并纳入产品门禁；合入 `main@c64322f`；Pages run `29497490691` success |
 | 2026-07-16 | codex@mbp-m5pro | production product smoke / monitor / online readiness | 通过 | 产品 smoke 89/89；今晚菜单和买菜清单海报入口均可见，两张海报实际生成，页面错误 0；H5/API/recommend 与 online readiness 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.69-20260716` |
 | 2026-07-16 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.69` / `恢复菜单和清单海报入口` / package `26.7 KB` / `h5v=1.1.69`；preview QR SHA-256 `e02bfcd7851398e54ca3f78b173fb33c7824214925cd891888b42db1aae8ee14`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.69`；未提交审核 |
+| 2026-07-18 | codex@mbp-m5pro | PR #29 / GitHub Pages | 通过 | 实机分享桥接、五类分享门禁、海报入口文案与家庭自然语言合入 `main@7cab05c`；Pages run `29640444695` success |
+| 2026-07-18 | codex@mbp-m5pro | 五类分享 card / landing 取证 | 通过 | `crave`、`invite`、`grocery`、`wish`、`menu` 五张 H5 landing 与五张 DevTools 原生发送框均通过 PNG 完整性、尺寸和 OCR 语义门禁；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260718Th7nuXe` |
+| 2026-07-18 | codex@mbp-m5pro | production product / collaboration smoke | 通过 | 线上核心菜单、138 道菜库、三餐选择、家庭协作、菜单与清单海报和游客回传通过，页面错误 0；H5/API/recommend 与 online readiness 通过；private evidence `private:///Users/honglijie/.humi-release-evidence/product-production-1.1.70-20260718` |
+| 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.70` / `修复实机分享并补齐五类协作` / package `28.8 KB` / `h5v=1.1.70`；preview QR SHA-256 `09413f566be6b2e7068b759587cda7999f5ed3fb14f8c295864b0858bccc5039`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.70`；未提交审核 |
 
 ## 3. 生产 API 补部署证据
 
@@ -116,14 +120,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.69` |
+| 提交版本 | `1.1.70` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.69` 列表 | 待填 | 待填 |  |
+| 上传版本 `1.1.70` 列表 | 待填 | 待填 |  |
 | request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -151,7 +155,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.69` |
+| 发布版本 | `1.1.70` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

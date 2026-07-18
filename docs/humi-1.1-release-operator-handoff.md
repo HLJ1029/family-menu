@@ -1,6 +1,6 @@
 # Humi 1.1 Release Operator Handoff
 
-更新日期：2026-07-14
+更新日期：2026-07-18
 执行设备：codex@mbp-m5pro
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
@@ -11,9 +11,9 @@
 - 当前阶段是 1.1 生产候选完善与内测验证：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，继续保持工程门禁、产品验收和用户确认项可重复通过；最终进入微信公众平台审核前必须再次由用户确认。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
-- API 部署提交：`2c53017c`；部署前备份 `/opt/humi/backups/20260714T124938Z`。
+- API 部署提交：`cae5e14`；部署前备份 `/opt/humi/backups/20260716T115336Z`。1.1.70 不改 API 合同。
 - 最新小程序候选：`1.1.70`，描述 `修复实机分享并补齐五类协作`，AppID `wx4040b89f3b363416`。
-- 已核验 H5：`https://www.humi-home.com/`，Pages run `29419413488` 已成功部署。
+- 已核验 H5：`https://www.humi-home.com/`，Pages run `29640444695` 已成功部署。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
 
@@ -196,7 +196,7 @@ docs/wechat-submit-copy-packet.md
 提交版本：
 
 - 版本：`1.1.70`
-- 描述：`恢复菜单和清单海报入口`
+- 描述：`修复实机分享并补齐五类协作`
 
 提交前必须确认：
 
@@ -315,7 +315,7 @@ npm run release:wechat:copy
 
 自动化边界：
 
-- 微信开发者工具 CLI 完成 `1.1.70` 上传后，本机 CLI 仍不会提交审核或发布。
+- 微信开发者工具 CLI 已完成 `1.1.70` 上传；本机 CLI 没有提交审核或发布。
 - `release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只负责复制审核备注、打开公众平台和证据目录；不提交审核、不发布、不撤回，也不调用微信开放接口。
 - 微信公众平台 `mp.weixin.qq.com` 不允许本会话用浏览器自动化控制；不得绕过该限制。
 - 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。

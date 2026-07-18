@@ -346,6 +346,6 @@ function buildNextActions({ sourceSpecs, audit, hardening, ledger }) {
   if (ledger.openDecisionRows?.length) actions.push(`Confirm or defer the open product/payment scope: ${ledger.openDecisionRows.map((row) => row.id).join(", ")}.`);
   if (ledger.openNativeRows?.length) actions.push(`Capture and verify current native WeChat evidence: ${ledger.openNativeRows.map((row) => row.id).join(", ")}.`);
   if (hardening.openP0P1?.length) actions.push("Continue P0/P1 hardening; this script validates the audit, while release:status blocks review until P0/P1 is complete.");
-  if (!actions.length) actions.push("All local spec rows, product decisions, and current-candidate native evidence are complete. Continue merge, H5 deployment, mini-program candidate upload, and real-device acceptance without entering WeChat review.");
+  if (!actions.length) actions.push("All local spec rows, product decisions, and current-candidate native evidence are complete. Follow the current closure map for the next release step without entering WeChat review.");
   return actions;
 }

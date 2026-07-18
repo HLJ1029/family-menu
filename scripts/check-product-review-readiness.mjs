@@ -300,7 +300,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product anchors are covered and the 1.2 scope is locked. Continue merge, deployment, mini-program candidate upload, and real-device acceptance without entering WeChat review.",
+        "Product anchors are covered and the 1.2 scope is locked. Follow the current closure map for the next release step without entering WeChat review.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",
