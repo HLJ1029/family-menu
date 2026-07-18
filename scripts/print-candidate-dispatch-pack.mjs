@@ -22,13 +22,11 @@ const outreach = await readFile(join(packetDir, "outreach-batch.md"), "utf8");
 const feedbackForm = await readFile(join(packetDir, "tester-feedback-form.md"), "utf8");
 const hostRunSheet = await readFile(join(packetDir, "host-run-sheet.md"), "utf8");
 const inviteIds = plan.plan?.recommendedInviteUsers ?? [];
-const collaborationIds = new Set(plan.plan?.collaborationUsers ?? []);
 
-let collaborationTaskIndex = 0;
 const users = inviteIds.map((id, index) => {
-  const collaborationTarget = collaborationIds.has(id);
-  const entryTask = assignEntryTask({ index, collaborationTarget, collaborationTaskIndex });
-  if (collaborationTarget) collaborationTaskIndex += 1;
+  const stableIndex = /^U\d{3}$/.test(id) ? Math.max(0, Number(id.slice(1)) - 1) : index;
+  const entryTask = assignEntryTask({ index: stableIndex });
+  const collaborationTarget = entryTask.collaborationCommand !== "none";
   return {
     id,
     collaborationTarget,
@@ -38,7 +36,7 @@ const users = inviteIds.map((id, index) => {
       entryTask,
     }),
     recordCommand: buildRecordCommand(id, {
-      collaboration: collaborationTarget ? entryTask.collaborationCommand : "none",
+      collaboration: entryTask.collaborationCommand,
       entry: entryTask.recordEntry,
     }),
   };
@@ -152,34 +150,43 @@ function buildTesterMessage({ baseMessage, entryTask }) {
   ].join("\n");
 }
 
-function assignEntryTask({ index, collaborationTarget, collaborationTaskIndex }) {
-  const collaborationTasks = [
+function assignEntryTask({ index }) {
+  const tasks = [
     {
       key: "crave-card",
       label: "问问大家小程序卡片",
-      instruction: "我会把【问问大家】小程序卡片发给你；点卡片进入后，帮忙看能不能免登录表达今晚想吃什么。",
+      instruction: "我会从【问问大家】进入原生发送页，再点【选择家人发送】把卡片发给你；请确认微信真的出现联系人面板。点卡片后，帮忙看能不能免登录表达今晚想吃什么，我刷新后应看到你的回复。",
       recordEntry: "分享卡片",
       collaborationCommand: "ask",
     },
     {
       key: "invite-card",
       label: "邀请家人小程序卡片",
-      instruction: "我会把【邀请家人】小程序卡片发给你；点卡片进入后，帮忙看加入这个家、看到家庭菜单和清单是否顺。",
+      instruction: "我会从【邀请家人】进入原生发送页，再点【选择家人发邀请】把卡片发给你；请确认微信真的出现联系人面板。点卡片后，帮忙看加入这个家、看到家庭菜单和清单是否顺。",
       recordEntry: "分享卡片",
       collaborationCommand: "invite",
     },
     {
       key: "grocery-card",
       label: "买菜清单小程序卡片",
-      instruction: "我会把【买菜清单】小程序卡片发给你；点卡片进入后，帮忙看认领/标记买到是否看得懂。",
+      instruction: "我会从【去微信发清单】进入原生发送页，再点【选择家人发清单】把卡片发给你；请确认微信真的出现联系人面板。点卡片后，帮忙看认领/标记买到是否看得懂，我刷新后应看到认领结果。",
       recordEntry: "分享卡片",
       collaborationCommand: "grocery",
     },
-  ];
-  if (collaborationTarget) {
-    return collaborationTasks[collaborationTaskIndex % collaborationTasks.length];
-  }
-  const normalTasks = [
+    {
+      key: "wish-card",
+      label: "最近想吃小程序卡片",
+      instruction: "我会从【分享想吃入口】进入原生发送页，再点【选择家人发送】把卡片发给你；请确认微信真的出现联系人面板。点卡片后，不登录写一道最近想吃的菜，我刷新后应在【我的家】看到。",
+      recordEntry: "分享卡片",
+      collaborationCommand: "wish",
+    },
+    {
+      key: "menu-card",
+      label: "今晚菜单小程序卡片",
+      instruction: "我会从【去微信发菜单】进入原生发送页，再点【选择家人发菜单】把卡片发给你；请确认微信真的出现联系人面板。点卡片后，帮忙看今晚的菜、份数和买菜信息是否完整。",
+      recordEntry: "分享卡片",
+      collaborationCommand: "menu",
+    },
     {
       key: "normal-open",
       label: "普通打开小程序",
@@ -201,12 +208,26 @@ function assignEntryTask({ index, collaborationTarget, collaborationTaskIndex })
       recordEntry: "清单",
       collaborationCommand: "none",
     },
+    {
+      key: "menu-poster",
+      label: "今晚菜单海报",
+      instruction: "请进入【今晚菜单】，点【生成菜单海报】，确认能看到完整图片；再试【分享海报】或【保存图片】，确认不是只有提示而没有实际结果。",
+      recordEntry: "菜单海报",
+      collaborationCommand: "none",
+    },
+    {
+      key: "grocery-poster",
+      label: "买菜清单海报",
+      instruction: "请进入【清单】，点【生成清单海报】，确认能看到完整图片；再试【分享海报】或【保存图片】，确认不是只有提示而没有实际结果。",
+      recordEntry: "清单海报",
+      collaborationCommand: "none",
+    },
   ];
-  return normalTasks[index % normalTasks.length];
+  return tasks[index % tasks.length];
 }
 
 function buildRecordCommand(userId, { collaboration, entry }) {
-  const collaborationValues = ["none", "ask", "grocery", "invite"];
+  const collaborationValues = ["none", "ask", "grocery", "invite", "wish", "menu"];
   const collaborationChoices = [
     collaboration,
     ...collaborationValues.filter((value) => value !== collaboration),

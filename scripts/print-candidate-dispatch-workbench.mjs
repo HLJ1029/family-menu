@@ -550,14 +550,14 @@ function renderShareCardGuide(guide) {
     </div>
     ${guide.directPreviewUrl ? `<figure class="qr-preview" data-share-qr="ready">
       <img src="${escapeAttribute(guide.directPreviewUrl)}" alt="${escapeAttribute(guide.actionLabel)}直达二维码">
-      <figcaption>可扫码直达「${escapeHtml(guide.actionLabel)}」原生分享确认页；扫码后再点「发送给家人」。</figcaption>
+      <figcaption>可扫码直达「${escapeHtml(guide.actionLabel)}」原生发送页；扫码后再点「${escapeHtml(guide.actionButtonLabel)}」。</figcaption>
     </figure>` : ""}
     <ul class="guide-list">
-      <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生确认页后点「发送给家人」。</li>
+      <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生发送页后点「${escapeHtml(guide.actionButtonLabel)}」，必须看到真实微信联系人面板。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
       <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
       <li>直达二维码状态：${guide.directPreviewOk ? `<strong>已找到</strong>（${escapeHtml(String(guide.directPreviewSize))} bytes）` : `<strong>未找到</strong>，先运行 <code>${escapeHtml(guide.devtoolsCommand)}</code>`}</li>
-      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewPath)}</code> 后再点「发送给家人」。</li>
+      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewPath)}</code> 后再点「${escapeHtml(guide.actionButtonLabel)}」。</li>
       <li>卡片真实发出后，才运行本 U 的已发送登记命令；工作台不会替你发送或标记。</li>
     </ul>
   </div>`;
@@ -580,21 +580,38 @@ async function buildShareCardGuide(user, shareEvidenceDir) {
   const guides = {
     "crave-card": {
       actionLabel: "问问大家",
+      actionButtonLabel: "选择家人发送",
       sharePageTemplate: "pages/share/index?type=crave&token=<真实征集token>&householdName=<家庭名>",
       landingPathTemplate: "/pages/index/index?crave=<真实征集token>",
       directPreviewFile: "direct-preview/crave-preview-qr.png",
     },
     "invite-card": {
       actionLabel: "邀请家人",
+      actionButtonLabel: "选择家人发邀请",
       sharePageTemplate: "pages/share/index?type=invite&token=<真实邀请token>&householdName=<家庭名>&inviterName=<邀请人>",
       landingPathTemplate: "/pages/index/index?invite=<真实邀请token>",
       directPreviewFile: "direct-preview/invite-preview-qr.png",
     },
     "grocery-card": {
       actionLabel: "买菜清单",
+      actionButtonLabel: "选择家人发清单",
       sharePageTemplate: "pages/share/index?type=grocery&token=<真实清单token>&householdName=<家庭名>&initiatorName=<发起人>&itemCount=<清单项数>",
       landingPathTemplate: "/pages/index/index?grocery=<真实清单token>",
       directPreviewFile: "direct-preview/grocery-preview-qr.png",
+    },
+    "wish-card": {
+      actionLabel: "分享想吃入口",
+      actionButtonLabel: "选择家人发送",
+      sharePageTemplate: "pages/share/index?type=wish&token=<真实想吃token>&householdName=<家庭名>&initiatorName=<发起人>",
+      landingPathTemplate: "/pages/index/index?wishShare=<真实想吃token>",
+      directPreviewFile: "direct-preview/wish-preview-qr.png",
+    },
+    "menu-card": {
+      actionLabel: "去微信发菜单",
+      actionButtonLabel: "选择家人发菜单",
+      sharePageTemplate: "pages/share/index?type=menu&token=<真实菜单token>&householdName=<家庭名>&title=<菜单标题>",
+      landingPathTemplate: "/pages/index/index?menuShare=<真实菜单token>",
+      directPreviewFile: "direct-preview/menu-preview-qr.png",
     },
   };
   const guide = guides[key];
@@ -631,6 +648,8 @@ function inferEntryTaskKey(label) {
   if (text.includes("问问大家")) return "crave-card";
   if (text.includes("邀请家人")) return "invite-card";
   if (text.includes("买菜清单小程序卡片")) return "grocery-card";
+  if (text.includes("最近想吃小程序卡片")) return "wish-card";
+  if (text.includes("今晚菜单小程序卡片")) return "menu-card";
   return "";
 }
 

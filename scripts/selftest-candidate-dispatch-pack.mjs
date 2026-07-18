@@ -25,10 +25,10 @@ assert(dispatch.includes("入口任务：问问大家小程序卡片"), "dispatc
 assert(dispatch.includes("入口任务：邀请家人小程序卡片"), "dispatch missing invite card task detail");
 assert(dispatch.includes("0. 入口任务：问问大家小程序卡片"), "tester copy should include the assigned entry task");
 assert(dispatch.includes("0. 入口任务：邀请家人小程序卡片"), "tester copy should include the invite entry task");
-assert(dispatch.includes("点卡片进入后"), "dispatch should tell testers to enter from mini program cards");
+assert(dispatch.includes("点卡片后"), "dispatch should tell testers to enter from mini program cards");
 assert(dispatch.includes("我给你留了一个 Humi 内测编号：U001。"), "dispatch missing U001 message");
 assert(dispatch.includes("npm run release:candidate:record -- --user U001 --entry \"分享卡片\""), "dispatch missing record command with share-card entry");
-assert(dispatch.includes("--collaboration \"ask|none|grocery|invite\""), "dispatch should put the assigned collaboration command first without duplicates");
+assert(dispatch.includes("--collaboration \"ask|none|grocery|invite|wish|menu\""), "dispatch should put the assigned collaboration command first without duplicates");
 assert(dispatch.includes("npm run release:candidate:invite -- --from-dispatch 2026-07-07 --sent-confirmed"), "dispatch missing confirmed invite mark command");
 assert(dispatch.includes("不要原样运行这条模板"), "dispatch should warn against running placeholder command as-is");
 assert(dispatch.includes("--recommendation \"1-5|没试\""), "dispatch should require real recommendation score replacement");
@@ -40,22 +40,32 @@ assert(dispatch.includes("不把真实姓名、手机号、微信号、聊天截
 
 const fullPacketDir = await mkdtemp(join(tmpdir(), "humi-candidate-dispatch-full-"));
 await writePacket(fullPacketDir);
-const fullResult = await runDispatch({ packetDir: fullPacketDir, batchSize: 6 });
+const fullResult = await runDispatch({ packetDir: fullPacketDir, batchSize: 10 });
 const fullDispatch = await readFile(join(fullPacketDir, "candidate-dispatch-2026-07-07.md"), "utf8");
 
-assert(fullResult.users.length === 6, "full dispatch should include six planned users");
+assert(fullResult.users.length === 10, "full dispatch should include ten planned users");
 assertEntry(fullResult.users[0], "U001", "crave-card", "问问大家小程序卡片");
 assertEntry(fullResult.users[1], "U002", "invite-card", "邀请家人小程序卡片");
 assertEntry(fullResult.users[2], "U003", "grocery-card", "买菜清单小程序卡片");
-assertEntry(fullResult.users[3], "U004", "normal-open", "普通打开小程序");
-assertEntry(fullResult.users[4], "U005", "today-discovery", "今晚发现新菜");
-assertEntry(fullResult.users[5], "U006", "grocery-list", "清单理解");
+assertEntry(fullResult.users[3], "U004", "wish-card", "最近想吃小程序卡片");
+assertEntry(fullResult.users[4], "U005", "menu-card", "今晚菜单小程序卡片");
+assertEntry(fullResult.users[5], "U006", "normal-open", "普通打开小程序");
+assertEntry(fullResult.users[6], "U007", "today-discovery", "今晚发现新菜");
+assertEntry(fullResult.users[7], "U008", "grocery-list", "清单理解");
+assertEntry(fullResult.users[8], "U009", "menu-poster", "今晚菜单海报");
+assertEntry(fullResult.users[9], "U010", "grocery-poster", "买菜清单海报");
 assert(fullDispatch.includes("0. 入口任务：买菜清单小程序卡片"), "tester copy should include grocery card entry task");
+assert(fullDispatch.includes("0. 入口任务：最近想吃小程序卡片"), "tester copy should include wish card entry task");
+assert(fullDispatch.includes("0. 入口任务：今晚菜单小程序卡片"), "tester copy should include menu card entry task");
+assert(fullDispatch.includes("微信真的出现联系人面板"), "native card tasks should require a real contact picker");
 assert(fullDispatch.includes("0. 入口任务：普通打开小程序"), "tester copy should include normal-open entry task");
 assert(fullDispatch.includes("0. 入口任务：今晚发现新菜"), "tester copy should include discovery entry task");
 assert(fullDispatch.includes("重点看是否能找到完整菜品页和愿意做的新菜"), "discovery tester copy should preserve full dish page observation");
 assert(fullDispatch.includes("0. 入口任务：清单理解"), "tester copy should include grocery-list entry task");
 assert(fullDispatch.includes("重点看食材、已有项和谁在买是否容易理解"), "grocery-list tester copy should preserve list observation");
+assert(fullDispatch.includes("0. 入口任务：今晚菜单海报"), "tester copy should include menu poster task");
+assert(fullDispatch.includes("0. 入口任务：买菜清单海报"), "tester copy should include grocery poster task");
+assert(fullDispatch.includes("确认不是只有提示而没有实际结果"), "poster tasks should reject false-success feedback");
 
 console.log(JSON.stringify({
   ok: true,
@@ -68,7 +78,7 @@ console.log(JSON.stringify({
       users: result.users,
     },
     {
-      name: "dispatch-pack-covers-six-entry-tasks",
+      name: "dispatch-pack-covers-ten-entry-tasks",
       ok: true,
       packetDir: fullPacketDir,
       users: fullResult.users,
@@ -104,6 +114,10 @@ async function writePacket(dir) {
       "U004,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
       "U005,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
       "U006,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U007,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U008,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U009,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
+      "U010,待定,待填,待邀请,待填,待填,待填,待填,待填,待填,待填,待观察,待观察,private://,",
       "",
     ].join("\n"), { mode: 0o600 }),
     writeFile(join(dir, "feedback-template.csv"), "用户编号,设备与微信版本,体验日期,入口,完成今晚菜单,完成清单,协作类型,推荐评分,清单评分,分享评分,卡住的位置,用户原话摘要,私有截图/录屏位置,问题等级,是否进入1.1.x,处理状态\n", { mode: 0o600 }),
@@ -161,6 +175,42 @@ async function writePacket(dir) {
       "",
       "```text",
       "我给你留了一个 Humi 内测编号：U006。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U007",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U007。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U008",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U008。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U009",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U009。",
+      "请试一下今晚推荐和清单。",
+      "使用路径：",
+      "1. 打开 Humi 小程序",
+      "```",
+      "",
+      "## U010",
+      "",
+      "```text",
+      "我给你留了一个 Humi 内测编号：U010。",
       "请试一下今晚推荐和清单。",
       "使用路径：",
       "1. 打开 Humi 小程序",
