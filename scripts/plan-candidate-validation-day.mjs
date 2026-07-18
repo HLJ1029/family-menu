@@ -59,7 +59,7 @@ const result = {
   },
   nextActions: [
     "Send outreach-batch.md messages only to the recommended anonymous IDs for this batch.",
-    "Ask every invited tester to complete Tonight and grocery list; ask the first collaboration target IDs to try ask/invite/grocery collaboration.",
+    "Ask every invited tester to complete Tonight and grocery list; use stable U001-U005 dispatch tasks to cover all five native share cards and require the real contact picker.",
     "Record only U001-U020 anonymous summaries in the candidate CSV files; keep real contacts and screenshots outside the repository.",
     "After feedback arrives, use release:candidate:record or candidate-feedback-import.csv, then run release:candidate:privacy:check and release:candidate:review.",
   ],
@@ -170,6 +170,8 @@ function buildMarkdown(data) {
   lines.push(`- 必跑【今晚】菜单：${formatIds(data.plan.tonightUsers)}`);
   lines.push(`- 必跑清单：${formatIds(data.plan.groceryUsers)}`);
   lines.push(`- 优先跑协作：${formatIds(data.plan.collaborationUsers)}`);
+  lines.push("- 五类卡片固定任务：U001、U002、U003、U004、U005（每类都必须出现真实微信联系人面板并完成接收落地）");
+  lines.push("- 双海报固定任务：U009 菜单海报、U010 清单海报（必须生成图片并实际分享或保存）");
   lines.push("");
   lines.push("## 当前缺口");
   lines.push("");

@@ -10,6 +10,7 @@
 - 体验者只看一张轻量反馈单，不暴露发布、审核、门禁、P0/P1 等工程语言。
 - 执行人单独使用主厨记录单，把体验者原话转成匿名字段和问题分级。
 - 所有可进仓库的字段只使用 `U001-U020` 匿名编号。
+- U001-U010 是首批正式验收任务，U011-U020 才是候补；U009、U010 分别负责菜单海报与清单海报，不能跳过。
 - 单据文案保持 Humi 的家庭饭桌语气：具体、短句、围绕今晚吃什么、买什么、谁来买。
 - 私有包必须生成 `candidate-forms-preview.html`，用于在发送真实内测前确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的可读性；预览页顶部必须有“发送前确认”区，明确体验者只看反馈单、执行人保留记录单、隐私留在仓库外、候选未达标不审核。
 - 评分统一为 1-5 分；推荐、清单或分享没走到时允许填“没试”，避免逼用户乱评。
@@ -32,20 +33,20 @@
 用户编号：U___
 设备与微信版本：
 体验日期：
-入口任务：普通打开小程序 / 问问大家小程序卡片 / 邀请家人小程序卡片 / 买菜清单小程序卡片
+入口任务：问问大家 / 邀请家人 / 买菜认领 / 最近想吃 / 今晚菜单小程序卡片 / 普通打开 / 完整菜品页 / 买菜清单 / 菜单海报 / 清单海报
 家庭场景：一个人 / 两人 / 多人 / 有孩子 / 给父母做饭 / 其他
 ```
 
 体验路径：
 
 ```text
-1. 按执行人给你的入口任务打开 Humi：普通打开，或点问问大家/邀请家人/买菜清单小程序卡片。
+1. 按执行人给你的入口任务打开 Humi。若是小程序卡片任务，必须先在 Humi 点对应分享按钮，再点“选择家人…”，看到真实微信联系人面板并发送给另一台微信，不能只记录“已打开分享卡片”的提示。
 2. 看【今晚】推荐。
 3. 点“今晚就做”或换一组后选一个想做的菜。
 4. 从【今晚菜单】进入【全部菜品库】，确认能看到完整菜品、今晚已安排菜在最上方，并补一道新菜。
 5. 在【今晚】点“选早餐吃什么”或“午餐在家做”，确认先选菜后才记录。
-6. 看【清单】里是否知道要买什么，并尝试分享可认领的小程序卡片。
-7. 在【我的家】点“问问大家”，先选择今晚想问的家人，确认征集单仍在本页，并尝试分享小程序卡片。
+6. 看【清单】里是否知道要买什么，并按分配任务完成买菜认领卡片或清单海报的真实发送/保存。
+7. 在【我的家】点“问问大家”，先选择今晚想问的家人，确认征集单仍在本页；按分配任务完成问问大家、邀请家人、最近想吃或今晚菜单卡片的真实发送和接收落地。
 ```
 
 只问这些问题：
@@ -53,7 +54,7 @@
 ```text
 推荐里有没有你今晚真的愿意做的菜？1 / 2 / 3 / 4 / 5
 买菜清单有没有减少你想买什么的负担？1 / 2 / 3 / 4 / 5
-问问大家、邀请家人或清单分享顺不顺？1 / 2 / 3 / 4 / 5 / 没试
+这次分配的小程序卡片或海报分享顺不顺？1 / 2 / 3 / 4 / 5 / 没试
 哪一步最困惑或最卡？
 哪道菜你觉得不该推荐？为什么？
 有没有一个地方让你觉得“这个对我家有用”？
@@ -82,10 +83,10 @@
 用户编号：U___
 邀请状态：待邀请 / 已邀请 / 已体验 / 未响应
 首次体验日期：
-入口任务：普通打开小程序 / 问问大家小程序卡片 / 邀请家人小程序卡片 / 买菜清单小程序卡片
+入口任务：问问大家 / 邀请家人 / 买菜认领 / 最近想吃 / 今晚菜单小程序卡片 / 普通打开 / 完整菜品页 / 买菜清单 / 菜单海报 / 清单海报
 完成【今晚】菜单：是 / 否
 完成清单：是 / 否
-尝试协作：问问大家 / 邀请家人 / 买菜认领 / 没有
+尝试协作：问问大家 / 邀请家人 / 买菜认领 / 最近想吃 / 今晚菜单 / 没有
 推荐评分：1 / 2 / 3 / 4 / 5 / 没试
 清单评分：1 / 2 / 3 / 4 / 5 / 没试
 分享评分：1 / 2 / 3 / 4 / 5 / 没试
@@ -107,6 +108,8 @@
 发起征集时是否能看懂并选择“今晚想问谁”。
 以家人身份进入后，是否只能维护自己的想吃和买菜认领，不能改主厨菜单。
 分享卡片进入后是否知道自己要点什么。
+五类小程序卡片是否都实际出现微信联系人面板，并由另一台微信完成接收和落地动作。
+菜单海报、清单海报是否都实际生成图片，并至少完成一次分享或保存；只有成功提示不算通过。
 有无登录失败、清单回传失败、加入家庭失败、菜单丢失。
 ```
 
@@ -141,7 +144,7 @@ user,date,device,entry,tonight,grocery,collaboration,recommendation,grocery-scor
 
 - `user`：只填 `U001-U020`。
 - `tonight` / `grocery`：填 `yes` 或 `no`。
-- `collaboration`：填 `ask`、`invite`、`grocery` 或 `none`。
+- `collaboration`：填 `ask`、`invite`、`grocery`、`wish`、`menu` 或 `none`。
 - `recommendation` / `grocery-score` / `share-score`：填 1-5；未完成对应路径时可填 `没试`，不要为了凑分数乱填。
 - `severity`：填 `P0`、`P1`、`P2`、`建议` 或留空。
 - `evidence`：只填私有位置，例如 `private://wechat/U001-001`。
@@ -206,4 +209,9 @@ npm run release:candidate:review
 
 `release:candidate:today` 是每天开工入口，会在私有候选包里串起 `candidate-day-plan.md`、`candidate-forms-preview.html`、`candidate-dispatch-YYYY-MM-DD.md/json`、`candidate-dispatch-workbench-YYYY-MM-DD.html`、隐私扫描和 doctor 摘要；它不发送消息、不标记邀请、不写反馈、不提交审核。`release:candidate:forms:preview` 会在私有候选包写入并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的版式；该文件不提交仓库。`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:dispatch:workbench` 会在私有候选包写入 `candidate-dispatch-workbench-YYYY-MM-DD.html`，读取 `anonymous-users.csv` 显示每个 U 的待邀请/已邀请/已体验状态，并在部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它用于逐个复制体验者文案、入口任务、小程序卡片可扫码直达二维码、本 U 已发送登记命令、回填草稿命令和回填模板，不会发送消息、不会自动标记邀请、不会提交审核。`release:candidate:record:draft` 会在收到反馈后先生成私有 `candidate-record-draft-U00X-YYYY-MM-DD.md`，把必填字段、占位符和 `release:candidate:record` 命令整理成一张草稿；它不会写入 `anonymous-users.csv`、`feedback-template.csv` 或 `issue-triage.csv`。`release:candidate:invite` 会从当天分发单或显式 `--users U00X` 读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈；非 dry-run 写入必须带 `--sent-confirmed`，确认消息或小程序卡片已经真实发出。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
 
-`release:candidate:desk` 会优先识别当天 `candidate-dispatch-YYYY-MM-DD.md/json`，把 U001-U006 这类当天要发的编号和入口任务直接打印出来，并提示生成 `candidate-dispatch-workbench-YYYY-MM-DD.html`；如果当天分发单还没生成，执行台会提示先运行 `release:candidate:dispatch -- --date YYYY-MM-DD`，避免执行人回到全量 `outreach-batch.md` 里手工找文案。
+`release:candidate:desk` 会优先识别当天 `candidate-dispatch-YYYY-MM-DD.md/json`，把 U001-U010 的固定入口任务直接打印出来：U001-U005 逐类覆盖五种小程序卡片，U006 普通打开，U007 完整菜品页，U008 买菜清单，U009 菜单海报，U010 清单海报；并提示生成 `candidate-dispatch-workbench-YYYY-MM-DD.html`。如果当天分发单还没生成，执行台会提示先运行 `release:candidate:dispatch -- --date YYYY-MM-DD`，避免执行人回到全量 `outreach-batch.md` 里手工找文案。
+
+候选验收除最低样本数外，还要求五类小程序卡片逐类完成真机联系人面板、发送和接收落地验证，并要求菜单海报与清单海报各完成一次真实生成及分享或保存。任一类型缺失时，`release:candidate:review` 必须失败，不能用其他分享样本代替。
+
+- `insufficient-share-type-coverage`：五类小程序卡片尚未逐类完成。
+- `insufficient-poster-coverage`：菜单海报或清单海报尚未完成实际生成及分享/保存。

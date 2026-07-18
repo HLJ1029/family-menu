@@ -296,6 +296,8 @@ function normalizeCollaboration(value) {
     ask: "问问大家",
     invite: "邀请家人",
     grocery: "买菜认领",
+    wish: "最近想吃",
+    menu: "今晚菜单",
     none: "没有",
     no: "没有",
   };
@@ -380,7 +382,7 @@ function scanText(fieldName, value) {
 function helpText() {
   return [
     "Usage:",
-    "  npm run release:candidate:record -- --user U001 --tonight yes|no --grocery yes|no --collaboration ask|invite|grocery|none --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --note \"替换成真实匿名摘要\"",
+    "  npm run release:candidate:record -- --user U001 --tonight yes|no --grocery yes|no --collaboration ask|invite|grocery|wish|menu|none --recommendation 1-5|没试 --grocery-score 1-5|没试 --share-score 1-5|没试 --note \"替换成真实匿名摘要\"",
     "  npm run release:candidate:record -- --import candidate-feedback-import.csv",
     "",
     "Options:",
@@ -391,7 +393,7 @@ function helpText() {
     "  --revisit 待观察",
     "  --tonight yes|no",
     "  --grocery yes|no",
-    "  --collaboration ask|invite|grocery|none",
+    "  --collaboration ask|invite|grocery|wish|menu|none",
     "  --recommendation 1-5|没试",
     "  --grocery-score 1-5|没试",
     "  --share-score 1-5|没试",

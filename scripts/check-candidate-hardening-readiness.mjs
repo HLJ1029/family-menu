@@ -28,9 +28,11 @@ const files = {
   candidateRecordDraft: "scripts/prepare-candidate-record-draft.mjs",
   candidateRecordDraftSelftest: "scripts/selftest-candidate-record-draft.mjs",
   candidateRecord: "scripts/record-candidate-feedback.mjs",
+  candidateReview: "scripts/review-candidate-validation-packet.mjs",
+  candidateReviewSelftest: "scripts/selftest-candidate-validation-review.mjs",
 };
 
-const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewLib, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateToday, candidateTodaySelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord] = await Promise.all(
+const [tracker, feedback, handoff, nextAction, packageJson, prepareScript, candidateFormsPreview, candidateFormsPreviewLib, candidateFormsPreviewSelftest, candidateForms, candidateDoctor, candidateDoctorSelftest, candidateToday, candidateTodaySelftest, candidateDesk, candidateDeskSelftest, candidatePrivacy, candidatePlan, candidateDispatch, candidateDispatchSelftest, candidateDispatchWorkbench, candidateDispatchWorkbenchSelftest, candidateInvite, candidateDayClose, candidateRecordDraft, candidateRecordDraftSelftest, candidateRecord, candidateReview, candidateReviewSelftest] = await Promise.all(
   Object.values(files).map((path) => readFile(path, "utf8")),
 );
 
@@ -203,9 +205,14 @@ const checks = [
       "不计入真实体验样本",
       "Humi 1.1 体验者反馈单",
       "Humi 1.1 主厨记录单",
-      "入口任务：普通打开小程序 / 问问大家小程序卡片 / 邀请家人小程序卡片 / 买菜清单小程序卡片",
+      "入口任务：问问大家 / 邀请家人 / 买菜认领 / 最近想吃 / 今晚菜单小程序卡片 / 普通打开 / 完整菜品页 / 买菜清单 / 菜单海报 / 清单海报",
       "小程序卡片进入后是否知道自己在帮家里做什么",
-      "问问大家、邀请家人或清单分享顺不顺",
+      "这次分配的小程序卡片或海报分享顺不顺",
+      "五类小程序卡片是否都实际出现微信联系人面板",
+      "菜单海报、清单海报是否都实际生成图片",
+      "U001-U010 的固定入口任务",
+      "insufficient-share-type-coverage",
+      "insufficient-poster-coverage",
       "是否能发现新菜并补进今晚",
       "candidate-feedback-import.csv",
       "issue-triage.csv",
@@ -364,6 +371,11 @@ const checks = [
       && candidateDispatch.includes("问问大家小程序卡片")
       && candidateDispatch.includes("邀请家人小程序卡片")
       && candidateDispatch.includes("买菜清单小程序卡片")
+      && candidateDispatch.includes("最近想吃小程序卡片")
+      && candidateDispatch.includes("今晚菜单小程序卡片")
+      && candidateDispatch.includes("今晚菜单海报")
+      && candidateDispatch.includes("买菜清单海报")
+      && candidateDispatch.includes("微信真的出现联系人面板")
       && candidateDispatch.includes("recordEntry: \"分享卡片\"")
       && candidateDispatch.includes("0. 入口任务")
       && candidateDispatch.includes("这次请按这个入口任务试")
@@ -371,13 +383,17 @@ const checks = [
       && candidateDispatch.includes("--recommendation \"1-5|没试\"")
       && !candidateDispatch.includes("--recommendation 5 --grocery-score 5")
       && !candidateDispatch.includes("--note \"清单有用\"")
-      && candidateDispatchSelftest.includes("dispatch-pack-covers-six-entry-tasks")
+      && candidateDispatchSelftest.includes("dispatch-pack-covers-ten-entry-tasks")
       && candidateDispatchSelftest.includes("U001\", \"crave-card\"")
       && candidateDispatchSelftest.includes("U002\", \"invite-card\"")
       && candidateDispatchSelftest.includes("U003\", \"grocery-card\"")
-      && candidateDispatchSelftest.includes("U004\", \"normal-open\"")
-      && candidateDispatchSelftest.includes("U005\", \"today-discovery\"")
-      && candidateDispatchSelftest.includes("U006\", \"grocery-list\"")
+      && candidateDispatchSelftest.includes("U004\", \"wish-card\"")
+      && candidateDispatchSelftest.includes("U005\", \"menu-card\"")
+      && candidateDispatchSelftest.includes("U006\", \"normal-open\"")
+      && candidateDispatchSelftest.includes("U007\", \"today-discovery\"")
+      && candidateDispatchSelftest.includes("U008\", \"grocery-list\"")
+      && candidateDispatchSelftest.includes("U009\", \"menu-poster\"")
+      && candidateDispatchSelftest.includes("U010\", \"grocery-poster\"")
       && candidateDispatchSelftest.includes("重点看是否能找到完整菜品页和愿意做的新菜")
       && candidateDispatchSelftest.includes("重点看食材、已有项和谁在买是否容易理解")
       && nextAction.includes("release:candidate:dispatch")
@@ -407,6 +423,9 @@ const checks = [
       && candidateDispatchWorkbench.includes("pages/share/index?type=crave")
       && candidateDispatchWorkbench.includes("pages/share/index?type=invite")
       && candidateDispatchWorkbench.includes("pages/share/index?type=grocery")
+      && candidateDispatchWorkbench.includes("pages/share/index?type=wish")
+      && candidateDispatchWorkbench.includes("pages/share/index?type=menu")
+      && candidateDispatchWorkbench.includes("必须看到真实微信联系人面板")
       && candidateDispatchWorkbench.includes("release:wechat:share:direct-previews")
       && candidateDispatchWorkbench.includes("findLatestShareEvidenceDir")
       && candidateDispatchWorkbench.includes("小程序卡片证据目录")
@@ -433,6 +452,9 @@ const checks = [
       && candidateDispatchWorkbenchSelftest.includes("可扫码直达")
       && candidateDispatchWorkbenchSelftest.includes("直达二维码状态")
       && candidateDispatchWorkbenchSelftest.includes("crave share confirmation path template")
+      && candidateDispatchWorkbenchSelftest.includes("wish share confirmation path template")
+      && candidateDispatchWorkbenchSelftest.includes("menu share confirmation path template")
+      && candidateDispatchWorkbenchSelftest.includes("real contact picker")
       && candidateDispatchWorkbenchSelftest.includes("DevTools direct-preview command")
       && candidateDispatchWorkbenchSelftest.includes("per-user sent mark commands")
       && candidateDispatchWorkbenchSelftest.includes("record draft command")
@@ -481,6 +503,23 @@ const checks = [
       && nextAction.includes("release:candidate:day:close")
       && handoff.includes("release:candidate:day:close")
       && candidateForms.includes("release:candidate:day:close"),
+  },
+  {
+    key: "candidate-full-share-review",
+    title: "候选验收会阻断五类卡片或双海报覆盖不完整",
+    path: `${files.candidateReview}, ${files.candidateReviewSelftest}, ${files.candidateForms}`,
+    ok: packageJson.includes("release:candidate:review:selftest")
+      && candidateReview.includes("requiredShareTypes")
+      && ["问问大家", "邀请家人", "买菜认领", "最近想吃", "今晚菜单"].every((text) => candidateReview.includes(text))
+      && candidateReview.includes("requiredPosterEntries")
+      && ["菜单海报", "清单海报"].every((text) => candidateReview.includes(text))
+      && candidateReview.includes("insufficient-share-type-coverage")
+      && candidateReview.includes("insufficient-poster-coverage")
+      && candidateReviewSelftest.includes("missing-share-type-coverage")
+      && candidateReviewSelftest.includes("missing-poster-coverage")
+      && candidateReviewSelftest.includes("coveredShareTypes: 5")
+      && candidateReviewSelftest.includes("coveredPosterEntries: 2")
+      && candidateForms.includes("任一类型缺失时，`release:candidate:review` 必须失败"),
   },
   {
     key: "candidate-record-guards",

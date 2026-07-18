@@ -48,6 +48,24 @@ const cases = [
     },
   },
   {
+    name: "missing-share-type-coverage",
+    files: packetWithMissingShareTypes(),
+    expect: {
+      ok: false,
+      recommendation: "wait-for-more-validation",
+      blocker: "insufficient-share-type-coverage",
+    },
+  },
+  {
+    name: "missing-poster-coverage",
+    files: packetWithMissingPosters(),
+    expect: {
+      ok: false,
+      recommendation: "wait-for-more-validation",
+      blocker: "insufficient-poster-coverage",
+    },
+  },
+  {
     name: "p1-blocker",
     files: p1Packet(),
     expect: {
@@ -66,7 +84,9 @@ const cases = [
         experiencedUsers: 10,
         completedTonight: 10,
         completedGrocery: 10,
-        triedCollaboration: 3,
+        triedCollaboration: 5,
+        coveredShareTypes: 5,
+        coveredPosterEntries: 2,
       },
     },
   },
@@ -145,8 +165,11 @@ function assertCase(testCase, run) {
     throw new Error(`${testCase.name}: expected blocker ${testCase.expect.blocker}.`);
   }
   for (const [key, value] of Object.entries(testCase.expect.summary ?? {})) {
-    if (run.data.summary?.[key] !== value) {
-      throw new Error(`${testCase.name}: expected summary.${key}=${value}, got ${run.data.summary?.[key]}.`);
+    const actual = Array.isArray(run.data.summary?.[key])
+      ? run.data.summary[key].length
+      : run.data.summary?.[key];
+    if (actual !== value) {
+      throw new Error(`${testCase.name}: expected summary.${key}=${value}, got ${actual}.`);
     }
   }
 }
@@ -170,7 +193,7 @@ function templatePacket() {
     ]),
     "feedback-template.csv": csv([
       feedbackHeader(),
-      ["U001", "待填", "待填", "今晚/自己挑/想连排几天/清单/我的家/分享卡片", "是/否", "是/否", "问问大家/邀请家人/买菜认领/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
+      ["U001", "待填", "待填", "今晚/完整菜品页/清单/我的家/五类分享卡片/菜单海报/清单海报", "是/否", "是/否", "问问大家/邀请家人/买菜认领/最近想吃/今晚菜单/没有", "1-5", "1-5", "1-5", "待填", "待填", "private://", "P0/P1/P2/建议", "是/否/待观察", "新反馈/已复现/修复中/已修复/不处理"],
     ]),
     "daily-review.csv": csv([
       dailyHeader(),
@@ -201,8 +224,25 @@ function smallValidPacket() {
 }
 
 function validPacket() {
+  const shareTypes = ["问问大家", "邀请家人", "买菜认领", "最近想吃", "今晚菜单"];
   return buildPacket(Array.from({ length: 10 }, (_, index) => userRow(index + 1, {
-    collaboration: index < 3 ? ["问问大家", "邀请家人", "买菜认领"][index] : "没有",
+    collaboration: shareTypes[index] || "没有",
+    entry: index === 8 ? "菜单海报" : index === 9 ? "清单海报" : undefined,
+  })));
+}
+
+function packetWithMissingShareTypes() {
+  const shareTypes = ["问问大家", "邀请家人", "买菜认领"];
+  return buildPacket(Array.from({ length: 10 }, (_, index) => userRow(index + 1, {
+    collaboration: shareTypes[index] || "没有",
+    entry: index === 8 ? "菜单海报" : index === 9 ? "清单海报" : undefined,
+  })));
+}
+
+function packetWithMissingPosters() {
+  const shareTypes = ["问问大家", "邀请家人", "买菜认领", "最近想吃", "今晚菜单"];
+  return buildPacket(Array.from({ length: 10 }, (_, index) => userRow(index + 1, {
+    collaboration: shareTypes[index] || "没有",
   })));
 }
 
@@ -244,13 +284,13 @@ function buildPacket(users) {
   };
 }
 
-function userRow(index, { collaboration }) {
+function userRow(index, { collaboration, entry }) {
   const id = `U${String(index).padStart(3, "0")}`;
   const device = index % 2 === 0 ? "iPhone 14 / WeChat 9" : "iPhone 15 / WeChat 9";
   return {
     collaboration,
     anonymous: [id, index % 2 === 0 ? "三人家庭" : "两人家庭", device, "已体验", "2026-07-06", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", index <= 4 ? "已复访" : "待观察", "通过", `private://candidate/${id}`, "流程顺"],
-    feedback: [id, device, "2026-07-06", index % 2 === 0 ? "清单" : "今晚", "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", "无", index % 2 === 0 ? "清单能看懂" : "推荐能直接做", `private://candidate/${id}`, "建议", "否", "不处理"],
+    feedback: [id, device, "2026-07-06", entry || (index % 2 === 0 ? "清单" : "今晚"), "是", "是", collaboration, index % 2 === 0 ? "4" : "5", "5", collaboration === "没有" ? "待填" : "4", "无", index % 2 === 0 ? "清单能看懂" : "推荐能直接做", `private://candidate/${id}`, "建议", "否", "不处理"],
   };
 }
 

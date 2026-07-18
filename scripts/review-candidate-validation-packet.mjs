@@ -18,6 +18,8 @@ const thresholds = {
   minCompletedGrocery: readThreshold("HUMI_CANDIDATE_MIN_COMPLETED_GROCERY", 8),
   minTriedCollaboration: readThreshold("HUMI_CANDIDATE_MIN_TRIED_COLLABORATION", 3),
 };
+const requiredShareTypes = ["问问大家", "邀请家人", "买菜认领", "最近想吃", "今晚菜单"];
+const requiredPosterEntries = ["菜单海报", "清单海报"];
 
 const [anonymousUsers, feedback, dailyReview, issueTriage] = await Promise.all([
   readCsv(files.anonymousUsers),
@@ -36,6 +38,14 @@ const p0Users = userRows.filter((row) => row["当前等级"] === "P0");
 const p1Users = userRows.filter((row) => row["当前等级"] === "P1");
 
 const feedbackRows = feedback.rows.filter((row) => isRealFeedbackRow(row));
+const coveredShareTypes = requiredShareTypes.filter((type) => (
+  triedCollaboration.some((row) => String(row["尝试协作"] || "").trim() === type)
+));
+const missingShareTypes = requiredShareTypes.filter((type) => !coveredShareTypes.includes(type));
+const coveredPosterEntries = requiredPosterEntries.filter((entry) => (
+  feedbackRows.some((row) => String(row["入口"] || "").trim() === entry)
+));
+const missingPosterEntries = requiredPosterEntries.filter((entry) => !coveredPosterEntries.includes(entry));
 const p0Feedback = feedbackRows.filter((row) => row["问题等级"] === "P0");
 const p1Feedback = feedbackRows.filter((row) => row["问题等级"] === "P1");
 const p0Issues = issueTriage.rows.filter((row) => row["等级"] === "P0" && !isPlaceholder(row["问题"]));
@@ -84,6 +94,20 @@ if (!blockers.some((item) => item.key === "no-real-validation")) {
       details: [`triedCollaboration=${triedCollaboration.length}; required>=${thresholds.minTriedCollaboration}`],
     });
   }
+  if (missingShareTypes.length) {
+    blockers.push({
+      key: "insufficient-share-type-coverage",
+      title: "五类小程序卡片尚未逐类完成真机验证",
+      details: missingShareTypes.map((type) => `missing=${type}`),
+    });
+  }
+  if (missingPosterEntries.length) {
+    blockers.push({
+      key: "insufficient-poster-coverage",
+      title: "菜单与清单海报尚未逐类完成真机验证",
+      details: missingPosterEntries.map((entry) => `missing=${entry}`),
+    });
+  }
 }
 if (p0Users.length || p0Feedback.length || p0Issues.length) {
   blockers.push({
@@ -114,6 +138,10 @@ const summary = {
   completedTonight: completedTonight.length,
   completedGrocery: completedGrocery.length,
   triedCollaboration: triedCollaboration.length,
+  coveredShareTypes,
+  missingShareTypes,
+  coveredPosterEntries,
+  missingPosterEntries,
   feedbackRows: feedbackRows.length,
   dailyReviewRows: dailyRows.length,
   dailyEvidenceRows: dailyEvidenceRows.length,
@@ -271,6 +299,7 @@ function nextActions(blockers) {
     return [
       "把 U001-U020 的真实匿名体验结果填入私有候选 CSV。",
       "默认通过线是 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个协作样本。",
+      "同时逐类完成五种小程序卡片的真实联系人发送/接收落地，以及菜单、清单两种海报的实际生成和分享/保存。",
       "真实联系方式和截图继续留在仓库外。",
       "至少录入一条真实体验后，重新运行 npm run release:candidate:review。",
     ];
@@ -292,7 +321,7 @@ function nextActions(blockers) {
   if (rec === "wait-for-more-validation") {
     return [
       "继续候选内测，不进入微信审核。",
-      "先补足配置的真实样本数和核心路径完成数。",
+      "先补足配置的真实样本数、核心路径完成数、五类卡片覆盖和双海报覆盖。",
       "补入更多 U001-U020 匿名结果后，重新运行 npm run release:candidate:review。",
     ];
   }

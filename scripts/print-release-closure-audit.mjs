@@ -291,7 +291,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
     return {
       key: "real-device-p0",
       title: "等待发布后 P0 真机验收",
-      description: "小程序发布后必须用真实微信验证普通启动和三类协作卡片。",
+      description: "小程序发布后必须用真实微信验证普通启动、五类协作卡片和菜单/清单海报。",
       nextCommands: [
         "npm run release:evidence:commands -- p0",
         "npm run release:next",
