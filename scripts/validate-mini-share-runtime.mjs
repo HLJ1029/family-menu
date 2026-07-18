@@ -18,6 +18,7 @@ assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.jso
 assertMiniProgramSharePage("miniprogram/pages/index/index", { requiresOpenTypeButton: false, supportsTimeline: false });
 assertMiniProgramSharePage("miniprogram/pages/share/index", { requiresOpenTypeButton: true, supportsTimeline: true });
 assertNativeShareReceiptTemplate();
+assertShareFeedbackDoesNotClaimUnverifiedSuccess();
 assertMiniProgramVisibleCopyKeepsPantryInvisible();
 assertMiniProgramGuestShareRouting();
 
@@ -184,12 +185,22 @@ function assertNativeShareReceiptTemplate() {
   ["登录一次就能加入这个家", "菜单、清单和回复都在一起"].forEach((copy) => {
     assert.match(js, new RegExp(copy), `native household invite template should include: ${copy}`);
   });
-  ["发给家人", "发清单给家人", "发菜单给家人", "发邀请给家人"].forEach((copy) => {
+  ["选择家人发送", "选择家人发清单", "选择家人发菜单", "选择家人发邀请"].forEach((copy) => {
     assert.match(js, new RegExp(copy), `native share template should include primary action: ${copy}`);
   });
-  assert.match(js, /点下面的黑色按钮，微信会让你选择要发给谁/, "native share page should explain the required native share tap");
+  assert.match(js, /再点一下，就能选择发给哪位家人/, "native share page should explain the required second native share tap");
   assert.doesNotMatch(js, /右上角|当前页面不可分享|点下方按钮/, "native share page should not guide users to the web-view menu or the wrong button position");
   assert.doesNotMatch(wxml, /右上角|当前页面不可分享|点下方按钮/, "native share markup should not guide users to the web-view menu or the wrong button position");
+}
+
+function assertShareFeedbackDoesNotClaimUnverifiedSuccess() {
+  const main = readFileSync("src/main.jsx", "utf8");
+  const todayMenu = readFileSync("src/components/TodayMenu.jsx", "utf8");
+  const groceryList = readFileSync("src/components/GroceryList.jsx", "utf8");
+  assert.doesNotMatch(main, /已打开分享面板|清单已打开分享面板/, "share feedback must not claim that a system panel opened");
+  assert.match(main, /没能打开微信发送页，请再试一次/, "native share failures should be explicit and retryable");
+  assert.match(todayMenu, /去微信发菜单/, "mini-program menu sharing should set the native handoff expectation");
+  assert.match(groceryList, /去微信发清单/, "mini-program grocery sharing should set the native handoff expectation");
 }
 
 function createRuntimeWindow({ redirectTo, navigateTo }) {

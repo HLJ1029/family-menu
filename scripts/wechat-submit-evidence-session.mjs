@@ -1,9 +1,13 @@
 import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  CURRENT_MINIPROGRAM_DESCRIPTION,
+  CURRENT_MINIPROGRAM_VERSION,
+} from "./release-candidate.mjs";
 
-export const WECHAT_SUBMIT_VERSION = "1.1.70";
-export const WECHAT_SUBMIT_DESCRIPTION = "恢复菜单和清单海报入口";
+export const WECHAT_SUBMIT_VERSION = CURRENT_MINIPROGRAM_VERSION;
+export const WECHAT_SUBMIT_DESCRIPTION = CURRENT_MINIPROGRAM_DESCRIPTION;
 export const DEFAULT_WECHAT_SUBMIT_DIR_PREFIX = `wechat-submit-${WECHAT_SUBMIT_VERSION}-`;
 
 export function getEvidenceBaseDir() {

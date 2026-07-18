@@ -1186,7 +1186,7 @@ function App() {
         targetParticipantNames: audience.map((person) => person.name).filter(Boolean),
       };
       setActiveCraveRequest(nextRequest);
-      setCraveRequestStatus("征集单已生成，可以分享给家人。");
+      setCraveRequestStatus("征集单准备好了，发给家人点一下就行。");
       trackProductEvent(appEvents.share, { type: "crave_request_created", method: "api" });
       void shareCraveRequest(nextRequest);
     } catch (error) {
@@ -1296,7 +1296,7 @@ function App() {
       return true;
     }
     if (isWechatMiniProgramWebView()) {
-      showNotice("分享页没有打开，请再点一次");
+      showNotice("没能打开微信发送页，请再试一次");
       return false;
     }
     await copyShareUrl(buildCraveUrl(request.token));
@@ -1586,7 +1586,7 @@ function App() {
       return true;
     }
     if (isWechatMiniProgramWebView()) {
-      showNotice("分享页没有打开，请再点一次");
+      showNotice("没能打开微信发送页，请再试一次");
       return false;
     }
     await copyShareUrl(buildWishShareUrl(request.token));
@@ -2329,7 +2329,7 @@ function App() {
     if (isWechatMiniProgramWebView()) {
       if (!signedIn) {
         setEntryRedirectView("grocery");
-        if (requestWechatLoginFromMiniProgram()) showNotice("登录后才能分享可回传清单，家人认领仍然免登录");
+        if (requestWechatLoginFromMiniProgram()) showNotice("登录后就能把清单发给家人，家人打开不用登录");
         else setAuthGateIntent("startCollaboration");
         return;
       }
@@ -2356,7 +2356,7 @@ function App() {
         if (nativeShareStatus === "handoff") {
           return;
         }
-        showNotice("分享页没有打开，请再点一次");
+        showNotice("没能打开微信发送页，请再试一次");
         return;
       } catch (error) {
         showNotice(error.message || "清单分享暂时不可用");
@@ -2439,7 +2439,7 @@ function App() {
         if (nativeShareStatus === "handoff") {
           return;
         }
-        showNotice("分享页没有打开，请再点一次");
+        showNotice("没能打开微信发送页，请再试一次");
         return;
       } catch (error) {
         showNotice(error.message || "菜单分享暂时不可用，先生成海报");
@@ -2492,13 +2492,13 @@ function App() {
       if (navigator.share) {
         await navigator.share({ title, text });
         trackProductEvent(appEvents.share, { type, method: "native" });
-        showNotice("清单已打开分享面板");
         return;
       }
       await navigator.clipboard.writeText(text);
       trackProductEvent(appEvents.share, { type, method: "clipboard" });
       showNotice(success);
-    } catch {
+    } catch (error) {
+      if (error?.name === "AbortError") return;
       showNotice("分享失败，可稍后重试");
     }
   }
@@ -2583,7 +2583,7 @@ function App() {
         type: posterPreview.type,
         method: method === "shared" ? "poster_native" : "poster_download",
       });
-      showNotice(method === "shared" ? "已打开分享面板" : "图片已开始保存");
+      if (method === "downloaded") showNotice("图片已开始保存");
     } catch {
       await shareText({
         type: posterPreview.type,
@@ -3152,7 +3152,7 @@ function App() {
       return;
     }
     if (isWechatMiniProgramWebView()) {
-      showNotice("分享页没有打开，请再点一次");
+      showNotice("没能打开微信发送页，请再试一次");
       return;
     }
     await copyShareUrl(buildHouseholdInviteUrl(invite.token));

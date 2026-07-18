@@ -1,4 +1,8 @@
 import { detailIntro, reviewNote } from "./wechat-submit-copy-data.mjs";
+import {
+  CURRENT_MINIPROGRAM_DESCRIPTION,
+  CURRENT_MINIPROGRAM_VERSION,
+} from "./release-candidate.mjs";
 
 const lines = [
   "Humi 1.1 微信提交复制卡",
@@ -6,8 +10,8 @@ const lines = [
   "版本信息",
   "- 小程序名称：Humi",
   "- AppID：wx4040b89f3b363416",
-  "- 上传版本：1.1.70",
-  "- 版本描述：恢复菜单和清单海报入口",
+  `- 上传版本：${CURRENT_MINIPROGRAM_VERSION}`,
+  `- 版本描述：${CURRENT_MINIPROGRAM_DESCRIPTION}`,
   "- H5 域名：https://www.humi-home.com/",
   "- API 域名：https://api.humi-home.com",
   "- 隐私政策：https://www.humi-home.com/privacy.html",
@@ -47,7 +51,7 @@ const lines = [
   "提交后记录到 docs/humi-1.1-release-evidence-log.md",
   "- 提交时间",
   "- 提交人",
-  "- 提交版本：1.1.70",
+  `- 提交版本：${CURRENT_MINIPROGRAM_VERSION}`,
   "- 审核单状态",
   "- 证据原件私有位置",
 ];

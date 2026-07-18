@@ -1,6 +1,10 @@
 import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { promisify } from "node:util";
+import {
+  CURRENT_MINIPROGRAM_DESCRIPTION,
+  CURRENT_MINIPROGRAM_VERSION,
+} from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
@@ -362,8 +366,8 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: "1.1.70",
-    miniProgramUploadDescription: "恢复菜单和清单海报入口",
+    miniProgramUploadedVersion: CURRENT_MINIPROGRAM_VERSION,
+    miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
   },
   requiredArtifacts: artifacts,
   preReviewHardening,
