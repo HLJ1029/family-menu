@@ -1,7 +1,7 @@
 # Humi 身份、家庭、协作与迁移最终本地审计
 
 日期：2026-07-20  
-实现候选：`36f4060`  
+实现候选：`f81d276`
 结论：**本地候选 GO；生产 rollout 尚未完成。**
 
 ## 审计边界
@@ -29,7 +29,7 @@
 - `validate:miniprogram-entry`
 - `validate:h5-entry`（11 项）
 - `validate:true-device-evidence -- --selftest`
-- `check-supabase-retirement.mjs`
+- `validate:supabase-retirement`（对抗自测 + 仓库检查）
 - `build`（1748 modules；仅保留既有 500 kB chunk 非阻断警告）
 - `git diff --check`
 - AI-HQ `secret-scan.sh`
@@ -39,6 +39,8 @@
 - Product smoke：125/125，20 个截图，`/Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260719T233545Z/manifest.json`
 - Collaboration smoke：20/20，6 个截图，`/Users/honglijie/.humi-release-evidence/collaboration-landings-smoke-20260719T233634Z/manifest.json`
 - 本地 4173 预览服务已停止。
+
+首次最终 gate review 发现证据 symlink/metadata 检查和 provider scan 覆盖不足，结论为 NO-GO（P1×2、P2×1）。`f81d276` 已用永久 RED/GREEN 回归关闭全部 finding；修复记录见 `.superpowers/sdd/phase4-final-gate-fixes-report.md`。最终状态仍以其后的独立 re-review 为准。
 
 ## 12.1 首次进入
 

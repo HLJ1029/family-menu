@@ -30,6 +30,7 @@
 - `src/lib/supabase/*`, `src/components/system/CloudAccount.jsx`: 删除的孤立 legacy runtime。
 - `package.json`, `package-lock.json`, `.env.example`, docs: provider 依赖和配置清退。
 - `scripts/check-supabase-retirement.mjs`: 源码、构建和依赖门禁。
+- `scripts/check-supabase-retirement-selftest.mjs`: lockfile/runtime/config/dist 对抗回归。
 
 ### Task 1: Idempotent Identity and Household Migration Engine
 
@@ -173,11 +174,11 @@ Move schema/roadmap documents that are purely historical under `docs/archive/sup
 - [x] **Step 5: Verify and commit**
 
 ```bash
-node scripts/check-supabase-retirement.mjs
+npm run validate:supabase-retirement
 npm run build
 if rg -n "supabase\.co|@supabase|VITE_SUPABASE" dist; then exit 1; fi
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
-git add -A src package.json package-lock.json .env.example scripts/check-supabase-retirement.mjs docs
+git add -A src api package.json package-lock.json .env.example scripts/check-supabase-retirement.mjs scripts/check-supabase-retirement-selftest.mjs docs
 git commit -m "refactor: physically remove Supabase from Humi runtime"
 ```
 
@@ -247,7 +248,7 @@ npm run validate:miniprogram-entry
 npm run validate:h5-entry
 npm run release:product:smoke -- --base-url http://127.0.0.1:4173/
 npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4173/
-node scripts/check-supabase-retirement.mjs
+npm run validate:supabase-retirement
 npm run build
 git diff --check
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
