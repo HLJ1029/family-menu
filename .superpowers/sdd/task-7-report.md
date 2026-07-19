@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation corrections and the complete fresh local Phase 2 matrix are complete on `codex@mbp-m5pro` from baseline `23332ea`. A new independent review remains the closing gate. No production API, deployment, migration, WeChat action, Supabase operation, or publish action was performed.
+Implementation corrections are recorded in candidate commit `b0dc6af` (`fix: close Humi Phase 2 review gaps`), built from baseline `23332ea`. The complete fresh local Phase 2 matrix ran against the exact candidate worktree content immediately before that commit; the durable manifests were re-read after commit and remained `ok: true` with zero failed checks. A new independent review remains the closing gate. No production API, deployment, migration, WeChat action, Supabase operation, or publish action was performed.
 
 ## RED evidence
 
