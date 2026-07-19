@@ -53,6 +53,10 @@ const run = (args) => spawnSync(process.execPath, ["scripts/migrate-humi-identit
   cwd: new URL("..", import.meta.url),
   encoding: "utf8",
 });
+const runAudit = (args) => spawnSync(process.execPath, ["scripts/audit-humi-migration-readiness.mjs", ...args], {
+  cwd: new URL("..", import.meta.url),
+  encoding: "utf8",
+});
 
 const dryRun = run(["--input", input, "--dry-run", "--report", dryRunReport, "--output", dryRunOutput]);
 assert.equal(dryRun.status, 1, "dry-run must reject --output");
@@ -106,5 +110,28 @@ for (const [name, mutate, code] of [
   const report = JSON.parse(await readFile(invalidReport, "utf8"));
   assert.ok(report.fatalCodes[code] >= 1, `${name} must report ${code}`);
 }
+
+const auditReport = join(root, "audit-report.json");
+const audit = runAudit(["--input", input, "--report", auditReport]);
+assert.equal(audit.status, 0, audit.stderr);
+const auditText = await readFile(auditReport, "utf8");
+const auditJson = JSON.parse(auditText);
+assert.deepEqual(auditJson.counts, dryReport.counts);
+assert.match(auditJson.inputSha256, /^[a-f0-9]{64}$/);
+assert.equal(auditJson.ready, true);
+for (const secret of fixtureSecrets) assert.equal(`${audit.stdout}${audit.stderr}${auditText}`.includes(secret), false);
+
+for (const forbiddenArgs of [
+  ["--input", input, "--report", join(root, "audit-apply.json"), "--apply"],
+  ["--input", input, "--report", join(root, "audit-output.json"), "--output", join(root, "audit-data.json")],
+]) {
+  const result = runAudit(forbiddenArgs);
+  assert.equal(result.status, 1, "audit must refuse write-capable arguments");
+}
+
+const fatalAuditReport = join(root, "fatal-audit-report.json");
+const fatalAudit = runAudit(["--input", join(root, "orphan-state.json"), "--report", fatalAuditReport]);
+assert.equal(fatalAudit.status, 2);
+assert.ok(JSON.parse(await readFile(fatalAuditReport, "utf8")).fatalCodes.household_state_without_household >= 1);
 
 console.log("Humi migration checks passed.");

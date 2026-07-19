@@ -95,15 +95,15 @@ git commit -m "feat: add safe Humi identity migration tooling"
 - Create: `docs/humi-identity-migration-runbook.md`
 - Modify: `docs/privacy-data-inventory.md`
 
-- [ ] **Step 1: Add a self-contained audit test**
+- [x] **Step 1: Add a self-contained audit test**
 
 Run the audit on a fixture and assert stdout/report contain counts and hashes but none of fixture OpenID, phone, display name or token values.
 
-- [ ] **Step 2: Implement audit CLI**
+- [x] **Step 2: Implement audit CLI**
 
 The CLI is read-only and refuses `--output`/`--apply`. It reuses migration invariant checks and exits 2 on fatal data issues, 0 on ready, 1 on invalid arguments/I/O.
 
-- [ ] **Step 3: Write exact production procedure**
+- [x] **Step 3: Write exact production procedure**
 
 Runbook sequence:
 
@@ -118,7 +118,7 @@ Runbook sequence:
 9. Swap file atomically only with explicit production approval.
 10. Roll back code, data and avatars together on P0.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run validate:migration
