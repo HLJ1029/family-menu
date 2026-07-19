@@ -4,7 +4,7 @@
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
 Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）
-首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定第一轮 **NO-GO**。第一轮 gate correction `e9c22f6fed36c00e42fa5825db1f082359c2bdb3` 又在 parent fresh legacy 验证中暴露共享页面竞态；稳定性候选 `7cb9ff678b636248cbd669182bdc6c2b6ff2d1f1` 的独立复审随后发现事务并发原子性 P1，构成第二轮 **NO-GO**。当前行为/测试 candidate：`fc8e8bcb73a4ea8710cc125f71f7e781ee2fac53`，仍 await final independent re-review。
+首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定第一轮 **NO-GO**。第一轮 gate correction `e9c22f6fed36c00e42fa5825db1f082359c2bdb3` 又在 parent fresh legacy 验证中暴露共享页面竞态；稳定性候选 `7cb9ff678b636248cbd669182bdc6c2b6ff2d1f1` 的独立复审随后发现事务并发原子性 P1，构成第二轮 **NO-GO**。`fc8e8bc` 的 cross-writer 审查随后发现普通 Store writer 可绕过 transaction rollback 边界，构成第三轮 **NO-GO**。当前行为/测试 candidate：`d738f0bcf8f39cc3e38cae69cd8d9b615ef0aad6`，仍 await final independent re-review。
 
 本记录覆盖 Phase 3 Task 6 的本地候选验证。Tasks 1–5 的功能实现已在本记录之前提交；`51e0244` 仅将测试中的长 Bearer 哨兵改为短哨兵，避免被团队 secret scan 的通用规则误判，未改变产品运行行为或测试断言语义。此后本记录和主规格进度更新会作为独立 documentation commit 提交；Task 6 report 会再以独立提交固定该 documentation commit。
 
@@ -83,6 +83,14 @@ Phase 3 本地候选实现及完整自动化矩阵已经通过。本候选交付
 当前候选重新执行 `validate:household`、`validate:collaboration-identity`、`validate:identity`、`validate:api`、`validate:miniprogram-entry`、`validate:miniprogram-poster`、`validate:h5-entry` 与 `release:product:review`，均 exit 0；`domain blocked` 仍只是预期的小程序韧性诊断。并发 fault regression 连续 10 轮 GREEN；legacy mega-smoke 至少两个提交后 fresh 进程连续 exit 0。
 
 新端口 `4194` 上 product smoke 为 `ok:true`、125 checks、20 refs/20 PNG；collaboration smoke 为 `ok:true`、20 checks、6 refs/6 PNG。证据路径、SHA-256、权限与引用唯一性见上方并发修正小节。`npm run build` exit 0（1748 modules），保留既有非阻断 warning：`dist/assets/index-DY6WuDAL.js` 865.64 kB（gzip 197.18 kB）。`git diff --check eac3021663b34b14a47ab74f4d950532e8afa98c..HEAD` 与精确 `HUMI_REPO=… /Users/honglijie/AI-HQ/scripts/secret-scan.sh` 均 exit 0；工作树在文档更新前 clean，Vite 4194 已停止且无 listener。上述结果只支持把 `fc8e8bc` 交给最终独立复审，不预先授予 GO。
+
+## 第三轮 NO-GO 与当前 `d738f0b`（await final re-review）
+
+`fc8e8bc` 的 transaction queue 只覆盖 transaction-vs-transaction。第三轮独立审查以 Grocery transaction A 的首 flush 延迟拒绝、普通 B 在 A pending 时写入，复现 A rollback 抹除已 fulfilled B；该候选保持 **NO-GO**，4194 证据不得用于最终 GO。
+
+`d738f0b` 令普通入口 `load()` 等待 active transaction，并让 transaction 在 snapshot 前等待既有普通 save；该前置等待是 failure-safe，因此 B 不会继承 A 的预期失败。transaction 内的 `record/merge({ persist:false })` 显式跳过等待，避免自锁；全部六个 transaction callback 均只使用这两个内部 helper。永久 fault regression 分别攻击普通 `createWishShareRequest`、`createHouseholdForUser`、`saveState`，每类 10 轮均证明 A rejected、B fulfilled、两次 flush、A 零 Grocery claim、B 状态保留和 memory/file 等价；Wish 还证明失败后 ordinary 与 transaction 都可继续写。
+
+新端口 `4200` 的私有 evidence root `/Users/honglijie/.humi-release-evidence/phase3-cross-writer-20260720` 及两个 smoke 目录均为 `0700`。product manifest 为 `0600`、`ok:true`、125 checks、20 refs/20 PNG、SHA-256 `43fddc2626437000edafba25a07f2b4eb33bcb7dbdd6193c17d00021e2b74686`；collaboration manifest 为 `0600`、`ok:true`、20 checks、6 refs/6 PNG、SHA-256 `0104d1d63d14f5124286b4d6b5a7f83aa173bd49276f6a4139c537689a62721f`；全部 26 个引用 PNG 存在。全 validate/review、两次 fresh legacy mega-smoke、build、`git diff --check d2cbb37..HEAD` 与精确 AI-HQ secret scan 都通过；build 仅保留既有 `index-DY6WuDAL.js` 865.64 kB（gzip 197.18 kB）warning。Vite 4200 已停且无 listener。以上只支持 `d738f0b` 进入最终独立复审，不预先授予 GO。
 
 ## 信任、隐私与回归边界
 

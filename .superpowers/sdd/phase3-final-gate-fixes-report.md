@@ -1,6 +1,6 @@
 # Phase 3 Final Gate Fixes Report
 
-Final local behavior/test correction candidate: `fc8e8bcb73a4ea8710cc125f71f7e781ee2fac53`; no Phase 4 or external work occurred. The candidate still awaits final independent re-review.
+Final local behavior/test correction candidate: `d738f0bcf8f39cc3e38cae69cd8d9b615ef0aad6`; no Phase 4 or external work occurred. The candidate still awaits final independent re-review.
 
 ## Preserved NO-GO and correction history
 
@@ -10,6 +10,7 @@ Final local behavior/test correction candidate: `fc8e8bcb73a4ea8710cc125f71f7e78
 - Root cause: one already-loaded page was reused across Crave, Grocery, Wish, and unknown scenarios while its React hydration, pending-merge, local-storage persistence, and 900 ms cloud-save effects were still live. The test crossed scenario boundaries; the Grocery product join was never invoked.
 - GREEN in `7cb9ff6`: Crave, Grocery, Wish, and unknown now each use an independent fresh browser context/page. For every supported type the API action and state seed happen before the new page exists; init data supplies the session, typed pending context, exact scoped key, and all three colliding rows. The test observes the exact type endpoint and server response, proves only the target becomes formal, proves the other two states are deep-equal, and proves only the exact scoped key is cleared. Unknown proves zero join, pending/key retention, and unchanged browser plus server state. The public action response intentionally has no token; the test retains the token only from the owner create response.
 - A second independent review marked `7cb9ff6` **NO-GO** for one remaining P1: `mutateAndSave` serialized only disk flushes, not snapshot/mutation/rollback, so a rejected A could erase a concurrently fulfilled B. The two independent NO-GO rounds remain preserved: the broad `51e0244` findings and this concurrency finding on the corrected candidate.
+- A third independent review marked `fc8e8bc` **NO-GO**: it protected transaction-vs-transaction work, but ordinary Store writers still mutated during a failed transaction and could be erased by its rollback.
 
 ## Concurrent transaction correction
 
@@ -36,3 +37,11 @@ Still deferred and unauthorized: true-device WeChat login/profile/WebView ticket
 - Fresh private evidence root `/Users/honglijie/.humi-release-evidence/phase3-final-concurrency-20260720-kcJqlS` and both smoke directories are `0700`. Product manifest is `0600`, `ok:true`, 125 checks, 20 refs/20 PNGs, SHA-256 `ae61545e71a3da5fdc0d83ee4c48ea4c141b7ca0f98a709e727f6689d7d2adae`. Collaboration manifest is `0600`, `ok:true`, 20 checks, 6 refs/6 PNGs, SHA-256 `ecf5a1a00d42833ffa66e961f324df3938f5eb129780efdd8986b52dbfe892ee`. All refs exist exactly once; there are no unreferenced PNGs.
 - `npm run build` exited 0 with 1748 modules and the existing non-blocking 865.64 kB chunk warning. `git diff --check eac3021663b34b14a47ab74f4d950532e8afa98c..HEAD` and the exact AI-HQ secret scan exited 0. Evidence Vite port 4194 was stopped and has no listener.
 - Status remains `await final independent re-review`; this report does not mark parent boxes or the master spec complete.
+
+## Third-round cross-writer correction: `d738f0b`
+
+- RED used Grocery transaction A with a delayed/rejected first flush and ordinary B while A remained pending. The old candidate let B fulfill then rolled it back to zero. The permanent attack covers ordinary `createWishShareRequest`, `createHouseholdForUser`, and `saveState`, each 10 rounds.
+- GREEN waits for the active transaction before normal `load()` returns, and waits for prior ordinary saves before a transaction snapshots. That wait is failure-safe; only transaction-internal `record/merge({ persist:false })` bypasses it, preventing self-deadlock. All six transaction callbacks were audited to use only those helpers.
+- Each round proves A rejects, B fulfills, flushes equal two, A leaves zero Grocery claims, B state survives, and serialized JSON equals memory. Wish additionally proves later ordinary and transaction writes remain durable. Targeted API/household/identity/collaboration checks passed.
+- Fresh Vite `4200` evidence root `/Users/honglijie/.humi-release-evidence/phase3-cross-writer-20260720` is `0700`. Product manifest is `0600`, `ok:true`, 125 checks/20 refs, SHA-256 `43fddc2626437000edafba25a07f2b4eb33bcb7dbdd6193c17d00021e2b74686`; collaboration manifest is `0600`, `ok:true`, 20 checks/6 refs, SHA-256 `0104d1d63d14f5124286b4d6b5a7f83aa173bd49276f6a4139c537689a62721f`; all 26 refs exist. Full matrix, two fresh legacy smokes, build (only existing 865.64 kB warning), range diff, and exact secret scan passed; port 4200 is stopped.
+- Status remains `await final independent re-review`; all three NO-GO rounds remain preserved. No Phase 4, AI-HQ handoff, parent checkbox, production, provider, migration, or Supabase action occurred.
