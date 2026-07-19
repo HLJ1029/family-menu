@@ -37,7 +37,7 @@ Page({
           return;
         }
 
-        app.globalData.humiSession = data;
+        app.setHumiSession(data);
         app.globalData.humiPhoneSessionUpdatedAt = Date.now();
         wx.showToast({ title: "手机号已绑定", icon: "success" });
         setTimeout(() => wx.navigateBack(), 450);

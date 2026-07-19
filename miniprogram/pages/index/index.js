@@ -103,16 +103,17 @@ Page({
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
-    if (HUMI_WECHAT_LOGIN_ENABLED) {
-      this._initialLoginTimer = setTimeout(() => this.finishInitialLoad(), 2200);
-      this.loginWithWechat({ initial: true });
+    const existingSession = getApp().globalData?.humiSession;
+    if (existingSession?.accessToken && existingSession.expiresAt > Date.now()) {
+      this.setData({ currentSession: existingSession });
+      if (existingSession.user?.profileStatus !== "complete") {
+        wx.navigateTo({ url: "/pages/identity/index" });
+      } else {
+        this.openAuthenticatedH5(existingSession);
+      }
       return;
     }
     this.finishInitialLoad();
-  },
-
-  onUnload() {
-    if (this._initialLoginTimer) clearTimeout(this._initialLoginTimer);
   },
 
   onShow() {
@@ -123,9 +124,9 @@ Page({
       this.setData({
         currentSession: session,
         phoneSessionUpdatedAt: updatedAt,
-        phoneBindVisible: false,
-        url: appendSessionToUrl(this.buildH5Url(), session)
+        phoneBindVisible: false
       });
+      if (session.user?.profileStatus === "complete") this.openAuthenticatedH5(session);
     }
   },
 
@@ -208,11 +209,21 @@ Page({
       return;
     }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
-      if (this.data.currentSession?.accessToken) {
-        this.openWebView(appendSessionToUrl(this.buildH5Url(), this.data.currentSession));
-      } else {
+      const session = this.data.currentSession || getApp().globalData?.humiSession;
+      if (!session?.accessToken || session.expiresAt <= Date.now()) {
         this.loginWithWechat();
+      } else if (session.user?.profileStatus !== "complete") {
+        wx.navigateTo({ url: "/pages/identity/index" });
+      } else {
+        this.openAuthenticatedH5(session);
       }
+      return;
+    }
+    if (latestMessage?.type === "humi:logout") {
+      getApp().clearHumiSession();
+      this.setData({ currentSession: null, loginError: "" });
+      this.openWebView(appendQuery(this.buildH5Url(), { humiLogout: Date.now() }));
+      return;
     }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:phone-bind") {
       if (!this.data.currentSession?.accessToken) {
@@ -233,6 +244,10 @@ Page({
   },
 
   retryWebView() {
+    if (this.data.currentSession?.accessToken && this.data.currentSession.user?.profileStatus === "complete") {
+      this.openAuthenticatedH5(this.data.currentSession);
+      return;
+    }
     const targetUrl = this._lastWebViewUrl || this.buildH5Url();
     this.openWebView(appendQuery(targetUrl, { humiRetry: Date.now() }));
   },
@@ -242,22 +257,30 @@ Page({
     this.setData({ url, webViewError: "" });
   },
 
-  finishInitialLoad(session) {
+  finishInitialLoad() {
     if (this._initialLoadFinished) return;
     this._initialLoadFinished = true;
-    if (this._initialLoginTimer) {
-      clearTimeout(this._initialLoginTimer);
-      this._initialLoginTimer = null;
-    }
-    const url = session?.accessToken
-      ? appendSessionToUrl(this.buildH5Url(), session)
-      : this.buildH5Url();
-    this.openWebView(url);
+    this.openWebView(this.buildH5Url());
   },
 
-  loginWithWechat(options = {}) {
+  openAuthenticatedH5(session) {
+    wx.request({
+      url: `${getHumiApiBaseUrl()}/auth/h5-ticket`,
+      method: "POST",
+      header: { Authorization: `Bearer ${session.accessToken}` },
+      success: ({ statusCode, data }) => {
+        if (statusCode < 200 || statusCode >= 300 || !data?.ticket) {
+          this.setData({ loginError: "登录连接暂时没有准备好，请重试。" });
+          return;
+        }
+        this.openWebView(appendQuery(this.buildH5Url(), { humiTicket: data.ticket }));
+      },
+      fail: () => this.setData({ loginError: "网络连接失败，请检查网络后重试。" })
+    });
+  },
+
+  loginWithWechat() {
     if (this.data.loginPending) return;
-    const initial = Boolean(options.initial);
     this.setData({ loginPending: true, loginError: "" });
 
     wx.login({
@@ -275,23 +298,21 @@ Page({
           success: ({ statusCode, data }) => {
             if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
               this.setData({ loginError: "登录服务暂时不可用，请稍后重试。" });
-              if (initial) this.finishInitialLoad();
               return;
             }
 
             const app = getApp();
-            app.globalData.humiSession = data;
+            app.setHumiSession(data);
             this.setData({ currentSession: data });
-            if (initial) {
-              this.finishInitialLoad(data);
+            if (data.user?.profileStatus !== "complete") {
+              wx.navigateTo({ url: "/pages/identity/index" });
             } else {
-              this.openWebView(appendSessionToUrl(this.buildH5Url(), data));
+              this.openAuthenticatedH5(data);
+              wx.showToast({ title: "已登录 Humi", icon: "success" });
             }
-            if (!initial) wx.showToast({ title: "已登录 Humi", icon: "success" });
           },
           fail: () => {
             this.setData({ loginError: "网络连接失败，请检查网络后重试。" });
-            if (initial) this.finishInitialLoad();
           },
           complete: () => {
             this.setData({ loginPending: false });
@@ -300,7 +321,6 @@ Page({
       },
       fail: () => {
         this.setData({ loginPending: false, loginError: "微信登录失败，请重新尝试。" });
-        if (initial) this.finishInitialLoad();
       }
     });
   },
@@ -338,14 +358,14 @@ Page({
         }
 
         const app = getApp();
-        app.globalData.humiSession = data;
+        app.setHumiSession(data);
         app.globalData.humiPhoneSessionUpdatedAt = Date.now();
         this.setData({
           currentSession: data,
           phoneSessionUpdatedAt: app.globalData.humiPhoneSessionUpdatedAt,
-          phoneBindVisible: false,
-          url: appendSessionToUrl(this.buildH5Url(), data)
+          phoneBindVisible: false
         });
+        this.openAuthenticatedH5(data);
         wx.showToast({ title: "手机号已绑定", icon: "success" });
       },
       fail: () => {
@@ -426,11 +446,6 @@ Page({
     return getHumiH5Url();
   }
 });
-
-function appendSessionToUrl(url, session) {
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}humiLogin=wechat&humiSession=${encodeURIComponent(JSON.stringify(session))}`;
-}
 
 function appendQuery(url, params = {}) {
   const entries = Object.entries(params)

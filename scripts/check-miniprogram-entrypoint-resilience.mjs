@@ -6,17 +6,33 @@ const pageSource = fs.readFileSync(new URL("../miniprogram/pages/index/index.js"
 
 function createPage(wxOverrides = {}, runtimeOverrides = {}) {
   let definition;
-  const app = { globalData: { humiSession: null, humiPhoneSessionUpdatedAt: 0 } };
+  const app = {
+    globalData: { humiSession: runtimeOverrides.appSession ?? null, humiPhoneSessionUpdatedAt: 0 },
+    setHumiSession(session) {
+      this.globalData.humiSession = session;
+    },
+    clearHumiSession() {
+      this.globalData.humiSession = null;
+    }
+  };
+  const navigations = [];
+  const requestUrls = [];
   const wx = {
     getDeviceInfo: () => ({ platform: "ios" }),
     showShareMenu: () => {},
     showToast: () => {},
+    navigateTo: ({ url }) => navigations.push(url),
     login: ({ success }) => success({ code: "wechat-code" }),
-    request: ({ success, complete }) => {
-      success({
-        statusCode: 200,
-        data: { accessToken: "session-token", user: { id: "user-1", displayName: "测试用户" } }
-      });
+    request: ({ url, success, complete = () => {} }) => {
+      requestUrls.push(url);
+      const data = url.endsWith("/auth/h5-ticket")
+        ? { ticket: "one-time-ticket" }
+        : {
+            accessToken: "session-token",
+            expiresAt: Date.now() + 60_000,
+            user: { id: "user-1", displayName: "微信用户", profileStatus: "incomplete" }
+          };
+      success({ statusCode: 200, data });
       complete();
     },
     ...wxOverrides
@@ -52,15 +68,18 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
       this.data = { ...this.data, ...patch };
     }
   };
-  return { page, changes };
+  return { page, changes, app, navigations, requestUrls };
 }
 
 {
-  const { page, changes } = createPage();
+  let loginCalls = 0;
+  const { page, changes } = createPage({
+    login: () => { loginCalls += 1; }
+  });
   page.onLoad({});
-  const mountedUrls = changes.filter((patch) => patch.url).map((patch) => patch.url);
-  assert.equal(mountedUrls.length, 1, "normal startup should mount web-view only once");
-  assert.match(mountedUrls[0], /humiSession=/, "successful startup login should reach H5 in the first URL");
+  assert.equal(loginCalls, 0, "normal startup must not call wx.login");
+  assert.equal(changes.filter((patch) => patch.url).length, 1);
+  assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
 }
 
 {
@@ -77,21 +96,58 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
 }
 
 {
-  let timeoutCallback;
-  const { page } = createPage(
-    { login: () => {} },
-    {
-      setTimeout: (callback) => {
-        timeoutCallback = callback;
-        return 1;
-      },
-      clearTimeout: () => {}
+  let loginCalls = 0;
+  const { page } = createPage({
+    login: ({ success }) => {
+      loginCalls += 1;
+      success({ code: "wechat-code" });
     }
+  });
+  page.onLoad({});
+  page.handleMessage({ detail: { data: [{ type: "humi:wechat-login" }] } });
+  assert.equal(loginCalls, 1, "explicit H5 request should call wx.login once");
+}
+
+{
+  let loginCalls = 0;
+  const completeSession = {
+    accessToken: "stored-session",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "stored-user", displayName: "小禾", profileStatus: "complete" }
+  };
+  const { page, requestUrls } = createPage(
+    { login: () => { loginCalls += 1; } },
+    { appSession: completeSession }
   );
   page.onLoad({});
-  assert.equal(page.data.url, "", "web-view should wait while startup login is still inside its budget");
-  timeoutCallback();
-  assert.match(page.data.url, /^https:\/\/www\.humi-home\.com\//, "startup timeout should continue as a guest");
+  assert.equal(loginCalls, 0, "valid stored session must not call wx.login");
+  assert.equal(requestUrls.filter((url) => url.endsWith("/auth/h5-ticket")).length, 1);
+  assert.match(page.data.url, /humiTicket=one-time-ticket/);
+  assert.doesNotMatch(page.data.url, /humiSession=/);
+}
+
+{
+  const incompleteSession = {
+    accessToken: "stored-session",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "stored-user", displayName: "微信用户", profileStatus: "incomplete" }
+  };
+  const { page, navigations } = createPage({}, { appSession: incompleteSession });
+  page.onLoad({});
+  assert.deepEqual(navigations, ["/pages/identity/index"]);
+}
+
+{
+  const completeSession = {
+    accessToken: "stored-session",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "stored-user", displayName: "小禾", profileStatus: "complete" }
+  };
+  const { page, app } = createPage({}, { appSession: completeSession });
+  page.data.currentSession = completeSession;
+  page.handleMessage({ detail: { data: [{ type: "humi:logout" }] } });
+  assert.equal(app.globalData.humiSession, null);
+  assert.equal(page.data.currentSession, null);
 }
 
 {

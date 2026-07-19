@@ -37,13 +37,10 @@
 <view wx:else class="login-shell">
   <view class="brand-mark">Humi</view>
   <view class="login-card">
-    <view class="eyebrow">正在打开</view>
+    <view class="eyebrow">准备中</view>
     <view class="title">今晚吃什么，马上就好。</view>
-    <view class="body">
-      正在同步今晚菜单和家里的协作记录。
-    </view>
-    <view wx:if="{{loginPending}}" class="loading-dot"></view>
-    <button wx:else class="primary-button" bindtap="retryWebView">进入 Humi</button>
+    <view class="body">页面暂时没有打开，可以重新进入 Humi。</view>
+    <button class="primary-button" bindtap="retryWebView">进入 Humi</button>
     <view wx:if="{{loginError}}" class="error-text">{{loginError}}</view>
   </view>
 </view>
