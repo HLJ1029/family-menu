@@ -1006,200 +1006,282 @@ async function verifyProfileOnboardingHardInfoOnly({ browser, apiBaseUrl, webBas
 
 async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl }) {
   const householdsBefore = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
-  const requestCreated = await request(`${apiBaseUrl}/crave-requests`, {
-    method: "POST",
-    headers: ownerAuthHeaders(),
-    body: {
-      householdId: householdsBefore.family.id,
-      householdName: householdsBefore.family.name,
-      initiatorName: "主厨",
-      starterFeeling: "想喝汤",
-    },
+  for (const type of ["crave", "grocery", "wish"]) {
+    await verifyTypedCollisionIsolation({
+      browser,
+      apiBaseUrl,
+      webBaseUrl,
+      household: householdsBefore.family,
+      type,
+    });
+  }
+  await verifyUnknownCollisionIsolation({
+    browser,
+    apiBaseUrl,
+    webBaseUrl,
+    household: householdsBefore.family,
   });
-  const guestParticipantId = `join-merge-guest-${Date.now()}`;
-  const voted = await request(`${apiBaseUrl}/crave-requests/${requestCreated.request.token}/votes`, {
-    method: "POST",
-    body: { guestParticipantId, feelingTag: "想喝汤", dishWish: "番茄汤" },
-  });
-  const now = new Date().toISOString();
+
+  const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
+  assert.equal(householdsAfter.family.members.length, householdsBefore.family.members.length, "binding participation must not create a formal household member");
+  assert.equal(householdsAfter.family.members.some((member) => member.nickname === "游客 1"), false, "a guest participation alias must not leak into formal household membership");
+  await clearOwnerCollaborationFixtures(apiBaseUrl);
+}
+
+async function verifyTypedCollisionIsolation({ browser, apiBaseUrl, webBaseUrl, household, type }) {
+  const { action, guestId, token } = await createTypedCollisionAction({ apiBaseUrl, household, type });
+  const actionId = action.participant.actionId;
+  const collisionState = createCollisionState({ type, request: { ...action.request, token }, token, actionId, guestId });
+  const stateEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
   await request(`${apiBaseUrl}/state`, {
     method: "PUT",
     headers: ownerAuthHeaders(),
     body: {
-      householdId: householdsBefore.family.id,
+      householdId: household.id,
       state: {
-        activeCraveRequest: voted.request,
-        activeGroceryShareRequest: {
-          token: requestCreated.request.token,
-          claims: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
-        },
-        activeWishShareRequest: {
-          token: requestCreated.request.token,
-          wishes: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
-        },
-        craveSignals: [{
-          id: `signal:${requestCreated.request.token}`,
-          requestToken: requestCreated.request.token,
-          feelingTag: "想喝汤",
-          voteCount: 2,
-          votes: [
-            { id: voted.request.votes[0].id, participantKey: guestParticipantId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
-            { id: "same-content-other-guest", participantKey: "other-guest-with-same-content", memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
-          ],
-          createdAt: now,
-        }],
+        ...(stateEnvelope.state || {}),
+        ...collisionState,
+        pendingJoinContext: null,
       },
     },
   });
+  const seededEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  const seeded = selectCollaborationState(seededEnvelope.state);
+  const seededTarget = selectTypedEntries(seeded, type).find((entry) => entry.id === actionId);
+  assert.equal(seededTarget?.temporary, true, `${type} API seed must preserve the temporary target before the fresh browser starts`);
+
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript(({ session, token, guestId, actionId }) => {
+  const pending = { type, token, guestParticipantId: guestId, actionId };
+  const siblingGuestKeys = Object.fromEntries(
+    ["crave", "grocery", "wish"].map((candidate) => [candidate, candidate === type ? guestId : `keep-${candidate}`]),
+  );
+  await page.addInitScript(({ session, pendingContext, state, guestKeys }) => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
     localStorage.setItem("humi:identity-session:v1", JSON.stringify(session));
-    localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({
-      type: "crave",
-      token,
-      guestParticipantId: guestId,
-      actionId,
-      feelingTag: "想喝汤",
-      dishWish: "番茄汤",
-      householdName: "测试家",
-      createdAt: new Date().toISOString(),
-    }));
-    localStorage.setItem(`humi:collaboration-guest:crave:${token}`, guestId);
-    localStorage.setItem("humi:crave-signals:v1", JSON.stringify([{
-      id: `local-signal:${token}`,
-      requestToken: token,
-      feelingTag: "想喝汤",
-      voteCount: 1,
-      votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
-      createdAt: new Date().toISOString(),
-    }]));
-    localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify({
-      token, claims: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
-    }));
-    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify({
-      token, wishes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
-    }));
-  }, { session: smokeOwnerSession, token: requestCreated.request.token, guestId: guestParticipantId, actionId: voted.participant.actionId });
+    localStorage.setItem("humi:pending-join-context:v1", JSON.stringify(pendingContext));
+    localStorage.setItem("humi:active-crave-request:v1", JSON.stringify(state.crave));
+    localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify(state.grocery));
+    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(state.wish));
+    localStorage.setItem("humi:crave-signals:v1", JSON.stringify(state.craveSignals));
+    for (const [candidate, value] of Object.entries(guestKeys)) {
+      localStorage.setItem(`humi:collaboration-guest:${candidate}:${pendingContext.token}`, value);
+    }
+  }, { session: smokeOwnerSession, pendingContext: pending, state: seeded, guestKeys: siblingGuestKeys });
+
+  const expectedPath = type === "crave"
+    ? `/crave-requests/${encodeURIComponent(token)}/join`
+    : type === "grocery"
+      ? `/grocery-share-requests/${encodeURIComponent(token)}/join`
+      : `/wish-share-requests/${encodeURIComponent(token)}/join`;
+  const joinRequests = [];
+  page.on("request", (browserRequest) => {
+    const pathname = new URL(browserRequest.url()).pathname;
+    if (!pathname.endsWith("/join")) return;
+    const body = browserRequest.postDataJSON() || {};
+    joinRequests.push({
+      matchesExpectedPath: pathname === expectedPath,
+      bodyKeys: Object.keys(body).sort(),
+      matchesExpectedGuest: body.guestParticipantId === guestId,
+    });
+  });
+  const joinResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === "POST" && new URL(response.url()).pathname === expectedPath
+  ), { timeout: 10000 });
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("family-living-room").waitFor({ timeout: 10000 });
+    const joinResponse = await joinResponsePromise;
+    assert.equal(joinResponse.status(), 200, `${type} fresh browser must receive a successful exact-type join response`);
+    const joinPayload = await joinResponse.json();
+    const responseTarget = selectTypedEntries({
+      crave: joinPayload.request,
+      grocery: joinPayload.request,
+      wish: joinPayload.request,
+    }, type).find((entry) => entry.id === actionId);
+    assert.equal(responseTarget?.temporary, false, `${type} join response must formalize its exact target action`);
+    assert.equal(joinPayload.participant?.displayName, smokeOwnerSession.user.displayName, `${type} join response must use the canonical server identity`);
+
     await page.waitForFunction(() => {
       const value = localStorage.getItem("humi:pending-join-context:v1");
       return value === null || value === "null";
     }, null, { timeout: 10000 });
-    await page.waitForFunction(() => {
-      const request = JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null");
-      return request?.votes?.some((vote) => vote.temporary === false);
-    }, null, { timeout: 10000 });
-    const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
-    const mergedVote = activeRequest?.votes?.find((vote) => vote.temporary === false);
-    assert.equal(mergedVote?.temporary, false, "sign-in should bind the temporary crave vote to the authenticated identity");
-    assert.equal(Object.hasOwn(mergedVote ?? {}, "claimedAt"), false, "the public browser projection must not retain identity-claim timestamps");
+    await page.waitForFunction(({ storageKey, collection, action }) => {
+      const active = JSON.parse(localStorage.getItem(storageKey) || "null");
+      return active?.[collection]?.some((entry) => entry.id === action && entry.temporary === false);
+    }, {
+      storageKey: type === "crave" ? "humi:active-crave-request:v1" : type === "grocery" ? "humi:active-grocery-share-request:v1" : "humi:active-wish-share-request:v1",
+      collection: type === "crave" ? "votes" : type === "grocery" ? "claims" : "wishes",
+      action: actionId,
+    }, { timeout: 10000 });
 
-    const craveSignals = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"));
-    const signalVote = craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === voted.participant.actionId);
-    assert(signalVote, "the historical crave signal should remain available after identity binding");
-    assert.equal(Object.hasOwn(signalVote, "participantKey"), false, "hydrated historical signals must not retain the temporary participant key");
-    assert.equal(signalVote.memberName, smokeOwnerSession.user.displayName, "browser merge must use the server-returned Humi display name rather than a local fallback");
-    assert.equal(signalVote.avatar, smokeOwnerSession.user.avatarUrl || smokeOwnerSession.user.avatarKey, "browser merge must retain the server-returned Humi avatar snapshot");
-    const sameContentOtherGuest = craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === "same-content-other-guest");
-    assert.deepEqual(sameContentOtherGuest, {
-      id: "same-content-other-guest",
-      memberId: "",
-      memberName: "游客 1",
-      feelingTag: "想喝汤",
-      dishWish: "番茄汤",
-      note: "",
-      temporary: true,
-      claimedAt: "",
-      createdAt: "",
-    }, "same-content guest history must remain byte-for-byte unchanged when another guest merges");
-    const collidingGrocery = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"));
-    const collidingWish = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"));
-    assert.deepEqual(collidingGrocery, {
-      token: requestCreated.request.token,
-      claims: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
-    }, "a Crave merge must leave an identical Grocery token/actionId collision byte-for-byte unchanged");
-    assert.deepEqual(collidingWish, {
-      token: requestCreated.request.token,
-      wishes: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
-    }, "a Crave merge must leave an identical Wish token/actionId collision byte-for-byte unchanged");
+    const after = await page.evaluate(() => ({
+      crave: JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"),
+      grocery: JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"),
+      wish: JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"),
+      craveSignals: JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"),
+    }));
+    const target = selectTypedEntries(after, type).find((entry) => entry.id === actionId);
+    assert.equal(target?.temporary, false, `${type} browser merge must formalize only its exact target action`);
+    assert.equal(target?.memberName, smokeOwnerSession.user.displayName, `${type} browser merge must retain the server-returned Humi display name`);
+    assert.equal(Object.hasOwn(target ?? {}, "participantKey"), false, `${type} browser merge must remove its temporary participant key`);
 
-    async function verifyAdditionalTypedCollision(type) {
-      const created = type === "grocery"
-        ? await request(`${apiBaseUrl}/grocery-share-requests`, { method: "POST", headers: ownerAuthHeaders(), body: { householdName: "测试家", initiatorName: "主厨", items: [{ id: "collision", name: "碰撞食材", amount: "1" }] } })
-        : await request(`${apiBaseUrl}/wish-share-requests`, { method: "POST", headers: ownerAuthHeaders(), body: { householdName: "测试家", initiatorName: "主厨" } });
-      const guestId = `${type}-collision-${Date.now()}`;
-      const action = type === "grocery"
-        ? await request(`${apiBaseUrl}/grocery-share-requests/${created.request.token}/claims`, { method: "POST", body: { guestParticipantId: guestId, itemIds: ["collision"] } })
-        : await request(`${apiBaseUrl}/wish-share-requests/${created.request.token}/wishes`, { method: "POST", body: { guestParticipantId: guestId, dishName: "碰撞菜" } });
-      const actionId = action.participant.actionId;
-      const collisionCrave = { token: created.request.token, votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, feelingTag: "碰撞" }] };
-      const collisionGrocery = { token: created.request.token, claims: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }] };
-      const collisionWish = { token: created.request.token, wishes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }] };
-      const stateEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
-      await request(`${apiBaseUrl}/state`, { method: "PUT", headers: ownerAuthHeaders(), body: { householdId: householdsBefore.family.id, state: {
-        ...(stateEnvelope.state || {}),
-        activeCraveRequest: type === "crave" ? action.request : collisionCrave,
-        activeGroceryShareRequest: type === "grocery" ? action.request : collisionGrocery,
-        activeWishShareRequest: type === "wish" ? action.request : collisionWish,
-      } } });
-      await page.evaluate(({ type, token, guestId, actionId, collisionCrave, collisionGrocery, collisionWish }) => {
-        localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({ type, token, guestParticipantId: guestId, actionId }));
-        localStorage.setItem(`humi:collaboration-guest:${type}:${token}`, guestId);
-        localStorage.setItem("humi:active-crave-request:v1", JSON.stringify(collisionCrave));
-        localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify(collisionGrocery));
-        localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(collisionWish));
-      }, { type, token: created.request.token, guestId, actionId, collisionCrave, collisionGrocery, collisionWish });
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.waitForFunction(() => localStorage.getItem("humi:pending-join-context:v1") === null || localStorage.getItem("humi:pending-join-context:v1") === "null", null, { timeout: 10000 });
-      const after = await page.evaluate(() => ({
-        crave: JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"),
-        grocery: JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"),
-        wish: JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"),
-      }));
-      const target = type === "grocery" ? after.grocery.claims : after.wish.wishes;
-      assert.equal(target.find((entry) => entry.id === actionId)?.temporary, false, `${type} merge must formalize only its exact target action`);
-      if (type === "grocery") {
-        assert.deepEqual(after.crave, collisionCrave, "a Grocery merge must leave an identical Crave collision unchanged");
-        assert.deepEqual(after.wish, collisionWish, "a Grocery merge must leave an identical Wish collision unchanged");
-      } else {
-        assert.deepEqual(after.crave, collisionCrave, "a Wish merge must leave an identical Crave collision unchanged");
-        assert.deepEqual(after.grocery, collisionGrocery, "a Wish merge must leave an identical Grocery collision unchanged");
-      }
+    for (const otherType of ["crave", "grocery", "wish"].filter((candidate) => candidate !== type)) {
+      assert.deepEqual(after[otherType], seeded[otherType], `${type} merge must leave the identical ${otherType} token/actionId collision byte-for-byte unchanged`);
     }
-    await verifyAdditionalTypedCollision("grocery");
-    await verifyAdditionalTypedCollision("wish");
-    const unknownBefore = await page.evaluate(() => ({
-      crave: localStorage.getItem("humi:active-crave-request:v1"), grocery: localStorage.getItem("humi:active-grocery-share-request:v1"), wish: localStorage.getItem("humi:active-wish-share-request:v1"),
-    }));
-    const joinRequests = [];
-    const observeUnknownJoin = (request) => { if (/\/join$/.test(new URL(request.url()).pathname)) joinRequests.push(request.url()); };
-    page.on("request", observeUnknownJoin);
-    await page.evaluate(() => localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({ type: "unknown", token: "collision", guestParticipantId: "guest", actionId: "shared" })));
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(300);
-    const unknownAfter = await page.evaluate(() => ({
-      pending: localStorage.getItem("humi:pending-join-context:v1"),
-      crave: localStorage.getItem("humi:active-crave-request:v1"), grocery: localStorage.getItem("humi:active-grocery-share-request:v1"), wish: localStorage.getItem("humi:active-wish-share-request:v1"),
-    }));
-    page.off("request", observeUnknownJoin);
-    assert.match(unknownAfter.pending || "", /"type":"unknown"/, "unknown pending context must remain scoped for a future supported client");
-    assert.deepEqual({ crave: unknownAfter.crave, grocery: unknownAfter.grocery, wish: unknownAfter.wish }, unknownBefore, "unknown merge type must leave all collaboration state byte-for-byte unchanged");
-    assert.deepEqual(joinRequests, [], "unknown merge type must issue no join request");
-    const scopedGuestKey = `humi:collaboration-guest:crave:${requestCreated.request.token}`;
-    assert.equal(await page.evaluate((key) => localStorage.getItem(key), scopedGuestKey), null, "browser merge must clear only the confirmed request-scoped guest identity key");
-    const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
-    assert.equal(householdsAfter.family.members.length, householdsBefore.family.members.length, "binding participation must not create a formal household member");
-    assert.equal(householdsAfter.family.members.some((member) => member.nickname === "游客 1"), false, "a guest participation alias must not leak into formal household membership");
+    assert.deepEqual(joinRequests, [{ matchesExpectedPath: true, bodyKeys: ["guestParticipantId"], matchesExpectedGuest: true }], `${type} fresh browser must issue exactly one scoped join request`);
+    assert.equal(await page.evaluate(({ scopedType, scopedToken }) => localStorage.getItem(`humi:collaboration-guest:${scopedType}:${scopedToken}`), { scopedType: type, scopedToken: token }), null, `${type} merge must clear only its confirmed request-scoped guest key`);
+    for (const siblingType of ["crave", "grocery", "wish"].filter((candidate) => candidate !== type)) {
+      assert.equal(
+        await page.evaluate(({ scopedType, scopedToken }) => localStorage.getItem(`humi:collaboration-guest:${scopedType}:${scopedToken}`), { scopedType: siblingType, scopedToken: token }),
+        siblingGuestKeys[siblingType],
+        `${type} merge must retain the sibling ${siblingType} guest key`,
+      );
+    }
+
+    if (type === "crave") {
+      const mergedSignal = after.craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === actionId);
+      const seededOtherGuest = seeded.craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === "same-content-other-guest");
+      const afterOtherGuest = after.craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === "same-content-other-guest");
+      assert.equal(mergedSignal?.memberName, smokeOwnerSession.user.displayName, "Crave history merge must use the server-returned Humi display name");
+      assert.equal(mergedSignal?.avatar, smokeOwnerSession.user.avatarUrl || smokeOwnerSession.user.avatarKey, "Crave history merge must retain the server-returned Humi avatar snapshot");
+      assert.equal(Object.hasOwn(mergedSignal ?? {}, "participantKey"), false, "Crave history merge must remove the temporary participant key");
+      assert.deepEqual(afterOtherGuest, seededOtherGuest, "Crave history merge must leave the same-content other guest byte-for-byte unchanged");
+    }
   } finally {
     await context.close();
   }
+}
+
+async function verifyUnknownCollisionIsolation({ browser, apiBaseUrl, webBaseUrl, household }) {
+  const token = `unknown-collision-${Date.now()}`;
+  const actionId = "shared-unknown-action";
+  const guestId = "unknown-guest";
+  const collisionState = createCollisionState({ type: "unknown", request: null, token, actionId, guestId });
+  const stateEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: household.id,
+      state: { ...(stateEnvelope.state || {}), ...collisionState, pendingJoinContext: null },
+    },
+  });
+  const seededEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  const seeded = selectCollaborationState(seededEnvelope.state);
+  const pending = { type: "unknown", token, guestParticipantId: guestId, actionId };
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.addInitScript(({ session, pendingContext, state }) => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify(session));
+    localStorage.setItem("humi:pending-join-context:v1", JSON.stringify(pendingContext));
+    localStorage.setItem("humi:active-crave-request:v1", JSON.stringify(state.crave));
+    localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify(state.grocery));
+    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(state.wish));
+    localStorage.setItem(`humi:collaboration-guest:unknown:${pendingContext.token}`, pendingContext.guestParticipantId);
+  }, { session: smokeOwnerSession, pendingContext: pending, state: seeded });
+  const joinRequests = [];
+  page.on("request", (browserRequest) => {
+    if (new URL(browserRequest.url()).pathname.endsWith("/join")) joinRequests.push("join");
+  });
+  const stateResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === "GET" && new URL(response.url()).pathname === "/state"
+  ), { timeout: 10000 });
+
+  try {
+    await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("family-living-room").waitFor({ timeout: 10000 });
+    await stateResponsePromise;
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() => ({
+      pending: JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"),
+      crave: JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"),
+      grocery: JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"),
+      wish: JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"),
+    }));
+    assert.deepEqual(after.pending, pending, "unknown pending context must remain scoped for a future supported client");
+    assert.deepEqual({ crave: after.crave, grocery: after.grocery, wish: after.wish }, { crave: seeded.crave, grocery: seeded.grocery, wish: seeded.wish }, "unknown merge type must leave all three collaboration states byte-for-byte unchanged");
+    assert.deepEqual(joinRequests, [], "unknown merge type must issue no join request");
+    assert.equal(await page.evaluate((scopedToken) => localStorage.getItem(`humi:collaboration-guest:unknown:${scopedToken}`), token), guestId, "unknown merge type must retain its pending scoped guest key");
+    const persistedEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+    const persisted = selectCollaborationState(persistedEnvelope.state);
+    assert.deepEqual({ crave: persisted.crave, grocery: persisted.grocery, wish: persisted.wish }, { crave: seeded.crave, grocery: seeded.grocery, wish: seeded.wish }, "unknown merge type must leave all three server state snapshots unchanged");
+  } finally {
+    await context.close();
+  }
+}
+
+async function createTypedCollisionAction({ apiBaseUrl, household, type }) {
+  const created = type === "crave"
+    ? await request(`${apiBaseUrl}/crave-requests`, {
+      method: "POST",
+      headers: ownerAuthHeaders(),
+      body: { householdId: household.id, householdName: household.name, initiatorName: "主厨", starterFeeling: "想喝汤" },
+    })
+    : type === "grocery"
+      ? await request(`${apiBaseUrl}/grocery-share-requests`, {
+        method: "POST",
+        headers: ownerAuthHeaders(),
+        body: { householdId: household.id, householdName: household.name, initiatorName: "主厨", items: [{ id: "collision", name: "碰撞食材", amount: "1" }] },
+      })
+      : await request(`${apiBaseUrl}/wish-share-requests`, {
+        method: "POST",
+        headers: ownerAuthHeaders(),
+        body: { householdId: household.id, householdName: household.name, initiatorName: "主厨" },
+      });
+  const guestId = `${type}-collision-${Date.now()}`;
+  const action = type === "crave"
+    ? await request(`${apiBaseUrl}/crave-requests/${created.request.token}/votes`, { method: "POST", body: { guestParticipantId: guestId, feelingTag: "想喝汤", dishWish: "番茄汤" } })
+    : type === "grocery"
+      ? await request(`${apiBaseUrl}/grocery-share-requests/${created.request.token}/claims`, { method: "POST", body: { guestParticipantId: guestId, itemIds: ["collision"] } })
+      : await request(`${apiBaseUrl}/wish-share-requests/${created.request.token}/wishes`, { method: "POST", body: { guestParticipantId: guestId, dishName: "碰撞菜" } });
+  return { action, guestId, token: created.request.token };
+}
+
+function createCollisionState({ type, request, token, actionId, guestId }) {
+  const crave = { token, votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, feelingTag: "碰撞" }] };
+  const grocery = { token, claims: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }] };
+  const wish = { token, wishes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }] };
+  const activeCraveRequest = type === "crave" ? request : crave;
+  const activeGroceryShareRequest = type === "grocery" ? request : grocery;
+  const activeWishShareRequest = type === "wish" ? request : wish;
+  return {
+    activeCraveRequest,
+    activeGroceryShareRequest,
+    activeWishShareRequest,
+    craveSignals: type === "crave" ? [{
+      id: `signal:${token}`,
+      requestToken: token,
+      feelingTag: "想喝汤",
+      voteCount: 2,
+      votes: [
+        { id: actionId, participantKey: guestId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
+        { id: "same-content-other-guest", participantKey: "other-guest-with-same-content", memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
+      ],
+      createdAt: new Date().toISOString(),
+    }] : [],
+  };
+}
+
+function selectCollaborationState(state = {}) {
+  return {
+    crave: state.activeCraveRequest ?? null,
+    grocery: state.activeGroceryShareRequest ?? null,
+    wish: state.activeWishShareRequest ?? null,
+    craveSignals: Array.isArray(state.craveSignals) ? state.craveSignals : [],
+  };
+}
+
+function selectTypedEntries(state, type) {
+  if (type === "crave") return state.crave?.votes ?? [];
+  if (type === "grocery") return state.grocery?.claims ?? [];
+  return state.wish?.wishes ?? [];
 }
 
 async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }) {
@@ -1861,6 +1943,25 @@ async function clearOwnerActiveCraveRequest(apiBaseUrl) {
     body: {
       householdId: envelope.family.id,
       state: { ...(envelope.state || {}), activeCraveRequest: null, craveSignals: [] },
+    },
+  });
+}
+
+async function clearOwnerCollaborationFixtures(apiBaseUrl) {
+  const envelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: envelope.family.id,
+      state: {
+        ...(envelope.state || {}),
+        activeCraveRequest: null,
+        activeGroceryShareRequest: null,
+        activeWishShareRequest: null,
+        pendingJoinContext: null,
+        craveSignals: [],
+      },
     },
   });
 }
