@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdtemp, readFile, realpath, symlink, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, realpath, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
@@ -28,6 +28,8 @@ const UTC_ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
 export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   const root = resolve(evidenceDir);
+  const rootStat = await lstat(root).catch(() => null);
+  if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) fail("evidence_root_invalid");
   const realRoot = await realpath(root);
   const manifestPath = resolve(root, "manifest.json");
   const manifestStat = await lstat(manifestPath).catch(() => null);
@@ -60,6 +62,7 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
     if (!entry.artifactPath.trim() || isAbsolute(entry.artifactPath) || entry.artifactPath.split(/[\\/]/).includes("..")) {
       fail("artifact_path_invalid", scenario);
     }
+    await rejectSymlinkAncestors(root, entry.artifactPath, scenario);
     const privacyFields = [entry.deviceModel, entry.wechatVersion, entry.miniProgramBuild, entry.testerRole, entry.notes, entry.artifactPath];
     if (entry.notes.length > 240 || privacyFields.some((value) => PII_PATTERN.test(value))) {
       fail("privacy_check_failed", scenario);
@@ -93,6 +96,16 @@ function fail(code, scenario = "manifest") {
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+async function rejectSymlinkAncestors(root, artifactPath, scenario) {
+  const segments = artifactPath.split(/[\\/]/).filter(Boolean);
+  let current = root;
+  for (const segment of segments.slice(0, -1)) {
+    current = resolve(current, segment);
+    const currentStat = await lstat(current).catch(() => null);
+    if (!currentStat?.isDirectory() || currentStat.isSymbolicLink()) fail("artifact_path_invalid", scenario);
+  }
 }
 
 async function selftest() {
@@ -138,6 +151,15 @@ async function selftest() {
   const linked = structuredClone(scenarios);
   linked.guest_wish.artifactPath = "linked-evidence.txt";
   await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: linked }, null, 2)}\n`);
+  await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /artifact_path_invalid/);
+
+  const nestedDirectory = join(root, "nested-evidence");
+  await mkdir(nestedDirectory);
+  await writeFile(join(nestedDirectory, "inside.txt"), "inside evidence\n");
+  await symlink(nestedDirectory, join(root, "linked-directory"));
+  const linkedAncestor = structuredClone(scenarios);
+  linkedAncestor.guest_grocery.artifactPath = "linked-directory/inside.txt";
+  await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: linkedAncestor }, null, 2)}\n`);
   await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /artifact_path_invalid/);
 
   const manifestAsArtifact = structuredClone(scenarios);
