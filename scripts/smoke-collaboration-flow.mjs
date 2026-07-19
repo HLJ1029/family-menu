@@ -1129,6 +1129,69 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       token: requestCreated.request.token,
       wishes: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
     }, "a Crave merge must leave an identical Wish token/actionId collision byte-for-byte unchanged");
+
+    async function verifyAdditionalTypedCollision(type) {
+      const created = type === "grocery"
+        ? await request(`${apiBaseUrl}/grocery-share-requests`, { method: "POST", headers: ownerAuthHeaders(), body: { householdName: "测试家", initiatorName: "主厨", items: [{ id: "collision", name: "碰撞食材", amount: "1" }] } })
+        : await request(`${apiBaseUrl}/wish-share-requests`, { method: "POST", headers: ownerAuthHeaders(), body: { householdName: "测试家", initiatorName: "主厨" } });
+      const guestId = `${type}-collision-${Date.now()}`;
+      const action = type === "grocery"
+        ? await request(`${apiBaseUrl}/grocery-share-requests/${created.request.token}/claims`, { method: "POST", body: { guestParticipantId: guestId, itemIds: ["collision"] } })
+        : await request(`${apiBaseUrl}/wish-share-requests/${created.request.token}/wishes`, { method: "POST", body: { guestParticipantId: guestId, dishName: "碰撞菜" } });
+      const actionId = action.participant.actionId;
+      const collisionCrave = { token: created.request.token, votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, feelingTag: "碰撞" }] };
+      const collisionGrocery = { token: created.request.token, claims: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }] };
+      const collisionWish = { token: created.request.token, wishes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }] };
+      const stateEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+      await request(`${apiBaseUrl}/state`, { method: "PUT", headers: ownerAuthHeaders(), body: { householdId: householdsBefore.family.id, state: {
+        ...(stateEnvelope.state || {}),
+        activeCraveRequest: type === "crave" ? action.request : collisionCrave,
+        activeGroceryShareRequest: type === "grocery" ? action.request : collisionGrocery,
+        activeWishShareRequest: type === "wish" ? action.request : collisionWish,
+      } } });
+      await page.evaluate(({ type, token, guestId, actionId, collisionCrave, collisionGrocery, collisionWish }) => {
+        localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({ type, token, guestParticipantId: guestId, actionId }));
+        localStorage.setItem(`humi:collaboration-guest:${type}:${token}`, guestId);
+        localStorage.setItem("humi:active-crave-request:v1", JSON.stringify(collisionCrave));
+        localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify(collisionGrocery));
+        localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(collisionWish));
+      }, { type, token: created.request.token, guestId, actionId, collisionCrave, collisionGrocery, collisionWish });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => localStorage.getItem("humi:pending-join-context:v1") === null || localStorage.getItem("humi:pending-join-context:v1") === "null", null, { timeout: 10000 });
+      const after = await page.evaluate(() => ({
+        crave: JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"),
+        grocery: JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"),
+        wish: JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"),
+      }));
+      const target = type === "grocery" ? after.grocery.claims : after.wish.wishes;
+      assert.equal(target.find((entry) => entry.id === actionId)?.temporary, false, `${type} merge must formalize only its exact target action`);
+      if (type === "grocery") {
+        assert.deepEqual(after.crave, collisionCrave, "a Grocery merge must leave an identical Crave collision unchanged");
+        assert.deepEqual(after.wish, collisionWish, "a Grocery merge must leave an identical Wish collision unchanged");
+      } else {
+        assert.deepEqual(after.crave, collisionCrave, "a Wish merge must leave an identical Crave collision unchanged");
+        assert.deepEqual(after.grocery, collisionGrocery, "a Wish merge must leave an identical Grocery collision unchanged");
+      }
+    }
+    await verifyAdditionalTypedCollision("grocery");
+    await verifyAdditionalTypedCollision("wish");
+    const unknownBefore = await page.evaluate(() => ({
+      crave: localStorage.getItem("humi:active-crave-request:v1"), grocery: localStorage.getItem("humi:active-grocery-share-request:v1"), wish: localStorage.getItem("humi:active-wish-share-request:v1"),
+    }));
+    const joinRequests = [];
+    const observeUnknownJoin = (request) => { if (/\/join$/.test(new URL(request.url()).pathname)) joinRequests.push(request.url()); };
+    page.on("request", observeUnknownJoin);
+    await page.evaluate(() => localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({ type: "unknown", token: "collision", guestParticipantId: "guest", actionId: "shared" })));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(300);
+    const unknownAfter = await page.evaluate(() => ({
+      pending: localStorage.getItem("humi:pending-join-context:v1"),
+      crave: localStorage.getItem("humi:active-crave-request:v1"), grocery: localStorage.getItem("humi:active-grocery-share-request:v1"), wish: localStorage.getItem("humi:active-wish-share-request:v1"),
+    }));
+    page.off("request", observeUnknownJoin);
+    assert.match(unknownAfter.pending || "", /"type":"unknown"/, "unknown pending context must remain scoped for a future supported client");
+    assert.deepEqual({ crave: unknownAfter.crave, grocery: unknownAfter.grocery, wish: unknownAfter.wish }, unknownBefore, "unknown merge type must leave all collaboration state byte-for-byte unchanged");
+    assert.deepEqual(joinRequests, [], "unknown merge type must issue no join request");
     const scopedGuestKey = `humi:collaboration-guest:crave:${requestCreated.request.token}`;
     assert.equal(await page.evaluate((key) => localStorage.getItem(key), scopedGuestKey), null, "browser merge must clear only the confirmed request-scoped guest identity key");
     const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
