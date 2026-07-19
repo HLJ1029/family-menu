@@ -218,6 +218,16 @@ try {
     body: { householdName: "测试家", initiatorName: "小禾" },
   }, 409, "household_required");
 
+  await assertRejectedRequest(`${baseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "   ", memberName: "小禾" },
+  }, 400, "household_name_required");
+  const householdsAfterBlankName = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.deepEqual(householdsAfterBlankName.households, [], "blank household names must not create a household");
+
   const firstHousehold = await request(`${baseUrl}/households`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },

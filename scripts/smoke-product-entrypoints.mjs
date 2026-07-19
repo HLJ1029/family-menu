@@ -411,8 +411,14 @@ try {
   const familyLivingRoomHasFocusedSections = familyLivingRoomLabels.every((label) => familyLivingRoomText.includes(label));
   const familyLivingRoomHasNoClutter = !/(?:云同步|AI|验证数据|营养目标|营养分析)/.test(familyLivingRoomText);
   const familyLivingRoomKeepsFiveTabs = await page.getByTestId("mobile-primary-navigation").getByRole("button").count() === 5;
+  const familyLivingRoomRoleVisible = await familyLivingRoom.getByTestId("current-family-role").getByText("主厨", { exact: true }).isVisible();
+  const familyLivingRoomMemberCountVisible = await familyLivingRoom.getByTestId("current-family-member-count").getByText("2 位家人", { exact: true }).isVisible();
+  const familyLivingRoomMemberAvatars = await familyLivingRoom.getByTestId("current-family-member-avatars").getByRole("img").count();
   const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
   await familyLivingRoom.screenshot({ path: familyLivingRoomScreenshot });
+  await familyLivingRoom.getByTestId("family-preference-action").click();
+  const preferenceOpenedSettings = await page.getByTestId("household-settings-page").isVisible();
+  await page.getByTestId("household-settings-page").getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: "邀请家人", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
@@ -444,6 +450,7 @@ try {
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
   const familyManagementPages = await verifyFamilyManagementPages(browser, baseUrl, evidenceDir);
+  const familyIdentityRouteReset = await verifyFamilyIdentityRouteReset(browser, baseUrl, evidenceDir);
   const multiHouseholdSwitch = await verifyMultiHouseholdSwitch(browser, baseUrl, evidenceDir);
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const soloOwnerFlow = await verifySoloOwnerFlow(browser, baseUrl, evidenceDir);
@@ -518,10 +525,15 @@ try {
     { key: "family-living-room-has-four-focused-sections", ok: familyLivingRoomHasFocusedSections, actual: familyLivingRoomText },
     { key: "family-living-room-removes-cloud-ai-nutrition-and-export-clutter", ok: familyLivingRoomHasNoClutter, actual: familyLivingRoomText },
     { key: "family-living-room-keeps-five-primary-tabs", ok: familyLivingRoomKeepsFiveTabs },
+    { key: "family-living-room-shows-current-role", ok: familyLivingRoomRoleVisible },
+    { key: "family-living-room-shows-member-avatars-and-count", ok: familyLivingRoomMemberAvatars === 2 && familyLivingRoomMemberCountVisible, actual: { familyLivingRoomMemberAvatars, familyLivingRoomMemberCountVisible } },
+    { key: "family-preference-opens-household-settings", ok: preferenceOpenedSettings },
     { key: "signed-in-no-household-shows-explicit-start", ok: noHouseholdStart.hasExpectedCopy && noHouseholdStart.hasNoClutter, actual: noHouseholdStart },
     { key: "household-start-reveals-only-one-name-input-after-create-selection", ok: noHouseholdStart.nameInputIsDeferred, actual: noHouseholdStart },
     { key: "household-start-invite-action-explains-how-to-open-a-real-invite", ok: noHouseholdStart.inviteGuidanceShown, actual: noHouseholdStart },
     { key: "signed-in-no-household-does-not-fabricate-family", ok: noHouseholdStart.hasNoLivingRoom, actual: noHouseholdStart },
+    { key: "household-name-draft-defaults-to-we-family", ok: noHouseholdStart.defaultName === "我们家", actual: noHouseholdStart.defaultName },
+    { key: "household-name-blank-is-rejected-locally-and-preserved", ok: noHouseholdStart.blankCreateRequests === 0 && noHouseholdStart.blankInputPreserved && noHouseholdStart.blankErrorVisible, actual: noHouseholdStart },
     { key: "signed-in-no-household-page-errors", ok: noHouseholdStart.pageErrors.length === 0, errors: noHouseholdStart.pageErrors },
     { key: "dashboard-crave-owner-creation-opens-recipient-picker", ok: ownerCollaborationShares.craveAudiencePickerVisible, actual: ownerCollaborationShares },
     { key: "dashboard-crave-recipients-default-selected", ok: ownerCollaborationShares.craveRecipientsDefaultSelected, actual: ownerCollaborationShares.craveRecipientState },
@@ -542,7 +554,10 @@ try {
     { key: "humi-account-renders-truthful-profile-data", ok: familyManagementPages.accountDataTruthful, actual: familyManagementPages.accountText },
     { key: "household-members-render-member-avatars", ok: familyManagementPages.memberAvatarsRendered },
     { key: "household-lifecycle-metadata-preserves-current-state", ok: familyManagementPages.lifecycleMetadataPreservesCurrentState, actual: familyManagementPages.lifecycleMetadataPreservesCurrentState },
+    { key: "household-lifecycle-preserves-meal-logs-and-collaboration-state", ok: familyManagementPages.lifecyclePreservesLogsAndCollaboration, actual: familyManagementPages.lifecyclePreservationSnapshots },
+    { key: "family-activity-hides-secrets-and-internal-fields", ok: familyManagementPages.activityPrivacySafe, actual: familyManagementPages.activityText },
     { key: "household-lifecycle-remove-and-transfer-refresh-members", ok: familyManagementPages.lifecycleMembersRefresh, actual: familyManagementPages.lifecycleMembersRefresh },
+    { key: "family-identity-change-resets-internal-route-before-paint", ok: familyIdentityRouteReset.resetToLivingRoom && familyIdentityRouteReset.noStaleSettingsPaint && familyIdentityRouteReset.pageErrors.length === 0, actual: familyIdentityRouteReset },
     { key: "nutrition-reflection-is-available-in-current-ui", ok: familyManagementPages.nutritionReachable },
     { key: "multi-household-switches-from-household-settings", ok: multiHouseholdSwitch.switchRequested && multiHouseholdSwitch.activeHeadingUpdated && multiHouseholdSwitch.menuLoaded && multiHouseholdSwitch.menuVisible, actual: multiHouseholdSwitch },
     { key: "multi-household-page-errors", ok: multiHouseholdSwitch.pageErrors.length === 0, errors: multiHouseholdSwitch.pageErrors },
@@ -592,6 +607,7 @@ try {
       groceryPosterPreviewMobile: groceryPosterPreviewScreenshot,
       familyLivingRoomMobile: familyLivingRoomScreenshot,
       familyManagementMobile: familyManagementPages.screenshot,
+      familyIdentityRouteResetMobile: familyIdentityRouteReset.screenshot,
       multiHouseholdMobile: multiHouseholdSwitch.screenshot,
       householdStartMobile: noHouseholdStart.screenshot,
       plannerMobile: plannerScreenshot,
@@ -790,6 +806,7 @@ function buildSmokeHouseholdState() {
     },
     mealLogs: {
       [today]: {
+        id: "preserved-meal-log",
         source: "home",
         confirmation: "all",
         actorMemberId: "product-smoke-owner",
@@ -828,10 +845,21 @@ async function hasPreservedHouseholdState(page) {
     const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
     const plan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
     const profile = JSON.parse(localStorage.getItem("family-menu:family-profile") || "{}");
-    return menu.some((item) => item.recipeId === "tomato-egg")
+    const mealLogs = JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}");
+    const craveSignals = JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]");
+    const activeCrave = JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null");
+    const activeGrocery = JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null");
+    const activeWish = JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null");
+    const core = menu.some((item) => item.recipeId === "tomato-egg")
       && Object.values(plan).some((day) => day?.dinner?.some((item) => item.recipeId === "tomato-egg"))
       && profile.dislikes?.includes("香菜")
       && profile.allergies?.includes("花生");
+    const logsAndCollaboration = Object.values(mealLogs).some((log) => log?.id === "preserved-meal-log")
+      && craveSignals.some((signal) => signal?.id === "preserved-crave-signal" || signal?.id === "privacy-crave-signal")
+      && ["preserved-active-crave", "privacy-active-crave"].includes(activeCrave?.id)
+      && ["preserved-active-grocery", "privacy-active-grocery"].includes(activeGrocery?.id)
+      && ["preserved-active-wish", "privacy-active-wish"].includes(activeWish?.id);
+    return { core, logsAndCollaboration };
   });
 }
 
@@ -876,6 +904,7 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
   });
   const page = await context.newPage();
   const pageErrors = [];
+  let blankCreateRequests = 0;
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
@@ -898,6 +927,15 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
     }
     await fulfillJson(route, { state: null, family: null, households: [] });
   });
+  await page.route("**/households", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    blankCreateRequests += 1;
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "household_name_required", message: "请填写家庭名称。" } }),
+    });
+  });
 
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByTestId("mobile-nav-user").click();
@@ -910,6 +948,13 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
   const inputsBeforeSelection = await householdStart.locator("input").count();
   await householdStart.getByRole("button", { name: /^创建我的家/ }).click();
   const inputsAfterCreateSelection = await householdStart.locator("input").count();
+  const nameInput = householdStart.getByLabel("给这个家起个名字");
+  const defaultName = await nameInput.inputValue();
+  await nameInput.fill("   ");
+  await householdStart.getByRole("button", { name: "确认创建", exact: true }).click();
+  await page.waitForTimeout(250);
+  const blankInputPreserved = await nameInput.inputValue() === "   ";
+  const blankErrorVisible = await householdStart.getByText("请填写家庭名称。", { exact: true }).isVisible();
   await householdStart.getByRole("button", { name: /^通过邀请加入/ }).click();
   const inviteGuidance = page.getByText("请使用家人发来的邀请卡片或链接打开 Humi。", { exact: true });
   await inviteGuidance.waitFor({ state: "visible", timeout: 15_000 });
@@ -922,6 +967,10 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
     hasExpectedCopy,
     hasNoClutter,
     nameInputIsDeferred: inputsBeforeSelection === 0 && inputsAfterCreateSelection === 1,
+    defaultName,
+    blankCreateRequests,
+    blankInputPreserved,
+    blankErrorVisible,
     inviteGuidanceShown,
     hasNoLivingRoom,
     pageErrors,
@@ -1020,7 +1069,10 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
   await installMiniProgramMock(page);
   await page.getByRole("button", { name: "问问大家想吃啥" }).click();
   const audiencePicker = page.getByText("默认全选，家人点开卡片免登录参与", { exact: true });
-  await audiencePicker.waitFor({ state: "visible", timeout: 15_000 });
+  await audiencePicker.waitFor({ state: "visible", timeout: 15_000 }).catch(async (error) => {
+    const bodyText = await page.locator("body").innerText();
+    throw new Error(`${error.message}; body=${JSON.stringify(bodyText)}; pageErrors=${JSON.stringify(pageErrors)}`);
+  });
   const craveAudiencePickerVisible = await audiencePicker.isVisible();
   const recipient = page.getByRole("button", { name: /家人小林/ });
   const craveRecipientState = await recipient.getAttribute("aria-pressed");
@@ -1179,6 +1231,45 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const state = {
     ...buildSmokeHouseholdState(),
     familyProfile: { dislikes: ["香菜"], allergies: ["花生"] },
+    craveSignals: [{
+      id: "privacy-crave-signal",
+      token: "DO_NOT_RENDER_CRAVE_TOKEN",
+      ownerSecret: "DO_NOT_RENDER_OWNER_SECRET",
+      participantKey: "DO_NOT_RENDER_PARTICIPANT_KEY",
+      householdId: "DO_NOT_RENDER_HOUSEHOLD_ID",
+      householdName: "我家",
+      initiatorName: "主厨",
+      status: "open",
+      votes: [],
+      createdAt: "2026-07-19T08:00:00.000Z",
+    }],
+    activeCraveRequest: {
+      id: "privacy-active-crave",
+      token: "DO_NOT_RENDER_ACTIVE_CRAVE_TOKEN",
+      ownerSecret: "DO_NOT_RENDER_ACTIVE_OWNER_SECRET",
+      participantKey: "DO_NOT_RENDER_ACTIVE_PARTICIPANT_KEY",
+      householdId: "DO_NOT_RENDER_ACTIVE_HOUSEHOLD_ID",
+      votes: [],
+      createdAt: "2026-07-19T08:01:00.000Z",
+    },
+    activeGroceryShareRequest: {
+      id: "privacy-active-grocery",
+      token: "DO_NOT_RENDER_GROCERY_TOKEN",
+      ownerSecret: "DO_NOT_RENDER_GROCERY_OWNER_SECRET",
+      participantKey: "DO_NOT_RENDER_GROCERY_PARTICIPANT_KEY",
+      householdId: "DO_NOT_RENDER_GROCERY_HOUSEHOLD_ID",
+      items: [{ id: "milk", name: "牛奶", checked: false }],
+      createdAt: "2026-07-19T08:02:00.000Z",
+    },
+    activeWishShareRequest: {
+      id: "privacy-active-wish",
+      token: "DO_NOT_RENDER_WISH_TOKEN",
+      ownerSecret: "DO_NOT_RENDER_WISH_OWNER_SECRET",
+      participantKey: "DO_NOT_RENDER_WISH_PARTICIPANT_KEY",
+      householdId: "DO_NOT_RENDER_WISH_HOUSEHOLD_ID",
+      wishes: [],
+      createdAt: "2026-07-19T08:03:00.000Z",
+    },
   };
   let activeFamily = family;
   const lifecycleRequests = { rename: false, remove: false, transfer: false };
@@ -1247,12 +1338,14 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const openedPages = {};
   const returnedPages = {};
   const primaryTabCounts = {};
+  let activityText = "";
   for (const item of pages) {
     await page.getByRole("button", { name: new RegExp(`^${item.action}`) }).click();
     const child = page.getByTestId(item.testId);
     await child.waitFor({ state: "visible", timeout: 15_000 });
     openedPages[item.testId] = await child.isVisible();
     primaryTabCounts[item.testId] = await page.getByTestId("mobile-primary-navigation").getByRole("button").count();
+    if (item.testId === "family-activity-page") activityText = await child.innerText();
     await child.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
     await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
     returnedPages[item.testId] = true;
@@ -1294,7 +1387,11 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const transferRoleReflected = await nextOwnerRow.getByText("主厨", { exact: true }).isVisible();
   const refreshedAvatar = (await nextOwnerRow.getByRole("img", { name: "家人小林的头像" }).getAttribute("src"))?.includes("member-2-refreshed") === true;
   const lifecycleMetadataPreservesCurrentState = lifecycleRequests.rename && lifecycleRequests.remove && lifecycleRequests.transfer
-    && stateAfterRename && stateAfterRemove && stateAfterTransfer;
+    && stateAfterRename.core && stateAfterRemove.core && stateAfterTransfer.core;
+  const lifecyclePreservesLogsAndCollaboration = lifecycleRequests.rename && lifecycleRequests.remove && lifecycleRequests.transfer
+    && stateAfterRename.logsAndCollaboration && stateAfterRemove.logsAndCollaboration && stateAfterTransfer.logsAndCollaboration;
+  const forbiddenActivityText = ["DO_NOT_RENDER", "ownerSecret", "participantKey", "householdId", "token"];
+  const activityPrivacySafe = forbiddenActivityText.every((value) => !activityText.includes(value));
   const lifecycleMembersRefresh = lifecycleRequests.remove && lifecycleRequests.transfer
     && removedMemberReflected && transferRoleReflected && refreshedAvatar;
   await lifecycleMembersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
@@ -1323,6 +1420,10 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     ownerConstraintsVisible,
     leaveBlockedForOwnerWithMembers,
     lifecycleMetadataPreservesCurrentState,
+    lifecyclePreservesLogsAndCollaboration,
+    lifecyclePreservationSnapshots: { stateAfterRename, stateAfterRemove, stateAfterTransfer },
+    activityPrivacySafe,
+    activityText,
     lifecycleMembersRefresh,
     accountBasicsVisible,
     accountDataTruthful,
@@ -1331,6 +1432,97 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     pageErrors,
     screenshot,
   };
+}
+
+async function verifyFamilyIdentityRouteReset(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let activeFamily = {
+    id: "route-family-a",
+    name: "旧家",
+    ownerId: "route-owner",
+    currentMemberId: "route-owner",
+    role: "owner",
+    members: [{ memberId: "route-owner", nickname: "主厨", role: "owner", status: "formal", avatarUrl: "" }],
+  };
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "route-owner-token",
+      refreshToken: "route-owner-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "route-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
+    }));
+    window.confirm = () => true;
+    window.__familyRouteStates = [];
+    window.addEventListener("DOMContentLoaded", () => {
+      new MutationObserver(() => {
+        window.__familyRouteStates.push(
+          document.querySelector("[data-testid='family-living-room']") ? "home"
+            : document.querySelector("[data-testid='household-settings-page']") ? "settings"
+              : document.querySelector("[data-testid='household-start']") ? "start"
+                : "other",
+        );
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }, { once: true });
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? null, family: activeFamily, households: activeFamily ? [activeFamily] : [] });
+      return;
+    }
+    await fulfillJson(route, { state: activeFamily ? buildSmokeHouseholdState() : null, family: activeFamily, households: activeFamily ? [activeFamily] : [] });
+  });
+  await page.route("**/households/route-family-a/leave", async (route) => {
+    activeFamily = null;
+    await fulfillJson(route, { state: null, family: null, households: [] });
+  });
+  await page.route("**/households", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const name = route.request().postDataJSON()?.householdName;
+    activeFamily = {
+      id: "route-family-b",
+      name,
+      ownerId: "route-owner",
+      currentMemberId: "route-owner",
+      role: "owner",
+      members: [{ memberId: "route-owner", nickname: "主厨", role: "owner", status: "formal", avatarUrl: "" }],
+    };
+    await fulfillJson(route, { family: activeFamily, households: [activeFamily] });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByRole("button", { name: /^家庭设置/ }).click();
+  const settings = page.getByTestId("household-settings-page");
+  await settings.getByRole("button", { name: "离开这个家", exact: true }).click();
+  const start = page.getByTestId("household-start");
+  await start.waitFor({ state: "visible", timeout: 15_000 });
+  await start.getByRole("button", { name: /^创建我的家/ }).click();
+  await start.getByLabel("给这个家起个名字").fill("新家");
+  await page.evaluate(() => { window.__familyRouteStates = []; });
+  await start.getByRole("button", { name: "确认创建", exact: true }).click();
+  const livingRoom = page.getByTestId("family-living-room");
+  await livingRoom.waitFor({ state: "visible", timeout: 15_000 });
+  const routeStates = await page.evaluate(() => window.__familyRouteStates || []);
+  const resetToLivingRoom = await livingRoom.getByRole("heading", { name: "新家", exact: true }).isVisible();
+  const noStaleSettingsPaint = !routeStates.includes("settings") && await page.getByTestId("household-settings-page").count() === 0;
+  const screenshot = join(evidenceDir, "family-identity-route-reset-mobile.png");
+  await livingRoom.screenshot({ path: screenshot });
+  await context.close();
+  return { resetToLivingRoom, noStaleSettingsPaint, routeStates, pageErrors, screenshot };
 }
 
 async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
@@ -1394,12 +1586,13 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   const householdSwitcher = page.getByTestId("household-switcher");
   await householdSwitcher.getByRole("heading", { name: "小家" }).waitFor({ timeout: 15_000 });
   await householdSwitcher.getByRole("button", { name: /爸妈家/ }).click();
-  const switchedHeading = householdSwitcher.getByRole("heading", { name: "爸妈家" });
+  const switchedRoom = page.getByTestId("family-living-room");
+  const switchedHeading = switchedRoom.getByRole("heading", { name: "爸妈家" });
   await switchedHeading.waitFor({ timeout: 15_000 });
   const activeHeadingUpdated = await switchedHeading.isVisible();
   await waitForTransientUi(page);
   const screenshot = join(evidenceDir, "multi-household-mobile.png");
-  await householdSwitcher.screenshot({ path: screenshot });
+  await switchedRoom.screenshot({ path: screenshot });
   const loadedMenu = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   const menuLoaded = loadedMenu.length === 1 && loadedMenu[0]?.recipeId === "potato-shreds";
   await page.getByRole("button", { name: "今晚", exact: true }).click();

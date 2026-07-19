@@ -131,7 +131,7 @@ function App() {
   const [sessionExpired, setSessionExpired] = useState(() => takeHumiSessionExpiredNotice());
   const [family, setFamily] = useState(null);
   const [humiHouseholds, setHumiHouseholds] = useState([]);
-  const [familyName, setFamilyName] = useState("我的家庭");
+  const [familyName, setFamilyName] = useState("我们家");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [cloudMenuEnabled, setCloudMenuEnabled] = useLocalStorageState("humi:cloud-menu-enabled", false, {
     legacyKeys: ["familyos:cloud-menu-enabled"],
@@ -2454,11 +2454,16 @@ function App() {
       setAuthStatus("请先完成微信登录，再创建我的家。");
       return;
     }
+    const normalizedFamilyName = familyName.trim();
+    if (!normalizedFamilyName) {
+      setAuthStatus("请填写家庭名称。");
+      return;
+    }
     setCloudLoading(true);
     setAuthStatus("正在创建我的家...");
     try {
       const data = await createHumiHousehold(humiSession, {
-        householdName: familyName,
+        householdName: normalizedFamilyName,
         memberName: humiSession.user?.displayName || "主厨",
       });
       applyHumiStateEnvelope({ ...data, state: null }, {
@@ -2472,7 +2477,7 @@ function App() {
         familyId: data.family?.id,
         familyName: data.family?.name,
       });
-      showNotice(`${data.family?.name || familyName} 已创建`);
+      showNotice(`${data.family?.name || normalizedFamilyName} 已创建`);
     } catch (error) {
       setAuthStatus(error.message);
     } finally {

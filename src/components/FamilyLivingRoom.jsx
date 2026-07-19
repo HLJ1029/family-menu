@@ -12,6 +12,7 @@ export function FamilyLivingRoom({
   canInvite = true,
 }) {
   const memberCount = formalMembers.length || family?.members?.length || 1;
+  const currentRole = family?.role === "owner" ? "主厨" : "家人";
 
   return (
     <section data-testid="family-living-room" className="mx-auto grid max-w-3xl gap-4 text-ink">
@@ -20,7 +21,16 @@ export function FamilyLivingRoom({
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-3xl font-black tracking-[-0.04em]">{family?.name || "我的家"}</h2>
-            <p className="mt-2 text-sm font-bold text-ink/58">{memberCount} 位正式成员，菜单和协作都留在这个家里。</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <span data-testid="current-family-role" className="rounded-full bg-canvas px-3 py-1.5 text-xs font-black">{currentRole}</span>
+              <span data-testid="current-family-member-count" className="text-sm font-bold text-ink/58">{memberCount} 位家人</span>
+              <div data-testid="current-family-member-avatars" className="flex -space-x-2" aria-label={`${memberCount} 位家人的头像`}>
+                {formalMembers.map((member) => (
+                  <LivingRoomMemberAvatar key={member.memberId || member.id || member.nickname || member.name} member={member} />
+                ))}
+              </div>
+            </div>
+            <p className="mt-2 text-sm font-bold text-ink/58">菜单和协作都留在这个家里。</p>
           </div>
           {canInvite && (
             <button type="button" onClick={onInvite} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
@@ -65,12 +75,28 @@ export function FamilyLivingRoom({
         )}
       </section>
 
-      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+      <button
+        type="button"
+        data-testid="family-preference-action"
+        onClick={() => onNavigate?.("settings")}
+        className="rounded-[28px] border border-line bg-white p-5 text-left shadow-card transition hover:border-ink/25"
+      >
         <p className="eyebrow">家庭偏好</p>
-        <p className="mt-2 text-sm font-bold leading-6 text-ink/58">{preferenceSummary}</p>
-      </section>
+        <div className="mt-2 flex items-center gap-3">
+          <p className="min-w-0 flex-1 text-sm font-bold leading-6 text-ink/58">{preferenceSummary}</p>
+          <ChevronRight size={18} className="shrink-0 text-ink/42" />
+        </div>
+      </button>
     </section>
   );
+}
+
+function LivingRoomMemberAvatar({ member }) {
+  const label = member.name || member.nickname || "家人";
+  if (member.avatarUrl) {
+    return <img src={member.avatarUrl} alt={`${label}的头像`} className="h-9 w-9 rounded-full border-2 border-white bg-canvas object-cover" />;
+  }
+  return <span data-testid="member-avatar-fallback" aria-label={`${label}的默认头像`} className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-canvas text-xs font-black">{label.slice(0, 1)}</span>;
 }
 
 function LivingRoomAction({ label, detail, icon: Icon, onClick }) {

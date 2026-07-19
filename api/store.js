@@ -177,8 +177,10 @@ export class HumiStore {
 
   async createHouseholdForUser(userId, options = {}) {
     await this.load();
+    const householdName = sanitizeText(options.householdName, "", 32);
+    if (!householdName) throw codedError("household_name_required", "请填写家庭名称。");
     const hadHousehold = this.findHouseholdsByMember(userId).length > 0;
-    const household = this.buildHousehold(userId, options);
+    const household = this.buildHousehold(userId, { ...options, householdName });
     this.data.households.push(household);
     this.data.activeHouseholds[userId] = household.id;
     if (!hadHousehold && this.data.states[userId] && !this.data.householdStates[household.id]) {
@@ -211,7 +213,7 @@ export class HumiStore {
     const now = new Date().toISOString();
     return {
       id: randomUUID(),
-      name: sanitizeText(options.householdName, "我的家", 32),
+      name: sanitizeText(options.householdName, "", 32),
       ownerId: userId,
       members: [
         {

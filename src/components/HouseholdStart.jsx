@@ -10,6 +10,7 @@ export function HouseholdStart({
   onOpenInvite,
 }) {
   const [selection, setSelection] = useState(null);
+  const nameRequired = status === "请填写家庭名称。";
 
   function selectInvite() {
     setSelection("invite");
@@ -56,6 +57,8 @@ export function HouseholdStart({
             onChange={(event) => onFamilyNameChange?.(event.target.value)}
             placeholder="例如：我们家"
             maxLength={32}
+            aria-invalid={nameRequired}
+            aria-describedby={nameRequired ? "household-name-error" : undefined}
             className="mt-3 min-h-12 w-full rounded-full border border-line bg-white px-5 text-sm font-black outline-none focus:border-ink/30"
           />
           <button
@@ -79,7 +82,7 @@ export function HouseholdStart({
         </div>
       )}
 
-      {status && <p className="text-sm font-bold leading-6 text-ink/52">{status}</p>}
+      {status && <p id={nameRequired ? "household-name-error" : undefined} className="text-sm font-bold leading-6 text-ink/52">{status}</p>}
     </section>
   );
 }

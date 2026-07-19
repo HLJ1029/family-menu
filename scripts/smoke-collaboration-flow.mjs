@@ -51,6 +51,13 @@ try {
     method: "POST",
     body: { code: "collaboration-owner" },
   });
+  const ownerProfile = await request(`${apiBaseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: { displayName: "主厨" },
+  });
+  smokeOwnerSession = { ...smokeOwnerSession, user: ownerProfile.user };
+  await createSmokeOwnerHousehold();
 
   const crave = await request(`${apiBaseUrl}/crave-requests`, {
     method: "POST",
@@ -210,11 +217,13 @@ try {
 
   await verifyProfileOnboardingHardInfoOnly({
     browser,
+    apiBaseUrl,
     webBaseUrl,
   });
 
   await verifyTemporaryJoinMergeFlow({
     browser,
+    apiBaseUrl,
     webBaseUrl,
   });
 
@@ -226,6 +235,7 @@ try {
 
   await verifyMyHomeCraveStartFlow({
     browser,
+    apiBaseUrl,
     webBaseUrl,
   });
 
@@ -236,6 +246,7 @@ try {
 
   await verifyMyHomeSoloFallbackFlow({
     browser,
+    apiBaseUrl,
     webBaseUrl,
   });
 
@@ -267,6 +278,7 @@ try {
 
   await verifyThreeMealPortraitFlow({
     browser,
+    apiBaseUrl,
     webBaseUrl,
   });
 
@@ -320,10 +332,9 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   assert(!vote?.participantKey, "public crave response must not expose a guest participant key");
 
   await page.getByRole("button", { name: "加入这个家，看今晚定了啥" }).click();
-  await page.getByRole("heading", { name: "刚才的感觉已经保留" }).waitFor({ timeout: 10000 });
-  await page.getByText("刚才的回复已经保留。登录后加入这个家，以后就能一起看菜单和清单。").waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
-  assert.equal(pending?.type, "crave", "joining after crave should create pending join context");
+  assert.equal(pending?.type, "crave", "binding a crave participation should keep pending merge context");
   assert.equal(pending?.memberName, "阿宁", "pending crave context should keep guest name");
   assert.equal(pending?.dishWish, "番茄汤", "pending crave context should keep dish wish");
   const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:crave-participant-key:v1"));
@@ -362,7 +373,7 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   await page.getByRole("button", { name: "补一句，可不填" }).click();
   await page.getByPlaceholder("怎么称呼你？可不填").fill("阿宁");
   await page.getByRole("button", { name: "我来买 2 项" }).click();
-  await page.getByRole("heading", { name: "已认领" }).waitFor({ timeout: 10000 });
+  await page.getByRole("heading", { name: "好，这些你来买" }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /西红柿/ }).click();
 
   const updated = await request(`${apiBaseUrl}/grocery-share-requests/${encodeURIComponent(token)}`);
@@ -375,9 +386,9 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   assert.equal(tomato?.checked, true, "guest should be able to mark a claimed item as bought");
 
   await page.getByRole("button", { name: "加入这个家" }).click();
-  await page.getByRole("heading", { name: "刚才的买菜参与已经保留" }).waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
-  assert.equal(pending?.type, "grocery", "joining after grocery claim should create pending join context");
+  assert.equal(pending?.type, "grocery", "binding a grocery participation should keep pending merge context");
   assert.equal(pending?.memberName, "阿宁", "pending grocery context should keep guest name");
   assert.equal(pending?.itemCount, 2, "pending grocery context should keep item count");
   const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:grocery-claim-participant-key:v1"));
@@ -495,41 +506,35 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   assert(!wish?.participantKey, "public wish response must not expose a guest participant key");
 
   await guestPage.getByRole("button", { name: "加入这个家" }).click();
-  await guestPage.getByRole("heading", { name: "刚才写的想吃已经保留" }).waitFor({ timeout: 10000 });
+  await guestPage.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await guestPage.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
-  assert.equal(pending?.type, "wish", "joining after wish share should create pending join context");
+  assert.equal(pending?.type, "wish", "binding a wish participation should keep pending merge context");
   assert.equal(pending?.memberName, "阿宁", "pending wish context should keep guest name");
   assert.equal(pending?.dishWish, "糖醋排骨", "pending wish context should keep dish wish");
   const localParticipantKey = await guestPage.evaluate(() => localStorage.getItem("humi:wish-participant-key:v1"));
   assert.equal(pending?.participantKey, localParticipantKey, "pending wish context should keep the local participant key");
   await guestPage.close();
 
+  const ownerEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: ownerEnvelope.family.id,
+      state: { ...(ownerEnvelope.state || {}), activeWishShareRequest: updated.request },
+    },
+  });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const ownerPage = await context.newPage();
-  await ownerPage.addInitScript((activeRequest) => {
-    localStorage.clear();
-    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
-    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(activeRequest));
-  }, {
-    token,
-    householdName: "测试家",
-    initiatorName: "主厨",
-    title: "测试想吃池",
-    status: "open",
-    wishes: [],
-  });
+  await seedLocalOwnerSession(ownerPage);
 
   try {
     await ownerPage.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await ownerPage.getByRole("button", { name: "刷新想吃" }).first().click();
-    await ownerPage.waitForFunction(() => {
-      const wishPool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
-      return wishPool.some((item) => item.name === "糖醋排骨");
-    }, null, { timeout: 10000 });
-    const wishPool = await ownerPage.evaluate(() => JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"));
-    const pooledWish = wishPool.find((item) => item.name === "糖醋排骨");
-    assert(pooledWish, "owner refresh should collect wish share entries into wish pool");
-    assert.match(pooledWish.source || "", /阿宁想吃/, "wish pool item should keep guest source");
+    await ownerPage.getByRole("button", { name: /^协作记录/ }).click();
+    await ownerPage.getByRole("heading", { name: "一起完成的事" }).waitFor({ timeout: 10000 });
+    await ownerPage.getByText("发起了最近想吃", { exact: true }).waitFor({ timeout: 10000 });
+    const refreshed = await request(`${apiBaseUrl}/wish-share-requests/${encodeURIComponent(token)}`);
+    assert(refreshed.request?.wishes?.some((item) => item.dishName === "糖醋排骨"), "owner-visible collaboration source should retain the guest wish");
   } finally {
     await context.close();
   }
@@ -577,32 +582,32 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
       note: "今晚想吃",
     },
   });
+  const wishReceipt = await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}`);
+  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "阿宁" && wish.dishName === "西红柿炒鸡蛋"), "the owner-visible wish request should retain the guest identity and dish");
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript((activeRequest) => {
+  await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
-    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify(activeRequest));
-  }, {
-    token: wishShare.request.token,
-    householdName: "测试家",
-    initiatorName: "主厨",
-    title: "测试想吃池安排",
-    status: "open",
-    wishes: [],
+    localStorage.setItem("humi:wish-pool:v1", JSON.stringify([{
+      id: "wish:tomato-egg",
+      recipeId: "tomato-egg",
+      name: "西红柿炒鸡蛋",
+      source: "阿宁想吃 · 今晚想吃",
+    }]));
   });
 
   try {
-    await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "刷新想吃" }).first().click();
-    await page.getByText("西红柿炒鸡蛋").first().waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "今晚做" }).first().click();
+    await page.goto(`${webBaseUrl}/?view=dashboard`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "全部菜品库" }).click();
+    await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "加入 西红柿炒鸡蛋" }).click();
     await page.waitForFunction(() => {
       const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
       const wishPool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
       return todayMenu.some((item) => item.recipeId === "tomato-egg") &&
-        !wishPool.some((item) => item.recipeId === "tomato-egg");
+        wishPool.some((item) => item.recipeId === "tomato-egg" && item.source.includes("阿宁想吃"));
     }, null, { timeout: 10000 });
 
   } finally {
@@ -623,10 +628,12 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
   });
   try {
     await unmatchedPage.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await unmatchedPage.getByText("外婆的神秘菜", { exact: true }).first().waitFor({ timeout: 10000 });
-    await unmatchedPage.getByRole("button", { name: "去挑菜" }).first().click();
+    const retainedUnmatched = await unmatchedPage.evaluate(() => JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"));
+    assert(retainedUnmatched.some((item) => item.name === "外婆的神秘菜" && item.source === "阿宁想吃"), "an unmatched guest wish should remain intact until the owner chooses a nearby recipe");
+    await unmatchedPage.getByTestId("mobile-nav-dashboard").click();
+    await unmatchedPage.getByRole("button", { name: "全部菜品库" }).click();
     await unmatchedPage.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 10000 });
-    await unmatchedPage.getByText("我的家 · 推荐外子页面").waitFor({ timeout: 10000 });
+    await unmatchedPage.getByText("发现 · 推荐外子页面").waitFor({ timeout: 10000 });
   } finally {
     await unmatchedContext.close();
   }
@@ -943,22 +950,24 @@ async function verifyGroceryEmptyStateFlow({ browser, webBaseUrl }) {
   }
 }
 
-async function verifyProfileOnboardingHardInfoOnly({ browser, webBaseUrl }) {
+async function verifyProfileOnboardingHardInfoOnly({ browser, apiBaseUrl, webBaseUrl }) {
+  const login = await request(`${apiBaseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: "profile-onboarding-owner" },
+  });
+  const profile = await request(`${apiBaseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { displayName: "主厨" },
+  });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript(() => {
+  await page.addInitScript((session) => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(false));
-    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
-      accessToken: "profile-onboarding-smoke",
-      user: {
-        id: "profile-owner-smoke",
-        displayName: "主厨",
-        provider: "smoke",
-      },
-    }));
-  });
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify(session));
+  }, { ...login, user: profile.user });
 
   try {
     await page.goto(`${webBaseUrl}/`, { waitUntil: "domcontentloaded" });
@@ -981,190 +990,104 @@ async function verifyProfileOnboardingHardInfoOnly({ browser, webBaseUrl }) {
   }
 }
 
-async function verifyTemporaryJoinMergeFlow({ browser, webBaseUrl }) {
+async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl }) {
+  const householdsBefore = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
+  const requestCreated = await request(`${apiBaseUrl}/crave-requests`, {
+    method: "POST",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: householdsBefore.family.id,
+      householdName: householdsBefore.family.name,
+      initiatorName: "主厨",
+      starterFeeling: "想喝汤",
+    },
+  });
+  const participantKey = `join-merge-guest-${Date.now()}`;
+  const voted = await request(`${apiBaseUrl}/crave-requests/${requestCreated.request.token}/votes`, {
+    method: "POST",
+    body: { participantKey, memberName: "阿宁", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
+  });
+  const now = new Date().toISOString();
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: householdsBefore.family.id,
+      state: {
+        activeCraveRequest: voted.request,
+        craveSignals: [{
+          id: `signal:${requestCreated.request.token}`,
+          requestToken: requestCreated.request.token,
+          feelingTag: "想喝汤",
+          voteCount: 1,
+          votes: [{ participantKey, memberName: "阿宁", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
+          createdAt: now,
+        }],
+      },
+    },
+  });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript((todayKey) => {
+  await page.addInitScript(({ session, token, participantKey: key }) => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
-    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
-      accessToken: "smoke-local-session",
-      user: {
-        id: "owner-smoke",
-        displayName: "主厨",
-        provider: "smoke",
-      },
-    }));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify(session));
     localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({
       type: "crave",
-      participantKey: "join-merge-guest",
+      token,
+      participantKey: key,
       memberName: "阿宁",
       feelingTag: "想喝汤",
       dishWish: "番茄汤",
       householdName: "测试家",
       createdAt: new Date().toISOString(),
     }));
-    localStorage.setItem("humi:active-crave-request:v1", JSON.stringify({
-      token: "join-merge-token",
-      status: "open",
-      householdName: "测试家",
-      initiatorName: "主厨",
-      votes: [{
-        id: "vote-join-merge",
-        participantKey: "join-merge-guest",
-        memberName: "阿宁",
-        feelingTag: "想喝汤",
-        dishWish: "番茄汤",
-        temporary: true,
-        createdAt: new Date().toISOString(),
-      }],
-    }));
-    localStorage.setItem("humi:crave-signals:v1", JSON.stringify([{
-      id: "signal-join-merge",
-      requestToken: "join-merge-token",
-      feelingTag: "想喝汤",
-      voteCount: 1,
-      votes: [{
-        participantKey: "join-merge-guest",
-        memberName: "阿宁",
-        feelingTag: "想喝汤",
-        dishWish: "番茄汤",
-        temporary: true,
-      }],
-      createdAt: new Date().toISOString(),
-    }]));
-    localStorage.setItem("humi:wish-pool:v1", JSON.stringify([{
-      id: "wish:tomato-egg",
-      recipeId: "tomato-egg",
-      name: "西红柿炒鸡蛋",
-      source: "阿宁想吃",
-      createdAt: new Date().toISOString(),
-    }]));
-    localStorage.setItem("family-menu:meal-logs:v1", JSON.stringify({
-      [todayKey]: {
-        source: "home",
-        confirmation: "all",
-        consumedEntries: [{ recipeId: "tomato-egg", quantity: 1 }],
-        updatedAt: new Date().toISOString(),
-      },
-    }));
-  }, formatLocalDateKey());
+  }, { session: smokeOwnerSession, token: requestCreated.request.token, participantKey });
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "阿宁刚刚参与了。" }).waitFor({ timeout: 10000 });
-    const homeHero = page.getByRole("heading", { name: "阿宁刚刚参与了。" }).locator("..");
-    await homeHero.getByText("阿宁点了“想喝汤”，还提到“番茄汤”。", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "今晚先看这三件事" }).waitFor({ timeout: 10000 });
-    await page.getByText(/Humi 已记住 \d+ 次选择/).waitFor({ timeout: 10000 });
-    await page.getByText("这周家里的饭").waitFor({ timeout: 10000 });
-    const heroBeforeFamilyPulse = await page.evaluate(() => {
-      const heroHeading = [...document.querySelectorAll("h2")]
-        .find((node) => node.textContent?.includes("阿宁刚刚参与了。"));
-      const pulseHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("Humi 正在记住这些变化"));
-      if (!heroHeading || !pulseHeading) return false;
-      return Boolean(heroHeading.compareDocumentPosition(pulseHeading) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    assert.equal(heroBeforeFamilyPulse, true, "my home hero should show latest family activity before secondary panels");
-    const collaborationBeforeFamilyPulse = await page.evaluate(() => {
-      const collaborationHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("今晚先看这三件事"));
-      const pulseHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("Humi 正在记住这些变化"));
-      if (!collaborationHeading || !pulseHeading) return false;
-      return Boolean(collaborationHeading.compareDocumentPosition(pulseHeading) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    assert.equal(collaborationBeforeFamilyPulse, true, "my home collaboration hub should appear before family portrait reflection");
-    const receiptHintBeforeFamilyPulse = await page.evaluate(() => {
-      const receiptHint = [...document.querySelectorAll("p")]
-        .find((node) => node.textContent?.includes("Humi 已记住"));
-      const pulseHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("Humi 正在记住这些变化"));
-      if (!receiptHint || !pulseHeading) return false;
-      return Boolean(receiptHint.compareDocumentPosition(pulseHeading) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    assert.equal(receiptHintBeforeFamilyPulse, true, "my home should expose portrait receipt before deeper reflection panels");
-    const familyPulseBeforeAccount = await page.evaluate(() => {
-      const pulseHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("Humi 正在记住这些变化"));
-      const accountHeading = [...document.querySelectorAll("h3")]
-        .find((node) => node.textContent?.includes("保存家里的吃饭习惯"));
-      if (!pulseHeading || !accountHeading) return false;
-      return Boolean(pulseHeading.compareDocumentPosition(accountHeading) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    assert.equal(familyPulseBeforeAccount, true, "my home should show family eating dynamics before account/save settings");
-    await page.getByText(/想喝汤/).first().waitFor({ timeout: 10000 });
-    await page.getByText("今天吃得怎么样").waitFor({ timeout: 10000 });
-    await page.getByText(/今天 · 晚饭做了 西红柿炒鸡蛋/).waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "已留下 1 条三餐记录" }).waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "1 道想吃" }).waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "你的日常选择，正在让推荐更懂你家" }).waitFor({ timeout: 10000 });
-    await page.getByText("下顿会先考虑").first().waitFor({ timeout: 10000 });
-    await page.getByText(/Humi 已经记住 \d+ 次选择/).first().waitFor({ timeout: 10000 });
-    await page.getByText("哪些功能可以一直用", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText(/问问大家、一起买菜、最近想吃/).waitFor({ timeout: 10000 });
-    await page.getByText(/更懂你家的推荐：/).waitFor({ timeout: 10000 });
-    await page.getByText(/基础推荐/).first().waitFor({ timeout: 10000 });
-    await page.getByText("刚才的感觉已经保留").waitFor({ timeout: 10000 });
-    await page.getByText("你已经登录 Humi。点“加入这个家”后，刚才的回复会和你的家庭账号放在一起。").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "修改忌口" }).click();
-    await page.getByRole("heading", { name: "人数和忌口" }).waitFor({ timeout: 10000 });
-    await page.getByText("软口味来源").waitFor({ timeout: 10000 });
-    await page.getByText("绝不想吃 / 不能吃").waitFor({ timeout: 10000 });
-    assert.equal(
-      await page.getByText("平时喜欢怎么吃").count(),
-      0,
-      "my home profile settings should not expose a manual soft-taste preference form",
-    );
-    assert.equal(
-      await page.getByText("晚饭最在意什么").count(),
-      0,
-      "my home profile settings should not expose manual dinner goal maintenance",
-    );
-    assert.equal(
-      await page.getByText("这次主要想规划什么").count(),
-      0,
-      "my home settings should not ask users to maintain a planning mode",
-    );
-    assert.equal(
-      await page.getByText("买菜接受度").count(),
-      0,
-      "my home settings should not ask users to maintain shopping tolerance",
-    );
-    await page.getByRole("button", { name: "修改忌口" }).click();
-    await page.getByRole("button", { name: "加入这个家" }).click();
+    await page.getByTestId("family-living-room").waitFor({ timeout: 10000 });
     await page.waitForFunction(() => {
       const value = localStorage.getItem("humi:pending-join-context:v1");
       return value === null || value === "null";
     }, null, { timeout: 10000 });
     await page.waitForFunction(() => {
-      const members = JSON.parse(localStorage.getItem("humi:household-members:v1") || "[]");
-      return members.some((member) => member.name === "阿宁" && member.status === "正式成员");
+      const request = JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null");
+      return request?.votes?.some((vote) => vote.temporary === false && Boolean(vote.claimedAt));
     }, null, { timeout: 10000 });
-
-    const householdMembers = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:household-members:v1") || "[]"));
-    assert(householdMembers.some((member) => member.name === "阿宁" && member.status === "正式成员"), "accepting pending join should create a formal household member");
-
     const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
-    const mergedVote = activeRequest?.votes?.find((vote) => vote.participantKey === "join-merge-guest");
-    assert.equal(mergedVote?.temporary, false, "accepting pending join should merge active crave vote into a formal member");
-    assert(mergedVote?.mergedAt, "merged crave vote should keep merge timestamp");
+    const mergedVote = activeRequest?.votes?.find((vote) => vote.memberName === "阿宁");
+    assert.equal(mergedVote?.temporary, false, "sign-in should bind the temporary crave vote to the authenticated identity");
+    assert(mergedVote?.claimedAt, "the API-backed crave vote should keep its identity-claim timestamp");
 
     const craveSignals = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"));
-    const signalVote = craveSignals[0]?.votes?.find((vote) => vote.participantKey === "join-merge-guest");
-    assert.equal(signalVote?.temporary, false, "accepting pending join should merge historical crave signal vote");
+    const signalVote = craveSignals[0]?.votes?.find((vote) => vote.memberName === "阿宁");
+    assert(signalVote, "the historical crave signal should remain available after identity binding");
+    assert.equal(Object.hasOwn(signalVote, "participantKey"), false, "hydrated historical signals must not retain the temporary participant key");
+    const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
+    assert.equal(householdsAfter.family.members.length, householdsBefore.family.members.length, "binding participation must not create a formal household member");
+    assert.equal(householdsAfter.family.members.some((member) => member.nickname === "阿宁"), false, "a guest participation name must not leak into formal household membership");
   } finally {
     await context.close();
   }
 }
 
 async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }) {
-  const login = await request(`${apiBaseUrl}/auth/wechat/login`, {
+  let login = await request(`${apiBaseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: "household-ui-owner" },
+  });
+  const profile = await request(`${apiBaseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { displayName: "主厨" },
+  });
+  login = { ...login, user: profile.user };
+  const firstFamily = await request(`${apiBaseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "我的家", memberName: "主厨" },
   });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -1177,38 +1100,46 @@ async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("现在看的家").first().waitFor({ timeout: 10000 });
-    await page.getByText("你是主厨，可以邀请家人；不同家庭的菜单、清单和偏好会分开保存。").waitFor({ timeout: 10000 });
+    const livingRoom = page.getByTestId("family-living-room");
+    await livingRoom.waitFor({ timeout: 10000 });
+    await livingRoom.getByRole("heading", { name: "我的家", exact: true }).waitFor();
+    await livingRoom.getByTestId("current-family-role").getByText("主厨", { exact: true }).waitFor();
+    await livingRoom.getByTestId("current-family-member-count").getByText("1 位家人", { exact: true }).waitFor();
+    assert.equal(await livingRoom.getByTestId("current-family-member-avatars").locator("[data-testid='member-avatar-fallback'], img").count(), 1, "my home should show the formal member avatar");
 
-    await page.getByRole("button", { name: "邀请家人" }).click();
-    await page.getByText("家庭邀请卡片已准备好").waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "邀请家人", exact: true }).click();
+    await page.getByText("家庭邀请链接已复制").waitFor({ timeout: 10000 });
     const invite = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:household-invite:v1") || "null"));
     assert(invite?.token, "my home should persist a real household invite token");
 
-    await page.getByPlaceholder("例如：爸妈家").fill("爸妈家");
-    await page.getByRole("button", { name: "新建一个家" }).click();
-    await page.getByRole("button", { name: "爸妈家", exact: true }).waitFor({ timeout: 10000 });
+    await request(`${apiBaseUrl}/households`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: { householdName: "爸妈家", memberName: "主厨" },
+    });
     const householdsAfterCreate = await request(`${apiBaseUrl}/households`, {
       headers: { Authorization: `Bearer ${login.accessToken}` },
     });
-    assert(householdsAfterCreate.households?.length === 2, "my home should create a second household through the API");
+    assert.equal(householdsAfterCreate.households?.length, 2, "an owner should be able to create a second household through the explicit household API");
     assert(householdsAfterCreate.family?.name === "爸妈家", "new household should become active after creation");
 
-    await page.getByRole("main").getByRole("button", { name: "我的家", exact: true }).click();
-    await page.waitForFunction(() => {
-      const buttons = [...document.querySelectorAll("button")];
-      return buttons.some((button) => button.textContent?.includes("我的家") && String(button.className || "").includes("bg-ink"));
-    }, null, { timeout: 10000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("family-living-room").getByRole("heading", { name: "爸妈家", exact: true }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: /^家庭设置/ }).click();
+    await page.getByTestId("household-switcher").getByRole("button", { name: /我的家.*切换/ }).click();
+    await page.getByTestId("family-living-room").getByRole("heading", { name: "我的家", exact: true }).waitFor({ timeout: 10000 });
     const householdsAfterSwitch = await request(`${apiBaseUrl}/households`, {
       headers: { Authorization: `Bearer ${login.accessToken}` },
     });
     assert(householdsAfterSwitch.family?.name === "我的家", "household switcher should update the active household on the server");
+    assert.equal(householdsAfterSwitch.family.id, firstFamily.family.id, "the switcher should return to the original household identity");
   } finally {
     await context.close();
   }
 }
 
-async function verifyMyHomeCraveStartFlow({ browser, webBaseUrl }) {
+async function verifyMyHomeCraveStartFlow({ browser, apiBaseUrl, webBaseUrl }) {
+  await clearOwnerActiveCraveRequest(apiBaseUrl);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.addInitScript(() => {
@@ -1219,23 +1150,20 @@ async function verifyMyHomeCraveStartFlow({ browser, webBaseUrl }) {
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "问问大家", exact: true }).click();
-    await page.getByText("今晚想先照顾哪种感觉？").waitFor({ timeout: 10000 });
+    await page.getByTestId("family-living-room").waitFor({ timeout: 10000 });
+    assert.equal(await page.getByRole("button", { name: "问问大家", exact: true }).count(), 0, "the family living room should not embed the dinner collaboration composer");
+    await page.getByTestId("mobile-nav-dashboard").click();
+    await page.getByText("今晚吃什么").waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "问问大家想吃啥" }).click();
+    await page.getByRole("heading", { name: "先发一张征集单" }).waitFor({ timeout: 10000 });
     await page.getByText("今晚想问谁").waitFor({ timeout: 10000 });
-    await page.getByText("家人会看到").waitFor({ timeout: 10000 });
-    await page.getByText("家人怎么回").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "想喝汤" }).click();
-    await page.getByRole("button", { name: "发起征集" }).click();
-    await page.getByText("已经可以发给家人了").waitFor({ timeout: 10000 });
-    await page.getByRole("heading", { name: "大家今晚想吃什么" }).waitFor({ timeout: 10000 });
-    await page.getByText(/CRAVE-[A-Z0-9]{6}/).waitFor({ timeout: 10000 });
-    await page.getByText("没人回复时", { exact: true }).waitFor({ timeout: 10000 });
-    await page.getByText("想喝汤").first().waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "生成征集单" }).click();
+    await page.getByText("刷新回复").waitFor({ timeout: 10000 });
     const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
-    assert(activeRequest?.token, "my home crave composer should create an active crave request");
-    assert.equal(activeRequest?.starterFeeling, "想喝汤", "my home crave composer should keep starter feeling");
-    assert(activeRequest?.targetParticipantNames?.includes("家人"), "my home crave composer should keep selected audience");
+    assert(activeRequest?.token, "the dashboard collaboration composer should create an active crave request");
+    assert.equal(activeRequest?.starterFeeling, "想喝汤", "the dashboard composer should keep starter feeling");
+    assert(activeRequest?.targetParticipantNames?.includes("家人"), "the dashboard composer should keep selected audience");
   } finally {
     await context.close();
   }
@@ -1248,51 +1176,51 @@ async function verifyMyHomeFirstViewportHierarchy({ browser, webBaseUrl }) {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
   });
+  await seedLocalOwnerSession(page);
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
+    const livingRoom = page.getByTestId("family-living-room");
+    await livingRoom.waitFor({ timeout: 10000 });
     assert.equal(await page.getByRole("button", { name: "返回上一页" }).count(), 0, "my home is a root tab and should not show a back button");
-    await page.getByRole("heading", { name: "今晚先看这三件事" }).waitFor({ timeout: 10000 });
-    assert.equal(await page.getByRole("heading", { name: "今晚一家人进展" }).count(), 0, "my home should not repeat the collaboration hub");
-    assert.equal(await page.getByRole("heading", { name: "吃饭画像慢慢反射" }).count(), 0, "my home should not repeat the portrait receipt");
-    assert.equal(await page.getByRole("heading", { name: "你的日常选择，正在让推荐更懂你家" }).count(), 0, "empty preference summary should stay hidden until the first signal exists");
+    const text = await livingRoom.innerText();
+    for (const label of ["当前家庭", "家庭操作", "正在一起做", "家庭偏好"]) {
+      assert(text.includes(label), `my home should expose the focused ${label} section`);
+    }
+    assert.equal(/(?:云同步|AI|验证数据|营养目标|营养分析)/.test(text), false, "my home should keep implementation and analytics clutter out of the living room");
+    await livingRoom.getByTestId("current-family-role").getByText("主厨", { exact: true }).waitFor();
+    await livingRoom.getByTestId("current-family-member-count").getByText(/\d+ 位家人/).waitFor();
+    assert((await livingRoom.getByTestId("current-family-member-avatars").locator("img, [data-testid='member-avatar-fallback']").count()) > 0, "my home should show member identity through avatars or initials");
     const firstViewportInkButtons = await getFirstViewportInkButtonLabels(page);
-    assert.equal(
-      JSON.stringify(firstViewportInkButtons),
-      JSON.stringify([]),
-      `my home first viewport should not contain competing ink primary buttons, found: ${firstViewportInkButtons.join(", ")}`,
-    );
-    const askButtonsInFirstViewport = await page.evaluate(() =>
-      [...document.querySelectorAll("button")]
-        .filter((button) => button.textContent?.trim() === "问问大家")
-        .filter((button) => {
-          const rect = button.getBoundingClientRect();
-          return rect.top >= 0 && rect.bottom <= window.innerHeight;
-        }).length,
-    );
-    assert.equal(askButtonsInFirstViewport, 1, "my home first viewport should expose one clear ask-family entry");
+    assert(firstViewportInkButtons.length <= 1, `my home first viewport should keep one dominant action at most, found: ${firstViewportInkButtons.join(", ")}`);
   } finally {
     await context.close();
   }
 }
 
-async function verifyMyHomeSoloFallbackFlow({ browser, webBaseUrl }) {
+async function verifyMyHomeSoloFallbackFlow({ browser, apiBaseUrl, webBaseUrl }) {
+  await clearOwnerActiveCraveRequest(apiBaseUrl);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
   });
+  await seedLocalOwnerSession(page);
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByText("今晚一起决定").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "问问大家", exact: true }).click();
-    await page.getByText("今晚想先照顾哪种感觉？").waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "想喝汤" }).click();
-    await page.getByRole("button", { name: "我自己做主" }).click();
+    const livingRoom = page.getByTestId("family-living-room");
+    await livingRoom.waitFor({ timeout: 10000 });
+    await livingRoom.getByTestId("current-family-member-count").getByText("1 位家人", { exact: true }).waitFor();
+    await livingRoom.getByText("还没有进行中的协作，今晚可以先问问大家。", { exact: true }).waitFor();
+    assert.equal(await livingRoom.getByRole("button", { name: "问问大家", exact: true }).count(), 0, "a solo family should not be pressured by an embedded collaboration composer");
+    await page.getByTestId("mobile-nav-dashboard").click();
     await page.getByText("今晚吃什么").waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "问问大家想吃啥" }).click();
+    await page.getByRole("heading", { name: "先发一张征集单" }).waitFor({ timeout: 10000 });
+    await page.getByRole("button", { name: "想喝汤" }).click();
+    await page.getByRole("button", { name: "我自己做主，直接出菜单" }).click();
     await page.getByText(/已先按“想喝汤”安排了一组/).waitFor({ timeout: 10000 });
 
     await page.waitForFunction(() => {
@@ -1531,9 +1459,10 @@ async function verifyLibraryMealPlanningFlow({ browser, webBaseUrl, expectedReci
     await page.getByText("推荐外入口").first().waitFor({ timeout: 10000 });
 
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /全部菜品.*推荐外的完整菜品库.*去挑/ }).click();
+    await page.getByTestId("mobile-nav-dashboard").click();
+    await page.getByRole("button", { name: "全部菜品库" }).click();
     await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 10000 });
-    await page.getByText("我的家 · 推荐外子页面").waitFor({ timeout: 10000 });
+    await page.getByText("发现 · 推荐外子页面").waitFor({ timeout: 10000 });
     await page.getByRole("heading", { name: "今晚已安排" }).waitFor({ timeout: 10000 });
     const selectedAndVisibleCardCount = await page.evaluate(() => {
       const selectedCountText = [...document.querySelectorAll("[data-testid='selected-recipes-panel'] span")]
@@ -1617,39 +1546,46 @@ async function verifyMealPipelineFlow({ browser, webBaseUrl }) {
   }
 }
 
-async function verifyThreeMealPortraitFlow({ browser, webBaseUrl }) {
+async function verifyThreeMealPortraitFlow({ browser, apiBaseUrl, webBaseUrl }) {
+  const todayKey = formatLocalDateKey();
+  const envelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  const mealLog = {
+    source: "home",
+    recordedBy: "阿宁",
+    confirmation: "all",
+    confirmedBy: "阿宁",
+    consumedEntries: [{ recipeId: "potato-shreds", quantity: 1 }],
+    mealSources: { breakfast: "home", lunch: "delivery" },
+    mealRecordedBy: { breakfast: "阿宁", lunch: "阿宁" },
+    updatedAt: new Date().toISOString(),
+  };
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: envelope.family.id,
+      state: { ...(envelope.state || {}), mealLogs: { ...(envelope.state?.mealLogs || {}), [todayKey]: mealLog } },
+    },
+  });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript((todayKey) => {
+  await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
-    localStorage.setItem("family-menu:meal-logs:v1", JSON.stringify({
-      [todayKey]: {
-        source: "home",
-        recordedBy: "阿宁",
-        confirmation: "all",
-        confirmedBy: "阿宁",
-        consumedEntries: [{ recipeId: "potato-shreds", quantity: 1 }],
-        mealSources: {
-          breakfast: "home",
-          lunch: "delivery",
-        },
-        mealRecordedBy: {
-          breakfast: "阿宁",
-          lunch: "阿宁",
-        },
-      },
-    }));
-  }, formatLocalDateKey());
+  });
+  await seedLocalOwnerSession(page);
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "三餐记录开始成形。" }).waitFor({ timeout: 10000 });
-    await page.getByText("早餐 1 次 · 午餐 1 次 · 晚饭确认 1 次；Humi 正在慢慢了解你家的节奏。").waitFor({ timeout: 10000 });
-    await page.getByText("阿宁记下了今天吃饭").waitFor({ timeout: 10000 });
-    await page.getByText("今天 · 早餐在家做 · 午餐点外卖 · 晚饭做了 青椒土豆丝").waitFor({ timeout: 10000 });
-    await page.getByText("已留下 3 条三餐记录").waitFor({ timeout: 10000 });
-    await page.getByText("早餐 1 次 · 午餐 1 次 · 晚饭确认 1 次；晚饭在家做 1 次，外食/外卖 0 次。").waitFor({ timeout: 10000 });
+    await page.getByTestId("family-living-room").waitFor({ timeout: 10000 });
+    assert.equal(await page.getByRole("heading", { name: "三餐记录开始成形。" }).count(), 0, "the focused family living room should not restore the retired meal-portrait dashboard");
+    await page.getByRole("button", { name: /^协作记录/ }).click();
+    await page.getByRole("heading", { name: "一起完成的事" }).waitFor({ timeout: 10000 });
+    await page.getByText("确认了一顿饭", { exact: true }).waitFor({ timeout: 10000 });
+    const retainedLog = await page.evaluate((key) => JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}")[key], todayKey);
+    assert.equal(retainedLog?.mealSources?.breakfast, "home", "the current activity flow should preserve the breakfast source");
+    assert.equal(retainedLog?.mealSources?.lunch, "delivery", "the current activity flow should preserve the lunch source");
+    assert.equal(retainedLog?.confirmation, "all", "the current activity flow should preserve the dinner confirmation");
   } finally {
     await context.close();
   }
@@ -1774,6 +1710,27 @@ async function seedLocalOwnerSession(page) {
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
     localStorage.setItem("humi:identity-session:v1", JSON.stringify(session));
   }, smokeOwnerSession);
+}
+
+async function createSmokeOwnerHousehold() {
+  const created = await request(`${apiBaseUrl}/households`, {
+    method: "POST",
+    headers: ownerAuthHeaders(),
+    body: { householdName: "测试家", memberName: "主厨" },
+  });
+  assert.equal(created.family?.name, "测试家", "collaboration smoke must explicitly create its owner household before collaboration");
+}
+
+async function clearOwnerActiveCraveRequest(apiBaseUrl) {
+  const envelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: envelope.family.id,
+      state: { ...(envelope.state || {}), activeCraveRequest: null, craveSignals: [] },
+    },
+  });
 }
 
 function ownerAuthHeaders() {

@@ -525,8 +525,10 @@ async function handleCreateHousehold(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
+  const householdName = stringValue(body.householdName || body.name, 32);
+  if (!householdName) throw httpError(400, "household_name_required", "请填写家庭名称。");
   const household = await store.createHouseholdForUser(user.id, {
-    householdName: stringValue(body.householdName || body.name, 32) || "我的家",
+    householdName,
     memberName: stringValue(body.memberName, 32) || user.displayName,
   });
   const households = await store.getHouseholdsForUser(user.id);
@@ -884,7 +886,7 @@ async function handleJoinGroceryShare(request, response, token) {
     sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
-      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "claim_not_found") {
       throw httpError(404, "claim_not_found", "没有找到你刚才的买菜参与记录。");
@@ -958,7 +960,7 @@ async function handleJoinWishShare(request, response, token) {
     sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
-      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "wish_not_found") {
       throw httpError(404, "wish_not_found", "没有找到你刚才的想吃记录。");
@@ -1006,7 +1008,7 @@ async function handleJoinCraveRequest(request, response, token) {
     sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
-      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");
+      throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "vote_not_found") {
       throw httpError(404, "vote_not_found", "没有找到你刚才的投票，可以直接回 Humi 查看。");

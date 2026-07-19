@@ -28,7 +28,9 @@ export function UserCenter({
   mealLogs = {},
 }) {
   const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
-  const [pageId, setPageId] = useState("home");
+  const [familyRoute, setFamilyRoute] = useState(() => ({ familyId: family?.id || "", pageId: "home" }));
+  const pageId = familyRoute.familyId === (family?.id || "") ? familyRoute.pageId : "home";
+  const navigateWithinFamily = (nextPageId) => setFamilyRoute({ familyId: family?.id || "", pageId: nextPageId });
   const formalMembers = useMemo(
     () => resolveFormalMembers(family, householdMembers),
     [family, householdMembers],
@@ -63,7 +65,7 @@ export function UserCenter({
     );
   }
 
-  const commonPageProps = { onBack: () => setPageId("home") };
+  const commonPageProps = { onBack: () => navigateWithinFamily("home") };
   if (pageId === "members") {
     return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={onCreateHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
   }
@@ -84,7 +86,7 @@ export function UserCenter({
       activeCollaborations={activeCollaborations}
       preferenceSummary={buildPreferenceSummary(familyProfile)}
       activePageId={pageId}
-      onNavigate={setPageId}
+      onNavigate={navigateWithinFamily}
       onInvite={onCreateHouseholdInvite}
       onStartWishShare={onStartWishShare}
       canInvite={canManageHousehold}

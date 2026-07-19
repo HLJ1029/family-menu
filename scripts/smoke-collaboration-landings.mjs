@@ -4,7 +4,11 @@ import { chromium } from "playwright";
 
 const args = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(args.baseUrl || process.env.HUMI_COLLABORATION_SMOKE_BASE_URL || "https://www.humi-home.com/");
-const evidenceDir = args.evidenceDir || process.env.HUMI_COLLABORATION_SMOKE_EVIDENCE_DIR || "/tmp/humi-collaboration-smoke";
+const DEFAULT_PRIVATE_DIR = "/Users/honglijie/.humi-release-evidence";
+const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z");
+const evidenceDir = args.evidenceDir
+  || process.env.HUMI_COLLABORATION_SMOKE_EVIDENCE_DIR
+  || join(process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR, `collaboration-landings-smoke-${timestamp}`);
 
 await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
 
