@@ -53,6 +53,16 @@ The failure occurred at `scripts/smoke-humi-api.mjs:527`: the old action respons
 - `git diff --check` — passed.
 - Targeted changed-file secret scan — passed; no credential/private-key/Supabase service-role markers.
 
+## Reviewer P3 test-coverage closure
+
+After the independent Task 2 review returned GO with P3 coverage follow-up, the API smoke permanently added these real-server checks without changing production code:
+
+1. For Crave, Grocery, and Wish action endpoints, a correctly signed but expired session token returns `401 invalid_token`; both the corresponding legacy business-action array and all `collaborationEvents` remain unchanged.
+2. For all three action endpoints, an unknown public token returns the established type-specific `404` (`crave_request_not_found`, `grocery_share_not_found`, or `wish_share_not_found`) and leaves both request collections and `collaborationEvents` unchanged.
+3. Posting to a closed Crave request retains the existing `200`/`status: "closed"` contract and creates neither a new vote nor a collaboration event.
+
+The expired-token fixture uses a locally signed token with `ttlSeconds: -1` and the API smoke's explicit test-only session secret, so it exercises the real expiry verification branch rather than a malformed-token fallback. The added assertions passed with `validate:api`; `validate:collaboration-identity`, `validate:identity`, `validate:household`, diff check, and targeted secret scan remained green.
+
 ## Deferrals and risks
 
 - Task 3 owns request-scoped guest ID persistence and UI submission wiring; Task 2 only accepts/returns the IDs at the API boundary.

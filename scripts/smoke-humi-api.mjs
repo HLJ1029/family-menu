@@ -6,13 +6,16 @@ import { join } from "node:path";
 const port = 18787;
 const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-api-smoke-"));
 const dataFile = join(smokeDirectory, "data.json");
+const smokeSessionSecret = "humi-api-smoke-secret";
 const explicitWechatOpenIds = new Set();
 let explicitHouseholdCreateCount = 0;
 process.env.HUMI_API_DATA_FILE = dataFile;
 process.env.HUMI_AVATAR_DIR = join(smokeDirectory, "avatars");
 process.env.HUMI_POSTER_DIR = join(smokeDirectory, "posters");
 process.env.HUMI_PUBLIC_BASE_URL = `http://127.0.0.1:${port}`;
+process.env.HUMI_SESSION_SECRET = smokeSessionSecret;
 const { createHumiApiServer } = await import("../api/server.js");
+const { createSessionToken } = await import("../api/session.js");
 const server = createHumiApiServer();
 
 await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
@@ -556,6 +559,20 @@ try {
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "invalid crave bearer must not create collaboration history");
   assert.deepEqual(await readCollaborationBusinessActions("crave", crave.request.id), craveActionsBeforeInvalidBearer, "invalid crave bearer must not create a business action");
+  await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${createExpiredBearer(login.user.id)}` },
+    body: { feelingTag: "不应写入" },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "expired crave bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("crave", crave.request.id), craveActionsBeforeInvalidBearer, "expired crave bearer must not create a business action");
+  const craveRequestsBeforeUnknownToken = await readCollaborationRequestCollection("crave");
+  await assertRejectedRequest(`${baseUrl}/crave-requests/unknown-crave-token/votes`, {
+    method: "POST",
+    body: { feelingTag: "不应写入" },
+  }, 404, "crave_request_not_found");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "unknown crave token must not create collaboration history");
+  assert.deepEqual(await readCollaborationRequestCollection("crave"), craveRequestsBeforeUnknownToken, "unknown crave token must not create a business action");
   explicitWechatOpenIds.add(`revoked-crave-${runId}`);
   const revokedCraveSession = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
@@ -759,6 +776,15 @@ try {
   });
   assert(closedCrave.request?.status === "closed", "closed crave request should return closed status");
   assert(closedCrave.request?.resultSummary?.dishes?.[0]?.name === "番茄炒蛋", "closed crave request should expose result summary");
+  const closedCraveEventsBeforeSubmit = await readCollaborationEvents();
+  const closedCraveActionsBeforeSubmit = await readCollaborationBusinessActions("crave", crave.request.id);
+  const closedCraveSubmit = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    body: { feelingTag: "不应新增", dishWish: "不应新增" },
+  });
+  assert.equal(closedCraveSubmit.request?.status, "closed", "closed crave submit should preserve the existing 200 closed contract");
+  assert.deepEqual(await readCollaborationEvents(), closedCraveEventsBeforeSubmit, "closed crave submit must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("crave", crave.request.id), closedCraveActionsBeforeSubmit, "closed crave submit must not create a business action");
   const publicClosedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}`);
   assert(publicClosedCrave.request?.resultSummary?.dishes?.[0]?.name === "番茄炒蛋", "public crave request should keep result summary");
 
@@ -970,6 +996,20 @@ try {
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "invalid grocery bearer must not create collaboration history");
   assert.deepEqual(await readCollaborationBusinessActions("grocery", batchGrocery.request.id), groceryActionsBeforeInvalidBearer, "invalid grocery bearer must not create a business action");
+  await assertRejectedRequest(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${createExpiredBearer(login.user.id)}` },
+    body: { itemIds: ["egg"] },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "expired grocery bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("grocery", batchGrocery.request.id), groceryActionsBeforeInvalidBearer, "expired grocery bearer must not create a business action");
+  const groceryRequestsBeforeUnknownToken = await readCollaborationRequestCollection("grocery");
+  await assertRejectedRequest(`${baseUrl}/grocery-share-requests/unknown-grocery-token/claims`, {
+    method: "POST",
+    body: { itemIds: ["egg"] },
+  }, 404, "grocery_share_not_found");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "unknown grocery token must not create collaboration history");
+  assert.deepEqual(await readCollaborationRequestCollection("grocery"), groceryRequestsBeforeUnknownToken, "unknown grocery token must not create a business action");
   explicitWechatOpenIds.add(`revoked-grocery-${runId}`);
   const revokedGrocerySession = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
@@ -1057,6 +1097,20 @@ try {
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "invalid wish bearer must not create collaboration history");
   assert.deepEqual(await readCollaborationBusinessActions("wish", wishShare.request.id), wishActionsBeforeInvalidBearer, "invalid wish bearer must not create a business action");
+  await assertRejectedRequest(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${createExpiredBearer(login.user.id)}` },
+    body: { dishName: "不应写入" },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "expired wish bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("wish", wishShare.request.id), wishActionsBeforeInvalidBearer, "expired wish bearer must not create a business action");
+  const wishRequestsBeforeUnknownToken = await readCollaborationRequestCollection("wish");
+  await assertRejectedRequest(`${baseUrl}/wish-share-requests/unknown-wish-token/wishes`, {
+    method: "POST",
+    body: { dishName: "不应写入" },
+  }, 404, "wish_share_not_found");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "unknown wish token must not create collaboration history");
+  assert.deepEqual(await readCollaborationRequestCollection("wish"), wishRequestsBeforeUnknownToken, "unknown wish token must not create a business action");
   explicitWechatOpenIds.add(`revoked-wish-${runId}`);
   const revokedWishSession = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
@@ -1412,6 +1466,17 @@ async function readCollaborationBusinessActions(requestType, requestId) {
   if (requestType === "crave") return request?.votes ?? [];
   if (requestType === "grocery") return request?.claims ?? [];
   return request?.wishes ?? [];
+}
+
+async function readCollaborationRequestCollection(requestType) {
+  const data = JSON.parse(await readFile(dataFile, "utf8"));
+  if (requestType === "crave") return data.craveRequests ?? [];
+  if (requestType === "grocery") return data.groceryShareRequests ?? [];
+  return data.wishShareRequests ?? [];
+}
+
+function createExpiredBearer(userId) {
+  return createSessionToken({ userId, secret: smokeSessionSecret, ttlSeconds: -1 }).token;
 }
 
 function assertHouseholdEnvelope(response, label) {
