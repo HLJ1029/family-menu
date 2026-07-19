@@ -3,7 +3,8 @@
     "pages/index/index",
     "pages/share/index",
     "pages/poster/index",
-    "pages/phone-bind/index"
+    "pages/phone-bind/index",
+    "pages/identity/index"
   ],
   "window": {
     "navigationBarTitleText": "Humi",

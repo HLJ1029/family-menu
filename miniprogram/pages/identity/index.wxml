@@ -1,0 +1,23 @@
+<view class="identity-shell">
+  <view class="brand-mark">Humi</view>
+  <view class="identity-card">
+    <view class="eyebrow">你的 Humi 身份</view>
+    <view class="title">以后家人会这样看到你。</view>
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+      <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="avatar-placeholder">使用 Humi 默认头像</view>
+    </button>
+    <input
+      class="nickname-input"
+      type="nickname"
+      value="{{displayName}}"
+      placeholder="输入你的昵称"
+      maxlength="32"
+      bindinput="updateNickname"
+    />
+    <button class="primary-button" bindtap="submit" loading="{{pending}}" disabled="{{pending}}">
+      进入 Humi
+    </button>
+    <view wx:if="{{error}}" class="error-text">{{error}}</view>
+  </view>
+</view>
