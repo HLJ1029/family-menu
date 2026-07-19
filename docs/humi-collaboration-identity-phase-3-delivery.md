@@ -1,9 +1,9 @@
 # Humi 协作身份与历史 Phase 3 交付记录
 
-更新日期：2026-07-20  
-执行设备：`codex@mbp-m5pro`  
-分支：`codex/humi-wechat-identity-startup`  
-Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）  
+更新日期：2026-07-20
+执行设备：`codex@mbp-m5pro`
+分支：`codex/humi-wechat-identity-startup`
+Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）
 当前本地候选：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`（`test: avoid bearer fixture secret scan false positives`）
 
 本记录覆盖 Phase 3 Task 6 的本地候选验证。Tasks 1–5 的功能实现已在本记录之前提交；`51e0244` 仅将测试中的长 Bearer 哨兵改为短哨兵，避免被团队 secret scan 的通用规则误判，未改变产品运行行为或测试断言语义。此后本记录和主规格进度更新会作为独立 documentation commit 提交；Task 6 report 会再以独立提交固定该 documentation commit。

@@ -30,3 +30,7 @@ The first Task 6 full-matrix scan was RED: five pre-existing tracked test fixtur
 ## Exact deferrals
 
 Still deferred and unauthorized: true-device WeChat login/profile/WebView ticket and guest-flow validation; production deployment and writes; migration backup/dry-run/apply/rollback; provider operations; Supabase physical retirement; and final production user/identity/household/state count reconciliation. The candidate awaits independent Phase 3 broad review; any later local GO only permits Phase 4 local preparation and does not authorize external actions.
+
+## Documentation correction
+
+After the report commit, the parent flow found trailing whitespace on the first four metadata lines of the delivery document. The original report had cited a bare `git diff --check` from a clean worktree; that command checks only uncommitted changes and therefore did not validate the already committed Task 6 range. This correction removes only those four trailing-space suffixes. Before its commit, `git diff --check 184d2d2` validates the complete Task 6 range including the current correction; after its commit, `git diff --check 184d2d2..HEAD` must validate the complete committed range. The exact secret scan is re-run as the correction gate. No behavior, parent-plan state, AI-HQ artifact, or external system is changed.
