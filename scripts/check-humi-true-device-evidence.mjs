@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdtemp, readFile, realpath, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readFile, realpath, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
@@ -23,19 +23,27 @@ export const REQUIRED_SCENARIOS = [
   "logout_to_guest",
 ];
 
-const PII_PATTERN = /(?:\+?86[- ]?)?1[3-9]\d{9}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:openid|unionid|token|session|authorization)\b\s*[:=]\s*\S+|sk-[A-Za-z0-9_-]{12,}/i;
+const PII_PATTERN = /(?:\+?86[- ]?)?1[3-9]\d{9}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:openid|unionid|token|session|authorization)\b\s*[:=]\s*\S+|\bo[A-Za-z0-9_-]{20,31}\b|sk-[A-Za-z0-9_-]{12,}/i;
 const UTC_ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
 export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   const root = resolve(evidenceDir);
   const realRoot = await realpath(root);
   const manifestPath = resolve(root, "manifest.json");
+  const manifestStat = await lstat(manifestPath).catch(() => null);
+  if (!manifestStat?.isFile() || manifestStat.isSymbolicLink()) fail("manifest_path_invalid");
+  const realManifestPath = await realpath(manifestPath);
+  const realManifestInsideRoot = relative(realRoot, realManifestPath);
+  if (!realManifestInsideRoot || realManifestInsideRoot.startsWith("..") || isAbsolute(realManifestInsideRoot)) {
+    fail("manifest_path_invalid");
+  }
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   if (manifest?.schemaVersion !== 1 || !isRecord(manifest.scenarios)) fail("manifest_schema_invalid");
   const candidateTime = Date.parse(candidateTimestamp);
   if (!Number.isFinite(candidateTime)) fail("candidate_timestamp_invalid");
 
   const rows = [];
+  const seenArtifacts = new Set();
   for (const scenario of REQUIRED_SCENARIOS) {
     const entry = manifest.scenarios[scenario];
     if (!isRecord(entry)) fail("scenario_missing", scenario);
@@ -66,7 +74,11 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
     if (!realArtifactPath || !realInsideRoot || realInsideRoot.startsWith("..") || isAbsolute(realInsideRoot)) {
       fail("artifact_path_invalid", scenario);
     }
+    if (realArtifactPath === realManifestPath) fail("artifact_path_invalid", scenario);
     if (!artifactStat.isFile() || artifactStat.size < 1) fail("artifact_missing", scenario);
+    const artifactIdentity = `${artifactStat.dev}:${artifactStat.ino}`;
+    if (seenArtifacts.has(artifactIdentity)) fail("artifact_reused", scenario);
+    seenArtifacts.add(artifactIdentity);
     rows.push({ scenario, status: entry.result, path: entry.artifactPath });
   }
   return rows;
@@ -128,15 +140,36 @@ async function selftest() {
   await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: linked }, null, 2)}\n`);
   await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /artifact_path_invalid/);
 
+  const manifestAsArtifact = structuredClone(scenarios);
+  manifestAsArtifact.fresh_guest_start.artifactPath = "manifest.json";
+  await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: manifestAsArtifact }, null, 2)}\n`);
+  await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /artifact_path_invalid/);
+
+  const reusedArtifact = structuredClone(scenarios);
+  reusedArtifact.guest_crave.artifactPath = reusedArtifact.fresh_guest_start.artifactPath;
+  await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: reusedArtifact }, null, 2)}\n`);
+  await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /artifact_reused/);
+
   const unsafeMetadata = structuredClone(scenarios);
   unsafeMetadata.guest_crave.deviceModel = "13800138000";
   await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: unsafeMetadata }, null, 2)}\n`);
+  await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /privacy_check_failed/);
+
+  const bareIdentity = structuredClone(scenarios);
+  bareIdentity.signed_in_crave.testerRole = "oAbCdEfGhIjKlMnOpQrStUvWxYz";
+  await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: bareIdentity }, null, 2)}\n`);
   await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /privacy_check_failed/);
 
   const looseTimestamp = structuredClone(scenarios);
   looseTimestamp.guest_grocery.timestamp = "July 20, 2026 08:00 UTC";
   await writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, scenarios: looseTimestamp }, null, 2)}\n`);
   await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /timestamp_format_invalid/);
+
+  const externalManifest = join(externalRoot, "external-manifest.json");
+  await writeFile(externalManifest, `${JSON.stringify({ schemaVersion: 1, scenarios }, null, 2)}\n`);
+  await unlink(manifestPath);
+  await symlink(externalManifest, manifestPath);
+  await assert.rejects(validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-20T07:00:00.000Z" }), /manifest_path_invalid/);
   console.log("Humi true-device evidence selftest passed.");
 }
 

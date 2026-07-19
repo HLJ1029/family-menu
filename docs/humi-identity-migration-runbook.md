@@ -1,6 +1,6 @@
 # Humi 身份与家庭数据迁移 Runbook
 
-状态：本地预案；不构成生产执行授权。  
+状态：本地预案；不构成生产执行授权。
 适用工具：`scripts/audit-humi-migration-readiness.mjs`、`scripts/migrate-humi-identity-households.mjs`。
 
 ## 安全边界

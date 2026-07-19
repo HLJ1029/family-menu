@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const PROVIDER_PATTERN = /supabase\.co|@supabase|VITE_SUPABASE|SUPABASE_URL|SUPABASE_ANON_KEY|\bsupabase\b/i;
 const LOCKFILE_PATTERN = /node_modules\/@supabase\/|@supabase\/supabase-js/i;
+const PACKAGE_SCRIPT_PATTERN = /supabase\.co|@supabase|VITE_SUPABASE|SUPABASE_URL|SUPABASE_ANON_KEY|(?:^|[\s;&|])supabase(?:[\s;&|]|$)/i;
 
 export async function checkSupabaseRetirement(rootPath) {
   const root = resolve(rootPath);
@@ -13,6 +14,11 @@ export async function checkSupabaseRetirement(rootPath) {
   if (packageJson.dependencies?.["@supabase/supabase-js"] || packageJson.devDependencies?.["@supabase/supabase-js"]) {
     failures.add("dependency:@supabase/supabase-js");
   }
+  if (Object.values(packageJson.scripts ?? {}).some((command) => PACKAGE_SCRIPT_PATTERN.test(String(command)))) {
+    failures.add("config:package.json");
+  }
+  const { scripts: _scripts, dependencies: _dependencies, devDependencies: _devDependencies, ...packageMetadata } = packageJson;
+  if (PROVIDER_PATTERN.test(JSON.stringify(packageMetadata))) failures.add("config:package.json");
   await scanOptionalFile(root, resolve(root, "package-lock.json"), LOCKFILE_PATTERN, "lockfile", failures);
 
   for (const directory of ["src", "api", "miniprogram", "public"]) {
@@ -22,7 +28,7 @@ export async function checkSupabaseRetirement(rootPath) {
 
   for (const entry of await readdir(root, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
-    if (/^\.env(?:\.|$)/.test(entry.name) || /^(?:vite|webpack|rollup)\.config\./.test(entry.name)) {
+    if (/^\.env(?:\.|$)/.test(entry.name) || /(?:^|\.)config(?:\.|$)/.test(entry.name) || /(?:^|\.)rc(?:\.|$)/.test(entry.name)) {
       await scanOptionalFile(root, resolve(root, entry.name), PROVIDER_PATTERN, "config", failures);
     }
   }
