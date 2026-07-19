@@ -300,7 +300,10 @@ async function humiApiRequest(path, { method = "GET", session, body } = {}) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.message || "Humi 账号同步暂时不可用。");
+      const error = new Error(data.message || "Humi 账号同步暂时不可用。");
+      error.status = response.status;
+      error.code = data.error || "";
+      throw error;
     }
     return data;
   } catch (error) {

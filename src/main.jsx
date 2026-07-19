@@ -62,7 +62,7 @@ import {
 } from "./lib/recipes";
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
-import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiTicketFromUrl } from "./lib/humiIdentity";
+import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
 import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
@@ -128,6 +128,7 @@ function App() {
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authStatus, setAuthStatus] = useState("");
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
+  const [sessionExpired, setSessionExpired] = useState(() => takeHumiSessionExpiredNotice());
   const [family, setFamily] = useState(null);
   const [humiHouseholds, setHumiHouseholds] = useState([]);
   const [familyName, setFamilyName] = useState("我的家庭");
@@ -274,6 +275,7 @@ function App() {
         if (!active) return;
         const normalized = saveHumiSession(sessionValue);
         setHumiSession(normalized);
+        setSessionExpired(false);
         setOnboardingComplete(true);
         setAuthStatus("已登录 Humi。");
         setAuthGateIntent("");
@@ -307,6 +309,10 @@ function App() {
         completed = true;
       } catch (error) {
         if (active) {
+          if (error?.status === 401 || error?.code === "invalid_session") {
+            expireHumiIdentity();
+            return;
+          }
           setCloudSyncStatus(formatCloudSyncError(error));
           setCloudGroceryStatus(formatCloudSyncError(error));
         }
@@ -2456,13 +2462,18 @@ function App() {
 
   async function handleSignOut() {
     setCloudLoading(true);
+    let remoteLogoutFailed = false;
     try {
       if (isHumiApiSession(humiSession)) {
         await logoutHumiSession(humiSession);
       }
+    } catch {
+      remoteLogoutFailed = true;
+    } finally {
       clearHumiSession();
       requestMiniProgramLogout();
       setHumiSession(null);
+      setSessionExpired(false);
       humiStateLoadedRef.current = false;
       humiStateHydratingRef.current = false;
       setFamily(null);
@@ -2473,13 +2484,25 @@ function App() {
       setProfileOnboardingComplete(false);
       viewHistoryRef.current = ["dashboard"];
       setActiveView("dashboard");
-      setAuthStatus("已退出登录，可以重新验证微信登录。");
+      setAuthStatus(remoteLogoutFailed ? "已从当前设备退出；远端会话会按有效期自动失效。" : "已退出登录，可以重新验证微信登录。");
       showNotice("已退出登录");
-    } catch (error) {
-      setAuthStatus(error.message);
-    } finally {
       setCloudLoading(false);
     }
+  }
+
+  function expireHumiIdentity() {
+    clearHumiSession();
+    setHumiSession(null);
+    setSessionExpired(true);
+    humiStateLoadedRef.current = false;
+    humiStateHydratingRef.current = false;
+    setFamily(null);
+    setHumiHouseholds([]);
+    setCloudMenuEnabled(false);
+    setCloudGroceryEnabled(false);
+    setFamilyMembers([]);
+    setAuthGateIntent("sessionExpired");
+    setAuthStatus("登录已过期，请重新微信登录。");
   }
 
   function buildAiRecommendationContext({
@@ -2963,6 +2986,7 @@ function App() {
 
   function continueAsGuest() {
     setAuthGateIntent("");
+    setSessionExpired(false);
     setEntryMotion(true);
     window.setTimeout(() => {
       const nextView = entryRedirectView || "dashboard";
@@ -3244,12 +3268,12 @@ function App() {
     );
   }
 
-  if (!signedIn && (authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
+  if (!signedIn && (sessionExpired || authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
     return (
       <>
         <AuthLanding
           onContinueGuest={continueAsGuest}
-          entryIntent={authGateIntent || (entryRedirectView === "user" ? "joinFamily" : "")}
+          entryIntent={authGateIntent || (sessionExpired ? "sessionExpired" : entryRedirectView === "user" ? "joinFamily" : "")}
         />
         {entryMotion && <EntryTableMotion />}
       </>
@@ -3922,9 +3946,6 @@ function formatAiError(error) {
   }
   if (message.includes("FunctionsHttpError") || message.includes("Edge Function")) {
     return "今晚建议暂时没想好。";
-  }
-  if (message.includes("Supabase is not configured")) {
-    return "暂时只能保存在本机。";
   }
   return message;
 }

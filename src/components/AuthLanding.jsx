@@ -12,7 +12,7 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
         <div className="pt-8 text-center">
           <p className="text-5xl font-black uppercase tracking-[0.02em] text-ink">HUMI</p>
           <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">
-            {entryIntent === "completeIdentity" ? "完善你的身份" : entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
+            {entryIntent === "sessionExpired" ? "登录已过期" : entryIntent === "completeIdentity" ? "完善你的身份" : entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
           </p>
         </div>
 
@@ -25,7 +25,7 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
               eager
             />
             <p className="mt-3 text-sm font-black text-ink">
-              {entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
+              {entryIntent === "sessionExpired" ? "重新登录后可以继续读取你的家庭；也可以先用游客模式。" : entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
             </p>
           </div>
 
@@ -65,7 +65,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
             <MessageCircle size={19} className="text-white" />
-            {entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
+            {entryIntent === "sessionExpired" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
             <button

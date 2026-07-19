@@ -42,6 +42,14 @@ try {
         },
       },
     };
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "product-smoke-owner-token",
+      refreshToken: "product-smoke-owner-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
+    }));
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
@@ -389,6 +397,8 @@ try {
   );
 
   await page.getByTestId("mobile-nav-user").click();
+  const mobileAccountSettingsVisible = await page.getByTestId("humi-account-settings").isVisible();
+  const mobileSignOutVisible = await page.getByRole("button", { name: "退出并重新验证微信登录", exact: true }).isVisible();
   const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
   const dinnerActivityVisible = await page.getByText(/(?:主厨|我)(?:记下了今天吃饭|确认今晚已做饭)/).isVisible();
   const wantActivityVisible = await page.getByText("想吃：冬瓜排骨汤").isVisible();
@@ -398,13 +408,13 @@ try {
   const legacyProfileControlsHidden = await page.getByRole("button", { name: /修改家庭画像/ }).count() === 0;
   const activityBeforeAccountSettings = await page.evaluate(() => {
     const activity = document.querySelector('[data-testid="family-activity-section"]');
-    const account = document.querySelector('[data-testid="cloud-account-section"]');
+    const account = document.querySelector('[data-testid="humi-account-settings"]');
     if (!activity || !account) return false;
     return Boolean(activity.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
   const wantPoolBeforeAccountSettings = await page.evaluate(() => {
     const wantPool = document.querySelector('[data-testid="want-to-eat-section"]');
-    const account = document.querySelector('[data-testid="cloud-account-section"]');
+    const account = document.querySelector('[data-testid="humi-account-settings"]');
     if (!wantPool || !account) return false;
     return Boolean(wantPool.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
@@ -562,6 +572,7 @@ try {
     { key: "family-activity-shows-grocery-claim", ok: groceryActivityVisible },
     { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
     { key: "family-activity-shows-want-item", ok: wantActivityVisible },
+    { key: "mobile-account-settings-are-visible", ok: mobileAccountSettingsVisible && mobileSignOutVisible },
     { key: "family-activity-precedes-account-settings", ok: activityBeforeAccountSettings },
     { key: "want-pool-precedes-account-settings", ok: wantPoolBeforeAccountSettings },
     { key: "used-family-activity-hides-self-introduction", ok: familyActivityIntroHiddenAfterUse },
@@ -661,10 +672,11 @@ async function seedGuestDinnerState(page) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "product-smoke-access-token",
       refreshToken: "product-smoke-access-token",
+      expiresAt: Date.now() + 60_000,
       user: {
         id: "product-smoke-owner",
         displayName: "主厨",
-        provider: "wechat",
+        provider: "wechat", profileStatus: "complete",
       },
     }));
     localStorage.setItem("family-menu:today-menu", JSON.stringify([{ recipeId: "tomato-egg", quantity: 1 }]));
@@ -700,7 +712,8 @@ async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "product-smoke-owner-token",
       refreshToken: "product-smoke-owner-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
     localStorage.setItem("family-menu:today-menu", "[]");
   });
@@ -910,7 +923,8 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "solo-owner-token",
       refreshToken: "solo-owner-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
   });
   await page.route("**/state", async (route) => {
@@ -999,7 +1013,8 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "multi-household-token",
       refreshToken: "multi-household-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
   });
   await page.route("**/households/active", async (route) => {
@@ -1097,7 +1112,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "product-smoke-member-token",
       refreshToken: "product-smoke-member-token",
-      user: { id: "product-smoke-member", displayName: "家人小林", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-member", displayName: "家人小林", provider: "wechat", profileStatus: "complete" },
     }));
     localStorage.setItem("family-menu:today-menu", "[]");
   });
@@ -1218,7 +1234,8 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "crave-test-token",
       refreshToken: "crave-test-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
     localStorage.setItem("family-menu:today-menu", "[]");
   });
@@ -1307,7 +1324,8 @@ async function verifyImplicitPantryPipeline(browser, base) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "pantry-pipeline-owner-token",
       refreshToken: "pantry-pipeline-owner-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
   });
   await page.route("**/state", async (route) => {
@@ -1374,7 +1392,8 @@ async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
     localStorage.setItem("humi:identity-session:v1", JSON.stringify({
       accessToken: "hard-constraint-onboarding-token",
       refreshToken: "hard-constraint-onboarding-token",
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat" },
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
     }));
   });
   await page.route("**/state", async (route) => {

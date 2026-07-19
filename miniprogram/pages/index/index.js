@@ -24,6 +24,12 @@ Page({
   },
 
   onLoad(options = {}) {
+    if (options.humiLogout === "1") {
+      getApp().clearHumiSession();
+      this.setData({ currentSession: null, loginError: "" });
+      this.finishInitialLoad();
+      return;
+    }
     const launchCraveToken = options.crave || "";
     const launchInviteToken = options.invite || "";
     const launchGroceryToken = options.grocery || "";

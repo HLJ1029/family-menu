@@ -126,6 +126,7 @@ export class HumiStore {
     user.avatarUrl = sanitizeText(profile.avatarUrl, user.avatarUrl || "", 240);
     user.profileStatus = "complete";
     user.updatedAt = new Date().toISOString();
+    this.syncIdentityToHouseholdMembers(user, { updateNickname: true });
     await this.save();
     return this.normalizeIdentityUser(user);
   }
@@ -138,6 +139,7 @@ export class HumiStore {
     if (!avatarUrl) throw codedError("avatar_url_required", "avatarUrl is required.");
     user.avatarUrl = avatarUrl;
     user.updatedAt = new Date().toISOString();
+    this.syncIdentityToHouseholdMembers(user);
     await this.save();
     return this.normalizeIdentityUser(user);
   }
@@ -215,6 +217,8 @@ export class HumiStore {
         {
           memberId: userId,
           nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "主厨",
+          avatarKey: user?.avatarKey || defaultAvatarKey(userId),
+          avatarUrl: user?.avatarUrl || "",
           role: "owner",
           status: "formal",
           joinedAt: now,
@@ -237,11 +241,15 @@ export class HumiStore {
       existingMember.status = "formal";
       existingMember.role = existingMember.role || "member";
       existingMember.nickname = sanitizeText(options.memberName, "", 32) || existingMember.nickname || user?.displayName || "家人";
+      existingMember.avatarKey = user?.avatarKey || existingMember.avatarKey || defaultAvatarKey(userId);
+      existingMember.avatarUrl = user?.avatarUrl || existingMember.avatarUrl || "";
       existingMember.updatedAt = now;
     } else {
       household.members.push({
         memberId: userId,
         nickname: sanitizeText(options.memberName, "", 32) || user?.displayName || "家人",
+        avatarKey: user?.avatarKey || defaultAvatarKey(userId),
+        avatarUrl: user?.avatarUrl || "",
         role: "member",
         status: "formal",
         joinedAt: now,
@@ -252,6 +260,18 @@ export class HumiStore {
     this.data.activeHouseholds[userId] = household.id;
     await this.save();
     return household;
+  }
+
+  syncIdentityToHouseholdMembers(user, { updateNickname = false } = {}) {
+    for (const household of this.data.households) {
+      const member = household.members?.find((item) => item.memberId === user.id);
+      if (!member) continue;
+      if (updateNickname) member.nickname = user.displayName;
+      member.avatarKey = user.avatarKey || defaultAvatarKey(user.id);
+      member.avatarUrl = user.avatarUrl || "";
+      member.updatedAt = user.updatedAt;
+      household.updatedAt = user.updatedAt;
+    }
   }
 
   async createHouseholdInvite(ownerUserId, payload = {}) {

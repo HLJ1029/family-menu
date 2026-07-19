@@ -3,6 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const pageSource = fs.readFileSync(new URL("../miniprogram/pages/index/index.js", import.meta.url), "utf8");
+const identityPageSource = fs.readFileSync(new URL("../miniprogram/pages/identity/index.js", import.meta.url), "utf8");
 
 function createPage(wxOverrides = {}, runtimeOverrides = {}) {
   let definition;
@@ -71,6 +72,59 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
   return { page, changes, app, navigations, requestUrls };
 }
 
+function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
+  let definition;
+  const app = {
+    globalData: { humiSession: runtimeOverrides.appSession ?? null },
+    setHumiSession(session) {
+      this.globalData.humiSession = session;
+    }
+  };
+  const requestUrls = [];
+  const relaunches = [];
+  const wx = {
+    login: ({ success }) => success({ code: "wechat-code" }),
+    request: ({ url, success, complete = () => {} }) => {
+      requestUrls.push(url);
+      success({
+        statusCode: 200,
+        data: {
+          accessToken: "identity-session-token",
+          expiresAt: Date.now() + 60_000,
+          user: { id: "user-1", displayName: "微信用户", profileStatus: "incomplete" }
+        }
+      });
+      complete();
+    },
+    reLaunch: ({ url }) => relaunches.push(url),
+    ...wxOverrides
+  };
+
+  vm.runInNewContext(identityPageSource, {
+    Page: (value) => {
+      definition = value;
+    },
+    getApp: () => app,
+    wx,
+    console,
+    Date,
+    require: (specifier) => {
+      assert.equal(specifier, "../../utils/config");
+      return { getHumiApiBaseUrl: () => "https://api.humi-home.com" };
+    }
+  });
+  assert.ok(definition, "identity page definition should load");
+
+  const page = {
+    ...definition,
+    data: structuredClone(definition.data),
+    setData(patch) {
+      this.data = { ...this.data, ...patch };
+    }
+  };
+  return { page, app, requestUrls, relaunches };
+}
+
 {
   let loginCalls = 0;
   const { page, changes } = createPage({
@@ -97,15 +151,16 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
 
 {
   let loginCalls = 0;
-  const { page } = createPage({
+  const { page, app, requestUrls } = createIdentityPage({
     login: ({ success }) => {
       loginCalls += 1;
       success({ code: "wechat-code" });
     }
   });
-  page.onLoad({});
-  page.handleMessage({ detail: { data: [{ type: "humi:wechat-login" }] } });
-  assert.equal(loginCalls, 1, "explicit H5 request should call wx.login once");
+  page.onLoad({ action: "login" });
+  assert.equal(loginCalls, 1, "explicit identity route should call wx.login once");
+  assert.equal(requestUrls.filter((url) => url.endsWith("/auth/wechat/login")).length, 1);
+  assert.equal(app.globalData.humiSession?.accessToken, "identity-session-token");
 }
 
 {
@@ -144,10 +199,10 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
     user: { id: "stored-user", displayName: "小禾", profileStatus: "complete" }
   };
   const { page, app } = createPage({}, { appSession: completeSession });
-  page.data.currentSession = completeSession;
-  page.handleMessage({ detail: { data: [{ type: "humi:logout" }] } });
+  page.onLoad({ humiLogout: "1" });
   assert.equal(app.globalData.humiSession, null);
   assert.equal(page.data.currentSession, null);
+  assert.doesNotMatch(page.data.url, /humiTicket=/);
 }
 
 {

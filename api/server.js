@@ -1283,6 +1283,8 @@ function toHumiFamily(household, user) {
     members: (household?.members ?? []).map((item) => ({
       memberId: item.memberId,
       nickname: item.nickname,
+      avatarKey: item.avatarKey || "humi-avatar-family-m-01",
+      avatarUrl: item.avatarUrl || "",
       role: item.role,
       status: item.status,
       joinedAt: item.joinedAt,

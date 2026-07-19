@@ -1047,12 +1047,13 @@ git commit -m "feat: add native Humi identity setup"
 ```js
 {
   let loginCalls = 0;
-  const { page } = createPage({
+  const { page, app, requestUrls } = createIdentityPage({
     login: ({ success }) => { loginCalls += 1; success({ code: "wechat-code" }); }
   });
-  page.onLoad({});
-  page.handleMessage({ detail: { data: [{ type: "humi:wechat-login" }] } });
-  assert.equal(loginCalls, 1, "explicit H5 request should call wx.login once");
+  page.onLoad({ action: "login" });
+  assert.equal(loginCalls, 1, "explicit identity route should call wx.login once");
+  assert.equal(requestUrls.filter((url) => url.endsWith("/auth/wechat/login")).length, 1);
+  assert.equal(app.globalData.humiSession?.accessToken, "identity-session-token");
 }
 ```
 
@@ -1131,9 +1132,9 @@ openAuthenticatedH5(session) {
 }
 ```
 
-`handleMessage()` 收到 `humi:wechat-login` 时按以下顺序处理：没有原生有效 session 才调用 `loginWithWechat()`；已有 session 但 `profileStatus !== "complete"` 时进入 `/pages/identity/index`；只有资料完整的 session 才调用 `openAuthenticatedH5()`。这样缓存会话也不能绕过昵称确认。
+H5 主按钮调用 `wx.miniProgram.navigateTo({ url: "/pages/identity/index?action=login" })`。身份页只有在收到这个显式 action 且当前没有有效 session 时才调用 `loginWithWechat()`；已有 session 但 `profileStatus !== "complete"` 时直接进入资料完善；只有资料完整的 session 才允许 `openAuthenticatedH5()`。这样缓存会话也不能绕过昵称确认，而且不依赖延迟触发的 `web-view bindmessage`。
 
-收到 `humi:logout` 时调用 `getApp().clearHumiSession()`、清空 `currentSession` 并打开游客 H5，保证 H5 退出后下次启动不会被原生缓存重新恢复。
+H5 退出调用 `wx.miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" })`；原生首页收到参数后调用 `getApp().clearHumiSession()`、清空 `currentSession` 并打开游客 H5，保证下次启动不会被原生缓存重新恢复。
 
 - [x] **Step 4: 处理身份页 reLaunch 返回**
 
@@ -1375,7 +1376,7 @@ const identityComplete = humiSession?.user?.profileStatus === "complete";
 const signedIn = Boolean(humiSession?.user && identityComplete);
 ```
 
-存在 session 但身份不完整时，不显示“已登录”或默认用户名；在普通 onboarding 判断之前直接渲染 `<AuthLanding entryIntent="completeIdentity" />`。`AuthLanding` 对该 intent 使用“把昵称和头像补完整，家人才知道是你”的文案和“继续完善身份”主按钮；按钮通过现有 `humi:wechat-login` 消息让原生层重新验证并进入原生身份页。这个动作必须由用户点击触发，不得在 effect 中自动调用 `wx.login`。
+存在 session 但身份不完整时，不显示“已登录”或默认用户名；在普通 onboarding 判断之前直接渲染 `<AuthLanding entryIntent="completeIdentity" />`。`AuthLanding` 对该 intent 使用“把昵称和头像补完整，家人才知道是你”的文案和“继续完善身份”主按钮；按钮通过 `wx.miniProgram.navigateTo` 立即进入 `/pages/identity/index?action=login`。只有这个用户点击触发的原生入口才能调用 `wx.login`，不得在 effect 中自动调用。
 
 在 `src/lib/humiIdentity.js` 增加：
 
@@ -1383,13 +1384,13 @@ const signedIn = Boolean(humiSession?.user && identityComplete);
 export function requestMiniProgramLogout() {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({ data: { type: "humi:logout" } });
+  if (!miniProgram?.reLaunch) return false;
+  miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" });
   return true;
 }
 ```
 
-`handleSignOut()` 清除 H5 session 后调用 `requestMiniProgramLogout()`。H5 入口测试预置一个 `profileStatus: "incomplete"` 的 legacy session，断言页面不出现“已登录 Humi”；静态门禁断言 `humi:logout` 同时存在于 H5 helper 和小程序 index handler。
+`handleSignOut()` 无论远端注销成功或失败，都先完成本地清理，再调用 `requestMiniProgramLogout()` 立即清除原生缓存。H5 入口测试预置一个 `profileStatus: "incomplete"` 的 legacy session，断言页面不出现“已登录 Humi”；静态与动态门禁断言 H5 helper 和小程序 index 共同实现 `humiLogout=1` 路由。
 
 - [x] **Step 8: 运行 H5 验证并确认通过**
 

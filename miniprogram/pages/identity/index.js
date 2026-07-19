@@ -8,15 +8,59 @@ Page({
     error: ""
   },
 
-  onLoad() {
+  onLoad(options = {}) {
     const user = getApp().globalData?.humiSession?.user;
-    if (!user) {
-      wx.reLaunch({ url: "/pages/index/index" });
+    if (user) {
+      this.hydrateUser(user);
       return;
     }
+    if (options.action === "login") {
+      this.loginWithWechat();
+      return;
+    }
+    if (!user) {
+      wx.reLaunch({ url: "/pages/index/index" });
+    }
+  },
+
+  hydrateUser(user) {
     this.setData({
       displayName: user.displayName === "微信用户" ? "" : user.displayName,
       avatarUrl: user.avatarUrl || ""
+    });
+  },
+
+  loginWithWechat() {
+    if (this.data.pending) return;
+    this.setData({ pending: true, error: "" });
+    wx.login({
+      success: ({ code }) => {
+        if (!code) {
+          this.setData({ pending: false, error: "微信登录失败，请重新尝试。" });
+          return;
+        }
+        wx.request({
+          url: `${getHumiApiBaseUrl()}/auth/wechat/login`,
+          method: "POST",
+          data: { code },
+          header: { "content-type": "application/json" },
+          success: ({ statusCode, data }) => {
+            if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
+              this.setData({ error: data?.message || "登录服务暂时不可用，请稍后重试。" });
+              return;
+            }
+            getApp().setHumiSession(data);
+            if (data.user?.profileStatus === "complete") {
+              wx.reLaunch({ url: "/pages/index/index?humiResume=1" });
+              return;
+            }
+            this.hydrateUser(data.user || {});
+          },
+          fail: () => this.setData({ error: "网络连接失败，请检查网络后重试。" }),
+          complete: () => this.setData({ pending: false })
+        });
+      },
+      fail: () => this.setData({ pending: false, error: "微信登录失败，请重新尝试。" })
     });
   },
 

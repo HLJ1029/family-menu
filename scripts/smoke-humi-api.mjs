@@ -97,7 +97,7 @@ try {
   assert.equal(me.family, null, "reading /me must not create a household");
   assert.deepEqual(me.households, []);
 
-  const avatarJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const avatarJpeg = await readFile(new URL("../public/recipe-images/chive-egg.jpg", import.meta.url));
   const avatarUpload = await request(`${baseUrl}/identity/avatar`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -108,6 +108,12 @@ try {
   const downloadedAvatar = await rawRequest(avatarUpload.user.avatarUrl);
   assert.equal(downloadedAvatar.status, 200);
   assert.equal(Buffer.compare(downloadedAvatar.buffer, avatarJpeg), 0);
+
+  await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/jpeg", dataBase64: Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("base64") },
+  }, 415, "invalid_avatar");
 
   await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
     method: "POST",

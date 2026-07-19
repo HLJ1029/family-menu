@@ -60,6 +60,32 @@ try {
     await normalBootPage.screenshot({ path: join(evidenceDir, "wechat-normal-boot.png"), fullPage: true });
   }
 
+  const bridgeContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await bridgeContext.addInitScript(() => {
+    window.__humiNativeCalls = [];
+  });
+  const bridgePage = await bridgeContext.newPage();
+  await bridgePage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await bridgePage.evaluate(() => {
+    window.wx = window.wx || {};
+    window.wx.miniProgram = {
+      navigateTo: (payload) => window.__humiNativeCalls.push({ method: "navigateTo", payload }),
+      reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload }),
+    };
+  });
+  await bridgePage.getByRole("button", { name: "微信登录", exact: true }).click();
+  await bridgePage.waitForFunction(() => window.__humiNativeCalls.length > 0, null, { timeout: 2_000 });
+  assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls[0]), {
+    method: "navigateTo",
+    payload: { url: "/pages/identity/index?action=login" },
+  });
+  await bridgeContext.close();
+
   const ticketContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -134,13 +160,103 @@ try {
   assert.equal(await legacyPage.getByText("已登录 Humi", { exact: false }).count(), 0);
   await legacyContext.close();
 
+  const expiredContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await expiredContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "expired-session-token",
+      expiresAt: Date.now() - 1,
+      user: { id: "expired-user", displayName: "过期用户", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const expiredPage = await expiredContext.newPage();
+  await expiredPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await expiredPage.getByRole("button", { name: "重新微信登录", exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await expiredPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  await expiredContext.close();
+
+  const unauthorizedContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await unauthorizedContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "revoked-session-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "revoked-user", displayName: "旧登录", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const unauthorizedPage = await unauthorizedContext.newPage();
+  await unauthorizedPage.route("**/state", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "invalid_session", message: "登录状态已失效。" }),
+  }));
+  await unauthorizedPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await unauthorizedPage.getByRole("button", { name: "重新微信登录", exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await unauthorizedPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  await unauthorizedContext.close();
+
+  const failedLogoutContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await failedLogoutContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "logout-session-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "logout-user", displayName: "小禾", provider: "wechat", profileStatus: "complete" },
+    }));
+    window.__humiNativeCalls = [];
+  });
+  const failedLogoutPage = await failedLogoutContext.newPage();
+  await failedLogoutPage.route("**/state", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ state: null, family: null, households: [] }),
+  }));
+  await failedLogoutPage.route("**/auth/logout", (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "temporarily_unavailable" }),
+  }));
+  await failedLogoutPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await failedLogoutPage.evaluate(() => {
+    window.wx = window.wx || {};
+    window.wx.miniProgram = {
+      reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload }),
+    };
+  });
+  await failedLogoutPage.getByTestId("mobile-nav-user").click();
+  await failedLogoutPage.getByRole("button", { name: "退出并重新验证微信登录", exact: true }).click();
+  await failedLogoutPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1") === null, null, { timeout: 2_000 });
+  assert.deepEqual(await failedLogoutPage.evaluate(() => window.__humiNativeCalls[0]), {
+    method: "reLaunch",
+    payload: { url: "/pages/index/index?humiLogout=1" },
+  });
+  await failedLogoutContext.close();
+
   const mainSource = fs.readFileSync("src/main.jsx", "utf8");
   const appShellSource = fs.readFileSync("src/components/AppShell.jsx", "utf8");
   const identitySource = fs.readFileSync("src/lib/humiIdentity.js", "utf8");
   assert.doesNotMatch(mainSource, /createHumiSessionFamily/);
   assert.match(appShellSource, /avatarUrl/);
   assert.match(appShellSource, /avatarKey/);
-  assert.match(identitySource, /humi:logout/);
+  assert.doesNotMatch(identitySource, /postMessage/);
 
   console.log(JSON.stringify({
     ok: true,
@@ -151,9 +267,13 @@ try {
       "pre-React fallback is visible when the main module fails",
       "retry action appears after six seconds",
       "normal React boot replaces the fallback",
+      "H5 login uses immediate native page navigation",
       "one-time H5 ticket is exchanged and removed from the URL",
       "legacy serialized session URLs are discarded",
       "legacy incomplete identity is gated",
+      "expired H5 sessions are cleared",
+      "server-rejected H5 sessions downgrade to logged out",
+      "local logout succeeds when remote revocation fails",
     ],
   }, null, 2));
 } finally {

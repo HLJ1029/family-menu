@@ -16,12 +16,16 @@ assert.match(identityWxml, /type="nickname"/);
 assert.match(identityJs, /\/identity\/profile/);
 assert.match(identityJs, /\/identity\/avatar/);
 assert.match(identityJs, /wx\.reLaunch/);
+assert.match(identityJs, /action === "login"/);
+assert.match(identityJs, /wx\.login/);
+assert.match(identityJs, /\/auth\/wechat\/login/);
 
 const indexSource = fs.readFileSync("miniprogram/pages/index/index.js", "utf8");
 assert.doesNotMatch(indexSource, /appendSessionToUrl/);
 assert.doesNotMatch(indexSource, /humiSession=/);
 assert.match(indexSource, /humiTicket/);
 assert.match(indexSource, /clearHumiSession/);
+assert.match(indexSource, /options\.humiLogout === "1"/);
 assert.doesNotMatch(indexSource, /loginWithWechat\(\{\s*initial:\s*true/);
 
 const phoneBindSource = fs.readFileSync("miniprogram/pages/phone-bind/index.js", "utf8");

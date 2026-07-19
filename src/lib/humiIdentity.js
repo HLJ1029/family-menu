@@ -1,11 +1,20 @@
 const HUMI_SESSION_KEY = "humi:identity-session:v1";
+const HUMI_SESSION_EXPIRED_KEY = "humi:identity-session-expired:v1";
 
 export function readHumiSession() {
   if (typeof window === "undefined") return null;
   try {
     const value = window.localStorage.getItem(HUMI_SESSION_KEY);
-    return value ? JSON.parse(value) : null;
+    if (!value) return null;
+    const normalized = normalizeHumiSession(JSON.parse(value));
+    if (!normalized.accessToken || !Number.isFinite(normalized.expiresAt) || normalized.expiresAt <= Date.now()) {
+      window.localStorage.removeItem(HUMI_SESSION_KEY);
+      window.sessionStorage?.setItem(HUMI_SESSION_EXPIRED_KEY, "1");
+      return null;
+    }
+    return normalized;
   } catch {
+    window.localStorage.removeItem(HUMI_SESSION_KEY);
     return null;
   }
 }
@@ -20,6 +29,13 @@ export function saveHumiSession(session) {
 export function clearHumiSession() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(HUMI_SESSION_KEY);
+}
+
+export function takeHumiSessionExpiredNotice() {
+  if (typeof window === "undefined") return false;
+  const expired = window.sessionStorage?.getItem(HUMI_SESSION_EXPIRED_KEY) === "1";
+  window.sessionStorage?.removeItem(HUMI_SESSION_EXPIRED_KEY);
+  return expired;
 }
 
 export function takeHumiTicketFromUrl() {
@@ -39,40 +55,36 @@ export function takeHumiTicketFromUrl() {
 export function requestWechatLoginFromMiniProgram() {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({
-    data: {
-      type: "humi:wechat-login",
-      requestedAt: Date.now(),
-    },
-  });
-  return true;
+  if (!miniProgram?.navigateTo) return false;
+  try {
+    miniProgram.navigateTo({ url: "/pages/identity/index?action=login" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function requestPhoneBindFromMiniProgram() {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram) return false;
-  if (miniProgram.navigateTo) {
+  if (miniProgram?.navigateTo) {
     miniProgram.navigateTo({ url: "/pages/phone-bind/index" });
     return true;
   }
-  if (!miniProgram.postMessage) return false;
-  miniProgram.postMessage({
-    data: {
-      type: "humi:phone-bind",
-      requestedAt: Date.now(),
-    },
-  });
-  return true;
+  return false;
 }
 
 export function requestMiniProgramLogout() {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.postMessage) return false;
-  miniProgram.postMessage({ data: { type: "humi:logout" } });
-  return true;
+  if (!miniProgram?.reLaunch) return false;
+  try {
+    miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeHumiSession(session) {
@@ -80,7 +92,7 @@ function normalizeHumiSession(session) {
   return {
     accessToken: session.accessToken ?? session.token ?? "",
     refreshToken: session.refreshToken ?? "",
-    expiresAt: session.expiresAt ?? null,
+    expiresAt: Number(session.expiresAt) || null,
     user: {
       id: user.id ?? session.userId ?? "",
       displayName: user.displayName ?? "微信用户",

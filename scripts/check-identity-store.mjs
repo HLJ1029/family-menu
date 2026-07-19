@@ -26,6 +26,8 @@ assert.equal(avatarOnly.profileStatus, "incomplete", "avatar upload must not com
 const beforeRead = JSON.parse(await readFile(dataFile, "utf8"));
 assert.equal(beforeRead.households.length, 0, "reading identity must not create a household");
 
+await store.createHouseholdForUser(user.id, { householdName: "旧家庭", memberName: "微信用户" });
+
 const updated = await store.updateIdentityProfile(user.id, {
   displayName: "小禾",
   avatarKey: user.avatarKey,
@@ -33,6 +35,11 @@ const updated = await store.updateIdentityProfile(user.id, {
 });
 assert.equal(updated.displayName, "小禾");
 assert.equal(updated.profileStatus, "complete");
+const updatedHousehold = await store.getActiveHouseholdForUser(user.id);
+const updatedMember = updatedHousehold.members.find((member) => member.memberId === user.id);
+assert.equal(updatedMember.nickname, "小禾", "identity completion must update existing household presentation");
+assert.equal(updatedMember.avatarKey, updated.avatarKey);
+assert.equal(updatedMember.avatarUrl, avatarOnly.avatarUrl);
 
 const issued = await store.issueH5Ticket(user.id, { now: 1_000, ttlMs: 60_000 });
 assert.match(issued.ticket, /^[A-Za-z0-9_-]{32,}$/);
