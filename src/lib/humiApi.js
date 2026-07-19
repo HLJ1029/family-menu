@@ -151,8 +151,15 @@ export async function loadCraveRequest(token) {
   return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}`);
 }
 
-export async function submitCraveVote(token, vote) {
+export async function submitCraveVote(token, vote, session = null) {
   if (!token) throw new Error("征集链接不完整。");
+  if (isHumiApiSession(session)) {
+    return humiApiRequest(`/crave-requests/${encodeURIComponent(token)}/votes`, {
+      method: "POST",
+      session,
+      body: vote,
+    });
+  }
   return humiPublicRequest(`/crave-requests/${encodeURIComponent(token)}/votes`, {
     method: "POST",
     body: vote,
@@ -220,8 +227,15 @@ export async function loadGroceryShareRequest(token) {
   return humiPublicRequest(`/grocery-share-requests/${encodeURIComponent(token)}`);
 }
 
-export async function submitGroceryShareClaim(token, claim) {
+export async function submitGroceryShareClaim(token, claim, session = null) {
   if (!token) throw new Error("清单链接不完整。");
+  if (isHumiApiSession(session)) {
+    return humiApiRequest(`/grocery-share-requests/${encodeURIComponent(token)}/claims`, {
+      method: "POST",
+      session,
+      body: claim,
+    });
+  }
   return humiPublicRequest(`/grocery-share-requests/${encodeURIComponent(token)}/claims`, {
     method: "POST",
     body: claim,
@@ -299,8 +313,15 @@ export async function loadWishShareRequest(token) {
   return humiPublicRequest(`/wish-share-requests/${encodeURIComponent(token)}`);
 }
 
-export async function submitWishShareEntry(token, wish) {
+export async function submitWishShareEntry(token, wish, session = null) {
   if (!token) throw new Error("想吃入口不完整。");
+  if (isHumiApiSession(session)) {
+    return humiApiRequest(`/wish-share-requests/${encodeURIComponent(token)}/wishes`, {
+      method: "POST",
+      session,
+      body: wish,
+    });
+  }
   return humiPublicRequest(`/wish-share-requests/${encodeURIComponent(token)}/wishes`, {
     method: "POST",
     body: wish,

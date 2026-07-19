@@ -1,21 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, Heart, Loader2 } from "lucide-react";
-import { loadWishShareRequest, submitWishShareEntry } from "../lib/humiApi";
+import { getGuestParticipantId } from "../lib/collaborationIdentity";
+import { isHumiApiSession, loadWishShareRequest, submitWishShareEntry } from "../lib/humiApi";
 import { HumiScene } from "./ui/HumiScene";
 
-const PARTICIPANT_KEY = "humi:wish-participant-key:v1";
-
-export function WishLanding({ token, onClose, onBindParticipation }) {
+export function WishLanding({ token, humiSession, onClose, onBindParticipation }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [memberName, setMemberName] = useState("");
   const [dishName, setDishName] = useState("");
   const [note, setNote] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const participantKey = useMemo(() => getParticipantKey(), []);
+  const [participant, setParticipant] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -47,14 +45,14 @@ export function WishLanding({ token, onClose, onBindParticipation }) {
     }
     setStatus("");
     try {
+      const guestParticipantId = isHumiApiSession(humiSession) ? "" : getGuestParticipantId("wish", token);
       const data = await submitWishShareEntry(token, {
-        participantKey,
-        memberName: memberName.trim() || "家人",
+        ...(guestParticipantId ? { guestParticipantId } : {}),
         dishName: safeDishName,
         note: note.trim(),
-        temporary: true,
-      });
+      }, humiSession);
       setRequest(data.request);
+      setParticipant(data.participant || null);
       setSubmitted(true);
     } catch (error) {
       setStatus(error.message || "暂时没发出去，请稍后再试。");
@@ -122,36 +120,13 @@ export function WishLanding({ token, onClose, onBindParticipation }) {
               <CheckCircle2 size={28} />
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到，已经记下了。</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {request.initiatorName || "主厨"}刷新后会看到“{dishName.trim()}”。之后安排晚饭时可以直接选它。
+                “{participant?.displayName || "这次参与"}”推荐的“{dishName.trim()}”已经记下，{request.initiatorName || "主厨"}刷新后会看到。
               </p>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
-              </p>
+              {participant?.type === "guest" && <p className="mt-2 text-sm font-bold leading-6 text-ink/52">登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。</p>}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onBindParticipation) {
-                      onClose?.();
-                      return;
-                    }
-                    onBindParticipation({
-                      type: "wish",
-                      token,
-                      participantKey,
-                      householdName: request.householdName || "我家",
-                      initiatorName: request.initiatorName || "主厨",
-                      memberName: memberName.trim() || "家人",
-                      dishWish: dishName.trim(),
-                      note: note.trim(),
-                    });
-                  }}
-                  className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
-                >
-                  登录 Humi，保存这次参与
-                </button>
+                {participant?.type === "guest" && <button type="button" onClick={() => onBindParticipation?.({ type: "wish", token, guestParticipantId: participant.id, householdName: request.householdName || "我家", initiatorName: request.initiatorName || "主厨", dishWish: dishName.trim(), note: note.trim() })} className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white">登录 Humi，保存这次参与</button>}
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
-                  先这样
+                  {participant?.type === "guest" ? "先这样" : "回到 Humi"}
                 </button>
               </div>
             </div>
@@ -187,13 +162,6 @@ export function WishLanding({ token, onClose, onBindParticipation }) {
               {detailsOpen && (
                 <div className="grid gap-3 rounded-[24px] border border-line bg-white p-3">
                   <input
-                    value={memberName}
-                    onChange={(event) => setMemberName(event.target.value)}
-                    className="rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
-                    placeholder="怎么称呼你？可不填"
-                    maxLength={24}
-                  />
-                  <input
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
                     className="rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
@@ -216,13 +184,4 @@ export function WishLanding({ token, onClose, onBindParticipation }) {
 
 function FullScreenShell({ children }) {
   return <div className="min-h-screen bg-white text-ink">{children}</div>;
-}
-
-function getParticipantKey() {
-  if (typeof window === "undefined") return "";
-  const existing = window.localStorage.getItem(PARTICIPANT_KEY);
-  if (existing) return existing;
-  const next = `participant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-  window.localStorage.setItem(PARTICIPANT_KEY, next);
-  return next;
 }

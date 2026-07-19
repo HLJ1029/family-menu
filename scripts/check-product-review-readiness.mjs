@@ -136,7 +136,7 @@ const REQUIRED_CHECKS = [
     path: "package.json",
     required: ["release:collaboration:smoke"],
     evidence: "scripts/smoke-collaboration-landings.mjs",
-    evidenceRequired: ["不用登录，不用想菜名，点一个感觉就行", "不用登录。先选你方便买的", "一家人的饭放在一起", "wish-posted-without-login", "url.pathname.includes(\"/auth/\")"],
+    evidenceRequired: ["不用登录，不用想菜名，点一个感觉就行", "不用登录。先选你方便买的", "一家人的饭放在一起", "guest-identity-is-reused-per-request-and-distinct-across-request-scopes", "signed-in-actions-use-session-identity-without-redundant-bind-cta", "url.pathname.includes(\"/auth/\")"],
   },
   {
     key: "crave-participation-identity-binding",
@@ -254,7 +254,7 @@ const REQUIRED_CHECKS = [
     key: "crave-state-persistence",
     title: "征集单跨会话保存与超时收口",
     path: "api/server.js",
-    required: ["craveSignals: sanitizeList", "sanitizeCraveSignal", "getOptionalAuth", "auth?.userId"],
+    required: ["craveSignals: sanitizeList", "sanitizeCraveSignal", "optionalAuth", "auth?.userId"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
     evidenceRequired: ["persisted-crave-auto-generates-after-deadline", "no-reply-crave-keeps-initiator-feeling", "persisted-crave-closes-with-owner-session", "crave-result-converges-to-menu-and-plan", "crave-result-generates-grocery"],
   },

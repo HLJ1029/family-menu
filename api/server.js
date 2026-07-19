@@ -1193,7 +1193,6 @@ function toPublicCraveRequest(request) {
     } : undefined,
     votes: (request.votes ?? []).map((vote) => ({
       id: vote.id,
-      participantKey: vote.participantKey,
       memberName: vote.memberName,
       feelingTag: vote.feelingTag,
       dishWish: vote.dishWish,
@@ -1247,7 +1246,6 @@ function toPublicGroceryShareRequest(request) {
     })),
     claims: (request.claims ?? []).map((claim) => ({
       id: claim.id,
-      participantKey: claim.participantKey,
       memberName: claim.memberName,
       status: claim.status,
       itemIds: Array.isArray(claim.itemIds) ? claim.itemIds : [],
@@ -1298,7 +1296,6 @@ function toPublicWishShareRequest(request) {
     status: request.status,
     wishes: (request.wishes ?? []).map((wish) => ({
       id: wish.id,
-      participantKey: wish.participantKey,
       memberName: wish.memberName,
       dishName: wish.dishName,
       note: wish.note,

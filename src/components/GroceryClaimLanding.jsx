@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, Loader2, XCircle } from "lucide-react";
-import { loadGroceryShareRequest, submitGroceryShareClaim, updateGroceryShareItemChecked } from "../lib/humiApi";
+import { getGuestParticipantId } from "../lib/collaborationIdentity";
+import { isHumiApiSession, loadGroceryShareRequest, submitGroceryShareClaim, updateGroceryShareItemChecked } from "../lib/humiApi";
 import { HumiScene } from "./ui/HumiScene";
 
-const PARTICIPANT_KEY = "humi:grocery-claim-participant-key:v1";
-
-export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
+export function GroceryClaimLanding({ token, humiSession, onClose, onBindParticipation }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState("");
-  const [memberName, setMemberName] = useState("");
   const [note, setNote] = useState("");
   const [claimed, setClaimed] = useState(false);
   const [claimStatus, setClaimStatus] = useState("");
@@ -18,7 +16,7 @@ export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
   const [checkingItemId, setCheckingItemId] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const participantKey = useMemo(() => getParticipantKey(), []);
+  const [participant, setParticipant] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -48,15 +46,15 @@ export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
     setSubmitting(true);
     setStatus("");
     try {
+      const guestParticipantId = isHumiApiSession(humiSession) ? "" : getGuestParticipantId("grocery", token);
       const data = await submitGroceryShareClaim(token, {
-        participantKey,
-        memberName: memberName.trim() || "家人",
+        ...(guestParticipantId ? { guestParticipantId } : {}),
         status: nextStatus,
         itemIds: nextStatus === "declined" ? [] : selectedItemIds,
         note,
-        temporary: true,
-      });
+      }, humiSession);
       setRequest(data.request);
+      setParticipant(data.participant || null);
       setClaimed(true);
       setClaimStatus(nextStatus);
     } catch (error) {
@@ -212,37 +210,14 @@ export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
               </h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
                 {claimStatus === "declined"
-                  ? `${request.initiatorName || "主厨"}回到 Humi 后会看到你暂时买不了。`
-                  : `${request.initiatorName || "主厨"}回到 Humi 后就能看到你来买 ${selectedItemIds.length || items.length} 项。点一下食材可以标记已买。`}
+                  ? `“${participant?.displayName || "这次参与"}”已告诉${request.initiatorName || "主厨"}暂时买不了。`
+                  : `“${participant?.displayName || "这次参与"}”已认领 ${selectedItemIds.length || items.length} 项；${request.initiatorName || "主厨"}回到 Humi 后就能看到。点一下食材可以标记已买。`}
               </p>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
-              </p>
+              {participant?.type === "guest" && <p className="mt-2 text-sm font-bold leading-6 text-ink/52">登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。</p>}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onBindParticipation) {
-                      onClose?.();
-                      return;
-                    }
-                    onBindParticipation({
-                      type: "grocery",
-                      token,
-                      participantKey,
-                      householdName: request.householdName || "我家",
-                      initiatorName: request.initiatorName || "主厨",
-                      memberName: memberName.trim() || "家人",
-                      claimStatus,
-                      itemCount: claimStatus === "declined" ? 0 : selectedItemIds.length || items.length,
-                    });
-                  }}
-                  className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
-                >
-                  登录 Humi，保存这次参与
-                </button>
+                {participant?.type === "guest" && <button type="button" onClick={() => onBindParticipation?.({ type: "grocery", token, guestParticipantId: participant.id, householdName: request.householdName || "我家", initiatorName: request.initiatorName || "主厨", claimStatus, itemCount: claimStatus === "declined" ? 0 : selectedItemIds.length || items.length })} className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white">登录 Humi，保存这次参与</button>}
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
-                  先这样
+                  {participant?.type === "guest" ? "先这样" : "回到 Humi"}
                 </button>
               </div>
             </div>
@@ -260,12 +235,6 @@ export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
                 </button>
                 {detailsOpen && (
                   <div className="grid gap-2 border-t border-line p-3">
-                    <input
-                      value={memberName}
-                      onChange={(event) => setMemberName(event.target.value)}
-                      className="rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
-                      placeholder="怎么称呼你？可不填"
-                    />
                     <input
                       value={note}
                       onChange={(event) => setNote(event.target.value)}
@@ -306,13 +275,4 @@ function SummaryPill({ label, value }) {
 
 function LandingShell({ children }) {
   return <div className="min-h-screen bg-white text-ink">{children}</div>;
-}
-
-function getParticipantKey() {
-  if (typeof window === "undefined") return "";
-  const existing = window.localStorage.getItem(PARTICIPANT_KEY);
-  if (existing) return existing;
-  const next = `grocery-participant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-  window.localStorage.setItem(PARTICIPANT_KEY, next);
-  return next;
 }

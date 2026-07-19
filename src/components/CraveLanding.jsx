@@ -1,23 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, Loader2, MessageCircleHeart } from "lucide-react";
 import { feelingTags } from "../lib/collaboration";
-import { loadCraveRequest, submitCraveVote } from "../lib/humiApi";
+import { getGuestParticipantId } from "../lib/collaborationIdentity";
+import { isHumiApiSession, loadCraveRequest, submitCraveVote } from "../lib/humiApi";
 import { HumiScene } from "./ui/HumiScene";
 
-const PARTICIPANT_KEY = "humi:crave-participant-key:v1";
-
-export function CraveLanding({ token, onClose, onBindParticipation }) {
+export function CraveLanding({ token, humiSession, onClose, onBindParticipation }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [selectedFeeling, setSelectedFeeling] = useState("随便都行");
-  const [memberName, setMemberName] = useState("");
   const [dishWish, setDishWish] = useState("");
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const participantKey = useMemo(() => getParticipantKey(), []);
+  const [participant, setParticipant] = useState(null);
   const primaryFeelingTags = feelingTags.filter((tag) => tag !== "随便都行");
 
   useEffect(() => {
@@ -50,15 +48,15 @@ export function CraveLanding({ token, onClose, onBindParticipation }) {
       return;
     }
     try {
+      const guestParticipantId = isHumiApiSession(humiSession) ? "" : getGuestParticipantId("crave", token);
       const data = await submitCraveVote(token, {
-        participantKey,
-        memberName: memberName.trim() || "家人",
+        ...(guestParticipantId ? { guestParticipantId } : {}),
         feelingTag: selectedFeeling,
         dishWish: dishWish.trim(),
         note,
-        temporary: true,
-      });
+      }, humiSession);
       setRequest(data.request);
+      setParticipant(data.participant || null);
       if (data.request?.status === "closed") {
         setStatus("这次征集已经结束，主厨正在安排菜单。");
         setSubmitted(false);
@@ -143,36 +141,33 @@ export function CraveLanding({ token, onClose, onBindParticipation }) {
               <CheckCircle2 size={28} />
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到！</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {request.initiatorName || "主厨"}会看着安排。你已经参与完成了，关掉也没关系。
+                “{participant?.displayName || "这次参与"}”已经记下，{request.initiatorName || "主厨"}会看着安排。关掉也没关系。
               </p>
-              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
-              </p>
+              {participant?.type === "guest" && (
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                  登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
+                </p>
+              )}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onBindParticipation) {
-                      onClose?.();
-                      return;
-                    }
-                    onBindParticipation({
+                {participant?.type === "guest" && (
+                  <button
+                    type="button"
+                    onClick={() => onBindParticipation?.({
                       type: "crave",
                       token,
-                      participantKey,
+                      guestParticipantId: participant.id,
                       householdName: request.householdName || "我家",
                       initiatorName: request.initiatorName || "主厨",
-                      memberName: memberName.trim() || "家人",
                       feelingTag: selectedFeeling,
                       dishWish: dishWish.trim(),
-                    });
-                  }}
-                  className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
-                >
-                  登录 Humi，保存这次参与
-                </button>
+                    })}
+                    className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
+                  >
+                    登录 Humi，保存这次参与
+                  </button>
+                )}
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
-                  先这样
+                  {participant?.type === "guest" ? "先这样" : "回到 Humi"}
                 </button>
               </div>
             </div>
@@ -229,12 +224,6 @@ export function CraveLanding({ token, onClose, onBindParticipation }) {
                 {detailsOpen && (
                   <div className="grid gap-2 border-t border-line p-3">
                     <input
-                      value={memberName}
-                      onChange={(event) => setMemberName(event.target.value)}
-                      className="rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
-                      placeholder="怎么称呼你？可不填"
-                    />
-                    <input
                       value={dishWish}
                       onChange={(event) => setDishWish(event.target.value)}
                       className="rounded-full border border-line bg-canvas px-4 py-3 text-sm font-bold outline-none focus:border-ink/30"
@@ -263,13 +252,4 @@ export function CraveLanding({ token, onClose, onBindParticipation }) {
 
 function FullScreenShell({ children }) {
   return <div className="min-h-screen bg-white text-ink">{children}</div>;
-}
-
-function getParticipantKey() {
-  if (typeof window === "undefined") return "";
-  const existing = window.localStorage.getItem(PARTICIPANT_KEY);
-  if (existing) return existing;
-  const next = `participant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-  window.localStorage.setItem(PARTICIPANT_KEY, next);
-  return next;
 }

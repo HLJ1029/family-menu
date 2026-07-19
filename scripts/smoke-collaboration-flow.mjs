@@ -318,14 +318,14 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   await assertElementInFirstViewport(page.getByRole("button", { name: "发给主厨" }), "crave submit action");
   await page.getByRole("button", { name: "想喝汤" }).click();
   await page.getByRole("button", { name: "想补一句？选填" }).click();
-  await page.getByPlaceholder("怎么称呼你？可不填").fill("阿宁");
+  assert.equal(await page.getByPlaceholder("怎么称呼你？可不填").count(), 0, "crave optional details must not ask for a guest identity");
   await page.getByPlaceholder("有特别想吃的菜？可不填").fill("番茄汤");
   await page.getByRole("button", { name: "发给主厨" }).click();
   await page.getByRole("heading", { name: "收到！" }).waitFor({ timeout: 10000 });
 
   const updated = await request(`${apiBaseUrl}/crave-requests/${encodeURIComponent(token)}`);
   const vote = updated.request?.votes?.[0];
-  assert.equal(vote?.memberName, "阿宁", "crave vote should save guest name");
+  assert.equal(vote?.memberName, "游客 1", "crave vote should use the server-assigned guest alias");
   assert.equal(vote?.feelingTag, "想喝汤", "crave vote should save guest feeling");
   assert.equal(vote?.dishWish, "番茄汤", "crave vote should save optional dish wish");
   assert.equal(vote?.temporary, true, "crave vote should stay temporary before login");
@@ -338,10 +338,9 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "crave", "binding a crave participation should keep pending merge context");
-  assert.equal(pending?.memberName, "阿宁", "pending crave context should keep guest name");
   assert.equal(pending?.dishWish, "番茄汤", "pending crave context should keep dish wish");
-  const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:crave-participant-key:v1"));
-  assert.equal(pending?.participantKey, localParticipantKey, "pending crave context should keep the local participant key");
+  const localGuestId = await page.evaluate((requestToken) => localStorage.getItem(`humi:collaboration-guest:crave:${requestToken}`), token);
+  assert.equal(pending?.guestParticipantId, localGuestId, "pending crave context should keep the request-scoped guest id");
   await page.close();
 }
 
@@ -374,14 +373,14 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   await assertElementInFirstViewport(page.getByRole("button", { name: "我来买 2 项" }), "grocery claim action");
   await assertElementInFirstViewport(page.getByRole("button", { name: "这次我买不了" }), "grocery decline action");
   await page.getByRole("button", { name: "补一句，可不填" }).click();
-  await page.getByPlaceholder("怎么称呼你？可不填").fill("阿宁");
+  assert.equal(await page.getByPlaceholder("怎么称呼你？可不填").count(), 0, "grocery optional details must not ask for a guest identity");
   await page.getByRole("button", { name: "我来买 2 项" }).click();
   await page.getByRole("heading", { name: "好，这些你来买" }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /西红柿/ }).click();
 
   const updated = await request(`${apiBaseUrl}/grocery-share-requests/${encodeURIComponent(token)}`);
   const claim = updated.request?.claims?.[0];
-  assert.equal(claim?.memberName, "阿宁", "grocery claim should save guest name");
+  assert.equal(claim?.memberName, "游客 1", "grocery claim should use the server-assigned guest alias");
   assert.equal(claim?.status, "claimed", "grocery claim should save claimed status");
   assert.deepEqual(claim?.itemIds, ["tomato", "egg"], "grocery claim should include selected items");
   assert(!claim?.participantKey, "public grocery response must not expose a guest participant key");
@@ -395,10 +394,9 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "grocery", "binding a grocery participation should keep pending merge context");
-  assert.equal(pending?.memberName, "阿宁", "pending grocery context should keep guest name");
   assert.equal(pending?.itemCount, 2, "pending grocery context should keep item count");
-  const localParticipantKey = await page.evaluate(() => localStorage.getItem("humi:grocery-claim-participant-key:v1"));
-  assert.equal(pending?.participantKey, localParticipantKey, "pending grocery context should keep the local participant key");
+  const localGuestId = await page.evaluate((requestToken) => localStorage.getItem(`humi:collaboration-guest:grocery:${requestToken}`), token);
+  assert.equal(pending?.guestParticipantId, localGuestId, "pending grocery context should keep the request-scoped guest id");
   await page.close();
 }
 
@@ -418,8 +416,7 @@ async function verifyOwnerGroceryShareRefreshFlow({ browser, apiBaseUrl, webBase
   await request(`${apiBaseUrl}/grocery-share-requests/${ownerShare.request.token}/claims`, {
     method: "POST",
     body: {
-      participantKey: "owner-refresh-grocery",
-      memberName: "阿宁",
+      guestParticipantId: "owner-refresh-grocery",
       status: "claimed",
       itemIds: ["ingredient:tomato"],
     },
@@ -498,14 +495,14 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   await assertElementInFirstViewport(guestPage.getByRole("button", { name: "发给主厨" }), "wish submit action");
   await guestPage.getByPlaceholder("比如：糖醋排骨、番茄牛腩、凉拌黄瓜").fill("糖醋排骨");
   await guestPage.getByRole("button", { name: "补一句，可不填" }).click();
-  await guestPage.getByPlaceholder("怎么称呼你？可不填").fill("阿宁");
+  assert.equal(await guestPage.getByPlaceholder("怎么称呼你？可不填").count(), 0, "wish optional details must not ask for a guest identity");
   await guestPage.getByPlaceholder("补一句：少辣、想清淡、周末再做...").fill("周末做");
   await guestPage.getByRole("button", { name: "发给主厨" }).click();
   await guestPage.getByRole("heading", { name: "收到，已经记下了。" }).waitFor({ timeout: 10000 });
 
   const updated = await request(`${apiBaseUrl}/wish-share-requests/${encodeURIComponent(token)}`);
   const wish = updated.request?.wishes?.[0];
-  assert.equal(wish?.memberName, "阿宁", "wish share should save guest name");
+  assert.equal(wish?.memberName, "游客 1", "wish share should use the server-assigned guest alias");
   assert.equal(wish?.dishName, "糖醋排骨", "wish share should save guest dish name");
   assert.equal(wish?.note, "周末做", "wish share should save guest note");
   assert.equal(wish?.temporary, true, "wish share should stay temporary before login");
@@ -518,10 +515,9 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   await guestPage.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await guestPage.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "wish", "binding a wish participation should keep pending merge context");
-  assert.equal(pending?.memberName, "阿宁", "pending wish context should keep guest name");
   assert.equal(pending?.dishWish, "糖醋排骨", "pending wish context should keep dish wish");
-  const localParticipantKey = await guestPage.evaluate(() => localStorage.getItem("humi:wish-participant-key:v1"));
-  assert.equal(pending?.participantKey, localParticipantKey, "pending wish context should keep the local participant key");
+  const localGuestId = await guestPage.evaluate((requestToken) => localStorage.getItem(`humi:collaboration-guest:wish:${requestToken}`), token);
+  assert.equal(pending?.guestParticipantId, localGuestId, "pending wish context should keep the request-scoped guest id");
   await guestPage.close();
 
   const ownerEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
@@ -585,8 +581,7 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
   await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
     method: "POST",
     body: {
-      participantKey: "wish-plan-guest",
-      memberName: "阿宁",
+      guestParticipantId: "wish-plan-guest",
       dishName: "西红柿炒鸡蛋",
       note: "今晚想吃",
     },
@@ -594,15 +589,14 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
   await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
     method: "POST",
     body: {
-      participantKey: "wish-plan-unmatched-guest",
-      memberName: "小禾",
+      guestParticipantId: "wish-plan-unmatched-guest",
       dishName: "外婆的神秘菜",
       note: "想找一道相近的",
     },
   });
   const wishReceipt = await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}`);
-  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "阿宁" && wish.dishName === "西红柿炒鸡蛋"), "the owner-visible wish request should retain the guest identity and dish");
-  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "小禾" && wish.dishName === "外婆的神秘菜"), "the owner-visible wish request should retain an unmatched guest wish");
+  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "游客 1" && wish.dishName === "西红柿炒鸡蛋"), "the owner-visible wish request should retain the first request-scoped guest alias and dish");
+  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "游客 2" && wish.dishName === "外婆的神秘菜"), "the owner-visible wish request should retain the second request-scoped guest alias and dish");
 
   const ownerEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
   await request(`${apiBaseUrl}/state`, {
@@ -635,8 +629,8 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
     await livingRoom.getByRole("button", { name: "刷新最近想吃回复", exact: true }).click();
     await page.waitForFunction(() => {
       const wishPool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
-      return wishPool.some((item) => item.recipeId === "tomato-egg" && item.source.includes("阿宁想吃"))
-        && wishPool.some((item) => item.name === "外婆的神秘菜" && item.source.includes("小禾想吃"));
+      return wishPool.some((item) => item.recipeId === "tomato-egg" && item.source.includes("游客 1想吃"))
+        && wishPool.some((item) => item.name === "外婆的神秘菜" && item.source.includes("游客 2想吃"));
     }, null, { timeout: 10000 });
 
     const matchedPlanAction = livingRoom.getByRole("button", { name: "今晚做 西红柿炒鸡蛋", exact: true });
@@ -655,7 +649,7 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
     await unmatchedPlanAction.click();
     await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 10000 });
     const retainedUnmatched = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"));
-    assert(retainedUnmatched.some((item) => item.name === "外婆的神秘菜" && item.source.includes("小禾想吃")), "an unmatched guest wish should remain intact while the owner chooses a nearby recipe");
+    assert(retainedUnmatched.some((item) => item.name === "外婆的神秘菜" && item.source.includes("游客 2想吃")), "an unmatched guest wish should remain intact while the owner chooses a nearby recipe");
   } finally {
     await context.close();
   }
@@ -692,18 +686,16 @@ async function verifyOwnerCraveClosureFlow({ browser, apiBaseUrl, webBaseUrl }) 
     await request(`${apiBaseUrl}/crave-requests/${encodeURIComponent(activeRequest.token)}/votes`, {
       method: "POST",
       body: {
-        participantKey: "owner-flow-guest",
-        memberName: "阿宁",
+        guestParticipantId: "owner-flow-guest",
         feelingTag: "想喝汤",
         dishWish: "番茄汤",
-        temporary: true,
       },
     });
 
     await page.getByRole("button", { name: "刷新回复" }).click();
     await page.getByText("收到 1 个感觉").waitFor({ timeout: 10000 });
     const refreshedRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
-    assert(refreshedRequest?.votes?.some((vote) => vote.memberName === "阿宁" && vote.feelingTag === "想喝汤"), "owner refresh should pull guest crave vote into local request");
+    assert(refreshedRequest?.votes?.some((vote) => vote.memberName === "游客 1" && vote.feelingTag === "想喝汤"), "owner refresh should pull the server-assigned guest crave vote into local request");
     await page.getByRole("button", { name: "就这些，出菜单" }).click();
     await page.getByText("确认菜单").waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: "就做这些" }).click();
@@ -1024,10 +1016,10 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       starterFeeling: "想喝汤",
     },
   });
-  const participantKey = `join-merge-guest-${Date.now()}`;
+  const guestParticipantId = `join-merge-guest-${Date.now()}`;
   const voted = await request(`${apiBaseUrl}/crave-requests/${requestCreated.request.token}/votes`, {
     method: "POST",
-    body: { participantKey, memberName: "阿宁", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true },
+    body: { guestParticipantId, feelingTag: "想喝汤", dishWish: "番茄汤" },
   });
   const now = new Date().toISOString();
   await request(`${apiBaseUrl}/state`, {
@@ -1042,7 +1034,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
           requestToken: requestCreated.request.token,
           feelingTag: "想喝汤",
           voteCount: 1,
-          votes: [{ participantKey, memberName: "阿宁", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
+          votes: [{ participantKey: guestParticipantId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
           createdAt: now,
         }],
       },
@@ -1050,7 +1042,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
   });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript(({ session, token, participantKey: key }) => {
+  await page.addInitScript(({ session, token, guestId }) => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
@@ -1058,14 +1050,13 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
     localStorage.setItem("humi:pending-join-context:v1", JSON.stringify({
       type: "crave",
       token,
-      participantKey: key,
-      memberName: "阿宁",
+      guestParticipantId: guestId,
       feelingTag: "想喝汤",
       dishWish: "番茄汤",
       householdName: "测试家",
       createdAt: new Date().toISOString(),
     }));
-  }, { session: smokeOwnerSession, token: requestCreated.request.token, participantKey });
+  }, { session: smokeOwnerSession, token: requestCreated.request.token, guestId: guestParticipantId });
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
@@ -1079,17 +1070,17 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       return request?.votes?.some((vote) => vote.temporary === false && Boolean(vote.claimedAt));
     }, null, { timeout: 10000 });
     const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
-    const mergedVote = activeRequest?.votes?.find((vote) => vote.memberName === "阿宁");
+    const mergedVote = activeRequest?.votes?.find((vote) => vote.temporary === false);
     assert.equal(mergedVote?.temporary, false, "sign-in should bind the temporary crave vote to the authenticated identity");
     assert(mergedVote?.claimedAt, "the API-backed crave vote should keep its identity-claim timestamp");
 
     const craveSignals = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"));
-    const signalVote = craveSignals[0]?.votes?.find((vote) => vote.memberName === "阿宁");
+    const signalVote = craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.feelingTag === "想喝汤");
     assert(signalVote, "the historical crave signal should remain available after identity binding");
     assert.equal(Object.hasOwn(signalVote, "participantKey"), false, "hydrated historical signals must not retain the temporary participant key");
     const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
     assert.equal(householdsAfter.family.members.length, householdsBefore.family.members.length, "binding participation must not create a formal household member");
-    assert.equal(householdsAfter.family.members.some((member) => member.nickname === "阿宁"), false, "a guest participation name must not leak into formal household membership");
+    assert.equal(householdsAfter.family.members.some((member) => member.nickname === "游客 1"), false, "a guest participation alias must not leak into formal household membership");
   } finally {
     await context.close();
   }

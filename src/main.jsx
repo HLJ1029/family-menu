@@ -379,8 +379,8 @@ function App() {
   }, [family?.id, humiSession, humiStateSnapshot]);
 
   useEffect(() => {
-    if (!isHumiApiSession(humiSession) || !pendingJoinContext?.type || !pendingJoinContext?.token || !pendingJoinContext?.participantKey) return undefined;
-    const mergeKey = `${pendingJoinContext.type}:${pendingJoinContext.token}:${pendingJoinContext.participantKey}:${humiSession.user?.id || "user"}`;
+    if (!isHumiApiSession(humiSession) || !pendingJoinContext?.type || !pendingJoinContext?.token || !pendingJoinContext?.guestParticipantId) return undefined;
+    const mergeKey = `${pendingJoinContext.type}:${pendingJoinContext.token}:${pendingJoinContext.guestParticipantId}:${humiSession.user?.id || "user"}`;
     let cancelled = false;
     let timer;
 
@@ -3150,11 +3150,10 @@ function App() {
       }
       return;
     }
-    if (isHumiApiSession(humiSession) && context.token && context.participantKey) {
+    if (isHumiApiSession(humiSession) && context.token && context.guestParticipantId) {
       try {
         const payload = {
-          participantKey: context.participantKey,
-          memberName: context.memberName || humiSession.user?.displayName || "家人",
+          participantKey: context.guestParticipantId,
         };
         const data = context.type === "crave"
           ? await joinCraveRequest(context.token, humiSession, payload)
@@ -3181,7 +3180,7 @@ function App() {
   }
 
   function mergeTemporaryParticipationIntoMember(context = {}) {
-    const participantKey = String(context.participantKey || "").trim();
+    const participantKey = String(context.guestParticipantId || "").trim();
     if (!participantKey) return;
     const memberName = String(context.memberName || "家人").trim() || "家人";
     const now = new Date().toISOString();
@@ -3279,6 +3278,7 @@ function App() {
     return (
       <CraveLanding
         token={landingCraveToken}
+        humiSession={humiSession}
         onClose={() => closeSharedLanding("crave")}
         onBindParticipation={(context) => bindParticipationFromSharedLanding("crave", context)}
       />
@@ -3289,6 +3289,7 @@ function App() {
     return (
       <GroceryClaimLanding
         token={landingGroceryShareToken}
+        humiSession={humiSession}
         onClose={() => closeSharedLanding("groceryShare")}
         onBindParticipation={(context) => bindParticipationFromSharedLanding("groceryShare", context)}
       />
@@ -3308,6 +3309,7 @@ function App() {
     return (
       <WishLanding
         token={landingWishShareToken}
+        humiSession={humiSession}
         onClose={() => closeSharedLanding("wishShare")}
         onBindParticipation={(context) => bindParticipationFromSharedLanding("wishShare", context)}
       />

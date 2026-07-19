@@ -545,7 +545,7 @@ try {
       note: "少油少盐",
     },
   });
-  const retriedCraveGuestAction = retriedCraveGuest.request?.votes?.find((vote) => vote.participantKey === generatedCraveGuest.participant.id);
+  const retriedCraveGuestAction = retriedCraveGuest.request?.votes?.find((vote) => vote.id === firstCraveGuestAction?.id);
   const retriedCraveGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstCraveGuestEvent.id);
   assert.equal(retriedCraveGuestAction?.id, firstCraveGuestAction?.id, "guest crave retry should preserve business action id");
   assert.equal(retriedCraveGuestAction?.createdAt, firstCraveGuestAction?.createdAt, "guest crave retry should preserve business action creation time");
@@ -631,7 +631,7 @@ try {
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
     body: { participantKey: legacyCraveGuest.participant.id },
   });
-  const claimedCraveVote = claimedCrave.request?.votes?.find((vote) => vote.participantKey === legacyCraveGuest.participant.id);
+  const claimedCraveVote = claimedCrave.request?.votes?.find((vote) => vote.dishWish === "番茄汤");
   assert(claimedCraveVote?.temporary === false, "crave claim should bind the authenticated participant");
   assert(claimedCraveVote?.dishWish === "番茄汤", "crave claim should preserve the optional dish wish");
   assert(!claimedCraveVote?.memberId, "public crave response must not expose authenticated participant ids");
@@ -982,7 +982,7 @@ try {
       note: "改成只买西红柿",
     },
   });
-  const retriedGroceryGuestAction = retriedBatchClaim.request?.claims?.find((claim) => claim.participantKey === batchClaim.participant.id);
+  const retriedGroceryGuestAction = retriedBatchClaim.request?.claims?.find((claim) => claim.id === firstGroceryGuestAction?.id);
   const retriedGroceryGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstGroceryGuestEvent.id);
   assert.equal(retriedGroceryGuestAction?.id, firstGroceryGuestAction?.id, "guest grocery retry should preserve business action id");
   assert.equal(retriedGroceryGuestAction?.createdAt, firstGroceryGuestAction?.createdAt, "guest grocery retry should preserve business action creation time");
@@ -1082,7 +1082,7 @@ try {
       note: "周末家人一起吃",
     },
   });
-  const retriedWishGuestAction = retriedWishEntry.request?.wishes?.find((wish) => wish.participantKey === wishEntry.participant.id);
+  const retriedWishGuestAction = retriedWishEntry.request?.wishes?.find((wish) => wish.id === firstWishGuestAction?.id);
   const retriedWishGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstWishGuestEvent.id);
   assert.equal(retriedWishGuestAction?.id, firstWishGuestAction?.id, "guest wish retry should preserve business action id");
   assert.equal(retriedWishGuestAction?.createdAt, firstWishGuestAction?.createdAt, "guest wish retry should preserve business action creation time");
