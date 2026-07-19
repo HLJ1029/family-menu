@@ -1,4 +1,4 @@
-// 自建 AI 推荐：从 Supabase Edge Function `recommend-meals` 忠实移植到自建后端。
+// 自建 Humi API 推荐实现；正式运行时不依赖外部数据库函数。
 // 设计为纯模块 + 可注入 fetch，便于单测与在 api/server.js 中作为新增路由挂载。
 // 激活需在服务端配置 DEEPSEEK_API_KEY；未配置时调用方应回退到本地规则推荐。
 
