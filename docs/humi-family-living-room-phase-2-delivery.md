@@ -3,13 +3,13 @@
 更新日期：2026-07-20
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
-候选实现基线：Task 9 `c77772c`（`fix: clarify Humi participation identity binding`）
-Task 10 实现提交：`3045bdc`（`fix: restore Humi multi-household creation`）
-验证说明：完整矩阵在创建 `3045bdc` 前针对与该提交 byte-identical 的可执行产品及回归脚本内容执行；矩阵后、提交前只补写了交付记录与任务报告。产品、协作落地与 H5 证据均写入 2026-07-20 的私有持久目录。仍须由独立审查者使用实际 HEAD 校验提交范围。
+候选源码基线：Task 10 documentation HEAD `33ea283`（`docs: finalize Humi multi-household evidence`）
+Task 11 实现提交：`e75e98a`（`fix: harden Humi household creation contract`）
+验证说明：完整矩阵在创建 `e75e98a` 前针对与该提交 byte-identical 的代码、回归和 API 契约内容执行；该提交后只补写本交付记录与 Task 11 报告。产品、协作落地与 H5 证据均写入 2026-07-20 的新私有持久目录。Task 11 的 AI-HQ `v1` handoff 必须从本记录所在 documentation HEAD 生成并经过独立校验；新的 broad review 给出 GO 前 Phase 3 仍不可开始。
 
 ## 交付状态与范围
 
-Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通过。范围包括显式家庭生命周期、owner/member 权限边界、家庭客厅、成员管理、家庭设置、协作记录、账号设置、真实 Wish 回复收取与今晚安排、通用协作只绑定参与身份的真实完成 CTA，以及既有菜单、餐次记录、偏好和协作状态在家庭元数据更新后的保留。Task 10 还恢复了主厨从家庭设置创建第二个家的真实 UI 路径，并证明新家庭状态为空、切回原家庭后原有菜单/偏好/协作完整恢复；普通成员看不到创建控件。产品证据同时证明一张真实可解码头像和一位无头像成员的首字 fallback；H5 韧性证据现有私有机器可读 manifest。
+Phase 2 的本地候选实现及 2026-07-20 Task 11 完整自动化矩阵均已通过。范围包括显式家庭生命周期、owner/member 权限边界、家庭客厅、成员管理、家庭设置、协作记录、账号设置、真实 Wish 回复收取与今晚安排、通用协作只绑定参与身份的真实完成 CTA，以及既有菜单、餐次记录、偏好和协作状态在家庭元数据更新后的保留。Task 10 恢复了主厨从家庭设置创建第二个家的真实 UI 路径；Task 11 进一步证明认证用户向 `POST /households` 发送原始 JSON `null` 时精确得到 `400 household_name_required`，且家庭列表和 active family 保持为空。产品证据同时证明多家庭隔离、真实可解码头像与无头像 fallback；H5 韧性证据有私有机器可读 manifest。
 
 这是一份本地候选交付记录，不是生产验收、微信真机验收或上线批准。新的独立交付审查仍是进入 Phase 3 前的必要门禁。
 
@@ -29,25 +29,26 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 | Wish 安排与偏好摘要修正 | `9b255fb` | 恢复真实 API Wish 请求/回复 → 客厅刷新 → `今晚做` 闭环，并让偏好一句话始终覆盖家庭人数、主要口味和忌口。 |
 | 参与身份 CTA 与证据真实性修正 | `c77772c` | 三类通用协作统一为“登录 Humi，保存这次参与”，只保存参与身份且不承诺家庭成员关系；补齐头像解码/fallback 与 H5 私有 manifest。 |
 | 多家庭 UI 创建路径修正 | `3045bdc` | 主厨从家庭设置填写名称并创建第二个家；空名/失败保留草稿，pending 阻止重复提交，成功只消费服务端 envelope；普通成员无创建入口。 |
+| 建家 null-body 合同修正 | `e75e98a` | 原始 JSON `null` 与缺失/空白名称等价返回 `400 household_name_required`，无家庭或状态副作用；新增真实 HTTP 回归并更新 API 契约。 |
 
 ## 完整本地验证矩阵
 
-所有命令均在此 worktree 执行。两项浏览器 smoke 共用本地 Vite 服务，目标均为 `http://127.0.0.1:4176/`；没有使用生产 URL。服务已在矩阵结束后停止。
+所有命令均在此 worktree 执行。两项浏览器 smoke 共用本地 Vite 服务，目标均为 `http://127.0.0.1:4177/`；没有使用生产 URL。服务已在矩阵结束后停止，并以 `lsof` 确认端口无 listener。
 
 | 精确命令 | 结果 | 证据 |
 | --- | --- | --- |
 | `npm run validate:household` | exit 0；`Household lifecycle checks passed.` | `scripts/check-household-lifecycle.mjs`；直接覆盖 member 越权改名、owner 不可移除、转让与 owner 退出限制。 |
 | `npm run validate:identity` | exit 0；identity store/runtime checks passed | `scripts/check-identity-store.mjs`、`scripts/check-identity-runtime.mjs`。 |
-| `npm run validate:api` | exit 0；`Humi API smoke test passed.` | `scripts/smoke-humi-api.mjs`；临时数据目录由脚本创建并在 finally 清理。 |
+| `npm run validate:api` | exit 0；`Humi API smoke test passed.` | `scripts/smoke-humi-api.mjs`；先以原始 body 字符串 `null`、`Content-Type: application/json` 证明精确 400/error code，再读取 `/households` 证明 `family:null`、`households:[]`。临时数据目录由脚本创建并在 finally 清理。 |
 | `npm run validate:miniprogram-entry` | exit 0；`Mini-program entrypoint resilience checks passed.` | `scripts/check-miniprogram-entrypoint-resilience.mjs`；其模拟输出 `Humi web-view error { errMsg: 'domain blocked' }` 是韧性分支，不是失败。 |
-| `HUMI_H5_ENTRY_EVIDENCE_DIR=/Users/honglijie/.humi-release-evidence/task10-final-h5-entry-20260720T020712+0800 npm run validate:h5-entry` | exit 0；11 项 H5 韧性检查通过 | `/Users/honglijie/.humi-release-evidence/task10-final-h5-entry-20260720T020712+0800/manifest.json` 为 `ok:true`，精确列出 11 项检查和两张截图；目录 `0700`、manifest `0600`。 |
+| `HUMI_H5_ENTRY_EVIDENCE_DIR=/Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/h5-entry npm run validate:h5-entry` | exit 0；11 项 H5 韧性检查通过 | `/Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/h5-entry/manifest.json` 为 `ok:true`，精确列出 11 项检查和两张截图；目录 `0700`、manifest `0600`。 |
 | `npm run release:product:review` | exit 0；`ok: true`，49 项静态产品锚点全部通过 | 新增设置页创建控件、`UserCenter` 转发、主函数双层校验/服务端 envelope 三项静态门禁；既有 46 项继续通过。 |
-| `npm run release:product:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task10-final-product-smoke-20260720T020712+0800` | exit 0；manifest `ok: true`，121 项检查全部通过 | `/Users/honglijie/.humi-release-evidence/task10-final-product-smoke-20260720T020712+0800/manifest.json`；含可见 UI 创建、请求体 trim、失败草稿保留、pending 安全、新家庭空状态、切回原状态和 member 隐藏控件。目录 `0700`、manifest `0600`，18 张截图均存在。 |
-| `npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task10-final-collaboration-smoke-20260720T020712+0800` | exit 0；manifest `ok: true`，17 项检查全部通过且无 page errors | `/Users/honglijie/.humi-release-evidence/task10-final-collaboration-smoke-20260720T020712+0800/manifest.json`；六张 guest landing 截图，三种 typed pending context、零自动 auth 与零家庭 mutation 均通过；目录 `0700`、manifest `0600`。 |
+| `npm run release:product:smoke -- --base-url http://127.0.0.1:4177/ --evidence-dir /Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/product-smoke` | exit 0；manifest `ok: true`，121 项检查全部通过 | `/Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/product-smoke/manifest.json`；含可见 UI 创建、请求体 trim、失败草稿保留、pending 安全、新家庭空状态、切回原状态和 member 隐藏控件。目录 `0700`、manifest `0600`，18 张截图均存在。 |
+| `npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4177/ --evidence-dir /Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/collaboration-smoke` | exit 0；manifest `ok: true`，17 项检查全部通过且无 page errors | `/Users/honglijie/.humi-release-evidence/task11-final-matrix-20260720T023742+0800/collaboration-smoke/manifest.json`；六张 guest landing 截图，三种 typed pending context、零自动 auth 与零家庭 mutation 均通过；目录 `0700`、manifest `0600`。 |
 | `node scripts/smoke-collaboration-flow.mjs` | exit 0；`Humi collaboration and library meal flow smoke passed.` | `verifyHouseholdUserCenterFlow` 不再直接 POST 第二个家，而是执行家庭设置 → `例如：爸妈家` → `新建一个家` → 新客厅 → 返回设置切回原家庭；其余 mega-smoke runner 同时继续执行。 |
 | `npm run build` | exit 0；1747 modules transformed | Vite stdout；仅保留既有的 single chunk 超过 500 KiB 警告（`dist/assets/index-4aZSFBVt.js` 861.94 kB）。 |
 | `git diff --check` | exit 0 | 当前 worktree diff；无空白错误。 |
-| `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` | exit 0；`Secret scan passed.` | AI-HQ secret-scan stdout。 |
+| `HUMI_REPO=/Users/honglijie/agent-worktrees/humi/humi-wechat-identity-startup /Users/honglijie/AI-HQ/scripts/secret-scan.sh` | exit 0；`Secret scan passed.` | 同时扫描 AI-HQ 与本候选 product worktree；未打印或发现凭据值。 |
 
 本地 Vite 服务在 smoke 结束后停止；它未承载生产流量。
 
@@ -63,7 +64,7 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 - Living-room identity and route：当前家庭卡直接显示 `主厨`/`家人`、正式成员头像或首字 fallback 及人数；偏好摘要可点击进入设置。内部路由由 `family.id` 约束，产品 smoke 的 route observer 只记录 `start → home`，没有旧家庭 `settings` 瞬时绘制。
 - Wish planning workflow：`UserCenter` 不再丢弃 `wishPool`、`onRefreshWishShare` 和 `onPlanWish`。有进行中 Wish 请求时，主厨可从客厅调用既有 API refresh；真实游客回复进入实际 Wish pool。匹配菜逐项 `今晚做` 后进入今晚菜单并离开 pool，未匹配菜仍保留并进入既有菜品选择路径。通用 Wish 参与不会因此成为正式家庭成员。
 - Preference summary truth：摘要优先使用当前家庭正式成员数，缺失时才回退到 `familyProfile.familySize`；主要口味来自 `tastePreferences`，忌口合并 `dislikes` 与 `allergies`。产品夹具精确断言 `2 位家人 · 主要口味：家常、清淡 · 忌口：香菜、花生`，空维度使用 `待补充`/`暂无`。
-- Household-name truth：建家草稿默认 `我们家`；空白输入在前端不发请求并保留原值，Store 抛出 `household_name_required`，HTTP 返回 400。API smoke 还证明失败后家庭列表仍为空。
+- Household-name truth：建家草稿默认 `我们家`；空白输入在前端不发请求并保留原值，Store 抛出 `household_name_required`，HTTP 返回 400。Task 11 的 raw HTTP 回归进一步直接发送 literal JSON `null`，证明它与缺失/空白名称等价返回 `400 household_name_required`，之后 `family` 仍为 `null`、`households` 仍为 `[]`，没有创建家庭或状态。
 - Metadata lifecycle preservation：rename/remove/transfer 的 API envelope 只刷新 `family`/`households`。`applyHumiStateEnvelope(..., { preserveStateWhenMissing: true })` 保留当前菜单、meal plan、meal logs、偏好、Crave signals、active Crave/grocery/Wish 与非正式参与者；产品 smoke 在每个生命周期操作后分别断言这些状态未丢失，并确认正式成员、owner role 与头像元数据随返回值刷新。
 - Activity privacy：协作记录只显示自然语言活动。产品 smoke 注入不可渲染的 token、owner secret、participant key 和 household ID 哨兵值，并断言 DOM 同时不含值与内部字段名。
 - Participation boundary：legacy mega-smoke 证明游客参与登录后 active API vote 变为 `temporary:false` 并保留 `claimedAt`，pending context 清除，但正式家庭成员数量不增加；云端历史信号保留且不携带 participant key。
@@ -89,4 +90,4 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 
 ## Phase 3 入口门禁
 
-Task 7 曾错误地把保留 runner 名称与 API/activity 可见性描述为等价的 Wish 端到端覆盖；Task 8 恢复真实 API Wish 闭环后，第二次 broad review 又发现通用协作完成 CTA 仍在承诺家庭成员关系，且头像与 H5 证据不足，因此继续返回 NO-GO。Task 9 修正这些问题后，第三次 broad review 又发现主厨无法通过 UI 创建第二个家，且 legacy mega-smoke 用直接 POST 掩盖了历史路径缺失。Task 10 已恢复该 UI 和等价回归并完成新矩阵，但上述本地结果仍不等同于审查者给出 GO：未获得新的独立 GO 前，Phase 3 不应开始；无真机证据时更不得将 Phase 1 或 Phase 2 标为生产就绪或执行部署。
+Task 7 曾错误地把保留 runner 名称与 API/activity 可见性描述为等价的 Wish 端到端覆盖；Task 8 恢复真实 API Wish 闭环后，第二次 broad review 又发现通用协作完成 CTA 仍在承诺家庭成员关系，且头像与 H5 证据不足，因此继续返回 NO-GO。Task 9 修正这些问题后，第三次 broad review 又发现主厨无法通过 UI 创建第二个家，且 legacy mega-smoke 用直接 POST 掩盖历史路径缺失。Task 10 恢复 UI 与等价回归后，第四次 broad review 又发现 `POST /households` 的 literal JSON `null` 返回 500，且缺少版本化 AI-HQ handoff。Task 11 已修复 null-body 合同并完成新矩阵；仍须从本 documentation HEAD 生成并验证 `HUMI-2026-001/v1` preview handoff，再经新的独立 broad review 给出 GO，Phase 3 才可开始。无真机证据时不得把 Phase 1 或 Phase 2 标为生产就绪或执行部署。
