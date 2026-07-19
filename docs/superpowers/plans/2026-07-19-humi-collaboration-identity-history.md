@@ -207,19 +207,19 @@ git commit -m "feat: make collaboration identity automatic"
 - Consumes: existing `/crave-requests/:token/join`, `/grocery-share-requests/:token/join`, `/wish-share-requests/:token/join`.
 - Produces the same join envelopes plus merged canonical events.
 
-- [ ] **Step 1: Add failing merge abuse tests**
+- [x] **Step 1: Add failing merge abuse tests**
 
 Assert merge fails when guest ID belongs to another request, was already claimed by another user, or does not exist. A repeat by the same user succeeds idempotently. Original event time/action/payload never changes.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run identity collaboration test; expected failure at cross-request/claimed-user protection.
 
-- [ ] **Step 3: Implement ownership checks**
+- [x] **Step 3: Implement ownership checks**
 
 Store merge locates an event by exact request type/id and guest participant ID. Add `claimedByUserId` to the corresponding business action. Only after checks pass may the collaboration `/join` endpoint update the business action and event identity; it must never add a household member. Formal membership remains exclusive to authenticated household-invite acceptance.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run validate:collaboration-identity
