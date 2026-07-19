@@ -9,13 +9,14 @@ Page({
   },
 
   onLoad(options = {}) {
+    if (options.action === "login") {
+      getApp().clearHumiSession();
+      this.loginWithWechat();
+      return;
+    }
     const user = getApp().globalData?.humiSession?.user;
     if (user) {
       this.hydrateUser(user);
-      return;
-    }
-    if (options.action === "login") {
-      this.loginWithWechat();
       return;
     }
     if (!user) {

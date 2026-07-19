@@ -1,5 +1,14 @@
 const DEFAULT_HUMI_API_BASE_URL = "https://api.humi-home.com";
 const HUMI_API_TIMEOUT_MS = 12_000;
+const sessionInvalidListeners = new Set();
+
+export function subscribeHumiSessionInvalid(listener) {
+  if (typeof listener !== "function") return () => {};
+  sessionInvalidListeners.add(listener);
+  return () => {
+    sessionInvalidListeners.delete(listener);
+  };
+}
 
 export function isHumiApiSession(session) {
   return Boolean(session?.accessToken && session?.user?.provider === "wechat");
@@ -303,6 +312,15 @@ async function humiApiRequest(path, { method = "GET", session, body } = {}) {
       const error = new Error(data.message || "Humi 账号同步暂时不可用。");
       error.status = response.status;
       error.code = data.error || "";
+      if (response.status === 401 || error.code === "invalid_session") {
+        for (const listener of sessionInvalidListeners) {
+          try {
+            listener(error);
+          } catch {
+            // Session cleanup must not replace the original API error.
+          }
+        }
+      }
       throw error;
     }
     return data;

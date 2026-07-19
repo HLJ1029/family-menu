@@ -93,12 +93,12 @@ npm run validate:api
 ## 身份资料、头像与 H5 交接
 
 - `PUT /identity/profile`：保存必填昵称，并把 `profileStatus` 更新为 `complete`。
-- `POST /identity/avatar`：上传 JPEG/PNG 头像；Base64 解码后最大 512 KiB，并校验 JPEG/PNG 的必要结构与结束标记。只上传头像不会提前完成身份资料。
+- `POST /identity/avatar`：上传 JPEG/PNG 头像；Base64 解码后最大 512 KiB。JPEG 必须包含可解析的 segment、有效尺寸、SOF/SOS/EOI；PNG 必须通过逐 chunk 边界与 CRC、IHDR 尺寸/编码、IDAT 和 IEND 校验。只上传头像不会提前完成身份资料。
 - `GET /avatars/:token.jpg|png`：公开读取头像。URL 仅包含不透明随机 token，不包含 OpenID、手机号、昵称或用户 ID。
 - `POST /auth/h5-ticket`：资料完成的原生会话可申请 60 秒有效、只能消费一次的 H5 票据；数据文件只保存 SHA-256 哈希。
 - `POST /auth/h5/exchange`：消费票据并返回 H5 session；过期、伪造或重复消费均返回 401。
 
-小程序与 H5 的长期 access token 不进入 URL 或 history。H5 完成交换后立即从地址栏移除 `humiTicket`。H5 发现本地 session 过期，或任一鉴权读取返回 401/`invalid_session`，必须清掉本地登录态并回到重新登录/游客选择，不得继续显示“已登录”。
+小程序与 H5 的长期 access token 不进入 URL 或 history。H5 完成交换后立即从地址栏移除 `humiTicket`。H5 发现本地 session 过期，或任一鉴权读取/写入返回 401/`invalid_session`，必须统一清掉 H5 与原生缓存并回到重新登录/游客选择，不得继续显示“已登录”。用户再次点击登录时，原生身份页必须先丢弃残留 session，再执行新的 `wx.login`。
 
 H5 到原生的登录与退出使用立即执行的页面导航：登录进入 `/pages/identity/index?action=login`，退出重启到 `/pages/index/index?humiLogout=1`。正式身份链路不得依赖 `web-view bindmessage` 才触发，因为该消息可能延迟到返回、销毁或分享时才送达。
 

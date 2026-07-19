@@ -33,9 +33,19 @@ export function clearHumiSession() {
 
 export function takeHumiSessionExpiredNotice() {
   if (typeof window === "undefined") return false;
-  const expired = window.sessionStorage?.getItem(HUMI_SESSION_EXPIRED_KEY) === "1";
-  window.sessionStorage?.removeItem(HUMI_SESSION_EXPIRED_KEY);
-  return expired;
+  try {
+    const url = new URL(window.location.href);
+    const fromNative = url.searchParams.get("humiExpired") === "1";
+    if (fromNative) {
+      url.searchParams.delete("humiExpired");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    const fromStorage = window.sessionStorage?.getItem(HUMI_SESSION_EXPIRED_KEY) === "1";
+    window.sessionStorage?.removeItem(HUMI_SESSION_EXPIRED_KEY);
+    return fromNative || fromStorage;
+  } catch {
+    return false;
+  }
 }
 
 export function takeHumiTicketFromUrl() {
@@ -75,12 +85,15 @@ export function requestPhoneBindFromMiniProgram() {
   return false;
 }
 
-export function requestMiniProgramLogout() {
+export function requestMiniProgramLogout({ expired = false } = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram?.reLaunch) return false;
   try {
-    miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" });
+    const url = expired
+      ? "/pages/index/index?humiLogout=1&humiExpired=1"
+      : "/pages/index/index?humiLogout=1";
+    miniProgram.reLaunch({ url });
     return true;
   } catch {
     return false;

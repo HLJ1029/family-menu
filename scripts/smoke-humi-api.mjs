@@ -115,6 +115,38 @@ try {
     body: { mimeType: "image/jpeg", dataBase64: Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("base64") },
   }, 415, "invalid_avatar");
 
+  const fakeJpeg = Buffer.alloc(16, 0);
+  fakeJpeg.set([0xff, 0xd8, 0xff, 0xc0], 0);
+  fakeJpeg.set([0xff, 0xd9], fakeJpeg.length - 2);
+  await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/jpeg", dataBase64: fakeJpeg.toString("base64") },
+  }, 415, "invalid_avatar");
+
+  const fakePng = Buffer.alloc(33, 0);
+  fakePng.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  fakePng.writeUInt32BE(13, 8);
+  fakePng.write("IHDR", 12, "ascii");
+  fakePng.writeUInt32BE(0, fakePng.length - 12);
+  fakePng.write("IEND", fakePng.length - 8, "ascii");
+  await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/png", dataBase64: fakePng.toString("base64") },
+  }, 415, "invalid_avatar");
+
+  const avatarPng = await readFile(new URL("../public/icons/humi-icon-192.png", import.meta.url));
+  const pngAvatarUpload = await request(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/png", dataBase64: avatarPng.toString("base64") },
+  });
+  assert.match(pngAvatarUpload.user.avatarUrl, /\.png$/);
+  const downloadedPngAvatar = await rawRequest(pngAvatarUpload.user.avatarUrl);
+  assert.equal(downloadedPngAvatar.status, 200);
+  assert.equal(Buffer.compare(downloadedPngAvatar.buffer, avatarPng), 0);
+
   await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },

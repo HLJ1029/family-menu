@@ -735,7 +735,7 @@ const status = error.status || (error.code === "household_required" ? 409 : 500)
 
 - [x] **Step 7: 运行完整 API 验证**
 
-确认 Step 1 已覆盖 4 字节 JPEG 上传、公开读取、错误格式、头像不提前完成身份，以及重复票据消费。运行：
+确认 Step 1 已覆盖真实 JPEG/PNG 上传与公开读取、伪造/错误/超限图片拒绝、头像不提前完成身份，以及重复票据消费。运行：
 
 ```bash
 npm run validate:api
@@ -1132,7 +1132,7 @@ openAuthenticatedH5(session) {
 }
 ```
 
-H5 主按钮调用 `wx.miniProgram.navigateTo({ url: "/pages/identity/index?action=login" })`。身份页只有在收到这个显式 action 且当前没有有效 session 时才调用 `loginWithWechat()`；已有 session 但 `profileStatus !== "complete"` 时直接进入资料完善；只有资料完整的 session 才允许 `openAuthenticatedH5()`。这样缓存会话也不能绕过昵称确认，而且不依赖延迟触发的 `web-view bindmessage`。
+H5 主按钮调用 `wx.miniProgram.navigateTo({ url: "/pages/identity/index?action=login" })`。身份页收到这个显式 action 时必须优先清除残留原生 session，再调用 `loginWithWechat()`；只有不带 action 的普通恢复才可使用有效缓存。这样被服务端撤销的原生 token 不能阻断重新登录，而且不依赖延迟触发的 `web-view bindmessage`。
 
 H5 退出调用 `wx.miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" })`；原生首页收到参数后调用 `getApp().clearHumiSession()`、清空 `currentSession` 并打开游客 H5，保证下次启动不会被原生缓存重新恢复。
 
@@ -1381,16 +1381,20 @@ const signedIn = Boolean(humiSession?.user && identityComplete);
 在 `src/lib/humiIdentity.js` 增加：
 
 ```js
-export function requestMiniProgramLogout() {
+export function requestMiniProgramLogout({ expired = false } = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram?.reLaunch) return false;
-  miniProgram.reLaunch({ url: "/pages/index/index?humiLogout=1" });
+  miniProgram.reLaunch({
+    url: expired
+      ? "/pages/index/index?humiLogout=1&humiExpired=1"
+      : "/pages/index/index?humiLogout=1"
+  });
   return true;
 }
 ```
 
-`handleSignOut()` 无论远端注销成功或失败，都先完成本地清理，再调用 `requestMiniProgramLogout()` 立即清除原生缓存。H5 入口测试预置一个 `profileStatus: "incomplete"` 的 legacy session，断言页面不出现“已登录 Humi”；静态与动态门禁断言 H5 helper 和小程序 index 共同实现 `humiLogout=1` 路由。
+`handleSignOut()` 无论远端注销成功或失败，都先完成本地清理，再调用 `requestMiniProgramLogout()` 立即清除原生缓存。所有鉴权 API 的 401/`invalid_session` 通过统一订阅触发 `requestMiniProgramLogout({ expired: true })`，后续写入失效也必须降级。H5 入口测试预置 legacy、过期和服务端撤销 session，断言页面不出现“已登录 Humi”；静态与动态门禁断言 H5 helper 和小程序 index 共同实现普通退出与过期路由。
 
 - [x] **Step 8: 运行 H5 验证并确认通过**
 

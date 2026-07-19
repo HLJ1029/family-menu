@@ -207,6 +207,45 @@ try {
   assert.equal(await unauthorizedPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
   await unauthorizedContext.close();
 
+  const laterUnauthorizedContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await laterUnauthorizedContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "later-revoked-session-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "later-revoked-user", displayName: "小禾", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const laterUnauthorizedPage = await laterUnauthorizedContext.newPage();
+  await laterUnauthorizedPage.route("**/state", (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          state: { householdId: "household-1", todayMenu: [] },
+          family: { id: "household-1", name: "我们家", members: [] },
+          households: [{ id: "household-1", name: "我们家", members: [] }],
+        }),
+      });
+    }
+    return route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "invalid_session", message: "登录状态已失效。" }),
+    });
+  });
+  await laterUnauthorizedPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await laterUnauthorizedPage.getByRole("button", { name: "重新微信登录", exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await laterUnauthorizedPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  await laterUnauthorizedContext.close();
+
   const failedLogoutContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -257,6 +296,8 @@ try {
   assert.match(appShellSource, /avatarUrl/);
   assert.match(appShellSource, /avatarKey/);
   assert.doesNotMatch(identitySource, /postMessage/);
+  assert.match(mainSource, /subscribeHumiSessionInvalid/);
+  assert.match(mainSource, /requestMiniProgramLogout\(\{ expired: true \}\)/);
 
   console.log(JSON.stringify({
     ok: true,
@@ -273,6 +314,7 @@ try {
       "legacy incomplete identity is gated",
       "expired H5 sessions are cleared",
       "server-rejected H5 sessions downgrade to logged out",
+      "later authenticated writes also downgrade on invalid sessions",
       "local logout succeeds when remote revocation fails",
     ],
   }, null, 2));

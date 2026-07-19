@@ -78,6 +78,9 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
     globalData: { humiSession: runtimeOverrides.appSession ?? null },
     setHumiSession(session) {
       this.globalData.humiSession = session;
+    },
+    clearHumiSession() {
+      this.globalData.humiSession = null;
     }
   };
   const requestUrls = [];
@@ -151,14 +154,22 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
 
 {
   let loginCalls = 0;
-  const { page, app, requestUrls } = createIdentityPage({
-    login: ({ success }) => {
-      loginCalls += 1;
-      success({ code: "wechat-code" });
-    }
-  });
+  const revokedSession = {
+    accessToken: "revoked-native-session",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "revoked-user", displayName: "旧用户", profileStatus: "complete" }
+  };
+  const { page, app, requestUrls } = createIdentityPage(
+    {
+      login: ({ success }) => {
+        loginCalls += 1;
+        success({ code: "wechat-code" });
+      }
+    },
+    { appSession: revokedSession }
+  );
   page.onLoad({ action: "login" });
-  assert.equal(loginCalls, 1, "explicit identity route should call wx.login once");
+  assert.equal(loginCalls, 1, "explicit identity route must replace a stale native session via wx.login");
   assert.equal(requestUrls.filter((url) => url.endsWith("/auth/wechat/login")).length, 1);
   assert.equal(app.globalData.humiSession?.accessToken, "identity-session-token");
 }
@@ -202,6 +213,19 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
   page.onLoad({ humiLogout: "1" });
   assert.equal(app.globalData.humiSession, null);
   assert.equal(page.data.currentSession, null);
+  assert.doesNotMatch(page.data.url, /humiTicket=/);
+}
+
+{
+  const completeSession = {
+    accessToken: "revoked-session",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "revoked-user", displayName: "旧用户", profileStatus: "complete" }
+  };
+  const { page, app } = createPage({}, { appSession: completeSession });
+  page.onLoad({ humiLogout: "1", humiExpired: "1" });
+  assert.equal(app.globalData.humiSession, null);
+  assert.match(page.data.url, /humiExpired=1/);
   assert.doesNotMatch(page.data.url, /humiTicket=/);
 }
 

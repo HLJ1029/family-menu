@@ -45,4 +45,29 @@ assert.match(userCenterSource, /data-testid="create-household-section"/);
 assert.match(userCenterSource, /data-testid="humi-account-settings"/);
 assert.doesNotMatch(deployWorkflow, /VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY/);
 
+const humiApi = await import(`../src/lib/humiApi.js?session-invalid-check=${Date.now()}`);
+assert.equal(typeof humiApi.subscribeHumiSessionInvalid, "function");
+let invalidSessionNotifications = 0;
+const unsubscribe = humiApi.subscribeHumiSessionInvalid(() => {
+  invalidSessionNotifications += 1;
+});
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async () => new Response(JSON.stringify({
+  error: "invalid_session",
+  message: "登录状态已失效。",
+}), {
+  status: 401,
+  headers: { "content-type": "application/json" },
+});
+try {
+  await assert.rejects(
+    humiApi.saveHumiState({ accessToken: "revoked-token" }, { todayMenu: [] }),
+    (error) => error.status === 401 && error.code === "invalid_session"
+  );
+  assert.equal(invalidSessionNotifications, 1, "every authenticated 401 should broadcast session invalidation");
+} finally {
+  unsubscribe();
+  globalThis.fetch = originalFetch;
+}
+
 console.log("Identity runtime checks passed.");

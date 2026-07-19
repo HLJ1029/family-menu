@@ -63,7 +63,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
-import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
+import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, subscribeHumiSessionInvalid, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -286,6 +286,10 @@ function App() {
       });
     return () => { active = false; };
   }, [setOnboardingComplete]);
+
+  useEffect(() => subscribeHumiSessionInvalid(() => {
+    expireHumiIdentity();
+  }), []);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !identityComplete || humiStateLoadedRef.current) return;
@@ -2492,6 +2496,7 @@ function App() {
 
   function expireHumiIdentity() {
     clearHumiSession();
+    requestMiniProgramLogout({ expired: true });
     setHumiSession(null);
     setSessionExpired(true);
     humiStateLoadedRef.current = false;

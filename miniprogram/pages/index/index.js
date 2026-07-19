@@ -27,6 +27,11 @@ Page({
     if (options.humiLogout === "1") {
       getApp().clearHumiSession();
       this.setData({ currentSession: null, loginError: "" });
+      if (options.humiExpired === "1") {
+        this._initialLoadFinished = true;
+        this.openWebView(appendQuery(this.buildH5Url(), { humiExpired: "1" }));
+        return;
+      }
       this.finishInitialLoad();
       return;
     }
