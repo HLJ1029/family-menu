@@ -1,7 +1,16 @@
-import { createHumiApiServer } from "../api/server.js";
+import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const server = createHumiApiServer();
 const port = 18787;
+const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-api-smoke-"));
+process.env.HUMI_API_DATA_FILE = join(smokeDirectory, "data.json");
+process.env.HUMI_AVATAR_DIR = join(smokeDirectory, "avatars");
+process.env.HUMI_POSTER_DIR = join(smokeDirectory, "posters");
+process.env.HUMI_PUBLIC_BASE_URL = `http://127.0.0.1:${port}`;
+const { createHumiApiServer } = await import("../api/server.js");
+const server = createHumiApiServer();
 
 await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
 
@@ -26,6 +35,8 @@ try {
   });
   assert(login.accessToken, "login should return accessToken");
   assert(login.user?.provider === "wechat", "login should return wechat user");
+  assert.equal(login.user?.profileStatus, "incomplete");
+  assert.match(login.user?.avatarKey || "", /^humi-avatar-/);
 
   const posterJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
   const unauthorizedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
@@ -79,10 +90,87 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
   assert(me.user?.id === login.user.id, "me should return current user");
-  assert(me.family?.provider === "wechat", "me should return wechat family");
-  assert(me.family?.ownerId === login.user.id, "new family should expose owner id");
-  assert(me.family?.currentMemberId === login.user.id, "family should expose current member id");
-  assert(me.family?.role === "owner", "new family current user should be owner");
+  assert.equal(me.family, null, "reading /me must not create a household");
+  assert.deepEqual(me.households, []);
+
+  const avatarJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const avatarUpload = await request(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/jpeg", dataBase64: avatarJpeg.toString("base64") },
+  });
+  assert.equal(avatarUpload.user.profileStatus, "incomplete", "avatar alone must not complete identity");
+  assert.match(avatarUpload.user.avatarUrl, /^http:\/\/127\.0\.0\.1:18787\/avatars\//);
+  const downloadedAvatar = await rawRequest(avatarUpload.user.avatarUrl);
+  assert.equal(downloadedAvatar.status, 200);
+  assert.equal(Buffer.compare(downloadedAvatar.buffer, avatarJpeg), 0);
+
+  await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/jpeg", dataBase64: Buffer.from("not-an-image").toString("base64") },
+  }, 415, "invalid_avatar");
+
+  const oversizedAvatar = Buffer.alloc(513 * 1024, 0);
+  oversizedAvatar.set([0xff, 0xd8, 0xff], 0);
+  await assertRejectedRequest(`${baseUrl}/identity/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { mimeType: "image/jpeg", dataBase64: oversizedAvatar.toString("base64") },
+  }, 415, "invalid_avatar");
+
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { displayName: "" },
+  }, 400, "display_name_required");
+
+  await assertRejectedRequest(`${baseUrl}/auth/h5-ticket`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  }, 409, "identity_required");
+
+  const identityProfile = await request(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { displayName: "小禾" },
+  });
+  assert.equal(identityProfile.user.displayName, "小禾");
+  assert.equal(identityProfile.user.profileStatus, "complete");
+
+  const ticket = await request(`${baseUrl}/auth/h5-ticket`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.match(ticket.ticket, /^[A-Za-z0-9_-]{32,}$/);
+  const exchanged = await request(`${baseUrl}/auth/h5/exchange`, {
+    method: "POST",
+    body: { ticket: ticket.ticket },
+  });
+  assert.equal(exchanged.user.id, login.user.id);
+  await assertRejectedRequest(`${baseUrl}/auth/h5/exchange`, {
+    method: "POST",
+    body: { ticket: ticket.ticket },
+  }, 401, "invalid_h5_ticket");
+
+  await assertRejectedRequest(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { state: { todayMenu: [] } },
+  }, 409, "household_required");
+  await assertRejectedRequest(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "测试家", initiatorName: "小禾" },
+  }, 409, "household_required");
+
+  const firstHousehold = await request(`${baseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "测试家", memberName: "小禾" },
+  });
+  assert.equal(firstHousehold.family?.ownerId, login.user.id);
+  assert.equal(firstHousehold.households?.length, 1);
 
   const phone = await request(`${baseUrl}/auth/wechat/phone`, {
     method: "POST",
@@ -802,6 +890,7 @@ try {
   console.log("Humi API smoke test passed.");
 } finally {
   await new Promise((resolve) => server.close(resolve));
+  await rm(smokeDirectory, { recursive: true, force: true });
 }
 
 async function request(url, options = {}) {
@@ -850,6 +939,12 @@ async function assertUnauthorizedCreate(url, body, label) {
   }
 }
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
+async function assertRejectedRequest(url, options, expectedStatus, expectedCode) {
+  const response = await rawRequest(url, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
+    body: JSON.stringify(options.body ?? {}),
+  });
+  assert.equal(response.status, expectedStatus);
+  assert.equal(response.data?.error, expectedCode);
 }

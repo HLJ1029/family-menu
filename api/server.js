@@ -7,6 +7,7 @@ import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
+import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -31,6 +32,9 @@ const config = {
   posterTtlMs: Math.max(60 * 60 * 1000, Number(process.env.HUMI_POSTER_TTL_MS || 24 * 60 * 60 * 1000)),
   posterRateLimit: Math.max(1, Number(process.env.HUMI_POSTER_RATE_LIMIT || 12)),
   posterRateWindowMs: Math.max(10_000, Number(process.env.HUMI_POSTER_RATE_WINDOW_MS || 60_000)),
+  avatarDir: process.env.HUMI_AVATAR_DIR || resolve(dirname(process.env.HUMI_API_DATA_FILE || resolve(".humi-api-data.json")), "avatars"),
+  avatarPublicBaseUrl: (process.env.HUMI_PUBLIC_BASE_URL || "https://api.humi-home.com").replace(/\/$/, ""),
+  avatarMaxBytes: 512 * 1024,
 };
 
 if (!config.sessionSecret) {
@@ -62,6 +66,32 @@ export function createHumiApiServer() {
 
       if (request.method === "POST" && url.pathname === "/auth/wechat/login") {
         await handleWechatLogin(request, response);
+        return;
+      }
+
+      if (request.method === "PUT" && url.pathname === "/identity/profile") {
+        await handleIdentityProfile(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/identity/avatar") {
+        await handleIdentityAvatar(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/auth/h5-ticket") {
+        await handleCreateH5Ticket(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/auth/h5/exchange") {
+        await handleExchangeH5Ticket(request, response);
+        return;
+      }
+
+      const avatarMatch = url.pathname.match(/^\/avatars\/([A-Za-z0-9_-]{32})\.(jpg|png)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && avatarMatch) {
+        await handleGetAvatar(request, response, avatarMatch[1], avatarMatch[2]);
         return;
       }
 
@@ -270,7 +300,7 @@ export function createHumiApiServer() {
 
       sendJson(response, 404, { error: "not_found" });
     } catch (error) {
-      const status = error.status || 500;
+      const status = error.status || (error.code === "household_required" ? 409 : 500);
       if (process.env.NODE_ENV !== "production" && status >= 500) {
         console.error(error);
       }
@@ -295,6 +325,62 @@ async function handleWechatLogin(request, response) {
     unionid: wechatSession.unionid,
   });
   sendAuthSession(response, user);
+}
+
+async function handleIdentityProfile(request, response) {
+  const auth = await requireAuth(request);
+  const body = await readJson(request);
+  const displayName = stringValue(body.displayName, 32);
+  if (!displayName) throw httpError(400, "display_name_required", "请输入你的昵称。");
+  const user = await store.updateIdentityProfile(auth.userId, { displayName });
+  if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
+  sendJson(response, 200, { user: toPublicUser(user) });
+}
+
+async function handleIdentityAvatar(request, response) {
+  const auth = await requireAuth(request);
+  const body = await readJson(request, 800 * 1024);
+  const decoded = decodeAvatarPayload(body, config.avatarMaxBytes);
+  if (!decoded) throw httpError(415, "invalid_avatar", "头像需要是 512KB 内的 JPG 或 PNG。");
+  const file = await writeAvatarFile({ directory: config.avatarDir, ...decoded });
+  const avatarUrl = `${config.avatarPublicBaseUrl}/avatars/${file.token}.${file.format}`;
+  const user = await store.updateIdentityAvatar(auth.userId, { avatarUrl });
+  if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
+  sendJson(response, 201, { user: toPublicUser(user) });
+}
+
+async function handleCreateH5Ticket(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
+  if (user.profileStatus !== "complete") {
+    throw httpError(409, "identity_required", "请先完成昵称设置。");
+  }
+  const issued = await store.issueH5Ticket(auth.userId, { ttlMs: 60_000 });
+  if (!issued) throw httpError(401, "invalid_session", "登录状态已失效。");
+  sendJson(response, 201, issued);
+}
+
+async function handleExchangeH5Ticket(request, response) {
+  const body = await readJson(request);
+  const consumed = await store.consumeH5Ticket(stringValue(body.ticket, 160));
+  if (!consumed) throw httpError(401, "invalid_h5_ticket", "登录链接已失效，请重新登录。");
+  const user = await store.getUser(consumed.userId);
+  if (!user) throw httpError(401, "invalid_h5_ticket", "登录链接已失效，请重新登录。");
+  sendAuthSession(response, user);
+}
+
+async function handleGetAvatar(request, response, token, format) {
+  const file = await readAvatarFile({ directory: config.avatarDir, token, format });
+  if (!file) throw httpError(404, "avatar_not_found", "头像不存在。");
+  response.writeHead(200, {
+    "Content-Type": format === "png" ? "image/png" : "image/jpeg",
+    "Content-Length": file.size,
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "X-Content-Type-Options": "nosniff",
+  });
+  if (request.method === "HEAD") return response.end();
+  response.end(file.bytes);
 }
 
 async function handleWechatPhone(request, response) {
@@ -1174,7 +1260,10 @@ function toPublicUser(user) {
   return {
     id: user.id,
     displayName: user.displayName || "微信用户",
-    provider: user.provider || "wechat",
+    provider: "wechat",
+    profileStatus: user.profileStatus === "complete" ? "complete" : "incomplete",
+    avatarKey: user.avatarKey || "humi-avatar-family-m-01",
+    avatarUrl: user.avatarUrl || "",
     phoneVerified: Boolean(user.phoneVerifiedAt),
     phoneMasked: user.phoneMasked || "",
     phoneVerifiedAt: user.phoneVerifiedAt || null,
@@ -1182,13 +1271,14 @@ function toPublicUser(user) {
 }
 
 function toHumiFamily(household, user) {
+  if (!household) return null;
   const member = household?.members?.find((item) => item.memberId === user.id);
   return {
-    id: household?.id || `humi:${user.id}`,
-    name: household?.name || "我的家",
-    ownerId: household?.ownerId || user.id,
+    id: household.id,
+    name: household.name,
+    ownerId: household.ownerId,
     currentMemberId: member?.memberId || user.id,
-    role: member?.role || (household?.ownerId === user.id ? "owner" : "member"),
+    role: member?.role || "member",
     provider: "wechat",
     members: (household?.members ?? []).map((item) => ({
       memberId: item.memberId,
@@ -1507,9 +1597,14 @@ function createPhoneHash(countryCode, phoneNumber) {
   return createHmac("sha256", config.sessionSecret).update(`${countryCode}:${phoneNumber}`).digest("hex");
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = Number.POSITIVE_INFINITY) {
   const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
+  let bytes = 0;
+  for await (const chunk of request) {
+    bytes += chunk.length;
+    if (bytes > maxBytes) throw httpError(413, "request_too_large", "提交内容太大。");
+    chunks.push(chunk);
+  }
   if (chunks.length === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
