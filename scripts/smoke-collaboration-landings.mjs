@@ -374,7 +374,7 @@ async function verifySignedInActions(page, base, actionRequests) {
 
   const requests = actionRequests.slice(start);
   const bodiesAreAnonymous = requests.length === 3 && requests.every((request) => (
-    request.authorization === "Bearer signed-in-smoke-token" && isSignedInActionBody(request.body)
+    request.authorization === `Bearer ${signedInSession().accessToken}` && isSignedInActionBody(request.body)
   ));
   const successUsesHumiSnapshot = [craveText, groceryText, wishText].every((text) => (
     text.includes("小禾") && !text.includes("登录 Humi，保存这次参与")
@@ -425,7 +425,7 @@ function signedInParticipant() {
 
 function signedInSession() {
   return {
-    accessToken: "signed-in-smoke-token",
+    accessToken: "smoke",
     expiresAt: Date.now() + 60 * 60 * 1000,
     user: { ...signedInParticipant(), provider: "wechat", profileStatus: "complete" },
   };

@@ -557,7 +557,7 @@ try {
   const craveActionsBeforeInvalidBearer = await readCollaborationBusinessActions("crave", crave.request.id);
   await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
     method: "POST",
-    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    headers: { Authorization: "Bearer bad" },
     body: { feelingTag: "不应写入" },
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "invalid crave bearer must not create collaboration history");
@@ -1050,7 +1050,7 @@ try {
   const groceryActionsBeforeInvalidBearer = await readCollaborationBusinessActions("grocery", batchGrocery.request.id);
   await assertRejectedRequest(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
     method: "POST",
-    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    headers: { Authorization: "Bearer bad" },
     body: { itemIds: ["egg"] },
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "invalid grocery bearer must not create collaboration history");
@@ -1154,7 +1154,7 @@ try {
   const wishActionsBeforeInvalidBearer = await readCollaborationBusinessActions("wish", wishShare.request.id);
   await assertRejectedRequest(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
     method: "POST",
-    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    headers: { Authorization: "Bearer bad" },
     body: { dishName: "不应写入" },
   }, 401, "invalid_token");
   assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "invalid wish bearer must not create collaboration history");
@@ -1372,7 +1372,7 @@ try {
   }, 404, "household_not_found");
   assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "unknown household history read must not write data");
   await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
-    headers: { Authorization: "Bearer invalid-collaboration-history-token" },
+    headers: { Authorization: "Bearer bad" },
   }, 401, "invalid_token");
   assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "invalid history bearer must not write data");
   await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
