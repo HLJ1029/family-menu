@@ -25,7 +25,6 @@ try {
   });
   const page = await context.newPage();
   const pageErrors = [];
-  let craveCreatePayload = null;
   const posterUploadRequests = [];
   await page.addInitScript(() => {
     window.__humiMiniProgramCalls = [];
@@ -81,7 +80,6 @@ try {
 
   await page.route("**/crave-requests", async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
-    craveCreatePayload = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -444,6 +442,7 @@ try {
   ]));
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
+  const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const soloOwnerFlow = await verifySoloOwnerFlow(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
@@ -522,12 +521,22 @@ try {
     { key: "household-start-invite-action-explains-how-to-open-a-real-invite", ok: noHouseholdStart.inviteGuidanceShown, actual: noHouseholdStart },
     { key: "signed-in-no-household-does-not-fabricate-family", ok: noHouseholdStart.hasNoLivingRoom, actual: noHouseholdStart },
     { key: "signed-in-no-household-page-errors", ok: noHouseholdStart.pageErrors.length === 0, errors: noHouseholdStart.pageErrors },
+    { key: "dashboard-crave-owner-creation-opens-recipient-picker", ok: ownerCollaborationShares.craveAudiencePickerVisible, actual: ownerCollaborationShares },
+    { key: "dashboard-crave-recipients-default-selected", ok: ownerCollaborationShares.craveRecipientsDefaultSelected, actual: ownerCollaborationShares.craveRecipientState },
+    { key: "dashboard-crave-create-keeps-selected-members", ok: ownerCollaborationShares.craveCreateKeptSelectedMembers, actual: ownerCollaborationShares.craveCreatePayload },
+    { key: "dashboard-crave-share-opens-native-share-page", ok: ownerCollaborationShares.craveShareOpened, actual: ownerCollaborationShares.nativeShareTypeCounts },
+    { key: "dashboard-crave-retry-share-action-is-visible", ok: ownerCollaborationShares.craveRetryShareActionVisible },
+    { key: "living-room-wish-share-creates-current-household-request", ok: ownerCollaborationShares.wishCreateRequested, actual: ownerCollaborationShares.wishCreatePayload },
+    { key: "living-room-wish-share-opens-native-share-page", ok: ownerCollaborationShares.wishShareOpened, actual: ownerCollaborationShares.nativeShareTypeCounts },
+    { key: "owner-collaboration-native-share-actions-dispatch-once", ok: ownerCollaborationShares.shareActionsDispatchOnce, actual: ownerCollaborationShares.nativeShareTypeCounts },
+    { key: "owner-collaboration-share-page-errors", ok: ownerCollaborationShares.pageErrors.length === 0, errors: ownerCollaborationShares.pageErrors },
     { key: "member-cannot-invite-from-family-living-room", ok: memberBoundary.memberHasNoInviteAction, actual: memberBoundary },
     { key: "living-room-internal-actions-keep-primary-tab", ok: memberBoundary.internalActionKeepsPrimaryTab, actual: memberBoundary },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
     { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
+    { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "solo-owner-can-decide-without-family", ok: soloOwnerFlow.starterHasNoMemberPressure && soloOwnerFlow.decidedAlone && !soloOwnerFlow.shareRequestCreated, actual: soloOwnerFlow },
     { key: "solo-owner-flow-generates-menu-and-grocery", ok: soloOwnerFlow.menuWritten && soloOwnerFlow.planWritten && soloOwnerFlow.groceryGenerated, actual: soloOwnerFlow },
@@ -883,6 +892,148 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
   };
 }
 
+async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let craveCreatePayload = null;
+  let wishCreatePayload = null;
+  const family = buildSmokeFamily();
+  const state = { ...buildSmokeHouseholdState(), todayMenu: [], mealPlan: {}, mealLogs: {} };
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) pageErrors.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);
+  });
+  await page.addInitScript(() => {
+    window.__humiMiniProgramCalls = [];
+    window.__wxjs_environment = "miniprogram";
+    window.wx = {
+      miniProgram: {
+        navigateTo(payload) {
+          window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
+          payload.success?.({ errMsg: "navigateTo:ok" });
+        },
+        redirectTo(payload) {
+          window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
+          payload.success?.({ errMsg: "redirectTo:ok" });
+        },
+      },
+    };
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "owner-collaboration-token",
+      refreshToken: "owner-collaboration-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? state, family, households: [family] });
+      return;
+    }
+    await fulfillJson(route, { state, family, households: [family] });
+  });
+  await page.route("**/crave-requests", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    craveCreatePayload = route.request().postDataJSON();
+    await fulfillJson(route, {
+      ownerSecret: "owner-collaboration-crave-secret",
+      request: {
+        id: "owner-collaboration-crave",
+        token: "owner-collaboration-crave-token",
+        householdName: "我家",
+        initiatorName: "主厨",
+        recipientCount: 1,
+        status: "collecting",
+        votes: [],
+        deadlineAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    });
+  });
+  await page.route("**/wish-share-requests", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    wishCreatePayload = route.request().postDataJSON();
+    await fulfillJson(route, {
+      ownerSecret: "owner-collaboration-wish-secret",
+      request: {
+        id: "owner-collaboration-wish",
+        token: "owner-collaboration-wish-token",
+        householdName: "我家",
+        initiatorName: "主厨",
+        title: "家里最近想吃什么",
+        status: "collecting",
+        wishes: [],
+      },
+    });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await installMiniProgramMock(page);
+  await page.getByRole("button", { name: "问问大家想吃啥" }).click();
+  const audiencePicker = page.getByText("默认全选，家人点开卡片免登录参与", { exact: true });
+  await audiencePicker.waitFor({ state: "visible", timeout: 15_000 });
+  const craveAudiencePickerVisible = await audiencePicker.isVisible();
+  const recipient = page.getByRole("button", { name: /家人小林/ });
+  const craveRecipientState = await recipient.getAttribute("aria-pressed");
+  await page.getByRole("button", { name: "生成征集单", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=crave")),
+  ).catch(async (error) => {
+    const calls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
+    throw new Error(`${error.message}; craveCreatePayload=${JSON.stringify(craveCreatePayload)}; calls=${JSON.stringify(calls)}; pageErrors=${JSON.stringify(pageErrors)}`);
+  });
+  const craveRetryShareActionVisible = await page.getByRole("button", { name: "分享征集单", exact: true }).isVisible();
+  await page.getByTestId("mobile-nav-user").click();
+  const familyLivingRoom = page.getByTestId("family-living-room");
+  await familyLivingRoom.waitFor({ state: "visible", timeout: 15_000 });
+  await familyLivingRoom.getByRole("button", { name: "邀请家人写想吃", exact: true }).click();
+  await page.waitForFunction(() =>
+    window.__humiMiniProgramCalls?.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish")),
+  ).catch(async (error) => {
+    const calls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
+    throw new Error(`${error.message}; wishCreatePayload=${JSON.stringify(wishCreatePayload)}; calls=${JSON.stringify(calls)}; pageErrors=${JSON.stringify(pageErrors)}`);
+  });
+  const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
+  const nativeShareTypes = miniProgramCalls
+    .filter((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?"))
+    .map((call) => new URLSearchParams(String(call.payload?.url || "").split("?")[1] || "").get("type"));
+  const nativeShareTypeCounts = Object.fromEntries(nativeShareTypes.map((type) => [
+    type,
+    nativeShareTypes.filter((candidate) => candidate === type).length,
+  ]));
+  const screenshot = join(evidenceDir, "owner-collaboration-shares-mobile.png");
+  await familyLivingRoom.screenshot({ path: screenshot });
+  await context.close();
+  return {
+    craveAudiencePickerVisible,
+    craveRecipientsDefaultSelected: craveRecipientState === "true",
+    craveRecipientState,
+    craveCreateKeptSelectedMembers: craveCreatePayload?.recipientIds?.includes("product-smoke-member") === true,
+    craveCreatePayload,
+    craveRetryShareActionVisible,
+    wishCreatePayload,
+    wishCreateRequested: wishCreatePayload?.householdId === family.id,
+    craveShareOpened: nativeShareTypeCounts.crave === 1,
+    wishShareOpened: nativeShareTypeCounts.wish === 1,
+    shareActionsDispatchOnce: nativeShareTypeCounts.crave === 1 && nativeShareTypeCounts.wish === 1 && miniProgramCalls.every((call) => call.method !== "redirectTo"),
+    nativeShareTypeCounts,
+    pageErrors,
+    screenshot,
+  };
+}
+
 async function verifySoloOwnerFlow(browser, base, evidenceDir) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -1138,6 +1289,19 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const blocked = await memberPrimaryAction.isDisabled()
     && await memberPrimaryAction.getByText("等主厨安排").isVisible();
   const menuAfter = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
+  await page.getByTestId("mobile-nav-library").click();
+  await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
+  const memberWantAction = page.getByRole("button", { name: "记到最近想吃", exact: true }).first();
+  const memberLibraryUsesWantAction = await memberWantAction.isVisible();
+  await memberWantAction.click();
+  await page.waitForFunction(() => {
+    const items = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
+    return items.some((item) => item.memberId === "product-smoke-member");
+  }, { timeout: 15_000 });
+  const memberWantAddedFromLibrary = await page.evaluate(() => {
+    const items = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
+    return items.some((item) => item.memberId === "product-smoke-member");
+  });
   const screenshot = join(evidenceDir, "member-boundary-mobile.png");
   await waitForTransientUi(page);
   await page.screenshot({ path: screenshot });
@@ -1152,6 +1316,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     memberMealEditingButtons,
     memberDinnerReadonly,
     memberPlannerEntries,
+    memberLibraryUsesWantAction,
+    memberWantAddedFromLibrary,
     pageErrors,
     screenshot,
   };

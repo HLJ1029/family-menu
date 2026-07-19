@@ -12,6 +12,7 @@ export function UserCenter({
   activeGroceryShareRequest,
   activeWishShareRequest,
   onCreateHouseholdInvite,
+  onStartWishShare,
   canManageHousehold = true,
 }) {
   const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
@@ -59,6 +60,7 @@ export function UserCenter({
       activePageId={pageId}
       onNavigate={setPageId}
       onInvite={onCreateHouseholdInvite}
+      onStartWishShare={onStartWishShare}
       canInvite={canManageHousehold}
     />
   );

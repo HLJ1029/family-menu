@@ -8,6 +8,7 @@ export function FamilyLivingRoom({
   activePageId = "home",
   onNavigate,
   onInvite,
+  onStartWishShare,
   canInvite = true,
 }) {
   const memberCount = formalMembers.length || family?.members?.length || 1;
@@ -57,6 +58,11 @@ export function FamilyLivingRoom({
             <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/58">还没有进行中的协作，今晚可以先问问大家。</p>
           )}
         </div>
+        {canInvite && typeof onStartWishShare === "function" && (
+          <button type="button" onClick={onStartWishShare} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-4 text-sm font-black text-ink">
+            邀请家人写想吃
+          </button>
+        )}
       </section>
 
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">

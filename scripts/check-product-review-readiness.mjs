@@ -41,12 +41,12 @@ const REQUIRED_CHECKS = [
     evidenceRequired: ["推荐外提供完整菜品库子页面", "138 道菜", "已安排菜置顶"],
   },
   {
-    key: "family-ask-feedback",
-    title: "我的家问问大家本页反馈",
-    path: "src/components/UserCenter.jsx",
-    required: ["问问大家", "craveComposerOpen", "CraveAudiencePicker", "onStartCraveRequest", "family-activity-section"],
+    key: "dashboard-crave-entrypoint",
+    title: "主厨从今晚首屏发起征集，不把征集器塞回我的家",
+    path: "src/components/Dashboard.jsx",
+    required: ["问问大家想吃啥", "CraveAudiencePicker", "onStartCraveRequest", "分享征集单"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["user-center-crave-sheet", "user-center-view-crave-button", "crave-waiting-shows-member-feeling"],
+    evidenceRequired: ["dashboard-crave-owner-creation-opens-recipient-picker", "dashboard-crave-share-opens-native-share-page", "dashboard-crave-retry-share-action-is-visible", "owner-collaboration-native-share-actions-dispatch-once"],
   },
   {
     key: "crave-sheet-template",
@@ -60,10 +60,10 @@ const REQUIRED_CHECKS = [
   {
     key: "crave-recipient-picker",
     title: "征集发起先选家人",
-    path: "src/components/CraveSheet.jsx",
-    required: ["今晚想问谁？", "selectedMemberIds", "onToggleMember", "发给"],
+    path: "src/components/Dashboard.jsx",
+    required: ["CraveAudiencePicker", "selectedCraveAudience", "onChange={setSelectedCraveAudience}", "onStartCraveRequest"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["crave-members-default-selected", "crave-create-keeps-selected-members", "crave-waiting-shows-member-feeling", "crave-waiting-allows-manual-menu"],
+    evidenceRequired: ["dashboard-crave-recipients-default-selected", "dashboard-crave-create-keeps-selected-members"],
   },
   {
     key: "solo-owner-crave-fallback",
@@ -75,11 +75,11 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "multi-household-ui",
-    title: "一个用户可在我的家切换独立家庭数据",
-    path: "src/components/UserCenter.jsx",
-    required: ["household-switcher", "现在看的家", "切换家庭", "onSwitch"],
-    evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["multi-household-switch-is-user-visible", "multi-household-switch-loads-isolated-menu"],
+    title: "一个用户可在家庭设置中切换独立家庭数据",
+    deferred: {
+      task: "Task 4 — HouseholdSettingsPage",
+      reason: "Task 3 intentionally removes the switcher from the focused living-room home; this gate does not certify switching until Task 4 restores a dedicated entry point and isolated-data smoke.",
+    },
   },
   {
     key: "member-write-boundary",
@@ -115,12 +115,13 @@ const REQUIRED_CHECKS = [
     evidenceRequired: ["inventory-maintenance-is-not-exposed", "grocery-check-adds-hidden-pantry-clue", "dinner-confirmation-consumes-hidden-pantry-clue", "nutrition-entry-is-not-on-grocery-tab"],
   },
   {
-    key: "family-collaboration-activity",
-    title: "我的家沉淀认领、做饭与想吃动态",
-    path: "src/components/UserCenter.jsx",
-    required: ["familyActivity", "buildActiveCraveActivities", "buildMealLogActivities", "family-activity-section", "want-to-eat-section"],
+    key: "family-living-room-focus",
+    title: "我的家只显示当前家庭、有限协作和下一步",
+    path: "src/components/FamilyLivingRoom.jsx",
+    required: ["data-testid=\"family-living-room\"", "正在一起做", "家庭偏好", "activeCollaborations.slice(0, 3)"],
+    forbidden: ["CloudSyncPanel", "营养目标", "验证数据"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["family-activity-shows-grocery-claim", "family-activity-shows-dinner-confirmation", "family-activity-shows-want-item", "family-activity-precedes-account-settings", "want-pool-precedes-account-settings", "used-family-activity-hides-self-introduction", "crave-starter-is-collapsed-until-requested"],
+    evidenceRequired: ["family-living-room-has-four-focused-sections", "family-living-room-removes-cloud-ai-nutrition-and-export-clutter", "signed-in-no-household-does-not-fabricate-family"],
   },
   {
     key: "crave-state-persistence",
@@ -171,8 +172,6 @@ const REQUIRED_CHECKS = [
     forbidden: ["planningModes", "profileOptions.goals", "这次主要想规划什么", "晚饭目标"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
     evidenceRequired: [
-      "my-home-exposes-diet-constraints-only",
-      "soft-profile-maintenance-is-not-exposed",
       "signed-in-onboarding-only-asks-hard-constraints",
       "signed-in-onboarding-can-skip-without-diet-tags",
       "signed-in-onboarding-saves-diet-constraint",
@@ -180,19 +179,19 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "owner-managed-family-constraints",
-    title: "家人只读家庭忌口，主厨负责修改",
-    path: "src/components/UserCenter.jsx",
-    required: ["family-constraints-readonly", "主厨统一维护", "canManageHousehold && activeSettings"],
-    evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["member-cannot-edit-family-diet-constraints", "member-sees-meal-rhythm-without-owner-controls"],
+    title: "家人只读家庭忌口，主厨在家庭设置中维护",
+    deferred: {
+      task: "Task 4 — HouseholdSettingsPage",
+      reason: "Task 3 removes settings forms from the living-room home. Task 4 must provide the owner-only settings entry and restore the member read-only smoke before this item can be certified.",
+    },
   },
   {
     key: "nutrition-feedback-layer",
-    title: "营养页在当前 UI 中可用且基于三餐记录",
-    path: "src/components/StatsPage.jsx",
-    required: ["nutrition-reflection-page", "营养回看", "已确认餐次", "buildMealInsights"],
-    evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["nutrition-reflection-is-available-in-current-ui"],
+    title: "营养回看从独立入口进入，不混入家庭客厅",
+    deferred: {
+      task: "Task 4 — navigation and settings follow-up",
+      reason: "Task 3 explicitly removes nutrition controls from My Home. A later task must expose and smoke-test the independent navigation path; this gate does not mistake the focused living room for nutrition coverage.",
+    },
   },
   {
     key: "member-library-participation",
@@ -200,7 +199,7 @@ const REQUIRED_CHECKS = [
     path: "src/components/Library.jsx",
     required: ["canManageHousehold", "记到最近想吃", "draggable={canManageHousehold}"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["member-library-contributes-to-want-pool", "记到最近想吃"],
+    evidenceRequired: ["member-library-contributes-to-want-pool"],
   },
   {
     key: "learned-taste-feeds-recommendation",
@@ -228,16 +227,22 @@ const REQUIRED_CHECKS = [
       "www.humi-home.com",
       "full-library-title",
       "full-library-card-count",
-      "user-center-crave-sheet",
+      "signed-in-no-household-shows-explicit-start",
+      "family-living-room-has-four-focused-sections",
       "breakfast-does-not-default-to-seaweed-soup",
       "lunch-home-saves-user-picked-dish",
       "lunch-does-not-default-to-seaweed-soup",
       "grocery-share-opens-native-share-page",
-      "crave-share-opens-native-share-page",
+      "dashboard-crave-owner-creation-opens-recipient-picker",
+      "dashboard-crave-recipients-default-selected",
+      "dashboard-crave-create-keeps-selected-members",
+      "dashboard-crave-share-opens-native-share-page",
+      "dashboard-crave-retry-share-action-is-visible",
       "menu-share-opens-native-share-page",
       "invite-share-opens-native-share-page",
-      "wish-share-opens-native-share-page",
-      "all-five-share-actions-dispatch-once",
+      "living-room-wish-share-creates-current-household-request",
+      "living-room-wish-share-opens-native-share-page",
+      "owner-collaboration-native-share-actions-dispatch-once",
       "menu-poster-opens-native-image-share-page",
       "grocery-poster-opens-native-album-save-page",
       "poster-uploads-stay-under-api-limit",
@@ -318,11 +323,12 @@ for (const item of REQUIRED_CHECKS) {
   checks.push(await runCheck(item));
 }
 
-const ok = checks.every((item) => item.ok);
+const ok = checks.every((item) => item.ok !== false);
 const result = {
   ok,
   checkedAt: new Date().toISOString(),
-  scope: checks.map(({ key, title, path, evidence, ok }) => ({ key, title, path, evidence, ok })),
+  scope: checks.map(({ key, title, path, evidence, deferred, ok }) => ({ key, title, path, evidence, deferred, ok })),
+  deferred: checks.filter((item) => item.deferred).map(({ key, title, deferred }) => ({ key, title, ...deferred })),
   failures: checks.flatMap((item) => item.failures.map((failure) => ({
     key: item.key,
     title: item.title,
@@ -330,7 +336,7 @@ const result = {
   }))),
   nextActions: ok
     ? [
-        "Product anchors are covered and the 1.2 scope is locked. Follow the current closure map for the next release step without entering WeChat review.",
+        "Current product anchors are covered. Deferred items are explicit follow-ups, not certified behavior; follow the current closure map without entering WeChat review.",
       ]
     : [
         "Fix the failed product review anchors before treating 1.1 as ready for final pre-review confirmation.",
@@ -341,6 +347,16 @@ console.log(JSON.stringify(result, null, 2));
 if (!ok) process.exit(1);
 
 async function runCheck(item) {
+  if (item.deferred) {
+    return {
+      key: item.key,
+      title: item.title,
+      deferred: item.deferred,
+      ok: null,
+      failures: [],
+    };
+  }
+
   const failures = [];
   const source = await readText(item.path, failures);
   const evidence = await readText(item.evidence, failures);
