@@ -262,6 +262,93 @@ export class HumiStore {
     return household;
   }
 
+  async updateHousehold(userId, householdId, patch = {}) {
+    await this.load();
+    const household = this.requireFormalMemberHousehold(userId, householdId);
+    if (household.ownerId !== userId) {
+      throw codedError("forbidden", "Only the household owner can update this household.");
+    }
+    const name = sanitizeText(patch.name, "", 32);
+    if (!name) throw codedError("household_name_required", "请填写家庭名称。");
+    household.name = name;
+    household.updatedAt = new Date().toISOString();
+    this.repairActiveHouseholds();
+    await this.save();
+    return household;
+  }
+
+  async removeHouseholdMember(ownerUserId, householdId, memberId) {
+    await this.load();
+    const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
+    if (household.ownerId !== ownerUserId) {
+      throw codedError("forbidden", "Only the household owner can remove members.");
+    }
+    if (memberId === household.ownerId) {
+      throw codedError("owner_cannot_be_removed", "The household owner cannot be removed.");
+    }
+    const memberIndex = household.members.findIndex(
+      (member) => member.memberId === memberId && member.status === "formal",
+    );
+    if (memberIndex < 0) {
+      throw codedError("household_member_not_found", "Household member not found.");
+    }
+    household.members.splice(memberIndex, 1);
+    household.updatedAt = new Date().toISOString();
+    this.repairActiveHouseholds();
+    await this.save();
+    return household;
+  }
+
+  async transferHouseholdOwnership(ownerUserId, householdId, nextOwnerId) {
+    await this.load();
+    const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
+    if (household.ownerId !== ownerUserId) {
+      throw codedError("forbidden", "Only the household owner can transfer ownership.");
+    }
+    const nextOwner = household.members.find(
+      (member) => member.memberId === nextOwnerId && member.status === "formal",
+    );
+    if (!nextOwner) {
+      throw codedError("household_member_not_found", "New owner must be a formal household member.");
+    }
+    const now = new Date().toISOString();
+    for (const member of household.members) {
+      member.role = member.memberId === nextOwnerId ? "owner" : "member";
+      member.updatedAt = now;
+    }
+    household.ownerId = nextOwnerId;
+    household.updatedAt = now;
+    this.repairActiveHouseholds();
+    await this.save();
+    return household;
+  }
+
+  async leaveHousehold(userId, householdId) {
+    await this.load();
+    const household = this.requireFormalMemberHousehold(userId, householdId);
+    const formalMembers = household.members.filter((member) => member.status === "formal");
+    const isOwner = household.ownerId === userId;
+    const otherFormalMembers = formalMembers.filter((member) => member.memberId !== userId);
+    if (isOwner && otherFormalMembers.length > 0) {
+      throw codedError("owner_must_transfer_or_disband", "The owner must transfer ownership or disband the household.");
+    }
+
+    const now = new Date().toISOString();
+    if (isOwner) {
+      this.data.households = this.data.households.filter((item) => item.id !== household.id);
+      delete this.data.householdStates[household.id];
+      this.repairActiveHouseholds();
+      await this.save();
+      return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
+    }
+
+    household.members = household.members.filter((member) => member.memberId !== userId);
+    household.updatedAt = now;
+    this.repairActiveHouseholds();
+    await this.save();
+    return { household, activeHousehold: this.findActiveHouseholdByMember(userId) };
+  }
+
   syncIdentityToHouseholdMembers(user, { updateNickname = false } = {}) {
     for (const household of this.data.households) {
       const member = household.members?.find((item) => item.memberId === user.id);
@@ -986,6 +1073,25 @@ export class HumiStore {
       Array.isArray(household.members)
       && household.members.some((member) => member.memberId === userId && member.status === "formal")
     ));
+  }
+
+  requireFormalMemberHousehold(userId, householdId) {
+    const household = this.findHouseholdsByMember(userId).find((item) => item.id === householdId);
+    if (!household) {
+      throw codedError("household_not_found", "Household not found for user.");
+    }
+    return household;
+  }
+
+  repairActiveHouseholds() {
+    this.data.activeHouseholds ??= {};
+    for (const userId of Object.keys(this.data.activeHouseholds)) {
+      const activeHouseholdId = this.data.activeHouseholds[userId];
+      const households = this.findHouseholdsByMember(userId);
+      if (households.some((household) => household.id === activeHouseholdId)) continue;
+      if (households[0]) this.data.activeHouseholds[userId] = households[0].id;
+      else delete this.data.activeHouseholds[userId];
+    }
   }
 }
 
