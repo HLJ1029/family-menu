@@ -70,15 +70,20 @@ export class HumiStore {
   }
 
   async mutateAndSave(mutation) {
-    const snapshot = structuredClone(this.data);
-    try {
-      const result = await mutation();
-      await this.save();
-      return result;
-    } catch (error) {
-      this.data = snapshot;
-      throw error;
-    }
+    const run = async () => {
+      const snapshot = structuredClone(this.data);
+      try {
+        const result = await mutation();
+        await this.save();
+        return result;
+      } catch (error) {
+        this.data = snapshot;
+        throw error;
+      }
+    };
+    const transaction = (this.transactionQueue ?? Promise.resolve()).then(run, run);
+    this.transactionQueue = transaction.then(() => undefined, () => undefined);
+    return transaction;
   }
 
   async findOrCreateWechatUser({ openid, unionid }) {
@@ -947,6 +952,8 @@ export class HumiStore {
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
     return this.mutateAndSave(async () => {
+      const request = this.data.craveRequests.find((item) => item.token === token);
+      if (!request) return null;
       if (expireCraveRequestIfNeeded(request) || request.status !== "open") return request;
       const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
       const event = await this.recordCollaborationEvent({
@@ -993,8 +1000,13 @@ export class HumiStore {
     }
 
     this.assertCollaborationActionClaimable(vote, userId);
-    const user = this.data.users.find((item) => item.id === userId);
     return this.mutateAndSave(async () => {
+      const request = this.data.craveRequests.find((item) => item.token === token);
+      if (!request) return null;
+      const vote = request.votes.find((item) => item.participantKey === participantKey);
+      if (!vote) throw codedError("vote_not_found", "Temporary vote not found.");
+      this.assertCollaborationActionClaimable(vote, userId);
+      const user = this.data.users.find((item) => item.id === userId);
       const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "crave", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
       const event = mergedEvents.find((item) => item.actionType === "crave_vote");
       if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this vote.");
@@ -1075,6 +1087,8 @@ export class HumiStore {
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
     return this.mutateAndSave(async () => {
+      const request = this.data.groceryShareRequests.find((item) => item.token === token);
+      if (!request || request.status !== "open") return request;
       const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
       const claimStatus = claim.status === "declined" ? "declined" : "claimed";
       const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
@@ -1124,8 +1138,13 @@ export class HumiStore {
     const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
     if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
     this.assertCollaborationActionClaimable(participantClaim, userId);
-    const user = this.data.users.find((item) => item.id === userId);
     return this.mutateAndSave(async () => {
+      const request = this.data.groceryShareRequests.find((item) => item.token === token);
+      if (!request) return null;
+      const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
+      if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
+      this.assertCollaborationActionClaimable(participantClaim, userId);
+      const user = this.data.users.find((item) => item.id === userId);
       const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "grocery", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
       const event = mergedEvents.find((item) => item.actionType === "grocery_claim");
       if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this claim.");
@@ -1219,6 +1238,8 @@ export class HumiStore {
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
     return this.mutateAndSave(async () => {
+      const request = this.data.wishShareRequests.find((item) => item.token === token);
+      if (!request || request.status !== "open") return request;
       const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
       const event = await this.recordCollaborationEvent({
         requestType: "wish", requestId: request.id, householdId: request.householdId,
@@ -1254,8 +1275,13 @@ export class HumiStore {
     const wish = request.wishes.find((item) => item.participantKey === participantKey);
     if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
     this.assertCollaborationActionClaimable(wish, userId);
-    const user = this.data.users.find((item) => item.id === userId);
     return this.mutateAndSave(async () => {
+      const request = this.data.wishShareRequests.find((item) => item.token === token);
+      if (!request) return null;
+      const wish = request.wishes.find((item) => item.participantKey === participantKey);
+      if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
+      this.assertCollaborationActionClaimable(wish, userId);
+      const user = this.data.users.find((item) => item.id === userId);
       const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "wish", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
       const event = mergedEvents.find((item) => item.actionType === "wish_entry");
       if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this wish.");

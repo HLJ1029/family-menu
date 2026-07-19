@@ -320,6 +320,81 @@ await assertClaimSaveFailureRollsBack("crave", () => atomicStore.claimCraveVote(
 await assertClaimSaveFailureRollsBack("grocery", () => atomicStore.claimGroceryShareParticipant(atomicRequests.grocery.token, atomicUser.id, { guestParticipantId: guest.id }), () => atomicStore.data.groceryShareRequests.find((request) => request.id === atomicRequests.grocery.id)?.claims?.[0]);
 await assertClaimSaveFailureRollsBack("wish", () => atomicStore.claimWishShareParticipant(atomicRequests.wish.token, atomicUser.id, { guestParticipantId: guest.id }), () => atomicStore.data.wishShareRequests.find((request) => request.id === atomicRequests.wish.id)?.wishes?.[0]);
 
+const concurrentDirectory = await mkdtemp(join(tmpdir(), "humi-collaboration-concurrent-"));
+const concurrentFile = join(concurrentDirectory, "data.json");
+const concurrentStore = new HumiStore(concurrentFile);
+const concurrentRequests = {
+  grocery: await concurrentStore.createGroceryShareRequest({
+    householdName: "并发家",
+    items: [{ id: "rice", name: "大米", amount: "1 袋" }],
+  }),
+  wish: await concurrentStore.createWishShareRequest({ householdName: "并发家" }),
+  crave: await concurrentStore.createCraveRequest({ householdName: "并发家" }),
+};
+const originalFlushToDisk = concurrentStore.flushToDisk.bind(concurrentStore);
+let releaseFirstFlush;
+let markFirstFlushStarted;
+const firstFlushMayFail = new Promise((resolve) => { releaseFirstFlush = resolve; });
+const firstFlushStarted = new Promise((resolve) => { markFirstFlushStarted = resolve; });
+let flushCount = 0;
+concurrentStore.flushToDisk = async () => {
+  flushCount += 1;
+  if (flushCount === 1) {
+    markFirstFlushStarted();
+    await firstFlushMayFail;
+    throw new Error("concurrent grocery injected flush failure");
+  }
+  return originalFlushToDisk();
+};
+
+const concurrentGrocery = concurrentStore.addGroceryShareClaim(
+  concurrentRequests.grocery.token,
+  { itemIds: ["rice"] },
+  { type: "guest", id: "concurrent-grocery-guest" },
+);
+await firstFlushStarted;
+let wishStartedWhileGroceryPending = false;
+const concurrentWish = (() => {
+  wishStartedWhileGroceryPending = true;
+  return concurrentStore.addWishShareEntry(
+    concurrentRequests.wish.token,
+    { dishName: "清蒸鱼" },
+    { type: "guest", id: "concurrent-wish-guest" },
+  );
+})();
+assert.equal(wishStartedWhileGroceryPending, true, "wish B must be invoked while grocery A is pending its first flush");
+releaseFirstFlush();
+const [groceryOutcome, wishOutcome] = await Promise.allSettled([concurrentGrocery, concurrentWish]);
+assert.equal(groceryOutcome.status, "rejected", "the transaction owning the failed first flush must reject");
+assert.match(groceryOutcome.reason?.message || "", /injected flush failure/);
+assert.equal(wishOutcome.status, "fulfilled", "the queued wish transaction must survive the earlier failure");
+assert.equal(flushCount, 2, "the failed grocery and successful wish transactions must each attempt one flush");
+
+const concurrentWishRequest = concurrentStore.data.wishShareRequests.find((request) => request.id === concurrentRequests.wish.id);
+const concurrentGroceryRequest = concurrentStore.data.groceryShareRequests.find((request) => request.id === concurrentRequests.grocery.id);
+assert.equal(concurrentGroceryRequest?.claims.length, 0, "failed grocery A must leave no business action in memory");
+assert.equal(concurrentWishRequest?.wishes.length, 1, "successful wish B must retain exactly one business action in memory");
+assert.equal(concurrentStore.data.collaborationEvents.filter((event) => event.requestType === "grocery").length, 0, "failed grocery A must leave no canonical event in memory");
+assert.equal(concurrentStore.data.collaborationEvents.filter((event) => event.requestType === "wish").length, 1, "successful wish B must retain exactly one canonical event in memory");
+
+const concurrentDisk = JSON.parse(await readFile(concurrentFile, "utf8"));
+const persistedShape = (value) => JSON.parse(JSON.stringify(value));
+assert.deepEqual(concurrentDisk.groceryShareRequests, persistedShape(concurrentStore.data.groceryShareRequests), "grocery memory and file state must agree after concurrent rollback");
+assert.deepEqual(concurrentDisk.wishShareRequests, persistedShape(concurrentStore.data.wishShareRequests), "wish memory and file state must agree after concurrent rollback");
+assert.deepEqual(concurrentDisk.collaborationEvents, persistedShape(concurrentStore.data.collaborationEvents), "canonical event memory and file state must agree after concurrent rollback");
+
+concurrentStore.flushToDisk = originalFlushToDisk;
+await concurrentStore.addCraveVote(
+  concurrentRequests.crave.token,
+  { feelingTag: "热的" },
+  { type: "guest", id: "post-failure-crave-guest" },
+);
+assert.equal(concurrentStore.data.craveRequests.find((request) => request.id === concurrentRequests.crave.id)?.votes.length, 1, "a later transaction must remain writable after the queue sees a failure");
+assert.equal(concurrentStore.data.collaborationEvents.filter((event) => event.requestType === "crave").length, 1, "a later transaction must persist its canonical event after the queue sees a failure");
+const recoveredDisk = JSON.parse(await readFile(concurrentFile, "utf8"));
+assert.deepEqual(recoveredDisk.craveRequests, persistedShape(concurrentStore.data.craveRequests), "post-failure business memory and file state must agree");
+assert.deepEqual(recoveredDisk.collaborationEvents, persistedShape(concurrentStore.data.collaborationEvents), "post-failure event memory and file state must agree");
+
 const expiredRead = await atomicStore.createCraveRequest({ deadlineAt: new Date(Date.now() - 60_000).toISOString() });
 const expiredReadBeforeMemory = structuredClone(atomicStore.data);
 const expiredReadBeforeBytes = await readFile(atomicFile, "utf8");
