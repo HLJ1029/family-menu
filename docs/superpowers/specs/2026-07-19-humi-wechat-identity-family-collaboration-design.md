@@ -1,10 +1,10 @@
 # Humi 微信身份、家庭与协作体验重构设计
 
 日期：2026-07-19
-状态：已确认；Phase 1 与 Phase 2 本地候选及其门禁已完成，Phase 3 本地候选实现与自动化验证已完成，仍待独立 Phase 3 broad review；均不等同于微信真机或生产验收
+状态：已确认；Phase 1、Phase 2 与 Phase 3 本地候选及其独立门禁已完成；均不等同于微信真机或生产验收
 风险等级：High（登录、身份、生产数据、核心前后端联调、小程序关键路径）
 
-实施进度（2026-07-20）：Phase 1“身份与启动链路”与 Phase 2“家庭生命周期与家庭客厅”已在 `codex/humi-wechat-identity-startup` 完成本地候选及其本地门禁；Phase 3“协作身份与历史”已完成本地候选实现和自动化验证，交付证据见 `docs/humi-collaboration-identity-phase-3-delivery.md`，但该 documentation candidate 仍待独立 Phase 3 broad review。Phase 4“迁移、物理清退与真机/生产验收”尚未开始。本轮没有真机微信操作、生产部署或写入、迁移 apply/rollback、provider 操作或 Supabase 物理清退；自动化本地证据绝不等同于生产就绪，也不得跳过各阶段门禁。
+实施进度（2026-07-20）：Phase 1“身份与启动链路”、Phase 2“家庭生命周期与家庭客厅”和 Phase 3“协作身份与历史”均已在 `codex/humi-wechat-identity-startup` 完成本地候选及独立门禁；Phase 3 最终复审对候选 `d738f0b` 给出 GO，P0–P3 均为零，交付证据见 `docs/humi-collaboration-identity-phase-3-delivery.md`。Phase 4“迁移、物理清退与真机/生产验收”尚未开始，只可进入本地准备。本轮没有真机微信操作、生产部署或写入、迁移 apply/rollback、provider 操作或 Supabase 物理清退；自动化本地证据绝不等同于生产就绪，也不得跳过各阶段门禁。
 
 ## 1. 目标
 

@@ -280,7 +280,7 @@ git commit -m "feat: show readable Humi collaboration history"
 - Create: `docs/humi-collaboration-identity-phase-3-delivery.md`
 - Modify: `docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md`
 
-- [ ] **Step 1: Run the full matrix**
+- [x] **Step 1: Run the full matrix**
 
 ```bash
 npm run validate:household
@@ -296,11 +296,11 @@ git diff --check
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-- [ ] **Step 2: Independently review identity trust boundaries**
+- [x] **Step 2: Independently review identity trust boundaries**
 
 Review must attempt formal identity spoofing, cross-request guest merge, duplicate retry, open-only/no-write, and non-member history access.
 
-- [ ] **Step 3: Record evidence and commit**
+- [x] **Step 3: Record evidence and commit**
 
 ```bash
 git add docs/humi-collaboration-identity-phase-3-delivery.md docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md
