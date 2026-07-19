@@ -143,7 +143,7 @@ git commit -m "docs: add Humi migration audit and rollback runbook"
 - Create: `scripts/check-supabase-retirement.mjs`
 - Modify: relevant active docs that still describe Supabase as current.
 
-- [ ] **Step 1: Add failing retirement gate**
+- [x] **Step 1: Add failing retirement gate**
 
 Gate fails if:
 
@@ -156,21 +156,21 @@ rg("dist", /supabase\.co|@supabase|VITE_SUPABASE/i)
 
 Comments that only state a historical migration source are allowed under `docs/archive/`, not active source.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `node scripts/check-supabase-retirement.mjs`
 
 Expected: FAIL on dependency and `src/lib/supabase`.
 
-- [ ] **Step 3: Delete orphan source with patches and remove dependency**
+- [x] **Step 3: Delete orphan source with patches and remove dependency**
 
 Use `npm uninstall @supabase/supabase-js` to update manifests after confirming `rg` has no live imports. Delete only the listed orphan files; preserve user-owned unrelated code.
 
-- [ ] **Step 4: Archive or correct active docs**
+- [x] **Step 4: Archive or correct active docs**
 
 Move schema/roadmap documents that are purely historical under `docs/archive/supabase/` or add an explicit archived header. Active API/runbooks must state Humi API is the only runtime and external Supabase data remains read-only pending authorized deletion.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 node scripts/check-supabase-retirement.mjs

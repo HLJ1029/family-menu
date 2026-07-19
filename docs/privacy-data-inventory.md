@@ -66,4 +66,4 @@
 - [ ] 微信后台隐私保护指引声明手机号，用途为账号绑定、登录验证、账号找回、家庭协作安全。
 - [ ] 接入任何新权限或微信身份能力前更新本清单。
 
-微信登录与手机号绑定的技术设计见 `docs/wechat-auth-implementation-plan.md`。
+微信登录、游客边界与手机号绑定的当前技术设计见 `docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md`；旧过渡方案已归档到 `docs/archive/supabase/`。

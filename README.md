@@ -48,7 +48,7 @@ npm run build
 npm run validate:data
 ```
 
-## 云端与智能推荐配置
+## Humi API 与智能推荐配置
 
 复制环境变量模板并创建本地配置：
 
@@ -56,23 +56,12 @@ npm run validate:data
 cp .env.example .env.local
 ```
 
-在 `.env.local` 中填写以下参数：
+在 `.env.local` 中填写 Humi API、微信与服务端 AI 所需参数，具体键以 `.env.example` 为准。前端不再配置数据库凭证，正式身份、家庭、协作与推荐只走自建 Humi API。
+
+历史 Supabase schema、Edge Function 与过渡方案只保留在归档目录，不是当前运行或部署说明：
 
 ```text
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-```
-
-数据库 schema 参考文件：
-
-```text
-docs/supabase-schema.sql
-```
-
-AI 智能推荐函数配置详见：
-
-```text
-docs/ai-edge-function.md
+docs/archive/supabase/
 ```
 
 ## 上线与小程序

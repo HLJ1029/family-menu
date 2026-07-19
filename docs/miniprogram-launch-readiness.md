@@ -62,7 +62,7 @@ P0.5 不影响游客核心链路，但会影响正式灰度留存和家庭协作
 | 能力 | 首发策略 | 风险 |
 | --- | --- | --- |
 | 邮箱登录 | 不进入普通用户界面；仅通过隐藏开发参数保留测试能力，海外市场再重新设计 | 国内用户习惯弱，WebView 邮件回跳不稳定 |
-| 云端同步 | 已登录用户使用；游客不依赖它完成核心链路 | Supabase 网络与 session |
+| 云端同步 | 已登录用户使用自建 Humi API；游客不依赖它完成核心链路 | Humi API session 与网络 |
 | 家庭画像 | 登录用户可完善；游客推荐不强制填写 | 登录依赖 |
 | 后台已有 | 不做独立库存页；由清单勾选、做饭确认和轻确认隐形维护 | 已具备 |
 | 营养与月历 | 营养页按三餐计划做估算参考；仍不作为医疗或专业营养建议 | 非核心价值 |
@@ -186,9 +186,9 @@ H5 通过查询参数识别来源：
 - `docs/launch-day-runbook.md`
 - `docs/launch-feedback-and-101-backlog.md`
 
-微信登录和手机号绑定技术方案见：
+微信登录、游客边界和手机号绑定当前技术方案见：
 
-- `docs/wechat-auth-implementation-plan.md`
+- `docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md`
 
 本机开发者工具路径：
 
@@ -314,7 +314,7 @@ www.humi-home.com
 - [ ] 将校验文件放到正式域名要求的路径。
 - [ ] 将 `HUMI_H5_URL` 换成正式地址。
 - [x] 将 `project.config.json` 的测试 AppID 替换为正式 AppID。
-- [ ] 更新 Supabase Auth redirect URLs。
+- [x] 已取消旧邮箱 Auth redirect 配置；正式身份只走微信登录与 Humi API session。
 - [ ] 更新隐私政策、用户协议和站内返回链接。
 - [x] 部署正式 H5。
 - [ ] 在微信开发者工具和真机完成全链路验收。

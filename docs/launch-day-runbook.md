@@ -118,7 +118,7 @@ npm run release:evidence:record:monitor
 ## 5. 不建议在审核通过前/刚发布后做的事
 
 - 不要上传新版本覆盖当前审核版本，除非审核反馈要求或 P0 链路阻塞。
-- 不要清退 Supabase 代码。
+- 仓库 Supabase runtime 已在独立候选中清退；不要在发布窗口删除外部 provider 数据或 Secrets。
 - 不要改登录、权限、手机号、生产 API 架构。
 - 不要大改 UI 或菜谱数据。
 - 不要引入新的审核敏感能力，比如支付、订阅消息、社区、UGC。

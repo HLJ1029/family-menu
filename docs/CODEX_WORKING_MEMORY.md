@@ -22,7 +22,7 @@
 - Every Claude change must come from an AI-HQ task, use an isolated `claude/<task-id>` worktree, and arrive as a Draft PR.
 - Codex must verify task boundaries, protected paths, diff focus, tests, secret scan, risk, and rollback before merge.
 - Claude may never merge, publish, modify production configuration, or push directly to `main`.
-- Auth, permissions, payments, database schema/migrations, production Supabase, deployment workflows, miniprogram review-critical changes, and unconfirmed visual work stay with Codex.
+- Auth, permissions, payments, database schema/migrations, external provider retirement, deployment workflows, miniprogram review-critical changes, and unconfirmed visual work stay with Codex.
 
 ## Poster System Rule
 
