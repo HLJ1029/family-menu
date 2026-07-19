@@ -38,6 +38,7 @@ assert.match(authLandingSource, /entryIntent !== "completeIdentity"/);
 assert.match(authLandingSource, /先体验 Humi/);
 assert.doesNotMatch(userCenterSource, /CloudAccount|FamilyPreferencesPanel/);
 assert.match(userCenterSource, /data-testid="create-household-section"/);
+assert.match(userCenterSource, /data-testid="humi-account-settings"/);
 assert.doesNotMatch(deployWorkflow, /VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY/);
 
 console.log("Identity runtime checks passed.");

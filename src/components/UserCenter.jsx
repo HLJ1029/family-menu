@@ -542,6 +542,41 @@ export function UserCenter({
           </section>
         )}
 
+        {signedIn && (
+          <section data-testid="humi-account-settings" className="rounded-[28px] border border-line bg-white p-5 shadow-card xl:hidden">
+            <p className="eyebrow">账号设置</p>
+            <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+              {humiSession?.user?.displayName || "Humi 用户"}
+            </h3>
+            <div className="mt-4 grid gap-3">
+              <StatusRow label="登录" value={getIdentityLabel({ session, humiSession })} />
+              <StatusRow label="手机号" value={phoneVerified ? phoneMasked || "已绑定" : "未绑定"} />
+            </div>
+            {isWechatMiniProgram && !phoneVerified && (
+              <button
+                type="button"
+                onClick={handleBindPhone}
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-white"
+              >
+                <Phone size={16} />
+                绑定手机号
+              </button>
+            )}
+            {phoneBindStatus && <p className="mt-3 text-xs font-bold leading-5 text-ink/42">{phoneBindStatus}</p>}
+            {authProps?.onSignOut && (
+              <button
+                type="button"
+                onClick={authProps.onSignOut}
+                disabled={authProps.cloudLoading}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink/62 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <LogOut size={16} />
+                {signOutLabel}
+              </button>
+            )}
+          </section>
+        )}
+
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
