@@ -4,7 +4,7 @@
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
 Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）
-首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定 **NO-GO**。第一轮 gate correction `e9c22f6fed36c00e42fa5825db1f082359c2bdb3` 又在 parent fresh legacy 验证中暴露共享页面竞态。当前行为/测试 candidate：`7cb9ff6c1663eb003f76bdb165b9075ca086de33`，仍 await independent re-review。
+首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定 **NO-GO**。第一轮 gate correction `e9c22f6fed36c00e42fa5825db1f082359c2bdb3` 又在 parent fresh legacy 验证中暴露共享页面竞态。当前行为/测试 candidate：`7cb9ff678b636248cbd669182bdc6c2b6ff2d1f1`，仍 await independent re-review。
 
 本记录覆盖 Phase 3 Task 6 的本地候选验证。Tasks 1–5 的功能实现已在本记录之前提交；`51e0244` 仅将测试中的长 Bearer 哨兵改为短哨兵，避免被团队 secret scan 的通用规则误判，未改变产品运行行为或测试断言语义。此后本记录和主规格进度更新会作为独立 documentation commit 提交；Task 6 report 会再以独立提交固定该 documentation commit。
 

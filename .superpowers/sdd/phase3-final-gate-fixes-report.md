@@ -1,6 +1,6 @@
 # Phase 3 Final Gate Fixes Report
 
-Final local behavior/test correction candidate: `7cb9ff6c1663eb003f76bdb165b9075ca086de33`; no Phase 4 or external work occurred. The candidate still awaits independent re-review.
+Final local behavior/test correction candidate: `7cb9ff678b636248cbd669182bdc6c2b6ff2d1f1`; no Phase 4 or external work occurred. The candidate still awaits independent re-review.
 
 ## Preserved NO-GO and correction history
 
