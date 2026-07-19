@@ -1,10 +1,10 @@
 # Humi 微信身份、家庭与协作体验重构设计
 
 日期：2026-07-19
-状态：已确认；Phase 1 与 Phase 2 候选实现已完成本地自动化验收，均待微信真机验收与独立交付审查
+状态：已确认；Phase 1 与 Phase 2 本地候选及其门禁已完成，Phase 3 本地候选实现与自动化验证已完成，仍待独立 Phase 3 broad review；均不等同于微信真机或生产验收
 风险等级：High（登录、身份、生产数据、核心前后端联调、小程序关键路径）
 
-实施进度（2026-07-19）：Phase 1“身份与启动链路”与 Phase 2“家庭生命周期与家庭客厅”已在 `codex/humi-wechat-identity-startup` 完成本地候选实现和自动化验收；本地候选未执行生产部署、生产写入、微信上传或真机操作。Phase 2 的交付证据见 `docs/humi-family-living-room-phase-2-delivery.md`；它仍须经过新的独立交付审查，且 Phase 1/2 的微信真机证据缺失时不得进入生产。Phase 3“协作身份与历史”、Phase 4“迁移、物理清退与真机/生产验收”尚未开始，不得因本地自动化通过而跳过其各自门禁。
+实施进度（2026-07-20）：Phase 1“身份与启动链路”与 Phase 2“家庭生命周期与家庭客厅”已在 `codex/humi-wechat-identity-startup` 完成本地候选及其本地门禁；Phase 3“协作身份与历史”已完成本地候选实现和自动化验证，交付证据见 `docs/humi-collaboration-identity-phase-3-delivery.md`，但该 documentation candidate 仍待独立 Phase 3 broad review。Phase 4“迁移、物理清退与真机/生产验收”尚未开始。本轮没有真机微信操作、生产部署或写入、迁移 apply/rollback、provider 操作或 Supabase 物理清退；自动化本地证据绝不等同于生产就绪，也不得跳过各阶段门禁。
 
 ## 1. 目标
 
