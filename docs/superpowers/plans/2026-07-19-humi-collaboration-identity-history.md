@@ -16,7 +16,7 @@
 - 游客 ID 不得跨请求追踪；client storage key 必须包含协作类型与 token。
 - 同一请求、同一参与者、同一动作重试必须幂等更新，不能制造重复历史。
 - 游客主动登录合并后保留原始 `createdAt`、动作和 payload，并记录 `mergedAt`/`mergedFromGuestId`。
-- 游客动作不会自动成为家庭成员；只有用户明确点击加入家庭并通过鉴权 join endpoint 才建立成员关系。
+- 游客动作和协作 `/join` 身份绑定都不会自动成为家庭成员；只有用户明确接受家庭邀请并通过家庭邀请 endpoint 才建立成员关系。
 - 历史输出不包含 token、ownerSecret、OpenID、手机号或内部错误码。
 
 ---
@@ -67,17 +67,17 @@ Canonical event:
 }
 ```
 
-- [ ] **Step 1: Write failing event-model tests**
+- [x] **Step 1: Write failing event-model tests**
 
 Assert guest aliases are sequential per request, the same guest/action retry preserves `id` and `createdAt`, a second request starts again at `游客 1`, and history access requires formal membership. Merge must produce `participantType: "user"`, current user snapshots, preserved action/payload/createdAt, and a non-empty `mergedFromGuestId`.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `npm run validate:collaboration-identity`
 
 Expected: script missing or `recordCollaborationEvent` undefined.
 
-- [ ] **Step 3: Initialize and normalize persisted data**
+- [x] **Step 3: Initialize and normalize persisted data**
 
 Add `collaborationEvents: []` to default data and normalize missing arrays during `load()`. Event idempotency key is:
 
@@ -87,11 +87,11 @@ Add `collaborationEvents: []` to default data and normalize missing arrays durin
 
 Guest alias index counts distinct guest participant IDs already present for the same request, not global data.
 
-- [ ] **Step 4: Implement event recording, merge and history authorization**
+- [x] **Step 4: Implement event recording, merge and history authorization**
 
 `payload` is copied through a per-action sanitizer, not arbitrary nested user input. History returns newest first and clamps limit to `1..100`. Merge is idempotent: calling it twice yields the same event IDs and does not change original `createdAt`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run validate:collaboration-identity
@@ -217,7 +217,7 @@ Run identity collaboration test; expected failure at cross-request/claimed-user 
 
 - [ ] **Step 3: Implement ownership checks**
 
-Store merge locates an event by exact request type/id and guest participant ID. Add `claimedByUserId` to the corresponding business action. Only after checks pass may the explicit join endpoint add a household member and update event identity.
+Store merge locates an event by exact request type/id and guest participant ID. Add `claimedByUserId` to the corresponding business action. Only after checks pass may the collaboration `/join` endpoint update the business action and event identity; it must never add a household member. Formal membership remains exclusive to authenticated household-invite acceptance.
 
 - [ ] **Step 4: Verify and commit**
 
