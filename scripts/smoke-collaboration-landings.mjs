@@ -71,6 +71,7 @@ try {
         id: "guest-vote",
         memberName: participant.displayName,
         feelingTag: craveVotePayload.feelingTag,
+        dishWish: craveVotePayload.dishWish,
         note: craveVotePayload.note,
         temporary: true,
       }],
@@ -121,6 +122,7 @@ try {
       wishes: [{
         id: "wish-entry-smoke",
         dishName: wishPayload.dishName,
+        note: wishPayload.note,
         memberName: participant.displayName,
         participantKey: participant.id,
         temporary: true,
@@ -385,6 +387,8 @@ function isTypedPendingParticipation(context, type, token) {
     && context?.token === token
     && typeof context?.guestParticipantId === "string"
     && context.guestParticipantId.length > 0
+    && typeof context?.actionId === "string"
+    && context.actionId.length > 0
     && !Object.hasOwn(context, "participantKey")
     && typeof context?.createdAt === "string"
     && !Number.isNaN(Date.parse(context.createdAt));

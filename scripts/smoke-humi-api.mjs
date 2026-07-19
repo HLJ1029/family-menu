@@ -629,12 +629,64 @@ try {
   const claimedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
-    body: { participantKey: legacyCraveGuest.participant.id },
+    body: { guestParticipantId: legacyCraveGuest.participant.id },
   });
   const claimedCraveVote = claimedCrave.request?.votes?.find((vote) => vote.dishWish === "番茄汤");
   assert(claimedCraveVote?.temporary === false, "crave claim should bind the authenticated participant");
   assert(claimedCraveVote?.dishWish === "番茄汤", "crave claim should preserve the optional dish wish");
   assert(!claimedCraveVote?.memberId, "public crave response must not expose authenticated participant ids");
+  assert.deepEqual(claimedCrave.participant, {
+    type: "user",
+    id: memberLogin.user.id,
+    displayName: memberLogin.user.displayName,
+    avatar: memberLogin.user.avatarUrl || memberLogin.user.avatarKey,
+  }, "crave merge must return the server-derived authenticated participant snapshot");
+  const publicClaimedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}`);
+  assert.equal(JSON.stringify(publicClaimedCrave).includes("claimedByUserId"), false, "public crave GET must not expose internal claim ownership");
+  const claimedCraveAction = (await readCollaborationBusinessActions("crave", crave.request.id)).find((vote) => vote.id === claimedCraveVote.id);
+  const claimedCraveEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === legacyCraveGuest.participant.id && event.requestId === crave.request.id);
+  assert.equal(claimedCraveAction?.claimedByUserId, memberLogin.user.id, "first crave merge must persist the authenticated claimant");
+  assert.equal(claimedCraveEvent?.participantId, memberLogin.user.id, "first crave merge must canonicalize the event user");
+  const craveActionSnapshot = structuredClone(claimedCraveAction);
+  const craveEventSnapshot = structuredClone(claimedCraveEvent);
+  const repeatedCraveMerge = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { guestParticipantId: legacyCraveGuest.participant.id, memberId: "forged", memberName: "伪造", avatar: "https://forged.example/avatar.png" },
+  });
+  const repeatedCraveAction = (await readCollaborationBusinessActions("crave", crave.request.id)).find((vote) => vote.id === claimedCraveVote.id);
+  const repeatedCraveEvent = (await readCollaborationEvents()).find((event) => event.id === claimedCraveEvent.id);
+  assert.equal(repeatedCraveMerge.request?.votes?.find((vote) => vote.id === claimedCraveVote.id)?.id, claimedCraveVote.id, "same-user crave merge must preserve the business action id");
+  assert.equal(repeatedCraveAction?.createdAt, craveActionSnapshot.createdAt, "same-user crave merge must preserve the business action timestamp");
+  assert.equal(repeatedCraveEvent?.id, craveEventSnapshot.id, "same-user crave merge must preserve the canonical event id");
+  assert.equal(repeatedCraveEvent?.createdAt, craveEventSnapshot.createdAt, "same-user crave merge must preserve the canonical event timestamp");
+  const craveBeforeOtherUser = await readCollaborationRequestCollection("crave");
+  const craveEventsBeforeOtherUser = await readCollaborationEvents();
+  await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { guestParticipantId: legacyCraveGuest.participant.id },
+  }, 409, "collaboration_already_claimed");
+  assert.deepEqual(await readCollaborationRequestCollection("crave"), craveBeforeOtherUser, "another user must not change the claimed crave request");
+  assert.deepEqual(await readCollaborationEvents(), craveEventsBeforeOtherUser, "another user must not change the claimed crave event");
+  const otherCrave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdName: "测试家", initiatorName: "主厨" },
+  });
+  const otherCraveGuest = await request(`${baseUrl}/crave-requests/${otherCrave.request.token}/votes`, {
+    method: "POST",
+    body: { guestParticipantId: "crave-other-request-guest", feelingTag: "清淡" },
+  });
+  const craveBeforeCrossRequest = await readCollaborationRequestCollection("crave");
+  const craveEventsBeforeCrossRequest = await readCollaborationEvents();
+  await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { guestParticipantId: otherCraveGuest.participant.id },
+  }, 404, "vote_not_found");
+  assert.deepEqual(await readCollaborationRequestCollection("crave"), craveBeforeCrossRequest, "a cross-request guest id must not change the target crave request");
+  assert.deepEqual(await readCollaborationEvents(), craveEventsBeforeCrossRequest, "a cross-request guest id must not change collaboration history");
   assert(!("family" in claimedCrave) && !("households" in claimedCrave) && !("state" in claimedCrave), "generic crave claim must return only the collaboration request");
   const memberBeforeInviteHouseholds = await request(`${baseUrl}/households`, {
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
@@ -1136,9 +1188,42 @@ try {
   const joinedBatchGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
-    body: { participantKey: batchClaim.participant.id, memberName: "买菜家人" },
+    body: { guestParticipantId: batchClaim.participant.id },
   });
   assert(joinedBatchGrocery.request?.claims?.[0]?.temporary === false, "grocery claim should bind the authenticated participant");
+  assert.deepEqual(joinedBatchGrocery.participant, {
+    type: "user",
+    id: collaborationGuest.user.id,
+    displayName: collaborationGuest.user.displayName,
+    avatar: collaborationGuest.user.avatarUrl || collaborationGuest.user.avatarKey,
+  }, "grocery merge must return the server-derived authenticated participant snapshot");
+  const publicJoinedGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
+  assert.equal(JSON.stringify(publicJoinedGrocery).includes("claimedByUserId"), false, "public grocery GET must not expose internal claim ownership");
+  const joinedGroceryAction = (await readCollaborationBusinessActions("grocery", batchGrocery.request.id)).find((claim) => claim.id === firstGroceryGuestAction.id);
+  const joinedGroceryEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === batchClaim.participant.id && event.requestId === batchGrocery.request.id);
+  assert.equal(joinedGroceryAction?.claimedByUserId, collaborationGuest.user.id, "first grocery merge must persist the authenticated claimant");
+  const groceryActionSnapshot = structuredClone(joinedGroceryAction);
+  const groceryEventSnapshot = structuredClone(joinedGroceryEvent);
+  const repeatedGroceryMerge = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: { guestParticipantId: batchClaim.participant.id, memberName: "伪造" },
+  });
+  const repeatedGroceryAction = (await readCollaborationBusinessActions("grocery", batchGrocery.request.id)).find((claim) => claim.id === firstGroceryGuestAction.id);
+  const repeatedGroceryEvent = (await readCollaborationEvents()).find((event) => event.id === joinedGroceryEvent.id);
+  assert.equal(repeatedGroceryMerge.request?.claims?.find((claim) => claim.id === firstGroceryGuestAction.id)?.id, firstGroceryGuestAction.id, "same-user grocery merge must preserve the business action id");
+  assert.equal(repeatedGroceryAction?.createdAt, groceryActionSnapshot.createdAt, "same-user grocery merge must preserve the business action timestamp");
+  assert.equal(repeatedGroceryEvent?.id, groceryEventSnapshot.id, "same-user grocery merge must preserve the canonical event id");
+  assert.equal(repeatedGroceryEvent?.createdAt, groceryEventSnapshot.createdAt, "same-user grocery merge must preserve the canonical event timestamp");
+  const groceryBeforeOtherUser = await readCollaborationRequestCollection("grocery");
+  const groceryEventsBeforeOtherUser = await readCollaborationEvents();
+  await assertRejectedRequest(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { guestParticipantId: batchClaim.participant.id },
+  }, 409, "collaboration_already_claimed");
+  assert.deepEqual(await readCollaborationRequestCollection("grocery"), groceryBeforeOtherUser, "another user must not change the claimed grocery request");
+  assert.deepEqual(await readCollaborationEvents(), groceryEventsBeforeOtherUser, "another user must not change the claimed grocery event");
   assert(!("family" in joinedBatchGrocery) && !("households" in joinedBatchGrocery) && !("state" in joinedBatchGrocery), "generic grocery claim must return only the collaboration request");
   const groceryGuestBeforeInvite = await request(`${baseUrl}/households`, {
     headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
@@ -1219,9 +1304,42 @@ try {
   const joinedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
-    body: { participantKey: wishEntry.participant.id, memberName: "想吃的家人" },
+    body: { guestParticipantId: wishEntry.participant.id },
   });
   assert(joinedWish.request?.wishes?.[0]?.temporary === false, "wish claim should bind the authenticated participant");
+  assert.deepEqual(joinedWish.participant, {
+    type: "user",
+    id: wishGuest.user.id,
+    displayName: wishGuest.user.displayName,
+    avatar: wishGuest.user.avatarUrl || wishGuest.user.avatarKey,
+  }, "wish merge must return the server-derived authenticated participant snapshot");
+  const publicJoinedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}`);
+  assert.equal(JSON.stringify(publicJoinedWish).includes("claimedByUserId"), false, "public wish GET must not expose internal claim ownership");
+  const joinedWishAction = (await readCollaborationBusinessActions("wish", wishShare.request.id)).find((wish) => wish.id === firstWishGuestAction.id);
+  const joinedWishEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === wishEntry.participant.id && event.requestId === wishShare.request.id);
+  assert.equal(joinedWishAction?.claimedByUserId, wishGuest.user.id, "first wish merge must persist the authenticated claimant");
+  const wishActionSnapshot = structuredClone(joinedWishAction);
+  const wishEventSnapshot = structuredClone(joinedWishEvent);
+  const repeatedWishMerge = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+    body: { guestParticipantId: wishEntry.participant.id, displayName: "伪造" },
+  });
+  const repeatedWishAction = (await readCollaborationBusinessActions("wish", wishShare.request.id)).find((wish) => wish.id === firstWishGuestAction.id);
+  const repeatedWishEvent = (await readCollaborationEvents()).find((event) => event.id === joinedWishEvent.id);
+  assert.equal(repeatedWishMerge.request?.wishes?.find((wish) => wish.id === firstWishGuestAction.id)?.id, firstWishGuestAction.id, "same-user wish merge must preserve the business action id");
+  assert.equal(repeatedWishAction?.createdAt, wishActionSnapshot.createdAt, "same-user wish merge must preserve the business action timestamp");
+  assert.equal(repeatedWishEvent?.id, wishEventSnapshot.id, "same-user wish merge must preserve the canonical event id");
+  assert.equal(repeatedWishEvent?.createdAt, wishEventSnapshot.createdAt, "same-user wish merge must preserve the canonical event timestamp");
+  const wishBeforeOtherUser = await readCollaborationRequestCollection("wish");
+  const wishEventsBeforeOtherUser = await readCollaborationEvents();
+  await assertRejectedRequest(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { guestParticipantId: wishEntry.participant.id },
+  }, 409, "collaboration_already_claimed");
+  assert.deepEqual(await readCollaborationRequestCollection("wish"), wishBeforeOtherUser, "another user must not change the claimed wish request");
+  assert.deepEqual(await readCollaborationEvents(), wishEventsBeforeOtherUser, "another user must not change the claimed wish event");
   assert(!("family" in joinedWish) && !("households" in joinedWish) && !("state" in joinedWish), "generic wish claim must return only the collaboration request");
   const wishGuestBeforeInvite = await request(`${baseUrl}/households`, {
     headers: { Authorization: `Bearer ${wishGuest.accessToken}` },

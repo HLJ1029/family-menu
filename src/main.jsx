@@ -63,6 +63,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
+import { clearGuestParticipantId } from "./lib/collaborationIdentity";
 import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, leaveHumiHousehold, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, removeHumiHouseholdMember, saveHumiState, subscribeHumiSessionInvalid, switchHumiHousehold, transferHumiHouseholdOwnership, updateHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
@@ -3153,7 +3154,7 @@ function App() {
     if (isHumiApiSession(humiSession) && context.token && context.guestParticipantId) {
       try {
         const payload = {
-          participantKey: context.guestParticipantId,
+          guestParticipantId: context.guestParticipantId,
         };
         const data = context.type === "crave"
           ? await joinCraveRequest(context.token, humiSession, payload)
@@ -3163,7 +3164,8 @@ function App() {
         if (context.type === "crave" && data.request) setActiveCraveRequest(data.request);
         if (context.type === "grocery" && data.request) setActiveGroceryShareRequest(data.request);
         if (context.type === "wish" && data.request) setActiveWishShareRequest(data.request);
-        mergeTemporaryParticipationIntoMember(context);
+        mergeTemporaryParticipationIntoMember(context, data.participant);
+        clearGuestParticipantId(context.type, context.token);
         setPendingJoinContext(null);
         pendingJoinMergeRef.current = "";
         showNotice("刚才的参与已绑定到你的身份；家庭关系保持不变");
@@ -3179,21 +3181,29 @@ function App() {
     showNotice("刚才的参与已在本机合并；这不会创建家庭成员关系");
   }
 
-  function mergeTemporaryParticipationIntoMember(context = {}) {
+  function mergeTemporaryParticipationIntoMember(context = {}, participant = null) {
     const participantKey = String(context.guestParticipantId || "").trim();
-    if (!participantKey) return;
-    const memberName = String(context.memberName || "家人").trim() || "家人";
+    const actionId = String(context.actionId || "").trim();
+    const memberName = String(participant?.displayName || "").trim();
+    if (!participantKey || !memberName) return;
+    const avatar = String(participant?.avatar || "").trim();
     const now = new Date().toISOString();
+    const matchesPendingAction = (entry) => (
+      entry?.participantKey === participantKey
+      || (actionId && entry?.id === actionId)
+    );
 
     setActiveCraveRequest((current) => {
       if (!current?.votes?.length) return current;
       let changed = false;
       const votes = current.votes.map((vote) => {
-        if (vote.participantKey !== participantKey) return vote;
+        if (!matchesPendingAction(vote)) return vote;
         changed = true;
+        const { participantKey: _participantKey, ...safeVote } = vote;
         return {
-          ...vote,
+          ...safeVote,
           memberName,
+          avatar,
           temporary: false,
           mergedAt: now,
         };
@@ -3207,12 +3217,14 @@ function App() {
         const votes = Array.isArray(signal.votes) ? signal.votes : [];
         let signalChanged = false;
         const nextVotes = votes.map((vote) => {
-          if (vote.participantKey !== participantKey) return vote;
+          if (!matchesPendingAction(vote)) return vote;
           changed = true;
           signalChanged = true;
+          const { participantKey: _participantKey, ...safeVote } = vote;
           return {
-            ...vote,
+            ...safeVote,
             memberName,
+            avatar,
             temporary: false,
             mergedAt: now,
           };
@@ -3230,11 +3242,13 @@ function App() {
       if (!current?.claims?.length) return current;
       let changed = false;
       const claims = current.claims.map((claim) => {
-        if (claim.participantKey !== participantKey) return claim;
+        if (!matchesPendingAction(claim)) return claim;
         changed = true;
+        const { participantKey: _participantKey, ...safeClaim } = claim;
         return {
-          ...claim,
+          ...safeClaim,
           memberName,
+          avatar,
           temporary: false,
           mergedAt: now,
         };
@@ -3246,11 +3260,13 @@ function App() {
       if (!current?.wishes?.length) return current;
       let changed = false;
       const wishes = current.wishes.map((wish) => {
-        if (wish.participantKey !== participantKey) return wish;
+        if (!matchesPendingAction(wish)) return wish;
         changed = true;
+        const { participantKey: _participantKey, ...safeWish } = wish;
         return {
-          ...wish,
+          ...safeWish,
           memberName,
+          avatar,
           temporary: false,
           mergedAt: now,
         };
@@ -3263,9 +3279,11 @@ function App() {
       const nextItems = current.map((item) => {
         if (item.participantKey !== participantKey) return item;
         changed = true;
+        const { participantKey: _participantKey, ...safeItem } = item;
         return {
-          ...item,
+          ...safeItem,
           source: `${memberName}想吃`,
+          avatar,
           temporary: false,
           mergedAt: now,
         };

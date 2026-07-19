@@ -127,17 +127,67 @@ assert.deepEqual(mergeAfterGuestRetry.map((event) => event.id), [firstGuestEvent
 assert.equal(mergeAfterGuestRetry[0].createdAt, firstGuestEvent.createdAt);
 assert.deepEqual(mergeAfterGuestRetry[0].payload, mergedGuestRetry.payload);
 const anotherUser = await store.findOrCreateWechatUser({ openid: "collaboration-another-user", unionid: null });
-const attemptedTakeover = await store.mergeGuestCollaborationEvents({
-  requestType: "crave",
-  requestId: "crave-request-a",
-  guestParticipantId: "guest-a",
-  user: anotherUser,
-});
-assert.deepEqual(attemptedTakeover, [], "another user must not claim an already merged guest event");
+const firstOwnerSnapshot = structuredClone(store.data.collaborationEvents.find((event) => event.id === firstGuestEvent.id));
+await assert.rejects(
+  store.mergeGuestCollaborationEvents({
+    requestType: "crave",
+    requestId: "crave-request-a",
+    guestParticipantId: "guest-a",
+    user: anotherUser,
+  }),
+  (error) => error.code === "collaboration_already_claimed",
+  "another user must receive a typed conflict when claiming an already merged guest event",
+);
 assert.equal(
   store.data.collaborationEvents.find((event) => event.id === firstGuestEvent.id)?.participantId,
   owner.id,
   "an attempted merge takeover must leave the original user identity intact",
+);
+assert.deepEqual(
+  store.data.collaborationEvents.find((event) => event.id === firstGuestEvent.id),
+  firstOwnerSnapshot,
+  "an attempted merge takeover must preserve the original event snapshot",
+);
+const eventsBeforeCrossRequestMerge = structuredClone(store.data.collaborationEvents);
+await assert.rejects(
+  store.mergeGuestCollaborationEvents({
+    requestType: "crave",
+    requestId: "crave-request-a",
+    guestParticipantId: "guest-c",
+    user: owner,
+  }),
+  (error) => error.code === "collaboration_participant_not_found",
+  "a guest id that exists only on another request must return a typed not-found error",
+);
+assert.deepEqual(
+  store.data.collaborationEvents,
+  eventsBeforeCrossRequestMerge,
+  "a cross-request merge attempt must not change collaboration history",
+);
+await store.recordCollaborationEvent({
+  householdId: household.id,
+  requestType: "grocery",
+  requestId: "crave-request-a",
+  participantType: "guest",
+  participantId: "guest-wrong-type",
+  actionType: "grocery_claim",
+  payload: { itemIds: ["tomato"] },
+});
+const eventsBeforeCrossTypeMerge = structuredClone(store.data.collaborationEvents);
+await assert.rejects(
+  store.mergeGuestCollaborationEvents({
+    requestType: "crave",
+    requestId: "crave-request-a",
+    guestParticipantId: "guest-wrong-type",
+    user: owner,
+  }),
+  (error) => error.code === "collaboration_participant_not_found",
+  "a guest id that exists only under another collaboration type must return a typed not-found error",
+);
+assert.deepEqual(
+  store.data.collaborationEvents,
+  eventsBeforeCrossTypeMerge,
+  "a cross-type merge attempt must not change collaboration history",
 );
 
 const guestAfterMerge = await store.recordCollaborationEvent({
@@ -196,7 +246,7 @@ const history = await store.getHouseholdCollaborationEvents(owner.id, household.
 assert.equal(history.length, 1, "history limit must clamp to at least one entry");
 assert.equal(history[0].id, conflictingGuestEvent.id, "history must be newest first even when timestamps tie");
 const cappedHistory = await store.getHouseholdCollaborationEvents(owner.id, household.id, { limit: 999 });
-assert.equal(cappedHistory.length, 5, "history limit must clamp to at most one hundred entries");
+assert.equal(cappedHistory.length, 6, "history limit must clamp to at most one hundred entries");
 
 const outsider = await store.findOrCreateWechatUser({ openid: "collaboration-outsider", unionid: null });
 await assert.rejects(

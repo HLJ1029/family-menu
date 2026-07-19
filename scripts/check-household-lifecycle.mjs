@@ -73,7 +73,7 @@ await store.addCraveVote(
   { type: "guest", id: "crave-guest" },
 );
 const claimedCrave = await store.claimCraveVote(crave.token, craveGuest.id, { participantKey: "crave-guest" });
-assert.equal(claimedCrave.votes[0].memberId, craveGuest.id, "crave claim must bind the authenticated identity");
+assert.equal(claimedCrave.request.votes[0].memberId, craveGuest.id, "crave claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(craveGuest.id), [], "crave claim must not create household membership");
 assert.equal(await store.getState(craveGuest.id), null, "crave claim must not expose household state");
 
@@ -84,7 +84,7 @@ await store.addGroceryShareClaim(
   { type: "guest", id: "grocery-guest" },
 );
 const claimedGrocery = await store.claimGroceryShareParticipant(grocery.token, groceryGuest.id, { participantKey: "grocery-guest" });
-assert.equal(claimedGrocery.claims[0].memberId, groceryGuest.id, "grocery claim must bind the authenticated identity");
+assert.equal(claimedGrocery.request.claims[0].memberId, groceryGuest.id, "grocery claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(groceryGuest.id), [], "grocery claim must not create household membership");
 assert.equal(await store.getState(groceryGuest.id), null, "grocery claim must not expose household state");
 
@@ -95,7 +95,7 @@ await store.addWishShareEntry(
   { type: "guest", id: "wish-guest" },
 );
 const claimedWish = await store.claimWishShareParticipant(wish.token, wishGuest.id, { participantKey: "wish-guest" });
-assert.equal(claimedWish.wishes[0].memberId, wishGuest.id, "wish claim must bind the authenticated identity");
+assert.equal(claimedWish.request.wishes[0].memberId, wishGuest.id, "wish claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(wishGuest.id), [], "wish claim must not create household membership");
 assert.equal(await store.getState(wishGuest.id), null, "wish claim must not expose household state");
 

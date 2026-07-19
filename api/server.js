@@ -885,15 +885,31 @@ async function handleJoinGroceryShare(request, response, token) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    const groceryRequest = await store.claimGroceryShareParticipant(token, user.id, body);
-    if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
-    sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
+    const result = await store.claimGroceryShareParticipant(token, user.id, {
+      guestParticipantId: collaborationMergeGuestParticipantId(body),
+    });
+    if (!result) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
+    sendJson(response, 200, {
+      request: toPublicGroceryShareRequest(result.request),
+      participant: toPublicCollaborationParticipant({
+        type: "user",
+        id: user.id,
+        displayName: user.displayName,
+        avatar: user.avatarUrl || user.avatarKey || "",
+      }),
+    });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "claim_not_found") {
       throw httpError(404, "claim_not_found", "没有找到你刚才的买菜参与记录。");
+    }
+    if (error.code === "collaboration_participant_not_found") {
+      throw httpError(404, "collaboration_participant_not_found", "没有找到这次游客参与记录。");
+    }
+    if (error.code === "collaboration_already_claimed") {
+      throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
     throw error;
   }
@@ -963,15 +979,31 @@ async function handleJoinWishShare(request, response, token) {
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    const wishRequest = await store.claimWishShareParticipant(token, user.id, body);
-    if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
-    sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
+    const result = await store.claimWishShareParticipant(token, user.id, {
+      guestParticipantId: collaborationMergeGuestParticipantId(body),
+    });
+    if (!result) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
+    sendJson(response, 200, {
+      request: toPublicWishShareRequest(result.request),
+      participant: toPublicCollaborationParticipant({
+        type: "user",
+        id: user.id,
+        displayName: user.displayName,
+        avatar: user.avatarUrl || user.avatarKey || "",
+      }),
+    });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "wish_not_found") {
       throw httpError(404, "wish_not_found", "没有找到你刚才的想吃记录。");
+    }
+    if (error.code === "collaboration_participant_not_found") {
+      throw httpError(404, "collaboration_participant_not_found", "没有找到这次游客参与记录。");
+    }
+    if (error.code === "collaboration_already_claimed") {
+      throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
     throw error;
   }
@@ -1013,17 +1045,30 @@ async function handleJoinCraveRequest(request, response, token) {
   const body = await readJson(request);
   try {
     const craveRequest = await store.claimCraveVote(token, user.id, {
-      participantKey: body.participantKey,
-      memberName: body.memberName || user.displayName,
+      guestParticipantId: collaborationMergeGuestParticipantId(body),
     });
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+    sendJson(response, 200, {
+      request: toPublicCraveRequest(craveRequest.request),
+      participant: toPublicCollaborationParticipant({
+        type: "user",
+        id: user.id,
+        displayName: user.displayName,
+        avatar: user.avatarUrl || user.avatarKey || "",
+      }),
+    });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能绑定这次参与。");
     }
     if (error.code === "vote_not_found") {
       throw httpError(404, "vote_not_found", "没有找到你刚才的投票，可以直接回 Humi 查看。");
+    }
+    if (error.code === "collaboration_participant_not_found") {
+      throw httpError(404, "collaboration_participant_not_found", "没有找到这次游客参与记录。");
+    }
+    if (error.code === "collaboration_already_claimed") {
+      throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
     throw error;
   }
@@ -1367,6 +1412,10 @@ async function resolveCollaborationParticipant(request, body = {}) {
     displayName: user.displayName || "Humi 用户",
     avatar: user.avatarUrl || user.avatarKey || "",
   };
+}
+
+function collaborationMergeGuestParticipantId(body = {}) {
+  return stringValue(body.guestParticipantId, 100) || stringValue(body.participantKey, 80);
 }
 
 function toPublicCollaborationParticipant(participant, actions = [], participantKey = "participantKey") {

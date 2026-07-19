@@ -1034,7 +1034,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
           requestToken: requestCreated.request.token,
           feelingTag: "想喝汤",
           voteCount: 1,
-          votes: [{ participantKey: guestParticipantId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
+          votes: [{ id: voted.request.votes[0].id, participantKey: guestParticipantId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
           createdAt: now,
         }],
       },
@@ -1042,7 +1042,7 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
   });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript(({ session, token, guestId }) => {
+  await page.addInitScript(({ session, token, guestId, actionId }) => {
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
@@ -1051,12 +1051,22 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       type: "crave",
       token,
       guestParticipantId: guestId,
+      actionId,
       feelingTag: "想喝汤",
       dishWish: "番茄汤",
       householdName: "测试家",
       createdAt: new Date().toISOString(),
     }));
-  }, { session: smokeOwnerSession, token: requestCreated.request.token, guestId: guestParticipantId });
+    localStorage.setItem(`humi:collaboration-guest:crave:${token}`, guestId);
+    localStorage.setItem("humi:crave-signals:v1", JSON.stringify([{
+      id: `local-signal:${token}`,
+      requestToken: token,
+      feelingTag: "想喝汤",
+      voteCount: 1,
+      votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
+      createdAt: new Date().toISOString(),
+    }]));
+  }, { session: smokeOwnerSession, token: requestCreated.request.token, guestId: guestParticipantId, actionId: voted.request.votes[0].id });
 
   try {
     await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
@@ -1078,6 +1088,10 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
     const signalVote = craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.feelingTag === "想喝汤");
     assert(signalVote, "the historical crave signal should remain available after identity binding");
     assert.equal(Object.hasOwn(signalVote, "participantKey"), false, "hydrated historical signals must not retain the temporary participant key");
+    assert.equal(signalVote.memberName, smokeOwnerSession.user.displayName, "browser merge must use the server-returned Humi display name rather than a local fallback");
+    assert.equal(signalVote.avatar, smokeOwnerSession.user.avatarUrl || smokeOwnerSession.user.avatarKey, "browser merge must retain the server-returned Humi avatar snapshot");
+    const scopedGuestKey = `humi:collaboration-guest:crave:${requestCreated.request.token}`;
+    assert.equal(await page.evaluate((key) => localStorage.getItem(key), scopedGuestKey), null, "browser merge must clear only the confirmed request-scoped guest identity key");
     const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
     assert.equal(householdsAfter.family.members.length, householdsBefore.family.members.length, "binding participation must not create a formal household member");
     assert.equal(householdsAfter.family.members.some((member) => member.nickname === "游客 1"), false, "a guest participation alias must not leak into formal household membership");

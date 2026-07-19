@@ -215,7 +215,7 @@ export function GroceryClaimLanding({ token, humiSession, onClose, onBindPartici
               </p>
               {participant?.type === "guest" && <p className="mt-2 text-sm font-bold leading-6 text-ink/52">登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。</p>}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                {participant?.type === "guest" && <button type="button" onClick={() => onBindParticipation?.({ type: "grocery", token, guestParticipantId: participant.id, householdName: request.householdName || "我家", initiatorName: request.initiatorName || "主厨", claimStatus, itemCount: claimStatus === "declined" ? 0 : selectedItemIds.length || items.length })} className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white">登录 Humi，保存这次参与</button>}
+                {participant?.type === "guest" && <button type="button" onClick={() => onBindParticipation?.({ type: "grocery", token, guestParticipantId: participant.id, actionId: request.claims?.find((claim) => claim.memberName === participant.displayName && claim.status === claimStatus && (claim.itemIds ?? []).join("|") === (claimStatus === "declined" ? [] : selectedItemIds).join("|"))?.id || "", householdName: request.householdName || "我家", initiatorName: request.initiatorName || "主厨", claimStatus, itemCount: claimStatus === "declined" ? 0 : selectedItemIds.length || items.length })} className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white">登录 Humi，保存这次参与</button>}
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
                   {participant?.type === "guest" ? "先这样" : "回到 Humi"}
                 </button>

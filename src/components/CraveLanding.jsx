@@ -156,6 +156,11 @@ export function CraveLanding({ token, humiSession, onClose, onBindParticipation 
                       type: "crave",
                       token,
                       guestParticipantId: participant.id,
+                      actionId: request.votes?.find((vote) => (
+                        vote.memberName === participant.displayName
+                        && vote.feelingTag === selectedFeeling
+                        && vote.dishWish === dishWish.trim()
+                      ))?.id || "",
                       householdName: request.householdName || "我家",
                       initiatorName: request.initiatorName || "主厨",
                       feelingTag: selectedFeeling,

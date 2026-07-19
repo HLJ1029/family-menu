@@ -811,9 +811,17 @@ export class HumiStore {
       event.requestType === normalizedRequestType
       && event.requestId === normalizedRequestId
       && event.participantType === "user"
-      && event.participantId === userId
       && event.mergedFromGuestId === normalizedGuestId
     ));
+    if (matching.length === 0) {
+      if (alreadyMerged.length === 0) {
+        throw codedError("collaboration_participant_not_found", "Guest collaboration participant not found for this request.");
+      }
+      if (alreadyMerged.some((event) => event.participantId !== userId)) {
+        throw codedError("collaboration_already_claimed", "Guest collaboration participant has already been claimed.");
+      }
+      return alreadyMerged;
+    }
     const merged = [];
     const now = new Date().toISOString();
     for (const event of matching) {
@@ -839,8 +847,8 @@ export class HumiStore {
       event.mergedFromGuestId = normalizedGuestId;
       merged.push(event);
     }
-    if (matching.length > 0) await this.save();
-    return merged.length > 0 ? merged : alreadyMerged;
+    await this.save();
+    return merged;
   }
 
   async getHouseholdCollaborationEvents(userId, householdId, { limit = 30 } = {}) {
@@ -967,7 +975,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) {
       const error = new Error("participantKey is required.");
       error.code = "missing_participant_key";
@@ -981,15 +989,26 @@ export class HumiStore {
       throw error;
     }
 
+    this.assertCollaborationActionClaimable(vote, userId);
     const user = this.data.users.find((item) => item.id === userId);
+    const mergedEvents = await this.mergeGuestCollaborationEvents({
+      requestType: "crave",
+      requestId: request.id,
+      guestParticipantId: participantKey,
+      user: { id: userId },
+    });
+    const event = mergedEvents.find((item) => item.actionType === "crave_vote");
+    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this vote.");
     const now = new Date().toISOString();
     vote.memberId = userId;
-    vote.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || vote.memberName || "家人";
+    vote.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
     vote.temporary = false;
-    vote.claimedAt = now;
+    vote.claimedAt ||= now;
+    vote.mergedAt ||= event.mergedAt || now;
+    vote.claimedByUserId = userId;
     request.updatedAt = now;
     await this.save();
-    return request;
+    return { request, mergedEvents };
   }
 
   async closeCraveRequest(token, ownerSecret, resultSummary = null, ownerUserId = null) {
@@ -1109,19 +1128,29 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request) return null;
-    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
     if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
+    this.assertCollaborationActionClaimable(participantClaim, userId);
     const user = this.data.users.find((item) => item.id === userId);
+    const mergedEvents = await this.mergeGuestCollaborationEvents({
+      requestType: "grocery",
+      requestId: request.id,
+      guestParticipantId: participantKey,
+      user: { id: userId },
+    });
+    const event = mergedEvents.find((item) => item.actionType === "grocery_claim");
+    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this claim.");
     const now = new Date().toISOString();
     participantClaim.memberId = userId;
-    participantClaim.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || participantClaim.memberName || "家人";
+    participantClaim.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
     participantClaim.temporary = false;
-    participantClaim.mergedAt = now;
+    participantClaim.mergedAt ||= event.mergedAt || now;
+    participantClaim.claimedByUserId = userId;
     request.updatedAt = now;
     await this.save();
-    return request;
+    return { request, mergedEvents };
   }
 
   async createMenuShareRequest(payload = {}, ownerUserId = null) {
@@ -1239,19 +1268,36 @@ export class HumiStore {
     await this.load();
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request) return null;
-    const participantKey = sanitizeText(claim.participantKey, "", 80);
+    const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const wish = request.wishes.find((item) => item.participantKey === participantKey);
     if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
+    this.assertCollaborationActionClaimable(wish, userId);
     const user = this.data.users.find((item) => item.id === userId);
+    const mergedEvents = await this.mergeGuestCollaborationEvents({
+      requestType: "wish",
+      requestId: request.id,
+      guestParticipantId: participantKey,
+      user: { id: userId },
+    });
+    const event = mergedEvents.find((item) => item.actionType === "wish_entry");
+    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this wish.");
     const now = new Date().toISOString();
     wish.memberId = userId;
-    wish.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || wish.memberName || "家人";
+    wish.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
     wish.temporary = false;
-    wish.mergedAt = now;
+    wish.mergedAt ||= event.mergedAt || now;
+    wish.claimedByUserId = userId;
     request.updatedAt = now;
     await this.save();
-    return request;
+    return { request, mergedEvents };
+  }
+
+  assertCollaborationActionClaimable(action, userId) {
+    const claimedByUserId = sanitizeText(action?.claimedByUserId || action?.memberId, "", 100);
+    if (claimedByUserId && claimedByUserId !== userId) {
+      throw codedError("collaboration_already_claimed", "Guest collaboration participant has already been claimed.");
+    }
   }
 
   findHouseholdByMember(userId) {
@@ -1335,6 +1381,11 @@ function sanitizeTrustedCollaborationParticipant(participant = {}) {
     displayName: type === "user" ? sanitizeText(participant.displayName, "Humi 用户", 32) : "",
     avatar: type === "user" ? sanitizeText(participant.avatar, "", 240) : "",
   };
+}
+
+function collaborationGuestParticipantId(claim = {}) {
+  return sanitizeText(claim.guestParticipantId, "", 100)
+    || sanitizeText(claim.participantKey, "", 80);
 }
 
 function collaborationEventKey(event) {
