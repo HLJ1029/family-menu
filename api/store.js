@@ -28,6 +28,7 @@ const DEFAULT_DATA = {
   groceryShareRequests: [],
   menuShareRequests: [],
   wishShareRequests: [],
+  collaborationEvents: [],
   revokedTokens: [],
   h5Tickets: [],
 };
@@ -47,6 +48,9 @@ export class HumiStore {
     } catch {
       this.data = structuredClone(DEFAULT_DATA);
     }
+    this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
+      ? this.data.collaborationEvents
+      : [];
     this.loaded = true;
   }
 
@@ -720,6 +724,141 @@ export class HumiStore {
     return this.data.revokedTokens.includes(token);
   }
 
+  async recordCollaborationEvent(input = {}) {
+    await this.load();
+    const requestType = sanitizeCollaborationRequestType(input.requestType);
+    const requestId = sanitizeText(input.requestId, "", 100);
+    const participantType = sanitizeCollaborationParticipantType(input.participantType);
+    const participantId = sanitizeText(input.participantId, "", 100);
+    const actionType = sanitizeCollaborationActionType(input.actionType);
+    if (!requestId || !participantId) {
+      throw codedError("collaboration_event_invalid", "requestId and participantId are required.");
+    }
+
+    const existing = this.data.collaborationEvents.find((event) => (
+      collaborationEventKey(event) === collaborationEventKey({
+        requestType,
+        requestId,
+        participantType,
+        participantId,
+        actionType,
+      })
+    ));
+    const now = new Date().toISOString();
+    const alias = participantType === "guest"
+      ? existing?.displayNameSnapshot || this.nextGuestCollaborationAlias(requestType, requestId, participantId)
+      : sanitizeText(input.displayNameSnapshot, "Humi 用户", 32);
+    const next = {
+      id: existing?.id || randomUUID(),
+      householdId: sanitizeText(input.householdId, "", 100),
+      requestType,
+      requestId,
+      participantType,
+      participantId,
+      displayNameSnapshot: alias,
+      avatarSnapshot: participantType === "guest"
+        ? ""
+        : sanitizeText(input.avatarSnapshot, "", 240),
+      actionType,
+      payload: sanitizeCollaborationPayload(actionType, input.payload),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      mergedAt: existing?.mergedAt || "",
+      mergedFromGuestId: existing?.mergedFromGuestId || "",
+    };
+    if (existing) Object.assign(existing, next);
+    else this.data.collaborationEvents.unshift(next);
+    await this.save();
+    return existing || next;
+  }
+
+  async mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user } = {}) {
+    await this.load();
+    const normalizedRequestType = sanitizeCollaborationRequestType(requestType);
+    const normalizedRequestId = sanitizeText(requestId, "", 100);
+    const normalizedGuestId = sanitizeText(guestParticipantId, "", 100);
+    const userId = sanitizeText(user?.id, "", 100);
+    if (!normalizedRequestId || !normalizedGuestId || !userId) {
+      throw codedError("collaboration_merge_invalid", "requestId, guestParticipantId and user are required.");
+    }
+    const currentUser = this.data.users.find((candidate) => candidate.id === userId) || user;
+    const userName = sanitizeText(currentUser.displayName, "Humi 用户", 32);
+    const userAvatar = sanitizeText(currentUser.avatarUrl || currentUser.avatarKey, "", 240);
+    const matching = this.data.collaborationEvents.filter((event) => (
+      event.requestType === normalizedRequestType
+      && event.requestId === normalizedRequestId
+      && event.participantType === "guest"
+      && event.participantId === normalizedGuestId
+    ));
+    const alreadyMerged = this.data.collaborationEvents.filter((event) => (
+      event.requestType === normalizedRequestType
+      && event.requestId === normalizedRequestId
+      && event.participantType === "user"
+      && event.participantId === userId
+      && event.mergedFromGuestId === normalizedGuestId
+    ));
+    const merged = [];
+    const now = new Date().toISOString();
+    for (const event of matching) {
+      const target = this.data.collaborationEvents.find((candidate) => (
+        candidate !== event
+        && collaborationEventKey(candidate) === collaborationEventKey({
+          requestType: normalizedRequestType,
+          requestId: normalizedRequestId,
+          participantType: "user",
+          participantId: userId,
+          actionType: event.actionType,
+        })
+      ));
+      if (target) {
+        this.data.collaborationEvents.splice(this.data.collaborationEvents.indexOf(target), 1);
+      }
+      event.participantType = "user";
+      event.participantId = userId;
+      event.displayNameSnapshot = userName;
+      event.avatarSnapshot = userAvatar;
+      event.updatedAt = now;
+      event.mergedAt = now;
+      event.mergedFromGuestId = normalizedGuestId;
+      merged.push(event);
+    }
+    if (matching.length > 0) await this.save();
+    return merged.length > 0 ? merged : alreadyMerged;
+  }
+
+  async getHouseholdCollaborationEvents(userId, householdId, { limit = 30 } = {}) {
+    await this.load();
+    this.requireFormalMemberHousehold(userId, householdId);
+    const parsedLimit = Number.parseInt(limit, 10);
+    const safeLimit = Math.max(1, Math.min(100, Number.isFinite(parsedLimit) ? parsedLimit : 30));
+    return this.data.collaborationEvents
+      .map((event, index) => ({ event, index }))
+      .filter(({ event }) => event.householdId === householdId)
+      .sort((left, right) => (
+        Date.parse(right.event.createdAt) - Date.parse(left.event.createdAt)
+        || left.index - right.index
+      ))
+      .slice(0, safeLimit)
+      .map(({ event }) => structuredClone(event));
+  }
+
+  nextGuestCollaborationAlias(requestType, requestId, participantId) {
+    const guestIds = [];
+    this.data.collaborationEvents
+      .map((event, index) => ({ event, index }))
+      .filter(({ event }) => event.requestType === requestType && event.requestId === requestId)
+      .sort((left, right) => (
+        Date.parse(left.event.createdAt) - Date.parse(right.event.createdAt)
+        || right.index - left.index
+      ))
+      .forEach(({ event }) => {
+        const guestId = event.participantType === "guest" ? event.participantId : event.mergedFromGuestId;
+        if (guestId && !guestIds.includes(guestId)) guestIds.push(guestId);
+      });
+    const guestIndex = guestIds.indexOf(participantId);
+    return `游客 ${guestIndex >= 0 ? guestIndex + 1 : guestIds.length + 1}`;
+  }
+
   async createCraveRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const now = new Date().toISOString();
@@ -1108,6 +1247,61 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function sanitizeCollaborationRequestType(value) {
+  if (["crave", "grocery", "wish"].includes(value)) return value;
+  throw codedError("collaboration_event_invalid", "Unsupported collaboration request type.");
+}
+
+function sanitizeCollaborationActionType(value) {
+  if (["crave_vote", "grocery_claim", "wish_entry"].includes(value)) return value;
+  throw codedError("collaboration_event_invalid", "Unsupported collaboration action type.");
+}
+
+function sanitizeCollaborationParticipantType(value) {
+  if (["user", "guest"].includes(value)) return value;
+  throw codedError("collaboration_event_invalid", "Unsupported collaboration participant type.");
+}
+
+function collaborationEventKey(event) {
+  return [
+    event.requestType,
+    event.requestId,
+    event.participantType,
+    event.participantId,
+    event.actionType,
+  ].join(":");
+}
+
+function sanitizeCollaborationPayload(actionType, payload = {}) {
+  const value = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  if (actionType === "crave_vote") {
+    return copyDefinedCollaborationPayload({
+      feelingTag: sanitizeText(value.feelingTag, "", 32),
+      dishWish: sanitizeText(value.dishWish, "", 80),
+      note: sanitizeText(value.note, "", 80),
+    });
+  }
+  if (actionType === "grocery_claim") {
+    return copyDefinedCollaborationPayload({
+      status: value.status === "declined" ? "declined" : "claimed",
+      itemIds: [...new Set((Array.isArray(value.itemIds) ? value.itemIds : [])
+        .map((itemId) => sanitizeText(itemId, "", 80))
+        .filter(Boolean))].slice(0, 120),
+      note: sanitizeText(value.note, "", 80),
+    });
+  }
+  return copyDefinedCollaborationPayload({
+    dishName: sanitizeText(value.dishName, "想吃的菜", 40),
+    note: sanitizeText(value.note, "", 80),
+  });
+}
+
+function copyDefinedCollaborationPayload(payload) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => (
+    Array.isArray(value) ? value.length > 0 : value !== ""
+  )));
 }
 
 function defaultAvatarKey(userId) {

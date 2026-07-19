@@ -24,6 +24,7 @@
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:miniprogram-poster": "node scripts/check-miniprogram-poster-share.mjs",
     "validate:identity": "node scripts/check-identity-store.mjs && node scripts/check-identity-runtime.mjs",
+    "validate:collaboration-identity": "node scripts/check-collaboration-identity.mjs",
     "validate:household": "node scripts/check-household-lifecycle.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
