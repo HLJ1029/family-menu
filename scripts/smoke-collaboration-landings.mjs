@@ -64,7 +64,7 @@ try {
     craveVotePayload = route.request().postDataJSON();
     const participant = route.request().headers().authorization
       ? signedInParticipant()
-      : guestParticipant(craveVotePayload.guestParticipantId, "游客 1");
+      : guestParticipant(craveVotePayload.guestParticipantId, "游客 1", "guest-vote");
     craveRequest = {
       ...craveRequest,
       votes: [{
@@ -87,7 +87,7 @@ try {
       ...alternateCraveRequest,
       votes: [{ id: "alternate-guest-vote", participantKey: alternateCravePayload.guestParticipantId, memberName: "游客 1", feelingTag: alternateCravePayload.feelingTag, note: alternateCravePayload.note, temporary: true }],
     };
-    await fulfillJson(route, { request: alternateCraveRequest, participant: guestParticipant(alternateCravePayload.guestParticipantId, "游客 1") });
+    await fulfillJson(route, { request: alternateCraveRequest, participant: guestParticipant(alternateCravePayload.guestParticipantId, "游客 1", "alternate-guest-vote") });
   });
   await page.route("**/grocery-share-requests/grocery-guest-smoke", async (route) => {
     await fulfillJson(route, { request: groceryShare });
@@ -96,7 +96,7 @@ try {
     groceryClaimPayload = route.request().postDataJSON();
     const participant = route.request().headers().authorization
       ? signedInParticipant()
-      : guestParticipant(groceryClaimPayload.guestParticipantId, "游客 1");
+      : guestParticipant(groceryClaimPayload.guestParticipantId, "游客 1", "grocery-claim-smoke");
     groceryShare = {
       ...groceryShare,
       claims: [{
@@ -116,7 +116,7 @@ try {
     wishPayload = route.request().postDataJSON();
     const participant = route.request().headers().authorization
       ? signedInParticipant()
-      : guestParticipant(wishPayload.guestParticipantId, "游客 1");
+      : guestParticipant(wishPayload.guestParticipantId, "游客 1", "wish-entry-smoke");
     wishRequest = {
       ...wishRequest,
       wishes: [{
@@ -415,8 +415,8 @@ function isSignedInActionBody(body) {
     && !Object.hasOwn(body, "relationship");
 }
 
-function guestParticipant(id, displayName) {
-  return { type: "guest", id, displayName, avatar: "" };
+function guestParticipant(id, displayName, actionId = "") {
+  return { type: "guest", id, displayName, avatar: "", actionId };
 }
 
 function signedInParticipant() {

@@ -2188,7 +2188,7 @@ function App() {
     }
     try {
       const data = await loadGroceryShareRequest(activeGroceryShareRequest.token);
-      setActiveGroceryShareRequest(data.request);
+      setActiveGroceryShareRequest((current) => ({ ...current, ...data.request }));
       const synced = syncGroceryShareProgress(data.request);
       const claimedCount = (data.request.claims ?? []).filter((claim) => claim.status === "claimed").length;
       showNotice(
@@ -3161,9 +3161,9 @@ function App() {
           : context.type === "grocery"
             ? await joinGroceryShareRequest(context.token, humiSession, payload)
             : await joinWishShareRequest(context.token, humiSession, payload);
-        if (context.type === "crave" && data.request) setActiveCraveRequest(data.request);
-        if (context.type === "grocery" && data.request) setActiveGroceryShareRequest(data.request);
-        if (context.type === "wish" && data.request) setActiveWishShareRequest(data.request);
+        if (context.type === "crave" && data.request) setActiveCraveRequest((current) => ({ ...current, ...data.request }));
+        if (context.type === "grocery" && data.request) setActiveGroceryShareRequest((current) => ({ ...current, ...data.request }));
+        if (context.type === "wish" && data.request) setActiveWishShareRequest((current) => ({ ...current, ...data.request }));
         mergeTemporaryParticipationIntoMember(context, data.participant);
         clearGuestParticipantId(context.type, context.token);
         setPendingJoinContext(null);
@@ -3185,19 +3185,18 @@ function App() {
     const participantKey = String(context.guestParticipantId || "").trim();
     const actionId = String(context.actionId || "").trim();
     const memberName = String(participant?.displayName || "").trim();
-    if (!participantKey || !memberName) return;
+    if (!participantKey || !actionId || !memberName) return;
     const avatar = String(participant?.avatar || "").trim();
     const now = new Date().toISOString();
-    const matchesPendingAction = (entry) => (
-      entry?.participantKey === participantKey
-      || (actionId && entry?.id === actionId)
+    const matchesPendingAction = (requestToken, entry) => (
+      requestToken === context.token && entry?.id === actionId
     );
 
     setActiveCraveRequest((current) => {
       if (!current?.votes?.length) return current;
       let changed = false;
       const votes = current.votes.map((vote) => {
-        if (!matchesPendingAction(vote)) return vote;
+        if (!matchesPendingAction(current.token, vote)) return vote;
         changed = true;
         const { participantKey: _participantKey, ...safeVote } = vote;
         return {
@@ -3217,7 +3216,7 @@ function App() {
         const votes = Array.isArray(signal.votes) ? signal.votes : [];
         let signalChanged = false;
         const nextVotes = votes.map((vote) => {
-          if (!matchesPendingAction(vote)) return vote;
+          if (!matchesPendingAction(signal.requestToken, vote)) return vote;
           changed = true;
           signalChanged = true;
           const { participantKey: _participantKey, ...safeVote } = vote;
@@ -3242,7 +3241,7 @@ function App() {
       if (!current?.claims?.length) return current;
       let changed = false;
       const claims = current.claims.map((claim) => {
-        if (!matchesPendingAction(claim)) return claim;
+        if (!matchesPendingAction(current.token, claim)) return claim;
         changed = true;
         const { participantKey: _participantKey, ...safeClaim } = claim;
         return {
@@ -3260,7 +3259,7 @@ function App() {
       if (!current?.wishes?.length) return current;
       let changed = false;
       const wishes = current.wishes.map((wish) => {
-        if (!matchesPendingAction(wish)) return wish;
+        if (!matchesPendingAction(current.token, wish)) return wish;
         changed = true;
         const { participantKey: _participantKey, ...safeWish } = wish;
         return {
@@ -3274,22 +3273,6 @@ function App() {
       return changed ? { ...current, wishes } : current;
     });
 
-    setWishPool((current) => {
-      let changed = false;
-      const nextItems = current.map((item) => {
-        if (item.participantKey !== participantKey) return item;
-        changed = true;
-        const { participantKey: _participantKey, ...safeItem } = item;
-        return {
-          ...safeItem,
-          source: `${memberName}想吃`,
-          avatar,
-          temporary: false,
-          mergedAt: now,
-        };
-      });
-      return changed ? nextItems : current;
-    });
   }
 
   if (landingCraveToken) {

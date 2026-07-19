@@ -773,7 +773,7 @@ async function handleCreateCraveRequest(request, response) {
   const body = await readJson(request);
   try {
     const craveRequest = await store.createCraveRequest(body, auth.userId);
-    sendJson(response, 201, { request: toPublicCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
+    sendJson(response, 201, { request: toOwnerCraveRequest(craveRequest), ownerSecret: craveRequest.ownerSecret });
   } catch (error) {
     if (error.code === "forbidden") {
       throw httpError(403, "forbidden", "只有主厨能发起这个家的征集。");
@@ -844,7 +844,7 @@ async function handleCreateGroceryShareRequest(request, response) {
   try {
     const groceryRequest = await store.createGroceryShareRequest(body, user.id);
     sendJson(response, 201, {
-      request: toPublicGroceryShareRequest(groceryRequest),
+      request: toOwnerGroceryShareRequest(groceryRequest),
       ownerSecret: groceryRequest.ownerSecret,
     });
   } catch (error) {
@@ -945,7 +945,7 @@ async function handleCreateWishShareRequest(request, response) {
   try {
     const wishRequest = await store.createWishShareRequest(body, user.id);
     sendJson(response, 201, {
-      request: toPublicWishShareRequest(wishRequest),
+      request: toOwnerWishShareRequest(wishRequest),
       ownerSecret: wishRequest.ownerSecret,
     });
   } catch (error) {
@@ -1218,9 +1218,6 @@ function getClientIp(request) {
 
 function toPublicCraveRequest(request) {
   return {
-    id: request.id,
-    token: request.token,
-    householdId: request.householdId,
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     recipientCount: (request.recipientIds ?? []).length,
@@ -1251,6 +1248,15 @@ function toPublicCraveRequest(request) {
   };
 }
 
+function toOwnerCraveRequest(request) {
+  return {
+    ...toPublicCraveRequest(request),
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId,
+  };
+}
+
 function toPublicGroceryShare(share) {
   return {
     id: share.id,
@@ -1274,10 +1280,6 @@ function toPublicGroceryShare(share) {
 
 function toPublicGroceryShareRequest(request) {
   return {
-    id: request.id,
-    token: request.token,
-    householdId: request.householdId || "",
-    ownerId: request.ownerId || "",
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     title: request.title,
@@ -1296,12 +1298,21 @@ function toPublicGroceryShareRequest(request) {
       itemIds: Array.isArray(claim.itemIds) ? claim.itemIds : [],
       note: claim.note,
       temporary: claim.temporary,
-      memberId: claim.temporary ? undefined : claim.memberId,
       mergedAt: claim.mergedAt,
       createdAt: claim.createdAt,
     })),
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toOwnerGroceryShareRequest(request) {
+  return {
+    ...toPublicGroceryShareRequest(request),
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId || "",
+    ownerId: request.ownerId || "",
   };
 }
 
@@ -1331,10 +1342,6 @@ function toPublicMenuShareRequest(request) {
 
 function toPublicWishShareRequest(request) {
   return {
-    id: request.id,
-    token: request.token,
-    householdId: request.householdId || "",
-    ownerId: request.ownerId || "",
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     title: request.title,
@@ -1345,12 +1352,21 @@ function toPublicWishShareRequest(request) {
       dishName: wish.dishName,
       note: wish.note,
       temporary: wish.temporary,
-      memberId: wish.temporary ? undefined : wish.memberId,
       mergedAt: wish.mergedAt,
       createdAt: wish.createdAt,
     })),
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toOwnerWishShareRequest(request) {
+  return {
+    ...toPublicWishShareRequest(request),
+    id: request.id,
+    token: request.token,
+    householdId: request.householdId || "",
+    ownerId: request.ownerId || "",
   };
 }
 
@@ -1425,6 +1441,7 @@ function toPublicCollaborationParticipant(participant, actions = [], participant
     id: participant.id,
     displayName: action?.memberName || participant.displayName || "游客",
     avatar: participant.avatar || "",
+    ...(participant.type === "guest" ? { actionId: action?.id || "" } : {}),
   };
 }
 

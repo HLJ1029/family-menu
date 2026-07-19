@@ -512,7 +512,8 @@ try {
     "crave request should return an explicit deadline",
   );
   const collaborationEventsBeforePublicGets = await readCollaborationEvents();
-  await request(`${baseUrl}/crave-requests/${crave.request.token}`);
+  const publicCraveRequest = await request(`${baseUrl}/crave-requests/${crave.request.token}`);
+  assertNoCollaborationResponseLeaks(publicCraveRequest, "public crave GET");
   assert.deepEqual(
     await readCollaborationEvents(),
     collaborationEventsBeforePublicGets,
@@ -528,6 +529,8 @@ try {
     },
   });
   assert.equal(generatedCraveGuest.participant?.type, "guest", "guest crave submit should return canonical participant type");
+  assert.equal(generatedCraveGuest.participant?.actionId, generatedCraveGuest.request?.votes?.[0]?.id, "guest crave submit must return the exact server-issued action id");
+  assertNoCollaborationResponseLeaks(generatedCraveGuest, "public crave action response");
   assert.match(generatedCraveGuest.participant?.id || "", /^[A-Za-z0-9-]{20,}$/i, "guest crave submit should return a server-generated id");
   assert.equal(generatedCraveGuest.participant?.displayName, "游客 1", "guest crave alias should be request-scoped");
   assert.equal(generatedCraveGuest.request?.votes?.[0]?.memberName, "游客 1", "legacy crave name should derive from canonical guest");
@@ -641,6 +644,7 @@ try {
     displayName: memberLogin.user.displayName,
     avatar: memberLogin.user.avatarUrl || memberLogin.user.avatarKey,
   }, "crave merge must return the server-derived authenticated participant snapshot");
+  assertNoCollaborationResponseLeaks(claimedCrave, "generic crave join response");
   const publicClaimedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}`);
   assert.equal(JSON.stringify(publicClaimedCrave).includes("claimedByUserId"), false, "public crave GET must not expose internal claim ownership");
   const claimedCraveAction = (await readCollaborationBusinessActions("crave", crave.request.id)).find((vote) => vote.id === claimedCraveVote.id);
@@ -1001,7 +1005,8 @@ try {
   });
   assert(batchGrocery.request?.items?.length === 2, "batch grocery share should expose the user's complete list");
   const collaborationEventsBeforeGroceryGet = await readCollaborationEvents();
-  await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
+  const publicGroceryRequest = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
+  assertNoCollaborationResponseLeaks(publicGroceryRequest, "public grocery GET");
   assert.deepEqual(
     await readCollaborationEvents(),
     collaborationEventsBeforeGroceryGet,
@@ -1018,6 +1023,8 @@ try {
   });
   assert(batchClaim.request?.claims?.[0]?.itemIds?.length === 2, "batch grocery share should claim multiple items at once");
   assert.equal(batchClaim.participant?.type, "guest", "guest grocery submit should return canonical participant type");
+  assert.equal(batchClaim.participant?.actionId, batchClaim.request?.claims?.[0]?.id, "guest grocery submit must return the exact server-issued action id");
+  assertNoCollaborationResponseLeaks(batchClaim, "public grocery action response");
   assert.equal(batchClaim.participant?.displayName, "游客 1", "guest grocery alias should be request-scoped");
   const firstGroceryGuestAction = batchClaim.request?.claims?.[0];
   const firstGroceryGuestEvent = (await readCollaborationEvents()).find((event) => (
@@ -1104,7 +1111,8 @@ try {
     body: { householdName: "测试家", initiatorName: "主厨", title: "最近想吃什么" },
   });
   const collaborationEventsBeforeWishGet = await readCollaborationEvents();
-  await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}`);
+  const publicWishRequest = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}`);
+  assertNoCollaborationResponseLeaks(publicWishRequest, "public wish GET");
   assert.deepEqual(
     await readCollaborationEvents(),
     collaborationEventsBeforeWishGet,
@@ -1120,6 +1128,8 @@ try {
   });
   assert(wishEntry.request?.wishes?.[0]?.dishName === "红烧肉", "wish share should receive a guest dish request");
   assert.equal(wishEntry.participant?.type, "guest", "guest wish submit should return canonical participant type");
+  assert.equal(wishEntry.participant?.actionId, wishEntry.request?.wishes?.[0]?.id, "guest wish submit must return the exact server-issued action id");
+  assertNoCollaborationResponseLeaks(wishEntry, "public wish action response");
   assert.equal(wishEntry.participant?.displayName, "游客 1", "guest wish alias should be request-scoped");
   const firstWishGuestAction = wishEntry.request?.wishes?.[0];
   const firstWishGuestEvent = (await readCollaborationEvents()).find((event) => (
@@ -1197,6 +1207,7 @@ try {
     displayName: collaborationGuest.user.displayName,
     avatar: collaborationGuest.user.avatarUrl || collaborationGuest.user.avatarKey,
   }, "grocery merge must return the server-derived authenticated participant snapshot");
+  assertNoCollaborationResponseLeaks(joinedBatchGrocery, "generic grocery join response");
   const publicJoinedGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
   assert.equal(JSON.stringify(publicJoinedGrocery).includes("claimedByUserId"), false, "public grocery GET must not expose internal claim ownership");
   const joinedGroceryAction = (await readCollaborationBusinessActions("grocery", batchGrocery.request.id)).find((claim) => claim.id === firstGroceryGuestAction.id);
@@ -1313,6 +1324,7 @@ try {
     displayName: wishGuest.user.displayName,
     avatar: wishGuest.user.avatarUrl || wishGuest.user.avatarKey,
   }, "wish merge must return the server-derived authenticated participant snapshot");
+  assertNoCollaborationResponseLeaks(joinedWish, "generic wish join response");
   const publicJoinedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}`);
   assert.equal(JSON.stringify(publicJoinedWish).includes("claimedByUserId"), false, "public wish GET must not expose internal claim ownership");
   const joinedWishAction = (await readCollaborationBusinessActions("wish", wishShare.request.id)).find((wish) => wish.id === firstWishGuestAction.id);
@@ -1591,6 +1603,41 @@ async function readCollaborationRequestCollection(requestType) {
   if (requestType === "crave") return data.craveRequests ?? [];
   if (requestType === "grocery") return data.groceryShareRequests ?? [];
   return data.wishShareRequests ?? [];
+}
+
+function assertNoCollaborationResponseLeaks(value, label) {
+  const forbiddenKeys = new Set([
+    "token",
+    "ownerSecret",
+    "householdId",
+    "ownerId",
+    "requestId",
+    "claimedByUserId",
+    "mergedFromGuestId",
+    "participantKey",
+    "memberId",
+    "openid",
+    "openId",
+    "unionid",
+    "unionId",
+    "phone",
+    "phoneMasked",
+    "phoneVerifiedAt",
+    "family",
+    "households",
+    "state",
+  ]);
+  const leaked = [];
+  const visit = (current, path = "$") => {
+    if (!current || typeof current !== "object") return;
+    for (const [key, child] of Object.entries(current)) {
+      const childPath = `${path}.${key}`;
+      if (forbiddenKeys.has(key)) leaked.push(childPath);
+      visit(child, childPath);
+    }
+  };
+  visit(value);
+  assert.deepEqual(leaked, [], `${label} must use the strict collaboration response projection`);
 }
 
 function createExpiredBearer(userId) {
