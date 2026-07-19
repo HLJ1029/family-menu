@@ -111,7 +111,7 @@ git commit -m "feat: add Humi collaboration participant history"
 - Consumes: Task 1 event functions.
 - Produces public action bodies with `{ guestParticipantId }` or authenticated action bodies whose identity is derived from bearer session.
 
-- [ ] **Step 1: Add failing API smoke assertions**
+- [x] **Step 1: Add failing API smoke assertions**
 
 For each collaboration type:
 
@@ -121,11 +121,11 @@ For each collaboration type:
 4. A signed-in submit ignores fake client `displayNameSnapshot` and records the session user.
 5. Guest action alone does not add a household member.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run `npm run validate:api`; expected failure because responses lack canonical participant fields.
 
-- [ ] **Step 3: Extend store action signatures**
+- [x] **Step 3: Extend store action signatures**
 
 Each add method accepts a trusted participant argument separately from business input:
 
@@ -137,11 +137,11 @@ addWishShareEntry(token, wish, participant)
 
 For guests, participant is `{ type: "guest", id: sanitizedOrGeneratedId }`; for users it is created after `requireAuth` and `store.getUser`. Existing `memberName`, `temporary`, `memberId` fields remain response-compatible but are derived from canonical identity.
 
-- [ ] **Step 4: Allow optional auth on public action handlers**
+- [x] **Step 4: Allow optional auth on public action handlers**
 
 Add `optionalAuth(request)` that returns a validated user or null. An invalid supplied bearer token returns 401 instead of silently becoming a guest. Server response includes `{ request, participant: { type, id, displayName, avatar } }`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run validate:collaboration-identity
