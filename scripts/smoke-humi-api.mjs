@@ -1359,6 +1359,84 @@ try {
   assert.equal(wishGuestBeforeInvite.family, null, "wish claim must not create formal membership");
   assert.deepEqual(wishGuestBeforeInvite.households, []);
 
+  const collaborationHistoryPath = `/households/${loadedStateEnvelope.family.id}/collaborations`;
+  const collaborationDataBeforeHistoryReads = await readFile(dataFile, "utf8");
+  await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {}, 401, "missing_token");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "unauthenticated history read must not write data");
+  await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+  }, 404, "household_not_found");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "outsider history read must not write data");
+  await assertRejectedRequest(`${baseUrl}/households/unknown-household/collaborations`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  }, 404, "household_not_found");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "unknown household history read must not write data");
+  await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
+    headers: { Authorization: "Bearer invalid-collaboration-history-token" },
+  }, 401, "invalid_token");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "invalid history bearer must not write data");
+  await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
+    headers: { Authorization: `Bearer ${createExpiredBearer(login.user.id)}` },
+  }, 401, "invalid_token");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeHistoryReads, "expired history bearer must not write data");
+  explicitWechatOpenIds.add(`revoked-history-${runId}`);
+  const revokedHistorySession = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `revoked-history-${runId}` },
+  });
+  await request(`${baseUrl}/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedHistorySession.accessToken}` },
+  });
+  const collaborationDataBeforeRevokedHistoryRead = await readFile(dataFile, "utf8");
+  await assertRejectedRequest(`${baseUrl}${collaborationHistoryPath}`, {
+    headers: { Authorization: `Bearer ${revokedHistorySession.accessToken}` },
+  }, 401, "revoked_token");
+  assert.equal(await readFile(dataFile, "utf8"), collaborationDataBeforeRevokedHistoryRead, "revoked history bearer must not write data");
+
+  const ownerCollaborationHistory = await request(`${baseUrl}${collaborationHistoryPath}?limit=50`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  const memberCollaborationHistory = await request(`${baseUrl}${collaborationHistoryPath}?limit=50`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.deepEqual(memberCollaborationHistory, ownerCollaborationHistory, "owner and formal member must receive the same household collaboration history");
+  assert.equal(ownerCollaborationHistory.householdId, loadedStateEnvelope.family.id, "history response should identify the requested household");
+  assert(ownerCollaborationHistory.events.length >= 3, "history should include the seeded crave, grocery, and wish actions");
+  assert.deepEqual(
+    new Set(ownerCollaborationHistory.events.map((event) => event.requestType)),
+    new Set(["crave", "grocery", "wish"]),
+    "history should include all seeded collaboration action types",
+  );
+  assert(
+    ownerCollaborationHistory.events.every((event, index, events) => (
+      index === 0 || Date.parse(events[index - 1].createdAt) >= Date.parse(event.createdAt)
+    )),
+    "history should be newest first",
+  );
+  assertNoHouseholdCollaborationHistoryLeaks(ownerCollaborationHistory.events, "household collaboration history events");
+  assert(
+    ownerCollaborationHistory.events.every((event) => (
+      typeof event.id === "string"
+      && typeof event.requestType === "string"
+      && typeof event.actionType === "string"
+      && typeof event.createdAt === "string"
+      && typeof event.participant?.displayName === "string"
+      && typeof event.participant?.avatarUrl === "string"
+      && event.payload && typeof event.payload === "object"
+    )),
+    "history should return only explicit display-safe event fields",
+  );
+  const limitedCollaborationHistory = await request(`${baseUrl}${collaborationHistoryPath}?limit=2`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(limitedCollaborationHistory.events.length, 2, "history endpoint must enforce its caller limit");
+  assert.deepEqual(
+    limitedCollaborationHistory.events,
+    ownerCollaborationHistory.events.slice(0, 2),
+    "limited history should preserve newest-first order",
+  );
+
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",
     body: {
@@ -1571,10 +1649,14 @@ async function assertUnauthorizedCreate(url, body, label) {
 }
 
 async function assertRejectedRequest(url, options, expectedStatus, expectedCode) {
+  const method = options.method || "GET";
   const response = await rawRequest(url, {
     ...options,
+    method,
     headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
-    body: JSON.stringify(Object.hasOwn(options, "body") ? options.body : {}),
+    body: method === "GET" || method === "HEAD"
+      ? undefined
+      : JSON.stringify(Object.hasOwn(options, "body") ? options.body : {}),
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
@@ -1638,6 +1720,47 @@ function assertNoCollaborationResponseLeaks(value, label) {
   };
   visit(value);
   assert.deepEqual(leaked, [], `${label} must use the strict collaboration response projection`);
+}
+
+function assertNoHouseholdCollaborationHistoryLeaks(value, label) {
+  const forbiddenKeys = new Set([
+    "token",
+    "ownerSecret",
+    "householdId",
+    "ownerId",
+    "requestId",
+    "participantType",
+    "participantId",
+    "memberId",
+    "userId",
+    "claimedByUserId",
+    "mergedFromGuestId",
+    "mergedAt",
+    "updatedAt",
+    "participantKey",
+    "guestParticipantId",
+    "openid",
+    "openId",
+    "unionid",
+    "unionId",
+    "phone",
+    "phoneMasked",
+    "phoneVerifiedAt",
+    "family",
+    "households",
+    "state",
+  ]);
+  const leaked = [];
+  const visit = (current, path = "$") => {
+    if (!current || typeof current !== "object") return;
+    for (const [key, child] of Object.entries(current)) {
+      const childPath = `${path}.${key}`;
+      if (forbiddenKeys.has(key)) leaked.push(childPath);
+      visit(child, childPath);
+    }
+  };
+  visit(value);
+  assert.deepEqual(leaked, [], `${label} must not expose internal collaboration identity or request data`);
 }
 
 function createExpiredBearer(userId) {

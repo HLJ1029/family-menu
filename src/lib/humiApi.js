@@ -61,6 +61,15 @@ export async function loadHumiHouseholds(session) {
   return humiApiRequest("/households", { session });
 }
 
+export function loadHouseholdCollaborations(session, householdId, limit = 50, options = {}) {
+  if (!householdId) throw new Error("家庭信息不完整，请返回后重试。");
+  const safeLimit = normalizeCollaborationHistoryLimit(limit);
+  return humiApiRequest(`/households/${encodeURIComponent(householdId)}/collaborations?limit=${safeLimit}`, {
+    session,
+    signal: options.signal,
+  });
+}
+
 export async function createHumiHousehold(session, payload) {
   return humiApiRequest("/households", {
     method: "POST",
@@ -337,10 +346,13 @@ export function joinWishShareRequest(token, session, payload) {
   });
 }
 
-async function humiApiRequest(path, { method = "GET", session, body } = {}) {
+async function humiApiRequest(path, { method = "GET", session, body, signal } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), HUMI_API_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener?.("abort", abortFromCaller, { once: true });
 
   try {
     const response = await fetch(`${getHumiApiBaseUrl()}${path}`, {
@@ -373,6 +385,7 @@ async function humiApiRequest(path, { method = "GET", session, body } = {}) {
     throw normalizeHumiApiError(error, "sync");
   } finally {
     globalThis.clearTimeout(timer);
+    signal?.removeEventListener?.("abort", abortFromCaller);
   }
 }
 
@@ -403,4 +416,9 @@ async function humiPublicRequest(path, { method = "GET", body } = {}) {
 
 function getHumiApiBaseUrl() {
   return (import.meta.env?.VITE_HUMI_API_BASE_URL || DEFAULT_HUMI_API_BASE_URL).replace(/\/$/, "");
+}
+
+function normalizeCollaborationHistoryLimit(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(100, parsed)) : 50;
 }

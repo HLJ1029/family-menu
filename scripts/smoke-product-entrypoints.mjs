@@ -459,6 +459,7 @@ try {
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
   const familyManagementPages = await verifyFamilyManagementPages(browser, baseUrl, evidenceDir);
+  const familyActivityHistory = await verifyFamilyActivityHistory(browser, baseUrl, evidenceDir);
   const familyIdentityRouteReset = await verifyFamilyIdentityRouteReset(browser, baseUrl, evidenceDir);
   const multiHouseholdSwitch = await verifyMultiHouseholdSwitch(browser, baseUrl, evidenceDir);
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
@@ -578,6 +579,10 @@ try {
     { key: "household-lifecycle-metadata-preserves-current-state", ok: familyManagementPages.lifecycleMetadataPreservesCurrentState, actual: familyManagementPages.lifecycleMetadataPreservesCurrentState },
     { key: "household-lifecycle-preserves-meal-logs-and-collaboration-state", ok: familyManagementPages.lifecyclePreservesLogsAndCollaboration, actual: familyManagementPages.lifecyclePreservationSnapshots },
     { key: "family-activity-hides-secrets-and-internal-fields", ok: familyManagementPages.activityPrivacySafe, actual: familyManagementPages.activityText },
+    { key: "family-activity-loads-natural-language-server-history", ok: familyActivityHistory.naturalRows && familyActivityHistory.avatarAndTime && familyActivityHistory.privacySafe, actual: familyActivityHistory.eventText },
+    { key: "family-activity-keeps-server-empty-distinct-from-local-data", ok: familyActivityHistory.emptyIsCloudOnly, actual: familyActivityHistory.emptyText },
+    { key: "family-activity-retries-network-error-in-place", ok: familyActivityHistory.errorFallbackShown && familyActivityHistory.retryReplacedFallback, actual: familyActivityHistory.errorText },
+    { key: "family-activity-ignores-stale-unmounted-history-load", ok: familyActivityHistory.staleLoadIgnored && familyActivityHistory.pageErrors.length === 0, actual: familyActivityHistory },
     { key: "household-lifecycle-remove-and-transfer-refresh-members", ok: familyManagementPages.lifecycleMembersRefresh, actual: familyManagementPages.lifecycleMembersRefresh },
     { key: "family-identity-change-resets-internal-route-before-paint", ok: familyIdentityRouteReset.resetToLivingRoom && familyIdentityRouteReset.noStaleSettingsPaint && familyIdentityRouteReset.pageErrors.length === 0, actual: familyIdentityRouteReset },
     { key: "nutrition-reflection-is-available-in-current-ui", ok: familyManagementPages.nutritionReachable },
@@ -1298,6 +1303,148 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
     pageErrors,
     screenshot,
   };
+}
+
+async function verifyFamilyActivityHistory(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const family = buildSmokeFamily();
+  const state = {
+    ...buildSmokeHouseholdState(),
+    activeCraveRequest: { id: "local-crave", createdAt: "2026-07-19T08:00:00.000Z", votes: [] },
+  };
+  let mode = "events";
+  let historyRequests = 0;
+  let releaseStaleRequest;
+  let markStaleRequestStarted;
+  const staleRequestStarted = new Promise((resolve) => { markStaleRequestStarted = resolve; });
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "family-activity-history-token",
+      refreshToken: "family-activity-history-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    await fulfillJson(route, { state, family, households: [family] });
+  });
+  await page.route("**/households/product-smoke-family/collaborations**", async (route) => {
+    historyRequests += 1;
+    if (mode === "stale") {
+      markStaleRequestStarted();
+      await new Promise((resolve) => { releaseStaleRequest = resolve; });
+      await fulfillJson(route, { householdId: family.id, events: [historyEvents()[0]] });
+      return;
+    }
+    if (mode === "error") {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "history_unavailable", message: "协作记录暂时不可用。" }) });
+      return;
+    }
+    await fulfillJson(route, {
+      householdId: family.id,
+      events: mode === "empty" ? [] : historyEvents(),
+    });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
+
+  await page.getByRole("button", { name: /^协作记录/ }).click();
+  const activity = page.getByTestId("family-activity-page");
+  await activity.getByText("小禾想吃番茄炒蛋", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  const eventText = await activity.innerText();
+  const naturalRows = ["小禾想吃番茄炒蛋", "游客 1 已认领 2 项买菜", "小林写下想吃：鱼香肉丝"].every((text) => eventText.includes(text));
+  const avatarAndTime = await activity.getByRole("img", { name: "小禾的头像" }).count() === 1
+    && /2026\s*年/.test(eventText);
+  const privacySafe = ["DO_NOT_RENDER", "ownerSecret", "participantKey", "householdId", "token", "mergedFromGuestId"].every((text) => !eventText.includes(text));
+  await activity.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+
+  mode = "empty";
+  await page.getByRole("button", { name: /^协作记录/ }).click();
+  await activity.getByText("还没有云端协作记录", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  const emptyText = await activity.innerText();
+  const emptyIsCloudOnly = emptyText.includes("还没有云端协作记录") && !emptyText.includes("当前设备记录");
+  await activity.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+
+  mode = "error";
+  await page.getByRole("button", { name: /^协作记录/ }).click();
+  await activity.getByText("当前设备记录", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  const errorText = await activity.innerText();
+  const errorFallbackShown = errorText.includes("当前设备记录") && await activity.getByRole("button", { name: "重试", exact: true }).count() === 1;
+  mode = "events";
+  await activity.getByRole("button", { name: "重试", exact: true }).click();
+  await activity.getByText("小禾想吃番茄炒蛋", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  const retryReplacedFallback = !(await activity.innerText()).includes("当前设备记录");
+  await activity.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+
+  mode = "stale";
+  await page.getByRole("button", { name: /^协作记录/ }).click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="family-activity-page"]'));
+  await staleRequestStarted;
+  await activity.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  releaseStaleRequest?.();
+  await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
+  await page.waitForTimeout(50);
+  const staleLoadIgnored = historyRequests >= 4 && await page.getByTestId("family-activity-page").count() === 0;
+  const screenshot = join(evidenceDir, "family-activity-history-mobile.png");
+  await page.getByTestId("family-living-room").screenshot({ path: screenshot });
+  await context.close();
+  return {
+    naturalRows,
+    avatarAndTime,
+    privacySafe,
+    eventText,
+    emptyIsCloudOnly,
+    emptyText,
+    errorFallbackShown,
+    retryReplacedFallback,
+    errorText,
+    staleLoadIgnored,
+    historyRequests,
+    pageErrors,
+    screenshot,
+  };
+}
+
+function historyEvents() {
+  return [
+    {
+      id: "safe-crave-event",
+      requestType: "crave",
+      actionType: "crave_vote",
+      createdAt: "2026-07-19T09:30:00.000Z",
+      participant: { displayName: "小禾", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" },
+      payload: { dishWish: "番茄炒蛋" },
+    },
+    {
+      id: "safe-grocery-event",
+      requestType: "grocery",
+      actionType: "grocery_claim",
+      createdAt: "2026-07-19T09:20:00.000Z",
+      participant: { displayName: "游客 1", avatarUrl: "" },
+      payload: { status: "claimed", itemIds: ["tomato", "egg"] },
+    },
+    {
+      id: "safe-wish-event",
+      requestType: "wish",
+      actionType: "wish_entry",
+      createdAt: "2026-07-19T09:10:00.000Z",
+      participant: { displayName: "小林", avatarUrl: "" },
+      payload: { dishName: "鱼香肉丝" },
+    },
+  ];
 }
 
 async function verifyFamilyManagementPages(browser, base, evidenceDir) {

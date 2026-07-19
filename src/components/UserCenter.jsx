@@ -77,7 +77,7 @@ export function UserCenter({
     return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onCreateHousehold={onCreateHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
   }
   if (pageId === "activity") {
-    return <FamilyActivityPage {...commonPageProps} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />;
+    return <FamilyActivityPage {...commonPageProps} humiSession={humiSession} householdId={family.id} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />;
   }
   if (pageId === "account") {
     return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} />;

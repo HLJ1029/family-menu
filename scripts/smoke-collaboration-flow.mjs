@@ -537,7 +537,7 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
     await ownerPage.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
     await ownerPage.getByRole("button", { name: /^协作记录/ }).click();
     await ownerPage.getByRole("heading", { name: "一起完成的事" }).waitFor({ timeout: 10000 });
-    await ownerPage.getByText("发起了最近想吃", { exact: true }).waitFor({ timeout: 10000 });
+    await ownerPage.getByText("游客 1写下想吃：糖醋排骨", { exact: true }).waitFor({ timeout: 10000 });
     const refreshed = await request(`${apiBaseUrl}/wish-share-requests/${encodeURIComponent(token)}`);
     assert(refreshed.request?.wishes?.some((item) => item.dishName === "糖醋排骨"), "owner-visible collaboration source should retain the guest wish");
   } finally {

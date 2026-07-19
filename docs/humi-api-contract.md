@@ -172,6 +172,7 @@ Authorization: Bearer <accessToken>
 ## 家庭与邀请
 
 - `GET /households`：读取当前用户加入的家庭列表和当前家庭。
+- `GET /households/:householdId/collaborations?limit=50`：读取这个家的协作历史；必须携带有效、未撤销的 bearer，且调用者必须是该家的正式成员。owner 与 member 得到相同的最新优先结果；陌生用户或不存在的家庭一律返回掩码 `404 household_not_found`，GET 不写入任何记录。`limit` 默认为 `50`，并限制在 `1..100`。
 - `POST /households`：创建一个新家庭，并把创建者设为 `owner`。`householdName` 缺失、仅含空白或整个 JSON 请求体为 `null` 时等价处理，均返回 `400 household_name_required`，且不创建家庭或家庭状态。
 - `POST /households/active`：切换当前家庭。
 - `POST /household-invites`：仅主厨/owner 可创建家庭邀请。
@@ -180,6 +181,10 @@ Authorization: Bearer <accessToken>
 - `POST /household-invites/:token/join`：登录后加入家庭，成为正式成员。
 
 正式家庭关系只会由两种操作建立：用户明确 `POST /households` 创建家庭，或登录用户接受 `POST /household-invites/:token/join`。感觉征集、买菜协作和想吃征集的参与认领都不是家庭邀请，绝不能自动把参与者变成正式成员。
+
+协作历史响应固定为 `{ householdId, events }`。每一条 `event` 只包含安全的展示投影：`id`、`requestType`、`actionType`、`createdAt`、`participant: { displayName, avatarUrl }`，以及按动作白名单过滤的 `payload`（感觉：`feelingTag`/`dishWish`/`note`；买菜：`status`/`itemIds`/`note`；想吃：`dishName`/`note`）。它不会返回协作路由 token、owner secret、请求/成员/参与者内部 ID、guest storage key、认领/合并元数据、内部时间戳、OpenID/union ID/手机号，或任何 `family`、`households`、`state` 包络。
+
+协作历史读取的认证错误沿用会话边界：缺少 bearer 为 `401 missing_token`，无效或过期为 `401 invalid_token`，已撤销为 `401 revoked_token`；非成员和未知家庭都保持 `404 household_not_found`，避免暴露家庭是否存在。
 
 以下三个保留的 `/join` 路径是“把临时参与记录绑定到已认证身份”的兼容名称，而不是加入家庭：
 

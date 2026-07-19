@@ -139,6 +139,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const householdCollaborationMatch = url.pathname.match(/^\/households\/([^/]+)\/collaborations$/);
+      if (request.method === "GET" && householdCollaborationMatch) {
+        await handleGetHouseholdCollaborations(request, response, householdCollaborationMatch[1], url.searchParams.get("limit"));
+        return;
+      }
+
       const householdMemberMatch = url.pathname.match(/^\/households\/([^/]+)\/members\/([^/]+)$/);
       if (request.method === "DELETE" && householdMemberMatch) {
         await handleRemoveHouseholdMember(request, response, householdMemberMatch[1], householdMemberMatch[2]);
@@ -557,6 +563,23 @@ async function handleSetActiveHousehold(request, response) {
       throw httpError(404, "household_not_found", "没有找到这个家，可能还没有加入。");
     }
     throw error;
+  }
+}
+
+async function handleGetHouseholdCollaborations(request, response, householdId, requestedLimit) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  try {
+    const events = await store.getHouseholdCollaborationEvents(user.id, householdId, {
+      limit: collaborationHistoryLimit(requestedLimit),
+    });
+    sendJson(response, 200, {
+      householdId,
+      events: events.map(toPublicHouseholdCollaborationEvent),
+    });
+  } catch (error) {
+    throw mapHouseholdError(error);
   }
 }
 
@@ -1443,6 +1466,61 @@ function toPublicCollaborationParticipant(participant, actions = [], participant
     avatar: participant.avatar || "",
     ...(participant.type === "guest" ? { actionId: action?.id || "" } : {}),
   };
+}
+
+function collaborationHistoryLimit(value) {
+  if (value === null || value === "") return 50;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(100, parsed)) : 50;
+}
+
+function toPublicHouseholdCollaborationEvent(event = {}) {
+  return {
+    id: stringValue(event.id, 100),
+    requestType: stringValue(event.requestType, 24),
+    actionType: stringValue(event.actionType, 40),
+    createdAt: stringValue(event.createdAt, 48),
+    participant: {
+      displayName: stringValue(event.displayNameSnapshot, 32) || "Humi 用户",
+      avatarUrl: publicAvatarUrl(event.avatarSnapshot),
+    },
+    payload: toPublicHouseholdCollaborationPayload(event.actionType, event.payload),
+  };
+}
+
+function toPublicHouseholdCollaborationPayload(actionType, payload = {}) {
+  const value = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  if (actionType === "crave_vote") {
+    return copyDefinedPublicCollaborationPayload({
+      feelingTag: stringValue(value.feelingTag, 32),
+      dishWish: stringValue(value.dishWish, 80),
+      note: stringValue(value.note, 80),
+    });
+  }
+  if (actionType === "grocery_claim") {
+    return copyDefinedPublicCollaborationPayload({
+      status: value.status === "declined" ? "declined" : "claimed",
+      itemIds: [...new Set((Array.isArray(value.itemIds) ? value.itemIds : [])
+        .map((itemId) => stringValue(itemId, 80))
+        .filter(Boolean))].slice(0, 120),
+      note: stringValue(value.note, 80),
+    });
+  }
+  return copyDefinedPublicCollaborationPayload({
+    dishName: stringValue(value.dishName, 40),
+    note: stringValue(value.note, 80),
+  });
+}
+
+function copyDefinedPublicCollaborationPayload(payload) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => (
+    Array.isArray(value) ? value.length > 0 : value !== ""
+  )));
+}
+
+function publicAvatarUrl(value) {
+  const avatarUrl = stringValue(value, 240);
+  return /^(?:https?:\/\/|data:image\/)/i.test(avatarUrl) ? avatarUrl : "";
 }
 
 function sendAuthSession(response, user) {
