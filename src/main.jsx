@@ -3114,24 +3114,23 @@ function App() {
       showNotice("正在唤起微信登录，登录后会合并刚才的参与");
       return;
     }
-    showNotice(signedIn ? "已打开我的家，可以加入这个家" : "登录后就能加入这个家");
+    showNotice(signedIn ? "已打开我的家，登录后会合并刚才的参与" : "登录后会把刚才的参与绑定到你的身份");
   }
 
   async function acceptPendingJoinAsMember(context = pendingJoinContext) {
     if (!context?.type) {
-      showNotice("没有待加入的家人记录");
+      showNotice("没有待合并的参与记录");
       return;
     }
     if (!signedIn) {
       if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
         showNotice("正在唤起微信登录");
       } else {
-        showNotice("登录后就能正式加入这个家");
+        showNotice("登录后会把刚才的参与绑定到你的身份");
       }
       return;
     }
     if (isHumiApiSession(humiSession) && context.token && context.participantKey) {
-      humiStateHydratingRef.current = true;
       try {
         const payload = {
           participantKey: context.participantKey,
@@ -3142,38 +3141,23 @@ function App() {
           : context.type === "grocery"
             ? await joinGroceryShareRequest(context.token, humiSession, payload)
             : await joinWishShareRequest(context.token, humiSession, payload);
-        applyHumiStateEnvelope(data, {
-          loadedMenu: "已加入这个家，并读取共享菜单。",
-          loadedGrocery: "已加入这个家，共享清单和口味偏好也加载好了。",
-          emptyMenu: "已加入这个家。这里还没有保存菜单。",
-          emptyGrocery: "已加入这个家。这里还没有保存清单。",
-        });
         if (context.type === "crave" && data.request) setActiveCraveRequest(data.request);
         if (context.type === "grocery" && data.request) setActiveGroceryShareRequest(data.request);
         if (context.type === "wish" && data.request) setActiveWishShareRequest(data.request);
         mergeTemporaryParticipationIntoMember(context);
         setPendingJoinContext(null);
         pendingJoinMergeRef.current = "";
-        showNotice("已加入这个家，刚才的参与已经合并");
+        showNotice("刚才的参与已绑定到你的身份；家庭关系保持不变");
         return;
       } catch (error) {
         pendingJoinMergeRef.current = "";
-        showNotice(error.message || "正式加入暂时没完成，请稍后重试");
+        showNotice(error.message || "参与合并暂时没完成，请稍后重试");
         return;
-      } finally {
-        window.setTimeout(() => {
-          humiStateHydratingRef.current = false;
-        }, 0);
       }
     }
-    const nextMember = buildHouseholdMemberFromJoinContext(context);
-    setHouseholdMembers((current) => [
-      nextMember,
-      ...current.filter((member) => member.id !== nextMember.id && member.participantKey !== nextMember.participantKey),
-    ].slice(0, 24));
     mergeTemporaryParticipationIntoMember(context);
     setPendingJoinContext(null);
-    showNotice(`${nextMember.name} 已加入我的家，刚才的参与已合并`);
+    showNotice("刚才的参与已在本机合并；这不会创建家庭成员关系");
   }
 
   function mergeTemporaryParticipationIntoMember(context = {}) {
@@ -3741,33 +3725,6 @@ function getDisplayName(session) {
     || session?.user?.user_metadata?.name
     || session?.user?.email?.split("@")[0]
     || "";
-}
-
-function buildHouseholdMemberFromJoinContext(context = {}) {
-  const type = context.type === "grocery" ? "grocery" : context.type === "wish" ? "wish" : "crave";
-  const participantKey = String(context.participantKey || `${type}:${context.memberName || Date.now()}`);
-  const name = String(context.memberName || "家人").trim() || "家人";
-  return {
-    id: `member:${participantKey}`,
-    participantKey,
-    name,
-    role: "家人",
-    status: "正式成员",
-    source: type === "grocery" ? "一起买菜" : type === "wish" ? "最近想吃" : "问问大家",
-    householdName: context.householdName || "我家",
-    joinedAt: new Date().toISOString(),
-    lastSignal: type === "grocery"
-      ? context.claimStatus === "declined"
-        ? "这次暂时买不了"
-        : `认领买菜${context.itemCount ? ` · ${context.itemCount} 项` : ""}`
-      : type === "wish"
-        ? context.dishWish
-          ? `想吃“${context.dishWish}”`
-          : "写了一道想吃的菜"
-      : context.dishWish
-        ? `点了“${context.feelingTag || "随便都行"}”，还提到“${context.dishWish}”`
-        : `点了“${context.feelingTag || "随便都行"}”`,
-  };
 }
 
 function getLibraryParentLabel(activeView) {

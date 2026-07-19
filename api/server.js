@@ -881,7 +881,7 @@ async function handleJoinGroceryShare(request, response, token) {
   try {
     const groceryRequest = await store.claimGroceryShareParticipant(token, user.id, body);
     if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
-    await sendHouseholdJoinResult(response, user, { request: toPublicGroceryShareRequest(groceryRequest) });
+    sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
@@ -955,7 +955,7 @@ async function handleJoinWishShare(request, response, token) {
   try {
     const wishRequest = await store.claimWishShareParticipant(token, user.id, body);
     if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
-    await sendHouseholdJoinResult(response, user, { request: toPublicWishShareRequest(wishRequest) });
+    sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这个家。");
@@ -1003,15 +1003,7 @@ async function handleJoinCraveRequest(request, response, token) {
       memberName: body.memberName || user.displayName,
     });
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-    const household = await store.getHouseholdForUser(user.id);
-    const households = await store.getHouseholdsForUser(user.id);
-    const state = await store.getState(user.id);
-    sendJson(response, 200, {
-      request: toPublicCraveRequest(craveRequest),
-      family: toHumiFamily(household, user),
-      households: toHumiFamilies(households, user),
-      state,
-    });
+    sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
   } catch (error) {
     if (error.code === "missing_participant_key") {
       throw httpError(400, "missing_participant_key", "缺少临时参与身份，暂时不能加入这次征集。");

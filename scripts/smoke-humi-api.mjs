@@ -97,6 +97,18 @@ try {
   assert.equal(me.family, null, "reading /me must not create a household");
   assert.deepEqual(me.households, []);
 
+  const initialStateEnvelope = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(initialStateEnvelope.state, null, "reading /state before creation must not bootstrap state");
+  assert.equal(initialStateEnvelope.family, null, "reading /state before creation must not create a household");
+  assert.deepEqual(initialStateEnvelope.households, []);
+  const initialHouseholds = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(initialHouseholds.family, null, "reading /households before creation must not create a household");
+  assert.deepEqual(initialHouseholds.households, []);
+
   const avatarJpeg = await readFile(new URL("../public/recipe-images/chive-egg.jpg", import.meta.url));
   const avatarUpload = await request(`${baseUrl}/identity/avatar`, {
     method: "POST",
@@ -485,19 +497,45 @@ try {
     method: "POST",
     body: { code: `family-member-smoke-${runId}` },
   });
-  const joinedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
+  const claimedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
     body: { participantKey: "participant-smoke" },
   });
-  assert(joinedCrave.request?.votes?.[0]?.temporary === false, "joined crave vote should become formal");
-  assert(joinedCrave.request?.votes?.[0]?.dishWish === "番茄汤", "crave vote should preserve the optional dish wish");
-  assert(!joinedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose formal member ids");
+  assert(claimedCrave.request?.votes?.[0]?.temporary === false, "crave claim should bind the authenticated participant");
+  assert(claimedCrave.request?.votes?.[0]?.dishWish === "番茄汤", "crave claim should preserve the optional dish wish");
+  assert(!claimedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose authenticated participant ids");
+  assert(!("family" in claimedCrave) && !("households" in claimedCrave) && !("state" in claimedCrave), "generic crave claim must return only the collaboration request");
+  const memberBeforeInviteHouseholds = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.equal(memberBeforeInviteHouseholds.family, null, "crave claim must not create formal membership");
+  assert.deepEqual(memberBeforeInviteHouseholds.households, []);
+  const memberBeforeInviteState = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.equal(memberBeforeInviteState.state, null, "crave claim must not expose the source household state");
+  const ownerAfterCraveClaim = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(ownerAfterCraveClaim.family?.members?.length, 1, "crave claim must not grow formal household membership");
+
+  const memberHouseholdInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: loadedStateEnvelope.family.id, inviterName: "主厨" },
+  });
+  const joinedCrave = await request(`${baseUrl}/household-invites/${memberHouseholdInvite.invite.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { memberName: "家人" },
+  });
   assert(
     joinedCrave.family?.members?.some((member) => member.memberId === login.user.id)
       && joinedCrave.family?.members?.some((member) => member.memberId === memberLogin.user.id),
-    "joined family should include owner and member",
+    "explicit invite acceptance should include owner and member",
   );
+  assert.equal(joinedCrave.family?.members?.length, 2, "explicit invite acceptance should grow formal membership");
   assert(joinedCrave.family?.role === "member", "joined user should see member role");
   assert(joinedCrave.family?.ownerId === login.user.id, "joined family should keep original owner");
   assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
@@ -828,7 +866,28 @@ try {
     headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
     body: { participantKey: "batch-grocery-guest", memberName: "买菜家人" },
   });
-  assert(joinedBatchGrocery.family?.id === loadedStateEnvelope.family.id, "batch grocery guest should join the source household");
+  assert(joinedBatchGrocery.request?.claims?.[0]?.temporary === false, "grocery claim should bind the authenticated participant");
+  assert(!("family" in joinedBatchGrocery) && !("households" in joinedBatchGrocery) && !("state" in joinedBatchGrocery), "generic grocery claim must return only the collaboration request");
+  const groceryGuestBeforeInvite = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(groceryGuestBeforeInvite.family, null, "grocery claim must not create formal membership");
+  assert.deepEqual(groceryGuestBeforeInvite.households, []);
+  const groceryGuestStateBeforeInvite = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(groceryGuestStateBeforeInvite.state, null, "grocery claim must not expose the source household state");
+  const collaborationGuestInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { householdId: loadedStateEnvelope.family.id, inviterName: "主厨" },
+  });
+  const invitedCollaborationGuest = await request(`${baseUrl}/household-invites/${collaborationGuestInvite.invite.token}/join`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: { memberName: "买菜家人" },
+  });
+  assert(invitedCollaborationGuest.family?.members?.some((member) => member.memberId === collaborationGuest.user.id), "explicit invite should create the removal-test member");
 
   explicitWechatOpenIds.add(`wish-guest-${runId}`);
   const wishGuest = await request(`${baseUrl}/auth/wechat/login`, {
@@ -840,7 +899,13 @@ try {
     headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
     body: { participantKey: "wish-guest", memberName: "想吃的家人" },
   });
-  assert(joinedWish.family?.id === loadedStateEnvelope.family.id, "wish guest should join the source household");
+  assert(joinedWish.request?.wishes?.[0]?.temporary === false, "wish claim should bind the authenticated participant");
+  assert(!("family" in joinedWish) && !("households" in joinedWish) && !("state" in joinedWish), "generic wish claim must return only the collaboration request");
+  const wishGuestBeforeInvite = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+  });
+  assert.equal(wishGuestBeforeInvite.family, null, "wish claim must not create formal membership");
+  assert.deepEqual(wishGuestBeforeInvite.households, []);
 
   const basicRecommendation = await request(`${baseUrl}/recommend`, {
     method: "POST",

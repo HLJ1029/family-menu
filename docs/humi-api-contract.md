@@ -179,6 +179,16 @@ Authorization: Bearer <accessToken>
 - `POST /household-invites/:token/wants`：临时家人凭邀请 token 免登录丢一道想吃；同一临时身份重复提交会更新自己的未完成条目。
 - `POST /household-invites/:token/join`：登录后加入家庭，成为正式成员。
 
+正式家庭关系只会由两种操作建立：用户明确 `POST /households` 创建家庭，或登录用户接受 `POST /household-invites/:token/join`。感觉征集、买菜协作和想吃征集的参与认领都不是家庭邀请，绝不能自动把参与者变成正式成员。
+
+以下三个保留的 `/join` 路径是“把临时参与记录绑定到已认证身份”的兼容名称，而不是加入家庭：
+
+- `POST /crave-requests/:token/join`
+- `POST /grocery-share-requests/:token/join`
+- `POST /wish-share-requests/:token/join`
+
+它们只返回 `{ request }`，不返回 `family`、`households` 或 `state`，也不改变任何家庭成员数量或当前家庭。H5 合并参与记录时必须保留用户已有的家庭和家庭状态；若需要成为正式成员，必须单独接受家庭邀请。
+
 家庭角色边界：
 
 - `owner` 可发起家庭邀请、发起征集、管理这个家。
@@ -197,7 +207,7 @@ Authorization: Bearer <accessToken>
 - `POST /households/:householdId/owner`，请求体 `{ "memberId": "正式成员 ID" }`：仅 `owner` 可把 owner 身份转给同一家庭的正式成员。
 - `POST /households/:householdId/leave`：当前成员退出家庭；owner 在仍有其他正式成员时必须先转让 owner。
 
-以上成功响应都包含 `{ family, households }`。退出接口还包含当前新 active 家庭的 `{ state }`。改名、移除成员、转让 owner 和从多成员家庭退出都不会改写该家庭的共享菜单、计划、清单或协作状态；退出后只切换退出者的 active 家庭。只有最后一位 owner 主动退出、使家庭为空时，服务端才可以清理该空家庭及其状态。
+以上成功响应都包含 `{ family, households }`。退出接口还包含当前新 active 家庭的 `{ state }`。改名、移除成员、转让 owner 和从多成员家庭退出都不会改写该家庭的共享菜单、计划、清单或协作状态；退出后只切换退出者的 active 家庭。移除成员、成员主动退出，以及最后一位 owner 主动退出并删除空家庭时，服务端会同时删除该用户的旧版 `states[userId]` 启动快照，防止之后创建新家时复活旧家的菜单、用餐记录或家庭画像。只有最后一位 owner 主动退出、使家庭为空时，服务端才可以清理该空家庭及其状态。
 
 家庭生命周期的业务错误码：
 
@@ -240,8 +250,8 @@ Authorization: Bearer <accessToken>
 
 `POST /crave-requests/:token/join`
 
-- 登录后把本机 `participantKey` 对应的临时投票合并为正式成员投票。
-- 若请求有关联家庭，会把当前用户加入该家庭。
+- 登录后把本机 `participantKey` 对应的临时投票绑定到当前认证身份。
+- 这只是一次协作参与认领，不建立正式成员关系，也不返回家庭或家庭状态；响应仅为 `{ request }`。
 
 `POST /crave-requests/:token/close`
 

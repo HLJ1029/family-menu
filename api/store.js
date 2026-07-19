@@ -293,6 +293,7 @@ export class HumiStore {
       throw codedError("household_member_not_found", "Household member not found.");
     }
     household.members.splice(memberIndex, 1);
+    delete this.data.states[memberId];
     household.updatedAt = new Date().toISOString();
     this.repairActiveHouseholds();
     await this.save();
@@ -337,12 +338,14 @@ export class HumiStore {
     if (isOwner) {
       this.data.households = this.data.households.filter((item) => item.id !== household.id);
       delete this.data.householdStates[household.id];
+      delete this.data.states[userId];
       this.repairActiveHouseholds();
       await this.save();
       return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
     }
 
     household.members = household.members.filter((member) => member.memberId !== userId);
+    delete this.data.states[userId];
     household.updatedAt = now;
     this.repairActiveHouseholds();
     await this.save();
@@ -812,9 +815,6 @@ export class HumiStore {
     vote.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || vote.memberName || "家人";
     vote.temporary = false;
     vote.claimedAt = now;
-    if (request.householdId) {
-      await this.addHouseholdMember(request.householdId, userId, { memberName: vote.memberName });
-    }
     request.updatedAt = now;
     await this.save();
     return request;
@@ -931,9 +931,6 @@ export class HumiStore {
     participantClaim.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || participantClaim.memberName || "家人";
     participantClaim.temporary = false;
     participantClaim.mergedAt = now;
-    if (request.householdId) {
-      await this.addHouseholdMember(request.householdId, userId, { memberName: participantClaim.memberName });
-    }
     request.updatedAt = now;
     await this.save();
     return request;
@@ -1050,9 +1047,6 @@ export class HumiStore {
     wish.memberName = sanitizeText(claim.memberName, "", 32) || user?.displayName || wish.memberName || "家人";
     wish.temporary = false;
     wish.mergedAt = now;
-    if (request.householdId) {
-      await this.addHouseholdMember(request.householdId, userId, { memberName: wish.memberName });
-    }
     request.updatedAt = now;
     await this.save();
     return request;
