@@ -3143,6 +3143,14 @@ function App() {
       showNotice("没有待合并的参与记录");
       return;
     }
+    if (![
+      "crave",
+      "grocery",
+      "wish",
+    ].includes(context.type)) {
+      showNotice("这次参与记录类型无法识别，暂时不会合并");
+      return;
+    }
     if (!signedIn) {
       if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
         showNotice("正在唤起微信登录");
