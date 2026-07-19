@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const port = 18787;
 const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-api-smoke-"));
-process.env.HUMI_API_DATA_FILE = join(smokeDirectory, "data.json");
+const dataFile = join(smokeDirectory, "data.json");
+const explicitWechatOpenIds = new Set();
+let explicitHouseholdCreateCount = 0;
+process.env.HUMI_API_DATA_FILE = dataFile;
 process.env.HUMI_AVATAR_DIR = join(smokeDirectory, "avatars");
 process.env.HUMI_POSTER_DIR = join(smokeDirectory, "posters");
 process.env.HUMI_PUBLIC_BASE_URL = `http://127.0.0.1:${port}`;
@@ -29,6 +32,7 @@ try {
     items: [{ key: "custom:milk", name: "牛奶", amount: "1盒", type: "custom" }],
   }, "anonymous grocery share creation");
 
+  explicitWechatOpenIds.add(`smoke-${runId}`);
   const login = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `smoke-${runId}` },
@@ -169,6 +173,7 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: { householdName: "测试家", memberName: "小禾" },
   });
+  explicitHouseholdCreateCount += 1;
   assert.equal(firstHousehold.family?.ownerId, login.user.id);
   assert.equal(firstHousehold.households?.length, 1);
 
@@ -352,6 +357,7 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: { householdName: "爸妈家", memberName: "主厨" },
   });
+  explicitHouseholdCreateCount += 1;
   assert(secondHousehold.households?.length === 2, "user should be able to create a second household");
   assert(secondHousehold.family?.name === "爸妈家", "new household should become active");
   assert(secondHousehold.family?.role === "owner", "new household should keep current user as owner");
@@ -436,6 +442,7 @@ try {
       temporary: true,
     },
   });
+  explicitWechatOpenIds.add(`family-member-smoke-${runId}`);
   const memberLogin = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `family-member-smoke-${runId}` },
@@ -606,6 +613,7 @@ try {
     )),
     "invite guest want should persist in the household want-to-eat pool",
   );
+  explicitWechatOpenIds.add(`invite-member-smoke-${runId}`);
   const invitedLogin = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `invite-member-smoke-${runId}` },
@@ -772,6 +780,7 @@ try {
   });
   assert(wishEntry.request?.wishes?.[0]?.dishName === "红烧肉", "wish share should receive a guest dish request");
 
+  explicitWechatOpenIds.add(`collaboration-guest-${runId}`);
   const collaborationGuest = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `collaboration-guest-${runId}` },
@@ -783,6 +792,7 @@ try {
   });
   assert(joinedBatchGrocery.family?.id === loadedStateEnvelope.family.id, "batch grocery guest should join the source household");
 
+  explicitWechatOpenIds.add(`wish-guest-${runId}`);
   const wishGuest = await request(`${baseUrl}/auth/wechat/login`, {
     method: "POST",
     body: { code: `wish-guest-${runId}` },
@@ -886,6 +896,15 @@ try {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
   });
+
+  const persistedData = JSON.parse(await readFile(dataFile, "utf8"));
+  assert.equal(persistedData.users.length, explicitWechatOpenIds.size, "only explicit WeChat login may create users");
+  assert.equal(persistedData.households.length, explicitHouseholdCreateCount, "only explicit household creation may create households");
+  assert.equal(
+    (persistedData.h5Tickets ?? []).filter((item) => !item.consumedAt && item.expiresAt > Date.now()).length,
+    0,
+    "smoke must not leave a live H5 ticket",
+  );
 
   console.log("Humi API smoke test passed.");
 } finally {

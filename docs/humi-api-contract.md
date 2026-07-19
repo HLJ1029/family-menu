@@ -9,6 +9,10 @@
 - `npm run release:check:online` 已通过。
 - 小程序 1.1.72 使用本合同，并包含多家庭定向保存、五类协作分享、协作状态持久化、临时身份隐私收口与短期海报图片交接。
 
+2026-07-19 身份改造分支说明：本分支已实现主动微信登录、身份资料完善、一次性 H5 票据和无副作用家庭读取，但尚未部署生产或上传微信版本。普通启动不得调用微信登录；`POST /auth/wechat/login` 只允许由用户主动点击触发。
+
+同日对生产 `/var/lib/humi-api/data.json` 做了只读聚合审计：18 个用户、18 条微信身份、7 个家庭、6 份家庭状态。18 个用户均为旧结构，缺少 `profileStatus` 且昵称都是默认“微信用户”；本次实现没有修改这些生产记录，升级后会在用户下一次主动登录时要求一次性完善身份。
+
 本地启动：
 
 ```bash
@@ -27,6 +31,7 @@ npm run validate:api
 | --- | --- |
 | `HUMI_API_PORT` | 本地监听端口，默认 `8787` |
 | `HUMI_API_DATA_FILE` | 本地文件存储路径，默认 `.humi-api-data.json` |
+| `HUMI_AVATAR_DIR` | 用户头像持久化目录，默认位于数据文件同级的 `avatars/` |
 | `HUMI_POSTER_DIR` | 短期海报图片目录，默认与数据文件同级的 `.humi-posters` |
 | `HUMI_PUBLIC_BASE_URL` | 海报公开下载地址前缀，生产为 `https://api.humi-home.com` |
 | `HUMI_POSTER_MAX_BYTES` | 单张海报上限，默认 950KB，服务端硬上限 1MB |
@@ -60,7 +65,10 @@ npm run validate:api
   "user": {
     "id": "humi_user_id",
     "displayName": "微信用户",
-    "provider": "wechat"
+    "provider": "wechat",
+    "profileStatus": "incomplete",
+    "avatarKey": "humi-avatar-family-f-01",
+    "avatarUrl": ""
   }
 }
 ```
@@ -70,6 +78,8 @@ npm run validate:api
 - 使用小程序 AppID 和 AppSecret 调微信 `code2Session`。
 - AppSecret 不得进入前端或小程序包。
 - 按 `openid` 创建或恢复 Humi 用户。
+- 新用户返回 `profileStatus=incomplete`；只有完成 `PUT /identity/profile` 后才变为 `complete`。
+- 微信登录成功不自动创建家庭，也不自动把资料标记为完成。
 - 登录失败返回非 2xx，小程序壳层会停留在登录重试页，不自动进入游客体验。
 - 当前仓库实现位于 `api/`，使用 Node HTTP 标准库和本地 JSON 文件存储。正式部署多实例前，需要替换为托管数据库或对象存储。
 
@@ -77,8 +87,18 @@ npm run validate:api
 
 - `POST /auth/session/refresh`：刷新 Humi 会话。
 - `POST /auth/logout`：退出登录并失效当前会话。
-- `GET /me`：返回当前用户、画像完成状态和家庭空间摘要。
+- `GET /me`：返回当前用户、身份资料状态和家庭空间摘要；无家庭时返回 `family: null`、`households: []`。
 - `POST /profile`：保存用户画像。
+
+## 身份资料、头像与 H5 交接
+
+- `PUT /identity/profile`：保存必填昵称，并把 `profileStatus` 更新为 `complete`。
+- `POST /identity/avatar`：上传 JPEG/PNG 头像；Base64 解码后最大 512 KiB。只上传头像不会提前完成身份资料。
+- `GET /avatars/:token.jpg|png`：公开读取头像。URL 仅包含不透明随机 token，不包含 OpenID、手机号、昵称或用户 ID。
+- `POST /auth/h5-ticket`：资料完成的原生会话可申请 60 秒有效、只能消费一次的 H5 票据；数据文件只保存 SHA-256 哈希。
+- `POST /auth/h5/exchange`：消费票据并返回 H5 session；过期、伪造或重复消费均返回 401。
+
+小程序与 H5 的长期 access token 不进入 URL 或 history。H5 完成交换后立即从地址栏移除 `humiTicket`。
 
 ## 微信手机号绑定
 
@@ -130,6 +150,8 @@ Authorization: Bearer <accessToken>
 - `PUT /state`：保存当前微信用户所在家庭的菜单、计划、清单、后台已有、画像、推荐额度和协作状态。
 
 `/state` 使用 `Authorization: Bearer <accessToken>` 鉴权。当前 1.1 使用家庭级共享状态：正式家庭成员读取同一份 `householdStates[householdId]`，切换家庭后状态隔离。
+
+`GET /state` 与 `GET /households` 在用户没有家庭时分别返回 `state: null, family: null, households: []` 和 `family: null, households: []`，不得创建家庭或家庭状态。`PUT /state`、发起家庭协作等需要家庭的写操作在无家庭时返回 `409 household_required`。只有用户明确提交 `POST /households` 才能创建家庭。
 
 状态字段兼容旧版 `todayMenu`、`weekPlan`、`mealCalendar`，新版新增 `mealPlan`：
 

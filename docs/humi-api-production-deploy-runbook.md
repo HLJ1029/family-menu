@@ -96,11 +96,13 @@ sudo mkdir -p "/opt/humi/backups/$STAMP"
 sudo cp -a /opt/humi/api "/opt/humi/backups/$STAMP/api"
 sudo cp -a /opt/humi/package.json "/opt/humi/backups/$STAMP/package.json"
 sudo cp -a /opt/humi/package-lock.json "/opt/humi/backups/$STAMP/package-lock.json"
+sudo cp -a /var/lib/humi-api/data.json "/opt/humi/backups/$STAMP/data.json"
+sudo test ! -d /var/lib/humi-api/avatars || sudo cp -a /var/lib/humi-api/avatars "/opt/humi/backups/$STAMP/avatars"
 sudo sh -lc 'test -n "$HUMI_API_DATA_FILE" && test -f "$HUMI_API_DATA_FILE" && cp -a "$HUMI_API_DATA_FILE" "/opt/humi/backups/'"$STAMP"'/humi-api-data.json" || true'
 sudo sh -lc 'test -f /opt/humi/.humi-api-data.json && cp -a /opt/humi/.humi-api-data.json "/opt/humi/backups/'"$STAMP"'/humi-api-data.local.json" || true'
 ```
 
-上一轮已记录的生产备份：`/opt/humi/backups/20260701T163948Z`。新部署前仍必须重新备份。
+上一轮已记录的生产备份：`/opt/humi/backups/20260701T163948Z`。新部署前仍必须重新备份。身份版本部署后，`data.json` 与 `avatars/` 是同一份身份数据的两个组成部分，必须放在同一个时间戳备份目录中。
 
 ## 6. 同步代码
 
@@ -165,8 +167,9 @@ npm run release:check:online
 
 ```bash
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo cp -a /opt/humi/backups/<STAMP>/data.json /var/lib/humi-api/data.json && if sudo test -d /opt/humi/backups/<STAMP>/avatars; then sudo rm -rf /var/lib/humi-api/avatars && sudo cp -a /opt/humi/backups/<STAMP>/avatars /var/lib/humi-api/avatars; fi'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
 curl -fsS https://api.humi-home.com/health
 ```
 
-回滚后在 AI-HQ Humi 状态中记录 `<STAMP>`、失败现象、执行人、恢复结果和下一步。
+不得只回滚 API 代码而遗漏 `data.json` 或 `avatars/`；否则用户资料与头像引用会出现版本不一致。回滚后在 AI-HQ Humi 状态中记录 `<STAMP>`、失败现象、执行人、恢复结果和下一步。
