@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-Implemented locally on 2026-07-20 from baseline `c77772c`. The Task 10 implementation commit is the commit containing this report with subject `fix: restore Humi multi-household creation`; its exact hash must be recorded after commit creation. No production write, deployment, migration, Supabase provider operation, real WeChat login, upload, review or publish action was performed.
+Implemented locally on 2026-07-20 from baseline `c77772c`. The exact Task 10 implementation commit is `3045bdc` (`fix: restore Humi multi-household creation`). The complete matrix ran before commit creation against executable product and regression-script content byte-identical to `3045bdc`; the only later pre-commit edits were this report and the delivery record. No production write, deployment, migration, Supabase provider operation, real WeChat login, upload, review or publish action was performed.
 
 The parent-owned `docs/superpowers/plans/2026-07-19-humi-family-living-room.md` remains deliberately unstaged and outside Task 10.
 

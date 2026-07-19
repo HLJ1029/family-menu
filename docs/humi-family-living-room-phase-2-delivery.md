@@ -4,8 +4,8 @@
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
 候选实现基线：Task 9 `c77772c`（`fix: clarify Humi participation identity binding`）
-Task 10 候选：本交付记录所在的实现提交（提交主题 `fix: restore Humi multi-household creation`）；由于 Git 提交不能在自身内容中稳定写入自身哈希，精确 Task 10 哈希须在该提交产生后用 documentation-only provenance correction 补记。
-验证说明：完整矩阵针对 Task 10 候选代码执行；产品、协作落地与 H5 证据均写入 2026-07-20 的私有持久目录。仍须由独立审查者使用实际 HEAD 校验提交范围。
+Task 10 实现提交：`3045bdc`（`fix: restore Humi multi-household creation`）
+验证说明：完整矩阵在创建 `3045bdc` 前针对与该提交 byte-identical 的可执行产品及回归脚本内容执行；矩阵后、提交前只补写了交付记录与任务报告。产品、协作落地与 H5 证据均写入 2026-07-20 的私有持久目录。仍须由独立审查者使用实际 HEAD 校验提交范围。
 
 ## 交付状态与范围
 
@@ -28,7 +28,7 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 | 最终产品与证据修正 | `b0dc6af` | 家庭角色/头像/人数、偏好入口、三层建家名称校验、家庭身份路由复位、深度状态保留、活动隐私和持久 smoke 证据。 |
 | Wish 安排与偏好摘要修正 | `9b255fb` | 恢复真实 API Wish 请求/回复 → 客厅刷新 → `今晚做` 闭环，并让偏好一句话始终覆盖家庭人数、主要口味和忌口。 |
 | 参与身份 CTA 与证据真实性修正 | `c77772c` | 三类通用协作统一为“登录 Humi，保存这次参与”，只保存参与身份且不承诺家庭成员关系；补齐头像解码/fallback 与 H5 私有 manifest。 |
-| 多家庭 UI 创建路径修正 | 本记录所在 Task 10 实现提交 | 主厨从家庭设置填写名称并创建第二个家；空名/失败保留草稿，pending 阻止重复提交，成功只消费服务端 envelope；普通成员无创建入口。精确哈希在提交后由 documentation-only provenance correction 补记。 |
+| 多家庭 UI 创建路径修正 | `3045bdc` | 主厨从家庭设置填写名称并创建第二个家；空名/失败保留草稿，pending 阻止重复提交，成功只消费服务端 envelope；普通成员无创建入口。 |
 
 ## 完整本地验证矩阵
 
