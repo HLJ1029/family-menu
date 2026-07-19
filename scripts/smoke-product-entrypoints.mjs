@@ -73,7 +73,7 @@ try {
       body: JSON.stringify({
         family: buildSmokeFamily(),
         households: [buildSmokeFamily()],
-        state: buildSmokeHouseholdState(),
+        state: buildLivingRoomSmokeHouseholdState(),
       }),
     });
   });
@@ -414,6 +414,8 @@ try {
   const familyLivingRoomRoleVisible = await familyLivingRoom.getByTestId("current-family-role").getByText("主厨", { exact: true }).isVisible();
   const familyLivingRoomMemberCountVisible = await familyLivingRoom.getByTestId("current-family-member-count").getByText("2 位家人", { exact: true }).isVisible();
   const familyLivingRoomMemberAvatars = await familyLivingRoom.getByTestId("current-family-member-avatars").getByRole("img").count();
+  const expectedPreferenceSummary = "2 位家人 · 主要口味：家常、清淡 · 忌口：香菜、花生";
+  const familyPreferenceSummaryComplete = await familyLivingRoom.getByTestId("family-preference-action").getByText(expectedPreferenceSummary, { exact: true }).isVisible();
   const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
   await familyLivingRoom.screenshot({ path: familyLivingRoomScreenshot });
   await familyLivingRoom.getByTestId("family-preference-action").click();
@@ -527,6 +529,7 @@ try {
     { key: "family-living-room-keeps-five-primary-tabs", ok: familyLivingRoomKeepsFiveTabs },
     { key: "family-living-room-shows-current-role", ok: familyLivingRoomRoleVisible },
     { key: "family-living-room-shows-member-avatars-and-count", ok: familyLivingRoomMemberAvatars === 2 && familyLivingRoomMemberCountVisible, actual: { familyLivingRoomMemberAvatars, familyLivingRoomMemberCountVisible } },
+    { key: "family-preference-summary-covers-size-tastes-and-restrictions", ok: familyPreferenceSummaryComplete, actual: familyLivingRoomText, expected: expectedPreferenceSummary },
     { key: "family-preference-opens-household-settings", ok: preferenceOpenedSettings },
     { key: "signed-in-no-household-shows-explicit-start", ok: noHouseholdStart.hasExpectedCopy && noHouseholdStart.hasNoClutter, actual: noHouseholdStart },
     { key: "household-start-reveals-only-one-name-input-after-create-selection", ok: noHouseholdStart.nameInputIsDeferred, actual: noHouseholdStart },
@@ -542,6 +545,9 @@ try {
     { key: "dashboard-crave-retry-share-action-is-visible", ok: ownerCollaborationShares.craveRetryShareActionVisible },
     { key: "living-room-wish-share-creates-current-household-request", ok: ownerCollaborationShares.wishCreateRequested, actual: ownerCollaborationShares.wishCreatePayload },
     { key: "living-room-wish-share-opens-native-share-page", ok: ownerCollaborationShares.wishShareOpened, actual: ownerCollaborationShares.nativeShareTypeCounts },
+    { key: "living-room-wish-collaboration-has-refresh-action", ok: ownerCollaborationShares.wishRefreshActionVisible && ownerCollaborationShares.wishRefreshRequested, actual: ownerCollaborationShares },
+    { key: "living-room-collected-wish-has-plan-action", ok: ownerCollaborationShares.wishPlanActionVisible, actual: ownerCollaborationShares },
+    { key: "living-room-wish-plan-enters-tonight-and-leaves-pool", ok: ownerCollaborationShares.wishPlannedIntoTonight && ownerCollaborationShares.wishRemovedFromPool, actual: ownerCollaborationShares.wishPlanningState },
     { key: "owner-collaboration-native-share-actions-dispatch-once", ok: ownerCollaborationShares.shareActionsDispatchOnce, actual: ownerCollaborationShares.nativeShareTypeCounts },
     { key: "owner-collaboration-share-page-errors", ok: ownerCollaborationShares.pageErrors.length === 0, errors: ownerCollaborationShares.pageErrors },
     { key: "family-management-pages-open-from-living-room", ok: familyManagementPages.allPagesOpened, actual: familyManagementPages.openedPages },
@@ -840,6 +846,18 @@ function buildSmokeHouseholdState() {
   };
 }
 
+function buildLivingRoomSmokeHouseholdState() {
+  const state = buildSmokeHouseholdState();
+  return {
+    ...state,
+    familyProfile: {
+      ...state.familyProfile,
+      familySize: 5,
+      tastePreferences: ["家常", "清淡"],
+    },
+  };
+}
+
 async function hasPreservedHouseholdState(page) {
   return page.evaluate(() => {
     const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
@@ -989,6 +1007,7 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
   const pageErrors = [];
   let craveCreatePayload = null;
   let wishCreatePayload = null;
+  let wishRefreshRequested = false;
   const family = buildSmokeFamily();
   const state = { ...buildSmokeHouseholdState(), todayMenu: [], mealPlan: {}, mealLogs: {} };
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -1064,6 +1083,20 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
       },
     });
   });
+  await page.route("**/wish-share-requests/owner-collaboration-wish-token", async (route) => {
+    wishRefreshRequested = route.request().method() === "GET";
+    await fulfillJson(route, {
+      request: {
+        id: "owner-collaboration-wish",
+        token: "owner-collaboration-wish-token",
+        householdName: "我家",
+        initiatorName: "主厨",
+        title: "家里最近想吃什么",
+        status: "collecting",
+        wishes: [{ memberName: "家人小林", dishName: "西红柿炒鸡蛋", note: "今晚想吃" }],
+      },
+    });
+  });
 
   await page.goto(base, { waitUntil: "networkidle" });
   await installMiniProgramMock(page);
@@ -1094,6 +1127,22 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
     const calls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
     throw new Error(`${error.message}; wishCreatePayload=${JSON.stringify(wishCreatePayload)}; calls=${JSON.stringify(calls)}; pageErrors=${JSON.stringify(pageErrors)}`);
   });
+  const wishRefreshAction = familyLivingRoom.getByRole("button", { name: "刷新最近想吃回复", exact: true });
+  const wishRefreshActionVisible = await wishRefreshAction.isVisible();
+  await wishRefreshAction.click();
+  const wishPlanAction = familyLivingRoom.getByRole("button", { name: "今晚做 西红柿炒鸡蛋", exact: true });
+  await wishPlanAction.waitFor({ state: "visible", timeout: 15_000 });
+  const wishPlanActionVisible = await wishPlanAction.isVisible();
+  await wishPlanAction.click();
+  await page.waitForFunction(() => {
+    const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const pool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
+    return menu.some((item) => item.recipeId === "tomato-egg") && !pool.some((item) => item.recipeId === "tomato-egg");
+  }, null, { timeout: 15_000 });
+  const wishPlanningState = await page.evaluate(() => ({
+    menu: JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"),
+    pool: JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"),
+  }));
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
   const nativeShareTypes = miniProgramCalls
     .filter((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?"))
@@ -1114,6 +1163,12 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
     craveRetryShareActionVisible,
     wishCreatePayload,
     wishCreateRequested: wishCreatePayload?.householdId === family.id,
+    wishRefreshActionVisible,
+    wishRefreshRequested,
+    wishPlanActionVisible,
+    wishPlannedIntoTonight: wishPlanningState.menu.some((item) => item.recipeId === "tomato-egg"),
+    wishRemovedFromPool: !wishPlanningState.pool.some((item) => item.recipeId === "tomato-egg"),
+    wishPlanningState,
     craveShareOpened: nativeShareTypeCounts.crave === 1,
     wishShareOpened: nativeShareTypeCounts.wish === 1,
     shareActionsDispatchOnce: nativeShareTypeCounts.crave === 1 && nativeShareTypeCounts.wish === 1 && miniProgramCalls.every((call) => call.method !== "redirectTo"),

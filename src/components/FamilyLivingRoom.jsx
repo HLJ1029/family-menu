@@ -4,11 +4,14 @@ export function FamilyLivingRoom({
   family,
   formalMembers = [],
   activeCollaborations = [],
+  wishPool = [],
   preferenceSummary,
   activePageId = "home",
   onNavigate,
   onInvite,
   onStartWishShare,
+  onRefreshWishShare,
+  onPlanWish,
   canInvite = true,
 }) {
   const memberCount = formalMembers.length || family?.members?.length || 1;
@@ -63,6 +66,40 @@ export function FamilyLivingRoom({
                   <p className="mt-1 text-sm font-bold text-ink/58">下一步：{item.nextAction}</p>
                 </div>
               </div>
+              {item.type === "wish" && canInvite && typeof onRefreshWishShare === "function" && (
+                <button
+                  type="button"
+                  onClick={onRefreshWishShare}
+                  className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-white px-4 text-sm font-black text-ink"
+                >
+                  刷新最近想吃回复
+                </button>
+              )}
+              {item.type === "wish" && wishPool.length > 0 && (
+                <div data-testid="living-room-wish-pool" className="mt-3 grid gap-2">
+                  {wishPool.slice(0, 4).map((wish) => {
+                    const wishName = wish.name || wish.title || "一道菜";
+                    return (
+                      <div key={wish.id || wish.recipeId || wishName} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">{wishName}</p>
+                          {wish.source && <p className="mt-1 truncate text-xs font-bold text-ink/52">{wish.source}</p>}
+                        </div>
+                        {canInvite && typeof onPlanWish === "function" && (
+                          <button
+                            type="button"
+                            aria-label={`今晚做 ${wishName}`}
+                            onClick={() => onPlanWish(wish)}
+                            className="min-h-10 shrink-0 rounded-full bg-ink px-4 text-xs font-black text-white"
+                          >
+                            今晚做
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </article>
           )) : (
             <p className="rounded-[20px] bg-canvas p-4 text-sm font-bold leading-6 text-ink/58">还没有进行中的协作，今晚可以先问问大家。</p>

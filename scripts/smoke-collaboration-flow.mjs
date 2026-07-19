@@ -582,60 +582,73 @@ async function verifyWishPoolPlanningFlow({ browser, apiBaseUrl, webBaseUrl }) {
       note: "今晚想吃",
     },
   });
+  await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    body: {
+      participantKey: "wish-plan-unmatched-guest",
+      memberName: "小禾",
+      dishName: "外婆的神秘菜",
+      note: "想找一道相近的",
+    },
+  });
   const wishReceipt = await request(`${apiBaseUrl}/wish-share-requests/${wishShare.request.token}`);
   assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "阿宁" && wish.dishName === "西红柿炒鸡蛋"), "the owner-visible wish request should retain the guest identity and dish");
+  assert(wishReceipt.request.wishes.some((wish) => wish.memberName === "小禾" && wish.dishName === "外婆的神秘菜"), "the owner-visible wish request should retain an unmatched guest wish");
+
+  const ownerEnvelope = await request(`${apiBaseUrl}/state`, { headers: ownerAuthHeaders() });
+  await request(`${apiBaseUrl}/state`, {
+    method: "PUT",
+    headers: ownerAuthHeaders(),
+    body: {
+      householdId: ownerEnvelope.family.id,
+      state: {
+        ...(ownerEnvelope.state || {}),
+        todayMenu: [],
+        mealPlan: {},
+        wantToEatItems: [],
+        activeWishShareRequest: {
+          ...wishShare.request,
+          ownerSecret: wishShare.ownerSecret,
+        },
+      },
+    },
+  });
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.addInitScript(() => {
-    localStorage.clear();
-    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
-    localStorage.setItem("humi:wish-pool:v1", JSON.stringify([{
-      id: "wish:tomato-egg",
-      recipeId: "tomato-egg",
-      name: "西红柿炒鸡蛋",
-      source: "阿宁想吃 · 今晚想吃",
-    }]));
-  });
+  await page.addInitScript(() => localStorage.clear());
+  await seedLocalOwnerSession(page);
 
   try {
-    await page.goto(`${webBaseUrl}/?view=dashboard`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "全部菜品库" }).click();
-    await page.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 10000 });
-    await page.getByRole("button", { name: "加入 西红柿炒鸡蛋" }).click();
+    await page.goto(`${webBaseUrl}/?view=user`, { waitUntil: "networkidle" });
+    const livingRoom = page.getByTestId("family-living-room");
+    await livingRoom.waitFor({ state: "visible", timeout: 10000 });
+    await livingRoom.getByRole("button", { name: "刷新最近想吃回复", exact: true }).click();
+    await page.waitForFunction(() => {
+      const wishPool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
+      return wishPool.some((item) => item.recipeId === "tomato-egg" && item.source.includes("阿宁想吃"))
+        && wishPool.some((item) => item.name === "外婆的神秘菜" && item.source.includes("小禾想吃"));
+    }, null, { timeout: 10000 });
+
+    const matchedPlanAction = livingRoom.getByRole("button", { name: "今晚做 西红柿炒鸡蛋", exact: true });
+    const unmatchedPlanAction = livingRoom.getByRole("button", { name: "今晚做 外婆的神秘菜", exact: true });
+    await matchedPlanAction.waitFor({ state: "visible", timeout: 10000 });
+    await unmatchedPlanAction.waitFor({ state: "visible", timeout: 10000 });
+    await matchedPlanAction.click();
     await page.waitForFunction(() => {
       const todayMenu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
       const wishPool = JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]");
-      return todayMenu.some((item) => item.recipeId === "tomato-egg") &&
-        wishPool.some((item) => item.recipeId === "tomato-egg" && item.source.includes("阿宁想吃"));
+      return todayMenu.some((item) => item.recipeId === "tomato-egg")
+        && !wishPool.some((item) => item.recipeId === "tomato-egg")
+        && wishPool.some((item) => item.name === "外婆的神秘菜");
     }, null, { timeout: 10000 });
 
+    await unmatchedPlanAction.click();
+    await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 10000 });
+    const retainedUnmatched = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"));
+    assert(retainedUnmatched.some((item) => item.name === "外婆的神秘菜" && item.source.includes("小禾想吃")), "an unmatched guest wish should remain intact while the owner chooses a nearby recipe");
   } finally {
     await context.close();
-  }
-
-  const unmatchedContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const unmatchedPage = await unmatchedContext.newPage();
-  await unmatchedPage.addInitScript(() => {
-    localStorage.clear();
-    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
-    localStorage.setItem("humi:wish-pool:v1", JSON.stringify([{
-      id: "wish:unmatched",
-      recipeId: "",
-      name: "外婆的神秘菜",
-      source: "阿宁想吃",
-    }]));
-  });
-  try {
-    await unmatchedPage.goto(`${webBaseUrl}/?view=user`, { waitUntil: "domcontentloaded" });
-    const retainedUnmatched = await unmatchedPage.evaluate(() => JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"));
-    assert(retainedUnmatched.some((item) => item.name === "外婆的神秘菜" && item.source === "阿宁想吃"), "an unmatched guest wish should remain intact until the owner chooses a nearby recipe");
-    await unmatchedPage.getByTestId("mobile-nav-dashboard").click();
-    await unmatchedPage.getByRole("button", { name: "全部菜品库" }).click();
-    await unmatchedPage.getByRole("heading", { name: "全部菜品库" }).first().waitFor({ timeout: 10000 });
-    await unmatchedPage.getByText("发现 · 推荐外子页面").waitFor({ timeout: 10000 });
-  } finally {
-    await unmatchedContext.close();
   }
 }
 

@@ -266,7 +266,18 @@ try {
   await failedLogoutPage.route("**/state", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ state: null, family: null, households: [] }),
+    body: JSON.stringify({
+      state: {},
+      family: {
+        id: "logout-household",
+        name: "我们家",
+        ownerId: "logout-user",
+        currentMemberId: "logout-user",
+        role: "owner",
+        members: [{ memberId: "logout-user", nickname: "小禾", role: "owner", status: "formal" }],
+      },
+      households: [{ id: "logout-household", name: "我们家", role: "owner" }],
+    }),
   }));
   await failedLogoutPage.route("**/auth/logout", (route) => route.fulfill({
     status: 503,
@@ -281,7 +292,8 @@ try {
     };
   });
   await failedLogoutPage.getByTestId("mobile-nav-user").click();
-  await failedLogoutPage.getByRole("button", { name: "退出并重新验证微信登录", exact: true }).click();
+  await failedLogoutPage.getByRole("button", { name: /^账号设置/ }).click();
+  await failedLogoutPage.getByRole("button", { name: "退出登录", exact: true }).click();
   await failedLogoutPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1") === null, null, { timeout: 2_000 });
   assert.deepEqual(await failedLogoutPage.evaluate(() => window.__humiNativeCalls[0]), {
     method: "reLaunch",

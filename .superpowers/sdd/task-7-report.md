@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation corrections are recorded in candidate commit `b0dc6af` (`fix: close Humi Phase 2 review gaps`), built from baseline `23332ea`. The complete fresh local Phase 2 matrix ran against the exact candidate worktree content immediately before that commit; the durable manifests were re-read after commit and remained `ok: true` with zero failed checks. A new independent review remains the closing gate. No production API, deployment, migration, WeChat action, Supabase operation, or publish action was performed.
+Implementation corrections are recorded in candidate commit `b0dc6af` (`fix: close Humi Phase 2 review gaps`), built from baseline `23332ea`. The Task 7 local matrix and durable manifests were green, but the subsequent broad review correctly returned NO-GO: its owner Wish workflow was not behaviorally equivalent to the legacy flow, and its preference summary omitted household size and main tastes. Task 8 supersedes those two claims. No production API, deployment, migration, WeChat action, Supabase operation, or publish action was performed.
 
 ## RED evidence
 
@@ -23,7 +23,7 @@ The required regressions were added before implementation.
 - The legacy collaboration mega-smoke now completes the owner identity and explicitly creates a household before collaboration. Its prior flows remain executed; obsolete My Home locators were mapped to the approved Phase 2 family-living-room and Tonight entry points.
 - Temporary participation binding asserts that the active API vote is claimed, the pending context clears and household membership does not grow. Hydrated historical signals remain available without retaining a temporary participant key.
 
-The large mega-smoke diff is a semantic migration, not a coverage reduction. Calls to `verifyWishPoolPlanningFlow`, `verifyProfileOnboardingHardInfoOnly`, `verifyTemporaryJoinMergeFlow`, `verifyHouseholdUserCenterFlow`, `verifyMyHomeCraveStartFlow`, `verifyMyHomeFirstViewportHierarchy` and `verifyMyHomeSoloFallbackFlow` all remain in the runner. Retired My Home portrait/composer controls now map to the focused family living room plus the current Tonight/library/activity routes; the former “joining” assertions map to identity-only participation binding plus an explicit no-membership-growth assertion. Owner Wish receipt remains covered through the current collaboration activity and API source of truth.
+The prior statement that the mega-smoke diff was a fully equivalent semantic migration was inaccurate. Although the named runner calls remained, Task 7's `verifyWishPoolPlanningFlow` manually seeded `humi:wish-pool:v1`, entered the library directly and never exercised the owner refresh or `onPlanWish` callback from the family living room. Showing an API Wish receipt in collaboration activity did not prove that the owner could collect it into the real Wish pool or plan it for tonight. Task 8 restores that missing end-to-end behavior with a real local API request and guest replies; the other retained runner calls continue unchanged.
 
 ## Targeted GREEN evidence
 
@@ -56,4 +56,4 @@ The following fresh commands passed:
 - `git diff --check`
 - `/Users/honglijie/AI-HQ/scripts/secret-scan.sh`
 
-The Vite server on port 4176 and all smoke-owned local servers were stopped. The former NO-GO findings are resolved by local evidence, but Phase 2 remains pending a fresh independent GO and true-device checks.
+The Vite server on port 4176 and all smoke-owned local servers were stopped. This Task 7 matrix did not resolve every final-review finding; Task 8 carries the corrective evidence. Phase 2 remains pending a fresh independent GO and true-device checks.

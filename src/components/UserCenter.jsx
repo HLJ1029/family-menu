@@ -15,6 +15,9 @@ export function UserCenter({
   activeCraveRequest,
   activeGroceryShareRequest,
   activeWishShareRequest,
+  wishPool = [],
+  onRefreshWishShare,
+  onPlanWish,
   onCreateHouseholdInvite,
   onStartWishShare,
   canManageHousehold = true,
@@ -84,11 +87,14 @@ export function UserCenter({
       family={family}
       formalMembers={formalMembers}
       activeCollaborations={activeCollaborations}
-      preferenceSummary={buildPreferenceSummary(familyProfile)}
+      wishPool={wishPool}
+      preferenceSummary={buildPreferenceSummary(familyProfile, formalMembers.length)}
       activePageId={pageId}
       onNavigate={navigateWithinFamily}
       onInvite={onCreateHouseholdInvite}
       onStartWishShare={onStartWishShare}
+      onRefreshWishShare={onRefreshWishShare}
+      onPlanWish={onPlanWish}
       canInvite={canManageHousehold}
     />
   );
@@ -138,6 +144,7 @@ function buildActiveCollaborations({ activeCraveRequest, activeGroceryShareReque
     const wishes = activeWishShareRequest.wishes?.length || 0;
     collaborations.push({
       id: activeWishShareRequest.id || "wish",
+      type: "wish",
       task: "最近想吃",
       progress: wishes > 0 ? `收到了 ${wishes} 个想法` : "等家人写下想吃的菜",
       nextAction: wishes > 0 ? "把想法放进菜单" : "分享给家人填写",
@@ -146,12 +153,19 @@ function buildActiveCollaborations({ activeCraveRequest, activeGroceryShareReque
   return collaborations.slice(0, 3);
 }
 
-function buildPreferenceSummary(profile) {
-  const values = [
+function buildPreferenceSummary(profile, formalMemberCount) {
+  const profileFamilySize = Number.parseInt(profile?.familySize, 10);
+  const householdSize = formalMemberCount > 0
+    ? formalMemberCount
+    : Number.isFinite(profileFamilySize) && profileFamilySize > 0
+      ? profileFamilySize
+      : null;
+  const tastes = (Array.isArray(profile?.tastePreferences) ? profile.tastePreferences : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  const restrictions = [
     ...(Array.isArray(profile?.dislikes) ? profile.dislikes : []),
     ...(Array.isArray(profile?.allergies) ? profile.allergies : []),
   ].map((item) => String(item || "").trim()).filter(Boolean);
-  return values.length > 0
-    ? `已记住：${values.slice(0, 3).join("、")}`
-    : "还没有特别标记，慢慢从每次一起吃饭里了解彼此。";
+  return `${householdSize ? `${householdSize} 位家人` : "人数待补充"} · 主要口味：${tastes.length > 0 ? tastes.slice(0, 3).join("、") : "待补充"} · 忌口：${restrictions.length > 0 ? [...new Set(restrictions)].slice(0, 4).join("、") : "暂无"}`;
 }
