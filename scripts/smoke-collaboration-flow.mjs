@@ -331,7 +331,10 @@ async function verifyCraveGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }) 
   assert.equal(vote?.temporary, true, "crave vote should stay temporary before login");
   assert(!vote?.participantKey, "public crave response must not expose a guest participant key");
 
-  await page.getByRole("button", { name: "加入这个家，看今晚定了啥" }).click();
+  const craveCompletionText = await page.getByTestId("crave-share-landing").innerText();
+  assert(!craveCompletionText.includes("加入这个家"), "crave identity-binding completion must not promise household membership");
+  await page.getByText("登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
   await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "crave", "binding a crave participation should keep pending merge context");
@@ -385,7 +388,10 @@ async function verifyGroceryGuestFlow({ browser, token, apiBaseUrl, webBaseUrl }
   const tomato = updated.request?.items?.find((item) => item.id === "tomato");
   assert.equal(tomato?.checked, true, "guest should be able to mark a claimed item as bought");
 
-  await page.getByRole("button", { name: "加入这个家" }).click();
+  const groceryCompletionText = await page.getByTestId("grocery-share-landing").innerText();
+  assert(!groceryCompletionText.includes("加入这个家"), "grocery identity-binding completion must not promise household membership");
+  await page.getByText("登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
   await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "grocery", "binding a grocery participation should keep pending merge context");
@@ -505,7 +511,10 @@ async function verifyWishGuestAndOwnerFlow({ browser, token, apiBaseUrl, webBase
   assert.equal(wish?.temporary, true, "wish share should stay temporary before login");
   assert(!wish?.participantKey, "public wish response must not expose a guest participant key");
 
-  await guestPage.getByRole("button", { name: "加入这个家" }).click();
+  const wishCompletionText = await guestPage.getByTestId("wish-share-landing").innerText();
+  assert(!wishCompletionText.includes("加入这个家"), "wish identity-binding completion must not promise household membership");
+  await guestPage.getByText("登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。", { exact: true }).waitFor();
+  await guestPage.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
   await guestPage.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10000 });
   const pending = await guestPage.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
   assert.equal(pending?.type, "wish", "binding a wish participation should keep pending merge context");

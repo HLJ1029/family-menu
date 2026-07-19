@@ -5,7 +5,7 @@ import { HumiScene } from "./ui/HumiScene";
 
 const PARTICIPANT_KEY = "humi:grocery-claim-participant-key:v1";
 
-export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
+export function GroceryClaimLanding({ token, onClose, onBindParticipation }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -212,18 +212,21 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
               </h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
                 {claimStatus === "declined"
-                  ? `${request.initiatorName || "主厨"}回到 Humi 后会看到你暂时买不了。后面想一起看清单，可以加入这个家。`
-                  : `${request.initiatorName || "主厨"}回到 Humi 后就能看到你来买 ${selectedItemIds.length || items.length} 项。点一下食材可以标记已买，后面也可以加入这个家一起看。`}
+                  ? `${request.initiatorName || "主厨"}回到 Humi 后会看到你暂时买不了。`
+                  : `${request.initiatorName || "主厨"}回到 Humi 后就能看到你来买 ${selectedItemIds.length || items.length} 项。点一下食材可以标记已买。`}
+              </p>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
               </p>
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => {
-                    if (!onJoinFamily) {
+                    if (!onBindParticipation) {
                       onClose?.();
                       return;
                     }
-                    onJoinFamily({
+                    onBindParticipation({
                       type: "grocery",
                       token,
                       participantKey,
@@ -236,7 +239,7 @@ export function GroceryClaimLanding({ token, onClose, onJoinFamily }) {
                   }}
                   className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
                 >
-                  加入这个家
+                  登录 Humi，保存这次参与
                 </button>
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
                   先这样

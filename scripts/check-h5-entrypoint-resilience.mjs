@@ -1,14 +1,35 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { createServer as createViteServer } from "vite";
 
 const WECHAT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0.56";
 const evidenceDir = process.env.HUMI_H5_ENTRY_EVIDENCE_DIR || "";
+const expectedChecks = [
+  "pre-React fallback is visible when the main module fails",
+  "retry action appears after six seconds",
+  "normal React boot replaces the fallback",
+  "H5 login uses immediate native page navigation",
+  "one-time H5 ticket is exchanged and removed from the URL",
+  "legacy serialized session URLs are discarded",
+  "legacy incomplete identity is gated",
+  "expired H5 sessions are cleared",
+  "server-rejected H5 sessions downgrade to logged out",
+  "later authenticated writes also downgrade on invalid sessions",
+  "local logout succeeds when remote revocation fails",
+];
 
-if (evidenceDir) await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
+if (evidenceDir) {
+  await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
+  await chmod(evidenceDir, 0o700);
+}
+
+const screenshots = evidenceDir ? {
+  failedBoot: join(evidenceDir, "wechat-main-script-failed.png"),
+  normalBoot: join(evidenceDir, "wechat-normal-boot.png"),
+} : null;
 
 const vite = await createViteServer({
   root: process.cwd(),
@@ -46,7 +67,7 @@ try {
   await failedBootPage.waitForTimeout(6_100);
   assert.equal(await failedBootPage.getByRole("link", { name: "重新加载" }).isVisible(), true);
   if (evidenceDir) {
-    await failedBootPage.screenshot({ path: join(evidenceDir, "wechat-main-script-failed.png"), fullPage: true });
+    await failedBootPage.screenshot({ path: screenshots.failedBoot, fullPage: true });
   }
 
   const normalBootPage = await context.newPage();
@@ -57,7 +78,7 @@ try {
   assert.equal(await normalBootPage.locator("#humi-boot-fallback").count(), 0);
   assert.deepEqual(normalBootErrors, []);
   if (evidenceDir) {
-    await normalBootPage.screenshot({ path: join(evidenceDir, "wechat-normal-boot.png"), fullPage: true });
+    await normalBootPage.screenshot({ path: screenshots.normalBoot, fullPage: true });
   }
 
   const bridgeContext = await browser.newContext({
@@ -311,25 +332,50 @@ try {
   assert.match(mainSource, /subscribeHumiSessionInvalid/);
   assert.match(mainSource, /requestMiniProgramLogout\(\{ expired: true \}\)/);
 
-  console.log(JSON.stringify({
+  const checkedAt = new Date().toISOString();
+  const result = {
     ok: true,
-    checkedAt: new Date().toISOString(),
+    checkedAt,
+    timestamp: checkedAt,
     userAgent: "WeChat iOS",
     evidenceDir: evidenceDir || null,
-    checks: [
-      "pre-React fallback is visible when the main module fails",
-      "retry action appears after six seconds",
-      "normal React boot replaces the fallback",
-      "H5 login uses immediate native page navigation",
-      "one-time H5 ticket is exchanged and removed from the URL",
-      "legacy serialized session URLs are discarded",
-      "legacy incomplete identity is gated",
-      "expired H5 sessions are cleared",
-      "server-rejected H5 sessions downgrade to logged out",
-      "later authenticated writes also downgrade on invalid sessions",
-      "local logout succeeds when remote revocation fails",
-    ],
-  }, null, 2));
+    screenshots,
+    checks: expectedChecks,
+  };
+  if (evidenceDir) {
+    const manifestPath = join(evidenceDir, "manifest.json");
+    await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 });
+    await chmod(manifestPath, 0o600);
+    await access(manifestPath);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact 11 validation checks");
+    assert.deepEqual(manifest.screenshots, screenshots);
+    assert.equal(manifest.ok, true);
+    assert.equal(manifest.evidenceDir, evidenceDir);
+    assert.equal(typeof manifest.checkedAt, "string");
+    assert.equal(typeof manifest.timestamp, "string");
+    assert.equal((await stat(manifestPath)).mode & 0o777, 0o600, "H5 manifest must be private");
+    assert.equal((await stat(evidenceDir)).mode & 0o777, 0o700, "H5 evidence directory must be private");
+  }
+  console.log(JSON.stringify(result, null, 2));
+} catch (error) {
+  if (evidenceDir) {
+    const checkedAt = new Date().toISOString();
+    const failure = {
+      ok: false,
+      checkedAt,
+      timestamp: checkedAt,
+      userAgent: "WeChat iOS",
+      evidenceDir,
+      screenshots,
+      checks: expectedChecks,
+      error: error.message,
+    };
+    const manifestPath = join(evidenceDir, "manifest.json");
+    await writeFile(manifestPath, `${JSON.stringify(failure, null, 2)}\n`, { mode: 0o600 });
+    await chmod(manifestPath, 0o600);
+  }
+  throw error;
 } finally {
   await browser?.close();
   await vite.close();

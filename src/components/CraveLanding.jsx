@@ -6,7 +6,7 @@ import { HumiScene } from "./ui/HumiScene";
 
 const PARTICIPANT_KEY = "humi:crave-participant-key:v1";
 
-export function CraveLanding({ token, onClose, onJoinFamily }) {
+export function CraveLanding({ token, onClose, onBindParticipation }) {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -143,17 +143,20 @@ export function CraveLanding({ token, onClose, onJoinFamily }) {
               <CheckCircle2 size={28} />
               <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">收到！</h2>
               <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
-                {request.initiatorName || "主厨"}会看着安排。你已经参与完成了，关掉也没关系；想看今晚最后定了什么，可以加入这个家。
+                {request.initiatorName || "主厨"}会看着安排。你已经参与完成了，关掉也没关系。
+              </p>
+              <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+                登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。
               </p>
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => {
-                    if (!onJoinFamily) {
+                    if (!onBindParticipation) {
                       onClose?.();
                       return;
                     }
-                    onJoinFamily({
+                    onBindParticipation({
                       type: "crave",
                       token,
                       participantKey,
@@ -166,7 +169,7 @@ export function CraveLanding({ token, onClose, onJoinFamily }) {
                   }}
                   className="min-h-12 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
                 >
-                  加入这个家，看今晚定了啥
+                  登录 Humi，保存这次参与
                 </button>
                 <button type="button" onClick={onClose} className="min-h-12 rounded-full border border-ink bg-white px-6 py-3 text-sm font-black text-ink">
                   先这样

@@ -413,7 +413,14 @@ try {
   const familyLivingRoomKeepsFiveTabs = await page.getByTestId("mobile-primary-navigation").getByRole("button").count() === 5;
   const familyLivingRoomRoleVisible = await familyLivingRoom.getByTestId("current-family-role").getByText("主厨", { exact: true }).isVisible();
   const familyLivingRoomMemberCountVisible = await familyLivingRoom.getByTestId("current-family-member-count").getByText("2 位家人", { exact: true }).isVisible();
-  const familyLivingRoomMemberAvatars = await familyLivingRoom.getByTestId("current-family-member-avatars").getByRole("img").count();
+  const memberAvatarRegion = familyLivingRoom.getByTestId("current-family-member-avatars");
+  const familyLivingRoomMemberAvatars = await memberAvatarRegion.getByRole("img").count();
+  const loadedFamilyMemberAvatar = await memberAvatarRegion.getByRole("img", { name: "主厨的头像" }).evaluate((image) => ({
+    complete: image.complete,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+  }));
+  const missingAvatarFallbackVisible = await memberAvatarRegion.getByTestId("member-avatar-fallback").getByText("家", { exact: true }).isVisible();
   const expectedPreferenceSummary = "2 位家人 · 主要口味：家常、清淡 · 忌口：香菜、花生";
   const familyPreferenceSummaryComplete = await familyLivingRoom.getByTestId("family-preference-action").getByText(expectedPreferenceSummary, { exact: true }).isVisible();
   const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
@@ -528,7 +535,16 @@ try {
     { key: "family-living-room-removes-cloud-ai-nutrition-and-export-clutter", ok: familyLivingRoomHasNoClutter, actual: familyLivingRoomText },
     { key: "family-living-room-keeps-five-primary-tabs", ok: familyLivingRoomKeepsFiveTabs },
     { key: "family-living-room-shows-current-role", ok: familyLivingRoomRoleVisible },
-    { key: "family-living-room-shows-member-avatars-and-count", ok: familyLivingRoomMemberAvatars === 2 && familyLivingRoomMemberCountVisible, actual: { familyLivingRoomMemberAvatars, familyLivingRoomMemberCountVisible } },
+    {
+      key: "family-living-room-shows-member-avatars-and-count",
+      ok: familyLivingRoomMemberAvatars === 1
+        && loadedFamilyMemberAvatar.complete
+        && loadedFamilyMemberAvatar.naturalWidth > 0
+        && loadedFamilyMemberAvatar.naturalHeight > 0
+        && missingAvatarFallbackVisible
+        && familyLivingRoomMemberCountVisible,
+      actual: { familyLivingRoomMemberAvatars, loadedFamilyMemberAvatar, missingAvatarFallbackVisible, familyLivingRoomMemberCountVisible },
+    },
     { key: "family-preference-summary-covers-size-tastes-and-restrictions", ok: familyPreferenceSummaryComplete, actual: familyLivingRoomText, expected: expectedPreferenceSummary },
     { key: "family-preference-opens-household-settings", ok: preferenceOpenedSettings },
     { key: "signed-in-no-household-shows-explicit-start", ok: noHouseholdStart.hasExpectedCopy && noHouseholdStart.hasNoClutter, actual: noHouseholdStart },
@@ -793,8 +809,8 @@ function buildSmokeFamily() {
     currentMemberId: "product-smoke-owner",
     role: "owner",
     members: [
-      { memberId: "product-smoke-owner", nickname: "主厨", role: "owner", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" },
-      { memberId: "product-smoke-member", nickname: "家人小林", role: "member", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" },
+      { memberId: "product-smoke-owner", nickname: "主厨", role: "owner", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Ccircle cx='16' cy='13' r='6' fill='white'/%3E%3Cpath d='M6 30c1-7 5-10 10-10s9 3 10 10' fill='white'/%3E%3C/svg%3E" },
+      { memberId: "product-smoke-member", nickname: "家人小林", role: "member", status: "formal", avatarUrl: "" },
     ],
   };
 }
@@ -1412,7 +1428,10 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     remove: await membersPage.getByRole("button", { name: "移除成员", exact: true }).count() === 2,
     transfer: await membersPage.getByRole("button", { name: "转让主厨", exact: true }).count() === 2,
   };
-  const memberAvatarsRendered = await membersPage.getByRole("img").count() === family.members.length;
+  const expectedMemberImageCount = family.members.filter((member) => Boolean(member.avatarUrl)).length;
+  const missingMemberAvatarFallback = await membersPage.locator("article").filter({ hasText: "家人小林" }).getByText("家", { exact: true }).isVisible();
+  const memberAvatarsRendered = await membersPage.getByRole("img").count() === expectedMemberImageCount
+    && missingMemberAvatarFallback;
   await membersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: /^家庭设置/ }).click();
   const settingsPage = page.getByTestId("household-settings-page");

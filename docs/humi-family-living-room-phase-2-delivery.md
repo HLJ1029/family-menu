@@ -3,12 +3,12 @@
 更新日期：2026-07-20
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
-候选实现提交：Task 8 候选（基线 `46bd5fe`，提交主题 `fix: restore Humi Wish planning workflow`）
-验证说明：完整矩阵针对最终 Task 8 候选代码执行；产品、协作落地与 H5 证据均写入 2026-07-20 的私有持久目录。Task 8 提交后由独立审查者使用实际 HEAD 校验提交范围。
+候选实现提交：Task 9 候选（基线 `9b255fb`，提交主题 `fix: clarify Humi participation identity binding`）
+验证说明：完整矩阵针对最终 Task 9 候选代码执行；产品、协作落地与 H5 证据均写入 2026-07-20 的私有持久目录。Task 9 提交后仍须由独立审查者使用实际 HEAD 校验提交范围。
 
 ## 交付状态与范围
 
-Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通过。范围包括显式家庭生命周期、owner/member 权限边界、家庭客厅、成员管理、家庭设置、协作记录、账号设置、真实 Wish 回复收取与今晚安排，以及既有菜单、餐次记录、偏好和协作状态在家庭元数据更新后的保留。
+Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通过。范围包括显式家庭生命周期、owner/member 权限边界、家庭客厅、成员管理、家庭设置、协作记录、账号设置、真实 Wish 回复收取与今晚安排、通用协作只绑定参与身份的真实完成 CTA，以及既有菜单、餐次记录、偏好和协作状态在家庭元数据更新后的保留。产品证据同时证明一张真实可解码头像和一位无头像成员的首字 fallback；H5 韧性证据现有私有机器可读 manifest。
 
 这是一份本地候选交付记录，不是生产验收、微信真机验收或上线批准。新的独立交付审查仍是进入 Phase 3 前的必要门禁。
 
@@ -25,7 +25,8 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 | 生命周期修正记录 | `e937cfa` | Task 4 的修正证据记录。 |
 | 协作与成员关系隔离 | `23332ea` | 通用协作认领只绑定参与身份，不创建正式家庭成员。 |
 | 最终产品与证据修正 | `b0dc6af` | 家庭角色/头像/人数、偏好入口、三层建家名称校验、家庭身份路由复位、深度状态保留、活动隐私和持久 smoke 证据。 |
-| Wish 安排与偏好摘要修正 | Task 8 候选 | 恢复真实 API Wish 请求/回复 → 客厅刷新 → `今晚做` 闭环，并让偏好一句话始终覆盖家庭人数、主要口味和忌口。 |
+| Wish 安排与偏好摘要修正 | `9b255fb` | 恢复真实 API Wish 请求/回复 → 客厅刷新 → `今晚做` 闭环，并让偏好一句话始终覆盖家庭人数、主要口味和忌口。 |
+| 参与身份 CTA 与证据真实性修正 | Task 9 候选 | 三类通用协作统一为“登录 Humi，保存这次参与”，只保存参与身份且不承诺家庭成员关系；补齐头像解码/fallback 与 H5 私有 manifest。 |
 
 ## 完整本地验证矩阵
 
@@ -37,12 +38,12 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 | `npm run validate:identity` | exit 0；identity store/runtime checks passed | `scripts/check-identity-store.mjs`、`scripts/check-identity-runtime.mjs`。 |
 | `npm run validate:api` | exit 0；`Humi API smoke test passed.` | `scripts/smoke-humi-api.mjs`；临时数据目录由脚本创建并在 finally 清理。 |
 | `npm run validate:miniprogram-entry` | exit 0；`Mini-program entrypoint resilience checks passed.` | `scripts/check-miniprogram-entrypoint-resilience.mjs`；其模拟输出 `Humi web-view error { errMsg: 'domain blocked' }` 是韧性分支，不是失败。 |
-| `HUMI_H5_ENTRY_EVIDENCE_DIR=/Users/honglijie/.humi-release-evidence/task8-final-h5-entry-20260720T005132+0800 npm run validate:h5-entry` | exit 0；11 项 H5 韧性检查通过 | 两张截图位于指定持久目录；退出失败用例从真实家庭客厅进入账号设置执行。 |
-| `npm run release:product:review` | exit 0；`ok: true`，39 项静态产品锚点全部通过 | 新增 Wish props/动作和三维偏好摘要门禁。 |
-| `npm run release:product:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task8-final-product-smoke-20260720T005132+0800` | exit 0；manifest `ok: true`，无失败检查 | `/Users/honglijie/.humi-release-evidence/task8-final-product-smoke-20260720T005132+0800/manifest.json`；含 Wish 刷新/安排和精确偏好摘要检查。 |
-| `npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task8-final-collaboration-smoke-20260720T005132+0800` | exit 0；manifest `ok: true`，无 page errors | `/Users/honglijie/.humi-release-evidence/task8-final-collaboration-smoke-20260720T005132+0800/manifest.json`；六张 guest landing 截图同目录。 |
-| `node scripts/smoke-collaboration-flow.mjs` | exit 0；`Humi collaboration and library meal flow smoke passed.` | 真实本地 API 创建 Wish 请求和两条游客回复；认证主厨从客厅刷新，匹配菜进入今晚菜单并离开 Wish pool，未匹配菜保留并打开既有菜品选择路径；其余 mega-smoke runner 调用继续执行。 |
-| `npm run build` | exit 0；1747 modules transformed | Vite stdout；仅保留既有的 single chunk 超过 500 KiB 警告（`dist/assets/index-pZ2LSj3w.js` 859.44 kB）。 |
+| `HUMI_H5_ENTRY_EVIDENCE_DIR=/Users/honglijie/.humi-release-evidence/task9-final-h5-entry-20260720T013049+0800 npm run validate:h5-entry` | exit 0；11 项 H5 韧性检查通过 | `/Users/honglijie/.humi-release-evidence/task9-final-h5-entry-20260720T013049+0800/manifest.json` 为 `ok:true`，精确列出 11 项检查和两张截图；目录 `0700`、manifest `0600`。 |
+| `npm run release:product:review` | exit 0；`ok: true`，46 项静态产品锚点全部通过 | 三个通用落地组件与 `main.jsx` 使用参与绑定命名/语义；真实 `InviteLanding` 仍保留家庭加入动作。 |
+| `npm run release:product:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task9-final-product-smoke-20260720T013049+0800` | exit 0；manifest `ok: true`，118 项检查全部通过 | `/Users/honglijie/.humi-release-evidence/task9-final-product-smoke-20260720T013049+0800/manifest.json`；含 Wish 闭环、三维偏好、真实 data-image 解码尺寸和无头像首字 fallback。 |
+| `npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4176/ --evidence-dir /Users/honglijie/.humi-release-evidence/task9-final-collaboration-smoke-20260720T013049+0800` | exit 0；manifest `ok: true`，17 项检查全部通过且无 page errors | `/Users/honglijie/.humi-release-evidence/task9-final-collaboration-smoke-20260720T013049+0800/manifest.json`；六张 guest landing 截图，三种 typed pending context、零自动 auth 与零家庭 mutation 均通过。 |
+| `node scripts/smoke-collaboration-flow.mjs` | exit 0；`Humi collaboration and library meal flow smoke passed.` | 三种游客动作都点击新的保存参与 CTA，并保留 pending context；真实本地 API 身份认领后正式家庭成员数不增加。Wish 刷新/安排闭环与其余 mega-smoke runner 同时继续执行。 |
+| `npm run build` | exit 0；1747 modules transformed | Vite stdout；仅保留既有的 single chunk 超过 500 KiB 警告（`dist/assets/index-BqfAHriW.js` 860.01 kB）。 |
 | `git diff --check` | exit 0 | 当前 worktree diff；无空白错误。 |
 | `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` | exit 0；`Secret scan passed.` | AI-HQ secret-scan stdout。 |
 
@@ -63,6 +64,9 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 - Metadata lifecycle preservation：rename/remove/transfer 的 API envelope 只刷新 `family`/`households`。`applyHumiStateEnvelope(..., { preserveStateWhenMissing: true })` 保留当前菜单、meal plan、meal logs、偏好、Crave signals、active Crave/grocery/Wish 与非正式参与者；产品 smoke 在每个生命周期操作后分别断言这些状态未丢失，并确认正式成员、owner role 与头像元数据随返回值刷新。
 - Activity privacy：协作记录只显示自然语言活动。产品 smoke 注入不可渲染的 token、owner secret、participant key 和 household ID 哨兵值，并断言 DOM 同时不含值与内部字段名。
 - Participation boundary：legacy mega-smoke 证明游客参与登录后 active API vote 变为 `temporary:false` 并保留 `claimedAt`，pending context 清除，但正式家庭成员数量不增加；云端历史信号保留且不携带 participant key。
+- Truthful participation CTA：Crave、买菜与 Wish 的提交后动作统一为 `登录 Humi，保存这次参与`。说明明确限定为把当前动作关联到 Humi 身份，不会自动成为家庭成员；加入家庭必须另行接受家庭邀请。落地 smoke 点击三种 CTA 后分别校验 `type`、`token`、`participantKey`、`createdAt`，同时证明没有自动认证请求或家庭写请求；`InviteLanding` 的 `加入这个家` 仍是独立的真实成员动作。
+- Avatar evidence truth：产品夹具包含一张有明确 SVG 尺寸与可见内容的 data-image，以及一名空 `avatarUrl` 成员。浏览器断言前者 `complete=true`、`naturalWidth/naturalHeight > 0`，后者首字 fallback 可见，避免用两张不可证明内容的占位图冒充头像证据。
+- H5 evidence truth：H5 validator 自己写入成功或失败 manifest；成功 manifest 含 `ok`、`checkedAt`/`timestamp`、精确 11 项 checks、两张 screenshot 路径和 `evidenceDir`，并在写入后验证目录 `0700`、文件 `0600`。
 
 ## 明确延期的真机/外部验证
 
@@ -82,4 +86,4 @@ Phase 2 的本地候选实现及 2026-07-20 末次完整自动化矩阵均已通
 
 ## Phase 3 入口门禁
 
-Task 7 曾错误地把保留 runner 名称与 API/activity 可见性描述为等价的 Wish 端到端覆盖；最终 broad review 因此正确返回 NO-GO。Task 8 已用真实 API 请求/回复和可点击客厅路径恢复该回归，并补齐偏好摘要。上述本地矩阵仍不等同于审查者给出 GO：未获得新的独立 GO 前，Phase 3 不应开始；无真机证据时更不得将 Phase 1 或 Phase 2 标为生产就绪或执行部署。
+Task 7 曾错误地把保留 runner 名称与 API/activity 可见性描述为等价的 Wish 端到端覆盖；Task 8 恢复真实 API Wish 闭环后，第二次 broad review 又发现通用协作完成 CTA 仍在承诺家庭成员关系，且头像与 H5 证据不足，因此继续返回 NO-GO。Task 9 已修正这三类问题并完成新矩阵，但上述本地结果仍不等同于审查者给出 GO：未获得新的独立 GO 前，Phase 3 不应开始；无真机证据时更不得将 Phase 1 或 Phase 2 标为生产就绪或执行部署。

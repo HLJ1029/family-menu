@@ -3102,7 +3102,7 @@ function App() {
     }
   }
 
-  function joinFamilyFromSharedLanding(paramName, context = null) {
+  function bindParticipationFromSharedLanding(paramName, context = null) {
     const nextContext = context?.type ? {
       ...context,
       createdAt: new Date().toISOString(),
@@ -3119,7 +3119,7 @@ function App() {
       showNotice("正在唤起微信登录，登录后会合并刚才的参与");
       return;
     }
-    showNotice(signedIn ? "已打开我的家，登录后会合并刚才的参与" : "登录后会把刚才的参与绑定到你的身份");
+    showNotice(signedIn ? "已打开 Humi；这次参与只会绑定到你的身份" : "登录后会把刚才的参与绑定到你的身份");
   }
 
   async function acceptPendingJoinAsMember(context = pendingJoinContext) {
@@ -3265,7 +3265,7 @@ function App() {
       <CraveLanding
         token={landingCraveToken}
         onClose={() => closeSharedLanding("crave")}
-        onJoinFamily={(context) => joinFamilyFromSharedLanding("crave", context)}
+        onBindParticipation={(context) => bindParticipationFromSharedLanding("crave", context)}
       />
     );
   }
@@ -3275,7 +3275,7 @@ function App() {
       <GroceryClaimLanding
         token={landingGroceryShareToken}
         onClose={() => closeSharedLanding("groceryShare")}
-        onJoinFamily={(context) => joinFamilyFromSharedLanding("groceryShare", context)}
+        onBindParticipation={(context) => bindParticipationFromSharedLanding("groceryShare", context)}
       />
     );
   }
@@ -3294,7 +3294,7 @@ function App() {
       <WishLanding
         token={landingWishShareToken}
         onClose={() => closeSharedLanding("wishShare")}
-        onJoinFamily={(context) => joinFamilyFromSharedLanding("wishShare", context)}
+        onBindParticipation={(context) => bindParticipationFromSharedLanding("wishShare", context)}
       />
     );
   }

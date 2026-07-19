@@ -24,6 +24,7 @@ try {
   const page = await context.newPage();
   const pageErrors = [];
   const authRequests = [];
+  const householdMutationRequests = [];
   let craveVotePayload = null;
   let groceryClaimPayload = null;
   let wishPayload = null;
@@ -36,7 +37,14 @@ try {
     if (message.type() === "error") pageErrors.push(message.text());
   });
   page.on("request", (request) => {
-    if (request.url().includes("/auth/wechat/login")) authRequests.push(request.url());
+    const url = new URL(request.url());
+    if (url.pathname.includes("/auth/")) authRequests.push({ method: request.method(), url: request.url() });
+    if (
+      request.method() !== "GET"
+      && (url.pathname.includes("/households") || url.pathname.includes("/household-invites"))
+    ) {
+      householdMutationRequests.push({ method: request.method(), url: request.url() });
+    }
   });
 
   await page.route("**/crave-requests/crave-guest-smoke", async (route) => {
@@ -112,8 +120,17 @@ try {
   await page.getByPlaceholder("比如：别太辣、想快一点").fill("想吃麻婆豆腐");
   await page.getByRole("button", { name: "发给主厨" }).click();
   await page.getByRole("heading", { name: "收到！" }).waitFor({ timeout: 15_000 });
+  const craveSubmittedText = await page.getByTestId("crave-share-landing").innerText();
+  const craveParticipationExplanation = await page.getByText(
+    "登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。",
+    { exact: true },
+  ).isVisible();
+  const craveHasNoMembershipPromise = !craveSubmittedText.includes("加入这个家");
   const craveScreenshot = join(evidenceDir, "crave-guest-mobile.png");
   await page.screenshot({ path: craveScreenshot });
+  await page.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
+  await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10_000 });
+  const cravePendingContext = await readPendingParticipation(page);
 
   await page.goto(withQuery(baseUrl, "groceryShare", "grocery-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "顺路带这些就够了" }).waitFor({ timeout: 15_000 });
@@ -122,16 +139,34 @@ try {
   await page.screenshot({ path: groceryFirstScreenScreenshot });
   await page.getByRole("button", { name: "我来买 1 项" }).click();
   await page.getByRole("heading", { name: "好，这些你来买" }).waitFor({ timeout: 15_000 });
+  const grocerySubmittedText = await page.getByTestId("grocery-share-landing").innerText();
+  const groceryParticipationExplanation = await page.getByText(
+    "登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。",
+    { exact: true },
+  ).isVisible();
+  const groceryHasNoMembershipPromise = !grocerySubmittedText.includes("加入这个家");
   const groceryScreenshot = join(evidenceDir, "grocery-guest-mobile.png");
   await page.screenshot({ path: groceryScreenshot });
+  await page.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
+  await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10_000 });
+  const groceryPendingContext = await readPendingParticipation(page);
 
   await page.goto(withQuery(baseUrl, "wishShare", "wish-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "你最近想吃什么？" }).waitFor({ timeout: 15_000 });
   await page.getByPlaceholder("比如：糖醋排骨、番茄牛腩、凉拌黄瓜").fill("牛肉面");
   await page.getByRole("button", { name: "发给主厨" }).click();
   await page.getByRole("heading", { name: "收到，已经记下了。" }).waitFor({ timeout: 15_000 });
+  const wishSubmittedText = await page.getByTestId("wish-share-landing").innerText();
+  const wishParticipationExplanation = await page.getByText(
+    "登录只会把这次参与关联到你的 Humi 身份，不会自动成为家庭成员；加入家庭需要另行接受家庭邀请。",
+    { exact: true },
+  ).isVisible();
+  const wishHasNoMembershipPromise = !wishSubmittedText.includes("加入这个家");
   const wishScreenshot = join(evidenceDir, "wish-guest-mobile.png");
   await page.screenshot({ path: wishScreenshot });
+  await page.getByRole("button", { name: "登录 Humi，保存这次参与", exact: true }).click();
+  await page.waitForFunction(() => Boolean(localStorage.getItem("humi:pending-join-context:v1")), null, { timeout: 10_000 });
+  const wishPendingContext = await readPendingParticipation(page);
 
   await page.goto(withQuery(baseUrl, "invite", "invite-guest-smoke"), { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "加入 周末小家" }).waitFor({ timeout: 15_000 });
@@ -146,11 +181,18 @@ try {
     { key: "crave-optional-note-is-collapsed", ok: craveNoteCollapsed },
     { key: "crave-vote-posted-without-login", ok: craveVotePayload?.feelingTag === "辣一点", actual: craveVotePayload },
     { key: "crave-note-can-feed-want-pool", ok: craveVotePayload?.note === "想吃麻婆豆腐", actual: craveVotePayload?.note },
+    { key: "crave-completion-promises-identity-binding-only", ok: craveParticipationExplanation && craveHasNoMembershipPromise, actual: craveSubmittedText },
+    { key: "crave-cta-stores-typed-pending-participation", ok: isTypedPendingParticipation(cravePendingContext, "crave", "crave-guest-smoke"), actual: cravePendingContext },
     { key: "grocery-first-screen-is-guest-usable", ok: groceryFirstScreen },
     { key: "grocery-claim-posted-without-login", ok: groceryClaimPayload?.itemIds?.includes("custom:milk"), actual: groceryClaimPayload },
+    { key: "grocery-completion-promises-identity-binding-only", ok: groceryParticipationExplanation && groceryHasNoMembershipPromise, actual: grocerySubmittedText },
+    { key: "grocery-cta-stores-typed-pending-participation", ok: isTypedPendingParticipation(groceryPendingContext, "grocery", "grocery-guest-smoke"), actual: groceryPendingContext },
     { key: "wish-posted-without-login", ok: wishPayload?.dishName === "牛肉面", actual: wishPayload },
+    { key: "wish-completion-promises-identity-binding-only", ok: wishParticipationExplanation && wishHasNoMembershipPromise, actual: wishSubmittedText },
+    { key: "wish-cta-stores-typed-pending-participation", ok: isTypedPendingParticipation(wishPendingContext, "wish", "wish-guest-smoke"), actual: wishPendingContext },
     { key: "invite-shows-value-before-login", ok: inviteValueVisible },
     { key: "landings-do-not-auto-login", ok: authRequests.length === 0, actual: authRequests },
+    { key: "participation-ctas-do-not-mutate-households", ok: householdMutationRequests.length === 0, actual: householdMutationRequests },
     { key: "page-errors", ok: pageErrors.length === 0, actual: pageErrors },
   ];
   const manifest = {
@@ -228,6 +270,19 @@ function withQuery(base, key, value) {
 
 function normalizeBaseUrl(value) {
   return new URL(value).toString();
+}
+
+async function readPendingParticipation(page) {
+  return page.evaluate(() => JSON.parse(localStorage.getItem("humi:pending-join-context:v1") || "null"));
+}
+
+function isTypedPendingParticipation(context, type, token) {
+  return context?.type === type
+    && context?.token === token
+    && typeof context?.participantKey === "string"
+    && context.participantKey.length > 0
+    && typeof context?.createdAt === "string"
+    && !Number.isNaN(Date.parse(context.createdAt));
 }
 
 function parseArgs(argv) {
