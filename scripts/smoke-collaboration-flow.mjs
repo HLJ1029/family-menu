@@ -1029,6 +1029,14 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       householdId: householdsBefore.family.id,
       state: {
         activeCraveRequest: voted.request,
+        activeGroceryShareRequest: {
+          token: requestCreated.request.token,
+          claims: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
+        },
+        activeWishShareRequest: {
+          token: requestCreated.request.token,
+          wishes: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
+        },
         craveSignals: [{
           id: `signal:${requestCreated.request.token}`,
           requestToken: requestCreated.request.token,
@@ -1069,6 +1077,12 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       votes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", feelingTag: "想喝汤", dishWish: "番茄汤", temporary: true }],
       createdAt: new Date().toISOString(),
     }]));
+    localStorage.setItem("humi:active-grocery-share-request:v1", JSON.stringify({
+      token, claims: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
+    }));
+    localStorage.setItem("humi:active-wish-share-request:v1", JSON.stringify({
+      token, wishes: [{ id: actionId, participantKey: guestId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
+    }));
   }, { session: smokeOwnerSession, token: requestCreated.request.token, guestId: guestParticipantId, actionId: voted.participant.actionId });
 
   try {
@@ -1105,6 +1119,16 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
       claimedAt: "",
       createdAt: "",
     }, "same-content guest history must remain byte-for-byte unchanged when another guest merges");
+    const collidingGrocery = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"));
+    const collidingWish = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"));
+    assert.deepEqual(collidingGrocery, {
+      token: requestCreated.request.token,
+      claims: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, itemIds: ["collision"] }],
+    }, "a Crave merge must leave an identical Grocery token/actionId collision byte-for-byte unchanged");
+    assert.deepEqual(collidingWish, {
+      token: requestCreated.request.token,
+      wishes: [{ id: voted.participant.actionId, participantKey: guestParticipantId, memberName: "游客 1", temporary: true, dishName: "碰撞菜" }],
+    }, "a Crave merge must leave an identical Wish token/actionId collision byte-for-byte unchanged");
     const scopedGuestKey = `humi:collaboration-guest:crave:${requestCreated.request.token}`;
     assert.equal(await page.evaluate((key) => localStorage.getItem(key), scopedGuestKey), null, "browser merge must clear only the confirmed request-scoped guest identity key");
     const householdsAfter = await request(`${apiBaseUrl}/households`, { headers: ownerAuthHeaders() });
