@@ -62,8 +62,8 @@ import {
 } from "./lib/recipes";
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
-import { clearHumiSession, consumeHumiSessionFromUrl, readHumiSession, requestWechatLoginFromMiniProgram } from "./lib/humiIdentity";
-import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
+import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiTicketFromUrl } from "./lib/humiIdentity";
+import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { isHumiAiViaApiEnabled } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
 import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
@@ -212,10 +212,11 @@ function App() {
   const [posterLoading, setPosterLoading] = useState(false);
   const [entryMotion, setEntryMotion] = useState(false);
   const [flowMotion, setFlowMotion] = useState(null);
-  const signedIn = Boolean(session?.user || humiSession?.user);
-  const preciseRecommendationAvailable = isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && !preciseRecommendationBlocked;
+  const identityComplete = humiSession?.user?.profileStatus === "complete";
+  const signedIn = Boolean(session?.user || (humiSession?.user && identityComplete));
+  const preciseRecommendationAvailable = isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked;
   const sharedGuestLanding = isSharedGuestLanding();
-  const displaySession = session ?? (humiSession ? { user: humiSession.user } : null);
+  const displaySession = session ?? (identityComplete ? { user: humiSession.user } : null);
   const currentHouseholdMemberId = family?.currentMemberId || humiSession?.user?.id || displaySession?.user?.id || "";
   const currentHouseholdMemberName = getDisplayName(displaySession) || "家人";
   const canManageHousehold = !isHumiApiSession(humiSession) || family?.role !== "member";
@@ -302,25 +303,32 @@ function App() {
   ]);
 
   useEffect(() => {
-    const nextHumiSession = consumeHumiSessionFromUrl();
-    if (!nextHumiSession) return;
-    setHumiSession(nextHumiSession);
-    setOnboardingComplete(true);
-    setProfileOnboardingComplete(true);
-    setAuthStatus("已通过微信登录 Humi。");
-    setAuthGateIntent("");
-    setAiExplanationStatus("已登录。Humi 会继续根据你家的口味、习惯和晚饭反馈调整说明。");
-    setAiRecommendationStatus("已登录。推荐会继续参考你家的口味和反馈。");
-    showNotice("已登录 Humi");
-  }, [setOnboardingComplete, setProfileOnboardingComplete]);
+    const ticket = takeHumiTicketFromUrl();
+    if (!ticket) return undefined;
+    let active = true;
+    exchangeHumiTicket(ticket)
+      .then((sessionValue) => {
+        if (!active) return;
+        const normalized = saveHumiSession(sessionValue);
+        setHumiSession(normalized);
+        setOnboardingComplete(true);
+        setAuthStatus("已登录 Humi。");
+        setAuthGateIntent("");
+        showNotice(`欢迎回来，${normalized.user.displayName}`);
+      })
+      .catch((error) => {
+        if (active) setAuthStatus(error.message || "登录链接已失效，请重新登录。");
+      });
+    return () => { active = false; };
+  }, [setOnboardingComplete]);
 
   useEffect(() => {
-    if (!isHumiApiSession(humiSession) || humiStateLoadedRef.current) return;
+    if (!isHumiApiSession(humiSession) || !identityComplete || humiStateLoadedRef.current) return;
     let active = true;
     let completed = false;
     humiStateLoadedRef.current = true;
     humiStateHydratingRef.current = true;
-    setFamily(createHumiSessionFamily(humiSession));
+    setFamily(null);
     setCloudMenuEnabled(true);
     setCloudGroceryEnabled(true);
     setCloudMenuLoading(true);
@@ -360,6 +368,7 @@ function App() {
     };
   }, [
     humiSession,
+    identityComplete,
     setCheckedItems,
     setCloudGroceryEnabled,
     setCloudMenuEnabled,
@@ -909,8 +918,8 @@ function App() {
   }
 
   function applyHumiStateEnvelope(data = {}, status = {}) {
-    if (data.family) setFamily(data.family);
-    if (Array.isArray(data.households)) setHumiHouseholds(data.households);
+    setFamily(data.family ?? null);
+    setHumiHouseholds(Array.isArray(data.households) ? data.households : []);
     const formalMembers = (data.family?.members ?? []).map((member) => ({
       id: `member:${member.memberId}`,
       memberId: member.memberId,
@@ -941,8 +950,9 @@ function App() {
       setActiveWishShareRequest(null);
       setPendingJoinContext(status.preservePendingJoin ?? null);
       setHouseholdMembers(formalMembers);
-      setCloudSyncStatus(status.emptyMenu || "这个家还没有保存菜单，可以从今晚开始。");
-      setCloudGroceryStatus(status.emptyGrocery || "这个家还没有保存清单。安排一顿后会自动生成。");
+      const noFamilyStatus = "创建或加入一个家后，可以和家人同步菜单与清单。";
+      setCloudSyncStatus(status.emptyMenu || (data.family ? "这个家还没有保存菜单，可以从今晚开始。" : noFamilyStatus));
+      setCloudGroceryStatus(status.emptyGrocery || (data.family ? "这个家还没有保存清单。安排一顿后会自动生成。" : noFamilyStatus));
       return;
     }
 
@@ -2728,6 +2738,7 @@ function App() {
       }
       setSession(null);
       clearHumiSession();
+      requestMiniProgramLogout();
       setHumiSession(null);
       humiStateLoadedRef.current = false;
       humiStateHydratingRef.current = false;
@@ -3697,6 +3708,16 @@ function App() {
     );
   }
 
+  if (humiSession?.user && !identityComplete && !sharedGuestLanding) {
+    return (
+      <AuthLanding
+        authProps={authProps}
+        onContinueGuest={continueAsGuest}
+        entryIntent="completeIdentity"
+      />
+    );
+  }
+
   if (!signedIn && (authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
     return (
       <>
@@ -4408,16 +4429,6 @@ function restoreActiveCraveRequest(state = {}) {
     token: signal.token || signal.requestToken,
     starterFeeling: signal.starterFeeling || signal.feelingTag || "随便都行",
     status: signal.status || "open",
-  };
-}
-
-function createHumiSessionFamily(humiSession) {
-  if (!humiSession?.user?.id) return null;
-  return {
-    id: `humi:${humiSession.user.id}`,
-    name: "我的家",
-    role: "owner",
-    provider: "wechat",
   };
 }
 

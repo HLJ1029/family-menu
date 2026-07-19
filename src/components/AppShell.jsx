@@ -1,6 +1,5 @@
 import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
 import { useState } from "react";
-import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { auxiliaryNavItems, getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
 import { humiAvatarScenes } from "./ui/brandScenes";
 import { stableHash } from "./ui/characterIllustrations";
@@ -100,11 +99,12 @@ export function Sidebar({ activeView, onChange }) {
 }
 
 export function AccountAvatar({ session, onClick, compact = false }) {
-  const email = session?.user?.email;
-  const displayName = session?.user?.displayName;
-  const isWechatMiniProgram = isWechatMiniProgramWebView();
-  const identitySeed = email || displayName || (isWechatMiniProgram ? "wechat-mini-program" : "guest");
-  const avatar = humiAvatarScenes[stableHash(identitySeed) % humiAvatarScenes.length];
+  const user = session?.user;
+  const fallbackSeed = user?.id || user?.email || user?.displayName || "guest";
+  const avatar = user?.avatarUrl
+    ? { src: user.avatarUrl }
+    : humiAvatarScenes.find((item) => item.id === user?.avatarKey)
+      ?? humiAvatarScenes[stableHash(fallbackSeed) % humiAvatarScenes.length];
 
   return (
     <button

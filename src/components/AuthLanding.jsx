@@ -18,7 +18,7 @@ export function AuthLanding({ authProps, onContinueGuest, entryIntent = "" }) {
         <div className="pt-8 text-center">
           <p className="text-5xl font-black uppercase tracking-[0.02em] text-ink">HUMI</p>
           <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">
-            {entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
+            {entryIntent === "completeIdentity" ? "完善你的身份" : entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
           </p>
         </div>
 
@@ -36,13 +36,13 @@ export function AuthLanding({ authProps, onContinueGuest, entryIntent = "" }) {
           <>
             <div className="mx-auto grid w-full max-w-[390px] place-items-center rounded-[28px] border border-line bg-white px-5 py-6 shadow-card">
               <HumiScene
-                scene={entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
+                scene={entryIntent === "completeIdentity" ? "wechatLogin" : entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
                 size="hero"
                 className="w-full"
                 eager
               />
               <p className="mt-3 text-sm font-black text-ink">
-                {entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
+                {entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
               </p>
             </div>
 
@@ -59,6 +59,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
   const [status, setStatus] = useState("");
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
+  const canUseWechatLogin = wechatLoginEnabled || isWechatMiniProgram || entryIntent === "completeIdentity";
 
   function handleWechatLogin() {
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
@@ -74,7 +75,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
 
   return (
     <div className="grid gap-4 pb-2">
-      {wechatLoginEnabled ? (
+      {canUseWechatLogin ? (
         <div className="grid gap-3">
           <button
             type="button"
@@ -82,7 +83,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
             <MessageCircle size={19} className="text-white" />
-            微信登录
+            {entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
             <>

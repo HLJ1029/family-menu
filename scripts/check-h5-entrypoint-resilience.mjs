@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -59,6 +60,88 @@ try {
     await normalBootPage.screenshot({ path: join(evidenceDir, "wechat-normal-boot.png"), fullPage: true });
   }
 
+  const ticketContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  const ticketPage = await ticketContext.newPage();
+  await ticketPage.route("**/auth/h5/exchange", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessToken: "h5-session-token",
+        refreshToken: "h5-session-token",
+        expiresAt: Date.now() + 60_000,
+        user: {
+          id: "user-ticket",
+          displayName: "小禾",
+          provider: "wechat",
+          profileStatus: "complete",
+          avatarKey: "humi-avatar-family-f-01",
+          avatarUrl: "",
+          phoneVerified: false,
+          phoneMasked: "",
+          phoneVerifiedAt: null,
+        },
+      }),
+    });
+  });
+  await ticketPage.route("**/state", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: null, family: null, households: [] }),
+    });
+  });
+  await ticketPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiTicket=one-time-ticket`, { waitUntil: "networkidle" });
+  await ticketPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1")?.includes("user-ticket"));
+  assert.equal(new URL(ticketPage.url()).searchParams.has("humiTicket"), false);
+  await ticketContext.close();
+
+  const rejectedLegacyUrlContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  const rejectedLegacyUrlPage = await rejectedLegacyUrlContext.newPage();
+  const legacyUrlSession = encodeURIComponent(JSON.stringify({ accessToken: "must-not-enter-storage", user: { id: "legacy-url" } }));
+  await rejectedLegacyUrlPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiSession=${legacyUrlSession}`, { waitUntil: "networkidle" });
+  assert.equal(new URL(rejectedLegacyUrlPage.url()).searchParams.has("humiSession"), false);
+  assert.equal(await rejectedLegacyUrlPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  await rejectedLegacyUrlContext.close();
+
+  const legacyContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await legacyContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "legacy-session-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "legacy-user", displayName: "微信用户", provider: "wechat" },
+    }));
+  });
+  const legacyPage = await legacyContext.newPage();
+  await legacyPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await legacyPage.getByRole("button", { name: "继续完善身份" }).waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await legacyPage.getByText("已登录 Humi", { exact: false }).count(), 0);
+  await legacyContext.close();
+
+  const mainSource = fs.readFileSync("src/main.jsx", "utf8");
+  const appShellSource = fs.readFileSync("src/components/AppShell.jsx", "utf8");
+  const identitySource = fs.readFileSync("src/lib/humiIdentity.js", "utf8");
+  assert.doesNotMatch(mainSource, /createHumiSessionFamily/);
+  assert.match(appShellSource, /avatarUrl/);
+  assert.match(appShellSource, /avatarKey/);
+  assert.match(identitySource, /humi:logout/);
+
   console.log(JSON.stringify({
     ok: true,
     checkedAt: new Date().toISOString(),
@@ -68,6 +151,9 @@ try {
       "pre-React fallback is visible when the main module fails",
       "retry action appears after six seconds",
       "normal React boot replaces the fallback",
+      "one-time H5 ticket is exchanged and removed from the URL",
+      "legacy serialized session URLs are discarded",
+      "legacy incomplete identity is gated",
     ],
   }, null, 2));
 } finally {

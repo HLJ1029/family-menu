@@ -22,25 +22,18 @@ export function clearHumiSession() {
   window.localStorage.removeItem(HUMI_SESSION_KEY);
 }
 
-export function consumeHumiSessionFromUrl() {
-  if (typeof window === "undefined") return null;
+export function takeHumiTicketFromUrl() {
+  if (typeof window === "undefined") return "";
   const url = new URL(window.location.href);
-  const encoded = url.searchParams.get("humiSession");
-  if (!encoded) return null;
-
-  try {
-    const session = JSON.parse(decodeURIComponent(encoded));
-    const normalized = saveHumiSession(session);
-    url.searchParams.delete("humiSession");
-    url.searchParams.delete("humiLogin");
+  const ticket = url.searchParams.get("humiTicket") || "";
+  const hadSensitiveAuth = ticket || url.searchParams.has("humiSession") || url.searchParams.has("humiLogin");
+  url.searchParams.delete("humiTicket");
+  url.searchParams.delete("humiSession");
+  url.searchParams.delete("humiLogin");
+  if (hadSensitiveAuth) {
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    return normalized;
-  } catch {
-    url.searchParams.delete("humiSession");
-    url.searchParams.delete("humiLogin");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    return null;
   }
+  return ticket;
 }
 
 export function requestWechatLoginFromMiniProgram() {
@@ -74,6 +67,14 @@ export function requestPhoneBindFromMiniProgram() {
   return true;
 }
 
+export function requestMiniProgramLogout() {
+  if (typeof window === "undefined") return false;
+  const miniProgram = window.wx?.miniProgram;
+  if (!miniProgram?.postMessage) return false;
+  miniProgram.postMessage({ data: { type: "humi:logout" } });
+  return true;
+}
+
 function normalizeHumiSession(session) {
   const user = session.user ?? {};
   return {
@@ -84,6 +85,9 @@ function normalizeHumiSession(session) {
       id: user.id ?? session.userId ?? "",
       displayName: user.displayName ?? "微信用户",
       provider: user.provider ?? "wechat",
+      profileStatus: user.profileStatus === "complete" ? "complete" : "incomplete",
+      avatarKey: user.avatarKey ?? "humi-avatar-family-m-01",
+      avatarUrl: user.avatarUrl ?? "",
       phoneVerified: Boolean(user.phoneVerified),
       phoneMasked: user.phoneMasked ?? "",
       phoneVerifiedAt: user.phoneVerifiedAt ?? null,

@@ -22,6 +22,14 @@ export function normalizeHumiApiError(error, context = "collaboration") {
     : new Error(context === "sync" ? "Humi 账号同步暂时不可用。" : "Humi 协作暂时不可用。");
 }
 
+export async function exchangeHumiTicket(ticket) {
+  if (!ticket) throw new Error("登录链接不完整。");
+  return humiPublicRequest("/auth/h5/exchange", {
+    method: "POST",
+    body: { ticket },
+  });
+}
+
 export async function loadHumiState(session) {
   const data = await loadHumiStateEnvelope(session);
   return data.state ?? null;
