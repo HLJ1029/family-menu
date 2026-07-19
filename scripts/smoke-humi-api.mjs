@@ -508,7 +508,71 @@ try {
     Number.isFinite(Date.parse(crave.request?.deadlineAt)),
     "crave request should return an explicit deadline",
   );
-  await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+  const collaborationEventsBeforePublicGets = await readCollaborationEvents();
+  await request(`${baseUrl}/crave-requests/${crave.request.token}`);
+  assert.deepEqual(
+    await readCollaborationEvents(),
+    collaborationEventsBeforePublicGets,
+    "reading a public crave request must not create collaboration history",
+  );
+  const generatedCraveGuest = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    body: {
+      memberName: "伪造的游客称呼",
+      feelingTag: "清淡一点",
+      dishWish: "冬瓜汤",
+      note: "少油",
+    },
+  });
+  assert.equal(generatedCraveGuest.participant?.type, "guest", "guest crave submit should return canonical participant type");
+  assert.match(generatedCraveGuest.participant?.id || "", /^[A-Za-z0-9-]{20,}$/i, "guest crave submit should return a server-generated id");
+  assert.equal(generatedCraveGuest.participant?.displayName, "游客 1", "guest crave alias should be request-scoped");
+  assert.equal(generatedCraveGuest.request?.votes?.[0]?.memberName, "游客 1", "legacy crave name should derive from canonical guest");
+  const firstCraveGuestAction = generatedCraveGuest.request?.votes?.[0];
+  const firstCraveGuestEvent = (await readCollaborationEvents()).find((event) => (
+    event.requestType === "crave" && event.requestId === crave.request.id && event.participantId === generatedCraveGuest.participant.id
+  ));
+  assert(firstCraveGuestEvent, "guest crave submit should persist a canonical collaboration event");
+  const retriedCraveGuest = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    body: {
+      guestParticipantId: generatedCraveGuest.participant.id,
+      feelingTag: "清淡一点",
+      dishWish: "冬瓜汤",
+      note: "少油少盐",
+    },
+  });
+  const retriedCraveGuestAction = retriedCraveGuest.request?.votes?.find((vote) => vote.participantKey === generatedCraveGuest.participant.id);
+  const retriedCraveGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstCraveGuestEvent.id);
+  assert.equal(retriedCraveGuestAction?.id, firstCraveGuestAction?.id, "guest crave retry should preserve business action id");
+  assert.equal(retriedCraveGuestAction?.createdAt, firstCraveGuestAction?.createdAt, "guest crave retry should preserve business action creation time");
+  assert.equal(retriedCraveGuestEvent?.createdAt, firstCraveGuestEvent.createdAt, "guest crave retry should preserve event creation time");
+  const collaborationEventsBeforeInvalidCrave = await readCollaborationEvents();
+  const craveActionsBeforeInvalidBearer = await readCollaborationBusinessActions("crave", crave.request.id);
+  await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    body: { feelingTag: "不应写入" },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "invalid crave bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("crave", crave.request.id), craveActionsBeforeInvalidBearer, "invalid crave bearer must not create a business action");
+  explicitWechatOpenIds.add(`revoked-crave-${runId}`);
+  const revokedCraveSession = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `revoked-crave-${runId}` },
+  });
+  await request(`${baseUrl}/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedCraveSession.accessToken}` },
+  });
+  await assertRejectedRequest(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedCraveSession.accessToken}` },
+    body: { feelingTag: "不应写入" },
+  }, 401, "revoked_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidCrave, "revoked crave bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("crave", crave.request.id), craveActionsBeforeInvalidBearer, "revoked crave bearer must not create a business action");
+  const legacyCraveGuest = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
     method: "POST",
     body: {
       participantKey: "participant-smoke",
@@ -523,14 +587,37 @@ try {
     method: "POST",
     body: { code: `family-member-smoke-${runId}` },
   });
+  const signedInCraveVote = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      guestParticipantId: "forged-guest-id",
+      memberId: "forged-user-id",
+      memberName: "伪造的登录昵称",
+      displayNameSnapshot: "伪造快照",
+      avatar: "https://forged.example/avatar.png",
+      feelingTag: "想喝汤",
+    },
+  });
+  assert.deepEqual(
+    signedInCraveVote.participant,
+    {
+      type: "user",
+      id: memberLogin.user.id,
+      displayName: memberLogin.user.displayName,
+      avatar: memberLogin.user.avatarUrl || memberLogin.user.avatarKey,
+    },
+    "signed-in crave action must derive identity only from the server session",
+  );
   const claimedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
-    body: { participantKey: "participant-smoke" },
+    body: { participantKey: legacyCraveGuest.participant.id },
   });
-  assert(claimedCrave.request?.votes?.[0]?.temporary === false, "crave claim should bind the authenticated participant");
-  assert(claimedCrave.request?.votes?.[0]?.dishWish === "番茄汤", "crave claim should preserve the optional dish wish");
-  assert(!claimedCrave.request?.votes?.[0]?.memberId, "public crave response must not expose authenticated participant ids");
+  const claimedCraveVote = claimedCrave.request?.votes?.find((vote) => vote.participantKey === legacyCraveGuest.participant.id);
+  assert(claimedCraveVote?.temporary === false, "crave claim should bind the authenticated participant");
+  assert(claimedCraveVote?.dishWish === "番茄汤", "crave claim should preserve the optional dish wish");
+  assert(!claimedCraveVote?.memberId, "public crave response must not expose authenticated participant ids");
   assert(!("family" in claimedCrave) && !("households" in claimedCrave) && !("state" in claimedCrave), "generic crave claim must return only the collaboration request");
   const memberBeforeInviteHouseholds = await request(`${baseUrl}/households`, {
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
@@ -835,17 +922,70 @@ try {
     },
   });
   assert(batchGrocery.request?.items?.length === 2, "batch grocery share should expose the user's complete list");
+  const collaborationEventsBeforeGroceryGet = await readCollaborationEvents();
+  await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
+  assert.deepEqual(
+    await readCollaborationEvents(),
+    collaborationEventsBeforeGroceryGet,
+    "reading a public grocery request must not create collaboration history",
+  );
   const batchClaim = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
     method: "POST",
     body: {
-      participantKey: "batch-grocery-guest",
-      memberName: "买菜家人",
-      itemIds: ["tomato", "egg"],
+      memberName: "伪造的买菜身份",
+      itemIds: ["tomato", "egg", "forged-item-id"],
       status: "claimed",
       note: "下班路上买",
     },
   });
   assert(batchClaim.request?.claims?.[0]?.itemIds?.length === 2, "batch grocery share should claim multiple items at once");
+  assert.equal(batchClaim.participant?.type, "guest", "guest grocery submit should return canonical participant type");
+  assert.equal(batchClaim.participant?.displayName, "游客 1", "guest grocery alias should be request-scoped");
+  const firstGroceryGuestAction = batchClaim.request?.claims?.[0];
+  const firstGroceryGuestEvent = (await readCollaborationEvents()).find((event) => (
+    event.requestType === "grocery" && event.requestId === batchGrocery.request.id && event.participantId === batchClaim.participant.id
+  ));
+  assert(firstGroceryGuestEvent, "guest grocery submit should persist a canonical collaboration event");
+  assert.deepEqual(firstGroceryGuestEvent.payload?.itemIds, ["tomato", "egg"], "grocery history should keep only accepted item ids");
+  const retriedBatchClaim = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    body: {
+      guestParticipantId: batchClaim.participant.id,
+      itemIds: ["tomato"],
+      status: "claimed",
+      note: "改成只买西红柿",
+    },
+  });
+  const retriedGroceryGuestAction = retriedBatchClaim.request?.claims?.find((claim) => claim.participantKey === batchClaim.participant.id);
+  const retriedGroceryGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstGroceryGuestEvent.id);
+  assert.equal(retriedGroceryGuestAction?.id, firstGroceryGuestAction?.id, "guest grocery retry should preserve business action id");
+  assert.equal(retriedGroceryGuestAction?.createdAt, firstGroceryGuestAction?.createdAt, "guest grocery retry should preserve business action creation time");
+  assert.equal(retriedGroceryGuestEvent?.createdAt, firstGroceryGuestEvent.createdAt, "guest grocery retry should preserve event creation time");
+  const collaborationEventsBeforeInvalidGrocery = await readCollaborationEvents();
+  const groceryActionsBeforeInvalidBearer = await readCollaborationBusinessActions("grocery", batchGrocery.request.id);
+  await assertRejectedRequest(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    body: { itemIds: ["egg"] },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "invalid grocery bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("grocery", batchGrocery.request.id), groceryActionsBeforeInvalidBearer, "invalid grocery bearer must not create a business action");
+  explicitWechatOpenIds.add(`revoked-grocery-${runId}`);
+  const revokedGrocerySession = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `revoked-grocery-${runId}` },
+  });
+  await request(`${baseUrl}/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedGrocerySession.accessToken}` },
+  });
+  await assertRejectedRequest(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedGrocerySession.accessToken}` },
+    body: { itemIds: ["egg"] },
+  }, 401, "revoked_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidGrocery, "revoked grocery bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("grocery", batchGrocery.request.id), groceryActionsBeforeInvalidBearer, "revoked grocery bearer must not create a business action");
   const checkedBatchGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/items/tomato/check`, {
     method: "POST",
     body: { checked: true },
@@ -871,16 +1011,68 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: { householdName: "测试家", initiatorName: "主厨", title: "最近想吃什么" },
   });
+  const collaborationEventsBeforeWishGet = await readCollaborationEvents();
+  await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}`);
+  assert.deepEqual(
+    await readCollaborationEvents(),
+    collaborationEventsBeforeWishGet,
+    "reading a public wish request must not create collaboration history",
+  );
   const wishEntry = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
     method: "POST",
     body: {
-      participantKey: "wish-guest",
-      memberName: "想吃的家人",
+      memberName: "伪造的想吃身份",
       dishName: "红烧肉",
       note: "周末吃",
     },
   });
   assert(wishEntry.request?.wishes?.[0]?.dishName === "红烧肉", "wish share should receive a guest dish request");
+  assert.equal(wishEntry.participant?.type, "guest", "guest wish submit should return canonical participant type");
+  assert.equal(wishEntry.participant?.displayName, "游客 1", "guest wish alias should be request-scoped");
+  const firstWishGuestAction = wishEntry.request?.wishes?.[0];
+  const firstWishGuestEvent = (await readCollaborationEvents()).find((event) => (
+    event.requestType === "wish" && event.requestId === wishShare.request.id && event.participantId === wishEntry.participant.id
+  ));
+  assert(firstWishGuestEvent, "guest wish submit should persist a canonical collaboration event");
+  const retriedWishEntry = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    body: {
+      guestParticipantId: wishEntry.participant.id,
+      dishName: "红烧肉",
+      note: "周末家人一起吃",
+    },
+  });
+  const retriedWishGuestAction = retriedWishEntry.request?.wishes?.find((wish) => wish.participantKey === wishEntry.participant.id);
+  const retriedWishGuestEvent = (await readCollaborationEvents()).find((event) => event.id === firstWishGuestEvent.id);
+  assert.equal(retriedWishGuestAction?.id, firstWishGuestAction?.id, "guest wish retry should preserve business action id");
+  assert.equal(retriedWishGuestAction?.createdAt, firstWishGuestAction?.createdAt, "guest wish retry should preserve business action creation time");
+  assert.equal(retriedWishGuestEvent?.createdAt, firstWishGuestEvent.createdAt, "guest wish retry should preserve event creation time");
+
+  const collaborationEventsBeforeInvalidWish = await readCollaborationEvents();
+  const wishActionsBeforeInvalidBearer = await readCollaborationBusinessActions("wish", wishShare.request.id);
+  await assertRejectedRequest(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    headers: { Authorization: "Bearer invalid-collaboration-token" },
+    body: { dishName: "不应写入" },
+  }, 401, "invalid_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "invalid wish bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("wish", wishShare.request.id), wishActionsBeforeInvalidBearer, "invalid wish bearer must not create a business action");
+  explicitWechatOpenIds.add(`revoked-wish-${runId}`);
+  const revokedWishSession = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `revoked-wish-${runId}` },
+  });
+  await request(`${baseUrl}/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedWishSession.accessToken}` },
+  });
+  await assertRejectedRequest(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${revokedWishSession.accessToken}` },
+    body: { dishName: "不应写入" },
+  }, 401, "revoked_token");
+  assert.deepEqual(await readCollaborationEvents(), collaborationEventsBeforeInvalidWish, "revoked wish bearer must not create collaboration history");
+  assert.deepEqual(await readCollaborationBusinessActions("wish", wishShare.request.id), wishActionsBeforeInvalidBearer, "revoked wish bearer must not create a business action");
 
   explicitWechatOpenIds.add(`collaboration-guest-${runId}`);
   const collaborationGuest = await request(`${baseUrl}/auth/wechat/login`, {
@@ -890,7 +1082,7 @@ try {
   const joinedBatchGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
-    body: { participantKey: "batch-grocery-guest", memberName: "买菜家人" },
+    body: { participantKey: batchClaim.participant.id, memberName: "买菜家人" },
   });
   assert(joinedBatchGrocery.request?.claims?.[0]?.temporary === false, "grocery claim should bind the authenticated participant");
   assert(!("family" in joinedBatchGrocery) && !("households" in joinedBatchGrocery) && !("state" in joinedBatchGrocery), "generic grocery claim must return only the collaboration request");
@@ -903,6 +1095,31 @@ try {
     headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
   });
   assert.equal(groceryGuestStateBeforeInvite.state, null, "grocery claim must not expose the source household state");
+  const signedInGroceryClaim = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: {
+      guestParticipantId: "forged-guest-id",
+      memberId: "forged-user-id",
+      memberName: "伪造的登录昵称",
+      itemIds: ["egg"],
+    },
+  });
+  assert.deepEqual(
+    signedInGroceryClaim.participant,
+    {
+      type: "user",
+      id: collaborationGuest.user.id,
+      displayName: collaborationGuest.user.displayName,
+      avatar: collaborationGuest.user.avatarUrl || collaborationGuest.user.avatarKey,
+    },
+    "signed-in grocery action must derive identity only from the server session",
+  );
+  const groceryGuestAfterSignedInAction = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(groceryGuestAfterSignedInAction.family, null, "signed-in grocery action must not create formal membership");
+  assert.deepEqual(groceryGuestAfterSignedInAction.households, []);
   const collaborationGuestInvite = await request(`${baseUrl}/household-invites`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -920,10 +1137,35 @@ try {
     method: "POST",
     body: { code: `wish-guest-${runId}` },
   });
+  const signedInWishEntry = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+    body: {
+      guestParticipantId: "forged-guest-id",
+      memberId: "forged-user-id",
+      memberName: "伪造的登录昵称",
+      dishName: "鱼香肉丝",
+    },
+  });
+  assert.deepEqual(
+    signedInWishEntry.participant,
+    {
+      type: "user",
+      id: wishGuest.user.id,
+      displayName: wishGuest.user.displayName,
+      avatar: wishGuest.user.avatarUrl || wishGuest.user.avatarKey,
+    },
+    "signed-in wish action must derive identity only from the server session",
+  );
+  const wishGuestAfterSignedInAction = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
+  });
+  assert.equal(wishGuestAfterSignedInAction.family, null, "signed-in wish action must not create formal membership");
+  assert.deepEqual(wishGuestAfterSignedInAction.households, []);
   const joinedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
     method: "POST",
     headers: { Authorization: `Bearer ${wishGuest.accessToken}` },
-    body: { participantKey: "wish-guest", memberName: "想吃的家人" },
+    body: { participantKey: wishEntry.participant.id, memberName: "想吃的家人" },
   });
   assert(joinedWish.request?.wishes?.[0]?.temporary === false, "wish claim should bind the authenticated participant");
   assert(!("family" in joinedWish) && !("households" in joinedWish) && !("state" in joinedWish), "generic wish claim must return only the collaboration request");
@@ -1152,6 +1394,24 @@ async function assertRejectedRequest(url, options, expectedStatus, expectedCode)
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
+}
+
+async function readCollaborationEvents() {
+  const data = JSON.parse(await readFile(dataFile, "utf8"));
+  return data.collaborationEvents ?? [];
+}
+
+async function readCollaborationBusinessActions(requestType, requestId) {
+  const data = JSON.parse(await readFile(dataFile, "utf8"));
+  const collection = requestType === "crave"
+    ? data.craveRequests
+    : requestType === "grocery"
+    ? data.groceryShareRequests
+    : data.wishShareRequests;
+  const request = (collection ?? []).find((item) => item.id === requestId);
+  if (requestType === "crave") return request?.votes ?? [];
+  if (requestType === "grocery") return request?.claims ?? [];
+  return request?.wishes ?? [];
 }
 
 function assertHouseholdEnvelope(response, label) {

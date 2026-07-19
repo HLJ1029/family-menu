@@ -1,5 +1,5 @@
 import http from "node:http";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -809,7 +809,7 @@ async function handleGetGroceryShare(response, token) {
 }
 
 async function handleClaimGroceryShare(request, response, token) {
-  const auth = await getOptionalAuth(request);
+  const auth = await optionalAuth(request);
   const user = auth?.userId ? await store.getUser(auth.userId) : null;
   const body = await readJson(request);
   try {
@@ -863,9 +863,13 @@ async function handleGetGroceryShareRequest(response, token) {
 
 async function handleGroceryShareClaim(request, response, token) {
   const body = await readJson(request);
-  const groceryRequest = await store.addGroceryShareClaim(token, body);
+  const participant = await resolveCollaborationParticipant(request, body);
+  const groceryRequest = await store.addGroceryShareClaim(token, body, participant);
   if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
-  sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
+  sendJson(response, 200, {
+    request: toPublicGroceryShareRequest(groceryRequest),
+    participant: toPublicCollaborationParticipant(participant, groceryRequest.claims, "participantKey"),
+  });
 }
 
 async function handleGroceryShareItemCheck(request, response, token, itemId) {
@@ -944,9 +948,13 @@ async function handleGetWishShareRequest(response, token) {
 
 async function handleWishShareEntry(request, response, token) {
   const body = await readJson(request);
-  const wishRequest = await store.addWishShareEntry(token, body);
+  const participant = await resolveCollaborationParticipant(request, body);
+  const wishRequest = await store.addWishShareEntry(token, body, participant);
   if (!wishRequest) throw httpError(404, "wish_share_not_found", "这个想吃入口已经失效。");
-  sendJson(response, 200, { request: toPublicWishShareRequest(wishRequest) });
+  sendJson(response, 200, {
+    request: toPublicWishShareRequest(wishRequest),
+    participant: toPublicCollaborationParticipant(participant, wishRequest.wishes, "participantKey"),
+  });
 }
 
 async function handleJoinWishShare(request, response, token) {
@@ -989,9 +997,13 @@ async function handleGetCraveRequest(response, token) {
 
 async function handleCraveVote(request, response, token) {
   const body = await readJson(request);
-  const craveRequest = await store.addCraveVote(token, body);
+  const participant = await resolveCollaborationParticipant(request, body);
+  const craveRequest = await store.addCraveVote(token, body, participant);
   if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
-  sendJson(response, 200, { request: toPublicCraveRequest(craveRequest) });
+  sendJson(response, 200, {
+    request: toPublicCraveRequest(craveRequest),
+    participant: toPublicCollaborationParticipant(participant, craveRequest.votes, "participantKey"),
+  });
 }
 
 async function handleJoinCraveRequest(request, response, token) {
@@ -1019,7 +1031,7 @@ async function handleJoinCraveRequest(request, response, token) {
 
 async function handleCloseCraveRequest(request, response, token) {
   const body = await readJson(request);
-  const auth = await getOptionalAuth(request);
+  const auth = await optionalAuth(request);
   try {
     const craveRequest = await store.closeCraveRequest(token, body.ownerSecret, body.resultSummary, auth?.userId);
     if (!craveRequest) throw httpError(404, "crave_request_not_found", "这个征集链接已经失效。");
@@ -1181,6 +1193,7 @@ function toPublicCraveRequest(request) {
     } : undefined,
     votes: (request.votes ?? []).map((vote) => ({
       id: vote.id,
+      participantKey: vote.participantKey,
       memberName: vote.memberName,
       feelingTag: vote.feelingTag,
       dishWish: vote.dishWish,
@@ -1234,6 +1247,7 @@ function toPublicGroceryShareRequest(request) {
     })),
     claims: (request.claims ?? []).map((claim) => ({
       id: claim.id,
+      participantKey: claim.participantKey,
       memberName: claim.memberName,
       status: claim.status,
       itemIds: Array.isArray(claim.itemIds) ? claim.itemIds : [],
@@ -1284,6 +1298,7 @@ function toPublicWishShareRequest(request) {
     status: request.status,
     wishes: (request.wishes ?? []).map((wish) => ({
       id: wish.id,
+      participantKey: wish.participantKey,
       memberName: wish.memberName,
       dishName: wish.dishName,
       note: wish.note,
@@ -1332,12 +1347,39 @@ async function requireAuth(request) {
   return { userId: payload.sub, token };
 }
 
-async function getOptionalAuth(request) {
-  const token = getBearerToken(request);
-  if (!token) return null;
-  if (await store.isTokenRevoked(token)) return null;
-  const payload = verifySessionToken(token, config.sessionSecret);
-  return payload ? { userId: payload.sub, token } : null;
+async function optionalAuth(request) {
+  if (!request.headers.authorization) return null;
+  return requireAuth(request);
+}
+
+async function resolveCollaborationParticipant(request, body = {}) {
+  const auth = await optionalAuth(request);
+  if (!auth) {
+    return {
+      type: "guest",
+      id: stringValue(body.guestParticipantId, 100) || randomUUID(),
+      displayName: "",
+      avatar: "",
+    };
+  }
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  return {
+    type: "user",
+    id: user.id,
+    displayName: user.displayName || "Humi 用户",
+    avatar: user.avatarUrl || user.avatarKey || "",
+  };
+}
+
+function toPublicCollaborationParticipant(participant, actions = [], participantKey = "participantKey") {
+  const action = actions.find((item) => item?.[participantKey] === participant.id);
+  return {
+    type: participant.type,
+    id: participant.id,
+    displayName: action?.memberName || participant.displayName || "游客",
+    avatar: participant.avatar || "",
+  };
 }
 
 function sendAuthSession(response, user) {

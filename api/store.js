@@ -920,7 +920,7 @@ export class HumiStore {
     return request;
   }
 
-  async addCraveVote(token, vote = {}) {
+  async addCraveVote(token, vote = {}, participant = {}) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
@@ -929,17 +929,31 @@ export class HumiStore {
       return request;
     }
     if (request.status !== "open") return request;
+    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
+    const event = await this.recordCollaborationEvent({
+      requestType: "crave",
+      requestId: request.id,
+      householdId: request.householdId,
+      participantType: trustedParticipant.type,
+      participantId: trustedParticipant.id,
+      displayNameSnapshot: trustedParticipant.displayName,
+      avatarSnapshot: trustedParticipant.avatar,
+      actionType: "crave_vote",
+      payload: vote,
+    });
     const now = new Date().toISOString();
-    const participantKey = sanitizeText(vote.participantKey, "", 80) || randomUUID();
+    const participantKey = trustedParticipant.id;
+    const existing = request.votes.find((item) => item.participantKey === participantKey);
     const nextVote = {
-      id: randomUUID(),
+      id: existing?.id || randomUUID(),
       participantKey,
-      memberName: sanitizeText(vote.memberName, "家人", 32),
+      memberName: event.displayNameSnapshot,
+      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
       feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32),
       dishWish: sanitizeText(vote.dishWish, "", 80),
       note: sanitizeText(vote.note, "", 80),
-      temporary: vote.temporary !== false,
-      createdAt: now,
+      temporary: trustedParticipant.type === "guest",
+      createdAt: existing?.createdAt || now,
     };
     const existingIndex = request.votes.findIndex((item) => item.participantKey === participantKey);
     if (existingIndex >= 0) request.votes[existingIndex] = nextVote;
@@ -1038,22 +1052,38 @@ export class HumiStore {
     return this.data.groceryShareRequests.find((item) => item.token === token) ?? null;
   }
 
-  async addGroceryShareClaim(token, claim = {}) {
+  async addGroceryShareClaim(token, claim = {}, participant = {}) {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
-    const now = new Date().toISOString();
-    const participantKey = sanitizeText(claim.participantKey, "", 80) || randomUUID();
+    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
     const claimStatus = claim.status === "declined" ? "declined" : "claimed";
+    const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
+    const note = sanitizeText(claim.note, "", 80);
+    const event = await this.recordCollaborationEvent({
+      requestType: "grocery",
+      requestId: request.id,
+      householdId: request.householdId,
+      participantType: trustedParticipant.type,
+      participantId: trustedParticipant.id,
+      displayNameSnapshot: trustedParticipant.displayName,
+      avatarSnapshot: trustedParticipant.avatar,
+      actionType: "grocery_claim",
+      payload: { status: claimStatus, itemIds, note },
+    });
+    const now = new Date().toISOString();
+    const participantKey = trustedParticipant.id;
+    const existing = request.claims.find((item) => item.participantKey === participantKey);
     const nextClaim = {
-      id: randomUUID(),
+      id: existing?.id || randomUUID(),
       participantKey,
-      memberName: sanitizeText(claim.memberName, "家人", 32),
+      memberName: event.displayNameSnapshot,
+      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
       status: claimStatus,
-      itemIds: sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined"),
-      note: sanitizeText(claim.note, "", 80),
-      temporary: claim.temporary !== false,
-      createdAt: now,
+      itemIds,
+      note,
+      temporary: trustedParticipant.type === "guest",
+      createdAt: existing?.createdAt || now,
     };
     const existingIndex = request.claims.findIndex((item) => item.participantKey === participantKey);
     if (existingIndex >= 0) request.claims[existingIndex] = nextClaim;
@@ -1168,20 +1198,34 @@ export class HumiStore {
     return this.data.wishShareRequests.find((item) => item.token === token) ?? null;
   }
 
-  async addWishShareEntry(token, wish = {}) {
+  async addWishShareEntry(token, wish = {}, participant = {}) {
     await this.load();
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
+    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
+    const event = await this.recordCollaborationEvent({
+      requestType: "wish",
+      requestId: request.id,
+      householdId: request.householdId,
+      participantType: trustedParticipant.type,
+      participantId: trustedParticipant.id,
+      displayNameSnapshot: trustedParticipant.displayName,
+      avatarSnapshot: trustedParticipant.avatar,
+      actionType: "wish_entry",
+      payload: wish,
+    });
     const now = new Date().toISOString();
-    const participantKey = sanitizeText(wish.participantKey, "", 80) || randomUUID();
+    const participantKey = trustedParticipant.id;
+    const existing = request.wishes.find((item) => item.participantKey === participantKey);
     const nextWish = {
-      id: randomUUID(),
+      id: existing?.id || randomUUID(),
       participantKey,
-      memberName: sanitizeText(wish.memberName, "家人", 32),
+      memberName: event.displayNameSnapshot,
+      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
       dishName: sanitizeText(wish.dishName, "想吃的菜", 40),
       note: sanitizeText(wish.note, "", 80),
-      temporary: wish.temporary !== false,
-      createdAt: now,
+      temporary: trustedParticipant.type === "guest",
+      createdAt: existing?.createdAt || now,
     };
     const existingIndex = request.wishes.findIndex((item) => item.participantKey === participantKey);
     if (existingIndex >= 0) request.wishes[existingIndex] = nextWish;
@@ -1279,6 +1323,18 @@ function sanitizeCollaborationActionType(value) {
 function sanitizeCollaborationParticipantType(value) {
   if (["user", "guest"].includes(value)) return value;
   throw codedError("collaboration_event_invalid", "Unsupported collaboration participant type.");
+}
+
+function sanitizeTrustedCollaborationParticipant(participant = {}) {
+  const type = sanitizeCollaborationParticipantType(participant.type);
+  const id = sanitizeText(participant.id, "", 100);
+  if (!id) throw codedError("collaboration_event_invalid", "Collaboration participant id is required.");
+  return {
+    type,
+    id,
+    displayName: type === "user" ? sanitizeText(participant.displayName, "Humi 用户", 32) : "",
+    avatar: type === "user" ? sanitizeText(participant.avatar, "", 240) : "",
+  };
 }
 
 function collaborationEventKey(event) {

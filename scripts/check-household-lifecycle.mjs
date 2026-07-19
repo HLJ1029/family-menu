@@ -67,21 +67,33 @@ const secondMember = await createCompleteUser("household-second-member", "小满
 const household = await store.createHouseholdForUser(owner.id, { householdName: "我们家" });
 
 const crave = await store.createCraveRequest({}, owner.id);
-await store.addCraveVote(crave.token, { participantKey: "crave-guest", memberName: "感觉参与者" });
+await store.addCraveVote(
+  crave.token,
+  { feelingTag: "随便都行" },
+  { type: "guest", id: "crave-guest" },
+);
 const claimedCrave = await store.claimCraveVote(crave.token, craveGuest.id, { participantKey: "crave-guest" });
 assert.equal(claimedCrave.votes[0].memberId, craveGuest.id, "crave claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(craveGuest.id), [], "crave claim must not create household membership");
 assert.equal(await store.getState(craveGuest.id), null, "crave claim must not expose household state");
 
 const grocery = await store.createGroceryShareRequest({ items: [{ id: "milk", name: "牛奶" }] }, owner.id);
-await store.addGroceryShareClaim(grocery.token, { participantKey: "grocery-guest", itemIds: ["milk"] });
+await store.addGroceryShareClaim(
+  grocery.token,
+  { itemIds: ["milk"] },
+  { type: "guest", id: "grocery-guest" },
+);
 const claimedGrocery = await store.claimGroceryShareParticipant(grocery.token, groceryGuest.id, { participantKey: "grocery-guest" });
 assert.equal(claimedGrocery.claims[0].memberId, groceryGuest.id, "grocery claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(groceryGuest.id), [], "grocery claim must not create household membership");
 assert.equal(await store.getState(groceryGuest.id), null, "grocery claim must not expose household state");
 
 const wish = await store.createWishShareRequest({}, owner.id);
-await store.addWishShareEntry(wish.token, { participantKey: "wish-guest", dishName: "红烧肉" });
+await store.addWishShareEntry(
+  wish.token,
+  { dishName: "红烧肉" },
+  { type: "guest", id: "wish-guest" },
+);
 const claimedWish = await store.claimWishShareParticipant(wish.token, wishGuest.id, { participantKey: "wish-guest" });
 assert.equal(claimedWish.wishes[0].memberId, wishGuest.id, "wish claim must bind the authenticated identity");
 assert.deepEqual(await store.getHouseholdsForUser(wishGuest.id), [], "wish claim must not create household membership");
