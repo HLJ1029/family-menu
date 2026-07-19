@@ -241,15 +241,15 @@ git commit -m "fix: secure guest collaboration identity merge"
 **Interfaces:**
 - Produces `GET /households/:householdId/collaborations?limit=50` and `loadHouseholdCollaborations(session, householdId, limit)`.
 
-- [ ] **Step 1: Add failing authorization and UI tests**
+- [x] **Step 1: Add failing authorization and UI tests**
 
 API: non-member receives 404, member and owner receive same newest-first sanitized events. UI: history page says natural-language rows such as `小禾想吃番茄炒蛋` and `游客 1 已认领 2 项买菜`, with participant avatar and time; token/internal state strings are absent.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run API and product smoke; expected 404/missing history content.
 
-- [ ] **Step 3: Implement endpoint and client**
+- [x] **Step 3: Implement endpoint and client**
 
 Return:
 
@@ -259,11 +259,11 @@ Return:
 
 Public event excludes request token, secret, raw guest storage keys and internal member IDs not needed for display.
 
-- [ ] **Step 4: Implement loading, empty, error and retry UI**
+- [x] **Step 4: Implement loading, empty, error and retry UI**
 
 `FamilyActivityPage` loads on entry, cancels stale results on unmount, and keeps Phase 2 local summaries only as offline fallback labeled `当前设备记录`. It provides `重试` without leaving the page.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run validate:api
