@@ -46,17 +46,17 @@ node scripts/migrate-humi-identity-households.mjs --input <path> --dry-run --rep
 node scripts/migrate-humi-identity-households.mjs --input <path> --apply --output <path> --report <path>
 ```
 
-- [ ] **Step 1: Write failing migration fixture tests**
+- [x] **Step 1: Write failing migration fixture tests**
 
 Fixture includes complete user, legacy `微信用户`, missing `profileStatus`, household member missing avatar, and orphan household-state reference. Assert dry-run writes no output, report contains only counts/codes, apply writes a separate file, a second apply produces byte-equivalent normalized JSON, and orphan/reference problems stop apply with non-zero exit.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `npm run validate:migration`
 
 Expected: migration script missing.
 
-- [ ] **Step 3: Implement parse and privacy-safe audit**
+- [x] **Step 3: Implement parse and privacy-safe audit**
 
 Accepted top-level shape is the existing Humi store object. Fatal invariants:
 
@@ -71,7 +71,7 @@ active_household_not_member
 
 Report includes counts, change counts, fatal code counts and SHA-256 of input/output; it contains no record values.
 
-- [ ] **Step 4: Implement deterministic transformations**
+- [x] **Step 4: Implement deterministic transformations**
 
 - Normalize missing top-level arrays/maps.
 - Mark legacy/default-name users incomplete; preserve complete explicit names.
@@ -80,7 +80,7 @@ Report includes counts, change counts, fatal code counts and SHA-256 of input/ou
 - Preserve every state and collaboration event.
 - Add `migrationMeta.identityHouseholdV1 = { appliedAt, sourceSha256, toolVersion: 1 }`; idempotent rerun preserves the first `appliedAt`.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run validate:migration

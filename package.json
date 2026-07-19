@@ -27,6 +27,7 @@
     "validate:collaboration-identity": "node scripts/check-collaboration-identity.mjs",
     "validate:household": "node scripts/check-household-lifecycle.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",
+    "validate:migration": "node scripts/check-humi-migration.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
