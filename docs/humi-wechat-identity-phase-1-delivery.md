@@ -1,8 +1,8 @@
 # Humi 主动微信登录与身份建立 Phase 1 交付说明
 
-更新日期：2026-07-19  
-执行设备：codex@mbp-m5pro  
-分支：`codex/humi-wechat-identity-startup`  
+更新日期：2026-07-19
+执行设备：codex@mbp-m5pro
+分支：`codex/humi-wechat-identity-startup`
 基线：`origin/main@22afe7b`
 
 ## 交付边界
