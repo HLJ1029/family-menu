@@ -4,7 +4,7 @@
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
 Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）
-当前本地候选：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`（`test: avoid bearer fixture secret scan false positives`）
+首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定 **NO-GO**。当前最终 gate correction candidate：`e9c22f6fed36c00e42fa5825db1f082359c2bdb3`，仍 await independent re-review。
 
 本记录覆盖 Phase 3 Task 6 的本地候选验证。Tasks 1–5 的功能实现已在本记录之前提交；`51e0244` 仅将测试中的长 Bearer 哨兵改为短哨兵，避免被团队 secret scan 的通用规则误判，未改变产品运行行为或测试断言语义。此后本记录和主规格进度更新会作为独立 documentation commit 提交；Task 6 report 会再以独立提交固定该 documentation commit。
 
@@ -20,6 +20,12 @@ Phase 3 本地候选实现及完整自动化矩阵已经通过。本候选交付
 - 经认证、正式家庭成员可读的家庭协作历史 API 与自然语言 UI；错误时仅以“当前设备记录”作为明确标识的本地 fallback。
 
 这不是生产验收、微信真机验收或上线批准。Task 6 candidate 仍等待新的独立 Phase 3 broad review；父任务 owner 将在该审查后追加/关闭最终 Phase 3 GO。本记录不授予任何外部操作权限。
+
+## Final gate correction candidate（仍待独立复审）
+
+首次 candidate 的 final broad review 为 NO-GO：公开 merge/claim 元数据泄漏；三类 merged guest retry 会反转正式身份；event/business 与 merge/claim 双 save 可留内存半提交；浏览器未按 type 隔离；legacy smoke 对云端成功仍断言本地 meal log；Crave GET 会写 deadline closure；原 product manifest 实际 18 refs（连同 collaboration 共 24，而非 20+6）。`9a22115` 上 legacy smoke 稳定失败，旧记录不能作为最终 GREEN。
+
+修正提交：`123f908`、`4838701`、`e5d66ab`、`e9c22f6`。最终矩阵 evidence root：`/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720`。product manifest `/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720/product-smoke/manifest.json`：`ok:true`、125 checks、20 refs、SHA-256 `78e95b50e7c48e2f77bfe6b1b4a340e10c09665da711292c302f708b2248db90`。collaboration manifest `/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720/collaboration-smoke/manifest.json`：`ok:true`、20 checks、6 refs、SHA-256 `e132bdd5479698e9a9e638b1bf2f3f691752ba95db5727109609fa6d1162e1cb`。root/smoke dirs `0700`、manifests `0600`；Vite `4192` 已停服无 listener；外部门禁不变。
 
 ## 实现提交与审查修正
 

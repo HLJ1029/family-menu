@@ -34,3 +34,7 @@ Still deferred and unauthorized: true-device WeChat login/profile/WebView ticket
 ## Documentation correction
 
 After the report commit, the parent flow found trailing whitespace on the first four metadata lines of the delivery document. The original report had cited a bare `git diff --check` from a clean worktree; that command checks only uncommitted changes and therefore did not validate the already committed Task 6 range. This correction removes only those four trailing-space suffixes. Before its commit, `git diff --check 184d2d2` validates the complete Task 6 range including the current correction; after its commit, `git diff --check 184d2d2..HEAD` must validate the complete committed range. The exact secret scan is re-run as the correction gate. No behavior, parent-plan state, AI-HQ artifact, or external system is changed.
+
+## Superseded final-candidate correction
+
+`51e0244` is superseded and was **NO-GO**: legacy smoke reproducibly fails at `9a22115`; the original manifest had 18 product + 6 collaboration refs (24), not 20 + 6. Final correction candidate `e9c22f6` and fresh evidence are recorded in `.superpowers/sdd/phase3-final-gate-fixes-report.md`; history is retained.
