@@ -735,7 +735,7 @@ export class HumiStore {
       throw codedError("collaboration_event_invalid", "requestId and participantId are required.");
     }
 
-    const existing = this.data.collaborationEvents.find((event) => (
+    const directExisting = this.data.collaborationEvents.find((event) => (
       collaborationEventKey(event) === collaborationEventKey({
         requestType,
         requestId,
@@ -744,19 +744,36 @@ export class HumiStore {
         actionType,
       })
     ));
+    const mergedGuestExisting = !directExisting && participantType === "guest"
+      ? this.data.collaborationEvents.find((event) => (
+        event.requestType === requestType
+        && event.requestId === requestId
+        && event.actionType === actionType
+        && event.participantType === "user"
+        && event.mergedFromGuestId === participantId
+      ))
+      : null;
+    const existing = directExisting || mergedGuestExisting;
+    const isMergedGuestRetry = Boolean(mergedGuestExisting);
     const now = new Date().toISOString();
-    const alias = participantType === "guest"
+    const canonicalParticipantType = isMergedGuestRetry ? existing.participantType : participantType;
+    const canonicalParticipantId = isMergedGuestRetry ? existing.participantId : participantId;
+    const alias = isMergedGuestRetry
+      ? existing.displayNameSnapshot
+      : participantType === "guest"
       ? existing?.displayNameSnapshot || this.nextGuestCollaborationAlias(requestType, requestId, participantId)
       : sanitizeText(input.displayNameSnapshot, "Humi 用户", 32);
     const next = {
       id: existing?.id || randomUUID(),
-      householdId: sanitizeText(input.householdId, "", 100),
+      householdId: existing?.householdId || sanitizeText(input.householdId, "", 100),
       requestType,
       requestId,
-      participantType,
-      participantId,
+      participantType: canonicalParticipantType,
+      participantId: canonicalParticipantId,
       displayNameSnapshot: alias,
-      avatarSnapshot: participantType === "guest"
+      avatarSnapshot: isMergedGuestRetry
+        ? existing.avatarSnapshot
+        : participantType === "guest"
         ? ""
         : sanitizeText(input.avatarSnapshot, "", 240),
       actionType,

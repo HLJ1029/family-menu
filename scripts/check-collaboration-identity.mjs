@@ -101,6 +101,45 @@ const mergedAgain = await store.mergeGuestCollaborationEvents({
 assert.deepEqual(mergedAgain.map((event) => event.id), merged.map((event) => event.id), "merge must be idempotent");
 assert.equal(mergedAgain[0].createdAt, firstGuestEvent.createdAt);
 
+const eventCountBeforeMergedRetry = store.data.collaborationEvents.length;
+const mergedGuestRetry = await store.recordCollaborationEvent({
+  householdId: household.id,
+  requestType: "crave",
+  requestId: "crave-request-a",
+  participantType: "guest",
+  participantId: "guest-a",
+  actionType: "crave_vote",
+  payload: { feelingTag: "想吃点热的", dishWish: "番茄鸡蛋面", note: "登录后仍想加青菜" },
+});
+assert.equal(mergedGuestRetry.id, firstGuestEvent.id, "a merged guest retry must retain the original event id");
+assert.equal(mergedGuestRetry.createdAt, firstGuestEvent.createdAt, "a merged guest retry must retain original createdAt");
+assert.equal(mergedGuestRetry.participantType, "user", "a merged guest retry must not revert to guest identity");
+assert.equal(mergedGuestRetry.participantId, owner.id);
+assert.deepEqual(mergedGuestRetry.payload, { feelingTag: "想吃点热的", dishWish: "番茄鸡蛋面", note: "登录后仍想加青菜" });
+assert.equal(store.data.collaborationEvents.length, eventCountBeforeMergedRetry, "a merged guest retry must not add history");
+const mergeAfterGuestRetry = await store.mergeGuestCollaborationEvents({
+  requestType: "crave",
+  requestId: "crave-request-a",
+  guestParticipantId: "guest-a",
+  user: owner,
+});
+assert.deepEqual(mergeAfterGuestRetry.map((event) => event.id), [firstGuestEvent.id]);
+assert.equal(mergeAfterGuestRetry[0].createdAt, firstGuestEvent.createdAt);
+assert.deepEqual(mergeAfterGuestRetry[0].payload, mergedGuestRetry.payload);
+const anotherUser = await store.findOrCreateWechatUser({ openid: "collaboration-another-user", unionid: null });
+const attemptedTakeover = await store.mergeGuestCollaborationEvents({
+  requestType: "crave",
+  requestId: "crave-request-a",
+  guestParticipantId: "guest-a",
+  user: anotherUser,
+});
+assert.deepEqual(attemptedTakeover, [], "another user must not claim an already merged guest event");
+assert.equal(
+  store.data.collaborationEvents.find((event) => event.id === firstGuestEvent.id)?.participantId,
+  owner.id,
+  "an attempted merge takeover must leave the original user identity intact",
+);
+
 const guestAfterMerge = await store.recordCollaborationEvent({
   householdId: household.id,
   requestType: "crave",
