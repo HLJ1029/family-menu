@@ -924,6 +924,51 @@ try {
     assert(String(error.message).startsWith("402 "), "exhausted precise explanation should return 402");
   }
 
+  const renamedHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { name: "改名后的测试家" },
+  });
+  assertHouseholdEnvelope(renamedHousehold, "owner household rename");
+  assert.equal(renamedHousehold.family?.name, "改名后的测试家", "owner should rename the household");
+
+  await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: { name: "成员不能改名" },
+  }, 403, "forbidden");
+
+  await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}/members/${login.user.id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  }, 409, "owner_cannot_be_removed");
+
+  const removedMember = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/members/${collaborationGuest.user.id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertHouseholdEnvelope(removedMember, "owner member removal");
+  assert(
+    !removedMember.family?.members?.some((member) => member.memberId === collaborationGuest.user.id),
+    "owner should remove another household member",
+  );
+
+  const transferredHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: { memberId: memberLogin.user.id },
+  });
+  assertHouseholdEnvelope(transferredHousehold, "household ownership transfer");
+  assert.equal(transferredHousehold.family?.ownerId, memberLogin.user.id, "ownership should transfer to the member");
+
+  const leftHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/leave`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertHouseholdEnvelope(leftHousehold, "former owner household leave");
+  assert("state" in leftHousehold, "leaving should return the new active household state");
+  assert.equal(leftHousehold.family?.id, secondHousehold.family.id, "former owner should switch to another active household");
+
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -1004,4 +1049,9 @@ async function assertRejectedRequest(url, options, expectedStatus, expectedCode)
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
+}
+
+function assertHouseholdEnvelope(response, label) {
+  assert("family" in response, `${label} should return family`);
+  assert(Array.isArray(response.households), `${label} should return households`);
 }

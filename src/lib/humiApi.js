@@ -77,6 +77,30 @@ export async function switchHumiHousehold(session, householdId) {
   });
 }
 
+export function updateHumiHousehold(session, householdId, patch) {
+  return humiApiRequest(`/households/${encodeURIComponent(householdId)}`, {
+    method: "PATCH", session, body: patch,
+  });
+}
+
+export function removeHumiHouseholdMember(session, householdId, memberId) {
+  return humiApiRequest(`/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}`, {
+    method: "DELETE", session,
+  });
+}
+
+export function transferHumiHouseholdOwnership(session, householdId, memberId) {
+  return humiApiRequest(`/households/${encodeURIComponent(householdId)}/owner`, {
+    method: "POST", session, body: { memberId },
+  });
+}
+
+export function leaveHumiHousehold(session, householdId) {
+  return humiApiRequest(`/households/${encodeURIComponent(householdId)}/leave`, {
+    method: "POST", session,
+  });
+}
+
 export async function createHouseholdInvite(session, payload) {
   return humiApiRequest("/household-invites", {
     method: "POST",

@@ -43,6 +43,15 @@ if (!config.sessionSecret) {
 
 const store = new HumiStore(config.dataFile);
 
+const householdStatus = {
+  household_not_found: 404,
+  forbidden: 403,
+  household_name_required: 400,
+  member_not_found: 404,
+  owner_cannot_be_removed: 409,
+  owner_must_transfer_or_disband: 409,
+};
+
 export function createHumiApiServer() {
   return http.createServer(async (request, response) => {
     try {
@@ -127,6 +136,30 @@ export function createHumiApiServer() {
 
       if (request.method === "POST" && url.pathname === "/households/active") {
         await handleSetActiveHousehold(request, response);
+        return;
+      }
+
+      const householdMemberMatch = url.pathname.match(/^\/households\/([^/]+)\/members\/([^/]+)$/);
+      if (request.method === "DELETE" && householdMemberMatch) {
+        await handleRemoveHouseholdMember(request, response, householdMemberMatch[1], householdMemberMatch[2]);
+        return;
+      }
+
+      const householdOwnerMatch = url.pathname.match(/^\/households\/([^/]+)\/owner$/);
+      if (request.method === "POST" && householdOwnerMatch) {
+        await handleTransferHouseholdOwnership(request, response, householdOwnerMatch[1]);
+        return;
+      }
+
+      const householdLeaveMatch = url.pathname.match(/^\/households\/([^/]+)\/leave$/);
+      if (request.method === "POST" && householdLeaveMatch) {
+        await handleLeaveHousehold(request, response, householdLeaveMatch[1]);
+        return;
+      }
+
+      const householdMatch = url.pathname.match(/^\/households\/([^/]+)$/);
+      if (request.method === "PATCH" && householdMatch) {
+        await handleUpdateHousehold(request, response, householdMatch[1]);
         return;
       }
 
@@ -523,6 +556,73 @@ async function handleSetActiveHousehold(request, response) {
     }
     throw error;
   }
+}
+
+async function handleUpdateHousehold(request, response, householdId) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    await store.updateHousehold(user.id, householdId, { name: body.name });
+    await sendHouseholdMutationResult(response, user);
+  } catch (error) {
+    throw mapHouseholdError(error);
+  }
+}
+
+async function handleRemoveHouseholdMember(request, response, householdId, memberId) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  try {
+    await store.removeHouseholdMember(user.id, householdId, memberId);
+    await sendHouseholdMutationResult(response, user);
+  } catch (error) {
+    throw mapHouseholdError(error);
+  }
+}
+
+async function handleTransferHouseholdOwnership(request, response, householdId) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request);
+  try {
+    await store.transferHouseholdOwnership(user.id, householdId, stringValue(body.memberId, 80));
+    await sendHouseholdMutationResult(response, user);
+  } catch (error) {
+    throw mapHouseholdError(error);
+  }
+}
+
+async function handleLeaveHousehold(request, response, householdId) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  try {
+    await store.leaveHousehold(user.id, householdId);
+    await sendHouseholdMutationResult(response, user, { includeState: true });
+  } catch (error) {
+    throw mapHouseholdError(error);
+  }
+}
+
+async function sendHouseholdMutationResult(response, user, { includeState = false } = {}) {
+  const household = await store.getHouseholdForUser(user.id);
+  const households = await store.getHouseholdsForUser(user.id);
+  const payload = {
+    family: toHumiFamily(household, user),
+    households: toHumiFamilies(households, user),
+  };
+  if (includeState) payload.state = await store.getState(user.id);
+  sendJson(response, 200, payload);
+}
+
+function mapHouseholdError(error) {
+  const code = error.code === "household_member_not_found" ? "member_not_found" : error.code;
+  const status = householdStatus[code];
+  return status ? httpError(status, code, error.message) : error;
 }
 
 async function handleCreateHouseholdInvite(request, response) {
@@ -1641,7 +1741,7 @@ function applyCors(request, response) {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
   }
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 }
 

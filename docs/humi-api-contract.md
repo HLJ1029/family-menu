@@ -188,6 +188,28 @@ Authorization: Bearer <accessToken>
 - 邀请页提交想吃时携带本机 `participantKey`；正式加入同一个家后，该条目归并到微信成员身份。
 - 用户主动维护的信息只保留忌口/过敏等硬约束；软口味与营养回看由感觉征集、想吃和确认做饭等行为形成，不要求填写设置表。
 
+### 家庭生命周期
+
+以下接口均要求 `Authorization: Bearer <accessToken>`；服务端始终从会话中识别操作者，不能在请求体中指定 acting user ID。
+
+- `PATCH /households/:householdId`，请求体 `{ "name": "新家庭名称" }`：仅 `owner` 可改名。
+- `DELETE /households/:householdId/members/:memberId`：仅 `owner` 可移除正式成员，且不能移除当前 owner。
+- `POST /households/:householdId/owner`，请求体 `{ "memberId": "正式成员 ID" }`：仅 `owner` 可把 owner 身份转给同一家庭的正式成员。
+- `POST /households/:householdId/leave`：当前成员退出家庭；owner 在仍有其他正式成员时必须先转让 owner。
+
+以上成功响应都包含 `{ family, households }`。退出接口还包含当前新 active 家庭的 `{ state }`。改名、移除成员、转让 owner 和从多成员家庭退出都不会改写该家庭的共享菜单、计划、清单或协作状态；退出后只切换退出者的 active 家庭。只有最后一位 owner 主动退出、使家庭为空时，服务端才可以清理该空家庭及其状态。
+
+家庭生命周期的业务错误码：
+
+| HTTP | 错误码 | 含义 |
+| --- | --- | --- |
+| 404 | `household_not_found` | 当前用户没有该家庭，或家庭不存在。 |
+| 403 | `forbidden` | 非 owner 尝试管理家庭。 |
+| 400 | `household_name_required` | 家庭名称为空或无效。 |
+| 404 | `member_not_found` | 指定的新 owner 或待移除成员不是该家庭的正式成员。 |
+| 409 | `owner_cannot_be_removed` | 不能通过成员移除接口删除 owner。 |
+| 409 | `owner_must_transfer_or_disband` | owner 离开前仍有其他正式成员，必须先转让或解散。 |
+
 ## 感觉征集
 
 `POST /crave-requests`
