@@ -1,6 +1,6 @@
 # Humi 产品与后端架构说明 V1（历史审计快照）
 
-> **状态（2026-07-19）**：本文保留 2026-06-29 的迁移前诊断，不能再作为当前运行时事实来源。当前正式前端入口、微信身份、家庭状态、AI 推荐/解释和产品事件均只走自建 Humi API；候选构建中没有 `supabase.co`、`@supabase` 或 `VITE_SUPABASE`。仓库里尚未物理删除的 Supabase 孤立源码、依赖、provider 数据和 Secrets，将在身份/家庭迁移稳定后的 Phase 4 清退。当前合同与交付边界以 `docs/humi-api-contract.md`、`docs/humi-wechat-identity-phase-1-design.md` 和 `docs/humi-wechat-identity-phase-1-delivery.md` 为准。
+> **状态（2026-07-19）**：本文保留 2026-06-29 的迁移前诊断，不能再作为当前运行时事实来源。当前正式前端入口、微信身份、家庭状态、AI 推荐/解释和产品事件均只走自建 Humi API；候选构建中没有 `supabase.co`、`@supabase` 或 `VITE_SUPABASE`。仓库里尚未物理删除的 Supabase 孤立源码、依赖、provider 数据和 Secrets，将在身份/家庭迁移稳定后的 Phase 4 清退。当前合同与交付边界以 `docs/humi-api-contract.md`、`docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md` 和 `docs/humi-wechat-identity-phase-1-delivery.md` 为准。
 
 > 编写日期：2026-06-29
 > 文档目的：保留“彻底自建后端”决策形成时的历史依据。代码现状部分是 2026-06-29 对当时 `main` 分支的逐文件核对，不代表 2026-07-19 候选分支现状。
