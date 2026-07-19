@@ -562,7 +562,7 @@ async function handleUpdateHousehold(request, response, householdId) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const body = await readJson(request);
+  const body = (await readJson(request)) ?? {};
   try {
     await store.updateHousehold(user.id, householdId, { name: body.name });
     await sendHouseholdMutationResult(response, user);
@@ -587,7 +587,7 @@ async function handleTransferHouseholdOwnership(request, response, householdId) 
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const body = await readJson(request);
+  const body = (await readJson(request)) ?? {};
   try {
     await store.transferHouseholdOwnership(user.id, householdId, stringValue(body.memberId, 80));
     await sendHouseholdMutationResult(response, user);

@@ -934,6 +934,12 @@ try {
 
   await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}`, {
     method: "PATCH",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: null,
+  }, 400, "household_name_required");
+
+  await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}`, {
+    method: "PATCH",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
     body: { name: "成员不能改名" },
   }, 403, "forbidden");
@@ -952,6 +958,12 @@ try {
     !removedMember.family?.members?.some((member) => member.memberId === collaborationGuest.user.id),
     "owner should remove another household member",
   );
+
+  await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: null,
+  }, 404, "member_not_found");
 
   const transferredHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
     method: "POST",
@@ -1045,7 +1057,7 @@ async function assertRejectedRequest(url, options, expectedStatus, expectedCode)
   const response = await rawRequest(url, {
     ...options,
     headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
-    body: JSON.stringify(options.body ?? {}),
+    body: JSON.stringify(Object.hasOwn(options, "body") ? options.body : {}),
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
