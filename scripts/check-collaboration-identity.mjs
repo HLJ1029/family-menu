@@ -395,6 +395,84 @@ const recoveredDisk = JSON.parse(await readFile(concurrentFile, "utf8"));
 assert.deepEqual(recoveredDisk.craveRequests, persistedShape(concurrentStore.data.craveRequests), "post-failure business memory and file state must agree");
 assert.deepEqual(recoveredDisk.collaborationEvents, persistedShape(concurrentStore.data.collaborationEvents), "post-failure event memory and file state must agree");
 
+for (let round = 1; round <= 10; round += 1) {
+  const crossQueueDirectory = await mkdtemp(join(tmpdir(), "humi-collaboration-cross-queue-"));
+  const crossQueueFile = join(crossQueueDirectory, "data.json");
+  const crossQueueStore = new HumiStore(crossQueueFile);
+  const grocery = await crossQueueStore.createGroceryShareRequest({
+    householdName: "跨队列家",
+    items: [{ id: "rice", name: "大米", amount: "1 袋" }],
+  });
+  const originalCrossQueueFlush = crossQueueStore.flushToDisk.bind(crossQueueStore);
+  let releaseFailedFlush;
+  let markFailedFlushStarted;
+  const failedFlushMayContinue = new Promise((resolve) => { releaseFailedFlush = resolve; });
+  const failedFlushStarted = new Promise((resolve) => { markFailedFlushStarted = resolve; });
+  let crossQueueFlushCount = 0;
+  crossQueueStore.flushToDisk = async () => {
+    crossQueueFlushCount += 1;
+    if (crossQueueFlushCount === 1) {
+      markFailedFlushStarted();
+      await failedFlushMayContinue;
+      throw new Error(`cross-queue round ${round} injected flush failure`);
+    }
+    return originalCrossQueueFlush();
+  };
+
+  const failedTransaction = crossQueueStore.addGroceryShareClaim(
+    grocery.token,
+    { itemIds: ["rice"] },
+    { type: "guest", id: `cross-queue-grocery-${round}` },
+  );
+  await failedFlushStarted;
+  const successfulOrdinaryWrite = crossQueueStore.createWishShareRequest({ householdName: "跨队列家" });
+  releaseFailedFlush();
+  const [failedTransactionOutcome, ordinaryWriteOutcome] = await Promise.allSettled([
+    failedTransaction,
+    successfulOrdinaryWrite,
+  ]);
+  assert.equal(failedTransactionOutcome.status, "rejected", `cross-queue round ${round}: A must reject`);
+  assert.match(failedTransactionOutcome.reason?.message || "", /injected flush failure/);
+  assert.equal(ordinaryWriteOutcome.status, "fulfilled", `cross-queue round ${round}: B must fulfill`);
+  assert.equal(crossQueueFlushCount, 2, `cross-queue round ${round}: A and B must each flush once`);
+  assert.equal(crossQueueStore.data.groceryShareRequests.find((request) => request.id === grocery.id)?.claims.length, 0, `cross-queue round ${round}: failed A must leave zero grocery claims`);
+  assert.equal(crossQueueStore.data.wishShareRequests.length, 1, `cross-queue round ${round}: successful B must leave one wish request`);
+  const crossQueueDisk = JSON.parse(await readFile(crossQueueFile, "utf8"));
+  assert.deepEqual(crossQueueDisk.groceryShareRequests, persistedShape(crossQueueStore.data.groceryShareRequests), `cross-queue round ${round}: grocery memory and file must agree`);
+  assert.deepEqual(crossQueueDisk.wishShareRequests, persistedShape(crossQueueStore.data.wishShareRequests), `cross-queue round ${round}: wish memory and file must agree`);
+
+  crossQueueStore.flushToDisk = originalCrossQueueFlush;
+  await crossQueueStore.createWishShareRequest({ householdName: "跨队列家" });
+  await crossQueueStore.addCraveVote(
+    (await crossQueueStore.createCraveRequest({ householdName: "跨队列家" })).token,
+    { feelingTag: "热的" },
+    { type: "guest", id: `cross-queue-post-failure-${round}` },
+  );
+  const postFailureDisk = JSON.parse(await readFile(crossQueueFile, "utf8"));
+  assert.deepEqual(postFailureDisk, persistedShape(crossQueueStore.data), `cross-queue round ${round}: later ordinary and transaction writes must remain durable`);
+}
+
+await assertOrdinaryWriterSurvivesFailedTransaction("create-household", async (store, round) => {
+  const user = await store.findOrCreateWechatUser({ openid: `cross-queue-household-${round}` });
+  return {
+    write: () => store.createHouseholdForUser(user.id, { householdName: `并发新家 ${round}` }),
+    assertPersisted: () => {
+      assert.equal(store.data.households.filter((household) => household.ownerId === user.id).length, 1, `create-household round ${round}: B must retain its new household`);
+    },
+  };
+});
+
+await assertOrdinaryWriterSurvivesFailedTransaction("save-state", async (store, round) => {
+  const user = await store.findOrCreateWechatUser({ openid: `cross-queue-state-${round}` });
+  const household = await store.createHouseholdForUser(user.id, { householdName: `状态家 ${round}` });
+  return {
+    write: () => store.saveState(user.id, { todayMenu: [{ recipeId: "tomato-egg", quantity: 1 }] }, household.id),
+    assertPersisted: () => {
+      assert.equal(store.data.householdStates[household.id]?.todayMenu?.[0]?.recipeId, "tomato-egg", `save-state round ${round}: B must retain its household state`);
+    },
+  };
+});
+
 const expiredRead = await atomicStore.createCraveRequest({ deadlineAt: new Date(Date.now() - 60_000).toISOString() });
 const expiredReadBeforeMemory = structuredClone(atomicStore.data);
 const expiredReadBeforeBytes = await readFile(atomicFile, "utf8");
@@ -406,3 +484,47 @@ await atomicStore.getCraveRequest(expiredRead.token);
 assert.equal(await readFile(atomicFile, "utf8"), expiredReadBeforeBytes, "repeated expired public Crave reads must remain zero-write");
 
 console.log("Collaboration identity checks passed.");
+
+async function assertOrdinaryWriterSurvivesFailedTransaction(label, setupWriter) {
+  for (let round = 1; round <= 10; round += 1) {
+    const directory = await mkdtemp(join(tmpdir(), `humi-collaboration-${label}-`));
+    const file = join(directory, "data.json");
+    const store = new HumiStore(file);
+    const writer = await setupWriter(store, round);
+    const grocery = await store.createGroceryShareRequest({
+      householdName: "跨队列家",
+      items: [{ id: "rice", name: "大米", amount: "1 袋" }],
+    });
+    const originalFlush = store.flushToDisk.bind(store);
+    let releaseFailedFlush;
+    let markFailedFlushStarted;
+    const failedFlushMayContinue = new Promise((resolve) => { releaseFailedFlush = resolve; });
+    const failedFlushStarted = new Promise((resolve) => { markFailedFlushStarted = resolve; });
+    let flushCount = 0;
+    store.flushToDisk = async () => {
+      flushCount += 1;
+      if (flushCount === 1) {
+        markFailedFlushStarted();
+        await failedFlushMayContinue;
+        throw new Error(`${label} round ${round} injected flush failure`);
+      }
+      return originalFlush();
+    };
+    const failedTransaction = store.addGroceryShareClaim(
+      grocery.token,
+      { itemIds: ["rice"] },
+      { type: "guest", id: `${label}-grocery-${round}` },
+    );
+    await failedFlushStarted;
+    const ordinaryWrite = writer.write();
+    releaseFailedFlush();
+    const [transactionOutcome, ordinaryOutcome] = await Promise.allSettled([failedTransaction, ordinaryWrite]);
+    assert.equal(transactionOutcome.status, "rejected", `${label} round ${round}: A must reject`);
+    assert.match(transactionOutcome.reason?.message || "", /injected flush failure/);
+    assert.equal(ordinaryOutcome.status, "fulfilled", `${label} round ${round}: B must fulfill`);
+    assert.equal(flushCount, 2, `${label} round ${round}: A and B must each flush once`);
+    assert.equal(store.data.groceryShareRequests.find((request) => request.id === grocery.id)?.claims.length, 0, `${label} round ${round}: failed A must leave zero grocery claims`);
+    writer.assertPersisted();
+    assert.deepEqual(JSON.parse(await readFile(file, "utf8")), persistedShape(store.data), `${label} round ${round}: memory and file must agree`);
+  }
+}

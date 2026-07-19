@@ -40,7 +40,8 @@ export class HumiStore {
     this.loaded = false;
   }
 
-  async load() {
+  async load({ waitForTransaction = true } = {}) {
+    if (waitForTransaction && this.transactionQueue) await this.transactionQueue;
     if (this.loaded) return;
     try {
       const raw = await readFile(this.filePath, "utf8");
@@ -70,7 +71,9 @@ export class HumiStore {
   }
 
   async mutateAndSave(mutation) {
+    const pendingSaves = (this.saveQueue ?? Promise.resolve()).then(() => undefined, () => undefined);
     const run = async () => {
+      await pendingSaves;
       const snapshot = structuredClone(this.data);
       try {
         const result = await mutation();
@@ -742,7 +745,7 @@ export class HumiStore {
   }
 
   async recordCollaborationEvent(input = {}, { persist = true } = {}) {
-    await this.load();
+    await this.load({ waitForTransaction: persist });
     if (persist) return this.mutateAndSave(() => this.recordCollaborationEvent(input, { persist: false }));
     const requestType = sanitizeCollaborationRequestType(input.requestType);
     const requestId = sanitizeText(input.requestId, "", 100);
@@ -807,7 +810,7 @@ export class HumiStore {
   }
 
   async mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user } = {}, { persist = true } = {}) {
-    await this.load();
+    await this.load({ waitForTransaction: persist });
     if (persist) return this.mutateAndSave(() => this.mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user }, { persist: false }));
     const normalizedRequestType = sanitizeCollaborationRequestType(requestType);
     const normalizedRequestId = sanitizeText(requestId, "", 100);
