@@ -47,7 +47,7 @@ try {
       accessToken: "product-smoke-owner-token",
       refreshToken: "product-smoke-owner-token",
       expiresAt: Date.now() + 60_000,
-      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete" },
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E", phoneVerified: true, phoneMasked: "138****8000" },
     }));
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -443,6 +443,8 @@ try {
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
+  const familyManagementPages = await verifyFamilyManagementPages(browser, baseUrl, evidenceDir);
+  const multiHouseholdSwitch = await verifyMultiHouseholdSwitch(browser, baseUrl, evidenceDir);
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const soloOwnerFlow = await verifySoloOwnerFlow(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
@@ -530,7 +532,22 @@ try {
     { key: "living-room-wish-share-opens-native-share-page", ok: ownerCollaborationShares.wishShareOpened, actual: ownerCollaborationShares.nativeShareTypeCounts },
     { key: "owner-collaboration-native-share-actions-dispatch-once", ok: ownerCollaborationShares.shareActionsDispatchOnce, actual: ownerCollaborationShares.nativeShareTypeCounts },
     { key: "owner-collaboration-share-page-errors", ok: ownerCollaborationShares.pageErrors.length === 0, errors: ownerCollaborationShares.pageErrors },
+    { key: "family-management-pages-open-from-living-room", ok: familyManagementPages.allPagesOpened, actual: familyManagementPages.openedPages },
+    { key: "family-management-pages-return-to-living-room", ok: familyManagementPages.allPagesReturn, actual: familyManagementPages.returnedPages },
+    { key: "family-management-child-pages-keep-five-primary-tabs", ok: familyManagementPages.allPagesKeepTabs, actual: familyManagementPages.primaryTabCounts },
+    { key: "household-members-shows-owner-controls", ok: familyManagementPages.ownerControlsVisible, actual: familyManagementPages.ownerControls },
+    { key: "household-settings-owner-manages-family-constraints", ok: familyManagementPages.ownerConstraintsVisible, actual: familyManagementPages.ownerConstraintsVisible },
+    { key: "humi-account-exposes-mobile-account-basics", ok: familyManagementPages.accountBasicsVisible, actual: familyManagementPages.accountText },
+    { key: "humi-account-renders-truthful-profile-data", ok: familyManagementPages.accountDataTruthful, actual: familyManagementPages.accountText },
+    { key: "household-members-render-member-avatars", ok: familyManagementPages.memberAvatarsRendered },
+    { key: "household-lifecycle-metadata-preserves-current-state", ok: familyManagementPages.lifecycleMetadataPreservesCurrentState, actual: familyManagementPages.lifecycleMetadataPreservesCurrentState },
+    { key: "nutrition-reflection-is-available-in-current-ui", ok: familyManagementPages.nutritionReachable },
+    { key: "multi-household-switches-from-household-settings", ok: multiHouseholdSwitch.switchRequested && multiHouseholdSwitch.activeHeadingUpdated && multiHouseholdSwitch.menuLoaded && multiHouseholdSwitch.menuVisible, actual: multiHouseholdSwitch },
+    { key: "multi-household-page-errors", ok: multiHouseholdSwitch.pageErrors.length === 0, errors: multiHouseholdSwitch.pageErrors },
     { key: "member-cannot-invite-from-family-living-room", ok: memberBoundary.memberHasNoInviteAction, actual: memberBoundary },
+    { key: "member-cannot-manage-household-members", ok: memberBoundary.memberManagementControlsHidden, actual: memberBoundary.memberManagementControls },
+    { key: "member-sees-readonly-family-constraints", ok: memberBoundary.memberConstraintsReadonly, actual: memberBoundary.memberConstraintsText },
+    { key: "member-cannot-invite-family-wishes", ok: memberBoundary.memberHasNoWishInviteAction, actual: memberBoundary.memberHasNoWishInviteAction },
     { key: "living-room-internal-actions-keep-primary-tab", ok: memberBoundary.internalActionKeepsPrimaryTab, actual: memberBoundary },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
@@ -572,6 +589,8 @@ try {
       groceryMobile: groceryScreenshot,
       groceryPosterPreviewMobile: groceryPosterPreviewScreenshot,
       familyLivingRoomMobile: familyLivingRoomScreenshot,
+      familyManagementMobile: familyManagementPages.screenshot,
+      multiHouseholdMobile: multiHouseholdSwitch.screenshot,
       householdStartMobile: noHouseholdStart.screenshot,
       plannerMobile: plannerScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
@@ -750,8 +769,8 @@ function buildSmokeFamily() {
     currentMemberId: "product-smoke-owner",
     role: "owner",
     members: [
-      { memberId: "product-smoke-owner", nickname: "主厨", role: "owner", status: "formal" },
-      { memberId: "product-smoke-member", nickname: "家人小林", role: "member", status: "formal" },
+      { memberId: "product-smoke-owner", nickname: "主厨", role: "owner", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" },
+      { memberId: "product-smoke-member", nickname: "家人小林", role: "member", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" },
     ],
   };
 }
@@ -1123,6 +1142,128 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
   };
 }
 
+async function verifyFamilyManagementPages(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  const family = buildSmokeFamily();
+  const state = buildSmokeHouseholdState();
+  let lifecycleMetadataRequest = false;
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "family-management-owner-token",
+      refreshToken: "family-management-owner-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "product-smoke-owner", displayName: "主厨", provider: "wechat", profileStatus: "complete", avatarUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E", phoneVerified: true, phoneMasked: "138****8000" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? state, family, households: [family] });
+      return;
+    }
+    await fulfillJson(route, { state, family, households: [family] });
+  });
+  await page.route("**/households/product-smoke-family", async (route) => {
+    lifecycleMetadataRequest = route.request().method() === "PATCH";
+    const renamedFamily = { ...family, name: route.request().postDataJSON()?.name || family.name };
+    await fulfillJson(route, { family: renamedFamily, households: [renamedFamily] });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
+  const pages = [
+    { action: "成员管理", testId: "household-members-page" },
+    { action: "家庭设置", testId: "household-settings-page" },
+    { action: "协作记录", testId: "family-activity-page" },
+    { action: "账号设置", testId: "humi-account-page" },
+  ];
+  const openedPages = {};
+  const returnedPages = {};
+  const primaryTabCounts = {};
+  for (const item of pages) {
+    await page.getByRole("button", { name: new RegExp(`^${item.action}`) }).click();
+    const child = page.getByTestId(item.testId);
+    await child.waitFor({ state: "visible", timeout: 15_000 });
+    openedPages[item.testId] = await child.isVisible();
+    primaryTabCounts[item.testId] = await page.getByTestId("mobile-primary-navigation").getByRole("button").count();
+    await child.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+    await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
+    returnedPages[item.testId] = true;
+  }
+  await page.getByRole("button", { name: /^成员管理/ }).click();
+  const membersPage = page.getByTestId("household-members-page");
+  const ownerControls = {
+    invite: await membersPage.getByRole("button", { name: "邀请家人", exact: true }).count() === 1,
+    remove: await membersPage.getByRole("button", { name: "移除成员", exact: true }).count() === 1,
+    transfer: await membersPage.getByRole("button", { name: "转让主厨", exact: true }).count() === 1,
+  };
+  const memberAvatarsRendered = await membersPage.getByRole("img").count() === family.members.length;
+  await membersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  await page.getByRole("button", { name: /^家庭设置/ }).click();
+  const settingsPage = page.getByTestId("household-settings-page");
+  const ownerConstraintsVisible = await settingsPage.getByTestId("family-constraints-editor").isVisible();
+  await settingsPage.getByLabel("家庭名称").fill("改名后的我家");
+  await settingsPage.getByRole("button", { name: "重命名家庭", exact: true }).click();
+  await settingsPage.locator("h2").filter({ hasText: "改名后的我家" }).waitFor({ timeout: 15_000 });
+  const lifecycleMetadataPreservesCurrentState = lifecycleMetadataRequest && await page.evaluate(() => {
+    const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const plan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    return menu.some((item) => item.recipeId === "tomato-egg")
+      && Object.values(plan).some((day) => day?.dinner?.some((item) => item.recipeId === "tomato-egg"));
+  });
+  await settingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  await page.getByRole("button", { name: /^账号设置/ }).click();
+  const accountPage = page.getByTestId("humi-account-page");
+  const accountText = await accountPage.innerText();
+  const accountBasicsVisible = ["手机号", "退出登录", "隐私政策", "用户协议"].every((text) => accountText.includes(text));
+  const accountDataTruthful = accountText.includes("138****8000")
+    && await accountPage.getByRole("img", { name: "主厨的头像" }).count() === 1
+    && await accountPage.getByRole("link", { name: "隐私政策" }).getAttribute("href") === "/privacy.html"
+    && await accountPage.getByRole("link", { name: "用户协议" }).getAttribute("href") === "/terms.html";
+  await accountPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  await page.getByTestId("mobile-nav-dashboard").click();
+  await page.getByRole("button", { name: "点外卖", exact: true }).click();
+  await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
+  const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
+  await page.getByTestId("mobile-nav-user").click();
+  const screenshot = join(evidenceDir, "family-management-mobile.png");
+  await page.getByTestId("family-living-room").screenshot({ path: screenshot });
+  await context.close();
+  return {
+    allPagesOpened: Object.values(openedPages).every(Boolean),
+    allPagesReturn: Object.values(returnedPages).every(Boolean),
+    allPagesKeepTabs: Object.values(primaryTabCounts).every((count) => count === 5),
+    openedPages,
+    returnedPages,
+    primaryTabCounts,
+    ownerControls,
+    ownerControlsVisible: Object.values(ownerControls).every(Boolean),
+    memberAvatarsRendered,
+    ownerConstraintsVisible,
+    lifecycleMetadataPreservesCurrentState,
+    accountBasicsVisible,
+    accountDataTruthful,
+    accountText,
+    nutritionReachable,
+    pageErrors,
+    screenshot,
+  };
+}
+
 async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -1180,6 +1321,7 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
 
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByTestId("mobile-nav-user").click();
+  await page.getByRole("button", { name: /^家庭设置/ }).click();
   const householdSwitcher = page.getByTestId("household-switcher");
   await householdSwitcher.getByRole("heading", { name: "小家" }).waitFor({ timeout: 15_000 });
   await householdSwitcher.getByRole("button", { name: /爸妈家/ }).click();
@@ -1276,7 +1418,23 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const memberRoom = page.getByTestId("family-living-room");
   await memberRoom.waitFor({ state: "visible", timeout: 15_000 });
   const memberHasNoInviteAction = await memberRoom.getByRole("button", { name: "邀请家人", exact: true }).count() === 0;
+  const memberHasNoWishInviteAction = await memberRoom.getByRole("button", { name: "邀请家人写想吃", exact: true }).count() === 0;
   await memberRoom.getByRole("button", { name: /^成员管理/ }).click();
+  const memberMembersPage = page.getByTestId("household-members-page");
+  await memberMembersPage.waitFor({ state: "visible", timeout: 15_000 });
+  const memberManagementControls = {
+    invite: await memberMembersPage.getByRole("button", { name: "邀请家人", exact: true }).count(),
+    remove: await memberMembersPage.getByRole("button", { name: "移除成员", exact: true }).count(),
+    transfer: await memberMembersPage.getByRole("button", { name: "转让主厨", exact: true }).count(),
+  };
+  const memberManagementControlsHidden = Object.values(memberManagementControls).every((count) => count === 0);
+  await memberMembersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  await memberRoom.getByRole("button", { name: /^家庭设置/ }).click();
+  const memberSettingsPage = page.getByTestId("household-settings-page");
+  const memberConstraintsText = await memberSettingsPage.innerText();
+  const memberConstraintsReadonly = memberConstraintsText.includes("主厨统一维护")
+    && await memberSettingsPage.getByTestId("family-constraints-editor").count() === 0;
+  await memberSettingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   const internalActionKeepsPrimaryTab = await page.getByTestId("mobile-nav-user").getAttribute("aria-current") === "page";
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
@@ -1311,6 +1469,11 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     menuBefore,
     menuAfter,
     memberHasNoInviteAction,
+    memberHasNoWishInviteAction,
+    memberManagementControls,
+    memberManagementControlsHidden,
+    memberConstraintsText,
+    memberConstraintsReadonly,
     internalActionKeepsPrimaryTab,
     memberDashboardAskButtons,
     memberMealEditingButtons,

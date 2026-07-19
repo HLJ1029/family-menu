@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
 import { FamilyLivingRoom } from "./FamilyLivingRoom";
+import { FamilyActivityPage } from "./FamilyActivityPage";
+import { HumiAccountPage } from "./HumiAccountPage";
+import { HouseholdMembersPage } from "./HouseholdMembersPage";
+import { HouseholdSettingsPage } from "./HouseholdSettingsPage";
 import { HouseholdStart } from "./HouseholdStart";
 
 export function UserCenter({
@@ -14,6 +18,14 @@ export function UserCenter({
   onCreateHouseholdInvite,
   onStartWishShare,
   canManageHousehold = true,
+  households = [],
+  onSwitchHousehold,
+  onRenameHousehold,
+  onRemoveMember,
+  onTransferOwnership,
+  onLeaveHousehold,
+  onSaveFamilyProfile,
+  mealLogs = {},
 }) {
   const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
   const [pageId, setPageId] = useState("home");
@@ -49,6 +61,20 @@ export function UserCenter({
         onOpenInvite={openInviteGuidance}
       />
     );
+  }
+
+  const commonPageProps = { onBack: () => setPageId("home") };
+  if (pageId === "members") {
+    return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={onCreateHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
+  }
+  if (pageId === "settings") {
+    return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
+  }
+  if (pageId === "activity") {
+    return <FamilyActivityPage {...commonPageProps} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />;
+  }
+  if (pageId === "account") {
+    return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} />;
   }
 
   return (

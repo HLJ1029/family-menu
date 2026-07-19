@@ -63,7 +63,7 @@ import {
 import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
-import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, subscribeHumiSessionInvalid, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
+import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, leaveHumiHousehold, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, removeHumiHouseholdMember, saveHumiState, subscribeHumiSessionInvalid, switchHumiHousehold, transferHumiHouseholdOwnership, updateHumiHousehold, uploadPosterShare } from "./lib/humiApi";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -708,9 +708,10 @@ function App() {
       role: member.role === "owner" ? "主厨" : "家人",
       status: "正式成员",
       joinedAt: member.joinedAt,
+      avatarUrl: member.avatarUrl || "",
     }));
     const state = data.state;
-    if (!state) {
+    if (!state && !status.preserveStateWhenMissing) {
       setTodayMenu([]);
       setWeekPlan(createDefaultWeekPlan());
       setMealPlan({});
@@ -734,6 +735,21 @@ function App() {
       const noFamilyStatus = "创建或加入一个家后，可以和家人同步菜单与清单。";
       setCloudSyncStatus(status.emptyMenu || (data.family ? "这个家还没有保存菜单，可以从今晚开始。" : noFamilyStatus));
       setCloudGroceryStatus(status.emptyGrocery || (data.family ? "这个家还没有保存清单。安排一顿后会自动生成。" : noFamilyStatus));
+      return;
+    }
+    if (!state) {
+      setHouseholdMembers((current) => (
+        status.preserveStateWhenMissing
+          ? [
+              ...formalMembers,
+              ...current.filter((member) => (
+                member?.status !== "formal"
+                && member?.status !== "正式成员"
+                && !formalMembers.some((formal) => formal.memberId && formal.memberId === member?.memberId)
+              )),
+            ]
+          : formalMembers
+      ));
       return;
     }
 
@@ -2731,6 +2747,61 @@ function App() {
     setCloudSyncStatus("请先微信登录并创建我的家。");
   }
 
+  function requireCompleteHumiHouseholdSession() {
+    if (isHumiApiSession(humiSession) && identityComplete && family?.id) return true;
+    showNotice("请先完成微信登录并进入一个家");
+    return false;
+  }
+
+  async function renameHumiHousehold(name) {
+    const nextName = String(name || "").trim();
+    if (!requireCompleteHumiHouseholdSession() || !requireHouseholdManager()) return;
+    if (!nextName) {
+      showNotice("先给这个家起个名字");
+      return;
+    }
+    try {
+      const data = await updateHumiHousehold(humiSession, family.id, { name: nextName });
+      applyHumiStateEnvelope(data, { preserveStateWhenMissing: true });
+      showNotice(`已将家庭改名为 ${data.family?.name || nextName}`);
+    } catch (error) {
+      showNotice(error.message || "家庭名称暂时没改成功");
+    }
+  }
+
+  async function removeCurrentHouseholdMember(memberId) {
+    if (!requireCompleteHumiHouseholdSession() || !requireHouseholdManager() || !memberId) return;
+    try {
+      const data = await removeHumiHouseholdMember(humiSession, family.id, memberId);
+      applyHumiStateEnvelope(data, { preserveStateWhenMissing: true });
+      showNotice("已将家人移出这个家");
+    } catch (error) {
+      showNotice(error.message || "暂时无法移除这位家人");
+    }
+  }
+
+  async function transferHumiHouseholdOwner(memberId) {
+    if (!requireCompleteHumiHouseholdSession() || !requireHouseholdManager() || !memberId) return;
+    try {
+      const data = await transferHumiHouseholdOwnership(humiSession, family.id, memberId);
+      applyHumiStateEnvelope(data, { preserveStateWhenMissing: true });
+      showNotice("主厨已转让，家庭成员信息已更新");
+    } catch (error) {
+      showNotice(error.message || "主厨暂时没转让成功");
+    }
+  }
+
+  async function leaveCurrentHumiHousehold() {
+    if (!requireCompleteHumiHouseholdSession()) return;
+    try {
+      const data = await leaveHumiHousehold(humiSession, family.id);
+      applyHumiStateEnvelope(data);
+      showNotice("已离开这个家");
+    } catch (error) {
+      showNotice(error.message || "暂时无法离开这个家");
+    }
+  }
+
   async function createAnotherHumiHousehold(name) {
     if (!isHumiApiSession(humiSession)) {
       showNotice("请先在小程序里登录 Humi");
@@ -3556,6 +3627,11 @@ function App() {
                 activeHouseholdInvite={activeHouseholdInvite}
                 onCreateHousehold={createAnotherHumiHousehold}
                 onSwitchHousehold={switchActiveHumiHousehold}
+                onRenameHousehold={renameHumiHousehold}
+                onRemoveMember={removeCurrentHouseholdMember}
+                onTransferOwnership={transferHumiHouseholdOwner}
+                onLeaveHousehold={leaveCurrentHumiHousehold}
+                onSaveFamilyProfile={saveFamilyProfile}
                 onCreateHouseholdInvite={createFamilyInviteCard}
                 onShareHouseholdInvite={() => shareHouseholdInvite()}
                 onAcceptPendingJoin={() => acceptPendingJoinAsMember()}
