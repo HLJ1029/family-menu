@@ -167,25 +167,25 @@ git commit -m "feat: record collaboration actions with canonical identity"
   - `clearGuestParticipantId(requestType, token) -> void`
   - authenticated submit functions accept optional `session` and set Authorization.
 
-- [ ] **Step 1: Add failing landing smoke checks**
+- [x] **Step 1: Add failing landing smoke checks**
 
 Assert all three guest first screens have no input whose placeholder contains `称呼`, `姓名`, `关系`; submitting still succeeds. Network bodies contain `guestParticipantId` and no `memberName`. Two tokens must receive different local IDs.
 
 Seed a complete Humi session and assert Authorization is sent; request body does not contain a client-chosen formal user ID/name/avatar.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run collaboration smoke against local Vite; expected failure on existing optional name inputs.
 
-- [ ] **Step 3: Implement request-scoped storage**
+- [x] **Step 3: Implement request-scoped storage**
 
 Use key `humi:collaboration-guest:${requestType}:${token}`. Generate with `crypto.randomUUID()` when available and a non-identifying random fallback. The helper is called only inside submit handlers, never during render/effect/GET.
 
-- [ ] **Step 4: Remove identity inputs and pass session**
+- [x] **Step 4: Remove identity inputs and pass session**
 
 Landings keep only business-specific optional notes. `main.jsx` passes `humiSession` to each landing. Guest success copy uses server-returned alias; signed-in copy uses returned Humi name. Joining a household remains a separate explicit button.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4173/

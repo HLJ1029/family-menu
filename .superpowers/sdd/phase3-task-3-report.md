@@ -31,7 +31,7 @@ Final browser evidence:
 - SHA-256: `9e7f4269956bfd799f35e6ab1ad7e9e3697890ea0ecd92f5b34ff54d61f55b86`
 - Screenshots: six private mobile captures for guest first/success states, plus invite state in the same directory.
 
-The final landing smoke verifies 18 checks, including:
+The final landing smoke verifies 20 checks, including:
 
 1. GET/render creates no request-scoped guest key.
 2. No Crave, Grocery or Wish action screen exposes identity inputs.
