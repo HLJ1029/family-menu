@@ -252,15 +252,15 @@ try {
   await dashboardLibraryEntry.click();
   await dashboardLibraryTitle.waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "打开我的家" }).click();
-  const childPageFamilyActivity = page.getByTestId("family-activity-section");
-  await childPageFamilyActivity.waitFor({ state: "visible", timeout: 15_000 });
-  const childPageAvatarOpenedFamily = await childPageFamilyActivity.isVisible();
+  const childPageFamilyRoom = page.getByTestId("family-living-room");
+  await childPageFamilyRoom.waitFor({ state: "visible", timeout: 15_000 });
+  const childPageAvatarOpenedFamily = await childPageFamilyRoom.isVisible();
   await page.getByTestId("mobile-nav-dashboard").click();
 
   await page.getByRole("button", { name: "打开我的家" }).click();
-  const dashboardFamilyActivity = page.getByTestId("family-activity-section");
-  await dashboardFamilyActivity.waitFor({ state: "visible", timeout: 15_000 });
-  const dashboardAvatarOpenedFamily = await dashboardFamilyActivity.isVisible();
+  const dashboardFamilyRoom = page.getByTestId("family-living-room");
+  await dashboardFamilyRoom.waitFor({ state: "visible", timeout: 15_000 });
+  const dashboardAvatarOpenedFamily = await dashboardFamilyRoom.isVisible();
   await page.getByRole("button", { name: "今晚", exact: true }).click();
 
   await openTodayMenu(page);
@@ -397,78 +397,34 @@ try {
   );
 
   await page.getByTestId("mobile-nav-user").click();
-  const mobileAccountSettingsVisible = await page.getByTestId("humi-account-settings").isVisible();
-  const mobileSignOutVisible = await page.getByRole("button", { name: "退出并重新验证微信登录", exact: true }).isVisible();
-  const groceryActivityVisible = await page.getByText("家人小林在买 牛奶").isVisible();
-  const dinnerActivityVisible = await page.getByText(/(?:主厨|我)(?:记下了今天吃饭|确认今晚已做饭)/).isVisible();
-  const wantActivityVisible = await page.getByText("想吃：冬瓜排骨汤").isVisible();
-  const craveStarterCollapsed = await page.getByRole("heading", { name: "今晚想问谁？" }).count() === 0;
-  const dietSettingsButton = page.getByRole("button", { name: "修改忌口" });
-  const dietSettingsVisible = await dietSettingsButton.isVisible();
-  const legacyProfileControlsHidden = await page.getByRole("button", { name: /修改家庭画像/ }).count() === 0;
-  const activityBeforeAccountSettings = await page.evaluate(() => {
-    const activity = document.querySelector('[data-testid="family-activity-section"]');
-    const account = document.querySelector('[data-testid="humi-account-settings"]');
-    if (!activity || !account) return false;
-    return Boolean(activity.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  const wantPoolBeforeAccountSettings = await page.evaluate(() => {
-    const wantPool = document.querySelector('[data-testid="want-to-eat-section"]');
-    const account = document.querySelector('[data-testid="humi-account-settings"]');
-    if (!wantPool || !account) return false;
-    return Boolean(wantPool.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  const familyActivityIntroHiddenAfterUse = await page.getByText(
-    "感觉征集、晚饭反馈和清单协作会沉淀在这里。设置放后面，需要改时再进。",
-    { exact: true },
-  ).count() === 0;
-  const familyActivityScreenshot = join(evidenceDir, "family-activity-mobile.png");
-  await page.getByTestId("family-activity-section").screenshot({ path: familyActivityScreenshot });
+  const familyLivingRoom = page.getByTestId("family-living-room");
+  await familyLivingRoom.waitFor({ state: "visible", timeout: 15_000 });
+  const familyLivingRoomText = await familyLivingRoom.innerText();
+  const familyLivingRoomLabels = [
+    "当前家庭",
+    "邀请家人",
+    "成员管理",
+    "家庭设置",
+    "正在一起做",
+    "家庭偏好",
+    "协作记录",
+    "账号设置",
+  ];
+  const familyLivingRoomHasFocusedSections = familyLivingRoomLabels.every((label) => familyLivingRoomText.includes(label));
+  const familyLivingRoomHasNoClutter = !/(?:云同步|AI|验证数据|营养目标|营养分析)/.test(familyLivingRoomText);
+  const familyLivingRoomKeepsFiveTabs = await page.getByTestId("mobile-primary-navigation").getByRole("button").count() === 5;
+  const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
+  await familyLivingRoom.screenshot({ path: familyLivingRoomScreenshot });
   await page.getByRole("button", { name: "邀请家人", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
       call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite")
     ),
   );
-  await page.getByRole("button", { name: "让家人写想吃", exact: true }).click();
-  await page.waitForFunction(() =>
-    window.__humiMiniProgramCalls?.some((call) =>
-      call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish")
-    ),
-  );
-  await dietSettingsButton.click();
-  await page.getByRole("heading", { name: /家里不能吃什么|人数和忌口/ }).waitFor({ timeout: 15_000 });
-  const dietConstraintPanel = page.getByTestId("diet-constraints-panel");
-  const dietConstraintPanelVisible = await dietConstraintPanel.isVisible();
-  const softPreferenceFormsHidden = await page.getByText(/晚饭最在意什么|买菜接受度|保存营养目标/).count() === 0;
-  const dietConstraintScreenshot = join(evidenceDir, "diet-constraints-mobile.png");
-  await dietConstraintPanel.screenshot({ path: dietConstraintScreenshot });
-  await page.getByRole("button", { name: "营养分析", exact: true }).click();
-  const nutritionReflectionPage = page.getByTestId("nutrition-reflection-page");
-  await nutritionReflectionPage.waitFor({ timeout: 15_000 });
-  const nutritionReflectionVisible = await page.getByRole("heading", { name: "营养回看" }).isVisible();
-  const nutritionReflectionScreenshot = join(evidenceDir, "nutrition-reflection-mobile.png");
-  await waitForTransientUi(page);
-  await page.screenshot({ path: nutritionReflectionScreenshot, fullPage: true });
-  await page.getByTestId("mobile-nav-user").click();
-  await page.getByRole("button", { name: "问问大家" }).first().click();
-  await page.getByText("今晚想问谁", { exact: true }).waitFor({ timeout: 15_000 });
-  const selectedFamilyMember = await page.getByRole("button", { name: "家人小林" }).getAttribute("aria-pressed");
-  await page.getByRole("button", { name: "发起征集" }).click();
-  await page.getByRole("heading", { name: "已经可以发给家人了" }).waitFor({ timeout: 15_000 });
-  const craveSheetVisible = await page.getByRole("heading", { name: "已经可以发给家人了" }).isVisible();
-  const viewButtonVisible = await page.getByRole("button", { name: "分享征集单" }).isVisible();
-  await page.getByRole("button", { name: "刷新回复" }).click();
-  const craveVoteReceipt = page.getByText("家人小林 · 想喝汤", { exact: true });
-  await craveVoteReceipt.waitFor({ timeout: 15_000 });
-  const craveVoteReceiptVisible = await craveVoteReceipt.isVisible();
-  const craveManualMenuActionVisible = await page.getByRole("button", { name: /现在出菜单|就这些，出菜单/ }).isVisible();
   const miniProgramCalls = await page.evaluate(() => window.__humiMiniProgramCalls ?? []);
   const groceryShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=grocery"));
-  const craveShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=crave"));
   const menuShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=today_menu"));
   const inviteShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite"));
-  const wishShareOpened = miniProgramCalls.some((call) => call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=wish"));
   const menuPosterNativeShareOpened = miniProgramCalls.some((call) =>
     call.method === "navigateTo"
     && call.payload?.url?.includes("/pages/poster/index?")
@@ -487,11 +443,9 @@ try {
     nativeShareTypes.filter((candidate) => candidate === type).length,
   ]));
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
-  const userCraveScreenshot = join(evidenceDir, "user-crave-mobile.png");
-  await page.screenshot({ path: userCraveScreenshot, fullPage: true });
+  const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const memberBoundary = await verifyMemberOwnerBoundary(browser, baseUrl, evidenceDir);
   const soloOwnerFlow = await verifySoloOwnerFlow(browser, baseUrl, evidenceDir);
-  const multiHouseholdFlow = await verifyMultiHouseholdSwitch(browser, baseUrl, evidenceDir);
   const persistedCraveDeadline = await verifyPersistedCraveDeadline(browser, baseUrl, evidenceDir);
   const pantryPipeline = await verifyImplicitPantryPipeline(browser, baseUrl);
   const hardConstraintOnboarding = await verifyHardConstraintOnboarding(browser, baseUrl, evidenceDir);
@@ -552,51 +506,32 @@ try {
     { key: "grocery-share-opens-native-share-page", ok: groceryShareOpened },
     { key: "menu-share-opens-native-share-page", ok: menuShareOpened },
     { key: "invite-share-opens-native-share-page", ok: inviteShareOpened },
-    { key: "wish-share-opens-native-share-page", ok: wishShareOpened },
     {
-      key: "all-five-share-actions-dispatch-once",
-      ok: ["crave", "invite", "grocery", "wish", "today_menu"].every((type) => nativeShareTypeCounts[type] === 1),
+      key: "living-room-share-actions-dispatch-once",
+      ok: ["invite", "grocery", "today_menu"].every((type) => nativeShareTypeCounts[type] === 1),
       actual: nativeShareTypeCounts,
     },
     { key: "native-share-navigation-does-not-double-dispatch", ok: shareNavigationStayedSingle, actual: miniProgramCalls },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
-    { key: "crave-share-uses-native-handoff", ok: craveShareOpened },
-    { key: "crave-share-opens-native-share-page", ok: craveShareOpened },
-    { key: "crave-members-default-selected", ok: selectedFamilyMember === "true", actual: selectedFamilyMember },
-    { key: "crave-create-keeps-selected-members", ok: craveCreatePayload?.recipientIds?.includes("product-smoke-member"), actual: craveCreatePayload?.recipientIds ?? [] },
-    { key: "user-center-crave-sheet", ok: craveSheetVisible },
-    { key: "user-center-view-crave-button", ok: viewButtonVisible },
-    { key: "crave-waiting-shows-member-feeling", ok: craveVoteReceiptVisible },
-    { key: "crave-waiting-allows-manual-menu", ok: craveManualMenuActionVisible },
-    { key: "family-activity-shows-grocery-claim", ok: groceryActivityVisible },
-    { key: "family-activity-shows-dinner-confirmation", ok: dinnerActivityVisible },
-    { key: "family-activity-shows-want-item", ok: wantActivityVisible },
-    { key: "mobile-account-settings-are-visible", ok: mobileAccountSettingsVisible && mobileSignOutVisible },
-    { key: "family-activity-precedes-account-settings", ok: activityBeforeAccountSettings },
-    { key: "want-pool-precedes-account-settings", ok: wantPoolBeforeAccountSettings },
-    { key: "used-family-activity-hides-self-introduction", ok: familyActivityIntroHiddenAfterUse },
-    { key: "crave-starter-is-collapsed-until-requested", ok: craveStarterCollapsed },
-    { key: "my-home-exposes-diet-constraints-only", ok: dietSettingsVisible && dietConstraintPanelVisible },
-    { key: "soft-profile-maintenance-is-not-exposed", ok: legacyProfileControlsHidden && softPreferenceFormsHidden },
-    { key: "nutrition-reflection-is-available-in-current-ui", ok: nutritionReflectionVisible },
+    { key: "family-living-room-has-four-focused-sections", ok: familyLivingRoomHasFocusedSections, actual: familyLivingRoomText },
+    { key: "family-living-room-removes-cloud-ai-nutrition-and-export-clutter", ok: familyLivingRoomHasNoClutter, actual: familyLivingRoomText },
+    { key: "family-living-room-keeps-five-primary-tabs", ok: familyLivingRoomKeepsFiveTabs },
+    { key: "signed-in-no-household-shows-explicit-start", ok: noHouseholdStart.hasExpectedCopy && noHouseholdStart.hasNoClutter, actual: noHouseholdStart },
+    { key: "household-start-reveals-only-one-name-input-after-create-selection", ok: noHouseholdStart.nameInputIsDeferred, actual: noHouseholdStart },
+    { key: "household-start-invite-action-explains-how-to-open-a-real-invite", ok: noHouseholdStart.inviteGuidanceShown, actual: noHouseholdStart },
+    { key: "signed-in-no-household-does-not-fabricate-family", ok: noHouseholdStart.hasNoLivingRoom, actual: noHouseholdStart },
+    { key: "signed-in-no-household-page-errors", ok: noHouseholdStart.pageErrors.length === 0, errors: noHouseholdStart.pageErrors },
+    { key: "member-cannot-invite-from-family-living-room", ok: memberBoundary.memberHasNoInviteAction, actual: memberBoundary },
+    { key: "living-room-internal-actions-keep-primary-tab", ok: memberBoundary.internalActionKeepsPrimaryTab, actual: memberBoundary },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
-    { key: "member-cannot-edit-owner-want-item", ok: memberBoundary.ownerWantActions === 0, actual: memberBoundary.ownerWantActions },
-    { key: "member-can-edit-own-want-item", ok: memberBoundary.memberCanEditOwnWant },
-    { key: "member-cannot-add-want-item-to-dinner", ok: !memberBoundary.memberCanAddWantToDinner },
-    { key: "member-cannot-start-crave-from-user-center", ok: memberBoundary.memberUserCenterAskButtons === 0, actual: memberBoundary.memberUserCenterAskButtons },
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
-    { key: "member-cannot-edit-family-diet-constraints", ok: memberBoundary.memberDietEditButtons === 0 && memberBoundary.memberDietSummaryReadonly, actual: memberBoundary },
     { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
-    { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "solo-owner-can-decide-without-family", ok: soloOwnerFlow.starterHasNoMemberPressure && soloOwnerFlow.decidedAlone && !soloOwnerFlow.shareRequestCreated, actual: soloOwnerFlow },
     { key: "solo-owner-flow-generates-menu-and-grocery", ok: soloOwnerFlow.menuWritten && soloOwnerFlow.planWritten && soloOwnerFlow.groceryGenerated, actual: soloOwnerFlow },
     { key: "solo-owner-page-errors", ok: soloOwnerFlow.pageErrors.length === 0, errors: soloOwnerFlow.pageErrors },
-    { key: "multi-household-switch-is-user-visible", ok: multiHouseholdFlow.switchRequested && multiHouseholdFlow.activeHeadingUpdated, actual: multiHouseholdFlow },
-    { key: "multi-household-switch-loads-isolated-menu", ok: multiHouseholdFlow.menuLoaded && multiHouseholdFlow.menuVisible, actual: multiHouseholdFlow },
-    { key: "multi-household-page-errors", ok: multiHouseholdFlow.pageErrors.length === 0, errors: multiHouseholdFlow.pageErrors },
     { key: "persisted-crave-auto-generates-after-deadline", ok: persistedCraveDeadline.generated },
     { key: "no-reply-crave-keeps-initiator-feeling", ok: persistedCraveDeadline.initiatorFeelingApplied },
     { key: "persisted-crave-closes-with-owner-session", ok: persistedCraveDeadline.closeAuthorized },
@@ -625,17 +560,13 @@ try {
       discoveryMobile: discoveryScreenshot,
       discoveryMobileFull: discoveryFullScreenshot,
       breakfastQuickPickerMobile: breakfastQuickScreenshot,
-      userCraveMobile: userCraveScreenshot,
       groceryMobile: groceryScreenshot,
       groceryPosterPreviewMobile: groceryPosterPreviewScreenshot,
-      familyActivityMobile: familyActivityScreenshot,
+      familyLivingRoomMobile: familyLivingRoomScreenshot,
+      householdStartMobile: noHouseholdStart.screenshot,
       plannerMobile: plannerScreenshot,
-      dietConstraintsMobile: dietConstraintScreenshot,
-      nutritionReflectionMobile: nutritionReflectionScreenshot,
       memberBoundaryMobile: memberBoundary.screenshot,
-      memberDietReadonlyMobile: memberBoundary.dietScreenshot,
       soloOwnerMobile: soloOwnerFlow.screenshot,
-      multiHouseholdMobile: multiHouseholdFlow.screenshot,
       persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
       profileOnboardingMobile: hardConstraintOnboarding.screenshot,
     },
@@ -890,6 +821,68 @@ async function waitForTransientUi(page) {
   await page.waitForTimeout(360);
 }
 
+async function verifyNoHouseholdStart(browser, base, evidenceDir) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "no-household-token",
+      refreshToken: "no-household-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "no-household-user", displayName: "小禾", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  await page.route("**/state", async (route) => {
+    if (route.request().method() === "PUT") {
+      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? null, family: null, households: [] });
+      return;
+    }
+    await fulfillJson(route, { state: null, family: null, households: [] });
+  });
+
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByTestId("mobile-nav-user").click();
+  const householdStart = page.getByTestId("household-start");
+  await householdStart.waitFor({ state: "visible", timeout: 15_000 });
+  const startText = await householdStart.innerText();
+  const hasExpectedCopy = ["创建我的家", "通过邀请加入", "共享菜单、一起决定想吃什么、协作买菜"]
+    .every((copy) => startText.includes(copy));
+  const hasNoClutter = !/(?:云同步|AI|试用额度)/.test(startText);
+  const inputsBeforeSelection = await householdStart.locator("input").count();
+  await householdStart.getByRole("button", { name: /^创建我的家/ }).click();
+  const inputsAfterCreateSelection = await householdStart.locator("input").count();
+  await householdStart.getByRole("button", { name: /^通过邀请加入/ }).click();
+  const inviteGuidance = page.getByText("请使用家人发来的邀请卡片或链接打开 Humi。", { exact: true });
+  await inviteGuidance.waitFor({ state: "visible", timeout: 15_000 });
+  const inviteGuidanceShown = await inviteGuidance.isVisible();
+  const hasNoLivingRoom = await page.getByTestId("family-living-room").count() === 0;
+  const screenshot = join(evidenceDir, "household-start-mobile.png");
+  await householdStart.screenshot({ path: screenshot });
+  await context.close();
+  return {
+    hasExpectedCopy,
+    hasNoClutter,
+    nameInputIsDeferred: inputsBeforeSelection === 0 && inputsAfterCreateSelection === 1,
+    inviteGuidanceShown,
+    hasNoLivingRoom,
+    pageErrors,
+    screenshot,
+  };
+}
+
 async function verifySoloOwnerFlow(browser, base, evidenceDir) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -1129,32 +1122,11 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     page.goto(base, { waitUntil: "networkidle" }),
   ]);
   await page.getByTestId("mobile-nav-user").click();
-  await page.waitForTimeout(1_000);
-  const memberRoleHeading = page.getByRole("heading", { name: /里的家人$/ });
-  if (!await memberRoleHeading.isVisible().catch(() => false)) {
-    const headings = await page.locator("h1, h2, h3").allTextContents();
-    throw new Error(`Member family role did not load: ${JSON.stringify(headings)}`);
-  }
-  const memberDietEditButtons = await page.getByRole("button", { name: "修改忌口" }).count();
-  const memberDietSummaryReadonly = await page.getByTestId("family-constraints-readonly").isVisible();
-  const dietScreenshot = join(evidenceDir, "member-diet-readonly-mobile.png");
-  await page.getByTestId("family-constraints-readonly").screenshot({ path: dietScreenshot });
-  await page.getByTestId("mobile-nav-library").click();
-  await page.getByRole("heading", { name: "发现", exact: true }).waitFor({ timeout: 15_000 });
-  const memberLibraryWantButton = page.getByTestId("recipe-card").filter({ hasText: "青椒土豆丝" }).getByRole("button", { name: "记到最近想吃" });
-  const memberLibraryUsesWantAction = await memberLibraryWantButton.isVisible();
-  await memberLibraryWantButton.click();
-  await page.getByText("已经记下想吃 青椒土豆丝").waitFor({ timeout: 15_000 });
-  await page.getByRole("button", { name: "返回上一页" }).click();
-  await page.getByRole("heading", { name: /里的家人$/ }).waitFor({ timeout: 15_000 });
-  const memberWantAddedFromLibrary = await page.getByTestId("want-to-eat-row").filter({ hasText: "青椒土豆丝" }).isVisible();
-  const ownerWantRow = page.getByTestId("want-to-eat-row").filter({ hasText: "主厨想吃的菜" });
-  const memberWantRow = page.getByTestId("want-to-eat-row").filter({ hasText: "家人想吃的菜" });
-  const ownerWantActions = await ownerWantRow.getByRole("button").count();
-  const memberCanEditOwnWant = await memberWantRow.getByRole("button", { name: "标记安排" }).isVisible()
-    && await memberWantRow.getByRole("button", { name: "移除" }).isVisible();
-  const memberCanAddWantToDinner = await memberWantRow.getByRole("button", { name: "今晚就吃" }).isVisible().catch(() => false);
-  const memberUserCenterAskButtons = await page.getByRole("button", { name: /问问大家/ }).count();
+  const memberRoom = page.getByTestId("family-living-room");
+  await memberRoom.waitFor({ state: "visible", timeout: 15_000 });
+  const memberHasNoInviteAction = await memberRoom.getByRole("button", { name: "邀请家人", exact: true }).count() === 0;
+  await memberRoom.getByRole("button", { name: /^成员管理/ }).click();
+  const internalActionKeepsPrimaryTab = await page.getByTestId("mobile-nav-user").getAttribute("aria-current") === "page";
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
   const memberMealEditingButtons = await page.getByTestId("meal-rhythm-panel").getByRole("button").count();
@@ -1174,21 +1146,14 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     blocked,
     menuBefore,
     menuAfter,
-    ownerWantActions,
-    memberCanEditOwnWant,
-    memberCanAddWantToDinner,
-    memberUserCenterAskButtons,
+    memberHasNoInviteAction,
+    internalActionKeepsPrimaryTab,
     memberDashboardAskButtons,
-    memberDietEditButtons,
-    memberDietSummaryReadonly,
-    memberLibraryUsesWantAction,
-    memberWantAddedFromLibrary,
     memberMealEditingButtons,
     memberDinnerReadonly,
     memberPlannerEntries,
     pageErrors,
     screenshot,
-    dietScreenshot,
   };
 }
 
