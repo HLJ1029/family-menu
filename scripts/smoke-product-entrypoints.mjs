@@ -537,10 +537,12 @@ try {
     { key: "family-management-child-pages-keep-five-primary-tabs", ok: familyManagementPages.allPagesKeepTabs, actual: familyManagementPages.primaryTabCounts },
     { key: "household-members-shows-owner-controls", ok: familyManagementPages.ownerControlsVisible, actual: familyManagementPages.ownerControls },
     { key: "household-settings-owner-manages-family-constraints", ok: familyManagementPages.ownerConstraintsVisible, actual: familyManagementPages.ownerConstraintsVisible },
+    { key: "household-settings-owner-must-transfer-before-leaving", ok: familyManagementPages.leaveBlockedForOwnerWithMembers, actual: familyManagementPages.leaveBlockedForOwnerWithMembers },
     { key: "humi-account-exposes-mobile-account-basics", ok: familyManagementPages.accountBasicsVisible, actual: familyManagementPages.accountText },
     { key: "humi-account-renders-truthful-profile-data", ok: familyManagementPages.accountDataTruthful, actual: familyManagementPages.accountText },
     { key: "household-members-render-member-avatars", ok: familyManagementPages.memberAvatarsRendered },
     { key: "household-lifecycle-metadata-preserves-current-state", ok: familyManagementPages.lifecycleMetadataPreservesCurrentState, actual: familyManagementPages.lifecycleMetadataPreservesCurrentState },
+    { key: "household-lifecycle-remove-and-transfer-refresh-members", ok: familyManagementPages.lifecycleMembersRefresh, actual: familyManagementPages.lifecycleMembersRefresh },
     { key: "nutrition-reflection-is-available-in-current-ui", ok: familyManagementPages.nutritionReachable },
     { key: "multi-household-switches-from-household-settings", ok: multiHouseholdSwitch.switchRequested && multiHouseholdSwitch.activeHeadingUpdated && multiHouseholdSwitch.menuLoaded && multiHouseholdSwitch.menuVisible, actual: multiHouseholdSwitch },
     { key: "multi-household-page-errors", ok: multiHouseholdSwitch.pageErrors.length === 0, errors: multiHouseholdSwitch.pageErrors },
@@ -795,6 +797,10 @@ function buildSmokeHouseholdState() {
         updatedAt: new Date().toISOString(),
       },
     },
+    familyProfile: {
+      dislikes: ["香菜"],
+      allergies: ["花生"],
+    },
     groceryClaims: {
       "custom:milk": {
         itemKey: "custom:milk",
@@ -815,6 +821,18 @@ function buildSmokeHouseholdState() {
       createdAt: new Date().toISOString(),
     }],
   };
+}
+
+async function hasPreservedHouseholdState(page) {
+  return page.evaluate(() => {
+    const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
+    const plan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
+    const profile = JSON.parse(localStorage.getItem("family-menu:family-profile") || "{}");
+    return menu.some((item) => item.recipeId === "tomato-egg")
+      && Object.values(plan).some((day) => day?.dinner?.some((item) => item.recipeId === "tomato-egg"))
+      && profile.dislikes?.includes("香菜")
+      && profile.allergies?.includes("花生");
+  });
 }
 
 async function openTodayMenu(page) {
@@ -1151,14 +1169,25 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   });
   const page = await context.newPage();
   const pageErrors = [];
-  const family = buildSmokeFamily();
-  const state = buildSmokeHouseholdState();
-  let lifecycleMetadataRequest = false;
+  const family = {
+    ...buildSmokeFamily(),
+    members: [
+      ...buildSmokeFamily().members,
+      { memberId: "product-smoke-third", nickname: "家人小周", role: "member", status: "formal", avatarUrl: "data:image/svg+xml,%3Csvg id='member-3'/%3E" },
+    ],
+  };
+  const state = {
+    ...buildSmokeHouseholdState(),
+    familyProfile: { dislikes: ["香菜"], allergies: ["花生"] },
+  };
+  let activeFamily = family;
+  const lifecycleRequests = { rename: false, remove: false, transfer: false };
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
   });
   await page.addInitScript(() => {
+    window.confirm = () => true;
     localStorage.clear();
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
@@ -1171,15 +1200,39 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   });
   await page.route("**/state", async (route) => {
     if (route.request().method() === "PUT") {
-      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? state, family, households: [family] });
+      await fulfillJson(route, { state: route.request().postDataJSON()?.state ?? state, family: activeFamily, households: [activeFamily] });
       return;
     }
-    await fulfillJson(route, { state, family, households: [family] });
+    await fulfillJson(route, { state, family: activeFamily, households: [activeFamily] });
   });
   await page.route("**/households/product-smoke-family", async (route) => {
-    lifecycleMetadataRequest = route.request().method() === "PATCH";
-    const renamedFamily = { ...family, name: route.request().postDataJSON()?.name || family.name };
-    await fulfillJson(route, { family: renamedFamily, households: [renamedFamily] });
+    lifecycleRequests.rename = route.request().method() === "PATCH";
+    activeFamily = { ...activeFamily, name: route.request().postDataJSON()?.name || activeFamily.name };
+    await fulfillJson(route, { family: activeFamily, households: [activeFamily] });
+  });
+  await page.route("**/households/product-smoke-family/members/product-smoke-third", async (route) => {
+    lifecycleRequests.remove = route.request().method() === "DELETE";
+    activeFamily = {
+      ...activeFamily,
+      members: activeFamily.members.filter((member) => member.memberId !== "product-smoke-third"),
+    };
+    await fulfillJson(route, { family: activeFamily, households: [activeFamily] });
+  });
+  await page.route("**/households/product-smoke-family/owner", async (route) => {
+    lifecycleRequests.transfer = route.request().method() === "POST";
+    activeFamily = {
+      ...activeFamily,
+      ownerId: "product-smoke-member",
+      role: "member",
+      members: activeFamily.members.map((member) => ({
+        ...member,
+        role: member.memberId === "product-smoke-member" ? "owner" : "member",
+        avatarUrl: member.memberId === "product-smoke-member"
+          ? "data:image/svg+xml,%3Csvg id='member-2-refreshed'/%3E"
+          : member.avatarUrl,
+      })),
+    };
+    await fulfillJson(route, { family: activeFamily, households: [activeFamily] });
   });
 
   await page.goto(base, { waitUntil: "networkidle" });
@@ -1208,24 +1261,43 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const membersPage = page.getByTestId("household-members-page");
   const ownerControls = {
     invite: await membersPage.getByRole("button", { name: "邀请家人", exact: true }).count() === 1,
-    remove: await membersPage.getByRole("button", { name: "移除成员", exact: true }).count() === 1,
-    transfer: await membersPage.getByRole("button", { name: "转让主厨", exact: true }).count() === 1,
+    remove: await membersPage.getByRole("button", { name: "移除成员", exact: true }).count() === 2,
+    transfer: await membersPage.getByRole("button", { name: "转让主厨", exact: true }).count() === 2,
   };
   const memberAvatarsRendered = await membersPage.getByRole("img").count() === family.members.length;
   await membersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: /^家庭设置/ }).click();
   const settingsPage = page.getByTestId("household-settings-page");
   const ownerConstraintsVisible = await settingsPage.getByTestId("family-constraints-editor").isVisible();
+  const leaveBlockedForOwnerWithMembers = await settingsPage.getByRole("button", { name: "离开这个家", exact: true }).isDisabled()
+    && await settingsPage.getByText("先转让主厨后再退出", { exact: true }).isVisible();
   await settingsPage.getByLabel("家庭名称").fill("改名后的我家");
   await settingsPage.getByRole("button", { name: "重命名家庭", exact: true }).click();
   await settingsPage.locator("h2").filter({ hasText: "改名后的我家" }).waitFor({ timeout: 15_000 });
-  const lifecycleMetadataPreservesCurrentState = lifecycleMetadataRequest && await page.evaluate(() => {
-    const menu = JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]");
-    const plan = JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}");
-    return menu.some((item) => item.recipeId === "tomato-egg")
-      && Object.values(plan).some((day) => day?.dinner?.some((item) => item.recipeId === "tomato-egg"));
-  });
+  const stateAfterRename = await hasPreservedHouseholdState(page);
   await settingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
+  await page.getByTestId("mobile-nav-dashboard").click();
+  await page.getByRole("button", { name: "点外卖", exact: true }).click();
+  await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
+  const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByRole("button", { name: /^成员管理/ }).click();
+  const lifecycleMembersPage = page.getByTestId("household-members-page");
+  await lifecycleMembersPage.getByRole("button", { name: "移除成员", exact: true }).last().click();
+  await lifecycleMembersPage.getByText("家人小周", { exact: true }).waitFor({ state: "detached", timeout: 15_000 });
+  const stateAfterRemove = await hasPreservedHouseholdState(page);
+  const removedMemberReflected = await lifecycleMembersPage.getByText("家人小周", { exact: true }).count() === 0;
+  await lifecycleMembersPage.getByRole("button", { name: "转让主厨", exact: true }).click();
+  const nextOwnerRow = lifecycleMembersPage.locator("article").filter({ hasText: "家人小林" });
+  await nextOwnerRow.getByText("主厨", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  const stateAfterTransfer = await hasPreservedHouseholdState(page);
+  const transferRoleReflected = await nextOwnerRow.getByText("主厨", { exact: true }).isVisible();
+  const refreshedAvatar = (await nextOwnerRow.getByRole("img", { name: "家人小林的头像" }).getAttribute("src"))?.includes("member-2-refreshed") === true;
+  const lifecycleMetadataPreservesCurrentState = lifecycleRequests.rename && lifecycleRequests.remove && lifecycleRequests.transfer
+    && stateAfterRename && stateAfterRemove && stateAfterTransfer;
+  const lifecycleMembersRefresh = lifecycleRequests.remove && lifecycleRequests.transfer
+    && removedMemberReflected && transferRoleReflected && refreshedAvatar;
+  await lifecycleMembersPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: /^账号设置/ }).click();
   const accountPage = page.getByTestId("humi-account-page");
   const accountText = await accountPage.innerText();
@@ -1235,11 +1307,6 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     && await accountPage.getByRole("link", { name: "隐私政策" }).getAttribute("href") === "/privacy.html"
     && await accountPage.getByRole("link", { name: "用户协议" }).getAttribute("href") === "/terms.html";
   await accountPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
-  await page.getByTestId("mobile-nav-dashboard").click();
-  await page.getByRole("button", { name: "点外卖", exact: true }).click();
-  await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
-  const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
-  await page.getByTestId("mobile-nav-user").click();
   const screenshot = join(evidenceDir, "family-management-mobile.png");
   await page.getByTestId("family-living-room").screenshot({ path: screenshot });
   await context.close();
@@ -1254,7 +1321,9 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     ownerControlsVisible: Object.values(ownerControls).every(Boolean),
     memberAvatarsRendered,
     ownerConstraintsVisible,
+    leaveBlockedForOwnerWithMembers,
     lifecycleMetadataPreservesCurrentState,
+    lifecycleMembersRefresh,
     accountBasicsVisible,
     accountDataTruthful,
     accountText,
@@ -1674,7 +1743,10 @@ async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
   const page = await context.newPage();
   const pageErrors = [];
   const family = buildSmokeFamily();
-  const state = buildSmokeHouseholdState();
+  const state = {
+    ...buildSmokeHouseholdState(),
+    familyProfile: { dislikes: [], allergies: [] },
+  };
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());

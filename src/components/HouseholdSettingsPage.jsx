@@ -14,6 +14,10 @@ export function HouseholdSettingsPage({
 }) {
   const [name, setName] = useState(family?.name || "我的家");
   const [constraints, setConstraints] = useState(() => getConstraints(familyProfile));
+  const hasOtherFormalMembers = family?.members?.some(
+    (member) => member.status === "formal" && member.memberId !== family.currentMemberId,
+  );
+  const ownerMustTransferBeforeLeaving = Boolean(canManageHousehold && hasOtherFormalMembers);
 
   useEffect(() => setName(family?.name || "我的家"), [family?.name]);
   useEffect(() => setConstraints(getConstraints(familyProfile)), [familyProfile]);
@@ -74,10 +78,10 @@ export function HouseholdSettingsPage({
       )}
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-6">
         <p className="eyebrow">离开家庭</p>
-        {canManageHousehold && family?.members?.filter((member) => member.status === "formal" && member.memberId !== family.currentMemberId).length > 0 && (
+        {ownerMustTransferBeforeLeaving && (
           <p className="mt-2 text-sm font-black text-ink/62">先转让主厨后再退出</p>
         )}
-        <button type="button" onClick={() => onLeaveHousehold?.()} className="mt-3 min-h-11 rounded-full border border-line bg-white px-5 text-sm font-black">离开这个家</button>
+        <button type="button" disabled={ownerMustTransferBeforeLeaving} onClick={() => onLeaveHousehold?.()} className="mt-3 min-h-11 rounded-full border border-line bg-white px-5 text-sm font-black disabled:cursor-not-allowed disabled:opacity-45">离开这个家</button>
       </section>
     </section>
   );

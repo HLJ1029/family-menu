@@ -95,7 +95,7 @@ const REQUIRED_CHECKS = [
     path: "src/main.jsx",
     required: ["preserveStateWhenMissing", "applyHumiStateEnvelope(data, { preserveStateWhenMissing: true })", "removeCurrentHouseholdMember", "transferHumiHouseholdOwner", "setHouseholdMembers((current)", "avatarUrl: member.avatarUrl || \"\""],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["household-lifecycle-metadata-preserves-current-state"],
+    evidenceRequired: ["household-lifecycle-metadata-preserves-current-state", "household-lifecycle-remove-and-transfer-refresh-members"],
   },
   {
     key: "member-write-boundary",
@@ -199,7 +199,7 @@ const REQUIRED_CHECKS = [
     path: "src/components/HouseholdSettingsPage.jsx",
     required: ["family-constraints-editor", "主厨统一维护", "canManageHousehold"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["household-settings-owner-manages-family-constraints", "member-sees-readonly-family-constraints"],
+    evidenceRequired: ["household-settings-owner-manages-family-constraints", "household-settings-owner-must-transfer-before-leaving", "member-sees-readonly-family-constraints"],
   },
   {
     key: "nutrition-feedback-layer",
