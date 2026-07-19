@@ -4,7 +4,7 @@
 执行设备：`codex@mbp-m5pro`
 分支：`codex/humi-wechat-identity-startup`
 Task 6 起始提交：`184d2d2ae551e7a7bd801c719e0e5424bb13db17`（`docs: close Humi collaboration history`）
-首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定 **NO-GO**。当前最终 gate correction candidate：`e9c22f6fed36c00e42fa5825db1f082359c2bdb3`，仍 await independent re-review。
+首次 Task 6 candidate：`51e0244ca8113947ce5e7d87dbcfa61442c46f25`；后经 final broad review 判定 **NO-GO**。第一轮 gate correction `e9c22f6fed36c00e42fa5825db1f082359c2bdb3` 又在 parent fresh legacy 验证中暴露共享页面竞态。当前行为/测试 candidate：`7cb9ff6c1663eb003f76bdb165b9075ca086de33`，仍 await independent re-review。
 
 本记录覆盖 Phase 3 Task 6 的本地候选验证。Tasks 1–5 的功能实现已在本记录之前提交；`51e0244` 仅将测试中的长 Bearer 哨兵改为短哨兵，避免被团队 secret scan 的通用规则误判，未改变产品运行行为或测试断言语义。此后本记录和主规格进度更新会作为独立 documentation commit 提交；Task 6 report 会再以独立提交固定该 documentation commit。
 
@@ -25,7 +25,11 @@ Phase 3 本地候选实现及完整自动化矩阵已经通过。本候选交付
 
 首次 candidate 的 final broad review 为 NO-GO：公开 merge/claim 元数据泄漏；三类 merged guest retry 会反转正式身份；event/business 与 merge/claim 双 save 可留内存半提交；浏览器未按 type 隔离；legacy smoke 对云端成功仍断言本地 meal log；Crave GET 会写 deadline closure；原 product manifest 实际 18 refs（连同 collaboration 共 24，而非 20+6）。`9a22115` 上 legacy smoke 稳定失败，旧记录不能作为最终 GREEN。
 
-修正提交：`123f908`、`4838701`、`e5d66ab`、`e9c22f6`。最终矩阵 evidence root：`/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720`。product manifest `/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720/product-smoke/manifest.json`：`ok:true`、125 checks、20 refs、SHA-256 `78e95b50e7c48e2f77bfe6b1b4a340e10c09665da711292c302f708b2248db90`。collaboration manifest `/Users/honglijie/.humi-release-evidence/phase3-final-gate-20260720/collaboration-smoke/manifest.json`：`ok:true`、20 checks、6 refs、SHA-256 `e132bdd5479698e9a9e638b1bf2f3f691752ba95db5727109609fa6d1162e1cb`。root/smoke dirs `0700`、manifests `0600`；Vite `4192` 已停服无 listener；外部门禁不变。
+第一轮修正提交为 `123f908`、`4838701`、`e5d66ab`、`e9c22f6`。但 parent fresh legacy 在 Grocery collision 处复现失败：API seed 后 Grocery 目标仍是 temporary，复用旧页却先完成了前一 Crave endpoint 的 join，Grocery 产品 join 根本没有发出。旧 port 4192 evidence 因候选未通过可复现 legacy 而作废，不得用于最终 GO；原始 NO-GO 与第一次修正历史均保留。
+
+稳定性修正 `7cb9ff6` 将 Crave、Grocery、Wish 与 unknown 分别放入独立 fresh browser context/page，并强制 API create/action/state seed 先于新页面；每类都观察精确 endpoint 与 response，目标 formal、另两类 deep-equal、只清 exact scoped key。unknown 证明零 join、pending/key 保留及浏览器/服务端三类 state 不变。修正后 targeted legacy 先通过一次，随后三个 fresh 进程连续通过；提交后的完整矩阵又通过一次。
+
+当前完整证据 root：`/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT`。product manifest `/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT/product-smoke/manifest.json`：`ok:true`、125 checks、20 refs/20 PNG、无重复引用、SHA-256 `7cd2ca55acbab1aa49d42ee8ade126e47cb6a01c044804f816be50339bf9b37e`。collaboration manifest `/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT/collaboration-smoke/manifest.json`：`ok:true`、20 checks、6 refs/6 PNG、无重复引用、SHA-256 `e5c3d266832e663b38399ba5204cea6ddfe9c27e81c1f08f72ef55afe997a2d6`。root 与两个 smoke 目录 `0700`、manifests `0600`，26 个引用文件全部存在且每张恰好引用一次；Vite `4193` 已停服无 listener；外部门禁不变。
 
 ## 实现提交与审查修正
 
@@ -39,8 +43,10 @@ Phase 3 本地候选实现及完整自动化矩阵已经通过。本候选交付
 | Task 4 审查修正 | `cdd4ffe` | 严格公开投影和 type/token/actionId 三元精确浏览器绑定。 |
 | Task 5：家庭历史 | `8b5bde8` | 鉴权历史 endpoint、allowlisted projection、可读 UI 与 error fallback。 |
 | Task 6 测试门禁修正 | `51e0244` | 仅缩短无效 Bearer fixture；修正全量 secret scan 的既有误报。 |
+| Final gate 行为修正 | `123f908`–`e9c22f6` | 关闭严格公开投影、merged retry、原子性、type isolation、legacy truth 与 GET zero-write finding。 |
+| Final gate 稳定性修正 | `7cb9ff6` | 以四个 fresh browser 场景隔离 Crave/Grocery/Wish/unknown collision，连续三次 fresh legacy 通过。 |
 
-## 最终完整本地矩阵
+## 首次 Task 6 完整本地矩阵（历史记录）
 
 所有命令在 `51e0244` 上运行。浏览器 smoke 只访问新启动的 `http://127.0.0.1:4191/`，未访问生产 URL；私有证据根目录为 `/Users/honglijie/.humi-release-evidence/phase3-task6-delivery-20260720T051629+0800`。
 
@@ -62,6 +68,10 @@ Phase 3 本地候选实现及完整自动化矩阵已经通过。本候选交付
 | `HUMI_REPO=/Users/honglijie/agent-worktrees/humi/humi-wechat-identity-startup /Users/honglijie/AI-HQ/scripts/secret-scan.sh` | exit 0 | `Secret scan passed.`；不打印或记录 secret 值。 |
 
 两份 manifest 位于上述证据根目录下的 `product-smoke/manifest.json` 与 `collaboration-smoke/manifest.json`。根目录及两个子目录均为 `0700`；两个 manifest 均为 `0600`；检查确认全部 26 个 PNG 截图存在，且 manifest 引用无缺失。Vite PID `12956` 在 smoke 后已停止，`lsof -nP -iTCP:4191 -sTCP:LISTEN` 无输出，端口无 listener。最终运行前后工作树未出现未提交的构建输出；文档写入前 `git diff --check` 与状态均干净。
+
+## 当前 `7cb9ff6` 完整本地矩阵
+
+当前候选重新执行了上述全部 validate/review 命令，均 exit 0；legacy 在 targeted 首次 GREEN 后又连续三个 fresh 进程 GREEN，提交后的完整矩阵再 GREEN 一次。product smoke 为 125 checks/20 refs，collaboration smoke 为 20 checks/6 refs；证据完整路径、SHA-256、权限与引用唯一性见上方 Final gate correction 小节。`npm run build` exit 0（1748 modules），保留既有非阻断 warning：`dist/assets/index-DY6WuDAL.js` 865.64 kB（gzip 197.18 kB）。`git diff --check eac3021663b34b14a47ab74f4d950532e8afa98c..HEAD` 与精确 AI-HQ secret scan 均 exit 0；Vite 4193 已停止且无 listener。
 
 ## 信任、隐私与回归边界
 

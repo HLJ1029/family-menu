@@ -38,3 +38,15 @@ After the report commit, the parent flow found trailing whitespace on the first 
 ## Superseded final-candidate correction
 
 `51e0244` is superseded and was **NO-GO**: legacy smoke reproducibly fails at `9a22115`; the original manifest had 18 product + 6 collaboration refs (24), not 20 + 6. Final correction candidate `e9c22f6` and fresh evidence are recorded in `.superpowers/sdd/phase3-final-gate-fixes-report.md`; history is retained.
+
+## Collision-stability correction and current candidate
+
+`e9c22f6` is also superseded for final delivery. Parent fresh verification reproduced the Grocery collision assertion: after a correct temporary Grocery server seed, the reused browser page's first successful join still belonged to the previous Crave scenario, so no Grocery join occurred. This was a test lifecycle race across React hydration/pending-merge/local-storage/cloud-save effects, not a successful Grocery response that failed to formalize.
+
+Behavior/test candidate `7cb9ff6c1663eb003f76bdb165b9075ca086de33` gives Crave, Grocery, Wish, and unknown independent fresh browser contexts/pages. API seed precedes each new page. Supported types prove exact endpoint/request/response, target-only formalization, deep-equal sibling state, canonical Humi snapshot, and exact scoped-key cleanup. Unknown proves zero join, pending/key retention, and unchanged browser/server state. The old port 4192 evidence is superseded and must not be used for final GO.
+
+Targeted legacy passed, followed by three consecutive fresh-process GREEN runs; the post-commit full-matrix legacy run also passed. All required validate/review commands, build, Phase 2 baseline range diff check, and the exact AI-HQ secret scan exited 0. The build retained the existing non-blocking warning for `dist/assets/index-DY6WuDAL.js` 865.64 kB, gzip 197.18 kB.
+
+Current private evidence root `/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT` is `0700`. Product manifest `/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT/product-smoke/manifest.json` is `0600`, `ok:true`, 125 checks, 20 refs/20 PNGs, no duplicate refs, SHA-256 `7cd2ca55acbab1aa49d42ee8ade126e47cb6a01c044804f816be50339bf9b37e`. Collaboration manifest `/Users/honglijie/.humi-release-evidence/phase3-final-collision-20260720-qxlNCT/collaboration-smoke/manifest.json` is `0600`, `ok:true`, 20 checks, 6 refs/6 PNGs, no duplicate refs, SHA-256 `e5c3d266832e663b38399ba5204cea6ddfe9c27e81c1f08f72ef55afe997a2d6`. Both smoke dirs are `0700`; all refs exist exactly once. Vite port 4193 was stopped and has no listener.
+
+The current candidate remains `await independent re-review`; parent plan boxes, AI-HQ v3, Phase 4, production, WeChat/provider operations, migration apply/rollback, and Supabase physical retirement remain untouched/deferred.
