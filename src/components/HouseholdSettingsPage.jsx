@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "./HouseholdMembersPage";
 
 export function HouseholdSettingsPage({
@@ -8,12 +8,17 @@ export function HouseholdSettingsPage({
   canManageHousehold,
   onBack,
   onRenameHousehold,
+  onCreateHousehold,
   onSwitchHousehold,
   onLeaveHousehold,
   onSaveFamilyProfile,
 }) {
   const [name, setName] = useState(family?.name || "我的家");
   const [constraints, setConstraints] = useState(() => getConstraints(familyProfile));
+  const [newHouseholdName, setNewHouseholdName] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [createPending, setCreatePending] = useState(false);
+  const createInFlightRef = useRef(false);
   const hasOtherFormalMembers = family?.members?.some(
     (member) => member.status === "formal" && member.memberId !== family.currentMemberId,
   );
@@ -28,6 +33,32 @@ export function HouseholdSettingsPage({
       dislikes: splitConstraints(constraints.dislikes),
       allergies: splitConstraints(constraints.allergies),
     });
+  }
+
+  async function createHousehold() {
+    if (createInFlightRef.current) return;
+    const nextName = newHouseholdName.trim();
+    if (!nextName) {
+      setCreateError("请填写家庭名称。");
+      return;
+    }
+
+    createInFlightRef.current = true;
+    setCreatePending(true);
+    setCreateError("");
+    try {
+      const result = await onCreateHousehold?.(nextName);
+      if (result?.ok) {
+        setNewHouseholdName("");
+        return;
+      }
+      setCreateError(result?.message || "新的家暂时没创建成功，请稍后重试。");
+    } catch (error) {
+      setCreateError(error?.message || "新的家暂时没创建成功，请稍后重试。");
+    } finally {
+      createInFlightRef.current = false;
+      setCreatePending(false);
+    }
   }
 
   return (
@@ -51,6 +82,38 @@ export function HouseholdSettingsPage({
           ))}
         </div>
       </section>
+      {canManageHousehold && (
+        <section data-testid="create-household-section" className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-6">
+          <p className="eyebrow">新建家庭</p>
+          <h3 className="mt-2 text-lg font-black">再建一个独立的家</h3>
+          <p className="mt-1 text-sm font-bold leading-6 text-ink/58">新家的菜单、清单、偏好和协作记录不会带入当前家庭。</p>
+          <label className="mt-4 grid gap-2 text-sm font-black">新家庭名称
+            <input
+              value={newHouseholdName}
+              onChange={(event) => {
+                setNewHouseholdName(event.target.value);
+                if (createError) setCreateError("");
+              }}
+              placeholder="例如：爸妈家"
+              maxLength={32}
+              aria-invalid={Boolean(createError)}
+              aria-describedby={createError ? "create-household-error" : undefined}
+              className="min-h-11 rounded-full border border-line bg-canvas px-4 text-sm font-bold outline-none"
+            />
+          </label>
+          {createError && (
+            <p id="create-household-error" role="alert" className="mt-2 text-sm font-black text-ink/68">{createError}</p>
+          )}
+          <button
+            type="button"
+            disabled={createPending}
+            onClick={createHousehold}
+            className="mt-3 min-h-11 rounded-full bg-ink px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {createPending ? "正在创建…" : "新建一个家"}
+          </button>
+        </section>
+      )}
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-6">
         <p className="eyebrow">家庭偏好</p>
         {canManageHousehold ? (

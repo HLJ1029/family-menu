@@ -2808,24 +2808,39 @@ function App() {
   }
 
   async function createAnotherHumiHousehold(name) {
+    const nextName = String(name || "").trim();
+    if (!nextName) {
+      const message = "请填写家庭名称。";
+      showNotice(message);
+      return { ok: false, message };
+    }
     if (!isHumiApiSession(humiSession)) {
-      showNotice("请先在小程序里登录 Humi");
-      return;
+      const message = "请先在小程序里登录 Humi";
+      showNotice(message);
+      return { ok: false, message };
+    }
+    if (!canManageHousehold) {
+      const message = "只有主厨能新建另一个家";
+      showNotice(message);
+      return { ok: false, message };
     }
     setCloudMenuLoading(true);
     humiStateHydratingRef.current = true;
     try {
       const data = await createHumiHousehold(humiSession, {
-        householdName: String(name || "另一个家").trim() || "另一个家",
+        householdName: nextName,
         memberName: humiSession.user?.displayName || "主厨",
       });
-      applyHumiStateEnvelope({ ...data, state: null }, {
+      applyHumiStateEnvelope(data, {
         emptyMenu: "已创建新的家。这里还没有保存菜单。",
         emptyGrocery: "这个家的清单和口味偏好会单独保存。",
       });
       showNotice(`已创建 ${data.family?.name || "新的家"}`);
+      return { ok: true, family: data.family ?? null };
     } catch (error) {
-      showNotice(error.message || "新的家暂时没创建成功");
+      const message = error.message || "新的家暂时没创建成功";
+      showNotice(message);
+      return { ok: false, message };
     } finally {
       setCloudMenuLoading(false);
       window.setTimeout(() => {

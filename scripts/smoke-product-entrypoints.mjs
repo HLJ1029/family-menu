@@ -581,11 +581,28 @@ try {
     { key: "household-lifecycle-remove-and-transfer-refresh-members", ok: familyManagementPages.lifecycleMembersRefresh, actual: familyManagementPages.lifecycleMembersRefresh },
     { key: "family-identity-change-resets-internal-route-before-paint", ok: familyIdentityRouteReset.resetToLivingRoom && familyIdentityRouteReset.noStaleSettingsPaint && familyIdentityRouteReset.pageErrors.length === 0, actual: familyIdentityRouteReset },
     { key: "nutrition-reflection-is-available-in-current-ui", ok: familyManagementPages.nutritionReachable },
-    { key: "multi-household-switches-from-household-settings", ok: multiHouseholdSwitch.switchRequested && multiHouseholdSwitch.activeHeadingUpdated && multiHouseholdSwitch.menuLoaded && multiHouseholdSwitch.menuVisible, actual: multiHouseholdSwitch },
+    {
+      key: "multi-household-owner-creates-via-family-settings",
+      ok: multiHouseholdSwitch.blankCreateRequests === 0
+        && multiHouseholdSwitch.blankInputPreserved
+        && multiHouseholdSwitch.blankErrorVisible
+        && multiHouseholdSwitch.failedInputPreserved
+        && multiHouseholdSwitch.failedErrorVisible
+        && multiHouseholdSwitch.failedResponseObserved
+        && multiHouseholdSwitch.createRequestCount === 2
+        && multiHouseholdSwitch.createRequestBody?.householdName === "爸妈家"
+        && multiHouseholdSwitch.createRequestBody?.memberName === "主厨"
+        && multiHouseholdSwitch.createPendingDisabled
+        && multiHouseholdSwitch.newFamilyActive,
+      actual: multiHouseholdSwitch,
+    },
+    { key: "multi-household-new-family-starts-empty", ok: multiHouseholdSwitch.newFamilyStateIsolated, actual: multiHouseholdSwitch.newFamilyState },
+    { key: "multi-household-switches-from-household-settings", ok: multiHouseholdSwitch.switchRequested && multiHouseholdSwitch.originalHeadingRestored && multiHouseholdSwitch.originalStateRestored, actual: multiHouseholdSwitch },
     { key: "multi-household-page-errors", ok: multiHouseholdSwitch.pageErrors.length === 0, errors: multiHouseholdSwitch.pageErrors },
     { key: "member-cannot-invite-from-family-living-room", ok: memberBoundary.memberHasNoInviteAction, actual: memberBoundary },
     { key: "member-cannot-manage-household-members", ok: memberBoundary.memberManagementControlsHidden, actual: memberBoundary.memberManagementControls },
     { key: "member-sees-readonly-family-constraints", ok: memberBoundary.memberConstraintsReadonly, actual: memberBoundary.memberConstraintsText },
+    { key: "member-cannot-create-another-household", ok: memberBoundary.memberCreateHouseholdControlsHidden, actual: memberBoundary.memberCreateHouseholdControls },
     { key: "member-cannot-invite-family-wishes", ok: memberBoundary.memberHasNoWishInviteAction, actual: memberBoundary.memberHasNoWishInviteAction },
     { key: "living-room-internal-actions-keep-primary-tab", ok: memberBoundary.internalActionKeepsPrimaryTab, actual: memberBoundary },
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
@@ -1438,7 +1455,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const ownerConstraintsVisible = await settingsPage.getByTestId("family-constraints-editor").isVisible();
   const leaveBlockedForOwnerWithMembers = await settingsPage.getByRole("button", { name: "离开这个家", exact: true }).isDisabled()
     && await settingsPage.getByText("先转让主厨后再退出", { exact: true }).isVisible();
-  await settingsPage.getByLabel("家庭名称").fill("改名后的我家");
+  await settingsPage.getByLabel("家庭名称", { exact: true }).fill("改名后的我家");
   await settingsPage.getByRole("button", { name: "重命名家庭", exact: true }).click();
   await settingsPage.locator("h2").filter({ hasText: "改名后的我家" }).waitFor({ timeout: 15_000 });
   const stateAfterRename = await hasPreservedHouseholdState(page);
@@ -1609,19 +1626,24 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   const page = await context.newPage();
   const pageErrors = [];
   const familyA = { ...buildSmokeFamily(), id: "family-a", name: "小家" };
-  const familyB = { ...buildSmokeFamily(), id: "family-b", name: "爸妈家" };
-  const stateA = buildSmokeHouseholdState();
-  const today = getLocalDateKey();
-  const stateB = {
+  const familyB = {
+    ...buildSmokeFamily(),
+    id: "family-b",
+    name: "爸妈家",
+    members: [buildSmokeFamily().members[0]],
+  };
+  const stateA = {
     ...buildSmokeHouseholdState(),
-    todayMenu: [{ recipeId: "potato-shreds", quantity: 1 }],
-    mealPlan: { [today]: { breakfast: [], lunch: [], dinner: [{ recipeId: "potato-shreds", quantity: 1 }] } },
-    wantToEatItems: [],
-    groceryClaims: {},
+    craveSignals: [{ id: "original-family-crave", token: "original-family-token", status: "open" }],
+    activeCraveRequest: { id: "original-family-active-crave", token: "original-active-token", status: "open" },
+    activeGroceryShareRequest: { id: "original-family-active-grocery", token: "original-grocery-token", items: [] },
+    activeWishShareRequest: { id: "original-family-active-wish", token: "original-wish-token", wishes: [] },
   };
   let switchRequested = false;
   let activeFamily = familyA;
   let activeState = stateA;
+  let createRequestCount = 0;
+  let createRequestBody = null;
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
@@ -1639,12 +1661,33 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   });
   await page.route("**/households/active", async (route) => {
     const payload = route.request().postDataJSON();
-    switchRequested = payload?.householdId === familyB.id;
+    switchRequested = payload?.householdId === familyA.id;
     if (switchRequested) {
-      activeFamily = familyB;
-      activeState = stateB;
+      activeFamily = familyA;
+      activeState = stateA;
     }
     await fulfillJson(route, { state: activeState, family: activeFamily, households: [familyA, familyB] });
+  });
+  await page.route("**/households", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    createRequestCount += 1;
+    createRequestBody = route.request().postDataJSON();
+    if (createRequestBody?.householdName === "失败家") {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "household_create_failed", message: "模拟创建失败，请稍后重试。" }),
+      });
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    activeFamily = familyB;
+    activeState = null;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ family: familyB, households: [familyA, familyB] }),
+    });
   });
   await page.route("**/state", async (route) => {
     if (route.request().method() === "PUT") {
@@ -1657,30 +1700,107 @@ async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("button", { name: /^家庭设置/ }).click();
-  const householdSwitcher = page.getByTestId("household-switcher");
+  const settings = page.getByTestId("household-settings-page");
+  const householdSwitcher = settings.getByTestId("household-switcher");
   await householdSwitcher.getByRole("heading", { name: "小家" }).waitFor({ timeout: 15_000 });
-  await householdSwitcher.getByRole("button", { name: /爸妈家/ }).click();
-  const switchedRoom = page.getByTestId("family-living-room");
-  const switchedHeading = switchedRoom.getByRole("heading", { name: "爸妈家" });
-  await switchedHeading.waitFor({ timeout: 15_000 });
-  const activeHeadingUpdated = await switchedHeading.isVisible();
+  const nameInput = settings.getByPlaceholder("例如：爸妈家");
+  await nameInput.fill("   ");
+  await settings.getByRole("button", { name: "新建一个家", exact: true }).click();
+  const blankCreateRequests = createRequestCount;
+  const blankInputPreserved = await nameInput.inputValue() === "   ";
+  const blankErrorVisible = await settings.getByRole("alert").getByText("请填写家庭名称。", { exact: true }).isVisible();
+
+  await nameInput.fill("失败家");
+  const failedResponse = page.waitForResponse((response) => response.url().endsWith("/households") && response.request().method() === "POST");
+  await settings.getByRole("button", { name: "新建一个家", exact: true }).click();
+  const failedResponseResult = await failedResponse;
+  const failedResponseObserved = failedResponseResult.status() === 503;
+  const failedInputPreserved = await nameInput.inputValue() === "失败家";
+  const failedErrorVisible = await settings.getByRole("alert").getByText("模拟创建失败，请稍后重试。", { exact: true }).isVisible();
+
+  await nameInput.fill("  爸妈家  ");
+  const createResponse = page.waitForResponse((response) => response.url().endsWith("/households") && response.request().method() === "POST");
+  await settings.getByRole("button", { name: "新建一个家", exact: true }).click();
+  const createPendingDisabled = await settings.getByRole("button", { name: "正在创建…", exact: true }).isDisabled();
+  await createResponse;
+  const newFamilyRoom = page.getByTestId("family-living-room");
+  await newFamilyRoom.getByRole("heading", { name: "爸妈家", exact: true }).waitFor({ timeout: 15_000 });
+  const newFamilyActive = await newFamilyRoom.getByRole("heading", { name: "爸妈家", exact: true }).isVisible();
+  const newFamilyState = await readHouseholdStateFromLocalStorage(page);
+  const newFamilyStateIsolated = isEmptyHouseholdState(newFamilyState);
   await waitForTransientUi(page);
   const screenshot = join(evidenceDir, "multi-household-mobile.png");
-  await switchedRoom.screenshot({ path: screenshot });
-  const loadedMenu = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
-  const menuLoaded = loadedMenu.length === 1 && loadedMenu[0]?.recipeId === "potato-shreds";
-  await page.getByRole("button", { name: "今晚", exact: true }).click();
-  const menuVisible = await page.getByText("青椒土豆丝", { exact: true }).first().isVisible();
+  await newFamilyRoom.screenshot({ path: screenshot });
+
+  await newFamilyRoom.getByRole("button", { name: /^家庭设置/ }).click();
+  await page.getByTestId("household-switcher").getByRole("button", { name: /小家.*切换/ }).click();
+  const originalRoom = page.getByTestId("family-living-room");
+  await originalRoom.getByRole("heading", { name: "小家", exact: true }).waitFor({ timeout: 15_000 });
+  const originalHeadingRestored = await originalRoom.getByRole("heading", { name: "小家", exact: true }).isVisible();
+  const originalState = await readHouseholdStateFromLocalStorage(page);
+  const originalStateRestored = hasOriginalMultiHouseholdState(originalState);
+  const expectedFailureConsole = "Failed to load resource: the server responded with a status of 503 (Service Unavailable)";
+  const unexpectedPageErrors = pageErrors.filter((message) => message !== expectedFailureConsole);
   await context.close();
   return {
+    blankCreateRequests,
+    blankInputPreserved,
+    blankErrorVisible,
+    failedInputPreserved,
+    failedErrorVisible,
+    failedResponseObserved,
+    createRequestCount,
+    createRequestBody,
+    createPendingDisabled,
+    newFamilyActive,
+    newFamilyState,
+    newFamilyStateIsolated,
     switchRequested,
-    activeHeadingUpdated,
-    menuLoaded,
-    menuVisible,
-    loadedMenu,
-    pageErrors,
+    originalHeadingRestored,
+    originalState,
+    originalStateRestored,
+    pageErrors: unexpectedPageErrors,
     screenshot,
   };
+}
+
+async function readHouseholdStateFromLocalStorage(page) {
+  return page.evaluate(() => ({
+    menu: JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"),
+    mealPlan: JSON.parse(localStorage.getItem("humi:meal-plan:v1") || "{}"),
+    profile: JSON.parse(localStorage.getItem("family-menu:family-profile") || "{}"),
+    craveSignals: JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"),
+    groceryClaims: JSON.parse(localStorage.getItem("humi:grocery-claims:v1") || "{}"),
+    wishPool: JSON.parse(localStorage.getItem("humi:wish-pool:v1") || "[]"),
+    activeCrave: JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"),
+    activeGrocery: JSON.parse(localStorage.getItem("humi:active-grocery-share-request:v1") || "null"),
+    activeWish: JSON.parse(localStorage.getItem("humi:active-wish-share-request:v1") || "null"),
+  }));
+}
+
+function isEmptyHouseholdState(state) {
+  return state.menu.length === 0
+    && Object.values(state.mealPlan).every((day) => ["breakfast", "lunch", "dinner"].every((slot) => (day?.[slot] || []).length === 0))
+    && (state.profile.dislikes || []).length === 0
+    && (state.profile.allergies || []).length === 0
+    && state.craveSignals.length === 0
+    && Object.keys(state.groceryClaims).length === 0
+    && state.wishPool.length === 0
+    && state.activeCrave === null
+    && state.activeGrocery === null
+    && state.activeWish === null;
+}
+
+function hasOriginalMultiHouseholdState(state) {
+  return state.menu.some((item) => item.recipeId === "tomato-egg")
+    && state.profile.dislikes?.includes("香菜")
+    && state.profile.allergies?.includes("花生")
+    && state.craveSignals.some((item) => item.id === "original-family-crave")
+    && state.groceryClaims["custom:milk"]?.itemName === "牛奶"
+    && state.wishPool.some((item) => item.id === "want:product-smoke-member")
+    && state.activeCrave?.id === "original-family-active-crave"
+    && state.activeGrocery?.id === "original-family-active-grocery"
+    && state.activeWish?.id === "original-family-active-wish";
 }
 
 async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
@@ -1770,6 +1890,11 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   const memberConstraintsText = await memberSettingsPage.innerText();
   const memberConstraintsReadonly = memberConstraintsText.includes("主厨统一维护")
     && await memberSettingsPage.getByTestId("family-constraints-editor").count() === 0;
+  const memberCreateHouseholdControls = {
+    input: await memberSettingsPage.getByPlaceholder("例如：爸妈家").count(),
+    button: await memberSettingsPage.getByRole("button", { name: "新建一个家", exact: true }).count(),
+  };
+  const memberCreateHouseholdControlsHidden = Object.values(memberCreateHouseholdControls).every((count) => count === 0);
   await memberSettingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   const internalActionKeepsPrimaryTab = await page.getByTestId("mobile-nav-user").getAttribute("aria-current") === "page";
   await page.getByRole("button", { name: "今晚", exact: true }).click();
@@ -1810,6 +1935,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     memberManagementControlsHidden,
     memberConstraintsText,
     memberConstraintsReadonly,
+    memberCreateHouseholdControls,
+    memberCreateHouseholdControlsHidden,
     internalActionKeepsPrimaryTab,
     memberDashboardAskButtons,
     memberMealEditingButtons,

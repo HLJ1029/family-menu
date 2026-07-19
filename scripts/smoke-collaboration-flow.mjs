@@ -1134,19 +1134,17 @@ async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }
     const invite = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:household-invite:v1") || "null"));
     assert(invite?.token, "my home should persist a real household invite token");
 
-    await request(`${apiBaseUrl}/households`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${login.accessToken}` },
-      body: { householdName: "爸妈家", memberName: "主厨" },
-    });
+    await livingRoom.getByRole("button", { name: /^家庭设置/ }).click();
+    const settings = page.getByTestId("household-settings-page");
+    await settings.getByPlaceholder("例如：爸妈家").fill("爸妈家");
+    await settings.getByRole("button", { name: "新建一个家", exact: true }).click();
+    await page.getByTestId("family-living-room").getByRole("heading", { name: "爸妈家", exact: true }).waitFor({ timeout: 10000 });
     const householdsAfterCreate = await request(`${apiBaseUrl}/households`, {
       headers: { Authorization: `Bearer ${login.accessToken}` },
     });
-    assert.equal(householdsAfterCreate.households?.length, 2, "an owner should be able to create a second household through the explicit household API");
+    assert.equal(householdsAfterCreate.households?.length, 2, "an owner should be able to create a second household through Family Settings");
     assert(householdsAfterCreate.family?.name === "爸妈家", "new household should become active after creation");
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByTestId("family-living-room").getByRole("heading", { name: "爸妈家", exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole("button", { name: /^家庭设置/ }).click();
     await page.getByTestId("household-switcher").getByRole("button", { name: /我的家.*切换/ }).click();
     await page.getByTestId("family-living-room").getByRole("heading", { name: "我的家", exact: true }).waitFor({ timeout: 10000 });

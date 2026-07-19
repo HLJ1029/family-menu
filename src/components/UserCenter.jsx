@@ -20,6 +20,7 @@ export function UserCenter({
   onPlanWish,
   onCreateHouseholdInvite,
   onStartWishShare,
+  onCreateHousehold,
   canManageHousehold = true,
   households = [],
   onSwitchHousehold,
@@ -73,7 +74,7 @@ export function UserCenter({
     return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={onCreateHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
   }
   if (pageId === "settings") {
-    return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
+    return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onCreateHousehold={onCreateHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
   }
   if (pageId === "activity") {
     return <FamilyActivityPage {...commonPageProps} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />;
