@@ -235,7 +235,7 @@ git commit -m "docs: add Humi true-device acceptance gate"
 - Create: `docs/humi-identity-family-collaboration-final-audit.md`
 - Modify: `docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md`
 
-- [ ] **Step 1: Run all local gates from a clean tree**
+- [x] **Step 1: Run all local gates from a clean tree**
 
 ```bash
 npm run validate:household
@@ -253,15 +253,15 @@ git diff --check
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-- [ ] **Step 2: Audit every design acceptance criterion**
+- [x] **Step 2: Audit every design acceptance criterion**
 
 For sections 12.1–12.5 of the design, record evidence as `proved`, `contradicted`, `missing`, or `external gate`. A green narrow test cannot prove a broader criterion without corresponding runtime evidence.
 
-- [ ] **Step 3: Stop before unauthorized external changes**
+- [x] **Step 3: Stop before unauthorized external changes**
 
 If true-device evidence, production backup/apply, deployment, WeChat upload or external Supabase deletion are not explicitly authorized and evidenced, mark them `external gate`; do not claim the whole production rollout complete and do not perform them.
 
-- [ ] **Step 4: Request the exact remaining authorization**
+- [x] **Step 4: Request the exact remaining authorization**
 
 The checkpoint must separately ask for:
 
@@ -270,7 +270,7 @@ The checkpoint must separately ask for:
 3. H5/API deployment and mini-program upload.
 4. External Supabase provider data/Secrets deletion after backup verification.
 
-- [ ] **Step 5: Commit the audit**
+- [x] **Step 5: Commit the audit**
 
 ```bash
 git add docs/humi-identity-family-collaboration-final-audit.md docs/superpowers/specs/2026-07-19-humi-wechat-identity-family-collaboration-design.md
