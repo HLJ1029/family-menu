@@ -1,7 +1,18 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+
+const DEFAULT_AVATAR_KEYS = [
+  "humi-avatar-dev-front-m-01",
+  "humi-avatar-dev-side-m-01",
+  "humi-avatar-dev-thinking-m-01",
+  "humi-avatar-dev-laptop-m-01",
+  "humi-avatar-family-f-01",
+  "humi-avatar-family-m-01",
+  "humi-avatar-parent-f-01",
+  "humi-avatar-parent-m-01",
+];
 
 const DEFAULT_DATA = {
   users: [],
@@ -18,6 +29,7 @@ const DEFAULT_DATA = {
   menuShareRequests: [],
   wishShareRequests: [],
   revokedTokens: [],
+  h5Tickets: [],
 };
 
 export class HumiStore {
@@ -60,13 +72,17 @@ export class HumiStore {
     );
     if (identity) {
       const user = this.data.users.find((item) => item.id === identity.userId);
-      if (user) return user;
+      if (user) return this.normalizeIdentityUser(user);
     }
 
+    const userId = randomUUID();
     const user = {
-      id: randomUUID(),
+      id: userId,
       displayName: "微信用户",
       provider: "wechat",
+      profileStatus: "incomplete",
+      avatarKey: defaultAvatarKey(userId),
+      avatarUrl: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -81,12 +97,49 @@ export class HumiStore {
       updatedAt: new Date().toISOString(),
     });
     await this.save();
-    return user;
+    return this.normalizeIdentityUser(user);
   }
 
   async getUser(userId) {
     await this.load();
-    return this.data.users.find((item) => item.id === userId) ?? null;
+    return this.normalizeIdentityUser(this.data.users.find((item) => item.id === userId) ?? null);
+  }
+
+  normalizeIdentityUser(user) {
+    if (!user) return null;
+    return {
+      ...user,
+      profileStatus: user.profileStatus === "complete" ? "complete" : "incomplete",
+      avatarKey: user.avatarKey || defaultAvatarKey(user.id),
+      avatarUrl: user.avatarUrl || "",
+    };
+  }
+
+  async updateIdentityProfile(userId, profile = {}) {
+    await this.load();
+    const user = this.data.users.find((item) => item.id === userId);
+    if (!user) return null;
+    const displayName = sanitizeText(profile.displayName, "", 32);
+    if (!displayName) throw codedError("display_name_required", "displayName is required.");
+    user.displayName = displayName;
+    user.avatarKey = sanitizeText(profile.avatarKey, user.avatarKey || defaultAvatarKey(user.id), 80);
+    user.avatarUrl = sanitizeText(profile.avatarUrl, user.avatarUrl || "", 240);
+    user.profileStatus = "complete";
+    user.updatedAt = new Date().toISOString();
+    await this.save();
+    return this.normalizeIdentityUser(user);
+  }
+
+  async updateIdentityAvatar(userId, profile = {}) {
+    await this.load();
+    const user = this.data.users.find((item) => item.id === userId);
+    if (!user) return null;
+    const avatarUrl = sanitizeText(profile.avatarUrl, "", 240);
+    if (!avatarUrl) throw codedError("avatar_url_required", "avatarUrl is required.");
+    user.avatarUrl = avatarUrl;
+    user.updatedAt = new Date().toISOString();
+    await this.save();
+    return this.normalizeIdentityUser(user);
   }
 
   async getProfile(userId) {
@@ -95,8 +148,24 @@ export class HumiStore {
   }
 
   async getHouseholdForUser(userId) {
+    return this.getActiveHouseholdForUser(userId);
+  }
+
+  async getActiveHouseholdForUser(userId) {
     await this.load();
-    return this.findActiveHouseholdByMember(userId) ?? this.ensureHouseholdForUser(userId);
+    return this.findActiveHouseholdByMember(userId);
+  }
+
+  async requireActiveHouseholdForUser(userId) {
+    const household = await this.getActiveHouseholdForUser(userId);
+    if (household) return household;
+    throw codedError("household_required", "请先创建或加入一个家。");
+  }
+
+  async requireOwnedHouseholdForUser(userId) {
+    const household = await this.requireActiveHouseholdForUser(userId);
+    if (household.ownerId === userId) return household;
+    throw codedError("forbidden", "Only the household owner can perform this action.");
   }
 
   async getHouseholdsForUser(userId) {
@@ -135,47 +204,6 @@ export class HumiStore {
     return household;
   }
 
-  async ensureHouseholdForUser(userId, options = {}) {
-    await this.load();
-    const existing = this.findActiveHouseholdByMember(userId);
-    if (existing) {
-      const member = existing.members.find((item) => item.memberId === userId);
-      const nextName = sanitizeText(options.memberName, "", 32);
-      if (member && nextName && member.nickname !== nextName) {
-        member.nickname = nextName;
-        member.updatedAt = new Date().toISOString();
-        existing.updatedAt = member.updatedAt;
-        await this.save();
-      }
-      return existing;
-    }
-
-    return this.createHouseholdForUser(userId, options);
-  }
-
-  async ensureOwnedHouseholdForUser(userId, options = {}) {
-    await this.load();
-    const existing = this.findActiveHouseholdByMember(userId);
-    if (existing) {
-      if (existing.ownerId !== userId) {
-        const error = new Error("Only the household owner can start household actions.");
-        error.code = "forbidden";
-        throw error;
-      }
-      const member = existing.members.find((item) => item.memberId === userId);
-      const nextName = sanitizeText(options.memberName, "", 32);
-      if (member && nextName && member.nickname !== nextName) {
-        member.nickname = nextName;
-        member.updatedAt = new Date().toISOString();
-        existing.updatedAt = member.updatedAt;
-        await this.save();
-      }
-      return existing;
-    }
-
-    return this.createHouseholdForUser(userId, options);
-  }
-
   buildHousehold(userId, options = {}) {
     const user = this.data.users.find((item) => item.id === userId);
     const now = new Date().toISOString();
@@ -201,7 +229,7 @@ export class HumiStore {
   async addHouseholdMember(householdId, userId, options = {}) {
     await this.load();
     const household = this.data.households.find((item) => item.id === householdId);
-    if (!household) return this.ensureHouseholdForUser(userId, options);
+    if (!household) return null;
     const user = this.data.users.find((item) => item.id === userId);
     const now = new Date().toISOString();
     const existingMember = household.members.find((item) => item.memberId === userId);
@@ -361,10 +389,7 @@ export class HumiStore {
 
   async createGroceryShare(ownerUserId, payload = {}) {
     await this.load();
-    const household = await this.ensureOwnedHouseholdForUser(ownerUserId, {
-      householdName: payload.householdName,
-      memberName: payload.initiatorName,
-    });
+    const household = await this.requireOwnedHouseholdForUser(ownerUserId);
     const owner = this.data.users.find((item) => item.id === ownerUserId);
     const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
     const now = new Date().toISOString();
@@ -484,19 +509,17 @@ export class HumiStore {
 
   async getState(userId) {
     await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
-    return this.data.householdStates[household.id] ?? null;
+    const household = this.findActiveHouseholdByMember(userId);
+    return household ? this.data.householdStates[household.id] ?? null : null;
   }
 
   async saveState(userId, state, householdId = "") {
     await this.load();
     const household = householdId
       ? this.findHouseholdsByMember(userId).find((item) => item.id === householdId)
-      : await this.ensureHouseholdForUser(userId);
+      : this.findActiveHouseholdByMember(userId);
     if (!household) {
-      const error = new Error("Household not found for user.");
-      error.code = "household_not_found";
-      throw error;
+      throw codedError("household_required", "请先创建或加入一个家。");
     }
     const currentState = this.data.householdStates[household.id] ?? {};
     const writableState = household.ownerId === userId
@@ -519,7 +542,7 @@ export class HumiStore {
 
   async getPreciseRecommendationAccess(userId) {
     await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
+    const household = await this.requireActiveHouseholdForUser(userId);
     const state = this.data.householdStates[household.id] ?? {};
     const access = normalizeRecommendationAccess(state.recommendationAccess);
     return {
@@ -530,7 +553,7 @@ export class HumiStore {
 
   async consumePreciseRecommendationAccess(userId) {
     await this.load();
-    const household = await this.ensureHouseholdForUser(userId);
+    const household = await this.requireActiveHouseholdForUser(userId);
     const currentState = this.data.householdStates[household.id] ?? {};
     const access = normalizeRecommendationAccess(currentState.recommendationAccess);
     const nextAccess = access.plan === "plus"
@@ -551,6 +574,29 @@ export class HumiStore {
     return nextAccess;
   }
 
+  async issueH5Ticket(userId, { now = Date.now(), ttlMs = 60_000 } = {}) {
+    await this.load();
+    if (!this.data.users.some((item) => item.id === userId)) return null;
+    const ticket = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(ticket).digest("hex");
+    this.data.h5Tickets = (this.data.h5Tickets ?? [])
+      .filter((item) => item.expiresAt > now && !item.consumedAt)
+      .slice(-999);
+    this.data.h5Tickets.push({ tokenHash, userId, expiresAt: now + ttlMs, consumedAt: null });
+    await this.save();
+    return { ticket, expiresAt: now + ttlMs };
+  }
+
+  async consumeH5Ticket(ticket, { now = Date.now() } = {}) {
+    await this.load();
+    const tokenHash = createHash("sha256").update(String(ticket || "")).digest("hex");
+    const item = (this.data.h5Tickets ?? []).find((candidate) => candidate.tokenHash === tokenHash);
+    if (!item || item.consumedAt || item.expiresAt <= now) return null;
+    item.consumedAt = now;
+    await this.save();
+    return { userId: item.userId };
+  }
+
   async revokeToken(token) {
     await this.load();
     this.data.revokedTokens = [...new Set([...this.data.revokedTokens, token])].slice(-1000);
@@ -569,10 +615,7 @@ export class HumiStore {
     const token = randomUUID().replaceAll("-", "");
     const ownerSecret = randomUUID().replaceAll("-", "");
     const household = ownerUserId
-      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
-        householdName: payload.householdName,
-        memberName: payload.initiatorName,
-      })
+      ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
     const householdMemberIds = new Set((household?.members ?? []).map((member) => member.memberId));
     const recipientIds = [...new Set((Array.isArray(payload.recipientIds) ? payload.recipientIds : [])
@@ -692,10 +735,7 @@ export class HumiStore {
   async createGroceryShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
-        householdName: payload.householdName,
-        memberName: payload.initiatorName,
-      })
+      ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
     const now = new Date().toISOString();
     const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
@@ -795,10 +835,7 @@ export class HumiStore {
   async createMenuShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
-        householdName: payload.householdName,
-        memberName: payload.initiatorName,
-      })
+      ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
     const now = new Date().toISOString();
     const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
@@ -839,10 +876,7 @@ export class HumiStore {
   async createWishShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.ensureOwnedHouseholdForUser(ownerUserId, {
-        householdName: payload.householdName,
-        memberName: payload.initiatorName,
-      })
+      ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
     const now = new Date().toISOString();
     const request = {
@@ -952,6 +986,11 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function defaultAvatarKey(userId) {
+  const digest = createHash("sha256").update(String(userId || "")).digest();
+  return DEFAULT_AVATAR_KEYS[digest.readUInt32BE(0) % DEFAULT_AVATAR_KEYS.length];
 }
 
 function codedError(code, message) {

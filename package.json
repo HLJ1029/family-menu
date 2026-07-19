@@ -23,6 +23,7 @@
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:miniprogram-poster": "node scripts/check-miniprogram-poster-share.mjs",
+    "validate:identity": "node scripts/check-identity-store.mjs && node scripts/check-identity-runtime.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
