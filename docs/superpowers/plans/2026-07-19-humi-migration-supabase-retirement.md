@@ -188,7 +188,7 @@ git commit -m "refactor: physically remove Supabase from Humi runtime"
 - Create: `scripts/check-humi-true-device-evidence.mjs`
 - Modify: `package.json`
 
-- [ ] **Step 1: Define evidence schema and failing checker test**
+- [x] **Step 1: Define evidence schema and failing checker test**
 
 Evidence directory must contain `manifest.json` plus screenshots/video references. Required scenarios:
 
@@ -213,15 +213,15 @@ logout_to_guest
 
 Manifest entry includes device model, WeChat version, mini-program build, tester role, timestamp, result, artifact path and sanitized notes.
 
-- [ ] **Step 2: Implement evidence checker**
+- [x] **Step 2: Implement evidence checker**
 
 Checker validates schema, file existence, timestamp after candidate commit and `result: "pass"`; it prints only scenario/status/path, never account identifiers.
 
-- [ ] **Step 3: Write operator instructions**
+- [x] **Step 3: Write operator instructions**
 
 Instructions explain how to use a fresh WeChat test account/device, capture production user count before/after guest start, verify no account/family creation, and capture network/console evidence that `wx.login` follows the click. They explicitly prohibit using real family PII in screenshots.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run validate:true-device-evidence -- --selftest
