@@ -172,7 +172,7 @@ Authorization: Bearer <accessToken>
 ## 家庭与邀请
 
 - `GET /households`：读取当前用户加入的家庭列表和当前家庭。
-- `POST /households`：创建一个新家庭，并把创建者设为 `owner`。
+- `POST /households`：创建一个新家庭，并把创建者设为 `owner`。`householdName` 缺失、仅含空白或整个 JSON 请求体为 `null` 时等价处理，均返回 `400 household_name_required`，且不创建家庭或家庭状态。
 - `POST /households/active`：切换当前家庭。
 - `POST /household-invites`：仅主厨/owner 可创建家庭邀请。
 - `GET /household-invites/:token`：公开读取邀请摘要。

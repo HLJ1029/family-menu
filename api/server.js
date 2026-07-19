@@ -524,7 +524,7 @@ async function handleCreateHousehold(request, response) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const body = await readJson(request);
+  const body = (await readJson(request)) ?? {};
   const householdName = stringValue(body.householdName || body.name, 32);
   if (!householdName) throw httpError(400, "household_name_required", "请填写家庭名称。");
   const household = await store.createHouseholdForUser(user.id, {

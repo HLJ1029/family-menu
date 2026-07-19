@@ -228,6 +228,22 @@ try {
   });
   assert.deepEqual(householdsAfterBlankName.households, [], "blank household names must not create a household");
 
+  const nullHouseholdBody = await rawRequest(`${baseUrl}/households`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${login.accessToken}`,
+    },
+    body: "null",
+  });
+  assert.equal(nullHouseholdBody.status, 400, "literal JSON null must be rejected as a missing household name");
+  assert.equal(nullHouseholdBody.data?.error, "household_name_required");
+  const householdsAfterNullBody = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(householdsAfterNullBody.family, null, "literal JSON null must not create an active household");
+  assert.deepEqual(householdsAfterNullBody.households, [], "literal JSON null must not create a household");
+
   const firstHousehold = await request(`${baseUrl}/households`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
