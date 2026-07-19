@@ -27,6 +27,14 @@
    AssertionError: Missing expected rejection: event participant types must be explicit
    ```
 
+4. Independent review correction: after a guest event had merged to a user, retrying the same request/action with the original guest participant key failed with:
+
+   ```text
+   AssertionError: a merged guest retry must retain the original event id
+   ```
+
+   The retry incorrectly created a new event instead of resolving the exact `mergedFromGuestId` provenance.
+
 ## GREEN evidence
 
 - `npm run validate:collaboration-identity` — passed.
@@ -42,6 +50,12 @@
 - `npm run validate:api` — passed.
 - `git diff --check` — passed.
 - Targeted secret scan of changed files — passed (no credential/private-key/Supabase service-role markers).
+
+## Independent review correction
+
+- Fix commit: `1b5f8f2a8998b8cc62896c6a27e687e8bfb497ae` (`fix: preserve merged guest event idempotency`).
+- A guest retry now resolves only an event whose request type, request ID, action type, and `mergedFromGuestId` all match. It preserves the original event ID, `createdAt`, formal user identity snapshot, and history count while applying the same sanitized payload-update behavior.
+- A later merge returns that same original event. A different user cannot claim it: the merge lookup also requires the already-merged event's formal participant ID to equal the supplied user ID.
 
 ## Risks and follow-up boundaries
 
