@@ -3192,7 +3192,7 @@ function App() {
       requestToken === context.token && entry?.id === actionId
     );
 
-    setActiveCraveRequest((current) => {
+    if (context.type === "crave") setActiveCraveRequest((current) => {
       if (!current?.votes?.length) return current;
       let changed = false;
       const votes = current.votes.map((vote) => {
@@ -3210,7 +3210,7 @@ function App() {
       return changed ? { ...current, votes } : current;
     });
 
-    setCraveSignals((current) => {
+    if (context.type === "crave") setCraveSignals((current) => {
       let changed = false;
       const nextSignals = current.map((signal) => {
         const votes = Array.isArray(signal.votes) ? signal.votes : [];
@@ -3237,7 +3237,7 @@ function App() {
       return changed ? nextSignals : current;
     });
 
-    setActiveGroceryShareRequest((current) => {
+    if (context.type === "grocery") setActiveGroceryShareRequest((current) => {
       if (!current?.claims?.length) return current;
       let changed = false;
       const claims = current.claims.map((claim) => {
@@ -3255,7 +3255,7 @@ function App() {
       return changed ? { ...current, claims } : current;
     });
 
-    setActiveWishShareRequest((current) => {
+    if (context.type === "wish") setActiveWishShareRequest((current) => {
       if (!current?.wishes?.length) return current;
       let changed = false;
       const wishes = current.wishes.map((wish) => {

@@ -69,6 +69,18 @@ export class HumiStore {
     await rename(tmpPath, this.filePath);
   }
 
+  async mutateAndSave(mutation) {
+    const snapshot = structuredClone(this.data);
+    try {
+      const result = await mutation();
+      await this.save();
+      return result;
+    } catch (error) {
+      this.data = snapshot;
+      throw error;
+    }
+  }
+
   async findOrCreateWechatUser({ openid, unionid }) {
     await this.load();
     const identity = this.data.identities.find(
@@ -724,8 +736,9 @@ export class HumiStore {
     return this.data.revokedTokens.includes(token);
   }
 
-  async recordCollaborationEvent(input = {}) {
+  async recordCollaborationEvent(input = {}, { persist = true } = {}) {
     await this.load();
+    if (persist) return this.mutateAndSave(() => this.recordCollaborationEvent(input, { persist: false }));
     const requestType = sanitizeCollaborationRequestType(input.requestType);
     const requestId = sanitizeText(input.requestId, "", 100);
     const participantType = sanitizeCollaborationParticipantType(input.participantType);
@@ -785,12 +798,12 @@ export class HumiStore {
     };
     if (existing) Object.assign(existing, next);
     else this.data.collaborationEvents.unshift(next);
-    await this.save();
     return existing || next;
   }
 
-  async mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user } = {}) {
+  async mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user } = {}, { persist = true } = {}) {
     await this.load();
+    if (persist) return this.mutateAndSave(() => this.mergeGuestCollaborationEvents({ requestType, requestId, guestParticipantId, user }, { persist: false }));
     const normalizedRequestType = sanitizeCollaborationRequestType(requestType);
     const normalizedRequestId = sanitizeText(requestId, "", 100);
     const normalizedGuestId = sanitizeText(guestParticipantId, "", 100);
@@ -847,7 +860,6 @@ export class HumiStore {
       event.mergedFromGuestId = normalizedGuestId;
       merged.push(event);
     }
-    await this.save();
     return merged;
   }
 
@@ -924,51 +936,42 @@ export class HumiStore {
   async getCraveRequest(token) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token) ?? null;
-    if (expireCraveRequestIfNeeded(request)) await this.save();
-    return request;
+    if (!request) return null;
+    const projection = structuredClone(request);
+    expireCraveRequestIfNeeded(projection);
+    return projection;
   }
 
   async addCraveVote(token, vote = {}, participant = {}) {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
-    if (expireCraveRequestIfNeeded(request)) {
-      await this.save();
+    return this.mutateAndSave(async () => {
+      if (expireCraveRequestIfNeeded(request) || request.status !== "open") return request;
+      const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
+      const event = await this.recordCollaborationEvent({
+        requestType: "crave", requestId: request.id, householdId: request.householdId,
+        participantType: trustedParticipant.type, participantId: trustedParticipant.id,
+        displayNameSnapshot: trustedParticipant.displayName, avatarSnapshot: trustedParticipant.avatar,
+        actionType: "crave_vote", payload: vote,
+      }, { persist: false });
+      const now = new Date().toISOString();
+      const participantKey = trustedParticipant.id;
+      const existing = request.votes.find((item) => item.participantKey === participantKey);
+      const identity = canonicalActionIdentity(event, trustedParticipant);
+      const nextVote = {
+        id: existing?.id || randomUUID(), participantKey, memberName: event.displayNameSnapshot,
+        memberId: identity.type === "user" ? identity.id : undefined,
+        feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32), dishWish: sanitizeText(vote.dishWish, "", 80), note: sanitizeText(vote.note, "", 80),
+        temporary: identity.type === "guest", createdAt: existing?.createdAt || now,
+        claimedAt: existing?.claimedAt, mergedAt: existing?.mergedAt || identity.mergedAt, claimedByUserId: existing?.claimedByUserId || identity.claimedByUserId,
+      };
+      const existingIndex = request.votes.findIndex((item) => item.participantKey === participantKey);
+      if (existingIndex >= 0) request.votes[existingIndex] = nextVote;
+      else request.votes.push(nextVote);
+      request.updatedAt = now;
       return request;
-    }
-    if (request.status !== "open") return request;
-    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
-    const event = await this.recordCollaborationEvent({
-      requestType: "crave",
-      requestId: request.id,
-      householdId: request.householdId,
-      participantType: trustedParticipant.type,
-      participantId: trustedParticipant.id,
-      displayNameSnapshot: trustedParticipant.displayName,
-      avatarSnapshot: trustedParticipant.avatar,
-      actionType: "crave_vote",
-      payload: vote,
     });
-    const now = new Date().toISOString();
-    const participantKey = trustedParticipant.id;
-    const existing = request.votes.find((item) => item.participantKey === participantKey);
-    const nextVote = {
-      id: existing?.id || randomUUID(),
-      participantKey,
-      memberName: event.displayNameSnapshot,
-      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
-      feelingTag: sanitizeText(vote.feelingTag, "随便都行", 32),
-      dishWish: sanitizeText(vote.dishWish, "", 80),
-      note: sanitizeText(vote.note, "", 80),
-      temporary: trustedParticipant.type === "guest",
-      createdAt: existing?.createdAt || now,
-    };
-    const existingIndex = request.votes.findIndex((item) => item.participantKey === participantKey);
-    if (existingIndex >= 0) request.votes[existingIndex] = nextVote;
-    else request.votes.push(nextVote);
-    request.updatedAt = now;
-    await this.save();
-    return request;
   }
 
   async claimCraveVote(token, userId, claim = {}) {
@@ -991,24 +994,20 @@ export class HumiStore {
 
     this.assertCollaborationActionClaimable(vote, userId);
     const user = this.data.users.find((item) => item.id === userId);
-    const mergedEvents = await this.mergeGuestCollaborationEvents({
-      requestType: "crave",
-      requestId: request.id,
-      guestParticipantId: participantKey,
-      user: { id: userId },
+    return this.mutateAndSave(async () => {
+      const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "crave", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
+      const event = mergedEvents.find((item) => item.actionType === "crave_vote");
+      if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this vote.");
+      const now = new Date().toISOString();
+      vote.memberId = userId;
+      vote.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
+      vote.temporary = false;
+      vote.claimedAt ||= now;
+      vote.mergedAt ||= event.mergedAt || now;
+      vote.claimedByUserId = userId;
+      request.updatedAt = now;
+      return { request, mergedEvents };
     });
-    const event = mergedEvents.find((item) => item.actionType === "crave_vote");
-    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this vote.");
-    const now = new Date().toISOString();
-    vote.memberId = userId;
-    vote.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
-    vote.temporary = false;
-    vote.claimedAt ||= now;
-    vote.mergedAt ||= event.mergedAt || now;
-    vote.claimedByUserId = userId;
-    request.updatedAt = now;
-    await this.save();
-    return { request, mergedEvents };
   }
 
   async closeCraveRequest(token, ownerSecret, resultSummary = null, ownerUserId = null) {
@@ -1075,41 +1074,33 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
-    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
-    const claimStatus = claim.status === "declined" ? "declined" : "claimed";
-    const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
-    const note = sanitizeText(claim.note, "", 80);
-    const event = await this.recordCollaborationEvent({
-      requestType: "grocery",
-      requestId: request.id,
-      householdId: request.householdId,
-      participantType: trustedParticipant.type,
-      participantId: trustedParticipant.id,
-      displayNameSnapshot: trustedParticipant.displayName,
-      avatarSnapshot: trustedParticipant.avatar,
-      actionType: "grocery_claim",
-      payload: { status: claimStatus, itemIds, note },
+    return this.mutateAndSave(async () => {
+      const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
+      const claimStatus = claim.status === "declined" ? "declined" : "claimed";
+      const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
+      const note = sanitizeText(claim.note, "", 80);
+      const event = await this.recordCollaborationEvent({
+        requestType: "grocery", requestId: request.id, householdId: request.householdId,
+        participantType: trustedParticipant.type, participantId: trustedParticipant.id,
+        displayNameSnapshot: trustedParticipant.displayName, avatarSnapshot: trustedParticipant.avatar,
+        actionType: "grocery_claim", payload: { status: claimStatus, itemIds, note },
+      }, { persist: false });
+      const now = new Date().toISOString();
+      const participantKey = trustedParticipant.id;
+      const existing = request.claims.find((item) => item.participantKey === participantKey);
+      const identity = canonicalActionIdentity(event, trustedParticipant);
+      const nextClaim = {
+        id: existing?.id || randomUUID(), participantKey, memberName: event.displayNameSnapshot,
+        memberId: identity.type === "user" ? identity.id : undefined,
+        status: claimStatus, itemIds, note, temporary: identity.type === "guest", createdAt: existing?.createdAt || now,
+        mergedAt: existing?.mergedAt || identity.mergedAt, claimedByUserId: existing?.claimedByUserId || identity.claimedByUserId,
+      };
+      const existingIndex = request.claims.findIndex((item) => item.participantKey === participantKey);
+      if (existingIndex >= 0) request.claims[existingIndex] = nextClaim;
+      else request.claims.push(nextClaim);
+      request.updatedAt = now;
+      return request;
     });
-    const now = new Date().toISOString();
-    const participantKey = trustedParticipant.id;
-    const existing = request.claims.find((item) => item.participantKey === participantKey);
-    const nextClaim = {
-      id: existing?.id || randomUUID(),
-      participantKey,
-      memberName: event.displayNameSnapshot,
-      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
-      status: claimStatus,
-      itemIds,
-      note,
-      temporary: trustedParticipant.type === "guest",
-      createdAt: existing?.createdAt || now,
-    };
-    const existingIndex = request.claims.findIndex((item) => item.participantKey === participantKey);
-    if (existingIndex >= 0) request.claims[existingIndex] = nextClaim;
-    else request.claims.push(nextClaim);
-    request.updatedAt = now;
-    await this.save();
-    return request;
   }
 
   async updateGroceryShareItemChecked(token, itemId, checked) {
@@ -1134,23 +1125,19 @@ export class HumiStore {
     if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
     this.assertCollaborationActionClaimable(participantClaim, userId);
     const user = this.data.users.find((item) => item.id === userId);
-    const mergedEvents = await this.mergeGuestCollaborationEvents({
-      requestType: "grocery",
-      requestId: request.id,
-      guestParticipantId: participantKey,
-      user: { id: userId },
+    return this.mutateAndSave(async () => {
+      const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "grocery", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
+      const event = mergedEvents.find((item) => item.actionType === "grocery_claim");
+      if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this claim.");
+      const now = new Date().toISOString();
+      participantClaim.memberId = userId;
+      participantClaim.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
+      participantClaim.temporary = false;
+      participantClaim.mergedAt ||= event.mergedAt || now;
+      participantClaim.claimedByUserId = userId;
+      request.updatedAt = now;
+      return { request, mergedEvents };
     });
-    const event = mergedEvents.find((item) => item.actionType === "grocery_claim");
-    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this claim.");
-    const now = new Date().toISOString();
-    participantClaim.memberId = userId;
-    participantClaim.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
-    participantClaim.temporary = false;
-    participantClaim.mergedAt ||= event.mergedAt || now;
-    participantClaim.claimedByUserId = userId;
-    request.updatedAt = now;
-    await this.save();
-    return { request, mergedEvents };
   }
 
   async createMenuShareRequest(payload = {}, ownerUserId = null) {
@@ -1231,37 +1218,31 @@ export class HumiStore {
     await this.load();
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
-    const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
-    const event = await this.recordCollaborationEvent({
-      requestType: "wish",
-      requestId: request.id,
-      householdId: request.householdId,
-      participantType: trustedParticipant.type,
-      participantId: trustedParticipant.id,
-      displayNameSnapshot: trustedParticipant.displayName,
-      avatarSnapshot: trustedParticipant.avatar,
-      actionType: "wish_entry",
-      payload: wish,
+    return this.mutateAndSave(async () => {
+      const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
+      const event = await this.recordCollaborationEvent({
+        requestType: "wish", requestId: request.id, householdId: request.householdId,
+        participantType: trustedParticipant.type, participantId: trustedParticipant.id,
+        displayNameSnapshot: trustedParticipant.displayName, avatarSnapshot: trustedParticipant.avatar,
+        actionType: "wish_entry", payload: wish,
+      }, { persist: false });
+      const now = new Date().toISOString();
+      const participantKey = trustedParticipant.id;
+      const existing = request.wishes.find((item) => item.participantKey === participantKey);
+      const identity = canonicalActionIdentity(event, trustedParticipant);
+      const nextWish = {
+        id: existing?.id || randomUUID(), participantKey, memberName: event.displayNameSnapshot,
+        memberId: identity.type === "user" ? identity.id : undefined,
+        dishName: sanitizeText(wish.dishName, "想吃的菜", 40), note: sanitizeText(wish.note, "", 80),
+        temporary: identity.type === "guest", createdAt: existing?.createdAt || now,
+        mergedAt: existing?.mergedAt || identity.mergedAt, claimedByUserId: existing?.claimedByUserId || identity.claimedByUserId,
+      };
+      const existingIndex = request.wishes.findIndex((item) => item.participantKey === participantKey);
+      if (existingIndex >= 0) request.wishes[existingIndex] = nextWish;
+      else request.wishes.push(nextWish);
+      request.updatedAt = now;
+      return request;
     });
-    const now = new Date().toISOString();
-    const participantKey = trustedParticipant.id;
-    const existing = request.wishes.find((item) => item.participantKey === participantKey);
-    const nextWish = {
-      id: existing?.id || randomUUID(),
-      participantKey,
-      memberName: event.displayNameSnapshot,
-      memberId: trustedParticipant.type === "user" ? trustedParticipant.id : undefined,
-      dishName: sanitizeText(wish.dishName, "想吃的菜", 40),
-      note: sanitizeText(wish.note, "", 80),
-      temporary: trustedParticipant.type === "guest",
-      createdAt: existing?.createdAt || now,
-    };
-    const existingIndex = request.wishes.findIndex((item) => item.participantKey === participantKey);
-    if (existingIndex >= 0) request.wishes[existingIndex] = nextWish;
-    else request.wishes.push(nextWish);
-    request.updatedAt = now;
-    await this.save();
-    return request;
   }
 
   async claimWishShareParticipant(token, userId, claim = {}) {
@@ -1274,23 +1255,19 @@ export class HumiStore {
     if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
     this.assertCollaborationActionClaimable(wish, userId);
     const user = this.data.users.find((item) => item.id === userId);
-    const mergedEvents = await this.mergeGuestCollaborationEvents({
-      requestType: "wish",
-      requestId: request.id,
-      guestParticipantId: participantKey,
-      user: { id: userId },
+    return this.mutateAndSave(async () => {
+      const mergedEvents = await this.mergeGuestCollaborationEvents({ requestType: "wish", requestId: request.id, guestParticipantId: participantKey, user: { id: userId } }, { persist: false });
+      const event = mergedEvents.find((item) => item.actionType === "wish_entry");
+      if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this wish.");
+      const now = new Date().toISOString();
+      wish.memberId = userId;
+      wish.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
+      wish.temporary = false;
+      wish.mergedAt ||= event.mergedAt || now;
+      wish.claimedByUserId = userId;
+      request.updatedAt = now;
+      return { request, mergedEvents };
     });
-    const event = mergedEvents.find((item) => item.actionType === "wish_entry");
-    if (!event) throw codedError("collaboration_participant_not_found", "Guest collaboration event not found for this wish.");
-    const now = new Date().toISOString();
-    wish.memberId = userId;
-    wish.memberName = event.displayNameSnapshot || user?.displayName || "Humi 用户";
-    wish.temporary = false;
-    wish.mergedAt ||= event.mergedAt || now;
-    wish.claimedByUserId = userId;
-    request.updatedAt = now;
-    await this.save();
-    return { request, mergedEvents };
   }
 
   assertCollaborationActionClaimable(action, userId) {
@@ -1386,6 +1363,17 @@ function sanitizeTrustedCollaborationParticipant(participant = {}) {
 function collaborationGuestParticipantId(claim = {}) {
   return sanitizeText(claim.guestParticipantId, "", 100)
     || sanitizeText(claim.participantKey, "", 80);
+}
+
+function canonicalActionIdentity(event, participant) {
+  const isMergedGuestRetry = participant.type === "guest" && event.mergedFromGuestId === participant.id;
+  if (!isMergedGuestRetry) return { type: participant.type, id: participant.id, mergedAt: "", claimedByUserId: "" };
+  return {
+    type: event.participantType,
+    id: event.participantId,
+    mergedAt: event.mergedAt || "",
+    claimedByUserId: event.participantId,
+  };
 }
 
 function collaborationEventKey(event) {

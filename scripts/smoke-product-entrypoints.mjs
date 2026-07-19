@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
 
@@ -659,6 +660,8 @@ try {
       soloOwnerMobile: soloOwnerFlow.screenshot,
       persistedCraveDeadlineMobile: persistedCraveDeadline.screenshot,
       profileOnboardingMobile: hardConstraintOnboarding.screenshot,
+      ownerCollaborationSharesMobile: ownerCollaborationShares.screenshot,
+      familyActivityHistoryMobile: familyActivityHistory.screenshot,
     },
     checks,
     nextActions: [
@@ -666,6 +669,10 @@ try {
       "This smoke test intercepts POST /crave-requests, so it does not create real collaboration records.",
     ],
   };
+
+  const referencedScreenshots = Object.values(manifest.screenshots);
+  assert.equal(new Set(referencedScreenshots).size, referencedScreenshots.length, "every product evidence screenshot must be referenced exactly once");
+  await Promise.all(referencedScreenshots.map((path) => access(path)));
 
   await writeFile(join(evidenceDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify(manifest, null, 2));

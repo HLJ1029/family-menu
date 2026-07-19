@@ -1080,12 +1080,12 @@ async function verifyTemporaryJoinMergeFlow({ browser, apiBaseUrl, webBaseUrl })
     }, null, { timeout: 10000 });
     await page.waitForFunction(() => {
       const request = JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null");
-      return request?.votes?.some((vote) => vote.temporary === false && Boolean(vote.claimedAt));
+      return request?.votes?.some((vote) => vote.temporary === false);
     }, null, { timeout: 10000 });
     const activeRequest = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:active-crave-request:v1") || "null"));
     const mergedVote = activeRequest?.votes?.find((vote) => vote.temporary === false);
     assert.equal(mergedVote?.temporary, false, "sign-in should bind the temporary crave vote to the authenticated identity");
-    assert(mergedVote?.claimedAt, "the API-backed crave vote should keep its identity-claim timestamp");
+    assert.equal(Object.hasOwn(mergedVote ?? {}, "claimedAt"), false, "the public browser projection must not retain identity-claim timestamps");
 
     const craveSignals = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:crave-signals:v1") || "[]"));
     const signalVote = craveSignals.flatMap((signal) => signal.votes ?? []).find((vote) => vote.id === voted.participant.actionId);
@@ -1621,7 +1621,12 @@ async function verifyThreeMealPortraitFlow({ browser, apiBaseUrl, webBaseUrl }) 
     assert.equal(await page.getByRole("heading", { name: "三餐记录开始成形。" }).count(), 0, "the focused family living room should not restore the retired meal-portrait dashboard");
     await page.getByRole("button", { name: /^协作记录/ }).click();
     await page.getByRole("heading", { name: "一起完成的事" }).waitFor({ timeout: 10000 });
-    await page.getByText("确认了一顿饭", { exact: true }).waitFor({ timeout: 10000 });
+    await page.waitForFunction(() => {
+      const text = document.querySelector('[data-testid="family-activity-page"]')?.textContent || "";
+      return !text.includes("正在读取家庭协作记录") && (text.includes("还没有云端协作记录") || text.includes("想吃") || text.includes("认领") || text.includes("写下"));
+    }, null, { timeout: 10000 });
+    assert.equal(await page.getByText("确认了一顿饭", { exact: true }).count(), 0, "cloud history success must not render the local meal-log row");
+    assert.equal(await page.getByText("当前设备记录", { exact: true }).count(), 0, "cloud history success must not render the local fallback heading");
     const retainedLog = await page.evaluate((key) => JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}")[key], todayKey);
     assert.equal(retainedLog?.mealSources?.breakfast, "home", "the current activity flow should preserve the breakfast source");
     assert.equal(retainedLog?.mealSources?.lunch, "delivery", "the current activity flow should preserve the lunch source");

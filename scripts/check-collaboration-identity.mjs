@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HumiStore } from "../api/store.js";
@@ -254,5 +254,80 @@ await assert.rejects(
   (error) => error.code === "household_not_found",
   "collaboration history requires formal household membership",
 );
+
+const atomicDirectory = await mkdtemp(join(tmpdir(), "humi-collaboration-atomic-"));
+const atomicFile = join(atomicDirectory, "data.json");
+const atomicStore = new HumiStore(atomicFile);
+const atomicUser = await atomicStore.findOrCreateWechatUser({ openid: "atomic-user", unionid: null });
+await atomicStore.updateIdentityProfile(atomicUser.id, { displayName: "原子小禾" });
+const atomicRequests = {
+  crave: await atomicStore.createCraveRequest({ householdName: "原子家" }),
+  grocery: await atomicStore.createGroceryShareRequest({
+    householdName: "原子家",
+    items: [{ id: "milk", name: "牛奶", amount: "1 盒" }],
+  }),
+  wish: await atomicStore.createWishShareRequest({ householdName: "原子家" }),
+};
+
+async function assertSaveFailureRollsBack(label, operation, retry, businessCollection) {
+  const beforeMemory = structuredClone(atomicStore.data);
+  const beforeBytes = await readFile(atomicFile, "utf8");
+  const save = atomicStore.save;
+  atomicStore.save = async () => { throw new Error(`${label} injected save failure`); };
+  await assert.rejects(operation, /injected save failure/, `${label} must surface the disk failure`);
+  assert.deepEqual(atomicStore.data, beforeMemory, `${label} must restore all in-memory collections after a failed save`);
+  assert.equal(await readFile(atomicFile, "utf8"), beforeBytes, `${label} must leave the data file byte-for-byte unchanged after a failed save`);
+  atomicStore.save = save;
+  await retry();
+  assert.equal(businessCollection().length, 1, `${label} retry must persist one business action`);
+  assert.equal(atomicStore.data.collaborationEvents.filter((event) => event.requestType === label).length, 1, `${label} retry must persist one canonical event`);
+}
+
+const guest = { type: "guest", id: "atomic-guest" };
+await assertSaveFailureRollsBack(
+  "crave",
+  () => atomicStore.addCraveVote(atomicRequests.crave.token, { feelingTag: "热的" }, guest),
+  () => atomicStore.addCraveVote(atomicRequests.crave.token, { feelingTag: "热的" }, guest),
+  () => atomicStore.data.craveRequests.find((request) => request.id === atomicRequests.crave.id)?.votes ?? [],
+);
+await assertSaveFailureRollsBack(
+  "grocery",
+  () => atomicStore.addGroceryShareClaim(atomicRequests.grocery.token, { itemIds: ["milk"] }, guest),
+  () => atomicStore.addGroceryShareClaim(atomicRequests.grocery.token, { itemIds: ["milk"] }, guest),
+  () => atomicStore.data.groceryShareRequests.find((request) => request.id === atomicRequests.grocery.id)?.claims ?? [],
+);
+await assertSaveFailureRollsBack(
+  "wish",
+  () => atomicStore.addWishShareEntry(atomicRequests.wish.token, { dishName: "面条" }, guest),
+  () => atomicStore.addWishShareEntry(atomicRequests.wish.token, { dishName: "面条" }, guest),
+  () => atomicStore.data.wishShareRequests.find((request) => request.id === atomicRequests.wish.id)?.wishes ?? [],
+);
+
+async function assertClaimSaveFailureRollsBack(requestType, claim, action) {
+  const beforeMemory = structuredClone(atomicStore.data);
+  const beforeBytes = await readFile(atomicFile, "utf8");
+  const save = atomicStore.save;
+  atomicStore.save = async () => { throw new Error(`${requestType} claim injected save failure`); };
+  await assert.rejects(claim, /injected save failure/, `${requestType} claim must surface the disk failure`);
+  assert.deepEqual(atomicStore.data, beforeMemory, `${requestType} claim must restore all in-memory collections after a failed save`);
+  assert.equal(await readFile(atomicFile, "utf8"), beforeBytes, `${requestType} claim must leave the data file byte-for-byte unchanged after a failed save`);
+  atomicStore.save = save;
+  await claim();
+  assert.equal(action().claimedByUserId, atomicUser.id, `${requestType} claim retry must persist exactly once`);
+}
+
+await assertClaimSaveFailureRollsBack("crave", () => atomicStore.claimCraveVote(atomicRequests.crave.token, atomicUser.id, { guestParticipantId: guest.id }), () => atomicStore.data.craveRequests.find((request) => request.id === atomicRequests.crave.id)?.votes?.[0]);
+await assertClaimSaveFailureRollsBack("grocery", () => atomicStore.claimGroceryShareParticipant(atomicRequests.grocery.token, atomicUser.id, { guestParticipantId: guest.id }), () => atomicStore.data.groceryShareRequests.find((request) => request.id === atomicRequests.grocery.id)?.claims?.[0]);
+await assertClaimSaveFailureRollsBack("wish", () => atomicStore.claimWishShareParticipant(atomicRequests.wish.token, atomicUser.id, { guestParticipantId: guest.id }), () => atomicStore.data.wishShareRequests.find((request) => request.id === atomicRequests.wish.id)?.wishes?.[0]);
+
+const expiredRead = await atomicStore.createCraveRequest({ deadlineAt: new Date(Date.now() - 60_000).toISOString() });
+const expiredReadBeforeMemory = structuredClone(atomicStore.data);
+const expiredReadBeforeBytes = await readFile(atomicFile, "utf8");
+const expiredReadPublic = await atomicStore.getCraveRequest(expiredRead.token);
+assert.equal(expiredReadPublic.status, "closed", "an expired public Crave read must truthfully project closed status");
+assert.deepEqual(atomicStore.data, expiredReadBeforeMemory, "an expired public Crave read must not mutate Store memory");
+assert.equal(await readFile(atomicFile, "utf8"), expiredReadBeforeBytes, "an expired public Crave read must not write the data file");
+await atomicStore.getCraveRequest(expiredRead.token);
+assert.equal(await readFile(atomicFile, "utf8"), expiredReadBeforeBytes, "repeated expired public Crave reads must remain zero-write");
 
 console.log("Collaboration identity checks passed.");

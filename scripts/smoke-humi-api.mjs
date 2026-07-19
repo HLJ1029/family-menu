@@ -651,6 +651,16 @@ try {
   const claimedCraveEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === legacyCraveGuest.participant.id && event.requestId === crave.request.id);
   assert.equal(claimedCraveAction?.claimedByUserId, memberLogin.user.id, "first crave merge must persist the authenticated claimant");
   assert.equal(claimedCraveEvent?.participantId, memberLogin.user.id, "first crave merge must canonicalize the event user");
+  const retriedMergedCrave = await request(`${baseUrl}/crave-requests/${crave.request.token}/votes`, {
+    method: "POST",
+    body: { guestParticipantId: legacyCraveGuest.participant.id, feelingTag: "辣一点", dishWish: "番茄汤", note: "合并后更新" },
+  });
+  const retriedMergedCraveAction = (await readCollaborationBusinessActions("crave", crave.request.id)).find((vote) => vote.id === claimedCraveVote.id);
+  const retriedMergedCraveEvent = (await readCollaborationEvents()).find((event) => event.id === claimedCraveEvent.id);
+  assert.equal(retriedMergedCrave.request?.votes?.find((vote) => vote.id === claimedCraveVote.id)?.temporary, false, "merged crave guest retry must not revert the public action to temporary");
+  assert.equal(retriedMergedCraveAction?.memberId, memberLogin.user.id, "merged crave guest retry must retain the formal business identity");
+  assert.equal(retriedMergedCraveAction?.claimedByUserId, memberLogin.user.id, "merged crave guest retry must retain claim ownership");
+  assert.equal(retriedMergedCraveEvent?.participantId, memberLogin.user.id, "merged crave guest retry must retain canonical event identity");
   const craveActionSnapshot = structuredClone(claimedCraveAction);
   const craveEventSnapshot = structuredClone(claimedCraveEvent);
   const repeatedCraveMerge = await request(`${baseUrl}/crave-requests/${crave.request.token}/join`, {
@@ -1213,6 +1223,16 @@ try {
   const joinedGroceryAction = (await readCollaborationBusinessActions("grocery", batchGrocery.request.id)).find((claim) => claim.id === firstGroceryGuestAction.id);
   const joinedGroceryEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === batchClaim.participant.id && event.requestId === batchGrocery.request.id);
   assert.equal(joinedGroceryAction?.claimedByUserId, collaborationGuest.user.id, "first grocery merge must persist the authenticated claimant");
+  const retriedMergedGrocery = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/claims`, {
+    method: "POST",
+    body: { guestParticipantId: batchClaim.participant.id, itemIds: ["egg"], note: "合并后更新" },
+  });
+  const retriedMergedGroceryAction = (await readCollaborationBusinessActions("grocery", batchGrocery.request.id)).find((claim) => claim.id === firstGroceryGuestAction.id);
+  const retriedMergedGroceryEvent = (await readCollaborationEvents()).find((event) => event.id === joinedGroceryEvent.id);
+  assert.equal(retriedMergedGrocery.request?.claims?.find((claim) => claim.id === firstGroceryGuestAction.id)?.temporary, false, "merged grocery guest retry must not revert the public action to temporary");
+  assert.equal(retriedMergedGroceryAction?.memberId, collaborationGuest.user.id, "merged grocery guest retry must retain the formal business identity");
+  assert.equal(retriedMergedGroceryAction?.claimedByUserId, collaborationGuest.user.id, "merged grocery guest retry must retain claim ownership");
+  assert.equal(retriedMergedGroceryEvent?.participantId, collaborationGuest.user.id, "merged grocery guest retry must retain canonical event identity");
   const groceryActionSnapshot = structuredClone(joinedGroceryAction);
   const groceryEventSnapshot = structuredClone(joinedGroceryEvent);
   const repeatedGroceryMerge = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}/join`, {
@@ -1330,6 +1350,16 @@ try {
   const joinedWishAction = (await readCollaborationBusinessActions("wish", wishShare.request.id)).find((wish) => wish.id === firstWishGuestAction.id);
   const joinedWishEvent = (await readCollaborationEvents()).find((event) => event.mergedFromGuestId === wishEntry.participant.id && event.requestId === wishShare.request.id);
   assert.equal(joinedWishAction?.claimedByUserId, wishGuest.user.id, "first wish merge must persist the authenticated claimant");
+  const retriedMergedWish = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/wishes`, {
+    method: "POST",
+    body: { guestParticipantId: wishEntry.participant.id, dishName: "红烧肉", note: "合并后更新" },
+  });
+  const retriedMergedWishAction = (await readCollaborationBusinessActions("wish", wishShare.request.id)).find((wish) => wish.id === firstWishGuestAction.id);
+  const retriedMergedWishEvent = (await readCollaborationEvents()).find((event) => event.id === joinedWishEvent.id);
+  assert.equal(retriedMergedWish.request?.wishes?.find((wish) => wish.id === firstWishGuestAction.id)?.temporary, false, "merged wish guest retry must not revert the public action to temporary");
+  assert.equal(retriedMergedWishAction?.memberId, wishGuest.user.id, "merged wish guest retry must retain the formal business identity");
+  assert.equal(retriedMergedWishAction?.claimedByUserId, wishGuest.user.id, "merged wish guest retry must retain claim ownership");
+  assert.equal(retriedMergedWishEvent?.participantId, wishGuest.user.id, "merged wish guest retry must retain canonical event identity");
   const wishActionSnapshot = structuredClone(joinedWishAction);
   const wishEventSnapshot = structuredClone(joinedWishEvent);
   const repeatedWishMerge = await request(`${baseUrl}/wish-share-requests/${wishShare.request.token}/join`, {
@@ -1694,7 +1724,9 @@ function assertNoCollaborationResponseLeaks(value, label) {
     "householdId",
     "ownerId",
     "requestId",
+    "claimedAt",
     "claimedByUserId",
+    "mergedAt",
     "mergedFromGuestId",
     "participantKey",
     "memberId",
