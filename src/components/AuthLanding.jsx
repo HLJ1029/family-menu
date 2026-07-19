@@ -3,15 +3,9 @@ import { useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
-import { CloudAccount } from "./system/CloudAccount";
 import { HumiScene } from "./ui/HumiScene";
 
-export function AuthLanding({ authProps, onContinueGuest, entryIntent = "" }) {
-  const isWechatMiniProgram = isWechatMiniProgramWebView();
-  const showDevEmailAuth =
-    !isWechatMiniProgram &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("devAuth") === "email";
+export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
   return (
     <main className="min-h-screen overflow-hidden bg-canvas px-6 py-8 text-ink">
       <section className="mx-auto grid min-h-[calc(100vh-112px)] max-w-md content-between gap-8">
@@ -22,33 +16,21 @@ export function AuthLanding({ authProps, onContinueGuest, entryIntent = "" }) {
           </p>
         </div>
 
-        {showDevEmailAuth ? (
-          <div className="grid gap-3 rounded-[28px] border border-white/10 bg-white p-4 text-ink shadow-lift">
-            <div className="rounded-[22px] bg-canvas p-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">Account</p>
-              <p className="mt-1 text-sm font-bold leading-6 text-ink/56">
-                账号入口：用于保存云端同步和家庭空间。
-              </p>
-            </div>
-            <CloudAccount {...authProps} compactTitle />
+        <>
+          <div className="mx-auto grid w-full max-w-[390px] place-items-center rounded-[28px] border border-line bg-white px-5 py-6 shadow-card">
+            <HumiScene
+              scene={entryIntent === "completeIdentity" ? "wechatLogin" : entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
+              size="hero"
+              className="w-full"
+              eager
+            />
+            <p className="mt-3 text-sm font-black text-ink">
+              {entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
+            </p>
           </div>
-        ) : (
-          <>
-            <div className="mx-auto grid w-full max-w-[390px] place-items-center rounded-[28px] border border-line bg-white px-5 py-6 shadow-card">
-              <HumiScene
-                scene={entryIntent === "completeIdentity" ? "wechatLogin" : entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
-                size="hero"
-                className="w-full"
-                eager
-              />
-              <p className="mt-3 text-sm font-black text-ink">
-                {entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
-              </p>
-            </div>
 
-            <MobileAuthChoices onContinueGuest={onContinueGuest} entryIntent={entryIntent} />
-          </>
-        )}
+          <MobileAuthChoices onContinueGuest={onContinueGuest} entryIntent={entryIntent} />
+        </>
       </section>
       <IcpFooter compact />
     </main>
@@ -86,25 +68,25 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             {entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
-            <>
-              <button
-                type="button"
-                onClick={showPhoneReserved}
-                className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Phone size={14} />
-                  手机号登录
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={onContinueGuest}
-                className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
-              >
-                {entryIntent === "startCrave" || entryIntent === "startCollaboration" ? "先不发起，回到 Humi" : "先体验 Humi"}
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={showPhoneReserved}
+              className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Phone size={14} />
+                手机号登录
+              </span>
+            </button>
+          )}
+          {entryIntent !== "completeIdentity" && (
+            <button
+              type="button"
+              onClick={onContinueGuest}
+              className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
+            >
+              {entryIntent === "startCrave" || entryIntent === "startCollaboration" ? "先不发起，回到 Humi" : "先体验 Humi"}
+            </button>
           )}
         </div>
       ) : (

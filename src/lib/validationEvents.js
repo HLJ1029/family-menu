@@ -20,6 +20,21 @@ export const validationEvents = {
   performanceMeasured: "performance_measured",
 };
 
+export const productEvents = {
+  appOpen: "app_open",
+  recommendationRequest: "recommendation_request",
+  recommendationShown: "recommendation_shown",
+  recommendationFeedback: "recommendation_feedback",
+  recommendationRejected: "recommendation_rejected",
+  recommendationRejectedReason: "recommendation_rejected_reason",
+  recommendationAccepted: "recommendation_accepted",
+  weekPlanAdd: "week_plan_add",
+  share: "share",
+  auth: "auth",
+  familyCreated: "family_created",
+  profileSaved: "profile_saved",
+};
+
 export function trackValidationEvent(eventName, payload = {}) {
   if (typeof window === "undefined" || !eventName) return null;
   const event = {

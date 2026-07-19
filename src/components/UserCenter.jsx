@@ -5,10 +5,8 @@ import { getDefaultNutritionGoals, normalizeNutritionGoals } from "../lib/insigh
 import { formatHardProfileSummary, profileOptions } from "../lib/profile";
 import { getRecipe } from "../lib/recipes";
 import { buildValidationSummary, readValidationEvents } from "../lib/validationEvents";
-import { CloudAccount } from "./system/CloudAccount";
 import { CloudSyncPanel } from "./system/CloudSyncPanel";
 import { CraveAudiencePicker } from "./CraveAudiencePicker";
-import { FamilyPreferencesPanel } from "./system/FamilyPreferencesPanel";
 import { Card } from "./ui/Card";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { HumiScene } from "./ui/HumiScene";
@@ -18,7 +16,6 @@ import { requestPhoneBindFromMiniProgram } from "../lib/humiIdentity";
 export function UserCenter({
   authProps,
   cloudMenuProps,
-  preferenceProps,
   session,
   humiSession,
   family,
@@ -66,7 +63,7 @@ export function UserCenter({
 }) {
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
-  const signedIn = Boolean(session?.user || humiSession);
+  const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
   const signOutLabel = humiSession ? "退出并重新验证微信登录" : "退出账号";
   const [activeSettings, setActiveSettings] = useState(null);
   const [phoneBindStatus, setPhoneBindStatus] = useState("");
@@ -518,14 +515,32 @@ export function UserCenter({
           )}
         </section>
 
-        <div data-testid="cloud-account-section">
-          <CloudAccount
-            {...authProps}
-            session={session ?? (humiSession ? { user: humiSession.user } : authProps?.session)}
-            family={family}
-            hideAuthEntry={isWechatMiniProgram || Boolean(humiSession)}
-          />
-        </div>
+        {signedIn && !family && (
+          <section data-testid="create-household-section" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+            <p className="eyebrow">建立我的家</p>
+            <h3 className="mt-2 text-2xl font-black tracking-[-0.04em]">给这个家起个名字</h3>
+            <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+              创建后可以邀请成员、保存菜单和清单；不会因为登录而自动替你创建。
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <input
+                value={authProps?.familyName || ""}
+                onChange={(event) => authProps?.setFamilyName?.(event.target.value)}
+                placeholder="例如：我们家"
+                className="min-h-12 rounded-full border border-line bg-canvas px-5 text-sm font-black text-ink outline-none transition focus:border-ink/30"
+              />
+              <button
+                type="button"
+                onClick={authProps?.onCreateFamily}
+                disabled={authProps?.cloudLoading}
+                className="min-h-12 rounded-full bg-ink px-6 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                创建我的家
+              </button>
+            </div>
+            {authProps?.authStatus && <p className="mt-3 text-xs font-bold text-ink/48">{authProps.authStatus}</p>}
+          </section>
+        )}
 
         <section className="rounded-[28px] border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -540,10 +555,9 @@ export function UserCenter({
               {formatHardProfileSummary(familyProfile)}
             </span>
           </div>
-          {canManageHousehold ? <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {canManageHousehold ? <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <UtilityButton icon={UserRound} label="家庭信息与忌口" ariaLabel="修改忌口" onClick={() => setActiveSettings(activeSettings === "profile" ? null : "profile")} />
             <UtilityButton icon={SlidersHorizontal} label="调整营养目标" onClick={() => setActiveSettings(activeSettings === "goals" ? null : "goals")} />
-            <UtilityButton icon={Users} label="家人忌口" onClick={() => setActiveSettings(activeSettings === "preferences" ? null : "preferences")} />
           </div> : (
             <div data-testid="family-constraints-readonly" className="mt-4 rounded-[20px] border border-line bg-canvas p-4">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">家庭饮食约束</p>
@@ -569,7 +583,6 @@ export function UserCenter({
           />
         )}
         <CloudSyncPanel {...cloudMenuProps} />
-        {canManageHousehold && activeSettings === "preferences" && <FamilyPreferencesPanel {...preferenceProps} />}
       </div>
 
       <aside className="hidden content-start gap-5 xl:grid">

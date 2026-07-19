@@ -27,4 +27,17 @@ assert.doesNotMatch(indexSource, /loginWithWechat\(\{\s*initial:\s*true/);
 const phoneBindSource = fs.readFileSync("miniprogram/pages/phone-bind/index.js", "utf8");
 assert.match(phoneBindSource, /app\.setHumiSession\(data\)/);
 
+const mainSource = fs.readFileSync("src/main.jsx", "utf8");
+const authLandingSource = fs.readFileSync("src/components/AuthLanding.jsx", "utf8");
+const userCenterSource = fs.readFileSync("src/components/UserCenter.jsx", "utf8");
+const deployWorkflow = fs.readFileSync(".github/workflows/deploy-pages.yml", "utf8");
+assert.doesNotMatch(mainSource, /getCurrentSession|subscribeToAuthChanges/);
+assert.doesNotMatch(mainSource, /\.\/lib\/supabase\//);
+assert.doesNotMatch(authLandingSource, /CloudAccount|devAuth/);
+assert.match(authLandingSource, /entryIntent !== "completeIdentity"/);
+assert.match(authLandingSource, /先体验 Humi/);
+assert.doesNotMatch(userCenterSource, /CloudAccount|FamilyPreferencesPanel/);
+assert.match(userCenterSource, /data-testid="create-household-section"/);
+assert.doesNotMatch(deployWorkflow, /VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY/);
+
 console.log("Identity runtime checks passed.");

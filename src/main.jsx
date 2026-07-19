@@ -64,39 +64,9 @@ import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiTicketFromUrl } from "./lib/humiIdentity";
 import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, saveHumiState, switchHumiHousehold, uploadPosterShare } from "./lib/humiApi";
-import { isHumiAiViaApiEnabled } from "./lib/aiViaHumiApi";
+import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
-import { appEvents, trackAppEvent } from "./lib/supabase/appEvents";
-import { exportValidationData, trackValidationEvent, validationEvents } from "./lib/validationEvents";
-import { explainRecommendation } from "./lib/supabase/aiExplanation";
-import { recommendMeals } from "./lib/supabase/aiRecommendation";
-import {
-  createFamilySpace,
-  getCurrentSession,
-  loadPrimaryFamily,
-  signInWithPassword,
-  signOut,
-  signUpWithPassword,
-  subscribeToAuthChanges,
-} from "./lib/supabase/family";
-import {
-  draftToPreference,
-  inviteFamilyMember,
-  loadFamilyPreferences,
-  preferenceToDraft,
-  saveMemberPreference,
-} from "./lib/supabase/familyPreferences";
-import {
-  loadGrocerySync,
-  migrateLocalGroceryToCloud,
-  saveGrocerySync,
-} from "./lib/supabase/grocerySync";
-import {
-  loadMenuSync,
-  migrateLocalMenusToCloud,
-  saveTodayMenu,
-  saveWeekPlan,
-} from "./lib/supabase/menuSync";
+import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
 
@@ -156,10 +126,7 @@ function App() {
   const [cookingStep, setCookingStep] = useState(0);
   const [notice, setNotice] = useState(null);
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
   const [authStatus, setAuthStatus] = useState("");
-  const [session, setSession] = useState(null);
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
   const [family, setFamily] = useState(null);
   const [humiHouseholds, setHumiHouseholds] = useState([]);
@@ -178,7 +145,6 @@ function App() {
   const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
   const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
-  const [preferenceDraft, setPreferenceDraft] = useState({});
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
   const [nutritionGoals, setNutritionGoals] = useLocalStorageState(
     "humi:nutrition-goals:v1",
@@ -198,9 +164,6 @@ function App() {
   const [craveRequestStatus, setCraveRequestStatus] = useState("");
   const [cravePanelOpenSignal, setCravePanelOpenSignal] = useState(0);
   const [recommendationFeedbackOpen, setRecommendationFeedbackOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [preferencesLoading, setPreferencesLoading] = useState(false);
-  const [preferencesStatus, setPreferencesStatus] = useState("创建家庭空间后，可维护家庭成员忌口。");
   const [aiExplanation, setAiExplanation] = useState("");
   const [aiExplanationStatus, setAiExplanationStatus] = useState("先给你一组搭配理由；Humi 会慢慢记住家里的习惯。");
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false);
@@ -213,10 +176,10 @@ function App() {
   const [entryMotion, setEntryMotion] = useState(false);
   const [flowMotion, setFlowMotion] = useState(null);
   const identityComplete = humiSession?.user?.profileStatus === "complete";
-  const signedIn = Boolean(session?.user || (humiSession?.user && identityComplete));
-  const preciseRecommendationAvailable = isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked;
+  const signedIn = Boolean(humiSession?.user && identityComplete);
+  const preciseRecommendationAvailable = Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked;
   const sharedGuestLanding = isSharedGuestLanding();
-  const displaySession = session ?? (identityComplete ? { user: humiSession.user } : null);
+  const displaySession = identityComplete ? { user: humiSession.user } : null;
   const currentHouseholdMemberId = family?.currentMemberId || humiSession?.user?.id || displaySession?.user?.id || "";
   const currentHouseholdMemberName = getDisplayName(displaySession) || "家人";
   const canManageHousehold = !isHumiApiSession(humiSession) || family?.role !== "member";
@@ -230,7 +193,7 @@ function App() {
 
   useEffect(() => {
     setPreciseRecommendationBlocked(false);
-  }, [session?.user?.id, humiSession?.user?.id]);
+  }, [humiSession?.user?.id]);
 
   const slotLabelsById = useMemo(
     () => Object.fromEntries(mealSlots.map((slot) => [slot.id, slot.label])),
@@ -515,204 +478,12 @@ function App() {
       hasMealHistory: Object.keys(mealLogs ?? {}).some((dateKey) => dateKey !== todayDateKey),
       todayDateKey,
     });
-    void trackAppEvent({
-      eventName: appEvents.appOpen,
-      payload: {
-        path: window.location.pathname,
-        source: getLaunchChannel(),
-        online,
-      },
+    trackValidationEvent(productEvents.appOpen, {
+      path: window.location.pathname,
+      source: getLaunchChannel(),
+      online,
     });
   }, [mealLogs, online, todayDateKey]);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id || !cloudMenuEnabled) return;
-    let active = true;
-
-    async function loadCloudMenus() {
-      setCloudMenuLoading(true);
-      setCloudSyncStatus("正在从云端读取菜单...");
-      try {
-        const cloudMenus = await loadMenuSync(family.id);
-        if (!active) return;
-        setTodayMenu(cloudMenus.todayMenu);
-        setWeekPlan(cloudMenus.weekPlan);
-        setMealPlan(createMealPlanFromLegacy({
-          weekPlan: cloudMenus.weekPlan,
-          todayMenu: cloudMenus.todayMenu,
-          todayDateKey,
-          currentDay: getCurrentPlanDay(),
-        }));
-        setCloudSyncStatus("已读取我的家里保存的今晚菜单和一周计划。");
-      } catch (error) {
-        if (active) setCloudSyncStatus(formatCloudSyncError(error));
-      } finally {
-        if (active) setCloudMenuLoading(false);
-      }
-    }
-
-    loadCloudMenus();
-    return () => {
-      active = false;
-    };
-  }, [cloudMenuEnabled, family?.id, session?.user, setMealPlan, setTodayMenu, setWeekPlan, todayDateKey]);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        await saveTodayMenu(family.id, todayMenu);
-        setCloudSyncStatus("今晚菜单已保存到我的家。");
-      } catch (error) {
-        setCloudSyncStatus(formatCloudSyncError(error));
-      }
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, session?.user, todayMenu]);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id || !cloudMenuEnabled || cloudMenuLoading) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        await saveWeekPlan(family.id, weekPlan);
-        setCloudSyncStatus("一周计划已保存到我的家。");
-      } catch (error) {
-        setCloudSyncStatus(formatCloudSyncError(error));
-      }
-    }, 650);
-
-    return () => window.clearTimeout(timer);
-  }, [cloudMenuEnabled, cloudMenuLoading, family?.id, session?.user, weekPlan]);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id || !cloudGroceryEnabled) return;
-    let active = true;
-
-    async function loadCloudGrocery() {
-      setCloudGroceryLoading(true);
-      setCloudGroceryStatus("正在从云端读取食材清单...");
-      try {
-        const cloudGrocery = await loadGrocerySync(family.id);
-        if (!active) return;
-        setCustomItems(cloudGrocery.customItems);
-        setCheckedItems(cloudGrocery.checkedItems);
-        setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
-        setPantryItems(cloudGrocery.pantryItems);
-        setCloudGroceryStatus("已从云端读取食材清单。");
-      } catch (error) {
-        if (active) setCloudGroceryStatus(formatCloudSyncError(error));
-      } finally {
-        if (active) setCloudGroceryLoading(false);
-      }
-    }
-
-    loadCloudGrocery();
-    return () => {
-      active = false;
-    };
-  }, [
-    cloudGroceryEnabled,
-    family?.id,
-    session?.user,
-    setCheckedItems,
-    setCustomItems,
-    setExcludedGroceryKeys,
-    setPantryItems,
-  ]);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id || !cloudGroceryEnabled || cloudGroceryLoading) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        await saveGrocerySync({
-          familyId: family.id,
-          customItems,
-          checkedItems,
-          excludedGroceryKeys,
-          pantryItems,
-        });
-        setCloudGroceryStatus("食材清单已保存到我的家。");
-      } catch (error) {
-        setCloudGroceryStatus(formatCloudSyncError(error));
-      }
-    }, 700);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    checkedItems,
-    cloudGroceryEnabled,
-    cloudGroceryLoading,
-    customItems,
-    excludedGroceryKeys,
-    family?.id,
-    pantryItems,
-    session?.user,
-  ]);
-
-  useEffect(() => {
-    let active = true;
-    let unsubscribe = () => {};
-
-    async function bootCloud() {
-      try {
-        const currentSession = await getCurrentSession();
-        if (!active) return;
-        setSession(currentSession);
-        if (currentSession?.user) {
-          setOnboardingComplete(true);
-          setCloudLoading(true);
-          const currentFamily = await loadPrimaryFamily(currentSession.user);
-          if (active) setFamily(currentFamily);
-        }
-      } catch (error) {
-        if (active) setAuthStatus(error.message);
-      } finally {
-        if (active) setCloudLoading(false);
-      }
-
-      unsubscribe = await subscribeToAuthChanges(async (nextSession) => {
-        setSession(nextSession);
-        if (!nextSession?.user) {
-          if (!readHumiSession()) setFamily(null);
-          return;
-        }
-        setFamily(null);
-        setOnboardingComplete(true);
-        setCloudLoading(true);
-        try {
-          const currentFamily = await loadPrimaryFamily(nextSession.user);
-          setFamily(currentFamily);
-        } catch (error) {
-          setAuthStatus(error.message);
-        } finally {
-          setCloudLoading(false);
-        }
-      });
-    }
-
-    bootCloud();
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!session?.user || !family?.id) {
-      setFamilyMembers([]);
-      setPreferenceDraft({});
-      setInviteEmail("");
-      setPreferencesStatus("创建家庭空间后，可维护家庭成员忌口。");
-      return;
-    }
-
-    let active = true;
-    loadPreferencesForFamily({ active: () => active });
-    return () => {
-      active = false;
-    };
-  }, [family?.id, session?.user]);
 
   const categories = useMemo(
     () => ["全部", ...new Set(recipes.flatMap((recipe) => recipe.categories))],
@@ -998,12 +769,6 @@ function App() {
 
   function trackProductEvent(eventName, payload = {}) {
     trackValidationEvent(eventName, payload);
-    void trackAppEvent({
-      eventName,
-      userId: session?.user?.id,
-      familyId: family?.id,
-      payload,
-    });
   }
 
   function exportLocalValidationData(format = "json") {
@@ -1052,7 +817,7 @@ function App() {
     const recipe = getRecipe(recipeId);
     const slotLabel = slotLabelsById[slotId] ?? "餐次";
     updateMealPlanSlot(dateKey, slotId, (entries) => upsertMealEntry(entries, recipeId, quantity));
-    trackProductEvent(appEvents.weekPlanAdd, {
+    trackProductEvent(productEvents.weekPlanAdd, {
       recipeIds: [recipeId],
       dateKey,
       mealSlot: slotId,
@@ -1142,7 +907,7 @@ function App() {
     }
 
     recommendedItems.forEach((item) => addToday(item.recipe.id, item.quantity));
-    trackProductEvent(appEvents.recommendationAccepted, {
+    trackProductEvent(productEvents.recommendationAccepted, {
       recipeIds: recommendedItems.map((item) => item.recipe.id),
       quantities: recommendedItems.map((item) => ({
         recipeId: item.recipe.id,
@@ -1180,7 +945,7 @@ function App() {
     try {
       const data = await createCraveRequest({
         householdId: family?.id ?? "",
-        ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+        ownerId: humiSession?.user?.id ?? "",
         householdName: family?.name ?? familyName ?? "我家",
         initiatorName: getDisplayName(displaySession) ?? "主厨",
         mealType: "dinner",
@@ -1198,7 +963,7 @@ function App() {
       };
       setActiveCraveRequest(nextRequest);
       setCraveRequestStatus("征集单准备好了，发给家人点一下就行。");
-      trackProductEvent(appEvents.share, { type: "crave_request_created", method: "api" });
+      trackProductEvent(productEvents.share, { type: "crave_request_created", method: "api" });
       void shareCraveRequest(nextRequest);
     } catch (error) {
       setCraveRequestStatus(error.message || "征集单暂时没生成，请稍后再试。");
@@ -1249,7 +1014,7 @@ function App() {
           ? "没人回复也没关系。已按家庭忌口和省心程度给一组。"
           : `已先按“${safeFeeling}”安排出一组。`,
     );
-    trackProductEvent(appEvents.recommendationRequest, {
+    trackProductEvent(productEvents.recommendationRequest, {
       source: "crave_signal",
       feelingTag: safeFeeling,
       voteCount: votes.length,
@@ -1274,7 +1039,7 @@ function App() {
         id: existing?.id || signalId,
         requestToken,
         householdId: request?.householdId || existing?.householdId || family?.id || "",
-        ownerId: request?.ownerId || existing?.ownerId || humiSession?.user?.id || session?.user?.id || "",
+        ownerId: request?.ownerId || existing?.ownerId || humiSession?.user?.id || "",
         householdName: request?.householdName || existing?.householdName || family?.name || familyName || "我家",
         initiatorName: request?.initiatorName || existing?.initiatorName || getDisplayName(displaySession) || "主厨",
         feelingTag: safeFeeling,
@@ -1564,7 +1329,7 @@ function App() {
     try {
       const data = await createWishShareRequest({
         householdId: family?.id ?? "",
-        ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+        ownerId: humiSession?.user?.id ?? "",
         householdName: family?.name ?? familyName ?? "我家",
         initiatorName: getDisplayName(displaySession) || "主厨",
         title: "家里最近想吃什么",
@@ -1574,7 +1339,7 @@ function App() {
         ownerSecret: data.ownerSecret,
       };
       setActiveWishShareRequest(nextRequest);
-      trackProductEvent(appEvents.share, { type: "wish_share_created", method: "api" });
+      trackProductEvent(productEvents.share, { type: "wish_share_created", method: "api" });
       await shareWishRequest(nextRequest);
     } catch (error) {
       showNotice(error.message || "想吃入口暂时没生成");
@@ -1905,7 +1670,7 @@ function App() {
 
     if (addedCount > 0) setWeekPlan(nextWeekPlan);
     if (addedCount > 0) {
-      trackProductEvent(appEvents.weekPlanAdd, {
+      trackProductEvent(productEvents.weekPlanAdd, {
         recipeIds: addedRecipeIds,
         addedCount,
         source: "weekly_profile_generation",
@@ -1963,7 +1728,7 @@ function App() {
       craveVotes: learnedCraveVotes,
       excludedRecipeIds: currentRecipeIds,
     });
-    trackProductEvent(appEvents.recommendationRequest, {
+    trackProductEvent(productEvents.recommendationRequest, {
       hasFeedback: Boolean(feedbackReason),
       currentRecipeIds,
     });
@@ -1981,7 +1746,7 @@ function App() {
       setAiRecommendationStatus(
         signedIn ? "已经换成另一组；Humi 会继续参考你家的口味和现有食材。" : "已经换成另一组；之后会继续参考你家的口味和现有食材。",
       );
-      trackProductEvent(appEvents.recommendationShown, {
+      trackProductEvent(productEvents.recommendationShown, {
         source: "rule",
         reason: "guest",
         recipeIds: alternateRuleRecommendation.recipes.map((recipe) => recipe.id),
@@ -2009,7 +1774,7 @@ function App() {
       setAiExplanation(result.reason ?? nextRecommendation.reason);
       setAiRecommendationStatus(formatPreciseRecommendationStatus(result.entitlement));
       setAiExplanationStatus("已经把这组晚饭的搭配理由放在下面。");
-      trackProductEvent(appEvents.recommendationShown, {
+      trackProductEvent(productEvents.recommendationShown, {
         source: nextRecommendation.source ?? "deepseek",
         recipeIds: nextRecommendation.recipes.map((recipe) => recipe.id),
         missingCount: nextRecommendation.missingItems.length,
@@ -2023,7 +1788,7 @@ function App() {
       } else {
         setAiRecommendationStatus(`${formatAiError(error)} 已先换成另一组。`);
       }
-      trackProductEvent(appEvents.recommendationShown, {
+      trackProductEvent(productEvents.recommendationShown, {
         source: "rule",
         reason: "fallback",
         error: error.message,
@@ -2037,7 +1802,7 @@ function App() {
 
   function recordRecommendationFeedback(reason) {
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
-    trackProductEvent(appEvents.recommendationFeedback, {
+    trackProductEvent(productEvents.recommendationFeedback, {
       reasonId: reason.id,
       reasonLabel: reason.label,
       recipeIds: currentRecipeIds,
@@ -2143,7 +1908,7 @@ function App() {
       if (currentDay.includes(recipeId)) return current;
       return { ...current, [day]: [...currentDay, recipeId] };
     });
-    trackProductEvent(appEvents.weekPlanAdd, {
+    trackProductEvent(productEvents.weekPlanAdd, {
       recipeIds: [recipeId],
       day,
       source: "manual",
@@ -2351,7 +2116,7 @@ function App() {
       try {
         const data = await createGroceryShareRequest({
           householdId: family?.id ?? "",
-          ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+          ownerId: humiSession?.user?.id ?? "",
           householdName: family?.name ?? familyName ?? "我家",
           initiatorName: getDisplayName(displaySession) || "主厨",
           title: "Humi 买菜清单",
@@ -2426,7 +2191,7 @@ function App() {
       try {
         const data = await createMenuShareRequest({
           householdId: family?.id ?? "",
-          ownerId: humiSession?.user?.id ?? session?.user?.id ?? "",
+          ownerId: humiSession?.user?.id ?? "",
           householdName: family?.name ?? familyName ?? "我家",
           initiatorName: getDisplayName(displaySession) || "主厨",
           title: todayRecipes.length > 0 ? todayRecipes.map((recipe) => recipe.name).join(" + ") : "Humi 今晚菜单",
@@ -2502,11 +2267,11 @@ function App() {
     try {
       if (navigator.share) {
         await navigator.share({ title, text });
-        trackProductEvent(appEvents.share, { type, method: "native" });
+        trackProductEvent(productEvents.share, { type, method: "native" });
         return;
       }
       await navigator.clipboard.writeText(text);
-      trackProductEvent(appEvents.share, { type, method: "clipboard" });
+      trackProductEvent(productEvents.share, { type, method: "clipboard" });
       showNotice(success);
     } catch (error) {
       if (error?.name === "AbortError") return;
@@ -2527,7 +2292,7 @@ function App() {
         if (current?.url) URL.revokeObjectURL(current.url);
         return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
       });
-      trackProductEvent(appEvents.share, { type, method: "poster_preview" });
+      trackProductEvent(productEvents.share, { type, method: "poster_preview" });
       trackValidationEvent(validationEvents.posterGenerated, { type, title });
       showNotice("海报已生成");
     } catch {
@@ -2603,7 +2368,7 @@ function App() {
         action,
       }, { timeoutMs: 2400 });
       if (status === "handoff") {
-        trackProductEvent(appEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
+        trackProductEvent(productEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
         trackValidationEvent(
           action === "save" ? validationEvents.posterSavedAttempted : validationEvents.posterSharedIntent,
           { type: posterPreview.type, method: "mini_program" },
@@ -2623,7 +2388,7 @@ function App() {
     if (!posterPreview) return;
     if (await handoffPosterToMiniProgram("save")) return;
     downloadPoster(posterPreview.blob, posterPreview.filename);
-    trackProductEvent(appEvents.share, { type: posterPreview.type, method: "poster_save" });
+    trackProductEvent(productEvents.share, { type: posterPreview.type, method: "poster_save" });
     trackValidationEvent(validationEvents.posterSavedAttempted, { type: posterPreview.type });
     showNotice("浏览器正在保存图片");
   }
@@ -2641,7 +2406,7 @@ function App() {
         text: posterPreview.text,
       });
       if (method === "cancelled") return;
-      trackProductEvent(appEvents.share, {
+      trackProductEvent(productEvents.share, {
         type: posterPreview.type,
         method: method === "shared" ? "poster_native" : "poster_download",
       });
@@ -2659,67 +2424,29 @@ function App() {
   }
 
   async function createFamily() {
-    if (!session?.user) {
-      setAuthStatus("请先通过邮箱登录，再创建家庭空间。");
+    if (!isHumiApiSession(humiSession)) {
+      setAuthStatus("请先完成微信登录，再创建我的家。");
       return;
     }
     setCloudLoading(true);
-    setAuthStatus("正在创建家庭空间...");
+    setAuthStatus("正在创建我的家...");
     try {
-      const nextFamily = await createFamilySpace({ user: session.user, name: familyName });
-      setFamily(nextFamily);
+      const data = await createHumiHousehold(humiSession, {
+        householdName: familyName,
+        memberName: humiSession.user?.displayName || "主厨",
+      });
+      applyHumiStateEnvelope({ ...data, state: null }, {
+        emptyMenu: "我的家已创建，这里还没有保存菜单。",
+        emptyGrocery: "我的家已创建，这里还没有保存清单。",
+      });
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
-      setAuthStatus("家庭空间已创建。");
-      void trackAppEvent({
-        eventName: appEvents.familyCreated,
-        userId: session.user.id,
-        familyId: nextFamily.id,
-        payload: { familyName: nextFamily.name },
+      setAuthStatus("我的家已创建。");
+      trackProductEvent(productEvents.familyCreated, {
+        familyId: data.family?.id,
+        familyName: data.family?.name,
       });
-      showNotice(`${nextFamily.name} 已创建`);
-    } catch (error) {
-      setAuthStatus(error.message);
-    } finally {
-      setCloudLoading(false);
-    }
-  }
-
-  async function handlePasswordAuth(mode) {
-    const email = authEmail.trim();
-    if (!email || !authPassword) {
-      setAuthStatus("请输入邮箱和密码。");
-      return;
-    }
-
-    setCloudLoading(true);
-    setAuthStatus(mode === "signup" ? "正在创建账号..." : "正在登录...");
-    try {
-      let currentFamily = null;
-      const nextSession =
-        mode === "signup"
-          ? await signUpWithPassword({ email, password: authPassword })
-          : await signInWithPassword({ email, password: authPassword });
-      setSession(nextSession);
-      if (nextSession?.user) {
-        currentFamily = await loadPrimaryFamily(nextSession.user);
-        setFamily(currentFamily);
-      }
-      setAuthStatus(
-        mode === "signup"
-          ? "账号已创建。如果项目要求邮箱确认，请先去邮箱点确认链接。"
-          : "已登录 Humi。",
-      );
-      setAiExplanationStatus("已登录。Humi 会继续根据你家的口味、习惯和晚饭反馈调整说明。");
-      setAiRecommendationStatus("已登录。推荐会继续参考你家的口味和反馈。");
-      setOnboardingComplete(true);
-      void trackAppEvent({
-        eventName: appEvents.auth,
-        userId: nextSession?.user?.id,
-        familyId: currentFamily?.id,
-        payload: { mode, success: true },
-      });
-      showNotice(mode === "signup" ? "账号已创建" : "已登录 Humi");
+      showNotice(`${data.family?.name || familyName} 已创建`);
     } catch (error) {
       setAuthStatus(error.message);
     } finally {
@@ -2733,10 +2460,6 @@ function App() {
       if (isHumiApiSession(humiSession)) {
         await logoutHumiSession(humiSession);
       }
-      if (session?.user) {
-        await signOut();
-      }
-      setSession(null);
       clearHumiSession();
       requestMiniProgramLogout();
       setHumiSession(null);
@@ -2746,8 +2469,6 @@ function App() {
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
-      setPreferenceDraft({});
-      setInviteEmail("");
       setOnboardingComplete(false);
       setProfileOnboardingComplete(false);
       viewHistoryRef.current = ["dashboard"];
@@ -2758,98 +2479,6 @@ function App() {
       setAuthStatus(error.message);
     } finally {
       setCloudLoading(false);
-    }
-  }
-
-  async function loadPreferencesForFamily({ active = () => true } = {}) {
-    if (!session?.user || !family?.id) return;
-
-    setPreferencesLoading(true);
-    setPreferencesStatus("正在读取家庭成员忌口...");
-    try {
-      const members = await loadFamilyPreferences(family.id);
-      if (!active()) return;
-      setFamilyMembers(members);
-      setPreferenceDraft(
-        members.reduce(
-          (drafts, member) => ({
-            ...drafts,
-            [member.id]: preferenceToDraft(member.preference),
-          }),
-          {},
-        ),
-      );
-      setPreferencesStatus("家庭成员忌口已读取。");
-    } catch (error) {
-      if (active()) setPreferencesStatus(error.message);
-    } finally {
-      if (active()) setPreferencesLoading(false);
-    }
-  }
-
-  function updatePreferenceDraft(memberId, key, value) {
-    setPreferenceDraft((current) => ({
-      ...current,
-      [memberId]: {
-        ...current[memberId],
-        [key]: value,
-      },
-    }));
-  }
-
-  async function savePreference(memberId) {
-    if (!session?.user || !family?.id) {
-      setPreferencesStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    setPreferencesLoading(true);
-    setPreferencesStatus("正在保存家庭成员忌口...");
-    try {
-      await saveMemberPreference({
-        familyId: family.id,
-        memberId,
-        preference: draftToPreference(preferenceDraft[memberId] ?? {}),
-      });
-      setPreferencesStatus("家庭成员忌口已保存。");
-      trackProductEvent(appEvents.profileSaved, { type: "member_preference" });
-      showNotice("成员忌口已保存");
-      await loadPreferencesForFamily();
-    } catch (error) {
-      setPreferencesStatus(error.message);
-    } finally {
-      setPreferencesLoading(false);
-    }
-  }
-
-  async function inviteMember() {
-    if (!session?.user || !family?.id) {
-      setPreferencesStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    const email = inviteEmail.trim().toLowerCase();
-    if (!email) {
-      setPreferencesStatus("请输入要邀请的邮箱。");
-      return;
-    }
-    if (familyMembers.some((member) => member.email?.toLowerCase() === email)) {
-      setPreferencesStatus("这个邮箱已经在家庭成员列表中。");
-      return;
-    }
-
-    setPreferencesLoading(true);
-    setPreferencesStatus("正在添加家庭成员邀请...");
-    try {
-      await inviteFamilyMember({ familyId: family.id, email });
-      setInviteEmail("");
-      setPreferencesStatus("家庭成员邀请已添加。");
-      showNotice("成员邀请已添加");
-      await loadPreferencesForFamily();
-    } catch (error) {
-      setPreferencesStatus(error.message);
-    } finally {
-      setPreferencesLoading(false);
     }
   }
 
@@ -3007,18 +2636,12 @@ function App() {
   }
 
   const authProps = {
-    authEmail,
-    setAuthEmail,
-    authPassword,
-    setAuthPassword,
     authStatus,
     setAuthStatus,
-    session,
     family,
     familyName,
     setFamilyName,
     cloudLoading,
-    onPasswordAuth: handlePasswordAuth,
     onCreateFamily: createFamily,
     onSignOut: handleSignOut,
     showNotice,
@@ -3042,23 +2665,7 @@ function App() {
       }
       return;
     }
-    if (!family?.id) {
-      setCloudSyncStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    setCloudMenuLoading(true);
-    setCloudSyncStatus("正在迁移本地菜单...");
-    try {
-      await migrateLocalMenusToCloud({ familyId: family.id, todayMenu, weekPlan });
-      setCloudMenuEnabled(true);
-      setCloudSyncStatus("本机今晚菜单和一周计划已保存到我的家。");
-      showNotice("菜单已保存到我的家");
-    } catch (error) {
-      setCloudSyncStatus(formatCloudSyncError(error));
-    } finally {
-      setCloudMenuLoading(false);
-    }
+    setCloudSyncStatus("请先微信登录并创建我的家。");
   }
 
   async function refreshCloudMenus() {
@@ -3093,31 +2700,7 @@ function App() {
       }
       return;
     }
-    if (!family?.id) {
-      setCloudSyncStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    setCloudMenuLoading(true);
-    setCloudSyncStatus("正在从云端刷新...");
-    try {
-      const cloudMenus = await loadMenuSync(family.id);
-      setTodayMenu(cloudMenus.todayMenu);
-      setWeekPlan(cloudMenus.weekPlan);
-      setMealPlan(createMealPlanFromLegacy({
-        weekPlan: cloudMenus.weekPlan,
-        todayMenu: cloudMenus.todayMenu,
-        todayDateKey,
-        currentDay: getCurrentPlanDay(),
-      }));
-      setCloudMenuEnabled(true);
-      setCloudSyncStatus("已刷新我的家里保存的今晚菜单和一周计划。");
-      showNotice("云端菜单已刷新");
-    } catch (error) {
-      setCloudSyncStatus(formatCloudSyncError(error));
-    } finally {
-      setCloudMenuLoading(false);
-    }
+    setCloudSyncStatus("请先微信登录并创建我的家。");
   }
 
   async function createAnotherHumiHousehold(name) {
@@ -3240,29 +2823,7 @@ function App() {
       }
       return;
     }
-    if (!family?.id) {
-      setCloudGroceryStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    setCloudGroceryLoading(true);
-    setCloudGroceryStatus("正在迁移食材清单...");
-    try {
-      await migrateLocalGroceryToCloud({
-        familyId: family.id,
-        customItems,
-        checkedItems,
-        excludedGroceryKeys,
-        pantryItems,
-      });
-      setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("本地食材清单已迁移到家庭空间。");
-      showNotice("食材清单已迁移到云端");
-    } catch (error) {
-      setCloudGroceryStatus(formatCloudSyncError(error));
-    } finally {
-      setCloudGroceryLoading(false);
-    }
+    setCloudGroceryStatus("请先微信登录并创建我的家。");
   }
 
   async function refreshCloudGrocery() {
@@ -3286,27 +2847,7 @@ function App() {
       }
       return;
     }
-    if (!family?.id) {
-      setCloudGroceryStatus("请先登录并创建家庭空间。");
-      return;
-    }
-
-    setCloudGroceryLoading(true);
-    setCloudGroceryStatus("正在从云端刷新食材清单...");
-    try {
-      const cloudGrocery = await loadGrocerySync(family.id);
-      setCustomItems(cloudGrocery.customItems);
-      setCheckedItems(cloudGrocery.checkedItems);
-      setExcludedGroceryKeys(cloudGrocery.excludedGroceryKeys);
-      setPantryItems(cloudGrocery.pantryItems);
-      setCloudGroceryEnabled(true);
-      setCloudGroceryStatus("已刷新云端食材清单。");
-      showNotice("云端食材清单已刷新");
-    } catch (error) {
-      setCloudGroceryStatus(formatCloudSyncError(error));
-    } finally {
-      setCloudGroceryLoading(false);
-    }
+    setCloudGroceryStatus("请先微信登录并创建我的家。");
   }
 
   const cloudMenuProps = {
@@ -3325,20 +2866,6 @@ function App() {
     onRefreshCloudGrocery: refreshCloudGrocery,
   };
 
-  const preferenceProps = {
-    family,
-    members: familyMembers,
-    draft: preferenceDraft,
-    loading: preferencesLoading,
-    status: preferencesStatus,
-    inviteEmail,
-    setInviteEmail,
-    onDraftChange: updatePreferenceDraft,
-    onInviteMember: inviteMember,
-    onSavePreference: savePreference,
-    onRefreshPreferences: () => loadPreferencesForFamily(),
-  };
-
   function saveFamilyProfile(nextProfile) {
     const normalizedProfile = {
       ...defaultFamilyProfile,
@@ -3352,7 +2879,7 @@ function App() {
     if (signedIn && getProfileCompletedCount(normalizedProfile) >= 4) {
       setProfileOnboardingComplete(true);
     }
-    trackProductEvent(appEvents.profileSaved, {
+    trackProductEvent(productEvents.profileSaved, {
       type: "family_profile",
       completedCount: getProfileCompletedCount(normalizedProfile),
     });
@@ -3711,7 +3238,6 @@ function App() {
   if (humiSession?.user && !identityComplete && !sharedGuestLanding) {
     return (
       <AuthLanding
-        authProps={authProps}
         onContinueGuest={continueAsGuest}
         entryIntent="completeIdentity"
       />
@@ -3722,7 +3248,6 @@ function App() {
     return (
       <>
         <AuthLanding
-          authProps={authProps}
           onContinueGuest={continueAsGuest}
           entryIntent={authGateIntent || (entryRedirectView === "user" ? "joinFamily" : "")}
         />
@@ -3977,7 +3502,6 @@ function App() {
               <UserCenter
                 authProps={authProps}
                 cloudMenuProps={cloudMenuProps}
-                preferenceProps={preferenceProps}
                 session={displaySession}
                 humiSession={humiSession}
                 family={family}
