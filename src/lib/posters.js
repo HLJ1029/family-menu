@@ -465,6 +465,7 @@ function loadImageSafe(src) {
   if (!src) return Promise.resolve(null);
   return new Promise((resolve) => {
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.decoding = "async";
     image.onload = () => resolve(image);
     image.onerror = () => resolve(null);

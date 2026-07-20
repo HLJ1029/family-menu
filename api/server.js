@@ -407,6 +407,7 @@ async function handleGetStaticAsset(request, response, relativePath) {
     "Content-Type": "image/webp",
     "Content-Length": file.length,
     "Cache-Control": "public, max-age=31536000, immutable",
+    "Access-Control-Allow-Origin": "*",
   });
   response.end(request.method === "HEAD" ? undefined : file);
 }
