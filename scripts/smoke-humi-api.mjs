@@ -190,9 +190,10 @@ try {
   const identityProfile = await request(`${baseUrl}/identity/profile`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${login.accessToken}` },
-    body: { displayName: "小禾" },
+    body: { displayName: "小禾", avatarKey: "humi-avatar-parent-f-01" },
   });
   assert.equal(identityProfile.user.displayName, "小禾");
+  assert.equal(identityProfile.user.avatarKey, "humi-avatar-parent-f-01");
   assert.equal(identityProfile.user.profileStatus, "complete");
 
   const ticket = await request(`${baseUrl}/auth/h5-ticket`, {

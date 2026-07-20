@@ -11,10 +11,10 @@ const expectedChecks = [
   "pre-React fallback is visible when the main module fails",
   "retry action appears after six seconds",
   "normal React boot replaces the fallback",
-  "H5 login uses immediate native page navigation",
+  "H5 login prefers the native identity page and recovers from navigation failure",
   "one-time H5 ticket is exchanged and removed from the URL",
   "legacy serialized session URLs are discarded",
-  "legacy incomplete identity is gated",
+  "legacy incomplete identity can be completed in H5",
   "expired H5 sessions are cleared",
   "server-rejected H5 sessions downgrade to logged out",
   "later authenticated writes also downgrade on invalid sessions",
@@ -95,16 +95,24 @@ try {
   await bridgePage.evaluate(() => {
     window.wx = window.wx || {};
     window.wx.miniProgram = {
-      navigateTo: (payload) => window.__humiNativeCalls.push({ method: "navigateTo", payload }),
+      navigateTo: (payload) => {
+        window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+        payload.fail?.({ errMsg: "navigateTo:fail page not found" });
+      },
+      postMessage: (payload) => window.__humiNativeCalls.push({ method: "postMessage", payload }),
       reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload }),
     };
   });
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).click();
-  await bridgePage.waitForFunction(() => window.__humiNativeCalls.length > 0, null, { timeout: 2_000 });
+  await bridgePage.waitForFunction(() => window.__humiNativeCalls.length > 1, null, { timeout: 2_000 });
   assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls[0]), {
     method: "navigateTo",
     payload: { url: "/pages/identity/index?action=login" },
   });
+  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.method), "postMessage");
+  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.payload?.data?.type), "humi:wechat-login");
+  await bridgePage.getByRole("button", { name: "微信登录", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
+  assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
 
   const ticketContext = await browser.newContext({
@@ -176,8 +184,31 @@ try {
     }));
   });
   const legacyPage = await legacyContext.newPage();
+  let savedIdentityBody = null;
+  await legacyPage.route("**/identity/profile", async (route) => {
+    savedIdentityBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          id: "legacy-user",
+          displayName: savedIdentityBody.displayName,
+          provider: "wechat",
+          profileStatus: "complete",
+          avatarKey: savedIdentityBody.avatarKey,
+          avatarUrl: "",
+        },
+      }),
+    });
+  });
   await legacyPage.goto(baseUrl, { waitUntil: "networkidle" });
-  await legacyPage.getByRole("button", { name: "继续完善身份" }).waitFor({ state: "visible", timeout: 10_000 });
+  await legacyPage.getByLabel("你的昵称").fill("小禾");
+  await legacyPage.getByRole("button", { name: "选择头像 5" }).click();
+  await legacyPage.getByRole("button", { name: "保存并进入 Humi" }).click();
+  await legacyPage.waitForFunction(() => JSON.parse(localStorage.getItem("humi:identity-session:v1"))?.user?.profileStatus === "complete", null, { timeout: 5_000 });
+  assert.deepEqual(savedIdentityBody, { displayName: "小禾", avatarKey: "humi-avatar-family-f-01" });
+  assert.equal(JSON.parse(await legacyPage.evaluate(() => localStorage.getItem("humi:identity-session:v1"))).user.avatarKey, "humi-avatar-family-f-01");
   assert.equal(await legacyPage.getByText("已登录 Humi", { exact: false }).count(), 0);
   await legacyContext.close();
 
@@ -328,7 +359,7 @@ try {
   assert.doesNotMatch(mainSource, /createHumiSessionFamily/);
   assert.match(appShellSource, /avatarUrl/);
   assert.match(appShellSource, /avatarKey/);
-  assert.doesNotMatch(identitySource, /postMessage/);
+  assert.match(identitySource, /postMessage/);
   assert.match(mainSource, /subscribeHumiSessionInvalid/);
   assert.match(mainSource, /requestMiniProgramLogout\(\{ expired: true \}\)/);
 

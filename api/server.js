@@ -371,7 +371,8 @@ async function handleIdentityProfile(request, response) {
   const body = await readJson(request);
   const displayName = stringValue(body.displayName, 32);
   if (!displayName) throw httpError(400, "display_name_required", "请输入你的昵称。");
-  const user = await store.updateIdentityProfile(auth.userId, { displayName });
+  const avatarKey = stringValue(body.avatarKey, 80);
+  const user = await store.updateIdentityProfile(auth.userId, { displayName, avatarKey });
   if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
   sendJson(response, 200, { user: toPublicUser(user) });
 }

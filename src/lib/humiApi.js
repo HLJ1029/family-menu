@@ -57,6 +57,14 @@ export async function saveHumiState(session, state, householdId = state?.househo
   return data.state ?? null;
 }
 
+export function updateHumiIdentityProfile(session, profile) {
+  return humiApiRequest("/identity/profile", {
+    method: "PUT",
+    session,
+    body: profile,
+  });
+}
+
 export async function loadHumiHouseholds(session) {
   return humiApiRequest("/households", { session });
 }

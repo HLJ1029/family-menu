@@ -62,15 +62,39 @@ export function takeHumiTicketFromUrl() {
   return ticket;
 }
 
-export function requestWechatLoginFromMiniProgram() {
+export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure } = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.navigateTo) return false;
+  if (!miniProgram) return false;
+
+  const fallbackToLegacyBridge = () => {
+    if (!miniProgram.postMessage) {
+      onFailure?.();
+      return false;
+    }
+    try {
+      miniProgram.postMessage({
+        data: {
+          type: "humi:wechat-login",
+          requestedAt: Date.now(),
+        },
+      });
+      return true;
+    } catch {
+      onFailure?.();
+      return false;
+    }
+  };
+
+  if (!miniProgram.navigateTo) return fallbackToLegacyBridge();
   try {
-    miniProgram.navigateTo({ url: "/pages/identity/index?action=login" });
+    miniProgram.navigateTo({
+      url: reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
+      fail: fallbackToLegacyBridge,
+    });
     return true;
   } catch {
-    return false;
+    return fallbackToLegacyBridge();
   }
 }
 

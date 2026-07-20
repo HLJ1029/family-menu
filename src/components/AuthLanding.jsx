@@ -1,5 +1,5 @@
 import { MessageCircle, Phone } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
@@ -39,15 +39,28 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
 
 function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
   const [status, setStatus] = useState("");
+  const [loginPending, setLoginPending] = useState(false);
+  const recoveryTimerRef = useRef(null);
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
   const canUseWechatLogin = wechatLoginEnabled || isWechatMiniProgram || entryIntent === "completeIdentity";
 
+  useEffect(() => () => globalThis.clearTimeout(recoveryTimerRef.current), []);
+
   function handleWechatLogin() {
-    if (isWechatMiniProgram && requestWechatLoginFromMiniProgram()) {
+    if (loginPending) return;
+    setLoginPending(true);
+    const recover = () => {
+      globalThis.clearTimeout(recoveryTimerRef.current);
+      setLoginPending(false);
+      setStatus("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。");
+    };
+    if (isWechatMiniProgram && requestWechatLoginFromMiniProgram({ onFailure: recover })) {
       setStatus("正在打开微信登录。登录后，菜单、清单和你家的口味偏好会跟着账号保存。");
+      recoveryTimerRef.current = globalThis.setTimeout(recover, 4500);
       return;
     }
+    setLoginPending(false);
     setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
   }
 
@@ -62,10 +75,11 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
           <button
             type="button"
             onClick={handleWechatLogin}
+            disabled={loginPending}
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
             <MessageCircle size={19} className="text-white" />
-            {entryIntent === "sessionExpired" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
+            {loginPending ? "正在打开微信登录" : entryIntent === "sessionExpired" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
             <button

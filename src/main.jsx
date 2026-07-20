@@ -6,6 +6,7 @@ import { CraveLanding } from "./components/CraveLanding";
 import { Dashboard } from "./components/Dashboard";
 import { GroceryClaimLanding } from "./components/GroceryClaimLanding";
 import { GroceryList } from "./components/GroceryList";
+import { HumiIdentitySetup } from "./components/HumiIdentitySetup";
 import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
 import { MenuShareLanding } from "./components/MenuShareLanding";
@@ -3352,9 +3353,14 @@ function App() {
 
   if (humiSession?.user && !identityComplete && !sharedGuestLanding) {
     return (
-      <AuthLanding
-        onContinueGuest={continueAsGuest}
-        entryIntent="completeIdentity"
+      <HumiIdentitySetup
+        session={humiSession}
+        onComplete={(user) => {
+          const normalized = saveHumiSession({ ...humiSession, user: { ...humiSession.user, ...user } });
+          setHumiSession(normalized);
+          setOnboardingComplete(true);
+          setAuthStatus("身份已完善，欢迎回来。");
+        }}
       />
     );
   }
