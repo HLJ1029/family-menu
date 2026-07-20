@@ -66,7 +66,7 @@ export class HumiStore {
     await mkdir(dirname(this.filePath), { recursive: true });
     // 原子写：先写临时文件再 rename，避免进程中断时留下半写的损坏文件。
     const tmpPath = `${this.filePath}.${randomUUID()}.tmp`;
-    await writeFile(tmpPath, `${JSON.stringify(this.data, null, 2)}\n`);
+    await writeFile(tmpPath, `${JSON.stringify(this.data, null, 2)}\n`, { mode: 0o600 });
     await rename(tmpPath, this.filePath);
   }
 

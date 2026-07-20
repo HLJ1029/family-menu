@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HumiStore } from "../api/store.js";
@@ -9,6 +9,7 @@ const dataFile = join(directory, "data.json");
 const store = new HumiStore(dataFile);
 
 const user = await store.findOrCreateWechatUser({ openid: "identity-openid", unionid: null });
+assert.equal((await stat(dataFile)).mode & 0o777, 0o600, "identity data must remain private after atomic writes");
 assert.equal(user.profileStatus, "incomplete");
 assert.match(user.avatarKey, /^humi-avatar-/);
 assert.equal(await store.getActiveHouseholdForUser(user.id), null);
