@@ -1,7 +1,7 @@
 # Humi 身份、家庭、协作与迁移最终本地审计
 
 日期：2026-07-20
-实现候选：`f81d276`
+最终独立审阅候选：`aefa7a7`
 结论：**本地候选 GO；生产 rollout 尚未完成。**
 
 ## 审计边界
@@ -40,7 +40,7 @@
 - Collaboration smoke：20/20，6 个截图，`/Users/honglijie/.humi-release-evidence/collaboration-landings-smoke-20260719T233634Z/manifest.json`
 - 本地 4173 预览服务已停止。
 
-首次最终 gate review 发现证据 symlink/metadata 检查和 provider scan 覆盖不足，结论为 NO-GO（P1×2、P2×1）。`f81d276` 已用永久 RED/GREEN 回归关闭全部 finding；修复记录见 `.superpowers/sdd/phase4-final-gate-fixes-report.md`。最终状态仍以其后的独立 re-review 为准。
+最终 gate review 共执行四轮，先后发现证据 symlink/复用/metadata、provider scan 覆盖、committed-range whitespace 和本地端口清理不足。全部 finding 已以永久 RED/GREEN fixture 关闭。两路独立最终复审均对 `aefa7a7` 给出 GO，P0/P1/P2/P3 = 0/0/0/0；修复链见 `.superpowers/sdd/phase4-final-gate-fixes-report.md`。
 
 ## 12.1 首次进入
 

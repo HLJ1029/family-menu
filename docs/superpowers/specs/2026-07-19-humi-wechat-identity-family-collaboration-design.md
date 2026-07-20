@@ -4,7 +4,7 @@
 状态：已确认；Phase 1–4 本地候选与本地门禁已完成；微信真机、生产迁移/部署和外部 provider 删除仍是独立授权门禁
 风险等级：High（登录、身份、生产数据、核心前后端联调、小程序关键路径）
 
-实施进度（2026-07-20）：Phase 1“身份与启动链路”、Phase 2“家庭生命周期与家庭客厅”、Phase 3“协作身份与历史”均完成本地候选及独立门禁；Phase 4 已完成本地迁移 audit/dry-run/apply-to-copy 工具、回滚 runbook、仓库 Supabase runtime/依赖/配置清退、真机证据检查器与最终本地矩阵，审计见 `docs/humi-identity-family-collaboration-final-audit.md`。本轮没有真机微信操作、生产部署或写入、生产 backup/dry-run/apply/rollback、provider 操作或外部 Supabase 数据/Secrets 删除；本地 GO 不等于生产 rollout 完成。
+实施进度（2026-07-20）：Phase 1“身份与启动链路”、Phase 2“家庭生命周期与家庭客厅”、Phase 3“协作身份与历史”均完成本地候选及独立门禁；Phase 4 已完成本地迁移 audit/dry-run/apply-to-copy 工具、回滚 runbook、仓库 Supabase runtime/依赖/配置清退、真机证据检查器与最终本地矩阵。两路最终独立复审均对候选 `aefa7a7` 给出 GO，P0–P3 均为零，审计见 `docs/humi-identity-family-collaboration-final-audit.md`。本轮没有真机微信操作、生产部署或写入、生产 backup/dry-run/apply/rollback、provider 操作或外部 Supabase 数据/Secrets 删除；本地 GO 不等于生产 rollout 完成。
 
 ## 1. 目标
 
