@@ -8,6 +8,14 @@ const errors = [];
 const warnings = [];
 
 async function main() {
+  const assetSource = await fs.readFile(path.join(ROOT, "src", "lib", "assets.js"), "utf8");
+  const recipeSource = await fs.readFile(path.join(ROOT, "src", "lib", "recipes.js"), "utf8");
+  const brandSource = await fs.readFile(path.join(ROOT, "src", "components", "ui", "brandScenes.js"), "utf8");
+  const pagesWorkflow = await fs.readFile(path.join(ROOT, ".github", "workflows", "deploy-pages.yml"), "utf8");
+  if (!assetSource.includes("VITE_HUMI_ASSET_BASE_URL")) errors.push("asset URL helper must support the production asset origin.");
+  if (!recipeSource.includes("publicAssetUrl")) errors.push("recipe images must use the shared production asset origin.");
+  if (!brandSource.includes("publicAssetUrl")) errors.push("brand scenes must use the shared production asset origin.");
+  if (!pagesWorkflow.includes("VITE_HUMI_ASSET_BASE_URL: https://api.humi-home.com")) errors.push("Pages build must point image traffic at the API asset origin.");
   const localRecipes = recipes.filter((recipe) => recipe.image?.url?.startsWith("/family-menu/assets/dishes/"));
   const manifestPath = path.join(DISH_DIR, "manifest.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));

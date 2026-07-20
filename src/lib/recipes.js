@@ -1,4 +1,5 @@
 import recipes from "../../data/recipes.json" with { type: "json" };
+import { publicAssetUrl } from "./assets";
 
 export { recipes };
 
@@ -58,8 +59,8 @@ export function photoCandidatesFor(recipe, options = {}) {
   if (recipe?.image?.status === "needs-photo" || !recipe?.image?.url) return [placeholder];
 
   const normalizedUrl = localAssetUrlFor(recipe.image.url);
-  const heroUrl = optimizedDishUrlFor(normalizedUrl, "hero");
-  const thumbUrl = optimizedDishUrlFor(normalizedUrl, "thumb");
+  const heroUrl = publicAssetUrl(optimizedDishUrlFor(normalizedUrl, "hero"));
+  const thumbUrl = publicAssetUrl(optimizedDishUrlFor(normalizedUrl, "thumb"));
   const candidates = options.variant === "thumb"
     ? [thumbUrl, heroUrl, normalizedUrl, placeholder]
     : [heroUrl, normalizedUrl, thumbUrl, placeholder];

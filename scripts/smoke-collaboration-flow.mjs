@@ -1319,6 +1319,8 @@ async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }
     assert.equal(await livingRoom.getByTestId("current-family-member-avatars").locator("[data-testid='member-avatar-fallback'], img").count(), 1, "my home should show the formal member avatar");
 
     await page.getByRole("button", { name: "邀请家人", exact: true }).click();
+    await page.getByRole("button", { name: "选择家人发送", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+    await page.getByRole("button", { name: "选择家人发送", exact: true }).click();
     await page.getByText("家庭邀请链接已复制").waitFor({ timeout: 10000 });
     const invite = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:household-invite:v1") || "null"));
     assert(invite?.token, "my home should persist a real household invite token");

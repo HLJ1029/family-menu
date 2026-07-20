@@ -25,6 +25,13 @@ try {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
+  const dishThumb = await rawRequest(`${baseUrl}/assets/dishes/thumbs/tomato-egg.webp`, { method: "HEAD" });
+  assert.equal(dishThumb.status, 200, "optimized dish thumbnails should be served by the API asset origin");
+  assert.equal(dishThumb.contentType, "image/webp");
+  assert.match(dishThumb.cacheControl || "", /max-age=31536000/);
+  const brandAvatar = await rawRequest(`${baseUrl}/assets/brand/lovart-v2/humi-avatar-family-f-01.webp`, { method: "HEAD" });
+  assert.equal(brandAvatar.status, 200, "identity avatars should be served by the API asset origin");
+  assert.equal(brandAvatar.contentType, "image/webp");
 
   await assertUnauthorizedCreate(`${baseUrl}/crave-requests`, {
     householdName: "匿名测试家",
@@ -1665,6 +1672,7 @@ async function rawRequest(url, options = {}) {
     status: response.status,
     contentType,
     contentLength: response.headers.get("content-length"),
+    cacheControl: response.headers.get("cache-control"),
     buffer,
     data,
   };

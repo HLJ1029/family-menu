@@ -35,6 +35,7 @@ const config = {
   avatarDir: process.env.HUMI_AVATAR_DIR || resolve(dirname(process.env.HUMI_API_DATA_FILE || resolve(".humi-api-data.json")), "avatars"),
   avatarPublicBaseUrl: (process.env.HUMI_PUBLIC_BASE_URL || "https://api.humi-home.com").replace(/\/$/, ""),
   avatarMaxBytes: 512 * 1024,
+  assetDir: process.env.HUMI_ASSET_DIR || resolve("public/assets"),
 };
 
 if (!config.sessionSecret) {
@@ -70,6 +71,12 @@ export function createHumiApiServer() {
           return;
         }
         sendJson(response, 200, { ok: true, service: "humi-api" });
+        return;
+      }
+
+      const staticAssetMatch = url.pathname.match(/^\/assets\/(dishes\/(?:thumbs|webp)\/[A-Za-z0-9_-]+\.webp|brand\/lovart-v2\/[A-Za-z0-9_-]+\.webp)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && staticAssetMatch) {
+        await handleGetStaticAsset(request, response, staticAssetMatch[1]);
         return;
       }
 
@@ -387,6 +394,21 @@ async function handleIdentityAvatar(request, response) {
   const user = await store.updateIdentityAvatar(auth.userId, { avatarUrl });
   if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
   sendJson(response, 201, { user: toPublicUser(user) });
+}
+
+async function handleGetStaticAsset(request, response, relativePath) {
+  const path = join(config.assetDir, relativePath);
+  const file = await readFile(path).catch((error) => {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!file) throw httpError(404, "asset_not_found", "图片资源不存在。");
+  response.writeHead(200, {
+    "Content-Type": "image/webp",
+    "Content-Length": file.length,
+    "Cache-Control": "public, max-age=31536000, immutable",
+  });
+  response.end(request.method === "HEAD" ? undefined : file);
 }
 
 async function handleCreateH5Ticket(request, response) {

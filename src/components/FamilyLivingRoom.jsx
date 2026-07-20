@@ -13,6 +13,8 @@ export function FamilyLivingRoom({
   onRefreshWishShare,
   onPlanWish,
   canInvite = true,
+  inviteReady = false,
+  invitePending = false,
 }) {
   const memberCount = formalMembers.length || family?.members?.length || 1;
   const currentRole = family?.role === "owner" ? "主厨" : "家人";
@@ -36,9 +38,12 @@ export function FamilyLivingRoom({
             <p className="mt-2 text-sm font-bold text-ink/58">菜单和协作都留在这个家里。</p>
           </div>
           {canInvite && (
-            <button type="button" onClick={onInvite} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white">
-              <UsersRound size={17} /> 邀请家人
-            </button>
+            <div className="grid justify-items-end gap-2">
+              <button disabled={invitePending} type="button" onClick={onInvite} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-black text-white disabled:opacity-55">
+                <UsersRound size={17} /> {invitePending ? "正在准备邀请" : inviteReady ? "选择家人发送" : "邀请家人"}
+              </button>
+              {inviteReady && <p className="text-xs font-bold text-ink/48">邀请已准备好，点一下打开微信发送页</p>}
+            </div>
           )}
         </div>
       </section>

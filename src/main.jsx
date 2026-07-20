@@ -161,6 +161,7 @@ function App() {
   const [activeGroceryShareRequest, setActiveGroceryShareRequest] = useLocalStorageState("humi:active-grocery-share-request:v1", null);
   const [activeWishShareRequest, setActiveWishShareRequest] = useLocalStorageState("humi:active-wish-share-request:v1", null);
   const [activeHouseholdInvite, setActiveHouseholdInvite] = useLocalStorageState("humi:household-invite:v1", null);
+  const [householdInvitePending, setHouseholdInvitePending] = useState(false);
   const [pendingJoinContext, setPendingJoinContext] = useLocalStorageState("humi:pending-join-context:v1", null);
   const [householdMembers, setHouseholdMembers] = useLocalStorageState("humi:household-members:v1", []);
   const [craveRequestPending, setCraveRequestPending] = useState(false);
@@ -2877,6 +2878,7 @@ function App() {
   }
 
   async function createFamilyInviteCard() {
+    if (householdInvitePending) return;
     if (!isHumiApiSession(humiSession)) {
       if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
         showNotice("登录后就能邀请家人");
@@ -2889,6 +2891,8 @@ function App() {
       showNotice("只有主厨能邀请家人加入这个家");
       return;
     }
+    setHouseholdInvitePending(true);
+    showNotice("正在准备家庭邀请...");
     try {
       const activeHouseholdId = humiHouseholds.some((household) => household.id === family?.id)
         ? family.id
@@ -2898,9 +2902,11 @@ function App() {
         inviterName: getDisplayName(displaySession) || "主厨",
       });
       setActiveHouseholdInvite(data.invite);
-      await shareHouseholdInvite(data.invite);
+      showNotice("邀请已准备好，请点“选择家人发送”");
     } catch (error) {
       showNotice(error.message || "家庭邀请暂时没生成成功");
+    } finally {
+      setHouseholdInvitePending(false);
     }
   }
 
@@ -3646,6 +3652,7 @@ function App() {
                 onClearPendingJoinContext={() => setPendingJoinContext(null)}
                 householdMembers={householdMembers}
                 activeHouseholdInvite={activeHouseholdInvite}
+                householdInvitePending={householdInvitePending}
                 onCreateHousehold={createAnotherHumiHousehold}
                 onSwitchHousehold={switchActiveHumiHousehold}
                 onRenameHousehold={renameHumiHousehold}

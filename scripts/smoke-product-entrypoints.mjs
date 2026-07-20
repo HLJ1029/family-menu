@@ -430,6 +430,8 @@ try {
   const preferenceOpenedSettings = await page.getByTestId("household-settings-page").isVisible();
   await page.getByTestId("household-settings-page").getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: "邀请家人", exact: true }).click();
+  await page.getByRole("button", { name: "选择家人发送", exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByRole("button", { name: "选择家人发送", exact: true }).click();
   await page.waitForFunction(() =>
     window.__humiMiniProgramCalls?.some((call) =>
       call.method === "navigateTo" && call.payload?.url?.includes("/pages/share/index?type=invite")

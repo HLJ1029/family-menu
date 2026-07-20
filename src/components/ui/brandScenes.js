@@ -1,7 +1,9 @@
+import { publicAssetUrl } from "../../lib/assets";
+
 const asset = (id, label) => ({
   id,
   label,
-  src: `/assets/brand/lovart-v2/${id}.webp`,
+  src: publicAssetUrl(`/assets/brand/lovart-v2/${id}.webp`),
 });
 
 export const humiBrandScenes = {

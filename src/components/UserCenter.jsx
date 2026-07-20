@@ -19,6 +19,9 @@ export function UserCenter({
   onRefreshWishShare,
   onPlanWish,
   onCreateHouseholdInvite,
+  onShareHouseholdInvite,
+  activeHouseholdInvite,
+  householdInvitePending = false,
   onStartWishShare,
   onCreateHousehold,
   canManageHousehold = true,
@@ -43,6 +46,11 @@ export function UserCenter({
     () => buildActiveCollaborations({ activeCraveRequest, activeGroceryShareRequest, activeWishShareRequest }),
     [activeCraveRequest, activeGroceryShareRequest, activeWishShareRequest],
   );
+  const inviteReady = Boolean(
+    activeHouseholdInvite?.token
+    && (!activeHouseholdInvite.householdId || activeHouseholdInvite.householdId === family?.id),
+  );
+  const handleHouseholdInvite = inviteReady ? onShareHouseholdInvite : onCreateHouseholdInvite;
 
   function openInviteGuidance() {
     if (typeof authProps?.onOpenInvite === "function") {
@@ -71,7 +79,7 @@ export function UserCenter({
 
   const commonPageProps = { onBack: () => navigateWithinFamily("home") };
   if (pageId === "members") {
-    return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={onCreateHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
+    return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={handleHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
   }
   if (pageId === "settings") {
     return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onCreateHousehold={onCreateHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
@@ -92,11 +100,13 @@ export function UserCenter({
       preferenceSummary={buildPreferenceSummary(familyProfile, formalMembers.length)}
       activePageId={pageId}
       onNavigate={navigateWithinFamily}
-      onInvite={onCreateHouseholdInvite}
+      onInvite={handleHouseholdInvite}
       onStartWishShare={onStartWishShare}
       onRefreshWishShare={onRefreshWishShare}
       onPlanWish={onPlanWish}
       canInvite={canManageHousehold}
+      inviteReady={inviteReady}
+      invitePending={householdInvitePending}
     />
   );
 }
