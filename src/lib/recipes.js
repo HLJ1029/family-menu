@@ -1,7 +1,8 @@
-import recipes from "../../data/recipes.json" with { type: "json" };
+import rawRecipes from "../../data/recipes.json" with { type: "json" };
 import { publicAssetUrl } from "./assets";
+import { attachCookAssist } from "./mealExecution";
 
-export { recipes };
+export const recipes = rawRecipes.map((recipe) => attachCookAssist(recipe));
 
 const APP_BASE_PATH = import.meta.env?.BASE_URL || "/";
 const LEGACY_GITHUB_PAGES_BASE = "/family-menu/";
