@@ -558,7 +558,9 @@ try {
     { key: "household-name-draft-defaults-to-we-family", ok: noHouseholdStart.defaultName === "我们家", actual: noHouseholdStart.defaultName },
     { key: "household-name-blank-is-rejected-locally-and-preserved", ok: noHouseholdStart.blankCreateRequests === 0 && noHouseholdStart.blankInputPreserved && noHouseholdStart.blankErrorVisible, actual: noHouseholdStart },
     { key: "signed-in-no-household-page-errors", ok: noHouseholdStart.pageErrors.length === 0, errors: noHouseholdStart.pageErrors },
+    { key: "dashboard-feedback-panel-enters-current-viewport", ok: ownerCollaborationShares.recommendationFeedbackInViewport, actual: ownerCollaborationShares.feedbackPanelViewport },
     { key: "dashboard-crave-owner-creation-opens-recipient-picker", ok: ownerCollaborationShares.craveAudiencePickerVisible, actual: ownerCollaborationShares },
+    { key: "dashboard-crave-owner-picker-enters-current-viewport", ok: ownerCollaborationShares.craveAudiencePickerInViewport, actual: ownerCollaborationShares.craveAudiencePickerViewport },
     { key: "dashboard-crave-recipients-default-selected", ok: ownerCollaborationShares.craveRecipientsDefaultSelected, actual: ownerCollaborationShares.craveRecipientState },
     { key: "dashboard-crave-create-keeps-selected-members", ok: ownerCollaborationShares.craveCreateKeptSelectedMembers, actual: ownerCollaborationShares.craveCreatePayload },
     { key: "dashboard-crave-share-opens-native-share-page", ok: ownerCollaborationShares.craveShareOpened, actual: ownerCollaborationShares.nativeShareTypeCounts },
@@ -1147,6 +1149,19 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
 
   await page.goto(base, { waitUntil: "networkidle" });
   await installMiniProgramMock(page);
+  await page.getByRole("button", { name: "不想吃", exact: true }).click();
+  const feedbackPanel = page.getByText("这组为什么不适合今晚？", { exact: true });
+  await feedbackPanel.waitFor({ state: "visible", timeout: 15_000 });
+  const feedbackPanelViewport = await feedbackPanel.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportHeight: window.innerHeight,
+      inViewport: rect.top < window.innerHeight && rect.bottom > 0,
+    };
+  });
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.getByRole("button", { name: "问问大家想吃啥" }).click();
   const audiencePicker = page.getByText("默认全选，家人点开卡片免登录参与", { exact: true });
   await audiencePicker.waitFor({ state: "visible", timeout: 15_000 }).catch(async (error) => {
@@ -1154,6 +1169,15 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
     throw new Error(`${error.message}; body=${JSON.stringify(bodyText)}; pageErrors=${JSON.stringify(pageErrors)}`);
   });
   const craveAudiencePickerVisible = await audiencePicker.isVisible();
+  const craveAudiencePickerViewport = await audiencePicker.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportHeight: window.innerHeight,
+      inViewport: rect.top < window.innerHeight && rect.bottom > 0,
+    };
+  });
   const recipient = page.getByRole("button", { name: /家人小林/ });
   const craveRecipientState = await recipient.getAttribute("aria-pressed");
   await page.getByRole("button", { name: "生成征集单", exact: true }).click();
@@ -1202,7 +1226,11 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
   await familyLivingRoom.screenshot({ path: screenshot });
   await context.close();
   return {
+    recommendationFeedbackInViewport: feedbackPanelViewport.inViewport,
+    feedbackPanelViewport,
     craveAudiencePickerVisible,
+    craveAudiencePickerInViewport: craveAudiencePickerViewport.inViewport,
+    craveAudiencePickerViewport,
     craveRecipientsDefaultSelected: craveRecipientState === "true",
     craveRecipientState,
     craveCreateKeptSelectedMembers: craveCreatePayload?.recipientIds?.includes("product-smoke-member") === true,

@@ -126,6 +126,33 @@ assert.equal(
   "leaving the web-view should confirm a handoff when the bridge omits callbacks",
 );
 
+const callbacklessNavigationFallback = createRuntimeWindow({
+  navigateTo() {
+    // iOS WeChat can accept this call without firing success, fail, or page-leave.
+  },
+  redirectTo({ fail }) {
+    fail?.({ errMsg: "redirectTo:fail callbackless navigateTo recovery" });
+  },
+  reLaunch({ url, success }) {
+    assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
+    success?.();
+  },
+});
+globalThis.window = callbacklessNavigationFallback.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "invite", token: "invite-token" },
+    { timeoutMs: 180, confirmationMs: 20 },
+  ),
+  "handoff",
+  "a callbackless navigateTo should advance through redirectTo to reLaunch",
+);
+assert.deepEqual(
+  callbacklessNavigationFallback.calls,
+  ["navigateTo", "redirectTo", "reLaunch"],
+  "native share fallback should not stop after a callbackless bridge call",
+);
+
 const allFailed = createRuntimeWindow({
   navigateTo() {
     throw new Error("navigateTo bridge unavailable");
@@ -230,7 +257,7 @@ function assertShareFeedbackDoesNotClaimUnverifiedSuccess() {
   assert.match(groceryList, /去微信发清单/, "mini-program grocery sharing should set the native handoff expectation");
 }
 
-function createRuntimeWindow({ redirectTo, navigateTo }) {
+function createRuntimeWindow({ redirectTo, navigateTo, reLaunch }) {
   const windowListeners = new Map();
   const documentListeners = new Map();
   const calls = [];
@@ -277,6 +304,12 @@ function createRuntimeWindow({ redirectTo, navigateTo }) {
     runtimeWindow.wx.miniProgram.navigateTo = (options) => {
       calls.push("navigateTo");
       navigateTo({ ...options, leavePage });
+    };
+  }
+  if (reLaunch) {
+    runtimeWindow.wx.miniProgram.reLaunch = (options) => {
+      calls.push("reLaunch");
+      reLaunch({ ...options, leavePage });
     };
   }
   return { window: runtimeWindow, calls };

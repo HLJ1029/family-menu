@@ -96,6 +96,8 @@ export function Dashboard({
   const [selectedCraveRecipeIds, setSelectedCraveRecipeIds] = useState([]);
   const [selectedCraveAudience, setSelectedCraveAudience] = useState([]);
   const autoFinishedCraveRef = useRef("");
+  const cravePanelRef = useRef(null);
+  const feedbackPanelRef = useRef(null);
   const profileReady = getProfileCompletedCount(familyProfile) >= 4;
   const dinnerReady = todayRecipes.length > 0;
   const recommendedItems = getRecommendationItems(recommendation);
@@ -133,8 +135,30 @@ export function Dashboard({
     onStartCraveRequest?.(selectedFeeling, { audience: selectedCraveAudience });
   }
 
+  function revealPanel(ref) {
+    window.requestAnimationFrame(() => {
+      ref.current?.scrollIntoView({ block: "start" });
+    });
+  }
+
+  function toggleCravePanel() {
+    if (craveOpen) {
+      setCraveOpen(false);
+      return;
+    }
+    setCraveOpen(true);
+    revealPanel(cravePanelRef);
+  }
+
+  function openRecommendationFeedback() {
+    onOpenRecommendationFeedback?.();
+    revealPanel(feedbackPanelRef);
+  }
+
   useEffect(() => {
-    if (cravePanelOpenSignal) setCraveOpen(true);
+    if (!cravePanelOpenSignal) return;
+    setCraveOpen(true);
+    revealPanel(cravePanelRef);
   }, [cravePanelOpenSignal]);
 
   useEffect(() => {
@@ -227,8 +251,8 @@ export function Dashboard({
               onViewChange={onViewChange}
               arrangeTonight={arrangeTonight}
               onRequestAiRecommendation={onRequestAiRecommendation}
-              onOpenRecommendationFeedback={onOpenRecommendationFeedback}
-              onToggleCrave={() => setCraveOpen((current) => !current)}
+              onOpenRecommendationFeedback={openRecommendationFeedback}
+              onToggleCrave={toggleCravePanel}
               onOpenRecipeLibrary={onOpenRecipeLibrary}
               canManageHousehold={canManageHousehold}
             />
@@ -288,7 +312,7 @@ export function Dashboard({
             <PantryQuickHint onAdd={onAddPantryHints} />
           )}
           {canManageHousehold && !dinnerReady && craveOpen && (
-            <div className="relative mt-5 overflow-hidden rounded-[24px] border border-line bg-white p-4 pr-24">
+            <div ref={cravePanelRef} data-testid="dashboard-crave-panel" className="relative mt-5 scroll-mt-4 overflow-hidden rounded-[24px] border border-line bg-white p-4 pr-24">
               <HumiPeek
                 variant="share-to-family"
                 size="md"
@@ -409,7 +433,7 @@ export function Dashboard({
             </div>
           )}
           {!dinnerReady && feedbackOpen && (
-            <div className="mt-4 rounded-[24px] border border-line bg-white p-4">
+            <div ref={feedbackPanelRef} data-testid="dashboard-feedback-panel" className="mt-4 scroll-mt-4 rounded-[24px] border border-line bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/38">Feedback</p>

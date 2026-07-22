@@ -45,18 +45,24 @@ export function requestMiniProgramPoster(payload = {}, options = {}) {
 
 function requestMiniProgramPage(url, options = {}) {
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.redirectTo && !miniProgram?.navigateTo) return Promise.resolve("unavailable");
+  if (!miniProgram?.redirectTo && !miniProgram?.navigateTo && !miniProgram?.reLaunch) {
+    return Promise.resolve("unavailable");
+  }
 
-  const timeoutMs = options.timeoutMs ?? 1800;
+  const timeoutMs = options.timeoutMs ?? 2400;
+  const confirmationMs = options.confirmationMs ?? 600;
   return new Promise((resolve) => {
     let settled = false;
     let timeoutTimer = null;
+    let attemptTimer = null;
+    let attemptSequence = 0;
     const documentRef = window.document;
     const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
     const finish = (status) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(timeoutTimer);
+      window.clearTimeout(attemptTimer);
       if (supportsPageConfirmation) {
         documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
         window.removeEventListener("pagehide", handlePageLeave);
@@ -78,6 +84,7 @@ function requestMiniProgramPage(url, options = {}) {
     const attempts = [
       ["navigateTo", miniProgram.navigateTo],
       ["redirectTo", miniProgram.redirectTo],
+      ["reLaunch", miniProgram.reLaunch],
     ].filter(([, method]) => typeof method === "function");
 
     const runAttempt = (index) => {
@@ -87,14 +94,21 @@ function requestMiniProgramPage(url, options = {}) {
         finish("unavailable");
         return;
       }
+      const attemptId = ++attemptSequence;
+      const advance = () => {
+        if (settled || attemptId !== attemptSequence) return;
+        window.clearTimeout(attemptTimer);
+        runAttempt(index + 1);
+      };
+      attemptTimer = window.setTimeout(advance, confirmationMs);
       try {
         method.call(miniProgram, {
           url,
           success: () => finish("handoff"),
-          fail: () => runAttempt(index + 1),
+          fail: advance,
         });
       } catch {
-        runAttempt(index + 1);
+        advance();
       }
     };
 

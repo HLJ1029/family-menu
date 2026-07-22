@@ -8,6 +8,7 @@ import { createServer as createViteServer } from "vite";
 const WECHAT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0.56";
 const evidenceDir = process.env.HUMI_H5_ENTRY_EVIDENCE_DIR || "";
 const expectedChecks = [
+  "WeChat bridge and API bootstrap resources load without parser blocking",
   "pre-React fallback is visible when the main module fails",
   "retry action appears after six seconds",
   "normal React boot replaces the fallback",
@@ -20,6 +21,18 @@ const expectedChecks = [
   "later authenticated writes also downgrade on invalid sessions",
   "local logout succeeds when remote revocation fails",
 ];
+
+const entryHtml = fs.readFileSync("index.html", "utf8");
+assert.match(
+  entryHtml,
+  /<link\s+rel="preconnect"\s+href="https:\/\/api\.humi-home\.com"\s+crossorigin\s*\/?>/,
+  "H5 entry should preconnect to the identity API before login bootstrap",
+);
+assert.match(
+  entryHtml,
+  /<script\s+defer\s+src="\/vendor\/jweixin-1\.6\.0\.js"><\/script>/,
+  "WeChat JSSDK should not block parsing the H5 entry document",
+);
 
 if (evidenceDir) {
   await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
@@ -109,8 +122,8 @@ try {
     method: "navigateTo",
     payload: { url: "/pages/identity/index?action=login" },
   });
-  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.method), "postMessage");
-  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.payload?.data?.type), "humi:wechat-login");
+  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.method), "reLaunch");
+  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.payload?.url), "/pages/identity/index?action=login");
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
   assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
@@ -379,7 +392,7 @@ try {
     await chmod(manifestPath, 0o600);
     await access(manifestPath);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact 11 validation checks");
+    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact 12 validation checks");
     assert.deepEqual(manifest.screenshots, screenshots);
     assert.equal(manifest.ok, true);
     assert.equal(manifest.evidenceDir, evidenceDir);

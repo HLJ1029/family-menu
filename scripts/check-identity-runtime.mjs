@@ -73,6 +73,7 @@ assert.doesNotMatch(familyLivingRoomSource, /云同步|营养目标|验证数据
 assert.doesNotMatch(deployWorkflow, /VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY/);
 
 const humiApi = await import(`../src/lib/humiApi.js?session-invalid-check=${Date.now()}`);
+const humiIdentity = await import(`../src/lib/humiIdentity.js?native-navigation-check=${Date.now()}`);
 assert.equal(typeof humiApi.subscribeHumiSessionInvalid, "function");
 let invalidSessionNotifications = 0;
 const unsubscribe = humiApi.subscribeHumiSessionInvalid(() => {
@@ -96,5 +97,38 @@ try {
   unsubscribe();
   globalThis.fetch = originalFetch;
 }
+
+const nativeIdentityCalls = [];
+globalThis.window = {
+  wx: {
+    miniProgram: {
+      navigateTo() {
+        nativeIdentityCalls.push("navigateTo");
+      },
+      redirectTo({ fail }) {
+        nativeIdentityCalls.push("redirectTo");
+        fail?.({ errMsg: "redirectTo:fail" });
+      },
+      reLaunch({ success }) {
+        nativeIdentityCalls.push("reLaunch");
+        success?.({ errMsg: "reLaunch:ok" });
+      },
+    },
+  },
+  setTimeout,
+  clearTimeout,
+};
+assert.equal(
+  humiIdentity.requestWechatLoginFromMiniProgram({ confirmationMs: 10 }),
+  true,
+  "identity navigation should start synchronously",
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.deepEqual(
+  nativeIdentityCalls,
+  ["navigateTo", "redirectTo", "reLaunch"],
+  "callbackless identity navigation should use the same native fallback ladder as sharing",
+);
+delete globalThis.window;
 
 console.log("Identity runtime checks passed.");

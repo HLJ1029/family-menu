@@ -62,7 +62,7 @@ export function takeHumiTicketFromUrl() {
   return ticket;
 }
 
-export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure } = {}) {
+export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure, confirmationMs = 600 } = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram) return false;
@@ -86,16 +86,67 @@ export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFail
     }
   };
 
-  if (!miniProgram.navigateTo) return fallbackToLegacyBridge();
-  try {
-    miniProgram.navigateTo({
-      url: reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
-      fail: fallbackToLegacyBridge,
-    });
-    return true;
-  } catch {
-    return fallbackToLegacyBridge();
+  const url = reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login";
+  const attempts = [
+    miniProgram.navigateTo,
+    miniProgram.redirectTo,
+    miniProgram.reLaunch,
+  ].filter((method) => typeof method === "function");
+  if (attempts.length === 0) return fallbackToLegacyBridge();
+
+  let settled = false;
+  let attemptTimer = null;
+  let attemptSequence = 0;
+  const documentRef = window.document;
+  const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
+  const cleanup = () => {
+    window.clearTimeout(attemptTimer);
+    if (supportsPageConfirmation) {
+      documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", finish);
+      window.removeEventListener("beforeunload", finish);
+    }
+  };
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+  };
+  const handleVisibilityChange = () => {
+    if (documentRef.visibilityState === "hidden") finish();
+  };
+  const fallback = () => {
+    if (settled) return;
+    finish();
+    fallbackToLegacyBridge();
+  };
+  const runAttempt = (index) => {
+    if (settled) return;
+    const method = attempts[index];
+    if (!method) {
+      fallback();
+      return;
+    }
+    const attemptId = ++attemptSequence;
+    const advance = () => {
+      if (settled || attemptId !== attemptSequence) return;
+      window.clearTimeout(attemptTimer);
+      runAttempt(index + 1);
+    };
+    attemptTimer = window.setTimeout(advance, confirmationMs);
+    try {
+      method.call(miniProgram, { url, success: finish, fail: advance });
+    } catch {
+      advance();
+    }
+  };
+  if (supportsPageConfirmation) {
+    documentRef.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", finish);
+    window.addEventListener("beforeunload", finish);
   }
+  runAttempt(0);
+  return true;
 }
 
 export function requestPhoneBindFromMiniProgram() {
