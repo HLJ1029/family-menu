@@ -78,6 +78,10 @@ export function completeHumiMealRun(session, mealRunId) {
   return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/complete`, { method: "POST", session, body: {} });
 }
 
+export function downgradeHumiMealRun(session, mealRunId, action) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/downgrade`, { method: "POST", session, body: { action } });
+}
+
 export function abandonHumiMealRun(session, mealRunId, reason) {
   return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/abandon`, { method: "POST", session, body: { reason } });
 }

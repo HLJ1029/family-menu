@@ -1350,9 +1350,11 @@ export class HumiStore {
         currentStepId: "",
         timerEndsAt: "",
         readyStaple: sanitizeText(input.readyStaple, "", 40),
+        syncedFromLocalId: sanitizeText(input.syncedFromLocalId, "", 100),
         status: "planned",
         abandonReason: "",
         feedback: [],
+        downgrades: [],
         idempotencyKey,
         createdBy: userId,
         startedBy: "",
@@ -1438,6 +1440,37 @@ export class HumiStore {
       mealRun.completedBy = userId;
       mealRun.completedAt = now;
       mealRun.timerEndsAt = "";
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async downgradeMealRun(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (!["planned", "cooking"].includes(mealRun.status)) {
+        throw codedError("meal_run_transition_invalid", "Only a planned or active dinner can be simplified.");
+      }
+      const action = sanitizeDowngradeAction(input.action);
+      const recipeIds = sanitizeRecipeIds(input.recipeIds);
+      const now = new Date().toISOString();
+      const previousRecipeIds = [...mealRun.recipeIds];
+      mealRun.recipeIds = recipeIds;
+      mealRun.recipeSnapshot = structuredClone(input.recipeSnapshot ?? []);
+      mealRun.readyStaple = sanitizeText(input.readyStaple, mealRun.readyStaple || "", 40);
+      mealRun.downgrades = [...(mealRun.downgrades ?? []), {
+        action,
+        previousRecipeIds,
+        recipeIds: [...recipeIds],
+        changedBy: userId,
+        changedAt: now,
+      }];
+      if (mealRun.status === "cooking") {
+        mealRun.timeline = structuredClone(input.timeline);
+        mealRun.currentStepId = input.timeline?.steps?.[0]?.id || "";
+        mealRun.timerEndsAt = input.timeline?.steps?.[0]?.attention === "passive" ? input.timeline.steps[0].endsAt : "";
+      }
       mealRun.updatedAt = now;
       return mealRun;
     });
@@ -1806,6 +1839,11 @@ function sanitizeRecipeIds(value) {
 function sanitizeAbandonReason(value) {
   if (["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"].includes(value)) return value;
   throw codedError("abandon_reason_invalid", "Unsupported abandon reason.");
+}
+
+function sanitizeDowngradeAction(value) {
+  if (["remove_optional_side", "lower_effort_recipe", "ready_staple"].includes(value)) return value;
+  throw codedError("invalid_downgrade_action", "Unsupported downgrade action.");
 }
 
 function sanitizeMealFeedback(value) {

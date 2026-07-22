@@ -54,12 +54,13 @@ try {
   const firstPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",
     session: owner,
-    body: mealPlan(householdId, "2026-07-22", "plan-1"),
+    body: { ...mealPlan(householdId, "2026-07-22", "plan-1"), syncedFromLocalId: "local-test-run" },
   });
   assert.equal(firstPlan.mealRun.status, "planned");
   assert.deepEqual(firstPlan.mealRun.recipeIds, ["tomato-egg", "seaweed-egg-soup"]);
   assert.equal(firstPlan.mealRun.timelineVersion, 1);
   assert.equal(firstPlan.mealRun.timeline, null, "absolute timeline starts only when cooking starts");
+  assert.equal(firstPlan.mealRun.syncedFromLocalId, "local-test-run", "guest merge provenance must survive persistence");
 
   const repeatedPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",
@@ -105,6 +106,15 @@ try {
     body: { currentStepId: firstStep.id, timerEndsAt: firstStep.endsAt },
   });
   assert.equal(progressed.mealRun.currentStepId, firstStep.id);
+
+  const downgradedRun = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/downgrade`, {
+    method: "POST",
+    session: member,
+    body: { action: "ready_staple" },
+  });
+  assert.equal(downgradedRun.mealRun.status, "cooking");
+  assert.equal(downgradedRun.mealRun.readyStaple, "即食米饭");
+  assert.equal(downgradedRun.mealRun.downgrades.length, 1);
 
   const completed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
     method: "POST",

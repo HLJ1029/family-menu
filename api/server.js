@@ -8,7 +8,7 @@ import { HumiStore } from "./store.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
-import { buildMealTimeline, getCertifiedRecipe } from "../src/lib/mealExecution.js";
+import { buildMealTimeline, downgradeMealPlan, getCertifiedRecipe } from "../src/lib/mealExecution.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -243,6 +243,12 @@ export function createHumiApiServer() {
       const mealRunCompleteMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/complete$/);
       if (request.method === "POST" && mealRunCompleteMatch) {
         await handleCompleteMealRun(request, response, mealRunCompleteMatch[1]);
+        return;
+      }
+
+      const mealRunDowngradeMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/downgrade$/);
+      if (request.method === "POST" && mealRunDowngradeMatch) {
+        await handleDowngradeMealRun(request, response, mealRunDowngradeMatch[1]);
         return;
       }
 
@@ -666,6 +672,7 @@ async function handleCreateMealRun(request, response) {
       recipeIds,
       idempotencyKey: body.idempotencyKey,
       readyStaple: body.readyStaple,
+      syncedFromLocalId: body.syncedFromLocalId,
       timelineVersion: 1,
       recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
     });
@@ -730,6 +737,30 @@ async function handleCompleteMealRun(request, response, mealRunId) {
     const current = await store.getMealRunForUser(user.id, mealRunId);
     assertMealExecutionEnabled(current.householdId);
     const mealRun = await store.completeMealRun(user.id, mealRunId);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleDowngradeMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const downgradedPlan = downgradeMealPlan(current.recipeIds, body.action);
+    const certifiedRecipes = downgradedPlan.recipeIds.map((recipeId) => getCertifiedRecipe(recipeId));
+    const timeline = current.status === "cooking"
+      ? buildMealTimeline(downgradedPlan.recipeIds, { startedAt: new Date().toISOString() })
+      : null;
+    const mealRun = await store.downgradeMealRun(user.id, mealRunId, {
+      action: body.action,
+      recipeIds: downgradedPlan.recipeIds,
+      readyStaple: downgradedPlan.readyStaple,
+      recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
+      timeline,
+    });
     sendJson(response, 200, { mealRun });
   } catch (error) {
     throw mapMealExecutionError(error);
@@ -1094,6 +1125,7 @@ function mapMealExecutionError(error) {
     meal_task_invalid: 400,
     meal_feedback_invalid: 400,
     abandon_reason_invalid: 400,
+    invalid_downgrade_action: 400,
     product_event_invalid: 400,
     idempotency_key_required: 400,
     date_key_invalid: 400,

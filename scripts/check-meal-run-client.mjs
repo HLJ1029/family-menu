@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   completedMealsInWeek,
   createLocalMealRun,
+  downgradeLocalMealRun,
   mergeLocalMealRun,
   remainingLocalTimerSeconds,
   transitionLocalMealRun,
@@ -15,6 +16,7 @@ import {
   createHumiMealReminder,
   createHumiMealRun,
   createHumiMealTask,
+  downgradeHumiMealRun,
   loadCurrentHumiMealRun,
   loadHumiMealReminderConfig,
   recordHumiProductEvent,
@@ -32,6 +34,7 @@ for (const clientMethod of [
   createHumiMealReminder,
   createHumiMealRun,
   createHumiMealTask,
+  downgradeHumiMealRun,
   loadCurrentHumiMealRun,
   loadHumiMealReminderConfig,
   recordHumiProductEvent,
@@ -67,6 +70,12 @@ const progressed = transitionLocalMealRun(cooking, "progress", {
 assert.equal(progressed.currentStepId, passiveStep.id);
 assert.equal(remainingLocalTimerSeconds(progressed, new Date(Date.parse(passiveStep.endsAt) - 45_000).toISOString()), 45);
 assert.equal(remainingLocalTimerSeconds(progressed, new Date(Date.parse(passiveStep.endsAt) + 1000).toISOString()), 0);
+
+const downgraded = downgradeLocalMealRun(progressed, "ready_staple", { now: "2026-07-22T10:07:00.000Z" });
+assert.equal(downgraded.status, "cooking");
+assert.equal(downgraded.readyStaple, "即食米饭");
+assert.equal(downgraded.downgrades.length, 1);
+assert.equal(downgraded.downgrades[0].action, "ready_staple");
 
 assert.throws(
   () => transitionLocalMealRun(planned, "complete", { now: "2026-07-22T10:10:00.000Z" }),

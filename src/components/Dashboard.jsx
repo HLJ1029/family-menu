@@ -19,6 +19,7 @@ import { CraveAudiencePicker } from "./CraveAudiencePicker";
 import { DishImage } from "./ui/DishImage";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { HumiScene } from "./ui/HumiScene";
+import { MealExecutionExperience } from "./MealExecutionExperience";
 
 const dinnerSources = [
   { id: "home", label: "在家做" },
@@ -86,6 +87,7 @@ export function Dashboard({
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
   canManageHousehold = true,
+  mealExecution,
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -244,18 +246,20 @@ export function Dashboard({
             <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {coreSummary}
             </p>
-            <PrimaryDinnerActions
-              dinnerReady={dinnerReady}
-              craveMenuReady={craveMenuReady}
-              aiRecommendationLoading={aiRecommendationLoading}
-              onViewChange={onViewChange}
-              arrangeTonight={arrangeTonight}
-              onRequestAiRecommendation={onRequestAiRecommendation}
-              onOpenRecommendationFeedback={openRecommendationFeedback}
-              onToggleCrave={toggleCravePanel}
-              onOpenRecipeLibrary={onOpenRecipeLibrary}
-              canManageHousehold={canManageHousehold}
-            />
+            {!mealExecution?.enabled && (
+              <PrimaryDinnerActions
+                dinnerReady={dinnerReady}
+                craveMenuReady={craveMenuReady}
+                aiRecommendationLoading={aiRecommendationLoading}
+                onViewChange={onViewChange}
+                arrangeTonight={arrangeTonight}
+                onRequestAiRecommendation={onRequestAiRecommendation}
+                onOpenRecommendationFeedback={openRecommendationFeedback}
+                onToggleCrave={toggleCravePanel}
+                onOpenRecipeLibrary={onOpenRecipeLibrary}
+                canManageHousehold={canManageHousehold}
+              />
+            )}
             {!dinnerReady && aiRecommendationStatus && (
               <div className="mt-4 rounded-[20px] border border-line bg-white px-4 py-3 text-xs font-black leading-5 text-ink/58 shadow-card">
                 {aiRecommendationStatus}
@@ -271,6 +275,8 @@ export function Dashboard({
               />
             </div>
           </div>
+
+          {mealExecution?.enabled && <MealExecutionExperience {...mealExecution} />}
 
           <div className="tonight-card-swap mt-6 grid gap-4 md:mt-8 md:grid-cols-2" key={recommendation.title}>
             {visibleDinnerItems.map(({ recipe, quantity }) => (
@@ -515,18 +521,20 @@ export function Dashboard({
         </div>
       </section>
 
-      <DinnerLogPanel
-        mealLog={mealLog}
-        mealLogs={mealLogs}
-        onSetDinnerSource={onSetDinnerSource}
-        onSetDinnerConfirmation={onSetDinnerConfirmation}
-        onToggleConsumedRecipe={onToggleConsumedRecipe}
-        todayRecipes={todayRecipes}
-        showConfirmation={dinnerReady}
-        dinnerReady={dinnerReady}
-        onViewChange={onViewChange}
-        canManageHousehold={canManageHousehold}
-      />
+      {!mealExecution?.enabled && (
+        <DinnerLogPanel
+          mealLog={mealLog}
+          mealLogs={mealLogs}
+          onSetDinnerSource={onSetDinnerSource}
+          onSetDinnerConfirmation={onSetDinnerConfirmation}
+          onToggleConsumedRecipe={onToggleConsumedRecipe}
+          todayRecipes={todayRecipes}
+          showConfirmation={dinnerReady}
+          dinnerReady={dinnerReady}
+          onViewChange={onViewChange}
+          canManageHousehold={canManageHousehold}
+        />
+      )}
       <BreakfastQuickPicker
         open={breakfastPickerOpen}
         recipes={breakfastChoices}

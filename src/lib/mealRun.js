@@ -1,4 +1,4 @@
-import { buildMealTimeline, getCertifiedRecipe, remainingTimerSeconds } from "./mealExecution.js";
+import { buildMealTimeline, downgradeMealPlan, getCertifiedRecipe, remainingTimerSeconds } from "./mealExecution.js";
 
 const runStatusRank = { planned: 0, cooking: 1, abandoned: 2, completed: 3 };
 
@@ -33,6 +33,7 @@ export function createLocalMealRun({
     status: "planned",
     abandonReason: "",
     feedback: [],
+    downgrades: [],
     localOnly: true,
     syncStatus: "local",
     createdBy: "guest",
@@ -44,6 +45,36 @@ export function createLocalMealRun({
     completedAt: "",
     abandonedAt: "",
   };
+}
+
+export function downgradeLocalMealRun(run, action, { now = new Date().toISOString(), userId = "guest" } = {}) {
+  if (!run?.id || !["planned", "cooking"].includes(run.status)) {
+    throw mealRunError("meal_run_transition_invalid", "Only a planned or active dinner can be simplified.");
+  }
+  const changedAt = normalizeIsoDate(now);
+  const result = downgradeMealPlan(run.recipeIds, action);
+  const next = structuredClone(run);
+  const previousRecipeIds = [...next.recipeIds];
+  next.recipeIds = result.recipeIds;
+  next.readyStaple = result.readyStaple || next.readyStaple || "";
+  next.recipeSnapshot = next.recipeIds.map((recipeId) => {
+    const recipe = getCertifiedRecipe(recipeId);
+    return { id: recipe.id, name: recipe.name, cookAssist: structuredClone(recipe.cookAssist) };
+  });
+  next.downgrades = [...(next.downgrades ?? []), {
+    action,
+    previousRecipeIds,
+    recipeIds: [...next.recipeIds],
+    changedBy: userId,
+    changedAt,
+  }];
+  if (next.status === "cooking") {
+    next.timeline = buildMealTimeline(next.recipeIds, { startedAt: changedAt });
+    next.currentStepId = next.timeline.steps[0]?.id || "";
+    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+  }
+  next.updatedAt = changedAt;
+  return next;
 }
 
 export function transitionLocalMealRun(run, action, payload = {}) {

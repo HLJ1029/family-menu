@@ -65,7 +65,45 @@ import { buildRecommendationItems, buildTodayRecommendation, getHardAvoidSignals
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
 import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
 import { clearGuestParticipantId } from "./lib/collaborationIdentity";
-import { closeCraveRequest, createCraveRequest, createGroceryShareRequest, createHumiHousehold, createHouseholdInvite, createMenuShareRequest, createWishShareRequest, exchangeHumiTicket, isHumiApiSession, joinCraveRequest, joinGroceryShareRequest, joinWishShareRequest, leaveHumiHousehold, loadCraveRequest, loadGroceryShareRequest, loadHumiState, loadHumiStateEnvelope, loadWishShareRequest, logoutHumiSession, removeHumiHouseholdMember, saveHumiState, subscribeHumiSessionInvalid, switchHumiHousehold, transferHumiHouseholdOwnership, updateHumiHousehold, uploadPosterShare } from "./lib/humiApi";
+import {
+  abandonHumiMealRun,
+  closeCraveRequest,
+  completeHumiMealRun,
+  createCraveRequest,
+  createGroceryShareRequest,
+  createHumiHousehold,
+  createHumiMealRun,
+  createHumiMealTask,
+  createHouseholdInvite,
+  createMenuShareRequest,
+  createWishShareRequest,
+  downgradeHumiMealRun,
+  exchangeHumiTicket,
+  isHumiApiSession,
+  joinCraveRequest,
+  joinGroceryShareRequest,
+  joinWishShareRequest,
+  leaveHumiHousehold,
+  loadCraveRequest,
+  loadCurrentHumiMealRun,
+  loadGroceryShareRequest,
+  loadHumiState,
+  loadHumiStateEnvelope,
+  loadWishShareRequest,
+  logoutHumiSession,
+  recordHumiProductEvent,
+  removeHumiHouseholdMember,
+  saveHumiState,
+  startHumiMealRun,
+  subscribeHumiSessionInvalid,
+  switchHumiHousehold,
+  transferHumiHouseholdOwnership,
+  updateHumiHousehold,
+  updateHumiMealRunFeedback,
+  updateHumiMealRunProgress,
+  uploadPosterShare,
+} from "./lib/humiApi";
+import { completedMealsInWeek, createLocalMealRun, downgradeLocalMealRun, mergeLocalMealRun, transitionLocalMealRun } from "./lib/mealRun";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
@@ -92,6 +130,7 @@ function App() {
   const humiStateLoadedRef = useRef(false);
   const humiStateHydratingRef = useRef(false);
   const pendingJoinMergeRef = useRef("");
+  const mealRunHydrationRef = useRef("");
   const viewHistoryRef = useRef(["dashboard"]);
   const swipeStartRef = useRef(null);
   const [activeView, setActiveView] = useState(() => getInitialView());
@@ -115,6 +154,9 @@ function App() {
     createInitialMealCalendar,
   );
   const [mealLogs, setMealLogs] = useLocalStorageState("family-menu:meal-logs:v1", {});
+  const [mealExecutionRuns, setMealExecutionRuns] = useLocalStorageState("humi:meal-execution-runs:v1", []);
+  const [mealEffortTier, setMealEffortTier] = useLocalStorageState("humi:meal-effort-tier:v1", "quick_15");
+  const [mealExecutionQueue, setMealExecutionQueue] = useLocalStorageState("humi:meal-execution-queue:v1", []);
   const [checkedItems, setCheckedItems] = useLocalStorageState("family-menu:checked-items", {});
   const [customItems, setCustomItems] = useLocalStorageState("family-menu:custom-items", []);
   const [newCustomItem, setNewCustomItem] = useState("");
@@ -179,6 +221,9 @@ function App() {
   const [posterLoading, setPosterLoading] = useState(false);
   const [entryMotion, setEntryMotion] = useState(false);
   const [flowMotion, setFlowMotion] = useState(null);
+  const [mealExecutionCapabilities, setMealExecutionCapabilities] = useState({ mealExecution: false });
+  const [mealExecutionPending, setMealExecutionPending] = useState(false);
+  const [mealExecutionStatus, setMealExecutionStatus] = useState("");
   const identityComplete = humiSession?.user?.profileStatus === "complete";
   const signedIn = Boolean(humiSession?.user && identityComplete);
   const preciseRecommendationAvailable = Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked;
@@ -188,6 +233,11 @@ function App() {
   const currentHouseholdMemberName = getDisplayName(displaySession) || "家人";
   const canManageHousehold = !isHumiApiSession(humiSession) || family?.role !== "member";
   const todayDateKey = formatDateKey(new Date());
+  const mealExecutionPreview = import.meta.env.DEV
+    && typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("mealExecutionPreview") === "1";
+  const mealExecutionEnabled = mealExecutionPreview || Boolean(mealExecutionCapabilities.mealExecution);
+  const mealExecutionHouseholdId = family?.id || "guest";
   const weekDateKeys = useMemo(() => {
     const weekStart = getWeekStartDate();
     return Object.fromEntries(
@@ -204,6 +254,22 @@ function App() {
     [],
   );
   const todayMeals = useMemo(() => getDayMeals(mealPlan, todayDateKey), [mealPlan, todayDateKey]);
+  const activeMealRun = useMemo(() => {
+    const candidates = mealExecutionRuns
+      .filter((run) => run?.dateKey === todayDateKey && run?.mealSlot === "dinner" && run.status !== "abandoned")
+      .filter((run) => run.householdId === mealExecutionHouseholdId || (!signedIn && run.householdId === "guest"))
+      .sort((left, right) => Date.parse(right.updatedAt || 0) - Date.parse(left.updatedAt || 0));
+    return candidates.reduce((selected, candidate) => mergeLocalMealRun(selected, candidate), null);
+  }, [mealExecutionHouseholdId, mealExecutionRuns, signedIn, todayDateKey]);
+  const mealExecutionRecipeIds = activeMealRun?.recipeIds ?? candidateMealRecipeIds(mealEffortTier, todayMenu);
+  const mealExecutionRecipes = useMemo(
+    () => mealExecutionRecipeIds.map((recipeId) => getRecipe(recipeId)).filter(Boolean),
+    [mealExecutionRecipeIds.join("|")],
+  );
+  const weeklyCompletedMealCount = useMemo(() => completedMealsInWeek(mealExecutionRuns, {
+    householdId: mealExecutionHouseholdId,
+    weekStartDateKey: formatDateKey(getWeekStartDate()),
+  }), [mealExecutionHouseholdId, mealExecutionRuns]);
   const breakfastChoices = useMemo(() => buildBreakfastChoices(mealLogs), [mealLogs]);
   const libraryMenuQuantities = useMemo(() => {
     if (libraryMealSlot && libraryMealSlot !== "dinner") {
@@ -362,6 +428,103 @@ function App() {
     setTodayMenu,
     setWeekPlan,
   ]);
+
+  useEffect(() => {
+    if (!mealExecutionEnabled || !isHumiApiSession(humiSession) || !family?.id || !online) return undefined;
+    const hydrationKey = `${humiSession.user?.id || "user"}:${family.id}:${todayDateKey}`;
+    if (mealRunHydrationRef.current === hydrationKey) return undefined;
+    mealRunHydrationRef.current = hydrationKey;
+    let active = true;
+
+    async function hydrateMealRun() {
+      try {
+        const remote = await loadCurrentHumiMealRun(humiSession, {
+          householdId: family.id,
+          dateKey: todayDateKey,
+          mealSlot: "dinner",
+        });
+        if (!active) return;
+        if (remote.mealRun) {
+          upsertMealExecutionRun(remote.mealRun);
+          return;
+        }
+        const guestRun = mealExecutionRuns.find((run) => (
+          run?.householdId === "guest"
+          && run.dateKey === todayDateKey
+          && run.mealSlot === "dinner"
+          && run.status !== "abandoned"
+        ));
+        if (!guestRun || !canManageHousehold) return;
+        const created = await createHumiMealRun(humiSession, {
+          householdId: family.id,
+          dateKey: guestRun.dateKey,
+          mealSlot: "dinner",
+          effortTier: guestRun.effortTier,
+          recipeIds: guestRun.recipeIds,
+          readyStaple: guestRun.readyStaple,
+          syncedFromLocalId: guestRun.id,
+          idempotencyKey: `guest-merge:${guestRun.id}`,
+        });
+        let synced = created.mealRun;
+        if (["cooking", "completed"].includes(guestRun.status)) {
+          synced = (await startHumiMealRun(humiSession, synced.id)).mealRun;
+          if (guestRun.status === "cooking" && guestRun.currentStepId) {
+            synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
+              currentStepId: guestRun.currentStepId,
+              timerEndsAt: guestRun.timerEndsAt,
+            })).mealRun;
+          }
+          if (guestRun.status === "completed") synced = (await completeHumiMealRun(humiSession, synced.id)).mealRun;
+        }
+        const guestFeedback = guestRun.feedback?.at(-1)?.value;
+        if (guestFeedback && synced.status === "completed") {
+          synced = (await updateHumiMealRunFeedback(humiSession, synced.id, guestFeedback)).mealRun;
+        }
+        if (active) upsertMealExecutionRun({ ...synced, syncedFromLocalId: guestRun.id }, guestRun.id);
+      } catch (error) {
+        if (active) {
+          mealRunHydrationRef.current = "";
+          setMealExecutionStatus(error.message || "做饭记录暂时无法同步，本机仍可继续。" );
+        }
+      }
+    }
+
+    hydrateMealRun();
+    return () => { active = false; };
+  }, [canManageHousehold, family?.id, humiSession, mealExecutionEnabled, online, todayDateKey]);
+
+  useEffect(() => {
+    if (!mealExecutionEnabled || !online || !isHumiApiSession(humiSession) || mealExecutionQueue.length === 0) return undefined;
+    let active = true;
+
+    async function flushMealExecutionQueue() {
+      const completedOperationIds = [];
+      for (const operation of mealExecutionQueue) {
+        if (!active) return;
+        try {
+          let data;
+          if (operation.action === "start") data = await startHumiMealRun(humiSession, operation.mealRunId);
+          if (operation.action === "progress") data = await updateHumiMealRunProgress(humiSession, operation.mealRunId, operation.payload);
+          if (operation.action === "complete") data = await completeHumiMealRun(humiSession, operation.mealRunId);
+          if (operation.action === "abandon") data = await abandonHumiMealRun(humiSession, operation.mealRunId, operation.payload.reason);
+          if (operation.action === "downgrade") data = await downgradeHumiMealRun(humiSession, operation.mealRunId, operation.payload.action);
+          if (operation.action === "feedback") data = await updateHumiMealRunFeedback(humiSession, operation.mealRunId, operation.payload.value);
+          if (data?.mealRun) upsertMealExecutionRun(data.mealRun);
+          completedOperationIds.push(operation.id);
+        } catch (error) {
+          setMealExecutionStatus(error.message || "网络恢复了，但有一项做饭进度还没同步。" );
+          break;
+        }
+      }
+      if (active && completedOperationIds.length > 0) {
+        const completedSet = new Set(completedOperationIds);
+        setMealExecutionQueue((current) => current.filter((item) => !completedSet.has(item.id)));
+      }
+    }
+
+    flushMealExecutionQueue();
+    return () => { active = false; };
+  }, [humiSession, mealExecutionEnabled, mealExecutionQueue, online]);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !humiStateLoadedRef.current || humiStateHydratingRef.current) return;
@@ -640,6 +803,28 @@ function App() {
     );
   }, [activeCraveRequest, craveSignals, signedIn, todayMenu.length, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
+  const mealExecutionProps = {
+    enabled: mealExecutionEnabled,
+    effortTier: mealEffortTier,
+    onSelectEffortTier: selectMealExecutionEffortTier,
+    planRecipes: mealExecutionRecipes,
+    mealRun: activeMealRun,
+    weeklyCompletedCount: weeklyCompletedMealCount,
+    canAcceptPlan: !signedIn || canManageHousehold,
+    signedIn,
+    online,
+    pending: mealExecutionPending,
+    status: mealExecutionStatus,
+    onAcceptPlan: acceptMealExecutionPlan,
+    onStart: startMealExecutionRun,
+    onProgress: progressMealExecutionRun,
+    onComplete: completeMealExecutionRun,
+    onAbandon: abandonMealExecutionRun,
+    onDowngrade: downgradeMealExecutionRun,
+    onFeedback: submitMealExecutionFeedback,
+    onCreateTask: createMealExecutionTask,
+    onScheduleReminder: scheduleMealExecutionReminder,
+  };
 
   useEffect(() => {
     if (activeView !== "dashboard" || todayMenu.length > 0) return;
@@ -704,6 +889,7 @@ function App() {
   function applyHumiStateEnvelope(data = {}, status = {}) {
     setFamily(data.family ?? null);
     setHumiHouseholds(Array.isArray(data.households) ? data.households : []);
+    setMealExecutionCapabilities(data.capabilities ?? { mealExecution: false });
     const formalMembers = (data.family?.members ?? []).map((member) => ({
       id: `member:${member.memberId}`,
       memberId: member.memberId,
@@ -798,6 +984,255 @@ function App() {
 
   function trackProductEvent(eventName, payload = {}) {
     trackValidationEvent(eventName, payload);
+  }
+
+  function trackMealExecutionEvent(eventType, payload = {}) {
+    trackValidationEvent(eventType, payload);
+    if (!mealExecutionCapabilities.mealExecution || !isHumiApiSession(humiSession) || !family?.id) return;
+    recordHumiProductEvent(humiSession, {
+      eventType,
+      effortTier: payload.effortTier || mealEffortTier,
+      mealRunId: payload.mealRunId || activeMealRun?.id || "",
+      recommendationId: payload.recommendationId || "",
+    }).catch(() => {});
+  }
+
+  function upsertMealExecutionRun(nextRun, replaceRunId = "") {
+    if (!nextRun?.id) return;
+    setMealExecutionRuns((current) => {
+      const nextRuns = [nextRun, ...current.filter((run) => (
+        run?.id !== nextRun.id
+        && (!replaceRunId || run?.id !== replaceRunId)
+        && (!nextRun.syncedFromLocalId || run?.id !== nextRun.syncedFromLocalId)
+      ))].slice(0, 200);
+      persistMealExecutionValue("humi:meal-execution-runs:v1", nextRuns);
+      return nextRuns;
+    });
+  }
+
+  function setMealExecutionMenu(recipeIds) {
+    const entries = recipeIds.map((recipeId) => ({ recipeId, quantity: 1 }));
+    setTodayMenu(entries);
+    updateMealPlanSlot(todayDateKey, "dinner", () => entries);
+  }
+
+  function selectMealExecutionEffortTier(effortTier) {
+    setMealEffortTier(effortTier);
+    persistMealExecutionValue("humi:meal-effort-tier:v1", effortTier);
+    setMealExecutionStatus("");
+    trackMealExecutionEvent(productEvents.effortTierSelected, { effortTier });
+    trackMealExecutionEvent(productEvents.planPresented, {
+      effortTier,
+      recommendationId: `${todayDateKey}:${effortTier}`,
+    });
+  }
+
+  async function acceptMealExecutionPlan() {
+    if (mealExecutionRecipeIds.length === 0 || activeMealRun) return;
+    setMealExecutionPending(true);
+    setMealExecutionStatus("");
+    try {
+      let nextRun;
+      if (isHumiApiSession(humiSession) && family?.id) {
+        if (!canManageHousehold) {
+          setMealExecutionStatus("主厨选好今晚菜单后，你就可以直接开始。" );
+          return;
+        }
+        const data = await createHumiMealRun(humiSession, {
+          householdId: family.id,
+          dateKey: todayDateKey,
+          mealSlot: "dinner",
+          effortTier: mealEffortTier,
+          recipeIds: mealExecutionRecipeIds,
+          idempotencyKey: `tonight:${family.id}:${todayDateKey}:${mealEffortTier}:${mealExecutionRecipeIds.join("+")}`,
+        });
+        nextRun = data.mealRun;
+      } else {
+        nextRun = createLocalMealRun({
+          householdId: "guest",
+          dateKey: todayDateKey,
+          effortTier: mealEffortTier,
+          recipeIds: mealExecutionRecipeIds,
+        });
+      }
+      upsertMealExecutionRun(nextRun);
+      setMealExecutionMenu(nextRun.recipeIds);
+      trackMealExecutionEvent(productEvents.planAccepted, {
+        effortTier: nextRun.effortTier,
+        mealRunId: nextRun.id,
+        recommendationId: `${todayDateKey}:${nextRun.effortTier}`,
+      });
+      setMealExecutionStatus("今晚就按这套来，想开始时再点开始做。" );
+    } catch (error) {
+      setMealExecutionStatus(error.message || "这套方案暂时没保存下来，请稍后再试。" );
+    } finally {
+      setMealExecutionPending(false);
+    }
+  }
+
+  async function startMealExecutionRun() {
+    if (!activeMealRun) return;
+    await performMealRunTransition("start");
+  }
+
+  async function progressMealExecutionRun(step) {
+    if (!activeMealRun || !step?.id) return;
+    const timerEndsAt = step.attention === "passive" ? step.endsAt : "";
+    await performMealRunTransition("progress", { currentStepId: step.id, timerEndsAt });
+  }
+
+  async function completeMealExecutionRun() {
+    if (!activeMealRun) return;
+    const completed = await performMealRunTransition("complete");
+    if (!completed) return;
+    const entries = completed.recipeIds.map((recipeId) => ({ recipeId, quantity: 1 }));
+    const recordedBy = getDisplayName(displaySession) || "我";
+    updateTodayMealLog({
+      source: "home",
+      recordedBy,
+      confirmation: "all",
+      confirmedBy: recordedBy,
+      consumedEntries: entries,
+      mealRunId: completed.id,
+    });
+    trackValidationEvent(validationEvents.mealConfirmed, {
+      confirmation: "all",
+      consumedCount: entries.length,
+      dateKey: todayDateKey,
+      source: "meal_execution",
+    });
+  }
+
+  async function abandonMealExecutionRun(reason) {
+    if (!activeMealRun) return;
+    await performMealRunTransition("abandon", { reason });
+  }
+
+  async function downgradeMealExecutionRun(action) {
+    if (!activeMealRun) return;
+    setMealExecutionPending(true);
+    setMealExecutionStatus("");
+    try {
+      const data = isHumiApiSession(humiSession) && family?.id && online
+        ? await downgradeHumiMealRun(humiSession, activeMealRun.id, action)
+        : { mealRun: downgradeLocalMealRun(activeMealRun, action, { userId: currentHouseholdMemberId || "guest" }) };
+      const nextRun = online || !isHumiApiSession(humiSession)
+        ? data.mealRun
+        : { ...data.mealRun, syncStatus: "pending" };
+      upsertMealExecutionRun(nextRun);
+      if (!online && isHumiApiSession(humiSession) && family?.id) {
+        enqueueMealExecutionOperation(activeMealRun.id, "downgrade", { action });
+      }
+      if (canManageHousehold) setMealExecutionMenu(nextRun.recipeIds);
+      setMealExecutionStatus("已经把这顿再减轻一点。" );
+    } catch (error) {
+      setMealExecutionStatus(error.message || "暂时没能调整方案。" );
+    } finally {
+      setMealExecutionPending(false);
+    }
+  }
+
+  async function submitMealExecutionFeedback(value) {
+    if (!activeMealRun) return;
+    setMealExecutionPending(true);
+    try {
+      const data = isHumiApiSession(humiSession) && family?.id && online
+        ? await updateHumiMealRunFeedback(humiSession, activeMealRun.id, value)
+        : { mealRun: transitionLocalMealRun(activeMealRun, "feedback", { value, userId: currentHouseholdMemberId || "guest" }) };
+      const nextRun = !online && isHumiApiSession(humiSession)
+        ? { ...data.mealRun, syncStatus: "pending" }
+        : data.mealRun;
+      upsertMealExecutionRun(nextRun);
+      if (!online && isHumiApiSession(humiSession) && family?.id) {
+        enqueueMealExecutionOperation(activeMealRun.id, "feedback", { value });
+      }
+      setMealExecutionStatus("记住了，下次推荐会参考这次感受。" );
+    } catch (error) {
+      setMealExecutionStatus(error.message || "反馈暂时没保存下来。" );
+    } finally {
+      setMealExecutionPending(false);
+    }
+  }
+
+  async function createMealExecutionTask(type) {
+    if (!activeMealRun) return;
+    if (!isHumiApiSession(humiSession) || !family?.id) {
+      setMealExecutionStatus("登录并加入家庭后，才能把具体任务发给家人。" );
+      return;
+    }
+    setMealExecutionPending(true);
+    try {
+      const recipe = mealExecutionRecipes[0];
+      const firstIngredient = recipe?.ingredients?.[0]?.name || "晚饭食材";
+      const prepStep = activeMealRun.recipeSnapshot
+        ?.flatMap((item) => item.cookAssist?.steps ?? [])
+        .find((step) => step.phase === "prep");
+      const payload = type === "buy"
+        ? { type: "buy", ingredientName: firstIngredient }
+        : { type: "prep", stepId: prepStep?.id || "" };
+      const data = await createHumiMealTask(humiSession, activeMealRun.id, payload);
+      const label = type === "buy" ? `请家人买${firstIngredient}` : `请家人${prepStep?.text || "帮忙备菜"}`;
+      const nativeStatus = await requestMiniProgramShare({ type: "meal_task", token: data.mealTask.token, label });
+      if (nativeStatus !== "handoff") {
+        await copyShareUrl(buildMealTaskUrl(data.mealTask.token));
+        setMealExecutionStatus(isWechatMiniProgramWebView() ? "发送页暂时没打开，请再试一次。" : "任务链接已复制。" );
+      }
+    } catch (error) {
+      setMealExecutionStatus(error.message || "任务暂时没有生成。" );
+    } finally {
+      setMealExecutionPending(false);
+    }
+  }
+
+  function scheduleMealExecutionReminder(value) {
+    if (!signedIn) {
+      setMealExecutionStatus("登录后再预约，烹饪不会受影响。" );
+      return;
+    }
+    setMealExecutionStatus(`已选 ${formatReminderDate(value)}，下一步将在微信页由你确认是否接收一次提醒。`);
+  }
+
+  async function performMealRunTransition(action, payload = {}) {
+    setMealExecutionPending(true);
+    setMealExecutionStatus("");
+    try {
+      let nextRun;
+      if (isHumiApiSession(humiSession) && family?.id && online) {
+        if (action === "start") nextRun = (await startHumiMealRun(humiSession, activeMealRun.id)).mealRun;
+        if (action === "progress") nextRun = (await updateHumiMealRunProgress(humiSession, activeMealRun.id, payload)).mealRun;
+        if (action === "complete") nextRun = (await completeHumiMealRun(humiSession, activeMealRun.id)).mealRun;
+        if (action === "abandon") nextRun = (await abandonHumiMealRun(humiSession, activeMealRun.id, payload.reason)).mealRun;
+      } else {
+        nextRun = transitionLocalMealRun(activeMealRun, action, {
+          ...payload,
+          userId: currentHouseholdMemberId || "guest",
+        });
+        if (isHumiApiSession(humiSession) && family?.id) {
+          nextRun = { ...nextRun, syncStatus: "pending" };
+          enqueueMealExecutionOperation(activeMealRun.id, action, payload);
+        }
+      }
+      upsertMealExecutionRun(nextRun);
+      return nextRun;
+    } catch (error) {
+      setMealExecutionStatus(error.message || "操作暂时没保存，本页不会把这顿算作完成。" );
+      return null;
+    } finally {
+      setMealExecutionPending(false);
+    }
+  }
+
+  function enqueueMealExecutionOperation(mealRunId, action, payload = {}) {
+    setMealExecutionQueue((current) => {
+      const nextQueue = [...current, {
+        id: `${mealRunId}:${action}:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+        mealRunId,
+        action,
+        payload,
+      }].slice(-100);
+      persistMealExecutionValue("humi:meal-execution-queue:v1", nextQueue);
+      return nextQueue;
+    });
   }
 
   function exportLocalValidationData(format = "json") {
@@ -2504,7 +2939,9 @@ function App() {
       setSessionExpired(false);
       humiStateLoadedRef.current = false;
       humiStateHydratingRef.current = false;
+      mealRunHydrationRef.current = "";
       setFamily(null);
+      setMealExecutionCapabilities({ mealExecution: false });
       setCloudMenuEnabled(false);
       setCloudGroceryEnabled(false);
       setFamilyMembers([]);
@@ -2525,7 +2962,9 @@ function App() {
     setSessionExpired(true);
     humiStateLoadedRef.current = false;
     humiStateHydratingRef.current = false;
+    mealRunHydrationRef.current = "";
     setFamily(null);
+    setMealExecutionCapabilities({ mealExecution: false });
     setHumiHouseholds([]);
     setCloudMenuEnabled(false);
     setCloudGroceryEnabled(false);
@@ -3464,6 +3903,7 @@ function App() {
                 onSetDinnerConfirmation={setDinnerConfirmation}
                 onToggleConsumedRecipe={toggleConsumedRecipe}
                 canManageHousehold={canManageHousehold}
+                mealExecution={mealExecutionProps}
               />
             )}
             {activeView === "library" && (
@@ -3750,6 +4190,14 @@ function getInitialInviteToken() {
   return new URLSearchParams(window.location.search).get("invite") || "";
 }
 
+function candidateMealRecipeIds(effortTier, todayMenu = []) {
+  const currentDinner = todayMenu.map((entry) => entry.recipeId).filter((recipeId) => getRecipe(recipeId)?.cookAssist?.status === "certified");
+  if (effortTier === "normal" && currentDinner.length > 0 && currentDinner.length === todayMenu.length) return currentDinner;
+  if (effortTier === "easy_30") return ["tomato-tofu-shrimp-soup", "vinegar-cabbage"];
+  if (effortTier === "normal") return ["cola-wings", "spinach-tofu-egg-drop-soup"];
+  return ["tomato-egg"];
+}
+
 function getInitialView() {
   if (typeof window === "undefined") return "dashboard";
   const view = new URLSearchParams(window.location.search).get("view");
@@ -3815,6 +4263,31 @@ function buildMenuShareUrl(token) {
   url.searchParams.set("menuShare", token);
   url.searchParams.set("shareSource", "today_menu");
   return url.toString();
+}
+
+function buildMealTaskUrl(token) {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("mealTask", token);
+  url.searchParams.set("shareSource", "meal_task");
+  return url.toString();
+}
+
+function formatReminderDate(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "下次做饭时间";
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function persistMealExecutionValue(key, value) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // The current screen remains usable if private browsing blocks local persistence.
+  }
 }
 
 function buildGroceryShareItems(groceryItems = [], customItems = [], checkedItems = {}) {

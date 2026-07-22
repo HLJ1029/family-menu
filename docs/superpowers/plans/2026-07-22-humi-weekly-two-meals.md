@@ -72,11 +72,11 @@
 - Local controller exports `createLocalMealRun`, `transitionLocalMealRun`, `mergeLocalMealRun`, `remainingTimerSeconds`, and `completedMealsInWeek`.
 - API client mirrors every backend route and never retries non-idempotent creates without an idempotency key.
 
-- [ ] Write failing tests for guest creation, offline progress, background timer restore, legal/illegal transitions, exactly-once completion, login merge, and weekly completion count.
-- [ ] Implement the minimal local controller and authenticated API wrappers.
-- [ ] Add privacy-safe event names: `effort_tier_viewed`, `effort_tier_selected`, `plan_presented`, `plan_accepted`, and `reminder_opened`; state transitions remain server-owned.
-- [ ] Run the client suite and existing identity/migration checks.
-- [ ] Commit the local-first execution layer.
+- [x] Write failing tests for guest creation, offline progress, background timer restore, legal/illegal transitions, exactly-once completion, login merge, and weekly completion count.
+- [x] Implement the minimal local controller and authenticated API wrappers.
+- [x] Add privacy-safe event names: `effort_tier_viewed`, `effort_tier_selected`, `plan_presented`, `plan_accepted`, and `reminder_opened`; state transitions remain server-owned.
+- [x] Run the client suite and existing identity/migration checks.
+- [x] Commit the local-first execution layer.
 
 ### Task 4: Tonight effort picker and whole-meal cooking UI
 
@@ -91,13 +91,13 @@
 - Dashboard receives `mealExecution` state/actions and renders the new experience only when capability is enabled and every planned recipe is certified.
 - Existing recommendation/menu/grocery paths remain the fallback.
 
-- [ ] Add failing 390×844 browser smoke checks for the three effort tiers, one primary CTA, plan acceptance, start, timeline advancement, background restore, downgrade, abandon, serve confirmation, weekly rhythm, feedback, task suggestion, and reminder choice.
-- [ ] Add the effort picker and deterministic plan summary to Tonight without changing breakfast/lunch.
-- [ ] Add a focused cooking view with current/next steps, absolute timers, the three downgrade choices, offline state, and explicit “上桌了”.
-- [ ] Persist guest runs locally; sync authenticated runs; merge a guest run after login without duplicating completion.
-- [ ] Add the completion sheet, one-tap feedback, optional family task, and explicit next-cook time selection.
-- [ ] Run product smoke, collaboration smoke, mobile visual checks, and build.
-- [ ] Commit the H5 experience.
+- [x] Add failing 390×844 browser smoke checks for the three effort tiers, one primary CTA, plan acceptance, start, timeline advancement, background restore, downgrade, abandon, serve confirmation, weekly rhythm, feedback, task suggestion, and reminder choice.
+- [x] Add the effort picker and deterministic plan summary to Tonight without changing breakfast/lunch.
+- [x] Add a focused cooking view with current/next steps, absolute timers, the three downgrade choices, offline state, and explicit “上桌了”.
+- [x] Persist guest runs locally; sync authenticated runs; merge a guest run after login without duplicating completion.
+- [x] Add the completion sheet, one-tap feedback, optional family task, and explicit next-cook time selection.
+- [x] Run product smoke, collaboration smoke, mobile visual checks, and build.
+- [x] Commit the H5 experience.
 
 ### Task 5: Native meal task sharing and subscription permission
 
