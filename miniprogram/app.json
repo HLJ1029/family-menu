@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/share/index",
+    "pages/reminder/index",
     "pages/poster/index",
     "pages/phone-bind/index",
     "pages/identity/index"

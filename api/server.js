@@ -276,6 +276,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const mealTaskMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)$/);
+      if (request.method === "GET" && mealTaskMatch) {
+        await handleGetMealTask(request, response, mealTaskMatch[1]);
+        return;
+      }
+
       const mealTaskCompleteMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/complete$/);
       if (request.method === "POST" && mealTaskCompleteMatch) {
         await handleCompleteMealTask(request, response, mealTaskCompleteMatch[1]);
@@ -802,6 +808,19 @@ async function handleCreateMealTask(request, response, mealRunId) {
     const taskInput = deriveMealTask(mealRun, body);
     const task = await store.createMealTask(user.id, mealRunId, taskInput);
     sendJson(response, 201, { task });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleGetMealTask(request, response, token) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const task = await store.getMealTask(token);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    await store.getMealRunForUser(user.id, task.mealRunId);
+    assertMealExecutionEnabled(task.householdId);
+    sendJson(response, 200, { task });
   } catch (error) {
     throw mapMealExecutionError(error);
   }

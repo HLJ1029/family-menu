@@ -108,6 +108,26 @@ const cases = [
       path: "/pages/index/index?menuShare=menu-token-123",
     },
   },
+  {
+    name: "meal_task",
+    message: {
+      type: "humi:share-meal-task",
+      token: "meal-task-token-123",
+      householdName: "周末家",
+      initiatorName: "小林",
+      label: "请家人买鸡蛋",
+    },
+    expectedShare: {
+      title: "请家人买鸡蛋",
+      path: "/pages/index/index?mealTask=meal-task-token-123&shareSource=meal_task",
+    },
+    launchOptions: { mealTask: "meal-task-token-123" },
+    expectedLaunchUrl: "https://www.humi-home.com/?mealTask=meal-task-token-123&shareSource=meal_task&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "一起把今晚这顿端上桌",
+      path: "/pages/index/index?mealTask=meal-task-token-123&shareSource=meal_task",
+    },
+  },
 ];
 
 const results = cases.map((testCase) => {

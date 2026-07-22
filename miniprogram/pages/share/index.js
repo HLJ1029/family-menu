@@ -62,6 +62,26 @@ function buildShareData(options = {}) {
   const inviterName = normalizeText(options.inviterName) || initiatorName;
   const itemCount = Number(options.itemCount || 0);
 
+  if (type === "meal_task") {
+    const label = normalizeText(options.label) || "一起把今晚这顿端上桌";
+    return {
+      type,
+      token,
+      householdName,
+      title: label,
+      eyebrow: "今晚协作任务",
+      body: "发给同住家人，对方登录并加入这个家后，可以认领并标记完成。",
+      meta: "不阻塞你继续做饭",
+      actionLabel: "选择家人发任务",
+      helper: "再点一下，就能选择发给哪位家人。",
+      detailRows: [
+        { label: "家人打开后", value: "登录 Humi 后认领这件具体小事" },
+        { label: "你继续做", value: "任务不会卡住单人做饭流程" }
+      ],
+      path: `/pages/index/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
+    };
+  }
+
   if (type === "grocery") {
     const title = itemCount > 0
       ? `${initiatorName}发来 ${itemCount} 项买菜清单`

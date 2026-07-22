@@ -1,0 +1,83 @@
+page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  color: #111111;
+}
+
+.reminder-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 54rpx 36rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.brand,
+.eyebrow {
+  font-size: 22rpx;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+}
+
+.brand {
+  color: rgba(17, 17, 17, 0.4);
+}
+
+.eyebrow {
+  margin-top: 86rpx;
+  color: rgba(17, 17, 17, 0.45);
+}
+
+.title {
+  margin-top: 18rpx;
+  font-size: 58rpx;
+  line-height: 1.12;
+  font-weight: 900;
+}
+
+.promise-card {
+  margin-top: 48rpx;
+  padding: 36rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.1);
+  border-radius: 30rpx;
+  background: #ffffff;
+}
+
+.promise-title {
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.promise-copy,
+.status {
+  margin-top: 20rpx;
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 27rpx;
+  line-height: 1.65;
+  font-weight: 700;
+}
+
+.status {
+  padding: 0 12rpx;
+}
+
+.primary-button,
+.ghost-button {
+  min-height: 104rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.primary-button {
+  background: #111111;
+  color: #ffffff;
+}
+
+.ghost-button {
+  margin-top: 20rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.12);
+  background: #ffffff;
+  color: rgba(17, 17, 17, 0.62);
+}

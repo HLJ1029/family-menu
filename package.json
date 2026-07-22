@@ -31,6 +31,7 @@
     "validate:meal-execution-api": "node scripts/smoke-meal-execution-api.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",
     "validate:meal-execution-ui": "node scripts/smoke-meal-execution-ui.mjs",
+    "validate:miniprogram-meal-reminder": "node scripts/check-miniprogram-meal-reminder.mjs",
     "validate:migration": "node scripts/check-humi-migration.mjs",
     "validate:true-device-evidence": "node scripts/check-humi-true-device-evidence.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",

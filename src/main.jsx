@@ -10,6 +10,7 @@ import { HumiIdentitySetup } from "./components/HumiIdentitySetup";
 import { InviteLanding } from "./components/InviteLanding";
 import { Library } from "./components/Library";
 import { MenuShareLanding } from "./components/MenuShareLanding";
+import { MealTaskLanding } from "./components/MealTaskLanding";
 import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
@@ -105,7 +106,7 @@ import {
 } from "./lib/humiApi";
 import { completedMealsInWeek, createLocalMealRun, downgradeLocalMealRun, mergeLocalMealRun, transitionLocalMealRun } from "./lib/mealRun";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
-import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramShare } from "./lib/runtime";
+import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "./lib/runtime";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
@@ -139,6 +140,7 @@ function App() {
   const [landingMenuShareToken, setLandingMenuShareToken] = useState(() => getInitialMenuShareToken());
   const [landingWishShareToken, setLandingWishShareToken] = useState(() => getInitialWishShareToken());
   const [landingInviteToken, setLandingInviteToken] = useState(() => getInitialInviteToken());
+  const [landingMealTaskToken, setLandingMealTaskToken] = useState(() => getInitialMealTaskToken());
   const [entryRedirectView, setEntryRedirectView] = useState("dashboard");
   const [authGateIntent, setAuthGateIntent] = useState("");
   const [libraryMealSlot, setLibraryMealSlot] = useState(null);
@@ -270,6 +272,11 @@ function App() {
     householdId: mealExecutionHouseholdId,
     weekStartDateKey: formatDateKey(getWeekStartDate()),
   }), [mealExecutionHouseholdId, mealExecutionRuns]);
+  const mealExecutionExperienceEnabled = mealExecutionEnabled && (
+    Boolean(activeMealRun)
+    || todayMenu.length === 0
+    || todayMenu.every((entry) => getRecipe(entry.recipeId)?.cookAssist?.status === "certified")
+  );
   const breakfastChoices = useMemo(() => buildBreakfastChoices(mealLogs), [mealLogs]);
   const libraryMenuQuantities = useMemo(() => {
     if (libraryMealSlot && libraryMealSlot !== "dinner") {
@@ -804,7 +811,7 @@ function App() {
   }, [activeCraveRequest, craveSignals, signedIn, todayMenu.length, todayRecommendation.title]);
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
   const mealExecutionProps = {
-    enabled: mealExecutionEnabled,
+    enabled: mealExecutionExperienceEnabled,
     effortTier: mealEffortTier,
     onSelectEffortTier: selectMealExecutionEffortTier,
     planRecipes: mealExecutionRecipes,
@@ -1172,9 +1179,15 @@ function App() {
         : { type: "prep", stepId: prepStep?.id || "" };
       const data = await createHumiMealTask(humiSession, activeMealRun.id, payload);
       const label = type === "buy" ? `请家人买${firstIngredient}` : `请家人${prepStep?.text || "帮忙备菜"}`;
-      const nativeStatus = await requestMiniProgramShare({ type: "meal_task", token: data.mealTask.token, label });
+      const nativeStatus = await requestMiniProgramShare({
+        type: "meal_task",
+        token: data.task.token,
+        label,
+        householdName: family?.name || "我家",
+        initiatorName: getDisplayName(displaySession) || "家人",
+      });
       if (nativeStatus !== "handoff") {
-        await copyShareUrl(buildMealTaskUrl(data.mealTask.token));
+        await copyShareUrl(buildMealTaskUrl(data.task.token));
         setMealExecutionStatus(isWechatMiniProgramWebView() ? "发送页暂时没打开，请再试一次。" : "任务链接已复制。" );
       }
     } catch (error) {
@@ -1184,12 +1197,28 @@ function App() {
     }
   }
 
-  function scheduleMealExecutionReminder(value) {
+  async function scheduleMealExecutionReminder(value) {
     if (!signedIn) {
       setMealExecutionStatus("登录后再预约，烹饪不会受影响。" );
       return;
     }
-    setMealExecutionStatus(`已选 ${formatReminderDate(value)}，下一步将在微信页由你确认是否接收一次提醒。`);
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) {
+      setMealExecutionStatus("请选择一个有效的下次做饭时间。" );
+      return;
+    }
+    const scheduledAt = date.toISOString();
+    const handoff = await requestMiniProgramReminder({
+      scheduledAt,
+      dateKey: String(value).slice(0, 10),
+      effortTier: activeMealRun?.effortTier || mealEffortTier,
+      mealRunId: activeMealRun?.id || "",
+    });
+    if (handoff === "handoff") {
+      setMealExecutionStatus(`已选 ${formatReminderDate(value)}，请在微信页确认是否接收一次提醒。`);
+      return;
+    }
+    setMealExecutionStatus("请在微信小程序里预约，网页不会自行索取微信提醒权限。" );
   }
 
   async function performMealRunTransition(action, payload = {}) {
@@ -3557,6 +3586,7 @@ function App() {
     if (paramName === "menuShare") setLandingMenuShareToken("");
     if (paramName === "wishShare") setLandingWishShareToken("");
     if (paramName === "invite") setLandingInviteToken("");
+    if (paramName === "mealTask") setLandingMealTaskToken("");
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete(paramName);
@@ -3792,6 +3822,20 @@ function App() {
           setActiveView("user");
           viewHistoryRef.current = ["user"];
         }}
+      />
+    );
+  }
+
+  if (landingMealTaskToken) {
+    return (
+      <MealTaskLanding
+        token={landingMealTaskToken}
+        humiSession={humiSession}
+        onLogin={() => {
+          if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) return;
+          setAuthStatus("请从微信小程序打开这张任务卡并完成微信登录。" );
+        }}
+        onClose={() => closeSharedLanding("mealTask")}
       />
     );
   }
@@ -4190,6 +4234,11 @@ function getInitialInviteToken() {
   return new URLSearchParams(window.location.search).get("invite") || "";
 }
 
+function getInitialMealTaskToken() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("mealTask") || "";
+}
+
 function candidateMealRecipeIds(effortTier, todayMenu = []) {
   const currentDinner = todayMenu.map((entry) => entry.recipeId).filter((recipeId) => getRecipe(recipeId)?.cookAssist?.status === "certified");
   if (effortTier === "normal" && currentDinner.length > 0 && currentDinner.length === todayMenu.length) return currentDinner;
@@ -4208,7 +4257,7 @@ function getInitialView() {
 function isSharedGuestLanding() {
   if (typeof window === "undefined") return false;
   const params = new URLSearchParams(window.location.search);
-  return Boolean(params.get("groceryShare") || params.get("menuShare") || params.get("wishShare") || params.get("shareSource") || params.get("view") === "grocery" || params.get("view") === "today");
+  return Boolean(params.get("groceryShare") || params.get("menuShare") || params.get("wishShare") || params.get("mealTask") || params.get("shareSource") || params.get("view") === "grocery" || params.get("view") === "today");
 }
 
 function getDisplayName(session) {

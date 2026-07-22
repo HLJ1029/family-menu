@@ -8,11 +8,13 @@ Page({
     launchGroceryToken: "",
     launchWishToken: "",
     launchMenuToken: "",
+    launchMealTaskToken: "",
     shareCrave: null,
     shareInvite: null,
     shareGrocery: null,
     shareWish: null,
     shareMenu: null,
+    shareMealTask: null,
     loginPending: false,
     loginError: "",
     webViewError: "",
@@ -41,6 +43,21 @@ Page({
     const launchGroceryShareToken = options.groceryShare || launchGroceryToken;
     const launchWishToken = options.wishShare || "";
     const launchMenuToken = options.menuShare || "";
+    const launchMealTaskToken = options.mealTask || "";
+    if (launchMealTaskToken) {
+      this.setData({
+        launchMealTaskToken,
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareWish: null,
+        shareMenu: null,
+        shareMealTask: { token: launchMealTaskToken, householdName: "我家", initiatorName: "家人", label: "一起把今晚这顿端上桌" }
+      });
+      this.openWebView(appendQuery(getHumiH5Url(), { mealTask: launchMealTaskToken, shareSource: "meal_task", channel: "wechat-miniprogram" }));
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
     if (launchWishToken) {
       this.setData({
         launchWishToken,
@@ -219,6 +236,23 @@ Page({
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
+    if (latestMessage?.type === "humi:share-meal-task" && latestMessage?.token) {
+      this.setData({
+        shareCrave: null,
+        shareInvite: null,
+        shareGrocery: null,
+        shareWish: null,
+        shareMenu: null,
+        shareMealTask: {
+          token: latestMessage.token,
+          householdName: latestMessage.householdName || "我家",
+          initiatorName: latestMessage.initiatorName || "家人",
+          label: latestMessage.label || "一起把今晚这顿端上桌"
+        }
+      });
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
+      return;
+    }
     if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
       const session = this.data.currentSession || getApp().globalData?.humiSession;
       if (!session?.accessToken || session.expiresAt <= Date.now()) {
@@ -389,6 +423,13 @@ Page({
   },
 
   onShareAppMessage() {
+    const shareMealTask = this.data.shareMealTask;
+    if (shareMealTask?.token) {
+      return {
+        title: shareMealTask.label || "一起把今晚这顿端上桌",
+        path: `/pages/index/index?mealTask=${encodeURIComponent(shareMealTask.token)}&shareSource=meal_task`
+      };
+    }
     const shareWish = this.data.shareWish;
     if (shareWish?.token) {
       return {
@@ -434,6 +475,10 @@ Page({
   },
 
   buildH5Url() {
+    const launchMealTaskToken = this.data.launchMealTaskToken;
+    if (launchMealTaskToken) {
+      return appendQuery(getHumiH5Url(), { mealTask: launchMealTaskToken, shareSource: "meal_task", channel: "wechat-miniprogram" });
+    }
     const launchWishToken = this.data.launchWishToken;
     if (launchWishToken) {
       return appendQuery(getHumiH5Url(), { wishShare: launchWishToken, channel: "wechat-miniprogram" });

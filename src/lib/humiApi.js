@@ -98,6 +98,10 @@ export function claimHumiMealTask(session, token) {
   return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/claim`, { method: "POST", session, body: {} });
 }
 
+export function loadHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}`, { session });
+}
+
 export function completeHumiMealTask(session, token) {
   return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/complete`, { method: "POST", session, body: {} });
 }

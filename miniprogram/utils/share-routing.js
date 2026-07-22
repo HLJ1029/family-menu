@@ -6,6 +6,7 @@ function buildHumiUrl(baseUrl, options = {}) {
   if (options.menuShare) params.push(`menuShare=${encodeURIComponent(options.menuShare)}`);
   if (options.wishShare) params.push(`wishShare=${encodeURIComponent(options.wishShare)}`);
   if (options.invite) params.push(`invite=${encodeURIComponent(options.invite)}`);
+  if (options.mealTask) params.push(`mealTask=${encodeURIComponent(options.mealTask)}`);
   if (options.view) params.push(`view=${encodeURIComponent(options.view)}`);
   if (options.shareSource) params.push(`shareSource=${encodeURIComponent(options.shareSource)}`);
   const query = params.join("&");
@@ -13,7 +14,7 @@ function buildHumiUrl(baseUrl, options = {}) {
 }
 
 function shouldOpenAsGuest(options = {}) {
-  return Boolean(options.crave || options.groceryShare || options.menuShare || options.wishShare || options.invite || options.view === "grocery" || options.view === "today");
+  return Boolean(options.crave || options.groceryShare || options.menuShare || options.wishShare || options.invite || options.mealTask || options.view === "grocery" || options.view === "today");
 }
 
 function normalizeLaunchOptions(options = {}) {
@@ -23,6 +24,7 @@ function normalizeLaunchOptions(options = {}) {
     menuShare: sanitizeOption(options.menuShare),
     wishShare: sanitizeOption(options.wishShare),
     invite: sanitizeOption(options.invite),
+    mealTask: sanitizeOption(options.mealTask),
     view: sanitizeOption(options.view),
     shareSource: sanitizeOption(options.shareSource),
   };
@@ -41,6 +43,16 @@ function encodeShareParams(payload = {}) {
 
 function buildSharePayload(payload = {}) {
   const type = sanitizeOption(payload.type || "crave");
+  if (type === "meal_task") {
+    const token = sanitizeOption(payload.token);
+    const label = sanitizeOption(payload.label) || "一起把今晚这顿端上桌";
+    return {
+      title: label,
+      path: token
+        ? `/pages/index/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
+        : "/pages/index/index",
+    };
+  }
   if (type === "invite") {
     const token = sanitizeOption(payload.token);
     const householdName = sanitizeOption(payload.householdName) || "我的家";

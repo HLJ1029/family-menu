@@ -166,6 +166,11 @@ try {
   });
   assert.equal(task.task.label, "请家人买鸡蛋");
   assert.match(task.task.token, /^[A-Za-z0-9_-]{24,}$/);
+  await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET" }, 401, "missing_token");
+  await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET", session: outsider }, 404, "household_not_found");
+  const taskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET", session: member });
+  assert.equal(taskLanding.task.label, "请家人买鸡蛋");
+  assert.equal(taskLanding.task.status, "open");
   await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", body: {} }, 401, "missing_token");
   await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: outsider, body: {} }, 404, "household_not_found");
   const claimed = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });

@@ -43,6 +43,21 @@ export function requestMiniProgramPoster(payload = {}, options = {}) {
   return requestMiniProgramPage(buildMiniProgramPosterUrl(payload), options);
 }
 
+export function buildMiniProgramReminderUrl(payload = {}) {
+  const params = new URLSearchParams();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+  });
+  const query = params.toString();
+  return query ? `/pages/reminder/index?${query}` : "/pages/reminder/index";
+}
+
+export function requestMiniProgramReminder(payload = {}, options = {}) {
+  if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
+  if (!String(payload.scheduledAt || "").trim()) return Promise.resolve("unavailable");
+  return requestMiniProgramPage(buildMiniProgramReminderUrl(payload), options);
+}
+
 function requestMiniProgramPage(url, options = {}) {
   const miniProgram = window.wx?.miniProgram;
   if (!miniProgram?.redirectTo && !miniProgram?.navigateTo && !miniProgram?.reLaunch) {

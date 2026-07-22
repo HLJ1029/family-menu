@@ -114,11 +114,11 @@
 - Share type `meal_task` deep-links to `mealTask=<token>`.
 - H5 navigates to `/pages/reminder/index?scheduledAt=<iso>&effortTier=<tier>`; the native page fetches the server template ID, requests permission only from its user-tap handler, and creates a reminder only after `accept`.
 
-- [ ] Write failing native contract tests for task-card routing, no auto-subscribe on load, accepted/rejected/cancelled authorization, authenticated reminder creation, and return-to-H5 behavior.
-- [ ] Add task share-card handling and authenticated claim deep link.
-- [ ] Add the native reminder permission page; rejection/cancellation remains silent and does not create a server reminder.
-- [ ] Run native entry, share, reminder, and package validation suites.
-- [ ] Commit the mini-program bridge.
+- [x] Write failing native contract tests for task-card routing, no auto-subscribe on load, accepted/rejected/cancelled authorization, authenticated reminder creation, and return-to-H5 behavior.
+- [x] Add task share-card handling and authenticated claim deep link.
+- [x] Add the native reminder permission page; rejection/cancellation remains silent and does not create a server reminder.
+- [x] Run native entry, share, reminder, and package validation suites.
+- [x] Commit the mini-program bridge.
 
 ### Task 6: Rollout, metrics, release evidence, and regression
 

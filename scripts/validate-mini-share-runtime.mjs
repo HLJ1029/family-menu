@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { buildMiniProgramPosterUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramShare } from "../src/lib/runtime.js";
+import { buildMiniProgramPosterUrl, buildMiniProgramReminderUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "../src/lib/runtime.js";
 
 const {
   buildHumiUrl,
@@ -39,6 +39,7 @@ assert.equal(
   ["grocery", "grocery-token"],
   ["wish", "wish-token"],
   ["today_menu", "menu-token"],
+  ["meal_task", "meal-task-token"],
 ].forEach(([type, token]) => {
   assert.equal(
     buildMiniProgramShareUrl({ type, token }),
@@ -46,6 +47,31 @@ assert.equal(
     `${type} should open the tokenized native share page`,
   );
 });
+
+assert.equal(
+  buildMiniProgramReminderUrl({
+    scheduledAt: "2026-07-25T10:30:00.000Z",
+    dateKey: "2026-07-25",
+    effortTier: "quick_15",
+    mealRunId: "meal 1",
+  }),
+  "/pages/reminder/index?scheduledAt=2026-07-25T10%3A30%3A00.000Z&dateKey=2026-07-25&effortTier=quick_15&mealRunId=meal+1",
+);
+
+const reminderNavigation = createRuntimeWindow({
+  navigateTo({ url, success }) {
+    assert.equal(url, "/pages/reminder/index?scheduledAt=2026-07-25T10%3A30%3A00.000Z&dateKey=2026-07-25&effortTier=quick_15&mealRunId=meal-1");
+    success?.();
+  },
+});
+globalThis.window = reminderNavigation.window;
+assert.equal(await requestMiniProgramReminder({
+  scheduledAt: "2026-07-25T10:30:00.000Z",
+  dateKey: "2026-07-25",
+  effortTier: "quick_15",
+  mealRunId: "meal-1",
+}, { timeoutMs: 100 }), "handoff");
+assert.deepEqual(reminderNavigation.calls, ["navigateTo"]);
 
 assert.equal(
   buildMiniProgramPosterUrl({ token: "poster-token", format: "jpg", title: "今晚菜单", action: "share" }),
