@@ -1,5 +1,14 @@
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { SHOPPING_POSTER_STYLES, nextPosterStyle } from "../src/lib/posterStyles.js";
+
+assert(
+  SHOPPING_POSTER_STYLES.join("|") === "default|theme",
+  "shopping poster styles should expose two explicit, visibly different choices",
+);
+assert(nextPosterStyle("default", SHOPPING_POSTER_STYLES) === "theme", "poster style should advance from default to theme");
+assert(nextPosterStyle("theme", SHOPPING_POSTER_STYLES) === "default", "poster style should cycle back to default");
+assert(nextPosterStyle("default", ["default", "default", "theme"]) === "theme", "poster style cycling should ignore duplicate IDs");
 
 const source = await readFile("miniprogram/pages/poster/index.js", "utf8");
 const appJson = JSON.parse(await readFile("miniprogram/app.json", "utf8"));

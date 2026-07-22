@@ -1013,6 +1013,7 @@ try {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: {
+      idempotencyKey: `grocery-share:${runId}`,
       householdName: "测试家",
       initiatorName: "主厨",
       items: [
@@ -1022,6 +1023,44 @@ try {
     },
   });
   assert(batchGrocery.request?.items?.length === 2, "batch grocery share should expose the user's complete list");
+  const repeatedBatchGrocery = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      idempotencyKey: `grocery-share:${runId}`,
+      householdName: "测试家",
+      initiatorName: "主厨",
+      items: [{ id: "forged-replay", name: "不应创建", amount: "1个", category: "测试" }],
+    },
+  });
+  assert.equal(
+    repeatedBatchGrocery.request?.token,
+    batchGrocery.request?.token,
+    "replaying grocery share creation with the same idempotency key must return the original snapshot",
+  );
+  const concurrentGroceryPayload = {
+    idempotencyKey: `grocery-share-concurrent:${runId}`,
+    householdName: "测试家",
+    initiatorName: "主厨",
+    items: [{ id: "tofu", name: "豆腐", amount: "1盒", category: "豆制品" }],
+  };
+  const [concurrentGroceryA, concurrentGroceryB] = await Promise.all([
+    request(`${baseUrl}/grocery-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentGroceryPayload,
+    }),
+    request(`${baseUrl}/grocery-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentGroceryPayload,
+    }),
+  ]);
+  assert.equal(
+    concurrentGroceryA.request?.token,
+    concurrentGroceryB.request?.token,
+    "concurrent grocery share retries with one idempotency key must converge on one snapshot",
+  );
   const collaborationEventsBeforeGroceryGet = await readCollaborationEvents();
   const publicGroceryRequest = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
   assertNoCollaborationResponseLeaks(publicGroceryRequest, "public grocery GET");
@@ -1113,6 +1152,7 @@ try {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: {
+      idempotencyKey: `menu-share:${runId}`,
       householdName: "测试家",
       initiatorName: "主厨",
       title: "今晚菜单",
@@ -1120,6 +1160,48 @@ try {
       groceryCount: 2,
     },
   });
+  const repeatedMenuShare = await request(`${baseUrl}/menu-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      idempotencyKey: `menu-share:${runId}`,
+      householdName: "测试家",
+      initiatorName: "主厨",
+      title: "不应创建的新菜单",
+      dishes: [{ id: "mapo-tofu", name: "麻婆豆腐", quantity: 1, timeMinutes: 20 }],
+      groceryCount: 1,
+    },
+  });
+  assert.equal(
+    repeatedMenuShare.request?.token,
+    menuShare.request?.token,
+    "replaying menu share creation with the same idempotency key must return the original snapshot",
+  );
+  const concurrentMenuPayload = {
+    idempotencyKey: `menu-share-concurrent:${runId}`,
+    householdName: "测试家",
+    initiatorName: "主厨",
+    title: "并发菜单",
+    dishes: [{ id: "mapo-tofu", name: "麻婆豆腐", quantity: 1, timeMinutes: 20 }],
+    groceryCount: 1,
+  };
+  const [concurrentMenuA, concurrentMenuB] = await Promise.all([
+    request(`${baseUrl}/menu-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentMenuPayload,
+    }),
+    request(`${baseUrl}/menu-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentMenuPayload,
+    }),
+  ]);
+  assert.equal(
+    concurrentMenuA.request?.token,
+    concurrentMenuB.request?.token,
+    "concurrent menu share retries with one idempotency key must converge on one snapshot",
+  );
   const publicMenuShare = await request(`${baseUrl}/menu-share-requests/${menuShare.request.token}`);
   assert(publicMenuShare.request?.dishes?.[0]?.name === "西红柿炒鸡蛋", "menu share should open without login");
 

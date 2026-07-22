@@ -14,6 +14,7 @@ const expectedChecks = [
   "normal React boot replaces the fallback",
   "H5 login prefers the native identity page and recovers from navigation failure",
   "one-time H5 ticket is exchanged and removed from the URL",
+  "ticket exchange gates stale-session hydration during silent recovery",
   "legacy serialized session URLs are discarded",
   "legacy incomplete identity can be completed in H5",
   "expired H5 sessions are cleared",
@@ -168,6 +169,65 @@ try {
   await ticketPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1")?.includes("user-ticket"));
   assert.equal(new URL(ticketPage.url()).searchParams.has("humiTicket"), false);
   await ticketContext.close();
+
+  const ticketRaceContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await ticketRaceContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "stale-before-recovery",
+      refreshToken: "stale-before-recovery",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "stale-user", displayName: "旧登录", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const ticketRacePage = await ticketRaceContext.newPage();
+  let staleStateRequests = 0;
+  await ticketRacePage.route("**/auth/h5/exchange", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessToken: "fresh-after-recovery",
+        refreshToken: "fresh-after-recovery",
+        expiresAt: Date.now() + 60_000,
+        user: { id: "fresh-user", displayName: "新登录", provider: "wechat", profileStatus: "complete" },
+      }),
+    });
+  });
+  await ticketRacePage.route("**/state", async (route) => {
+    const authorization = route.request().headers().authorization || "";
+    if (authorization.includes("stale-before-recovery")) {
+      staleStateRequests += 1;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "invalid_session", message: "旧登录已失效。" }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: null, family: null, households: [] }),
+    });
+  });
+  await ticketRacePage.goto(`${baseUrl}?channel=wechat-miniprogram&humiTicket=recovery-ticket`, { waitUntil: "networkidle" });
+  await ticketRacePage.waitForFunction(() => JSON.parse(localStorage.getItem("humi:identity-session:v1") || "null")?.accessToken === "fresh-after-recovery");
+  await ticketRacePage.waitForTimeout(350);
+  assert.equal(staleStateRequests, 0, "stale session hydration must not start while a fresh H5 ticket is exchanging");
+  assert.equal(
+    await ticketRacePage.evaluate(() => JSON.parse(localStorage.getItem("humi:identity-session:v1") || "null")?.accessToken),
+    "fresh-after-recovery",
+    "a delayed stale 401 must not clear the recovered session",
+  );
+  await ticketRaceContext.close();
 
   const rejectedLegacyUrlContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

@@ -16,6 +16,7 @@ export const validationEvents = {
   posterGenerated: "poster_generated",
   posterSavedAttempted: "poster_saved_attempted",
   posterSharedIntent: "poster_shared_intent",
+  shareBridgeStage: "share_bridge_stage",
   day2Returned: "day2_returned",
   performanceMeasured: "performance_measured",
 };

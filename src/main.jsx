@@ -54,6 +54,7 @@ import {
   preparePosterUploadBlob,
   sharePoster,
 } from "./lib/posters";
+import { nextPosterStyle, SHOPPING_POSTER_STYLES } from "./lib/posterStyles";
 import {
   createDefaultWeekPlan,
   createInitialMealCalendar,
@@ -107,6 +108,8 @@ import {
 import { completedMealsInWeek, createLocalMealRun, downgradeLocalMealRun, mergeLocalMealRun, transitionLocalMealRun } from "./lib/mealRun";
 import { explainRecommendationViaApi as explainRecommendation, recommendMealsViaApi as recommendMeals } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "./lib/runtime";
+import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, isShareRecoveryActive, queueShareRecovery } from "./lib/shareRecovery";
+import { buildShareSnapshotKey, createAsyncSnapshotCache } from "./lib/shareSnapshot";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
 import "./styles.css";
@@ -134,6 +137,8 @@ function App() {
   const mealRunHydrationRef = useRef("");
   const viewHistoryRef = useRef(["dashboard"]);
   const swipeStartRef = useRef(null);
+  const shareSnapshotCacheRef = useRef(createAsyncSnapshotCache());
+  const shareRecoveryReplayRef = useRef("");
   const [activeView, setActiveView] = useState(() => getInitialView());
   const [landingCraveToken, setLandingCraveToken] = useState(() => getInitialCraveToken());
   const [landingGroceryShareToken, setLandingGroceryShareToken] = useState(() => getInitialGroceryShareToken());
@@ -173,6 +178,8 @@ function App() {
   const [notice, setNotice] = useState(null);
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authStatus, setAuthStatus] = useState("");
+  const [humiTicket] = useState(() => takeHumiTicketFromUrl());
+  const [humiTicketPending, setHumiTicketPending] = useState(() => Boolean(humiTicket));
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
   const [sessionExpired, setSessionExpired] = useState(() => takeHumiSessionExpiredNotice());
   const [family, setFamily] = useState(null);
@@ -348,10 +355,9 @@ function App() {
   ]);
 
   useEffect(() => {
-    const ticket = takeHumiTicketFromUrl();
-    if (!ticket) return undefined;
+    if (!humiTicket) return undefined;
     let active = true;
-    exchangeHumiTicket(ticket)
+    exchangeHumiTicket(humiTicket)
       .then((sessionValue) => {
         if (!active) return;
         const normalized = saveHumiSession(sessionValue);
@@ -364,16 +370,20 @@ function App() {
       })
       .catch((error) => {
         if (active) setAuthStatus(error.message || "登录链接已失效，请重新登录。");
+      })
+      .finally(() => {
+        if (active) setHumiTicketPending(false);
       });
     return () => { active = false; };
-  }, [setOnboardingComplete]);
+  }, [humiTicket, setOnboardingComplete]);
 
   useEffect(() => subscribeHumiSessionInvalid(() => {
+    if (isShareRecoveryActive()) return;
     expireHumiIdentity();
   }), []);
 
   useEffect(() => {
-    if (!isHumiApiSession(humiSession) || !identityComplete || humiStateLoadedRef.current) return;
+    if (humiTicketPending || !isHumiApiSession(humiSession) || !identityComplete || humiStateLoadedRef.current) return;
     let active = true;
     let completed = false;
     humiStateLoadedRef.current = true;
@@ -422,6 +432,7 @@ function App() {
     };
   }, [
     humiSession,
+    humiTicketPending,
     identityComplete,
     setCheckedItems,
     setCloudGroceryEnabled,
@@ -505,6 +516,33 @@ function App() {
     hydrateMealRun();
     return () => { active = false; };
   }, [canManageHousehold, family?.id, humiSession, mealExecutionEnabled, online, todayDateKey]);
+
+  useEffect(() => {
+    if (!isHumiApiSession(humiSession) || !identityComplete) return undefined;
+    let cancelled = false;
+    let timer;
+
+    function replayWhenReady() {
+      if (cancelled) return;
+      if (!humiStateLoadedRef.current || humiStateHydratingRef.current) {
+        timer = window.setTimeout(replayWhenReady, 100);
+        return;
+      }
+      const recovery = beginShareRecoveryReplay();
+      if (!recovery || shareRecoveryReplayRef.current) return;
+      shareRecoveryReplayRef.current = recovery.action;
+      const replay = recovery.action === "today_menu" ? shareTodayMenu : shareGroceryList;
+      void replay().finally(() => {
+        shareRecoveryReplayRef.current = "";
+      });
+    }
+
+    replayWhenReady();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [family?.id, humiSession, identityComplete]);
 
   useEffect(() => {
     if (!mealExecutionEnabled || !online || !isHumiApiSession(humiSession) || mealExecutionQueue.length === 0) return undefined;
@@ -1192,7 +1230,7 @@ function App() {
         label,
         householdName: family?.name || "我家",
         initiatorName: getDisplayName(displaySession) || "家人",
-      });
+      }, getNativeHandoffOptions("meal_task"));
       if (nativeStatus !== "handoff") {
         await copyShareUrl(buildMealTaskUrl(data.task.token));
         setMealExecutionStatus(isWechatMiniProgramWebView() ? "发送页暂时没打开，请再试一次。" : "任务链接已复制。" );
@@ -1202,6 +1240,67 @@ function App() {
     } finally {
       setMealExecutionPending(false);
     }
+  }
+
+  function getNativeHandoffOptions(surface, overrides = {}) {
+    return {
+      ...overrides,
+      onStage(event) {
+        trackValidationEvent(validationEvents.shareBridgeStage, {
+          surface,
+          stage: event.stage,
+          method: event.method,
+          errorCode: event.errorCode,
+          elapsedMs: event.elapsedMs,
+        });
+        overrides.onStage?.(event);
+      },
+    };
+  }
+
+  function handleShareSessionRecovery(error, action) {
+    const invalidSession = error?.status === 401 || error?.code === "invalid_session";
+    if (!invalidSession || !isWechatMiniProgramWebView()) return false;
+    const currentRecovery = getShareRecovery();
+    if (currentRecovery?.state === "pending") {
+      showNotice("正在恢复微信登录，稍后会继续分享");
+      return true;
+    }
+    if (currentRecovery?.state === "replaying") {
+      clearShareRecovery();
+      shareRecoveryReplayRef.current = "";
+      expireHumiIdentity();
+      showNotice("微信登录仍未恢复，请重新进入 Humi");
+      return true;
+    }
+    if (!queueShareRecovery(action)) {
+      clearShareRecovery();
+      shareRecoveryReplayRef.current = "";
+      expireHumiIdentity();
+      showNotice("微信登录仍未恢复，请重新进入 Humi");
+      return true;
+    }
+    shareSnapshotCacheRef.current.clear();
+    clearHumiSession();
+    setHumiSession(null);
+    setSessionExpired(false);
+    humiStateLoadedRef.current = false;
+    humiStateHydratingRef.current = false;
+    mealRunHydrationRef.current = "";
+    const started = requestWechatLoginFromMiniProgram({
+      onFailure: () => {
+        clearShareRecovery();
+        expireHumiIdentity();
+      },
+    });
+    if (!started) {
+      clearShareRecovery();
+      expireHumiIdentity();
+      showNotice("没能重新连接微信登录，请重新进入 Humi");
+      return true;
+    }
+    showNotice("正在无感恢复微信登录，稍后会继续分享");
+    return true;
   }
 
   async function scheduleMealExecutionReminder(value) {
@@ -1580,7 +1679,7 @@ function App() {
       householdName: request.householdName || family?.name || familyName || "我家",
       initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
       voteCount: request.votes?.length ?? 0,
-    });
+    }, getNativeHandoffOptions("crave"));
     if (nativeShareStatus === "handoff") {
       return true;
     }
@@ -1870,7 +1969,7 @@ function App() {
       householdName: request.householdName || family?.name || familyName || "我家",
       initiatorName: request.initiatorName || getDisplayName(displaySession) || "主厨",
       wishCount: request.wishes?.length ?? 0,
-    });
+    }, getNativeHandoffOptions("wish"));
     if (nativeShareStatus === "handoff") {
       return true;
     }
@@ -2627,27 +2726,38 @@ function App() {
         return;
       }
       try {
-        const data = await createGroceryShareRequest({
+        const snapshot = {
           householdId: family?.id ?? "",
           ownerId: humiSession?.user?.id ?? "",
           householdName: family?.name ?? familyName ?? "我家",
           initiatorName: getDisplayName(displaySession) || "主厨",
           title: "Humi 买菜清单",
           items: buildGroceryShareItems(visibleGroceryItems, customItems, checkedItems),
-        }, isHumiApiSession(humiSession) ? humiSession : null);
+        };
+        const snapshotKey = buildShareSnapshotKey("grocery", family?.id, snapshot);
+        const data = await shareSnapshotCacheRef.current.getOrCreate(
+          snapshotKey,
+          () => createGroceryShareRequest(
+            snapshot,
+            isHumiApiSession(humiSession) ? humiSession : null,
+            { notifySessionInvalid: false, idempotencyKey: snapshotKey },
+          ),
+        );
+        if (shareRecoveryReplayRef.current === "grocery") clearShareRecovery();
         setActiveGroceryShareRequest(data.request);
         const nativeShareStatus = await requestMiniProgramShare({
           type: "grocery",
           token: data.request.token,
           title: "Humi 买菜清单",
           itemCount: data.request.items?.length ?? 0,
-        });
+        }, getNativeHandoffOptions("grocery"));
         if (nativeShareStatus === "handoff") {
           return;
         }
         showNotice("没能打开微信发送页，请再试一次");
         return;
       } catch (error) {
+        if (handleShareSessionRecovery(error, "grocery")) return;
         showNotice(error.message || "清单分享暂时不可用");
       }
     }
@@ -2661,9 +2771,11 @@ function App() {
       title: "Humi 购物清单",
       filename: "humi-shopping-list.png",
       text,
-      createBlob: () => createGroceryPoster({ items: visibleGroceryItems, customItems }),
+      createBlob: (styleId) => createGroceryPoster({ items: visibleGroceryItems, customItems, styleId }),
       fallbackSuccess: "食材清单已复制",
       refreshLabel: "换一种样式",
+      styleId: SHOPPING_POSTER_STYLES[0],
+      availableStyleIds: SHOPPING_POSTER_STYLES,
     });
   }
 
@@ -2702,7 +2814,7 @@ function App() {
         return;
       }
       try {
-        const data = await createMenuShareRequest({
+        const snapshot = {
           householdId: family?.id ?? "",
           ownerId: humiSession?.user?.id ?? "",
           householdName: family?.name ?? familyName ?? "我家",
@@ -2717,20 +2829,31 @@ function App() {
             category: recipe.categories?.[0] || "",
             timeMinutes: recipe.timeMinutes,
           })),
-        }, isHumiApiSession(humiSession) ? humiSession : null);
+        };
+        const snapshotKey = buildShareSnapshotKey("today_menu", family?.id, snapshot);
+        const data = await shareSnapshotCacheRef.current.getOrCreate(
+          snapshotKey,
+          () => createMenuShareRequest(
+            snapshot,
+            isHumiApiSession(humiSession) ? humiSession : null,
+            { notifySessionInvalid: false, idempotencyKey: snapshotKey },
+          ),
+        );
+        if (shareRecoveryReplayRef.current === "today_menu") clearShareRecovery();
         const nativeShareStatus = await requestMiniProgramShare({
           type: "today_menu",
           token: data.request?.token,
           title: data.request?.title || "Humi 今晚菜单",
           itemCount: visibleGroceryItems.length,
           view: "today",
-        });
+        }, getNativeHandoffOptions("today_menu"));
         if (nativeShareStatus === "handoff") {
           return;
         }
         showNotice("没能打开微信发送页，请再试一次");
         return;
       } catch (error) {
+        if (handleShareSessionRecovery(error, "today_menu")) return;
         showNotice(error.message || "菜单分享暂时不可用，先生成海报");
       }
     }
@@ -2792,18 +2915,28 @@ function App() {
     }
   }
 
-  async function openPosterPreview({ type, title, filename, text, createBlob, fallbackSuccess, refreshLabel }) {
+  async function openPosterPreview({
+    type,
+    title,
+    filename,
+    text,
+    createBlob,
+    fallbackSuccess,
+    refreshLabel,
+    styleId = "",
+    availableStyleIds = [],
+  }) {
     setPosterPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
-      return { blob: null, url: "", type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
+      return { blob: null, url: "", type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds };
     });
     setPosterLoading(true);
     try {
-      const blob = await createBlob();
+      const blob = await createBlob(styleId);
       const url = URL.createObjectURL(blob);
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel };
+        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds };
       });
       trackProductEvent(productEvents.share, { type, method: "poster_preview" });
       trackValidationEvent(validationEvents.posterGenerated, { type, title });
@@ -2827,18 +2960,20 @@ function App() {
   }
 
   async function regeneratePosterPreview() {
-    if (!posterPreview) return;
+    if (!posterPreview || (posterPreview.availableStyleIds?.length ?? 0) < 2) return;
+    const nextStyleId = nextPosterStyle(posterPreview.styleId, posterPreview.availableStyleIds);
+    if (!nextStyleId) return;
     setPosterLoading(true);
     setPosterPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
       return current ? { ...current, blob: null, url: "", remotePoster: null } : null;
     });
     try {
-      const blob = await posterPreview.createBlob();
+      const blob = await posterPreview.createBlob(nextStyleId);
       const url = URL.createObjectURL(blob);
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return current ? { ...current, blob, url, remotePoster: null } : null;
+        return current ? { ...current, blob, url, styleId: nextStyleId, remotePoster: null } : null;
       });
       showNotice("换好一版海报了");
     } catch {
@@ -2879,7 +3014,7 @@ function App() {
         format: remotePoster.format,
         title: posterPreview.title,
         action,
-      }, { timeoutMs: 2400 });
+      }, getNativeHandoffOptions(`poster_${action}`, { timeoutMs: 2400 }));
       if (status === "handoff") {
         trackProductEvent(productEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
         trackValidationEvent(
@@ -2983,6 +3118,9 @@ function App() {
       remoteLogoutFailed = true;
     } finally {
       clearHumiSession();
+      shareSnapshotCacheRef.current.clear();
+      clearShareRecovery();
+      shareRecoveryReplayRef.current = "";
       requestMiniProgramLogout();
       setHumiSession(null);
       setSessionExpired(false);
@@ -3006,6 +3144,9 @@ function App() {
 
   function expireHumiIdentity() {
     clearHumiSession();
+    shareSnapshotCacheRef.current.clear();
+    clearShareRecovery();
+    shareRecoveryReplayRef.current = "";
     requestMiniProgramLogout({ expired: true });
     setHumiSession(null);
     setSessionExpired(true);
@@ -3408,7 +3549,7 @@ function App() {
       token: invite.token,
       householdName: invite.householdName || family?.name || "我的家",
       initiatorName: invite.inviterName || getDisplayName(displaySession) || "主厨",
-    });
+    }, getNativeHandoffOptions("invite"));
     if (nativeStatus === "handoff") {
       return;
     }

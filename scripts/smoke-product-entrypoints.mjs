@@ -35,10 +35,12 @@ try {
         navigateTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
           payload.success?.({ errMsg: "navigateTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
         redirectTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
           payload.success?.({ errMsg: "redirectTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -272,6 +274,7 @@ try {
   const todayMenuPosterImage = page.getByRole("img", { name: "Humi 今晚菜单海报预览" });
   await todayMenuPosterImage.waitFor({ state: "visible", timeout: 15_000 });
   const todayMenuPosterGenerated = await todayMenuPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const todayMenuPosterHasNoFakeStyleAction = await page.getByRole("button", { name: "重新生成海报", exact: true }).count() === 0;
   const todayMenuPosterPreviewScreenshot = join(evidenceDir, "today-menu-poster-preview-mobile.png");
   await page.screenshot({ path: todayMenuPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "分享海报", exact: true }).click();
@@ -377,6 +380,10 @@ try {
   const groceryPosterImage = page.getByRole("img", { name: "Humi 购物清单海报预览" });
   await groceryPosterImage.waitFor({ state: "visible", timeout: 15_000 });
   const groceryPosterGenerated = await groceryPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const groceryPosterInitialStyle = await groceryPosterImage.getAttribute("data-style-id");
+  await page.getByRole("button", { name: "换一种样式", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('img[alt="Humi 购物清单海报预览"]')?.dataset.styleId === "theme");
+  const groceryPosterChangedStyle = await groceryPosterImage.getAttribute("data-style-id");
   const groceryPosterPreviewScreenshot = join(evidenceDir, "grocery-poster-preview-mobile.png");
   await page.screenshot({ path: groceryPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "保存图片", exact: true }).click();
@@ -459,6 +466,10 @@ try {
     nativeShareTypes.filter((candidate) => candidate === type).length,
   ]));
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
+  const bridgeEvents = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:validation-events:v1") || "[]")
+    .filter((event) => event.eventName === "share_bridge_stage"));
+  const bridgeTelemetryIsSafe = bridgeEvents.some((event) => event.payload?.stage === "page_hidden")
+    && bridgeEvents.every((event) => !JSON.stringify(event.payload).includes("token"));
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
   const familyManagementPages = await verifyFamilyManagementPages(browser, baseUrl, evidenceDir);
@@ -513,6 +524,8 @@ try {
     { key: "today-menu-poster-entry-is-visible", ok: todayMenuPosterEntryVisible },
     { key: "grocery-poster-entry-is-visible", ok: groceryPosterEntryVisible },
     { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
+    { key: "single-template-menu-poster-hides-fake-style-action", ok: todayMenuPosterHasNoFakeStyleAction },
+    { key: "grocery-poster-style-change-is-explicit", ok: groceryPosterInitialStyle === "default" && groceryPosterChangedStyle === "theme", actual: { groceryPosterInitialStyle, groceryPosterChangedStyle } },
     { key: "menu-poster-opens-native-image-share-page", ok: menuPosterNativeShareOpened },
     { key: "grocery-poster-opens-native-album-save-page", ok: groceryPosterNativeSaveOpened },
     {
@@ -533,6 +546,7 @@ try {
       actual: nativeShareTypeCounts,
     },
     { key: "native-share-navigation-does-not-double-dispatch", ok: shareNavigationStayedSingle, actual: miniProgramCalls },
+    { key: "share-bridge-telemetry-is-stage-only-and-token-free", ok: bridgeTelemetryIsSafe, actual: bridgeEvents },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
     { key: "family-living-room-has-four-focused-sections", ok: familyLivingRoomHasFocusedSections, actual: familyLivingRoomText },
@@ -618,7 +632,7 @@ try {
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
-    { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
+    { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberHasNoPrematureDinnerConfirmation && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
     { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "solo-owner-can-decide-without-family", ok: soloOwnerFlow.starterHasNoMemberPressure && soloOwnerFlow.decidedAlone && !soloOwnerFlow.shareRequestCreated, actual: soloOwnerFlow },
@@ -631,6 +645,7 @@ try {
     { key: "crave-result-generates-grocery", ok: persistedCraveDeadline.groceryGenerated, actual: persistedCraveDeadline.groceryCheckboxCount },
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "grocery-check-adds-hidden-pantry-clue", ok: pantryPipeline.addedAfterCheck, actual: pantryPipeline.pantryAfterCheck },
+    { key: "dinner-confirmation-is-hidden-before-cooking", ok: pantryPipeline.dashboardLightConfirmationCount === 0 && pantryPipeline.confirmationBeforeStartCount === 0, actual: pantryPipeline },
     { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
     { key: "dinner-confirmation-writes-meal-log", ok: pantryPipeline.mealLogged, actual: pantryPipeline.mealLog },
     { key: "implicit-pantry-pipeline-page-errors", ok: pantryPipeline.pageErrors.length === 0, errors: pantryPipeline.pageErrors },
@@ -825,10 +840,12 @@ async function installMiniProgramMock(page) {
       navigateTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
         payload.success?.({ errMsg: "navigateTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
       },
       redirectTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
         payload.success?.({ errMsg: "redirectTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
       },
     };
   });
@@ -1074,10 +1091,12 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
         navigateTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
           payload.success?.({ errMsg: "navigateTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
         redirectTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
           payload.success?.({ errMsg: "redirectTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -1645,7 +1664,10 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const stateAfterRename = await hasPreservedHouseholdState(page);
   await settingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByTestId("mobile-nav-dashboard").click();
-  await page.getByRole("button", { name: "点外卖", exact: true }).click();
+  await openTodayMenu(page);
+  await page.getByRole("button", { name: "开始做饭", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "出去吃", exact: true }).click();
   await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
   const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
   await page.getByTestId("mobile-nav-user").click();
@@ -2084,8 +2106,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
   const memberMealEditingButtons = await page.getByTestId("meal-rhythm-panel").getByRole("button").count();
-  const memberDinnerReadonly = await page.getByTestId("dinner-log-readonly").isVisible()
-    && await page.getByTestId("dinner-log-readonly").getByRole("button").count() === 0;
+  const memberHasNoPrematureDinnerConfirmation = await page.getByText("晚间轻确认", { exact: true }).count() === 0
+    && await page.getByRole("button", { name: "上桌了", exact: true }).count() === 0;
   const memberPlannerEntries = await page.getByTestId("dashboard-planner-entry").count();
   const menuBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   const memberPrimaryAction = page.getByTestId("tonight-primary-action");
@@ -2124,7 +2146,7 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     internalActionKeepsPrimaryTab,
     memberDashboardAskButtons,
     memberMealEditingButtons,
-    memberDinnerReadonly,
+    memberHasNoPrematureDinnerConfirmation,
     memberPlannerEntries,
     memberLibraryUsesWantAction,
     memberWantAddedFromLibrary,
@@ -2278,6 +2300,7 @@ async function verifyImplicitPantryPipeline(browser, base) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state, family, households: [family] }) });
   });
   await page.goto(base, { waitUntil: "networkidle" });
+  const dashboardLightConfirmationCount = await page.getByText("晚间轻确认", { exact: true }).count();
   await page.getByRole("button", { name: "清单", exact: true }).click();
   const tomatoRow = page.locator("label").filter({ hasText: "西红柿" });
   const tomatoCheckbox = tomatoRow.getByRole("checkbox");
@@ -2287,8 +2310,12 @@ async function verifyImplicitPantryPipeline(browser, base) {
   const pantryAfterCheck = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"));
   const addedAfterCheck = pantryAfterCheck.some((item) => item.name === "西红柿");
   await page.getByRole("button", { name: "今晚", exact: true }).click();
-  const doneButton = page.getByRole("button", { name: "做了", exact: true });
-  if (await doneButton.count() !== 1) throw new Error("隐形食材流水线没有找到唯一的晚饭“做了”按钮。");
+  await openTodayMenu(page);
+  const confirmationBeforeStartCount = await page.getByRole("button", { name: "上桌了", exact: true }).count();
+  await page.getByRole("button", { name: "开始做饭", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  const doneButton = page.getByRole("button", { name: "上桌了", exact: true });
+  if (await doneButton.count() !== 1) throw new Error("开始做饭后没有找到唯一的“上桌了”按钮。");
   await doneButton.click();
   const result = await page.evaluate(() => ({
     pantry: JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"),
@@ -2308,6 +2335,8 @@ async function verifyImplicitPantryPipeline(browser, base) {
     pantryAfterDinner: result.pantry,
     mealLog,
     pageErrors,
+    dashboardLightConfirmationCount,
+    confirmationBeforeStartCount,
   };
 }
 

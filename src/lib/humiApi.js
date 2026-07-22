@@ -297,9 +297,17 @@ export async function claimGroceryShareItem(token, payload, session = null) {
 
 // Compatibility contract for the user's batch-claim UI. The API keeps these
 // routes while newer clients can use the item-level grocery share functions above.
-export async function createGroceryShareRequest(payload, session = null) {
+export async function createGroceryShareRequest(payload, session = null, options = {}) {
   if (isHumiApiSession(session)) {
-    return humiApiRequest("/grocery-share-requests", { method: "POST", session, body: payload });
+    return humiApiRequest("/grocery-share-requests", {
+      method: "POST",
+      session,
+      body: {
+        ...payload,
+        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+      },
+      notifySessionInvalid: options.notifySessionInvalid,
+    });
   }
   return humiPublicRequest("/grocery-share-requests", { method: "POST", body: payload });
 }
@@ -342,9 +350,17 @@ export function joinGroceryShareRequest(token, session, payload) {
   });
 }
 
-export async function createMenuShareRequest(payload, session = null) {
+export async function createMenuShareRequest(payload, session = null, options = {}) {
   if (isHumiApiSession(session)) {
-    return humiApiRequest("/menu-share-requests", { method: "POST", session, body: payload });
+    return humiApiRequest("/menu-share-requests", {
+      method: "POST",
+      session,
+      body: {
+        ...payload,
+        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+      },
+      notifySessionInvalid: options.notifySessionInvalid,
+    });
   }
   return humiPublicRequest("/menu-share-requests", { method: "POST", body: payload });
 }
@@ -419,7 +435,7 @@ export function joinWishShareRequest(token, session, payload) {
   });
 }
 
-async function humiApiRequest(path, { method = "GET", session, body, signal } = {}) {
+async function humiApiRequest(path, { method = "GET", session, body, signal, notifySessionInvalid = true } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), HUMI_API_TIMEOUT_MS);
@@ -442,7 +458,7 @@ async function humiApiRequest(path, { method = "GET", session, body, signal } = 
       const error = new Error(data.message || "Humi 账号同步暂时不可用。");
       error.status = response.status;
       error.code = data.error || "";
-      if (response.status === 401 || error.code === "invalid_session") {
+      if (notifySessionInvalid && (response.status === 401 || error.code === "invalid_session")) {
         for (const listener of sessionInvalidListeners) {
           try {
             listener(error);

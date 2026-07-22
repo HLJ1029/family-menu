@@ -99,19 +99,31 @@ try {
 }
 
 const nativeIdentityCalls = [];
+const nativeWindowTarget = new EventTarget();
+const nativeDocumentTarget = new EventTarget();
 globalThis.window = {
+  document: {
+    visibilityState: "visible",
+    addEventListener: nativeDocumentTarget.addEventListener.bind(nativeDocumentTarget),
+    removeEventListener: nativeDocumentTarget.removeEventListener.bind(nativeDocumentTarget),
+  },
+  addEventListener: nativeWindowTarget.addEventListener.bind(nativeWindowTarget),
+  removeEventListener: nativeWindowTarget.removeEventListener.bind(nativeWindowTarget),
+  dispatchEvent: nativeWindowTarget.dispatchEvent.bind(nativeWindowTarget),
   wx: {
     miniProgram: {
-      navigateTo() {
+      navigateTo({ success }) {
         nativeIdentityCalls.push("navigateTo");
+        success?.({ errMsg: "navigateTo:ok" });
       },
-      redirectTo({ fail }) {
+      redirectTo({ success }) {
         nativeIdentityCalls.push("redirectTo");
-        fail?.({ errMsg: "redirectTo:fail" });
+        success?.({ errMsg: "redirectTo:ok" });
       },
       reLaunch({ success }) {
         nativeIdentityCalls.push("reLaunch");
         success?.({ errMsg: "reLaunch:ok" });
+        nativeWindowTarget.dispatchEvent(new Event("pagehide"));
       },
     },
   },
@@ -127,7 +139,7 @@ await new Promise((resolve) => setTimeout(resolve, 50));
 assert.deepEqual(
   nativeIdentityCalls,
   ["navigateTo", "redirectTo", "reLaunch"],
-  "callbackless identity navigation should use the same native fallback ladder as sharing",
+  "identity callback receipt must not stop fallback before native page visibility is confirmed",
 );
 delete globalThis.window;
 

@@ -1057,7 +1057,7 @@ export class HumiStore {
     const household = ownerUserId
       ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
-    const now = new Date().toISOString();
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
     const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
       id: sanitizeText(item.id, `item-${index}`, 80),
       name: sanitizeText(item.name, "食材", 40),
@@ -1065,26 +1065,37 @@ export class HumiStore {
       category: sanitizeText(item.category, "", 40),
       checked: Boolean(item.checked),
     }));
-    const request = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      ownerSecret: randomUUID().replaceAll("-", ""),
-      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
-      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
-      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
-      title: sanitizeText(payload.title, "Humi 买菜清单", 48),
-      status: "open",
-      items,
-      claims: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.groceryShareRequests ??= [];
-    this.data.groceryShareRequests.unshift(request);
-    this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
-    await this.save();
-    return request;
+    return this.mutateAndSave(() => {
+      this.data.groceryShareRequests ??= [];
+      if (ownerUserId && idempotencyKey) {
+        const existing = this.data.groceryShareRequests.find((item) => (
+          item.ownerId === ownerUserId
+          && item.householdId === household?.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const request = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        ownerSecret: randomUUID().replaceAll("-", ""),
+        householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+        ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+        idempotencyKey,
+        householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
+        initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+        title: sanitizeText(payload.title, "Humi 买菜清单", 48),
+        status: "open",
+        items,
+        claims: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.groceryShareRequests.unshift(request);
+      this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
+      return request;
+    });
   }
 
   async getGroceryShareRequest(token) {
@@ -1175,7 +1186,7 @@ export class HumiStore {
     const household = ownerUserId
       ? await this.requireOwnedHouseholdForUser(ownerUserId)
       : null;
-    const now = new Date().toISOString();
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
     const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
       id: sanitizeText(dish.id, `dish-${index}`, 80),
       recipeId: sanitizeText(dish.recipeId || dish.id, "", 80),
@@ -1184,25 +1195,36 @@ export class HumiStore {
       category: sanitizeText(dish.category, "", 40),
       timeMinutes: Math.max(0, Math.min(240, Number.parseInt(dish.timeMinutes, 10) || 0)),
     })).filter((dish) => dish.name);
-    const request = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
-      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
-      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
-      title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
-      status: "open",
-      dishes,
-      groceryCount: Math.max(0, Math.min(200, Number.parseInt(payload.groceryCount, 10) || 0)),
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.menuShareRequests ??= [];
-    this.data.menuShareRequests.unshift(request);
-    this.data.menuShareRequests = this.data.menuShareRequests.slice(0, 2000);
-    await this.save();
-    return request;
+    return this.mutateAndSave(() => {
+      this.data.menuShareRequests ??= [];
+      if (ownerUserId && idempotencyKey) {
+        const existing = this.data.menuShareRequests.find((item) => (
+          item.ownerId === ownerUserId
+          && item.householdId === household?.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const request = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+        ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+        idempotencyKey,
+        householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
+        initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+        title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
+        status: "open",
+        dishes,
+        groceryCount: Math.max(0, Math.min(200, Number.parseInt(payload.groceryCount, 10) || 0)),
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.menuShareRequests.unshift(request);
+      this.data.menuShareRequests = this.data.menuShareRequests.slice(0, 2000);
+      return request;
+    });
   }
 
   async getMenuShareRequest(token) {

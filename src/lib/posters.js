@@ -1,4 +1,5 @@
 import { photoFor } from "./recipes";
+import { SHOPPING_POSTER_STYLES } from "./posterStyles";
 
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
@@ -11,7 +12,6 @@ const COLORS = {
   line: "rgba(17, 17, 17, 0.12)",
 };
 
-const shoppingPosterStyles = ["default", "default", "default", "default", "theme"];
 const HUMI_ICON_URL = "/icons/humi-icon-512.png";
 
 export async function createTodayMenuPoster({ recipes = [], groceryCount = 0 }) {
@@ -47,8 +47,8 @@ export async function createWeekMenuPoster({ weekPlan = {}, getRecipe }) {
   });
 }
 
-export async function createGroceryPoster({ items = [], customItems = [] }) {
-  const style = shoppingPosterStyles[Math.floor(Math.random() * shoppingPosterStyles.length)];
+export async function createGroceryPoster({ items = [], customItems = [], styleId = SHOPPING_POSTER_STYLES[0] }) {
+  const style = SHOPPING_POSTER_STYLES.includes(styleId) ? styleId : SHOPPING_POSTER_STYLES[0];
   return createPosterBlob(async (ctx) => {
     const icon = await loadImageSafe(HUMI_ICON_URL);
     const groups = buildShoppingPosterGroups(items, customItems);

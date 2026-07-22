@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { buildMiniProgramPosterUrl, buildMiniProgramReminderUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "../src/lib/runtime.js";
+import { createMenuShareRequest, subscribeHumiSessionInvalid } from "../src/lib/humiApi.js";
+import { buildShareSnapshotKey, createAsyncSnapshotCache } from "../src/lib/shareSnapshot.js";
+import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
 
 const {
   buildHumiUrl,
@@ -22,6 +25,99 @@ assertNativeShareReceiptTemplate();
 assertShareFeedbackDoesNotClaimUnverifiedSuccess();
 assertMiniProgramVisibleCopyKeepsPantryInvisible();
 assertMiniProgramGuestShareRouting();
+
+const snapshotCache = createAsyncSnapshotCache();
+let snapshotCreateCalls = 0;
+const snapshotKey = buildShareSnapshotKey("menu", "family-1", {
+  dishes: [{ id: "tomato-egg", quantity: 1 }],
+  groceryCount: 3,
+});
+const createSnapshot = async () => {
+  snapshotCreateCalls += 1;
+  return { request: { token: "menu-snapshot-token" } };
+};
+const [firstSnapshot, concurrentSnapshot] = await Promise.all([
+  snapshotCache.getOrCreate(snapshotKey, createSnapshot),
+  snapshotCache.getOrCreate(snapshotKey, createSnapshot),
+]);
+const repeatedSnapshot = await snapshotCache.getOrCreate(snapshotKey, createSnapshot);
+assert.equal(snapshotCreateCalls, 1, "the same share snapshot must be created exactly once");
+assert.equal(firstSnapshot.request.token, "menu-snapshot-token");
+assert.equal(concurrentSnapshot, firstSnapshot);
+assert.equal(repeatedSnapshot, firstSnapshot);
+
+let failedSnapshotCalls = 0;
+await assert.rejects(
+  snapshotCache.getOrCreate("menu:failed", async () => {
+    failedSnapshotCalls += 1;
+    throw new Error("first creation failed");
+  }),
+  /first creation failed/,
+);
+await snapshotCache.getOrCreate("menu:failed", async () => {
+  failedSnapshotCalls += 1;
+  return { request: { token: "retry-token" } };
+});
+assert.equal(failedSnapshotCalls, 2, "a failed snapshot must be evicted so one user retry can create it again");
+assert.notEqual(
+  buildShareSnapshotKey("menu", "family-1", { dishes: [{ id: "tomato-egg", quantity: 2 }], groceryCount: 3 }),
+  snapshotKey,
+  "a changed menu must produce a fresh snapshot key",
+);
+
+const recoveryStorage = createMemoryStorage();
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_000), true, "the first 401 may schedule one silent recovery");
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_050), false, "a concurrent caller must join the pending recovery");
+assert.deepEqual(
+  getShareRecovery(recoveryStorage, 1_050),
+  { action: "today_menu", attempts: 1, state: "pending" },
+  "a duplicate original 401 must not cancel the pending recovery",
+);
+assert.deepEqual(
+  beginShareRecoveryReplay(recoveryStorage, 1_100),
+  { action: "today_menu", attempts: 1 },
+  "the refreshed H5 session should replay the queued share once",
+);
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_200), false, "a replayed 401 must not schedule a third request");
+assert.equal(getShareRecovery(recoveryStorage, 1_200)?.state, "replaying");
+clearShareRecovery(recoveryStorage);
+assert.equal(beginShareRecoveryReplay(recoveryStorage, 1_300), null);
+
+let recoveryInvalidations = 0;
+let recoveryRequestBody = null;
+const unsubscribeRecoveryInvalidation = subscribeHumiSessionInvalid(() => {
+  recoveryInvalidations += 1;
+});
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (_url, options = {}) => {
+  recoveryRequestBody = JSON.parse(options.body || "{}");
+  return new Response(JSON.stringify({ error: "invalid_session", message: "expired" }), {
+    status: 401,
+    headers: { "content-type": "application/json" },
+  });
+};
+const expiredSession = { accessToken: "expired", user: { provider: "wechat" } };
+try {
+  await assert.rejects(
+    createMenuShareRequest(
+      { dishes: [] },
+      expiredSession,
+      { notifySessionInvalid: false, idempotencyKey: snapshotKey },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(
+    recoveryRequestBody.idempotencyKey,
+    snapshotKey,
+    "a silently replayable share create must send its stable snapshot idempotency key",
+  );
+  assert.equal(recoveryInvalidations, 0, "a recoverable snapshot 401 must not race the global logout handler");
+  await assert.rejects(createMenuShareRequest({ dishes: [] }, expiredSession));
+  assert.equal(recoveryInvalidations, 1, "normal authenticated 401s must keep the global invalidation behavior");
+} finally {
+  unsubscribeRecoveryInvalidation();
+  globalThis.fetch = originalFetch;
+}
 
 assert.equal(
   buildMiniProgramShareUrl({
@@ -59,9 +155,10 @@ assert.equal(
 );
 
 const reminderNavigation = createRuntimeWindow({
-  navigateTo({ url, success }) {
+  navigateTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/reminder/index?scheduledAt=2026-07-25T10%3A30%3A00.000Z&dateKey=2026-07-25&effortTier=quick_15&mealRunId=meal-1");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = reminderNavigation.window;
@@ -79,9 +176,10 @@ assert.equal(
 );
 
 const primaryNavigation = createRuntimeWindow({
-  navigateTo({ url, success }) {
+  navigateTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
     success?.();
+    leavePage();
   },
   redirectTo() {
     assert.fail("redirectTo should not run after navigateTo succeeds");
@@ -98,9 +196,10 @@ assert.equal(
 assert.deepEqual(primaryNavigation.calls, ["navigateTo"]);
 
 const posterNavigation = createRuntimeWindow({
-  navigateTo({ url, success }) {
+  navigateTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/poster/index?token=poster-token&format=jpg&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95&action=save");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = posterNavigation.window;
@@ -118,9 +217,10 @@ const explicitFailureFallback = createRuntimeWindow({
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     fail?.({ errMsg: "navigateTo:fail page stack limit" });
   },
-  redirectTo({ url, success }) {
+  redirectTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = explicitFailureFallback.window;
@@ -159,9 +259,10 @@ const callbacklessNavigationFallback = createRuntimeWindow({
   redirectTo({ fail }) {
     fail?.({ errMsg: "redirectTo:fail callbackless navigateTo recovery" });
   },
-  reLaunch({ url, success }) {
+  reLaunch({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = callbacklessNavigationFallback.window;
@@ -178,6 +279,42 @@ assert.deepEqual(
   ["navigateTo", "redirectTo", "reLaunch"],
   "native share fallback should not stop after a callbackless bridge call",
 );
+
+const callbackReceiptIsNotVisibility = createRuntimeWindow({
+  navigateTo({ success }) {
+    success?.();
+  },
+  redirectTo({ success }) {
+    success?.();
+  },
+  reLaunch({ success, leavePage }) {
+    success?.();
+    leavePage();
+  },
+});
+const bridgeStages = [];
+globalThis.window = callbackReceiptIsNotVisibility.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "today_menu", token: "sensitive-menu-token", title: "今晚菜单" },
+    {
+      timeoutMs: 180,
+      confirmationMs: 20,
+      onStage: (event) => bridgeStages.push(event),
+    },
+  ),
+  "handoff",
+  "bridge success callbacks must not replace page visibility confirmation",
+);
+assert.deepEqual(
+  callbackReceiptIsNotVisibility.calls,
+  ["navigateTo", "redirectTo", "reLaunch"],
+  "an unconfirmed success callback must continue through the native fallback chain",
+);
+assert(bridgeStages.some((event) => event.stage === "callback_received" && event.method === "navigateTo"));
+assert(bridgeStages.some((event) => event.stage === "page_hidden" && event.method === "reLaunch"));
+assert(!JSON.stringify(bridgeStages).includes("sensitive-menu-token"), "bridge telemetry must not contain share tokens");
+assert(bridgeStages.every((event) => Number.isFinite(event.elapsedMs) && event.elapsedMs >= 0));
 
 const allFailed = createRuntimeWindow({
   navigateTo() {
@@ -445,4 +582,13 @@ function loadMiniProgramCommonJs(path) {
     exports: module.exports,
   }, { filename: path });
   return module.exports;
+}
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+  };
 }
