@@ -1,6 +1,7 @@
 const WECHAT_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session";
 const WECHAT_ACCESS_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token";
 const WECHAT_PHONE_NUMBER_URL = "https://api.weixin.qq.com/wxa/business/getuserphonenumber";
+const WECHAT_SUBSCRIBE_MESSAGE_URL = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send";
 
 let cachedAccessToken = null;
 
@@ -68,6 +69,34 @@ export async function exchangeWechatPhoneNumber({ code, appId, appSecret, mock =
     throw createWechatError("wechat_phone_number_missing", "WeChat response did not include phone number.", data);
   }
   return data.phone_info;
+}
+
+export async function sendWechatSubscribeMessage({ openid, templateId, page, data, appId, appSecret, mock = false }) {
+  if (!openid || !templateId) {
+    throw createWechatError("wechat_subscribe_message_invalid", "openid and templateId are required.");
+  }
+  if (mock) return { errcode: 0, errmsg: "ok" };
+
+  const accessToken = await getWechatAccessToken({ appId, appSecret });
+  const url = new URL(WECHAT_SUBSCRIBE_MESSAGE_URL);
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      touser: openid,
+      template_id: templateId,
+      page,
+      miniprogram_state: "formal",
+      lang: "zh_CN",
+      data,
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.errcode) {
+    throw createWechatError("wechat_subscribe_message_failed", result.errmsg || "WeChat subscribe message failed.", result);
+  }
+  return result;
 }
 
 async function getWechatAccessToken({ appId, appSecret }) {

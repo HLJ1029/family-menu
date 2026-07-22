@@ -5,9 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
-import { exchangeWechatCode, exchangeWechatPhoneNumber } from "./wechat.js";
+import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
+import { buildMealTimeline, getCertifiedRecipe } from "../src/lib/mealExecution.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -36,6 +37,14 @@ const config = {
   avatarPublicBaseUrl: (process.env.HUMI_PUBLIC_BASE_URL || "https://api.humi-home.com").replace(/\/$/, ""),
   avatarMaxBytes: 512 * 1024,
   assetDir: process.env.HUMI_ASSET_DIR || resolve("public/assets"),
+  mealExecutionEnabled: process.env.HUMI_MEAL_EXECUTION_ENABLED === "1",
+  mealExecutionHouseholds: new Set((process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)),
+  mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
+  mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
+  mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",
 };
 
 if (!config.sessionSecret) {
@@ -54,7 +63,7 @@ const householdStatus = {
 };
 
 export function createHumiApiServer() {
-  return http.createServer(async (request, response) => {
+  const server = http.createServer(async (request, response) => {
     try {
       applyCors(request, response);
       if (request.method === "OPTIONS") {
@@ -209,6 +218,85 @@ export function createHumiApiServer() {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/meal-runs") {
+        await handleCreateMealRun(request, response);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/meal-runs/current") {
+        await handleGetCurrentMealRun(request, response, url.searchParams);
+        return;
+      }
+
+      const mealRunStartMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/start$/);
+      if (request.method === "POST" && mealRunStartMatch) {
+        await handleStartMealRun(request, response, mealRunStartMatch[1]);
+        return;
+      }
+
+      const mealRunProgressMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/progress$/);
+      if (request.method === "PUT" && mealRunProgressMatch) {
+        await handleUpdateMealRunProgress(request, response, mealRunProgressMatch[1]);
+        return;
+      }
+
+      const mealRunCompleteMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/complete$/);
+      if (request.method === "POST" && mealRunCompleteMatch) {
+        await handleCompleteMealRun(request, response, mealRunCompleteMatch[1]);
+        return;
+      }
+
+      const mealRunAbandonMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/abandon$/);
+      if (request.method === "POST" && mealRunAbandonMatch) {
+        await handleAbandonMealRun(request, response, mealRunAbandonMatch[1]);
+        return;
+      }
+
+      const mealRunFeedbackMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/feedback$/);
+      if (request.method === "PUT" && mealRunFeedbackMatch) {
+        await handleMealRunFeedback(request, response, mealRunFeedbackMatch[1]);
+        return;
+      }
+
+      const mealRunTasksMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/tasks$/);
+      if (request.method === "POST" && mealRunTasksMatch) {
+        await handleCreateMealTask(request, response, mealRunTasksMatch[1]);
+        return;
+      }
+
+      const mealTaskClaimMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/claim$/);
+      if (request.method === "POST" && mealTaskClaimMatch) {
+        await handleClaimMealTask(request, response, mealTaskClaimMatch[1]);
+        return;
+      }
+
+      const mealTaskCompleteMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/complete$/);
+      if (request.method === "POST" && mealTaskCompleteMatch) {
+        await handleCompleteMealTask(request, response, mealTaskCompleteMatch[1]);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/meal-reminders/config") {
+        await handleMealReminderConfig(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/meal-reminders") {
+        await handleCreateMealReminder(request, response);
+        return;
+      }
+
+      const mealReminderMatch = url.pathname.match(/^\/meal-reminders\/([^/]+)$/);
+      if (request.method === "DELETE" && mealReminderMatch) {
+        await handleCancelMealReminder(request, response, mealReminderMatch[1]);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/product-events") {
+        await handleProductEvent(request, response);
+        return;
+      }
+
       if (request.method === "POST" && url.pathname === "/profile") {
         await handleProfile(request, response);
         return;
@@ -356,6 +444,14 @@ export function createHumiApiServer() {
       });
     }
   });
+  const reminderTimer = setInterval(() => {
+    void processDueMealReminders().catch((error) => {
+      if (process.env.NODE_ENV !== "production") console.error("Meal reminder worker failed", error);
+    });
+  }, 60_000);
+  reminderTimer.unref?.();
+  server.once("close", () => clearInterval(reminderTimer));
+  return server;
 }
 
 async function handleWechatLogin(request, response) {
@@ -493,6 +589,7 @@ async function handleMe(request, response) {
     profileCompleted: getProfileCompletedCount(profile),
     family: toHumiFamily(household, user),
     households: toHumiFamilies(households, user),
+    capabilities: mealExecutionCapabilities(household),
   });
 }
 
@@ -519,6 +616,7 @@ async function handleGetState(request, response) {
     state,
     family: toHumiFamily(household, user),
     households: toHumiFamilies(households, user),
+    capabilities: mealExecutionCapabilities(household),
   });
 }
 
@@ -535,7 +633,234 @@ async function handleSaveState(request, response) {
     state,
     family: toHumiFamily(household, user),
     households: toHumiFamilies(households, user),
+    capabilities: mealExecutionCapabilities(household),
   });
+}
+
+async function handleCreateMealRun(request, response) {
+  const { user, household } = await requireMealExecutionContext(request);
+  const body = await readJson(request);
+  const householdId = stringValue(body.householdId, 100) || household.id;
+  if (householdId !== household.id) {
+    const households = await store.getHouseholdsForUser(user.id);
+    const requestedHousehold = households.find((item) => item.id === householdId);
+    if (!requestedHousehold) throw httpError(404, "household_not_found", "没有找到这个家。");
+    assertMealExecutionEnabled(requestedHousehold.id);
+  }
+  const effortTier = stringValue(body.effortTier, 24);
+  const recipeIds = [...new Set((Array.isArray(body.recipeIds) ? body.recipeIds : [])
+    .map((recipeId) => stringValue(recipeId, 100))
+    .filter(Boolean))].slice(0, 6);
+  const certifiedRecipes = recipeIds.map((recipeId) => {
+    const recipe = getCertifiedRecipe(recipeId);
+    if (!recipe) throw httpError(400, "recipe_not_certified", "这套菜单还没有通过省力烹饪认证，请继续使用普通做法。");
+    return recipe;
+  });
+  assertRecipesFitEffortTier(certifiedRecipes, effortTier);
+  try {
+    const result = await store.createMealRun(user.id, {
+      householdId,
+      dateKey: body.dateKey,
+      mealSlot: body.mealSlot,
+      effortTier,
+      recipeIds,
+      idempotencyKey: body.idempotencyKey,
+      readyStaple: body.readyStaple,
+      timelineVersion: 1,
+      recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
+    });
+    sendJson(response, result.mealRun.createdAt === result.mealRun.updatedAt ? 201 : 200, {
+      mealRun: result.mealRun,
+      replacedMealRunId: result.replacedMealRunId || "",
+    });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleGetCurrentMealRun(request, response, searchParams) {
+  const householdId = stringValue(searchParams.get("householdId"), 100);
+  const { user } = await requireMealExecutionContext(request, householdId);
+  try {
+    const mealRun = await store.getCurrentMealRun(user.id, {
+      householdId,
+      dateKey: searchParams.get("dateKey"),
+      mealSlot: stringValue(searchParams.get("mealSlot"), 24) || "dinner",
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleStartMealRun(request, response, mealRunId) {
+  const { auth, user } = await requireMealExecutionUser(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const timeline = current.status === "cooking"
+      ? current.timeline
+      : buildMealTimeline(current.recipeIds, { startedAt: new Date().toISOString() });
+    const mealRun = await store.startMealRun(auth.userId, mealRunId, timeline);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleUpdateMealRunProgress(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.updateMealRunProgress(user.id, mealRunId, {
+      currentStepId: body.currentStepId,
+      timerEndsAt: body.timerEndsAt,
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCompleteMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.completeMealRun(user.id, mealRunId);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleAbandonMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.abandonMealRun(user.id, mealRunId, body.reason);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleMealRunFeedback(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.updateMealRunFeedback(user.id, mealRunId, body.value);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCreateMealTask(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(mealRun.householdId);
+    const taskInput = deriveMealTask(mealRun, body);
+    const task = await store.createMealTask(user.id, mealRunId, taskInput);
+    sendJson(response, 201, { task });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleClaimMealTask(request, response, token) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const task = await store.getMealTask(token);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    assertMealExecutionEnabled(task.householdId);
+    const claimed = await store.claimMealTask(user.id, token);
+    sendJson(response, 200, { task: claimed });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCompleteMealTask(request, response, token) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const task = await store.getMealTask(token);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    assertMealExecutionEnabled(task.householdId);
+    const completed = await store.completeMealTask(user.id, token);
+    sendJson(response, 200, { task: completed });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleMealReminderConfig(request, response) {
+  const { household } = await requireMealExecutionContext(request);
+  sendJson(response, 200, {
+    enabled: Boolean(config.mealReminderTemplateId && household),
+    templateId: config.mealReminderTemplateId || "",
+  });
+}
+
+async function handleCreateMealReminder(request, response) {
+  const { user, household } = await requireMealExecutionContext(request);
+  const body = await readJson(request);
+  if (!config.mealReminderTemplateId) throw httpError(503, "reminder_not_configured", "做饭提醒暂未配置。");
+  if (body.accepted !== true || stringValue(body.templateId, 120) !== config.mealReminderTemplateId) {
+    throw httpError(400, "reminder_consent_required", "只有微信明确授权后才能创建这次提醒。");
+  }
+  const scheduledAtMs = Date.parse(body.scheduledAt);
+  if (!Number.isFinite(scheduledAtMs) || scheduledAtMs <= Date.now() || scheduledAtMs > Date.now() + 30 * 24 * 60 * 60 * 1000) {
+    throw httpError(400, "reminder_time_invalid", "请选择未来 30 天内的做饭时间。");
+  }
+  try {
+    const reminder = await store.createMealReminder(user.id, {
+      householdId: household.id,
+      scheduledAt: body.scheduledAt,
+      dateKey: body.dateKey,
+      effortTier: body.effortTier,
+      templateId: config.mealReminderTemplateId,
+    });
+    sendJson(response, 201, { reminder });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCancelMealReminder(request, response, reminderId) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const reminder = await store.cancelMealReminder(user.id, reminderId);
+    if (!reminder) throw httpError(404, "meal_reminder_not_found", "没有找到这次提醒。");
+    assertMealExecutionEnabled(reminder.householdId);
+    sendJson(response, 200, { reminder });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleProductEvent(request, response) {
+  const { user, household } = await requireMealExecutionContext(request);
+  const body = await readJson(request);
+  try {
+    await store.recordProductEvent(user.id, household.id, {
+      eventType: body.eventType,
+      mealRunId: body.mealRunId,
+      recommendationId: body.recommendationId,
+      effortTier: body.effortTier,
+    });
+    sendJson(response, 202, { ok: true });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
 }
 
 async function handleGetHouseholds(request, response) {
@@ -672,6 +997,160 @@ function mapHouseholdError(error) {
   const code = error.code === "household_member_not_found" ? "member_not_found" : error.code;
   const status = householdStatus[code];
   return status ? httpError(status, code, error.message) : error;
+}
+
+async function requireMealExecutionUser(request) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  return { auth, user };
+}
+
+async function requireMealExecutionContext(request, requestedHouseholdId = "") {
+  const context = await requireMealExecutionUser(request);
+  const households = await store.getHouseholdsForUser(context.user.id);
+  const activeHousehold = await store.getHouseholdForUser(context.user.id);
+  const household = requestedHouseholdId
+    ? households.find((item) => item.id === requestedHouseholdId)
+    : activeHousehold;
+  if (!household) throw httpError(404, "household_not_found", "请先创建或加入一个家。");
+  assertMealExecutionEnabled(household.id);
+  return { ...context, household };
+}
+
+function mealExecutionCapabilities(household) {
+  return {
+    mealExecution: Boolean(household && isMealExecutionEnabledFor(household.id)),
+  };
+}
+
+function isMealExecutionEnabledFor(householdId) {
+  if (!config.mealExecutionEnabled || !householdId) return false;
+  return config.mealExecutionHouseholds.has("*") || config.mealExecutionHouseholds.has(householdId);
+}
+
+function assertMealExecutionEnabled(householdId) {
+  if (!isMealExecutionEnabledFor(householdId)) {
+    throw httpError(403, "meal_execution_disabled", "这个家暂未进入省力做饭体验。");
+  }
+}
+
+function assertRecipesFitEffortTier(recipes, effortTier) {
+  const rank = { quick_15: 0, easy_30: 1, normal: 2 };
+  if (!(effortTier in rank)) throw httpError(400, "effort_tier_invalid", "请选择今天的行动力。");
+  if (recipes.length === 0) throw httpError(400, "meal_recipes_required", "请先选择今晚要做的菜。");
+  if (recipes.some((recipe) => rank[recipe.cookAssist.effortTier] > rank[effortTier])) {
+    throw httpError(400, "effort_tier_mismatch", "这套菜超过了当前行动力档位，请换一套更省力的方案。");
+  }
+}
+
+function toMealRecipeSnapshot(recipe) {
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    ingredients: recipe.ingredients.map((ingredient) => ({
+      name: stringValue(ingredient.name, 40),
+      amount: ingredient.amount,
+      unit: stringValue(ingredient.unit, 16),
+      required: ingredient.required !== false,
+    })),
+    cookAssist: structuredClone(recipe.cookAssist),
+  };
+}
+
+function deriveMealTask(mealRun, body = {}) {
+  if (body.type === "buy") {
+    const ingredientName = stringValue(body.ingredientName, 40);
+    const ingredients = mealRun.recipeSnapshot.flatMap((recipe) => recipe.ingredients ?? []);
+    if (!ingredientName || !ingredients.some((ingredient) => ingredient.name === ingredientName)) {
+      throw httpError(400, "meal_task_invalid", "请选择这顿饭真实缺少的食材。");
+    }
+    return { type: "buy", label: `请家人买${ingredientName}` };
+  }
+  if (body.type === "prep") {
+    const stepId = stringValue(body.stepId, 160);
+    const step = mealRun.recipeSnapshot
+      .flatMap((recipe) => recipe.cookAssist?.steps ?? [])
+      .find((candidate) => candidate.id === stepId && candidate.phase === "prep");
+    if (!step) throw httpError(400, "meal_task_invalid", "请选择这顿饭里的备菜步骤。");
+    return { type: "prep", label: `帮忙${String(step.text).replace(/[。！!]$/, "")}`.slice(0, 64) };
+  }
+  throw httpError(400, "meal_task_invalid", "只支持买食材或帮忙备菜任务。");
+}
+
+function mapMealExecutionError(error) {
+  if (error?.status) return error;
+  const statusByCode = {
+    forbidden: 403,
+    household_not_found: 404,
+    meal_run_not_found: 404,
+    meal_task_not_found: 404,
+    meal_run_locked: 409,
+    meal_run_transition_invalid: 409,
+    meal_task_claimed: 409,
+    meal_task_forbidden: 403,
+    meal_task_unavailable: 409,
+    meal_step_invalid: 400,
+    meal_task_invalid: 400,
+    meal_feedback_invalid: 400,
+    abandon_reason_invalid: 400,
+    product_event_invalid: 400,
+    idempotency_key_required: 400,
+    date_key_invalid: 400,
+    effort_tier_invalid: 400,
+    meal_slot_invalid: 400,
+    meal_recipes_required: 400,
+    timer_end_invalid: 400,
+    reminder_time_invalid: 400,
+  };
+  const status = statusByCode[error?.code];
+  return status ? httpError(status, error.code, error.message) : error;
+}
+
+export async function processDueMealReminders({ now = new Date().toISOString() } = {}) {
+  if (!config.mealExecutionEnabled || !config.mealReminderTemplateId) return [];
+  const reminders = await store.getDueMealReminders(now);
+  const results = [];
+  for (const reminder of reminders) {
+    if (!isMealExecutionEnabledFor(reminder.householdId) || await store.shouldCancelMealReminder(reminder)) {
+      const cancelled = await store.markMealReminderCancelled(reminder.id);
+      results.push(cancelled);
+      continue;
+    }
+    try {
+      const openid = await store.getWechatOpenIdForUser(reminder.userId);
+      if (!openid) throw new Error("wechat_openid_missing");
+      await sendWechatSubscribeMessage({
+        openid,
+        appId: config.wechatAppId,
+        appSecret: config.wechatAppSecret,
+        mock: config.wechatMock,
+        templateId: config.mealReminderTemplateId,
+        page: `pages/index/index?view=dashboard&mealReminder=${encodeURIComponent(reminder.id)}&effortTier=${encodeURIComponent(reminder.effortTier)}`,
+        data: {
+          [config.mealReminderThingKey]: { value: reminder.effortTier === "quick_15" ? "今晚 15 分钟方案已准备好" : "今晚的省力方案已准备好" },
+          [config.mealReminderTimeKey]: { value: formatWechatReminderTime(reminder.scheduledAt) },
+        },
+      });
+      results.push(await store.markMealReminderSent(reminder.id, now));
+    } catch (error) {
+      results.push(await store.markMealReminderFailure(reminder.id, error.code || error.message, now));
+    }
+  }
+  return results;
+}
+
+function formatWechatReminderTime(value) {
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date).replaceAll("/", "-");
 }
 
 async function handleCreateHouseholdInvite(request, response) {

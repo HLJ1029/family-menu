@@ -28,6 +28,7 @@
     "validate:household": "node scripts/check-household-lifecycle.mjs",
     "validate:meal-history-migration": "node scripts/check-meal-history-migration.mjs",
     "validate:meal-execution": "node scripts/check-meal-execution.mjs",
+    "validate:meal-execution-api": "node scripts/smoke-meal-execution-api.mjs",
     "validate:migration": "node scripts/check-humi-migration.mjs",
     "validate:true-device-evidence": "node scripts/check-humi-true-device-evidence.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",

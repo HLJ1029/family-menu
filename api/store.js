@@ -29,6 +29,10 @@ const DEFAULT_DATA = {
   menuShareRequests: [],
   wishShareRequests: [],
   collaborationEvents: [],
+  mealRuns: [],
+  mealTasks: [],
+  mealReminders: [],
+  productEvents: [],
   revokedTokens: [],
   h5Tickets: [],
 };
@@ -52,6 +56,10 @@ export class HumiStore {
     this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
       ? this.data.collaborationEvents
       : [];
+    this.data.mealRuns = Array.isArray(this.data.mealRuns) ? this.data.mealRuns : [];
+    this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
+    this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
+    this.data.productEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
     this.loaded = true;
   }
 
@@ -1299,6 +1307,407 @@ export class HumiStore {
     });
   }
 
+  async createMealRun(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      if (household.ownerId !== userId) throw codedError("forbidden", "Only the household owner can choose or replace dinner.");
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const mealSlot = input.mealSlot === "dinner" ? "dinner" : "";
+      if (!mealSlot) throw codedError("meal_slot_invalid", "Cook assist currently supports dinner only.");
+      const effortTier = sanitizeEffortTier(input.effortTier);
+      const recipeIds = sanitizeRecipeIds(input.recipeIds);
+      const idempotencyKey = sanitizeText(input.idempotencyKey, "", 100);
+      if (!idempotencyKey) throw codedError("idempotency_key_required", "idempotencyKey is required.");
+
+      const idempotent = this.data.mealRuns.find((run) => (
+        run.householdId === householdId && run.idempotencyKey === idempotencyKey
+      ));
+      if (idempotent) return { mealRun: idempotent, replacedMealRunId: idempotent.replacedMealRunId || "" };
+
+      const current = this.data.mealRuns.find((run) => (
+        run.householdId === householdId
+        && run.dateKey === dateKey
+        && run.mealSlot === mealSlot
+        && run.status !== "abandoned"
+      ));
+      if (current && current.status !== "planned") {
+        throw codedError("meal_run_locked", "Cooking or completed dinner cannot be replaced.");
+      }
+
+      const now = new Date().toISOString();
+      const mealRun = {
+        id: randomUUID(),
+        householdId,
+        dateKey,
+        mealSlot,
+        effortTier,
+        recipeIds,
+        recipeSnapshot: structuredClone(input.recipeSnapshot ?? []),
+        timelineVersion: Number(input.timelineVersion || 1),
+        timeline: null,
+        currentStepId: "",
+        timerEndsAt: "",
+        readyStaple: sanitizeText(input.readyStaple, "", 40),
+        status: "planned",
+        abandonReason: "",
+        feedback: [],
+        idempotencyKey,
+        createdBy: userId,
+        startedBy: "",
+        completedBy: "",
+        replacedMealRunId: current?.id || "",
+        createdAt: now,
+        updatedAt: now,
+        startedAt: "",
+        completedAt: "",
+        abandonedAt: "",
+      };
+      if (current) {
+        current.status = "abandoned";
+        current.abandonReason = "plans_changed";
+        current.abandonedAt = now;
+        current.updatedAt = now;
+        current.replacedByMealRunId = mealRun.id;
+      }
+      this.data.mealRuns.unshift(mealRun);
+      this.data.mealRuns = this.data.mealRuns.slice(0, 5000);
+      return { mealRun, replacedMealRunId: current?.id || "" };
+    });
+  }
+
+  async getCurrentMealRun(userId, { householdId, dateKey, mealSlot = "dinner" } = {}) {
+    await this.load();
+    this.requireFormalMemberHousehold(userId, householdId);
+    return this.data.mealRuns.find((run) => (
+      run.householdId === householdId
+      && run.dateKey === sanitizeDateKey(dateKey)
+      && run.mealSlot === mealSlot
+      && run.status !== "abandoned"
+    )) ?? null;
+  }
+
+  async getMealRunForUser(userId, mealRunId) {
+    await this.load();
+    return this.requireMealRunForMember(userId, mealRunId);
+  }
+
+  async startMealRun(userId, mealRunId, timeline) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status === "cooking") return mealRun;
+      if (mealRun.status !== "planned") throw codedError("meal_run_transition_invalid", "Only a planned dinner can start cooking.");
+      const now = new Date().toISOString();
+      mealRun.status = "cooking";
+      mealRun.timeline = structuredClone(timeline);
+      mealRun.currentStepId = timeline?.steps?.[0]?.id || "";
+      mealRun.timerEndsAt = timeline?.steps?.[0]?.attention === "passive" ? timeline.steps[0].endsAt : "";
+      mealRun.startedBy = userId;
+      mealRun.startedAt = now;
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async updateMealRunProgress(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Cooking progress can only update an active dinner.");
+      const currentStepId = sanitizeText(input.currentStepId, "", 160);
+      const step = mealRun.timeline?.steps?.find((item) => item.id === currentStepId);
+      if (!step) throw codedError("meal_step_invalid", "The cooking step does not belong to this dinner.");
+      const timerEndsAt = sanitizeOptionalIsoDate(input.timerEndsAt);
+      mealRun.currentStepId = currentStepId;
+      mealRun.timerEndsAt = timerEndsAt;
+      mealRun.updatedAt = new Date().toISOString();
+      return mealRun;
+    });
+  }
+
+  async completeMealRun(userId, mealRunId) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status === "completed") return mealRun;
+      if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Only an active dinner can be served.");
+      const now = new Date().toISOString();
+      mealRun.status = "completed";
+      mealRun.completedBy = userId;
+      mealRun.completedAt = now;
+      mealRun.timerEndsAt = "";
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async abandonMealRun(userId, mealRunId, reason) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      const abandonReason = sanitizeAbandonReason(reason);
+      if (mealRun.status === "abandoned") return mealRun;
+      if (!["planned", "cooking"].includes(mealRun.status)) throw codedError("meal_run_transition_invalid", "A completed dinner cannot be abandoned.");
+      const now = new Date().toISOString();
+      mealRun.status = "abandoned";
+      mealRun.abandonReason = abandonReason;
+      mealRun.abandonedAt = now;
+      mealRun.timerEndsAt = "";
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async updateMealRunFeedback(userId, mealRunId, value) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status !== "completed") throw codedError("meal_run_transition_invalid", "Feedback is available after the dinner is served.");
+      const feedbackValue = sanitizeMealFeedback(value);
+      const now = new Date().toISOString();
+      const existing = mealRun.feedback.find((entry) => entry.userId === userId);
+      if (existing) {
+        existing.value = feedbackValue;
+        existing.updatedAt = now;
+      } else {
+        mealRun.feedback.push({ userId, value: feedbackValue, createdAt: now, updatedAt: now });
+      }
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async createMealTask(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (!["planned", "cooking"].includes(mealRun.status)) throw codedError("meal_task_unavailable", "Tasks can only be created before dinner is served.");
+      const type = input.type === "buy" || input.type === "prep" ? input.type : "";
+      const label = sanitizeText(input.label, "", 64);
+      if (!type || !label) throw codedError("meal_task_invalid", "Meal task type and label are required.");
+      const now = new Date().toISOString();
+      const task = {
+        id: randomUUID(),
+        token: randomBytes(24).toString("base64url"),
+        mealRunId: mealRun.id,
+        householdId: mealRun.householdId,
+        type,
+        label,
+        status: "open",
+        createdBy: userId,
+        claimedBy: "",
+        completedBy: "",
+        createdAt: now,
+        updatedAt: now,
+        claimedAt: "",
+        completedAt: "",
+      };
+      this.data.mealTasks.unshift(task);
+      this.data.mealTasks = this.data.mealTasks.slice(0, 5000);
+      return task;
+    });
+  }
+
+  async getMealTask(token) {
+    await this.load();
+    return this.data.mealTasks.find((task) => task.token === token) ?? null;
+  }
+
+  async claimMealTask(userId, token) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const task = this.data.mealTasks.find((entry) => entry.token === token);
+      if (!task) return null;
+      this.requireFormalMemberHousehold(userId, task.householdId);
+      if (task.status === "claimed" && task.claimedBy === userId) return task;
+      if (task.status !== "open") throw codedError("meal_task_claimed", "This task is already claimed or completed.");
+      const now = new Date().toISOString();
+      task.status = "claimed";
+      task.claimedBy = userId;
+      task.claimedAt = now;
+      task.updatedAt = now;
+      return task;
+    });
+  }
+
+  async completeMealTask(userId, token) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const task = this.data.mealTasks.find((entry) => entry.token === token);
+      if (!task) return null;
+      const household = this.requireFormalMemberHousehold(userId, task.householdId);
+      if (task.status === "completed" && task.completedBy === userId) return task;
+      if (task.status !== "claimed" || (task.claimedBy !== userId && household.ownerId !== userId)) {
+        throw codedError("meal_task_forbidden", "Only the assignee or household owner can complete this task.");
+      }
+      const now = new Date().toISOString();
+      task.status = "completed";
+      task.completedBy = userId;
+      task.completedAt = now;
+      task.updatedAt = now;
+      return task;
+    });
+  }
+
+  async createMealReminder(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      this.requireFormalMemberHousehold(userId, householdId);
+      const scheduledAt = sanitizeIsoDate(input.scheduledAt, "reminder_time_invalid");
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const effortTier = sanitizeEffortTier(input.effortTier);
+      const now = new Date().toISOString();
+      const reminder = {
+        id: randomUUID(),
+        userId,
+        householdId,
+        dateKey,
+        mealSlot: "dinner",
+        effortTier,
+        scheduledAt,
+        nextAttemptAt: scheduledAt,
+        status: "scheduled",
+        attempts: 0,
+        templateId: sanitizeText(input.templateId, "", 120),
+        createdAt: now,
+        updatedAt: now,
+        sentAt: "",
+        cancelledAt: "",
+        failedAt: "",
+        lastError: "",
+      };
+      this.data.mealReminders.unshift(reminder);
+      this.data.mealReminders = this.data.mealReminders.slice(0, 5000);
+      return reminder;
+    });
+  }
+
+  async cancelMealReminder(userId, reminderId) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder) return null;
+      if (reminder.userId !== userId) throw codedError("forbidden", "Only the reminder owner can cancel it.");
+      if (["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
+      const now = new Date().toISOString();
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.updatedAt = now;
+      return reminder;
+    });
+  }
+
+  async getDueMealReminders(now = new Date().toISOString()) {
+    await this.load();
+    const nowMs = Date.parse(now);
+    return this.data.mealReminders.filter((reminder) => (
+      ["scheduled", "retrying"].includes(reminder.status)
+      && Date.parse(reminder.nextAttemptAt || reminder.scheduledAt) <= nowMs
+    ));
+  }
+
+  async shouldCancelMealReminder(reminder) {
+    await this.load();
+    return this.data.mealRuns.some((run) => (
+      run.householdId === reminder.householdId
+      && run.dateKey === reminder.dateKey
+      && run.mealSlot === reminder.mealSlot
+      && ["completed", "abandoned"].includes(run.status)
+    ));
+  }
+
+  async markMealReminderCancelled(reminderId) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || ["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
+      const now = new Date().toISOString();
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.updatedAt = now;
+      return reminder;
+    });
+  }
+
+  async markMealReminderSent(reminderId, sentAt = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || reminder.status === "sent") return reminder;
+      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      reminder.status = "sent";
+      reminder.sentAt = sentAt;
+      reminder.updatedAt = sentAt;
+      reminder.lastError = "";
+      return reminder;
+    });
+  }
+
+  async markMealReminderFailure(reminderId, message, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || ["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
+      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      reminder.lastError = sanitizeText(message, "send_failed", 120);
+      reminder.updatedAt = now;
+      if (reminder.attempts >= 2) {
+        reminder.status = "failed";
+        reminder.failedAt = now;
+      } else {
+        reminder.status = "retrying";
+        reminder.nextAttemptAt = new Date(Date.parse(now) + 5 * 60 * 1000).toISOString();
+      }
+      return reminder;
+    });
+  }
+
+  async getWechatOpenIdForUser(userId) {
+    await this.load();
+    return this.data.identities.find((identity) => (
+      identity.userId === userId && identity.provider === "wechat_miniprogram"
+    ))?.providerUserId || "";
+  }
+
+  async recordProductEvent(userId, householdId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      this.requireFormalMemberHousehold(userId, householdId);
+      const eventType = sanitizeProductEventType(input.eventType);
+      const effortTier = input.effortTier ? sanitizeEffortTier(input.effortTier) : "";
+      const mealRunId = sanitizeText(input.mealRunId, "", 100);
+      if (mealRunId) {
+        const mealRun = this.data.mealRuns.find((run) => run.id === mealRunId && run.householdId === householdId);
+        if (!mealRun) throw codedError("meal_run_not_found", "Meal run not found for this household.");
+      }
+      const now = new Date().toISOString();
+      const cutoff = Date.parse(now) - 180 * 24 * 60 * 60 * 1000;
+      this.data.productEvents = this.data.productEvents.filter((event) => Date.parse(event.occurredAt || event.createdAt) >= cutoff);
+      const event = {
+        id: randomUUID(),
+        eventType,
+        userId,
+        householdId,
+        mealRunId,
+        recommendationId: sanitizeText(input.recommendationId, "", 100),
+        effortTier,
+        occurredAt: now,
+      };
+      this.data.productEvents.push(event);
+      return event;
+    });
+  }
+
+  requireMealRunForMember(userId, mealRunId) {
+    const mealRun = this.data.mealRuns.find((run) => run.id === mealRunId);
+    if (!mealRun) throw codedError("meal_run_not_found", "Meal run not found.");
+    this.requireFormalMemberHousehold(userId, mealRun.householdId);
+    return mealRun;
+  }
+
   assertCollaborationActionClaimable(action, userId) {
     const claimedByUserId = sanitizeText(action?.claimedByUserId || action?.memberId, "", 100);
     if (claimedByUserId && claimedByUserId !== userId) {
@@ -1360,6 +1769,53 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function sanitizeDateKey(value) {
+  const dateKey = sanitizeText(value, "", 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isFinite(Date.parse(`${dateKey}T00:00:00.000Z`))) {
+    throw codedError("date_key_invalid", "dateKey must use YYYY-MM-DD.");
+  }
+  return dateKey;
+}
+
+function sanitizeIsoDate(value, code = "date_invalid") {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) throw codedError(code, "A valid ISO date is required.");
+  return date.toISOString();
+}
+
+function sanitizeOptionalIsoDate(value) {
+  if (!value) return "";
+  return sanitizeIsoDate(value, "timer_end_invalid");
+}
+
+function sanitizeEffortTier(value) {
+  if (["quick_15", "easy_30", "normal"].includes(value)) return value;
+  throw codedError("effort_tier_invalid", "Unsupported effort tier.");
+}
+
+function sanitizeRecipeIds(value) {
+  const recipeIds = [...new Set((Array.isArray(value) ? value : [])
+    .map((recipeId) => sanitizeText(recipeId, "", 100))
+    .filter(Boolean))].slice(0, 6);
+  if (recipeIds.length === 0) throw codedError("meal_recipes_required", "Choose at least one recipe.");
+  return recipeIds;
+}
+
+function sanitizeAbandonReason(value) {
+  if (["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"].includes(value)) return value;
+  throw codedError("abandon_reason_invalid", "Unsupported abandon reason.");
+}
+
+function sanitizeMealFeedback(value) {
+  if (["want_again", "change_next_time", "too_much_effort"].includes(value)) return value;
+  throw codedError("meal_feedback_invalid", "Unsupported meal feedback.");
+}
+
+function sanitizeProductEventType(value) {
+  if (["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"].includes(value)) return value;
+  throw codedError("product_event_invalid", "Unsupported product event.");
 }
 
 function sanitizeCollaborationRequestType(value) {
