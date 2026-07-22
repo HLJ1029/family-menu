@@ -57,6 +57,63 @@ export async function saveHumiState(session, state, householdId = state?.househo
   return data.state ?? null;
 }
 
+export function createHumiMealRun(session, payload) {
+  return humiApiRequest("/meal-runs", { method: "POST", session, body: payload });
+}
+
+export function loadCurrentHumiMealRun(session, { householdId, dateKey, mealSlot = "dinner" }) {
+  const params = new URLSearchParams({ householdId, dateKey, mealSlot });
+  return humiApiRequest(`/meal-runs/current?${params.toString()}`, { session });
+}
+
+export function startHumiMealRun(session, mealRunId) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/start`, { method: "POST", session, body: {} });
+}
+
+export function updateHumiMealRunProgress(session, mealRunId, payload) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/progress`, { method: "PUT", session, body: payload });
+}
+
+export function completeHumiMealRun(session, mealRunId) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/complete`, { method: "POST", session, body: {} });
+}
+
+export function abandonHumiMealRun(session, mealRunId, reason) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/abandon`, { method: "POST", session, body: { reason } });
+}
+
+export function updateHumiMealRunFeedback(session, mealRunId, value) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/feedback`, { method: "PUT", session, body: { value } });
+}
+
+export function createHumiMealTask(session, mealRunId, payload) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/tasks`, { method: "POST", session, body: payload });
+}
+
+export function claimHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/claim`, { method: "POST", session, body: {} });
+}
+
+export function completeHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/complete`, { method: "POST", session, body: {} });
+}
+
+export function loadHumiMealReminderConfig(session) {
+  return humiApiRequest("/meal-reminders/config", { session });
+}
+
+export function createHumiMealReminder(session, payload) {
+  return humiApiRequest("/meal-reminders", { method: "POST", session, body: payload });
+}
+
+export function cancelHumiMealReminder(session, reminderId) {
+  return humiApiRequest(`/meal-reminders/${encodeURIComponent(reminderId)}`, { method: "DELETE", session });
+}
+
+export function recordHumiProductEvent(session, payload) {
+  return humiApiRequest("/product-events", { method: "POST", session, body: payload });
+}
+
 export function updateHumiIdentityProfile(session, profile) {
   return humiApiRequest("/identity/profile", {
     method: "PUT",

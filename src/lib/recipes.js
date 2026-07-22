@@ -1,6 +1,6 @@
 import rawRecipes from "../../data/recipes.json" with { type: "json" };
 import { publicAssetUrl } from "./assets";
-import { attachCookAssist } from "./mealExecution";
+import { attachCookAssist } from "./mealExecution.js";
 
 export const recipes = rawRecipes.map((recipe) => attachCookAssist(recipe));
 

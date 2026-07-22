@@ -52,13 +52,13 @@
 - `MealRun.abandonReason`: `too_much_effort | missing_ingredients | plans_changed | cooking_failed`.
 - Routes: create/current/start/progress/complete/abandon/feedback, meal tasks create/claim/complete, reminder config/create/delete, and allowlisted product events.
 
-- [ ] Write API smoke tests for feature gating, owner-only planning, formal-member execution, guest denial, one-current-dinner uniqueness, legal transitions, idempotency, feedback upsert, task claims, reminder consent storage, event allowlisting, and 180-day event pruning.
-- [ ] Run `npm run validate:meal-execution-api` and confirm the new routes return 404.
-- [ ] Extend default storage with `mealRuns`, `mealTasks`, `mealReminders`, and `productEvents`; implement all mutations through `mutateAndSave`.
-- [ ] Add route handlers and server-side sanitization; build certified snapshots/timelines on the server rather than trusting client instructions.
-- [ ] Add one-time WeChat subscribe-message delivery with at most one technical retry and cancellation when the target meal is already completed/abandoned.
-- [ ] Re-run meal execution API smoke plus the existing API/household/identity suites.
-- [ ] Commit the backend state machine.
+- [x] Write API smoke tests for feature gating, owner-only planning, formal-member execution, guest denial, one-current-dinner uniqueness, legal transitions, idempotency, feedback upsert, task claims, reminder consent storage, event allowlisting, and 180-day event pruning.
+- [x] Run `npm run validate:meal-execution-api` and confirm the new routes return 404.
+- [x] Extend default storage with `mealRuns`, `mealTasks`, `mealReminders`, and `productEvents`; implement all mutations through `mutateAndSave`.
+- [x] Add route handlers and server-side sanitization; build certified snapshots/timelines on the server rather than trusting client instructions.
+- [x] Add one-time WeChat subscribe-message delivery with at most one technical retry and cancellation when the target meal is already completed/abandoned.
+- [x] Re-run meal execution API smoke plus the existing API/household/identity suites.
+- [x] Commit the backend state machine.
 
 ### Task 3: Local-first execution controller and API client
 

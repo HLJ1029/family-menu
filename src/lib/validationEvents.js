@@ -33,6 +33,11 @@ export const productEvents = {
   auth: "auth",
   familyCreated: "family_created",
   profileSaved: "profile_saved",
+  effortTierViewed: "effort_tier_viewed",
+  effortTierSelected: "effort_tier_selected",
+  planPresented: "plan_presented",
+  planAccepted: "plan_accepted",
+  reminderOpened: "reminder_opened",
 };
 
 export function trackValidationEvent(eventName, payload = {}) {
