@@ -322,6 +322,64 @@ Authorization: Bearer <accessToken>
 - 感觉征集、买菜认领、清单、基础推荐永远免费不限次数。
 - 高成本精准 API 才进入尝鲜额度/Plus 家庭版。
 
+## 晚餐执行：每周做成两顿
+
+该能力默认关闭。只有 `HUMI_MEAL_EXECUTION_ENABLED=1`，且当前家庭 ID 命中 `HUMI_MEAL_EXECUTION_HOUSEHOLDS`（逗号分隔，或 `*`）时，`GET /me` 与 `GET /state` 才返回 `capabilities.mealExecution=true`。H5 只在该 capability 为真、且当前菜单全部为认证菜谱时展示新流程；否则保持原有今晚流程。
+
+正式接口均要求 `Authorization: Bearer <accessToken>`：
+
+- `POST /meal-runs`：owner 为指定日期晚餐创建或替换 `planned` 记录；必须携带 `idempotencyKey`。当天现有 `planned` 可替换，`cooking` 或 `completed` 不可覆盖。
+- `GET /meal-runs/current?householdId=...&dateKey=YYYY-MM-DD&mealSlot=dinner`：正式成员读取当天当前晚餐。
+- `POST /meal-runs/:id/start`：正式成员开始做饭；重复调用返回同一 `startedAt`。
+- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤，等待计时只保存绝对时间 `timerEndsAt`。
+- `POST /meal-runs/:id/downgrade`：正式成员执行 `remove_optional_side | lower_effort_recipe | ready_staple`。
+- `POST /meal-runs/:id/complete`：只有该接口对应的明确“上桌了”动作把状态改为 `completed`；重复调用不重复计数。
+- `POST /meal-runs/:id/abandon`：原因仅允许 `too_much_effort | missing_ingredients | plans_changed | cooking_failed`，不破坏周节奏。
+- `PUT /meal-runs/:id/feedback`：完成后按成员幂等更新 `want_again | change_next_time | too_much_effort`。
+
+`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、绝对计时器、操作者、时间戳、降级历史和家庭反馈。运行时不调用 AI 生成烹饪步骤。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并重放状态，`syncedFromLocalId` 用于避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放幂等状态操作。
+
+权限边界：
+
+- owner 可选择/替换家庭晚餐，也可以执行做饭。
+- 正式 member 不能修改家庭菜单，但可以开始、推进、降级、确认上桌、反馈和创建/完成协作任务。
+- 游客只能在本机完成选择和做饭，不能创建/领取家庭任务，也不能创建微信提醒。
+
+### 家庭做饭任务
+
+- `POST /meal-runs/:id/tasks`：从认证快照生成 `buy` 或 `prep` 任务，服务端生成安全展示文案和不可预测 token。
+- `GET /meal-tasks/:token`：只有该家庭正式成员可读取任务。
+- `POST /meal-tasks/:token/claim`：正式成员幂等认领；游客和陌生家庭不得读取或认领。
+- `POST /meal-tasks/:token/complete`：认领者或 owner 标记完成。
+
+小程序分享类型为 `meal_task`，深链参数为 `mealTask=<token>&shareSource=meal_task`。分享任务不阻塞发起者继续单人做饭。
+
+### 微信一次性提醒
+
+- `GET /meal-reminders/config`：正式成员读取服务端配置的订阅模板 ID。
+- `POST /meal-reminders`：只接受原生页在用户点击后取得 `accept` 的请求；请求必须包含 `accepted=true` 和匹配的 `templateId`。
+- `DELETE /meal-reminders/:id`：创建者取消尚未发送的提醒。
+
+H5 只负责收集用户主动选择的下一次做饭时间，然后导航到原生 `/pages/reminder/index`。原生页 `onLoad` 不调用 `wx.requestSubscribeMessage`；只有用户再次点击确认按钮才请求微信授权。拒绝后本机记忆为拒绝，不再重复索取；拒绝或取消都不会创建服务端提醒。发送失败最多重试一次，成功、失败或取消后不会再投递；目标日期晚餐已经完成或放弃时自动取消。
+
+### 分析与保留
+
+客户端只允许上报 `effort_tier_viewed`、`effort_tier_selected`、`plan_presented`、`plan_accepted`、`reminder_opened`，不上传昵称或自由文本。开始、完成和放弃由状态接口在服务端形成事实。原始产品事件保留 180 天；家庭可见的晚餐记录持续保留。
+
+灰度验证固定为 10–20 个真实家庭、两周：方案展示→开始做饭 ≥50%，开始→上桌 ≥70%，首顿完成家庭 7 天内第二顿 ≥40%，并观察激活家庭每周 Humi 辅助晚餐完成数中位数是否达到 2。回滚只需先把 `HUMI_MEAL_EXECUTION_ENABLED` 改为 `0` 并重启 API；旧今晚流程与历史 `MealRun` 数据都保留，不执行数据删除。
+
+相关环境变量：
+
+| 变量 | 用途 |
+| --- | --- |
+| `HUMI_MEAL_EXECUTION_ENABLED` | 总开关；默认 `0`。 |
+| `HUMI_MEAL_EXECUTION_HOUSEHOLDS` | 家庭 ID 白名单，逗号分隔；`*` 表示全部家庭。 |
+| `HUMI_MEAL_REMINDER_TEMPLATE_ID` | 微信一次性订阅消息模板 ID。 |
+| `HUMI_MEAL_REMINDER_THING_KEY` | 模板中的事项字段 key，默认 `thing1`。 |
+| `HUMI_MEAL_REMINDER_TIME_KEY` | 模板中的时间字段 key，默认 `time2`。 |
+
+生产启用前必须完成 30 道菜的厨房走查、10 组双菜组合、390×844 真机全流程和订阅消息真实送达验证。本地候选完成不等于允许部署、扩白名单或提交微信审核。
+
 ## 发布前平台配置
 
 - request 合法域名：`api.humi-home.com`

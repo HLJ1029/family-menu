@@ -131,8 +131,8 @@
 - `HUMI_MEAL_EXECUTION_ENABLED=0` by default; `HUMI_MEAL_EXECUTION_HOUSEHOLDS` is a comma-separated allowlist or `*`.
 - `HUMI_MEAL_REMINDER_TEMPLATE_ID`, `HUMI_MEAL_REMINDER_THING_KEY`, and `HUMI_MEAL_REMINDER_TIME_KEY` configure the one-time template without storing secrets in the repository.
 
-- [ ] Document state transitions, permissions, rollout flags, reminder configuration, rollback, and the 2-week 10–20-family validation rubric.
-- [ ] Run all new checks, existing API/identity/household/entry/product/collaboration checks, `npm run build`, `git diff --check`, Supabase retirement validation, and AI-HQ secret scan.
-- [ ] Verify the feature-disabled path is byte-for-behavior compatible with the existing Tonight flow.
-- [ ] Record the local candidate and evidence; do not deploy, submit for review, or enable production rollout without a separate production checkpoint.
-- [ ] Use `superpowers:finishing-a-development-branch` for branch handoff.
+- [x] Document state transitions, permissions, rollout flags, reminder configuration, rollback, and the 2-week 10–20-family validation rubric.
+- [x] Run all new checks, existing API/identity/household/entry/product/collaboration checks, `npm run build`, `git diff --check`, Supabase retirement validation, and AI-HQ secret scan.
+- [x] Verify the feature-disabled path is byte-for-behavior compatible with the existing Tonight flow.
+- [x] Record the local candidate and evidence; do not deploy, submit for review, or enable production rollout without a separate production checkpoint.
+- [x] Use `superpowers:finishing-a-development-branch` for branch handoff.

@@ -226,6 +226,7 @@ function App() {
   const [mealExecutionCapabilities, setMealExecutionCapabilities] = useState({ mealExecution: false });
   const [mealExecutionPending, setMealExecutionPending] = useState(false);
   const [mealExecutionStatus, setMealExecutionStatus] = useState("");
+  const [mealExecutionFallback, setMealExecutionFallback] = useState(false);
   const identityComplete = humiSession?.user?.profileStatus === "complete";
   const signedIn = Boolean(humiSession?.user && identityComplete);
   const preciseRecommendationAvailable = Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked;
@@ -251,6 +252,10 @@ function App() {
     setPreciseRecommendationBlocked(false);
   }, [humiSession?.user?.id]);
 
+  useEffect(() => {
+    setMealExecutionFallback(false);
+  }, [family?.id, humiSession?.user?.id, mealExecutionCapabilities.mealExecution]);
+
   const slotLabelsById = useMemo(
     () => Object.fromEntries(mealSlots.map((slot) => [slot.id, slot.label])),
     [],
@@ -272,7 +277,7 @@ function App() {
     householdId: mealExecutionHouseholdId,
     weekStartDateKey: formatDateKey(getWeekStartDate()),
   }), [mealExecutionHouseholdId, mealExecutionRuns]);
-  const mealExecutionExperienceEnabled = mealExecutionEnabled && (
+  const mealExecutionExperienceEnabled = mealExecutionEnabled && !mealExecutionFallback && (
     Boolean(activeMealRun)
     || todayMenu.length === 0
     || todayMenu.every((entry) => getRecipe(entry.recipeId)?.cookAssist?.status === "certified")
@@ -492,6 +497,7 @@ function App() {
         if (active) {
           mealRunHydrationRef.current = "";
           setMealExecutionStatus(error.message || "做饭记录暂时无法同步，本机仍可继续。" );
+          if (!activeMealRun) setMealExecutionFallback(true);
         }
       }
     }
@@ -1072,6 +1078,7 @@ function App() {
       setMealExecutionStatus("今晚就按这套来，想开始时再点开始做。" );
     } catch (error) {
       setMealExecutionStatus(error.message || "这套方案暂时没保存下来，请稍后再试。" );
+      if (isHumiApiSession(humiSession)) setMealExecutionFallback(true);
     } finally {
       setMealExecutionPending(false);
     }
@@ -1244,6 +1251,19 @@ function App() {
       upsertMealExecutionRun(nextRun);
       return nextRun;
     } catch (error) {
+      if (isHumiApiSession(humiSession) && family?.id && isMealExecutionNetworkError(error)) {
+        const pendingRun = {
+          ...transitionLocalMealRun(activeMealRun, action, {
+            ...payload,
+            userId: currentHouseholdMemberId || "guest",
+          }),
+          syncStatus: "pending",
+        };
+        enqueueMealExecutionOperation(activeMealRun.id, action, payload);
+        upsertMealExecutionRun(pendingRun);
+        setMealExecutionStatus("网络不稳，进度已先保存在本机，恢复后会同步。" );
+        return pendingRun;
+      }
       setMealExecutionStatus(error.message || "操作暂时没保存，本页不会把这顿算作完成。" );
       return null;
     } finally {
@@ -4337,6 +4357,11 @@ function persistMealExecutionValue(key, value) {
   } catch {
     // The current screen remains usable if private browsing blocks local persistence.
   }
+}
+
+function isMealExecutionNetworkError(error) {
+  const message = String(error?.message || "");
+  return error instanceof TypeError || /网络|连接|fetch|load failed|timeout/i.test(message);
 }
 
 function buildGroceryShareItems(groceryItems = [], customItems = [], checkedItems = {}) {
