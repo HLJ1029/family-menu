@@ -2,8 +2,18 @@ import assert from "node:assert/strict";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import vm from "node:vm";
 import { checkSupabaseRetirement } from "./check-supabase-retirement.mjs";
+import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
+import {
+  assertCandidateVersionIsUnused,
+  EXTERNAL_ACTION_KEYS,
+  findForbiddenRuntimeFindings,
+  validateNativeCandidateState,
+} from "./lib/native-rollout-readiness-policy.mjs";
+import {
+  CURRENT_MINIPROGRAM_VERSION,
+  NATIVE_SHELL_PREVIEW_VERSION,
+} from "./release-candidate.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const MINIPROGRAM_ROOT = resolve(ROOT, "miniprogram");
@@ -12,6 +22,8 @@ const SUBPACKAGE_LIMIT_BYTES = 2 * 1024 * 1024;
 const TOTAL_PACKAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 const EXPECTED_API_ORIGIN = "https://api.humi-home.com";
 const EXPECTED_WEB_ORIGIN = "https://www.humi-home.com";
+const LATEST_UPLOADED_VERSION = "1.1.73";
+const NATIVE_PREVIEW_VERSION = "1.1.74";
 const REQUIRED_SCRIPTS = Object.freeze([
   "validate:data",
   "validate:identity",
@@ -47,14 +59,6 @@ const REQUIRED_SCRIPTS = Object.freeze([
   "build",
   "release:native-shell:check",
 ]);
-const EXTERNAL_ACTIONS = Object.freeze([
-  "production_api_deployed",
-  "h5_deployed",
-  "miniprogram_uploaded",
-  "wechat_review_submitted",
-  "wechat_released",
-  "native_allowlist_enabled",
-]);
 const TEXT_EXTENSIONS = new Set([
   ".js",
   ".json",
@@ -67,27 +71,6 @@ const TEXT_EXTENSIONS = new Set([
   ".css",
   ".html",
 ]);
-const AD_PATTERNS = [
-  /<\s*ad(?:-custom)?(?:\s|\/|>)/i,
-  /\b(?:adUnitId|adunit|unit-id)\b/i,
-  /["']ad-custom["']/i,
-  /\bwx\.create(?:Banner|Interstitial|RewardedVideo|Custom)Ad\b/i,
-  /\b(?:Banner|Interstitial|RewardedVideo|Custom)Ad\b/,
-  /plugin:\/\/[^"'/\s]*ad[^"'\/\s]*/i,
-];
-const SUPABASE_PATTERNS = [
-  /@supabase\//i,
-  /supabase\.co/i,
-  /\b(?:VITE_)?SUPABASE_(?:URL|ANON_KEY|SERVICE_ROLE_KEY)\b/i,
-  /(?:from\s+|require\s*\()\s*["'][^"']*supabase/i,
-];
-const CREDENTIAL_PATTERNS = [
-  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
-  /\bAKIA[0-9A-Z]{16}\b/,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/,
-  /\b(?:WECHAT_APP_SECRET|HUMI_SESSION_SECRET|DEEPSEEK_API_KEY|ARK_API_KEY)\s*[:=]\s*["'][^"'$\s]{12,}["']/,
-];
-
 const failures = [];
 const checks = [];
 
@@ -156,6 +139,14 @@ await check("mini-program domains and platform configuration are legal", async (
   );
 });
 
+const packageVersion = extractPackageVersion(await text("miniprogram/utils/config.js"));
+await check("native preview uses a never-uploaded package version", async () => {
+  assert.equal(CURRENT_MINIPROGRAM_VERSION, LATEST_UPLOADED_VERSION, "release history must stay at 1.1.73");
+  assert.equal(NATIVE_SHELL_PREVIEW_VERSION, NATIVE_PREVIEW_VERSION, "native preview constant must stay at 1.1.74");
+  assert.equal(packageVersion, NATIVE_PREVIEW_VERSION, `native preview must freeze ${NATIVE_PREVIEW_VERSION}`);
+  assertCandidateVersionIsUnused(packageVersion, LATEST_UPLOADED_VERSION);
+});
+
 const packageReport = await calculatePackageSizes();
 await check("mini-program packages stay within WeChat size limits", async () => {
   assert(
@@ -176,32 +167,18 @@ await check("mini-program packages stay within WeChat size limits", async () => 
 
 await check("candidate runtime contains no ads, Supabase, or credential values", async () => {
   const runtimeRoots = ["api", "miniprogram", "public", "src"];
-  const findings = [];
+  const runtimeSources = [];
   for (const runtimeRoot of runtimeRoots) {
     const files = await listTextFiles(resolve(ROOT, runtimeRoot), { optional: true });
     for (const file of files) {
-      const source = await readFile(file, "utf8");
-      for (const pattern of AD_PATTERNS) {
-        if (pattern.test(source)) findings.push(`ad:${relative(ROOT, file)}`);
-      }
-      for (const pattern of SUPABASE_PATTERNS) {
-        if (pattern.test(source)) findings.push(`supabase:${relative(ROOT, file)}`);
-      }
-      for (const pattern of CREDENTIAL_PATTERNS) {
-        if (pattern.test(source)) findings.push(`credential:${relative(ROOT, file)}`);
-      }
-      if (extname(file) === ".json") {
-        const parsed = JSON.parse(source);
-        const componentEntries = Object.entries(parsed.usingComponents || {});
-        for (const [name, componentPath] of componentEntries) {
-          if (/^(?:ad|ad-custom)$/i.test(name) || /(?:^|\/)ad(?:-custom)?(?:\/|$)/i.test(String(componentPath))) {
-            findings.push(`ad-component:${relative(ROOT, file)}`);
-          }
-        }
-      }
+      runtimeSources.push({
+        path: relative(ROOT, file),
+        source: await readFile(file, "utf8"),
+      });
     }
   }
-  assert.deepEqual([...new Set(findings)].sort(), [], `forbidden runtime findings: ${findings.join(", ")}`);
+  const findings = findForbiddenRuntimeFindings(runtimeSources);
+  assert.deepEqual(findings, [], `forbidden runtime findings: ${JSON.stringify(findings)}`);
   const env = parseEnv(await text(".env.example"));
   for (const key of ["ARK_API_KEY", "HUMI_SESSION_SECRET", "WECHAT_APP_SECRET", "HUMI_TELEMETRY_HASH_SALT", "DEEPSEEK_API_KEY"]) {
     const value = env[key] || "";
@@ -217,12 +194,17 @@ await check("candidate runtime contains no ads, Supabase, or credential values",
   );
 });
 
-const rollbackReport = await runRollbackDrill();
+const rollbackReport = await runNativeRollbackDrill({ root: ROOT });
 await check("server-flag rollback returns to H5 without deleting product caches", async () => {
-  assert.equal(rollbackReport.enabledRoute, "/pages/tonight/index");
-  assert.equal(rollbackReport.disabledRoute, "/pages/legacy/index");
+  assert.equal(rollbackReport.serverStarted, true);
+  assert.equal(rollbackReport.requestCount, 2);
+  assert.deepEqual(rollbackReport.bootstrapCapabilities, [true, false]);
+  assert.deepEqual(rollbackReport.authorizationHeaders, ["Bearer session-rollout", "Bearer session-rollout"]);
+  assert.equal(rollbackReport.bootExecutions, 2);
+  assert.deepEqual(rollbackReport.switchTabRoutes, ["/pages/tonight/index"]);
+  assert.deepEqual(rollbackReport.relaunchRoutes, ["/pages/legacy/index"]);
   assert.deepEqual(
-    rollbackReport.removedKeys.sort(),
+    [...rollbackReport.removedKeys].sort(),
     [
       "humi:bootstrap:last-household:v1:user-rollout",
       "humi:household-cache:v1:user-rollout:household-rollout",
@@ -230,24 +212,42 @@ await check("server-flag rollback returns to H5 without deleting product caches"
     "rollback must clear only the bootstrap pointer and its one household read cache",
   );
   assert.equal(rollbackReport.productCachePreserved, true, "rollback must preserve MealRun and product data");
+  assert.equal(rollbackReport.serverFixtureMutations, 1, "only nativeShellEnabled may change");
+  assert.equal(rollbackReport.householdFixture, "household-rollout");
+  assert.equal(rollbackReport.allowlistPreserved, true, "the test household allowlist must remain unchanged");
 });
 
+let repositoryCandidateState = null;
 await check("repository handoff records preview-only external state", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
-  assert.match(handoff, /native_shell_candidate:\s*\n\s+status:\s*preview\b/);
-  assert.match(handoff, /\n\s+ads:\s*excluded\b/);
-  for (const action of EXTERNAL_ACTIONS) {
-    assert.match(handoff, new RegExp(`\\n\\s+${action}:\\s*false\\b`));
-  }
-  assert.match(handoff, /true_device_evidence:\s*0\/36\b/);
+  repositoryCandidateState = validateNativeCandidateState(handoff, {
+    expectedPackageVersion: packageVersion,
+  });
   assert.match(handoff, /downloadFile[\s\S]{0,200}(?:missing|未配置|阻塞)/i);
   assert.match(tracker, /原生壳候选：preview/);
+  assert.match(tracker, /原生包版本：`1\.1\.74`/);
+  assert.match(tracker, /已上传兼容版：`1\.1\.73`/);
   assert.match(tracker, /真机证据：0\/36/);
   assert.match(apiContract, /关闭 `HUMI_NATIVE_SHELL_ENABLED`/);
   assert.match(apiContract, /不删除 MealRun/);
 });
+
+const externalHandoffPath = String(process.env.HUMI_NATIVE_HANDOFF_PATH || "").trim();
+if (externalHandoffPath) {
+  await check("AI-HQ native handoff matches the immutable preview state", async () => {
+    const externalHandoff = await readFile(resolve(externalHandoffPath), "utf8");
+    const externalCandidateState = validateNativeCandidateState(externalHandoff, {
+      expectedPackageVersion: packageVersion,
+    });
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(repositoryCandidateState).map((key) => [key, externalCandidateState[key]])),
+      repositoryCandidateState,
+      "AI-HQ candidate state must match the repository handoff",
+    );
+  });
+}
 
 const report = {
   contractOk: failures.length === 0,
@@ -256,7 +256,9 @@ const report = {
   checks,
   package: packageReport,
   rollback: rollbackReport,
-  externalActions: Object.fromEntries(EXTERNAL_ACTIONS.map((action) => [action, false])),
+  packageVersion,
+  latestUploadedVersion: LATEST_UPLOADED_VERSION,
+  externalActions: Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, false])),
   platformEvidence: {
     trueDevicePassed: 0,
     trueDeviceRequired: 36,
@@ -272,7 +274,6 @@ const report = {
   failures,
 };
 
-report.packageVersion = extractPackageVersion(await text("miniprogram/utils/config.js"));
 report.platformEvidence.wechatDevtoolsAuthenticated = false;
 report.platformEvidence.productionLegacyH5SmokeVerified = false;
 report.blockers.push(
@@ -365,58 +366,4 @@ async function treeBytes(directory, { excludeTopLevel = new Set() } = {}) {
     else if (entry.isFile()) total += (await stat(path)).size;
   }
   return total;
-}
-
-async function runRollbackDrill() {
-  const bootstrapSource = await text("miniprogram/utils/bootstrap.js");
-  const storage = new Map([
-    ["humi:bootstrap:last-household:v1:user-rollout", "household-rollout"],
-    ["humi:household-cache:v1:user-rollout:household-rollout", { schemaVersion: 1 }],
-    ["humi:meal-run:v1:user-rollout", { status: "cooking" }],
-  ]);
-  const removedKeys = [];
-  const bootstrapModule = { exports: {} };
-  vm.runInNewContext(bootstrapSource, {
-    module: bootstrapModule,
-    exports: bootstrapModule.exports,
-    require(specifier) {
-      if (specifier === "./cache") {
-        return {
-          householdCacheKey: (householdId, userId) => `humi:household-cache:v1:${userId}:${householdId}`,
-          readHouseholdCache: () => null,
-          writeHouseholdCache: () => {},
-        };
-      }
-      if (specifier === "./request") return { requestHumi: async () => ({}) };
-      throw new Error(`unexpected bootstrap dependency: ${specifier}`);
-    },
-    wx: {
-      getStorageSync: (key) => storage.get(key),
-      removeStorageSync: (key) => {
-        removedKeys.push(key);
-        storage.delete(key);
-      },
-      setStorageSync: (key, value) => storage.set(key, value),
-    },
-  });
-  const { clearBootstrapCacheForUser, resolveStartupRoute } = bootstrapModule.exports;
-  const envelope = {
-    capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true },
-    user: { id: "user-rollout", profileStatus: "complete" },
-  };
-  const enabledRoute = resolveStartupRoute({ candidate: true, envelope }).route;
-  clearBootstrapCacheForUser("user-rollout");
-  const disabledRoute = resolveStartupRoute({
-    candidate: true,
-    envelope: {
-      ...envelope,
-      capabilities: { ...envelope.capabilities, nativeShellEnabled: false },
-    },
-  }).route;
-  return {
-    enabledRoute,
-    disabledRoute,
-    removedKeys,
-    productCachePreserved: storage.has("humi:meal-run:v1:user-rollout"),
-  };
 }

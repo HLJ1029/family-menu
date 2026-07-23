@@ -699,7 +699,7 @@ async function nextTask() {
     errorMessage: "arbitrary error"
   });
   const event = telemetry.readPendingTelemetry()[0];
-  assert.deepEqual(JSON.parse(JSON.stringify(event.fields)), { householdId: "h1", durationMs: 12, packageVersion: "1.1.72" });
+  assert.deepEqual(JSON.parse(JSON.stringify(event.fields)), { householdId: "h1", durationMs: 12, packageVersion: "1.1.74" });
   telemetry.trackEvent("bootstrap_failed", {
     householdId: "this is arbitrary free text, not an id",
     sessionId: "session details from a user message",
@@ -707,7 +707,7 @@ async function nextTask() {
     stage: "not-a-declared-stage",
     result: "not-a-declared-result"
   });
-  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), { packageVersion: "1.1.72" }, "free text must not masquerade as IDs, error codes, stages, or results");
+  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), { packageVersion: "1.1.74" }, "free text must not masquerade as IDs, error codes, stages, or results");
   assert.equal(telemetry.trackEvent("not_declared", { householdId: "h1" }), null);
   for (let index = 0; index < 24; index += 1) telemetry.trackEvent("native_boot_started", { page: "boot" });
   const batches = [];
@@ -725,7 +725,7 @@ async function nextTask() {
     result: "completed",
     durationMs: 4,
     errorCode: "none",
-    packageVersion: "1.1.72"
+    packageVersion: "1.1.74"
   });
   const offlineSpan = telemetry.startSpan("bootstrap", { householdId: "h1" });
   const offlineEvent = offlineSpan.end("offline", { durationMs: 5, errorCode: "network_error" });
@@ -736,7 +736,7 @@ async function nextTask() {
     result: "offline",
     durationMs: 5,
     errorCode: "network_error",
-    packageVersion: "1.1.72"
+    packageVersion: "1.1.74"
   });
 }
 

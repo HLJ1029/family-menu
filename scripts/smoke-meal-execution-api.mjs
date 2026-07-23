@@ -805,7 +805,7 @@ try {
       stage: "completed",
       durationMs: 12,
       errorCode: "none",
-      packageVersion: "1.1.72",
+      packageVersion: "1.1.74",
       businessId: "meal-api-plan-presented",
     },
   });
@@ -821,7 +821,7 @@ try {
       stage: "completed",
       durationMs: 12,
       errorCode: "none",
-      packageVersion: "1.1.72",
+      packageVersion: "1.1.74",
       businessId: "meal-api-unsafe-field",
       nickname: "must-not-persist",
     },
@@ -837,7 +837,7 @@ try {
       stage: "completed",
       durationMs: 12,
       errorCode: "none",
-      packageVersion: "1.1.72",
+      packageVersion: "1.1.74",
       businessId: "meal-api-forged-server-fact",
     },
   }, 400, "product_event_not_allowed");
@@ -883,7 +883,7 @@ try {
       stage: "completed",
       durationMs: 1,
       errorCode: "none",
-      packageVersion: "1.1.72",
+      packageVersion: "1.1.74",
       businessId: "retention-plan-accepted",
     },
   });

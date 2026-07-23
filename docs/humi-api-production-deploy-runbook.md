@@ -12,7 +12,7 @@
 - 当前线上 H5：`https://www.humi-home.com/`
 - 当前生产部署提交：`129da03`；部署前备份 `/opt/humi/backups/20260718T114140Z`。
 - 最新 GitHub Pages：run `29642978938` / success / `npm run release:check:online` 已通过。
-- 最新小程序候选：`1.1.72` / `海报原生分享与保存到相册`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
+- 最新小程序候选：`1.1.73` / `修复身份完善入口`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -29,7 +29,7 @@
 - 1.1.52：买菜认领防覆盖，第二人覆盖别人认领/完成状态时返回 409。
 - 1.1.53：普通成员不能代替主厨发起家庭征集或生成买菜分享卡片，返回 403。
 - 1.1.54：`/crave-requests/:token/join` 返回家庭列表与共享 `state`。
-- 1.1.72：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
+- 1.1.73：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
 
 ## 3. 本地预检
 

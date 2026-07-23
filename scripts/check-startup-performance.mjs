@@ -200,7 +200,7 @@ await check("cached boot summary paints before the fresh bootstrap settles", asy
 await check("native performance events are allowlisted, versioned, and privacy-safe", () => {
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
     require: (specifier) => {
-      if (specifier === "./config") return { HUMI_PACKAGE_VERSION: "1.1.72" };
+      if (specifier === "./config") return { HUMI_PACKAGE_VERSION: "1.1.74" };
       throw new Error(`Unexpected telemetry dependency: ${specifier}`);
     },
   });

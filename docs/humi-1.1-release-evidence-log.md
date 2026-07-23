@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-18
+更新日期：2026-07-24
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -15,10 +15,10 @@
 | GitHub Pages deployment | `29642978938` / success / PR #34 merge `129da03` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.72` |
-| 小程序描述 | `海报原生分享与保存到相册` |
+| 小程序版本 | `1.1.73` |
+| 小程序描述 | `修复身份完善入口` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 五类 H5 分享入口均只触发一次原生发送页；菜单和清单海报已接入临时图片上传、微信原生图片分享与相册保存。`1.1.72` 已合并、生产部署并上传体验版；DevTools 自动化已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过。尚未提交微信审核 |
+| 当前状态 | 兼容版 `1.1.73` 已上传体验版，未提审、未发布；原生骨架 preview 预留 `1.1.74`，尚未上传。DevTools 自动化已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过 |
 
 ## 2. 发布前命令证据
 
@@ -91,6 +91,7 @@
 | 2026-07-18 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.72` / `海报原生分享与保存到相册` / package `43.1 KB` / `h5v=1.1.72`；preview QR SHA-256 `249472241ce8ddea623b6c1eddaa69af5459728c398d7f67479f137fc2e93027`；private evidence `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72`；未提交审核 |
 | 2026-07-18 | codex@mbp-m5pro | official miniprogram-automator / `wx.downloadFile` | P0 阻断 | 关闭合法域名跳过后请求 `https://api.humi-home.com/poster-shares/...jpg` 返回 `downloadFile:fail createDownloadTask:fail url not in domain list`；必须先在微信后台添加 downloadFile 合法域名，不能以 H5 或 DevTools 调试模式代替真机通过 |
 | 2026-07-18 | codex@mbp-m5pro | `npm run release:wechat:poster:domain` | P0 阻断可重复 | 仓库命令校验正式 AppID 与 `urlCheck: true` 后通过 DevTools 自动化调用 `wx.downloadFile`，稳定返回 `url not in domain list` 并以退出码 1 阻止误判；配置域名后用同一命令复测 |
+| 2026-07-20 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.73` / `修复身份完善入口` / upload package `54,838 bytes`；preview QR SHA-256 `335f63b9ac8bbb528312f26249cc6725ba925c775c3160bf38af460ec0da8efa`；private evidence `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z`；未提交审核、未发布 |
 
 ## 3. 生产 API 补部署证据
 
@@ -129,14 +130,14 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.72` |
+| 提交版本 | `1.1.73` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.72` 列表 | 已有 CLI 证据，后台截图待填 | `private:///Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72` | 上传成功，尚未提审 |
+| 上传版本 `1.1.73` 列表 | 已有 CLI 证据，后台截图待填 | `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z` | 上传成功，尚未提审 |
 | request / downloadFile 合法域名 `api.humi-home.com` | P0 未完成 | 待后台截图 | `release:wechat:poster:domain` 已确认 downloadFile 域名缺失；配置后必须重测 |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
@@ -164,7 +165,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.72` |
+| 发布版本 | `1.1.73` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

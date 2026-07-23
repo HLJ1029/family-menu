@@ -477,7 +477,7 @@ function evidenceEntry(scenario, overrides = {}) {
     device: "iPhone 15 Pro",
     platform: "iOS",
     wechatVersion: "8.0.56",
-    packageVersion: "1.1.72",
+    packageVersion: "1.1.74",
     householdFixture: fixture,
     startedAt: "2026-07-23T08:00:00.000Z",
     finishedAt: "2026-07-23T08:02:00.000Z",
@@ -565,7 +565,7 @@ function fakePng() {
 async function selftest() {
   const root = await mkdtemp(join(tmpdir(), "humi-true-device-evidence-"));
   const scenarios = Object.fromEntries(REQUIRED_SCENARIOS.map((scenario) => [scenario, evidenceEntry(scenario)]));
-  assert.equal(await readCandidatePackageVersion("HEAD"), "1.1.72");
+  assert.equal(await readCandidatePackageVersion(), "1.1.74");
   await writeFixture(root, scenarios);
   const accepted = await validateEvidence({
     evidenceDir: root,

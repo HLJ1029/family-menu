@@ -43,7 +43,7 @@ const checks = [];
 
 await check("client telemetry retains exactly the 30 reviewed native event names", () => {
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   });
   assert.deepEqual([...telemetry.EVENT_NAMES].sort(), EXPECTED_CLIENT_EVENTS);
 });
@@ -513,7 +513,7 @@ await check("client telemetry is durable across failure and retry with an unchan
     removeStorageSync: (key) => storage.delete(key),
   };
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   }, { wx });
   const tracked = telemetry.trackEvent("native_boot_completed", {
     page: "boot",
@@ -548,13 +548,13 @@ await check("cold starts and account transitions rotate telemetry sessions witho
     removeStorageSync: (key) => storage.delete(key),
   };
   const firstRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   }, { wx });
   firstRuntime.setTelemetryOwner("account-a", { rotate: false });
   const accountAEvent = firstRuntime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
 
   const secondRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   }, { wx });
   secondRuntime.setTelemetryOwner("account-a", { rotate: false });
   const coldStartEvent = secondRuntime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
@@ -621,7 +621,7 @@ await check("permanent poison events do not block a switched account or later gu
     removeStorageSync: (key) => storage.delete(key),
   };
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
     "./session": { getSession: () => activeSession },
     "./request": {
       rawRequest: async (options) => {
@@ -682,7 +682,7 @@ await check("network, 429, and 5xx failures remain queued and each flush attempt
     removeStorageSync: (key) => storage.delete(key),
   };
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   }, { wx });
   for (let index = 0; index < 25; index += 1) {
     telemetry.trackEvent("native_boot_completed", { page: "boot", stage: "completed", businessId: `batch-${index}` });
@@ -696,7 +696,7 @@ await check("network, 429, and 5xx failures remain queued and each flush attempt
   const actualStorage = new Map();
   const actualRequests = [];
   const actualRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
     "./session": { getSession: () => null },
     "./request": {
       rawRequest: async (options) => {
@@ -726,7 +726,7 @@ await check("network, 429, and 5xx failures remain queued and each flush attempt
   for (const status of [0, 429, 503]) {
     const runtimeStorage = new Map();
     const runtime = loadCommonJs("miniprogram/utils/telemetry.js", {
-      "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+      "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
       "./session": { getSession: () => null },
       "./request": {
         rawRequest: async () => {
@@ -758,7 +758,7 @@ await check("trackEvent schedules a delayed non-blocking server flush", async ()
     removeStorageSync: (key) => storage.delete(key),
   };
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
     "./session": { getSession: () => null },
     "./request": {
       rawRequest: async (options) => {
@@ -787,7 +787,7 @@ await check("trackEvent schedules a delayed non-blocking server flush", async ()
 
 await check("wire projection uses only the exact reviewed HTTP fields", () => {
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   });
   const event = telemetry.trackEvent("plan_presented", {
     householdId: "observability-household",
@@ -812,7 +812,7 @@ await check("wire projection uses only the exact reviewed HTTP fields", () => {
 
 await check("all effort tiers and share sources remain analytically distinct inside strict wire business ids", () => {
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
-    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   });
   for (const effortTier of ["quick_15", "easy_30", "normal"]) {
     const event = telemetry.trackEvent("effort_tier_selected", {
@@ -951,7 +951,7 @@ function clientEvent(overrides = {}) {
     stage: "completed",
     durationMs: 120,
     errorCode: "none",
-    packageVersion: "1.1.72",
+    packageVersion: "1.1.74",
     businessId: "event-observability-1",
     ...overrides,
   };

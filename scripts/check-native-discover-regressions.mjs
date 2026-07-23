@@ -9,7 +9,7 @@ const contentRoutes = await evaluateCommonJs(
   "miniprogram/utils/content-routes.js",
   {
     "./config": {
-      getHumiH5Url: () => "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.72&redirect=https%3A%2F%2Fevil.example",
+      getHumiH5Url: () => "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.74&redirect=https%3A%2F%2Fevil.example",
     },
   },
 );

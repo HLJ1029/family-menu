@@ -227,7 +227,7 @@ npm run release:candidate:review
   "device": "iPhone 15 Pro",
   "platform": "iOS",
   "wechatVersion": "8.0.56",
-  "packageVersion": "1.1.72",
+  "packageVersion": "1.1.74",
   "householdFixture": "owner-household",
   "startedAt": "2026-07-23T08:00:00.000Z",
   "finishedAt": "2026-07-23T08:02:00.000Z",

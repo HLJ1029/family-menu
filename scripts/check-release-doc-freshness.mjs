@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  NATIVE_SHELL_PREVIEW_VERSION,
 } from "./release-candidate.mjs";
 
 const checks = [
@@ -130,7 +131,8 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
-      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `最新已上传兼容版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `原生骨架 preview 固定使用从未上传的 \`${NATIVE_SHELL_PREVIEW_VERSION}\``,
     ],
   },
   {
@@ -178,7 +180,10 @@ const currentCandidateDocs = [
   },
   {
     path: "docs/humi-api-contract.md",
-    required: [`小程序 ${CURRENT_MINIPROGRAM_VERSION} 使用本合同`],
+    required: [
+      `已上传兼容版 ${CURRENT_MINIPROGRAM_VERSION} 使用本合同`,
+      `未上传的原生骨架 preview 固定为 ${NATIVE_SHELL_PREVIEW_VERSION}`,
+    ],
   },
 ];
 
@@ -192,10 +197,10 @@ for (const doc of currentCandidateDocs) {
 }
 
 const miniProgramConfig = await readFile("miniprogram/utils/config.js", "utf8");
-if (!miniProgramConfig.includes(`h5v=${CURRENT_MINIPROGRAM_VERSION}`)) {
+if (!miniProgramConfig.includes(`h5v=${NATIVE_SHELL_PREVIEW_VERSION}`)) {
   failures.push({
     path: "miniprogram/utils/config.js",
-    phrase: `missing h5v=${CURRENT_MINIPROGRAM_VERSION}`,
+    phrase: `missing h5v=${NATIVE_SHELL_PREVIEW_VERSION}`,
   });
 }
 
