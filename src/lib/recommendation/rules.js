@@ -321,7 +321,20 @@ export async function requestBalancedDinnerWithFallback({
 }) {
   try {
     const group = await requestServer(serverPayload);
-    if (validateServerGroup(group)) return { source: "server", group };
+    if (
+      validateServerGroup(group)
+      && String(group?.recommendationId || "").trim()
+      && String(group?.stateVersion || "").trim()
+    ) {
+      if (localInput?.storage) {
+        try {
+          seedLocalDinnerRotation(localInput, group);
+        } catch {
+          // A blocked localStorage write must not hide a valid authoritative response.
+        }
+      }
+      return { source: "server", group };
+    }
   } catch (error) {
     if (!isRecommendationConnectivityError(error)) throw error;
   }
@@ -329,6 +342,39 @@ export async function requestBalancedDinnerWithFallback({
     source: "local_fallback",
     group: localInput?.storage ? rotateLocalDinner(localInput) : buildLocalBalancedDinner(localInput),
   };
+}
+
+export function seedLocalDinnerRotation(input = {}, group = {}) {
+  const storage = input.storage;
+  if (!storage?.getItem || !storage?.setItem) {
+    throw new Error("Dinner rotation storage is required.");
+  }
+  const targetDishCount = normalizeDinnerDishCount(input);
+  if (!validateDinnerRecommendationIds(group, { ...input, targetDishCount })) {
+    throw new Error("A valid server dinner group is required.");
+  }
+  const scopeKey = localDinnerScopeKey(input);
+  const storageKey = localDinnerStorageKey(scopeKey);
+  const stored = readLocalDinnerRotation(storage, storageKey, scopeKey, input.householdId || "guest");
+  const recipeIds = [...new Set(group.recipeIds.map(String))];
+  const groupId = [...recipeIds].sort().join("+");
+  const nextRotation = {
+    scopeKey,
+    householdId: input.householdId || "guest",
+    seenRecipeIds: [
+      ...stored.seenRecipeIds.filter((recipeId) => !recipeIds.includes(recipeId)),
+      ...recipeIds,
+    ].slice(-200),
+    recentGroupIds: [
+      ...stored.recentGroupIds.filter((recentGroupId) => recentGroupId !== groupId),
+      groupId,
+    ].slice(-10),
+    cycle: stored.cycle,
+    updatedAt: new Date().toISOString(),
+    upstreamStateVersion: String(group.stateVersion || stored.upstreamStateVersion || ""),
+  };
+  storage.setItem(storageKey, JSON.stringify(nextRotation));
+  return nextRotation;
 }
 
 export function validateDinnerRecommendationIds(group, input = {}) {
@@ -406,14 +452,8 @@ export function rotateLocalDinner(input = {}) {
     throw new Error("Dinner rotation storage is required.");
   }
   const targetDishCount = normalizeDinnerDishCount(input);
-  const scopeKey = [
-    input.householdId || "guest",
-    input.dateKey,
-    input.mode,
-    input.effortTier || "legacy",
-    input.contextFingerprint,
-  ].join(":");
-  const storageKey = `humi:recommendation:v1:${scopeKey}`;
+  const scopeKey = localDinnerScopeKey(input);
+  const storageKey = localDinnerStorageKey(scopeKey);
   const stored = readLocalDinnerRotation(storage, storageKey, scopeKey, input.householdId || "guest");
   const action = ["next", "reject"].includes(input.action) ? input.action : "initial";
   if (action === "initial" && stored.seenRecipeIds.length >= targetDishCount) {
@@ -445,6 +485,7 @@ export function rotateLocalDinner(input = {}) {
     recentGroupIds: [...stored.recentGroupIds, [...selected.recipeIds].sort().join("+")].slice(-10),
     cycle: rotation.cycle,
     updatedAt: new Date().toISOString(),
+    upstreamStateVersion: stored.upstreamStateVersion,
   };
   storage.setItem(storageKey, JSON.stringify(nextRotation));
   return localDinnerGroup(
@@ -574,12 +615,21 @@ function readLocalDinnerRotation(storage, storageKey, scopeKey, householdId) {
         recentGroupIds: [...new Set(parsed.recentGroupIds.map(String))].slice(-10),
         cycle: Math.max(0, Number.parseInt(parsed.cycle, 10) || 0),
         updatedAt: String(parsed.updatedAt || ""),
+        upstreamStateVersion: String(parsed.upstreamStateVersion || ""),
       };
     }
   } catch {
     // Invalid local cursors are discarded and rebuilt from the scoped catalog.
   }
-  return { scopeKey, householdId, seenRecipeIds: [], recentGroupIds: [], cycle: 0, updatedAt: "" };
+  return {
+    scopeKey,
+    householdId,
+    seenRecipeIds: [],
+    recentGroupIds: [],
+    cycle: 0,
+    updatedAt: "",
+    upstreamStateVersion: "",
+  };
 }
 
 function localDinnerGroup(recipeIds, rotation, targetDishCount, exhausted, reasonCode) {
@@ -591,7 +641,22 @@ function localDinnerGroup(recipeIds, rotation, targetDishCount, exhausted, reaso
     exhausted,
     reasonCode,
     stateVersion: String(simpleDinnerHash(JSON.stringify(rotation))),
+    upstreamStateVersion: String(rotation.upstreamStateVersion || ""),
   };
+}
+
+function localDinnerScopeKey(input = {}) {
+  return [
+    input.householdId || "guest",
+    input.dateKey,
+    input.mode,
+    input.effortTier || "legacy",
+    input.contextFingerprint,
+  ].join(":");
+}
+
+function localDinnerStorageKey(scopeKey) {
+  return `humi:recommendation:v1:${scopeKey}`;
 }
 
 function simpleDinnerHash(value) {

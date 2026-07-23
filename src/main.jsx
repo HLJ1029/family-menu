@@ -1258,7 +1258,7 @@ function App() {
       result = { source: "local_guest", group: rotateLocalDinner(localInput) };
     }
     dinnerRecommendationStateRef.current.set(scopeKey, {
-      stateVersion: result.source === "server" ? result.group.stateVersion : currentStateVersion,
+      stateVersion: result.source === "server" ? result.group.stateVersion : result.group.upstreamStateVersion || currentStateVersion,
       recommendationId: result.group.recommendationId || "",
       recipeIds: [...result.group.recipeIds],
     });

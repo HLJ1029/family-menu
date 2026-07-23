@@ -64,6 +64,7 @@ function rotateGuestDinner(input = {}) {
     recentGroupIds: [...stored.recentGroupIds, [...recipeIds].sort().join("+")].slice(-10),
     cycle,
     updatedAt: new Date().toISOString(),
+    upstreamStateVersion: stored.upstreamStateVersion,
   };
   storage.setStorageSync(storageKey, next);
   return toGroup(recipeIds, next, targetDishCount, exhausted, exhausted ? "cycle_reset_recent_protected" : "balanced_unseen");
@@ -100,7 +101,16 @@ async function recommendDinner(input = {}) {
       expectedUserId: clean(context.expectedUserId),
       timeoutMs: Number(context.timeoutMs) || 4500,
     });
-    if (!validateRecommendationGroup(group, context)) throw codedError("recommendation_group_invalid");
+    if (
+      !validateRecommendationGroup(group, context)
+      || !clean(group.recommendationId)
+      || !clean(group.stateVersion)
+    ) throw codedError("recommendation_group_invalid");
+    try {
+      seedLocalDinnerRotation(context, group);
+    } catch (_) {
+      // A blocked local cursor write must not hide a valid authoritative response.
+    }
     return { ...group, source: "server" };
   } catch (error) {
     if (Number(error?.status) === 409 || error?.code === "recommendation_state_conflict" || error?.code === "meal_run_locked") {
@@ -113,11 +123,50 @@ async function recommendDinner(input = {}) {
 
 function localRecommendation(context, fallbackReason = "") {
   const group = rotateGuestDinner({ ...context, storage: context.storage || wx });
+  const isAuthenticatedScope = Boolean(clean(context.householdId) && context.householdId !== "guest");
   return {
     ...group,
+    stateVersion: isAuthenticatedScope
+      ? clean(context.stateVersion) || clean(group.upstreamStateVersion)
+      : group.stateVersion,
     source: "local_fallback",
     fallbackReason: clean(fallbackReason),
   };
+}
+
+function seedLocalDinnerRotation(input = {}, group = {}) {
+  const context = recommendationContext(input);
+  const storage = context.storage || wx;
+  const scopeKey = buildRecommendationScope(context);
+  const storageKey = `${storagePrefix}${scopeKey}`;
+  const targetDishCount = Number(context.targetDishCount) || defaultDishCount(context);
+  if (!validateRecommendationGroup(group, { ...context, targetDishCount })) {
+    throw codedError("recommendation_group_invalid");
+  }
+  const stored = normalizeRotation(
+    storage.getStorageSync(storageKey),
+    scopeKey,
+    context.householdId || "guest",
+  );
+  const recipeIds = [...new Set(group.recipeIds.map(clean).filter(Boolean))];
+  const groupId = [...recipeIds].sort().join("+");
+  const next = {
+    scopeKey,
+    householdId: clean(context.householdId || "guest") || "guest",
+    seenRecipeIds: [
+      ...stored.seenRecipeIds.filter((recipeId) => !recipeIds.includes(recipeId)),
+      ...recipeIds,
+    ].slice(-200),
+    recentGroupIds: [
+      ...stored.recentGroupIds.filter((recentGroupId) => recentGroupId !== groupId),
+      groupId,
+    ].slice(-10),
+    cycle: stored.cycle,
+    updatedAt: new Date().toISOString(),
+    upstreamStateVersion: clean(group.stateVersion || stored.upstreamStateVersion),
+  };
+  storage.setStorageSync(storageKey, next);
+  return next;
 }
 
 function buildContextFingerprint(input = {}) {
@@ -294,12 +343,21 @@ function toGroup(recipeIds, rotation, targetDishCount, exhausted, reasonCode) {
     exhausted,
     reasonCode,
     stateVersion: String(hash(JSON.stringify(rotation))),
+    upstreamStateVersion: clean(rotation.upstreamStateVersion),
   };
 }
 
 function normalizeRotation(value, scopeKey, householdId) {
   if (!value || value.scopeKey !== scopeKey) {
-    return { scopeKey, householdId: clean(householdId || "guest"), seenRecipeIds: [], recentGroupIds: [], cycle: 0, updatedAt: "" };
+    return {
+      scopeKey,
+      householdId: clean(householdId || "guest"),
+      seenRecipeIds: [],
+      recentGroupIds: [],
+      cycle: 0,
+      updatedAt: "",
+      upstreamStateVersion: "",
+    };
   }
   return {
     scopeKey,
@@ -308,6 +366,7 @@ function normalizeRotation(value, scopeKey, householdId) {
     recentGroupIds: [...new Set(Array.isArray(value.recentGroupIds) ? value.recentGroupIds.map(clean).filter(Boolean) : [])].slice(-10),
     cycle: Math.max(0, Number(value.cycle) || 0),
     updatedAt: clean(value.updatedAt),
+    upstreamStateVersion: clean(value.upstreamStateVersion),
   };
 }
 
@@ -340,5 +399,6 @@ module.exports = {
   buildRecommendationScope,
   recommendDinner,
   rotateGuestDinner,
+  seedLocalDinnerRotation,
   validateRecommendationGroup
 };

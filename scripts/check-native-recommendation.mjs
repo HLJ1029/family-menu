@@ -29,6 +29,7 @@ const {
   collectDinnerRecommendationFeedback,
   requestBalancedDinnerWithFallback,
   rotateLocalDinner,
+  seedLocalDinnerRotation,
   validateDinnerRecommendationIds,
 } = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
 const { recipes: h5Recipes } = await vite.ssrLoadModule("/src/lib/recipes.js");
@@ -40,6 +41,7 @@ const nativeRecommendation = nativeRuntime.load(path.resolve("miniprogram/utils/
 const {
   buildRecommendationScope: buildNativeRecommendationScope,
   rotateGuestDinner,
+  seedLocalDinnerRotation: seedNativeDinnerRotation,
 } = nativeRecommendation;
 const mainSource = await readFile(new URL("../src/main.jsx", import.meta.url), "utf8");
 const nativeLegacyCatalogPath = path.resolve("miniprogram/data/legacy-recipes.js");
@@ -625,6 +627,22 @@ assert.equal(
   "H5 page refresh must recover the current local group without advancing",
 );
 
+assert.equal(
+  typeof seedLocalDinnerRotation,
+  "function",
+  "H5 must expose a scoped server-success cursor merge for local fallback",
+);
+assert.equal(
+  typeof seedNativeDinnerRotation,
+  "function",
+  "native must expose a scoped server-success cursor merge for local fallback",
+);
+for (const effortTier of ["quick_15", "easy_30", "normal"]) {
+  await verifyH5ServerToOfflineRotation(effortTier);
+  await verifyNativeServerToOfflineRotation(effortTier);
+}
+verifyFallbackScopeIsolation();
+
 const feedbackStoreInput = {
   householdId: "feedback-household",
   dateKey: "2026-07-25",
@@ -913,11 +931,16 @@ async function assertApiRejected(url, options, status, code) {
   );
 }
 
-function createMiniProgramRuntime(storage) {
+function createMiniProgramRuntime(storage, requestHandler = null) {
   const modules = new Map();
   const wx = {
     getStorageSync: (key) => storage.get(key),
     setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+    request: (options) => {
+      if (!requestHandler) throw new Error(`Unexpected native request: ${options.url}`);
+      Promise.resolve(requestHandler(options)).catch(() => options.fail?.());
+    },
   };
   function load(file) {
     const resolved = path.resolve(file);
@@ -942,6 +965,249 @@ function createMiniProgramRuntime(storage) {
     return record.exports;
   }
   return { load };
+}
+
+async function verifyH5ServerToOfflineRotation(effortTier) {
+  const storage = createStringStorage();
+  const targetDishCount = effortTier === "quick_15" ? 1 : 2;
+  const input = {
+    ...baseInput,
+    householdId: `h5-server-fallback-${effortTier}`,
+    effortTier,
+    targetDishCount,
+    contextFingerprint: createHash("sha256").update(`h5-server-fallback-${effortTier}`).digest("base64url"),
+    storage,
+  };
+  const authoritative = selectBalancedDinner({ ...input, action: "initial" });
+  const online = await requestBalancedDinnerWithFallback({
+    requestServer: async () => authoritative.group,
+    serverPayload: { ...input, action: "initial" },
+    localInput: { ...input, action: "initial" },
+    validateServerGroup: (group) => validateDinnerRecommendationIds(group, input),
+  });
+  assert.equal(online.source, "server");
+
+  const refreshed = await requestBalancedDinnerWithFallback({
+    requestServer: async () => ({ recipeIds: [...authoritative.group.recipeIds] }),
+    serverPayload: { ...input, action: "initial", stateVersion: authoritative.group.stateVersion },
+    localInput: { ...input, action: "initial", stateVersion: authoritative.group.stateVersion },
+    validateServerGroup: (group) => validateDinnerRecommendationIds(group, input),
+  });
+  assert.equal(refreshed.source, "local_fallback", "a server group without cursor metadata is invalid");
+  assert.deepEqual(
+    refreshed.group.recipeIds,
+    online.group.recipeIds,
+    `H5 ${effortTier} invalid-response refresh must not advance the seeded current group`,
+  );
+
+  const groups = [online.group];
+  for (let index = 1; index < 5; index += 1) {
+    const offline = await requestBalancedDinnerWithFallback({
+      requestServer: async () => {
+        if (index === 1) throw new TypeError("Failed to fetch");
+        return { recipeIds: [...authoritative.group.recipeIds] };
+      },
+      serverPayload: { ...input, action: "next", stateVersion: authoritative.group.stateVersion },
+      localInput: { ...input, action: "next", stateVersion: authoritative.group.stateVersion },
+      validateServerGroup: (group) => validateDinnerRecommendationIds(group, input),
+    });
+    assert.equal(offline.source, "local_fallback");
+    groups.push(offline.group);
+  }
+  const shownIds = groups.flatMap((group) => group.recipeIds);
+  assert.equal(
+    new Set(shownIds).size,
+    shownIds.length,
+    `H5 ${effortTier} server→offline must show five groups without repeating a dish`,
+  );
+
+  let restoredRequest = null;
+  const restoredServer = selectBalancedDinner({
+    ...input,
+    action: "next",
+    rotation: authoritative.rotation,
+  }).group;
+  const restored = await requestBalancedDinnerWithFallback({
+    requestServer: async (payload) => {
+      restoredRequest = payload;
+      return restoredServer;
+    },
+    serverPayload: { ...input, action: "next", stateVersion: authoritative.group.stateVersion },
+    localInput: { ...input, action: "next", stateVersion: authoritative.group.stateVersion },
+    validateServerGroup: (group) => validateDinnerRecommendationIds(group, input),
+  });
+  assert.equal(restored.source, "server");
+  assert.equal(
+    restoredRequest.stateVersion,
+    authoritative.group.stateVersion,
+    `H5 ${effortTier} recovery must send the authoritative server stateVersion, not a local cursor hash`,
+  );
+}
+
+async function verifyNativeServerToOfflineRotation(effortTier) {
+  const storage = new Map();
+  storage.set("humi:native-session:v1", {
+    accessToken: `native-token-${effortTier}`,
+    expiresAt: Date.now() + 60_000,
+    user: { id: `native-user-${effortTier}`, provider: "wechat" },
+  });
+  const targetDishCount = effortTier === "quick_15" ? 1 : 2;
+  const input = {
+    ...baseInput,
+    householdId: `native-server-fallback-${effortTier}`,
+    effortTier,
+    targetDishCount,
+    contextFingerprint: createHash("sha256").update(`native-server-fallback-${effortTier}`).digest("base64url"),
+    expectedUserId: `native-user-${effortTier}`,
+  };
+  const authoritative = selectBalancedDinner({ ...input, action: "initial" });
+  let mode = "server";
+  let restoredRequest = null;
+  const runtime = createMiniProgramRuntime(storage, ({ data, success, fail }) => {
+    if (mode === "server") {
+      success({ statusCode: 200, data: authoritative.group });
+      return;
+    }
+    if (mode === "invalid") {
+      success({ statusCode: 200, data: { recipeIds: [...authoritative.group.recipeIds] } });
+      return;
+    }
+    if (mode === "restored") {
+      restoredRequest = data;
+      const restoredServer = selectBalancedDinner({
+        ...input,
+        action: "next",
+        rotation: authoritative.rotation,
+      }).group;
+      success({ statusCode: 200, data: restoredServer });
+      return;
+    }
+    fail(new Error("network down"));
+  });
+  const { recommendDinner } = runtime.load(path.resolve("miniprogram/utils/recommendation.js"));
+  mode = "network";
+  const offlineFirst = await recommendDinner({
+    ...input,
+    dateKey: "2026-07-21",
+    contextFingerprint: createHash("sha256").update(`native-offline-first-${effortTier}`).digest("base64url"),
+    action: "initial",
+    stateVersion: "",
+  });
+  assert.equal(
+    offlineFirst.stateVersion,
+    "",
+    `native ${effortTier} offline-first fallback must not expose a local hash as an authoritative server cursor`,
+  );
+
+  mode = "server";
+  const online = await recommendDinner({ ...input, action: "initial", stateVersion: "" });
+  assert.equal(online.source, "server");
+
+  mode = "invalid";
+  const refreshed = await recommendDinner({
+    ...input,
+    action: "initial",
+    stateVersion: authoritative.group.stateVersion,
+  });
+  assert.equal(refreshed.source, "local_fallback", "a native server group without cursor metadata is invalid");
+  assert.deepEqual(
+    Array.from(refreshed.recipeIds),
+    Array.from(online.recipeIds),
+    `native ${effortTier} invalid-response refresh must not advance the seeded current group`,
+  );
+
+  const groups = [online];
+  for (let index = 1; index < 5; index += 1) {
+    mode = index === 1 ? "network" : "invalid";
+    const offline = await recommendDinner({
+      ...input,
+      action: "next",
+      stateVersion: groups.at(-1).stateVersion,
+    });
+    assert.equal(offline.source, "local_fallback");
+    assert.equal(
+      offline.stateVersion,
+      authoritative.group.stateVersion,
+      `native ${effortTier} local fallback must retain the authoritative server stateVersion`,
+    );
+    groups.push(offline);
+  }
+  const shownIds = groups.flatMap((group) => Array.from(group.recipeIds));
+  assert.equal(
+    new Set(shownIds).size,
+    shownIds.length,
+    `native ${effortTier} server→offline must show five groups without repeating a dish`,
+  );
+
+  mode = "restored";
+  const restored = await recommendDinner({
+    ...input,
+    action: "next",
+    stateVersion: groups.at(-1).stateVersion,
+  });
+  assert.equal(restored.source, "server");
+  assert.equal(
+    restoredRequest.stateVersion,
+    authoritative.group.stateVersion,
+    `native ${effortTier} recovery must send the authoritative server stateVersion, not a local cursor hash`,
+  );
+}
+
+function verifyFallbackScopeIsolation() {
+  const dimensions = [
+    ["household", { householdId: "scope-other-household" }],
+    ["date", { dateKey: "2026-07-23" }],
+    ["tier", { effortTier: "easy_30", targetDishCount: 2 }],
+    ["context", { contextFingerprint: createHash("sha256").update("scope-other-context").digest("base64url") }],
+  ];
+  for (const [label, override] of dimensions) {
+    const h5Storage = createStringStorage();
+    const nativeStorage = new Map();
+    const seededInput = {
+      ...baseInput,
+      householdId: "scope-seeded-household",
+      targetDishCount: 1,
+      storage: h5Storage,
+    };
+    const seededGroup = selectBalancedDinner(seededInput).group;
+    seedLocalDinnerRotation(seededInput, seededGroup);
+    seedNativeDinnerRotation({ ...seededInput, storage: nativeStorageAdapter(nativeStorage) }, seededGroup);
+
+    const isolatedInput = { ...seededInput, ...override };
+    const h5Isolated = rotateLocalDinner({ ...isolatedInput, action: "initial" });
+    const h5Baseline = rotateLocalDinner({
+      ...isolatedInput,
+      storage: createStringStorage(),
+      action: "initial",
+    });
+    const nativeIsolated = rotateGuestDinner({
+      ...isolatedInput,
+      storage: nativeStorageAdapter(nativeStorage),
+      action: "initial",
+    });
+    const nativeBaseline = rotateGuestDinner({
+      ...isolatedInput,
+      storage: nativeStorageAdapter(new Map()),
+      action: "initial",
+    });
+    assert.deepEqual(
+      h5Isolated.recipeIds,
+      h5Baseline.recipeIds,
+      `H5 ${label} scope must behave like a fresh cursor`,
+    );
+    assert.deepEqual(
+      Array.from(nativeIsolated.recipeIds),
+      Array.from(nativeBaseline.recipeIds),
+      `native ${label} scope must behave like a fresh cursor`,
+    );
+  }
+}
+
+function nativeStorageAdapter(values) {
+  return {
+    getStorageSync: (key) => values.get(key),
+    setStorageSync: (key, value) => values.set(key, structuredClone(value)),
+  };
 }
 
 function createStringStorage() {
