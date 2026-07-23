@@ -432,11 +432,12 @@ async function verifyGuestMergeNetworkRecovery() {
       bootstrap: bootstrapFor({ userId }),
     });
     const guestMealRun = guestRuntime.load("miniprogram/utils/meal-run.js");
+    const dateKey = guestMealRun.formatDinnerDateKey();
     const localRun = await guestMealRun.createMealRun({
       bootstrap: bootstrapFor({ userId }),
       recommendation: recommendation(`guest-network-rec-${failureStage}`, ["tomato-egg"], "local"),
       effortTier: "quick_15",
-      dateKey: "2026-07-23",
+      dateKey,
     });
     let online = false;
     const postKeys = [];
@@ -1127,13 +1128,13 @@ async function createCookingGuestFixture(label) {
   const userId = `guest-${label}`;
   const householdId = `home-${label}`;
   const remoteId = `remote-${label}`;
-  const dateKey = "2026-07-23";
   const guestRuntime = createRuntime({
     storage,
     session: sessionFor(userId),
     bootstrap: bootstrapFor({ userId }),
   });
   const mealRuns = guestRuntime.load("miniprogram/utils/meal-run.js");
+  const dateKey = mealRuns.formatDinnerDateKey();
   const planned = await mealRuns.createMealRun({
     bootstrap: bootstrapFor({ userId }),
     recommendation: recommendation(`rec-${label}`, ["cola-wings"], "local"),
@@ -1277,6 +1278,15 @@ function createRuntime({ storage = new Map(), session = null, bootstrap = null, 
       requests.push(record);
       const succeed = (data, statusCode = 200) => options.success({ statusCode, data: clone(data) });
       const fail = () => options.fail({ errMsg: "request:fail timeout" });
+      if (record.pathname === "/menu-share-requests") {
+        succeed({
+          request: {
+            token: "menu_test_snapshot_1234567890",
+            cacheExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+          },
+        }, 201);
+        return;
+      }
       Promise.resolve(requestHandler?.({ ...record, path: record.pathname, succeed, fail }))
         .catch((error) => options.fail({ errMsg: error.message }));
     },
@@ -1305,6 +1315,7 @@ function createRuntime({ storage = new Map(), session = null, bootstrap = null, 
       wx,
       getApp: () => app,
       Page: (definition) => { registeredPage = definition; },
+      Behavior: (definition) => definition,
       Component: (definition) => { registeredComponent = definition; },
       console,
       URL,
@@ -1343,10 +1354,21 @@ function createRuntime({ storage = new Map(), session = null, bootstrap = null, 
 
   function instantiateDefinition(definition, isComponent = false) {
     const events = [];
-    const methods = isComponent ? definition.methods || {} : definition;
+    const behaviors = isComponent ? [] : (definition.behaviors || []);
+    const behaviorMethods = Object.assign(
+      {},
+      ...behaviors.map((behavior) => behavior?.methods || {}),
+    );
+    const behaviorData = Object.assign(
+      {},
+      ...behaviors.map((behavior) => behavior?.data || {}),
+    );
+    const methods = isComponent
+      ? definition.methods || {}
+      : { ...behaviorMethods, ...definition };
     const instance = {
       ...methods,
-      data: clone(definition.data || {}),
+      data: clone({ ...behaviorData, ...(definition.data || {}) }),
       events,
       setData(patch) {
         this.data = { ...this.data, ...clone(patch) };

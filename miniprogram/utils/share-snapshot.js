@@ -9,12 +9,14 @@ const pending = new Map();
 
 function snapshotKey(type, context = {}) {
   const normalizedType = normalizeType(type);
-  return [
+  const parts = [
     normalizedType,
     keyPart(context.householdId),
     keyPart(context.stateVersion),
     keyPart(context.mealRunId),
-  ].join(":");
+  ];
+  if (context.taskId) parts.push(keyPart(context.taskId));
+  return parts.join(":");
 }
 
 async function prepareShareSnapshot(type, context = {}) {

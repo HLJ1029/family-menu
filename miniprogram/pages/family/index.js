@@ -97,6 +97,7 @@ Page({
     const members = normalizeMembers(activeHousehold.members);
     const isOwner = activeHousehold.role === "owner";
     const mealTasks = normalizeMealTasks(bootstrap.currentMealRun?.tasks, members);
+    const shareableMealTask = keepSelectedShareableTask(mealTasks, this.data.shareableMealTask?.id);
     this.setData({
       status: bootstrap.cacheState === "cached" ? "cached" : "ready",
       errorText: "",
@@ -114,7 +115,7 @@ Page({
       canLeaveHousehold: !isOwner || members.length === 1,
       dinner: buildDinner(bootstrap.currentMealRun, members),
       mealTasks,
-      shareableMealTask: firstShareableTask(mealTasks),
+      shareableMealTask,
       groceryClaims: normalizeGroceryClaims(bootstrap.householdState?.groceryClaims, members),
     });
   },
@@ -139,7 +140,10 @@ Page({
     }
     if (taskState?.status === "fulfilled") {
       patch.mealTasks = normalizeMealTasks(taskState.value?.tasks, this.data.members);
-      patch.shareableMealTask = firstShareableTask(patch.mealTasks);
+      patch.shareableMealTask = keepSelectedShareableTask(
+        patch.mealTasks,
+        this.data.shareableMealTask?.id,
+      );
     } else if (taskState?.status === "rejected") {
       patch.sectionError ||= "今晚任务暂时没有同步成功，下拉可以重试。";
     }
@@ -235,7 +239,10 @@ Page({
 
   prepareFirstMealTaskShare() {
     const task = this.data.shareableMealTask;
-    if (!task?.id) return Promise.resolve(null);
+    if (!task?.id) {
+      this.invalidateNativeShare("meal_task");
+      return Promise.resolve(null);
+    }
     const bootstrap = appStore.getState().bootstrap;
     return this.prepareNativeShare("meal_task", {
       page: "family",
@@ -250,7 +257,7 @@ Page({
   prepareMealTaskShare(event = {}) {
     const taskId = String(event.currentTarget?.dataset?.taskId || "");
     const task = this.data.mealTasks.find((item) => item.id === taskId);
-    if (!task || this.data.sharePreparing?.meal_task) return null;
+    if (!task) return null;
     this.setData({ shareableMealTask: task });
     return this.prepareFirstMealTaskShare().catch(() => null);
   },
@@ -355,6 +362,13 @@ function normalizeMembers(members) {
     role: member.role === "owner" ? "owner" : "member",
     roleLabel: member.role === "owner" ? "家庭创建者" : "家庭成员",
   })).filter((member) => member.id);
+}
+
+function keepSelectedShareableTask(tasks, selectedTaskId = "") {
+  const selected = (Array.isArray(tasks) ? tasks : []).find((task) => (
+    task.id === selectedTaskId && task.status !== "completed"
+  ));
+  return selected || firstShareableTask(tasks);
 }
 
 function buildDinner(mealRun, members) {

@@ -46,6 +46,11 @@ assert.equal(
   snapshotKey("menu", context),
   "menu:household-1:state-v3:meal-run-7",
 );
+assert.notEqual(
+  snapshotKey("meal_task", { ...context, taskId: "task-a" }),
+  snapshotKey("meal_task", { ...context, taskId: "task-b" }),
+  "meal-task snapshots must include taskId so selecting another task invalidates the old card",
+);
 
 let createCalls = 0;
 const createSnapshot = async () => {
@@ -207,6 +212,10 @@ function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+async function nextTurn() {
+  await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+}
+
 async function assertDynamicNativeSharePages() {
   await assertTonightSharePage();
   await assertGroceryShareRetry();
@@ -219,6 +228,13 @@ async function assertTonightSharePage() {
   let createCalls = 0;
   const events = [];
   const bootstrap = nativeBootstrap();
+  const replacementRun = {
+    id: "meal-run-2",
+    status: "planned",
+    effortTier: "quick_15",
+    recipeIds: ["mapo-tofu"],
+    recipeSnapshot: [{ id: "mapo-tofu", title: "麻婆豆腐", totalMinutes: 20 }],
+  };
   const runtime = createMiniRuntime({
     mocks: {
       "miniprogram/utils/native-shell-guard.js": { guardNativeTab: () => true },
@@ -227,7 +243,7 @@ async function assertTonightSharePage() {
       "miniprogram/utils/meal-run.js": {
         buildDinnerPlan: () => ({ missingIngredients: [] }),
         canReplaceHouseholdPlan: () => true,
-        createMealRun: async () => null,
+        createMealRun: async () => replacementRun,
         currentHouseholdRole: () => "member",
         formatDinnerDateKey: () => "2026-07-24",
         loadCurrentMealRun: async () => null,
@@ -237,9 +253,12 @@ async function assertTonightSharePage() {
         requestHumi: async (options) => {
           if (options.path === "/menu-share-requests") {
             createCalls += 1;
+            const isReplacement = options.data?.dishes?.some((dish) => dish.id === "mapo-tofu");
             return {
               request: {
-                token: "menu_dynamic_snapshot_token_1234",
+                token: isReplacement
+                  ? "menu_replacement_snapshot_123456"
+                  : "menu_dynamic_snapshot_token_1234",
                 title: "今晚菜单",
                 householdName: "分享测试家",
               },
@@ -274,21 +293,47 @@ async function assertTonightSharePage() {
   assert.equal(events.filter((event) => event.name === "share_snapshot_created").length, 1);
   assert.equal(events.find((event) => event.name === "share_snapshot_created").fields.shareSource, "menu");
   assert.equal(JSON.stringify(events).includes("menu_dynamic_snapshot_token_1234"), false);
+
+  page.setData({
+    recommendation: { recommendationId: "recommendation-2", recipeIds: ["mapo-tofu"] },
+    effortTier: "quick_15",
+    canReplacePlan: true,
+  });
+  await page.acceptRecommendation();
+  assert.equal(page.data.mealRun.id, "meal-run-2");
+  assert.equal(createCalls, 2, "accepting a new dinner without leaving Tonight must prepare its new snapshot");
+  assert.match(
+    page.onShareAppMessage({ from: "menu" }).path,
+    /menuShare=menu_replacement_snapshot_123456/,
+    "the immediate system share after confirmation must use the newly accepted dinner",
+  );
 }
 
 async function assertGroceryShareRetry() {
   let createCalls = 0;
-  const bootstrap = nativeBootstrap();
+  let bootstrap = nativeBootstrap();
+  let offline = false;
+  let conflict = false;
   const runtime = createMiniRuntime({
     mocks: {
       "miniprogram/utils/native-shell-guard.js": { guardNativeTab: () => true },
-      "miniprogram/utils/store.js": { appStore: { getState: () => ({ bootstrap }), replaceBootstrap: () => {} } },
+      "miniprogram/utils/store.js": {
+        appStore: {
+          getState: () => ({ bootstrap }),
+          replaceBootstrap: (next) => { bootstrap = next; },
+        },
+      },
       "miniprogram/utils/request.js": {
         requestHumi: async (options) => {
           if (options.path !== "/grocery-share-requests") throw new Error(`unexpected request ${options.path}`);
           createCalls += 1;
           if (createCalls === 1) throw new Error("first preparation failed");
-          return { request: { token: "grocery_dynamic_snapshot_123456", householdName: "分享测试家" } };
+          return {
+            request: {
+              token: `grocery_state_${createCalls}_snapshot_123456`,
+              householdName: "分享测试家",
+            },
+          };
         },
       },
       "miniprogram/utils/telemetry.js": { trackEvent: () => null },
@@ -299,7 +344,39 @@ async function assertGroceryShareRetry() {
         deriveGroceryItems: () => [{ id: "egg", name: "鸡蛋", amount: "3 个", checked: false }],
         getActiveHousehold: () => bootstrap.households[0],
         getHouseholdRole: () => "member",
-        saveHouseholdStatePatch: async () => bootstrap,
+        saveHouseholdStatePatch: async (patch) => {
+          if (offline) {
+            const error = new Error("offline");
+            error.status = 0;
+            throw error;
+          }
+          if (conflict) {
+            conflict = false;
+            const error = new Error("state version conflict");
+            error.status = 409;
+            error.code = "state_version_conflict";
+            error.latestEnvelope = {
+              ...bootstrap,
+              stateVersion: "state-v4",
+              householdState: {
+                ...bootstrap.householdState,
+                checkedItems: { egg: false },
+              },
+            };
+            throw error;
+          }
+          const isClaim = Boolean(patch?.groceryClaims);
+          return {
+            ...bootstrap,
+            stateVersion: isClaim ? "state-v3" : "state-v2",
+            householdState: {
+              ...bootstrap.householdState,
+              ...(isClaim
+                ? { groceryClaims: patch.groceryClaims }
+                : { checkedItems: { egg: true } }),
+            },
+          };
+        },
       },
     },
   });
@@ -316,6 +393,33 @@ async function assertGroceryShareRetry() {
   const payload = page.onShareAppMessage({ from: "menu" });
   assert.match(payload.path, /^\/packageShare\/pages\/grocery\/index\?groceryShare=/);
   assert.equal(createCalls, 2);
+
+  await page.checkItem({ detail: { itemId: "egg", checked: true } });
+  assert.equal(createCalls, 3, "a successful grocery mutation must prepare a snapshot for the latest stateVersion");
+  assert.match(page.onShareAppMessage({ from: "menu" }).path, /grocery_state_3_snapshot_123456/);
+
+  await page.claimItem({ detail: { itemId: "egg" } });
+  assert.equal(createCalls, 4, "a successful claim must prepare a snapshot for its new stateVersion");
+  assert.match(page.onShareAppMessage({ from: "menu" }).path, /grocery_state_4_snapshot_123456/);
+
+  conflict = true;
+  await page.checkItem({ detail: { itemId: "egg", checked: false } });
+  assert.equal(createCalls, 5, "a 409 reload must prepare the authoritative latest stateVersion");
+  assert.match(page.onShareAppMessage({ from: "menu" }).path, /grocery_state_5_snapshot_123456/);
+
+  offline = true;
+  await page.checkItem({ detail: { itemId: "egg", checked: true } });
+  assert.equal(page.data.preparedShares.grocery, null, "an offline grocery mutation must invalidate the old online card");
+  assert.equal(
+    page.data.shareErrors.grocery,
+    "",
+    "offline invalidation must not advertise a retry after its online snapshot context was cleared",
+  );
+  assert.equal(
+    page.onShareAppMessage({ from: "menu" }).path,
+    "/pages/grocery/index",
+    "offline state must never share a stale prepared snapshot",
+  );
 }
 
 async function assertInviteSharePage() {
@@ -359,8 +463,12 @@ async function assertMealTaskSharePage() {
   const bootstrap = nativeBootstrap();
   bootstrap.currentMealRun = {
     id: "meal-run-1",
-    tasks: [{ id: "task-1", label: "请家人买鸡蛋", type: "buy", status: "open", createdBy: "owner-1" }],
+    tasks: [
+      { id: "task-a", label: "请家人买鸡蛋", type: "buy", status: "open", createdBy: "owner-1" },
+      { id: "task-b", label: "帮忙洗青菜", type: "prep", status: "open", createdBy: "owner-1" },
+    ],
   };
+  const pendingTaskShares = new Map();
   const runtime = createMiniRuntime({
     mocks: {
       "miniprogram/utils/bootstrap.js": { loadBootstrap: async () => bootstrap },
@@ -369,14 +477,9 @@ async function assertMealTaskSharePage() {
         requestHumi: async (options) => {
           if (options.path.endsWith("/collaborations?limit=5")) return { events: [] };
           if (options.path.endsWith("/tasks")) return { tasks: bootstrap.currentMealRun.tasks };
-          if (options.path === "/meal-tasks/task-1/share") {
+          if (options.path.startsWith("/meal-tasks/") && options.path.endsWith("/share")) {
             createCalls += 1;
-            return {
-              snapshot: {
-                token: "meal_task_dynamic_snapshot_12345",
-                cacheExpiresAt: new Date(Date.now() + 60_000).toISOString(),
-              },
-            };
+            return new Promise((resolveShare) => pendingTaskShares.set(options.path, resolveShare));
           }
           throw new Error(`unexpected request ${options.path}`);
         },
@@ -386,12 +489,32 @@ async function assertMealTaskSharePage() {
     },
   });
   const page = runtime.loadPage("miniprogram/pages/family/index.js");
-  await page.onShow();
-  await page.onShow();
-  assert.equal(createCalls, 1, "Family onShow must prepare one meal-task snapshot for a stable task");
-  const payload = page.onShareAppMessage({ from: "menu" });
-  assert.match(payload.path, /^\/packageFamily\/pages\/task\/index\?mealTask=/);
+  const firstShow = page.onShow();
+  await nextTurn();
   assert.equal(createCalls, 1);
+  const switchToB = page.prepareMealTaskShare({ currentTarget: { dataset: { taskId: "task-b" } } });
+  await nextTurn();
+  assert.equal(createCalls, 2, "switching tasks while A is pending must prepare B independently");
+  pendingTaskShares.get("/meal-tasks/task-b/share")({
+    snapshot: {
+      token: "meal_task_b_snapshot_12345678",
+      cacheExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    },
+  });
+  await switchToB;
+  pendingTaskShares.get("/meal-tasks/task-a/share")({
+    snapshot: {
+      token: "meal_task_a_snapshot_12345678",
+      cacheExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    },
+  });
+  await firstShow;
+  await page.onShow();
+  assert.equal(createCalls, 2, "Family onShow must reuse the stable selected task snapshot");
+  const payload = page.onShareAppMessage({ from: "menu" });
+  assert.match(payload.path, /mealTask=meal_task_b_snapshot_12345678/);
+  assert.equal(page.data.shareableMealTask.id, "task-b");
+  assert.equal(createCalls, 2);
 }
 
 async function assertGuestShareLandings() {

@@ -59,6 +59,7 @@ Page({
     if (!itemId || typeof checked !== "boolean" || this.data.pendingAction || !this.data.canCollaborate) return null;
     const bootstrap = appStore.getState().bootstrap;
     const mutationId = createMutationId("grocery-check");
+    this.invalidateNativeShare("grocery");
     this.setData({ pendingAction: `check:${itemId}`, errorText: "", conflictVisible: false });
     try {
       const envelope = await saveHouseholdStatePatch({ checkedItems: { [itemId]: checked } }, {
@@ -68,12 +69,14 @@ Page({
       });
       appStore.replaceBootstrap(envelope);
       this.syncState();
+      await this.prepareGroceryShare({ force: true }).catch(() => null);
       return envelope;
     } catch (error) {
       if (error?.status === 409 && error?.code === "state_version_conflict" && error.latestEnvelope) {
         appStore.replaceBootstrap(error.latestEnvelope);
         this.syncState();
         this.setData({ conflictVisible: true, errorText: "家人刚更新了清单，已载入最新状态。" });
+        await this.prepareGroceryShare({ force: true }).catch(() => null);
         return null;
       }
       if (isOfflineError(error)) {
@@ -92,9 +95,11 @@ Page({
           cacheState: "cached",
           errorText: "已离线保存，联网后会同步这项勾选。",
         });
+        this.invalidateNativeShare("grocery");
         return { queued: true };
       }
       this.setData({ errorText: "这项清单没有保存成功，请重试。" });
+      await this.prepareGroceryShare({ force: true }).catch(() => null);
       throw error;
     } finally {
       this.setData({ pendingAction: "" });
@@ -103,14 +108,15 @@ Page({
   async claimItem(event = {}) {
     const itemId = String(event?.detail?.itemId || event?.currentTarget?.dataset?.itemId || "");
     if (!itemId || this.data.pendingAction || !this.data.canCollaborate) return null;
+    const bootstrap = appStore.getState().bootstrap;
+    const item = this.data.items.find((candidate) => candidate.id === itemId);
+    if (!item) return null;
+    this.invalidateNativeShare("grocery");
     if (this.data.cacheState === "cached") {
       const error = new Error("offline_grocery_claim_unavailable");
       error.code = "offline_grocery_claim_unavailable";
       throw error;
     }
-    const bootstrap = appStore.getState().bootstrap;
-    const item = this.data.items.find((candidate) => candidate.id === itemId);
-    if (!item) return null;
     const now = new Date().toISOString();
     this.setData({ pendingAction: `claim:${itemId}`, errorText: "" });
     try {
@@ -132,22 +138,25 @@ Page({
       });
       appStore.replaceBootstrap(envelope);
       this.syncState();
+      await this.prepareGroceryShare({ force: true }).catch(() => null);
       return envelope;
     } catch (error) {
       if (error?.status === 409 && error?.latestEnvelope) {
         appStore.replaceBootstrap(error.latestEnvelope);
         this.syncState();
         this.setData({ conflictVisible: true, errorText: "清单刚被家人更新，请按最新状态再试。" });
+        await this.prepareGroceryShare({ force: true }).catch(() => null);
         return null;
       }
       this.setData({ errorText: "暂时无法领取这项食材，请联网后重试。" });
+      await this.prepareGroceryShare({ force: true }).catch(() => null);
       throw error;
     } finally {
       this.setData({ pendingAction: "" });
     }
   },
-  async prepareGroceryShare() {
-    if (!this.data.canCollaborate || this.data.pendingAction) return null;
+  async prepareGroceryShare(options = {}) {
+    if (!this.data.canCollaborate || (this.data.pendingAction && !options.force)) return null;
     if (this.data.cacheState === "cached") {
       const error = new Error("offline_share_unavailable");
       error.code = "offline_share_unavailable";

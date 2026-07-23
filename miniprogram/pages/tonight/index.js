@@ -85,15 +85,14 @@ Page({
     try {
       let mealRun = bootstrap.currentMealRun || null;
       if (mealRun && ["cooking", "completed"].includes(mealRun.status)) {
-        this.applyMealRun(mealRun);
-        return;
+        return this.applyMealRun(mealRun);
       }
       const merge = await mergeActiveGuestMealRun({ bootstrap, dateKey });
       if (merge.mealRun || merge.guestRun) mealRun = merge.mealRun || merge.guestRun;
       if (!mealRun && !bootstrap.activeHouseholdId) {
         mealRun = await loadCurrentMealRun({ bootstrap, dateKey });
       }
-      if (mealRun) this.applyMealRun(mealRun);
+      if (mealRun) await this.applyMealRun(mealRun);
       else this.setView("choose_effort", { mealRun: null, plan: null });
     } catch (error) {
       this.setView("error", { errorText: errorMessage(error, "今晚的安排暂时没有加载成功。") });
@@ -160,6 +159,7 @@ Page({
       return;
     }
     const recommendation = this.data.recommendation;
+    this.invalidateNativeShare("menu");
     this.setView("accepting", { pendingAction: "accept", errorText: "" });
     try {
       const bootstrap = appStore.getState().bootstrap;
@@ -177,12 +177,12 @@ Page({
         recommendationId: safeTelemetryId(recommendation.recommendationId),
         effortTier: this.data.effortTier,
       });
-      this.applyMealRun(mealRun);
+      await this.applyMealRun(mealRun);
     } catch (error) {
       if (Number(error?.status) === 409) {
         const latest = await this.refreshMealRun().catch(() => null);
         if (latest) {
-          this.applyMealRun(latest);
+          await this.applyMealRun(latest);
           return;
         }
       }
@@ -212,6 +212,7 @@ Page({
       this.setData({ errorText: "请让家庭创建者调整今晚菜单。" });
       return;
     }
+    this.invalidateNativeShare("menu");
     this.setView("choose_effort", {
       effortTier: "",
       recommendation: null,
@@ -234,7 +235,7 @@ Page({
       dateKey: this._dateKey || formatDinnerDateKey(),
       allowCache: false,
     });
-    if (mealRun) this.applyMealRun(mealRun);
+    if (mealRun) await this.applyMealRun(mealRun);
     return mealRun;
   },
 
@@ -248,7 +249,7 @@ Page({
         dateKey: this._dateKey || formatDinnerDateKey(),
       });
       if (merge.mealRun || merge.guestRun) {
-        this.applyMealRun(merge.mealRun || merge.guestRun);
+        await this.applyMealRun(merge.mealRun || merge.guestRun);
         return;
       }
       const mealRun = await loadCurrentMealRun({
@@ -256,7 +257,7 @@ Page({
         dateKey: this._dateKey || formatDinnerDateKey(),
         allowCache: true,
       });
-      if (mealRun) this.applyMealRun(mealRun);
+      if (mealRun) await this.applyMealRun(mealRun);
       else if (this.data.mealRun && !this.data.mealRun.localOnly) {
         this.setView("choose_effort", { mealRun: null, plan: null, effortTier: "" });
       }
@@ -284,6 +285,7 @@ Page({
   applyRecommendation(recommendation, effortTier) {
     const bootstrap = appStore.getState().bootstrap;
     const plan = buildDinnerPlan(recommendation, bootstrap);
+    this.invalidateNativeShare("menu");
     this.setView("recommendation", {
       effortTier,
       recommendation,
@@ -324,6 +326,7 @@ Page({
       errorText: "",
       cacheState: mealRun.cacheState || this.data.cacheState,
     });
+    return this.prepareMenuShare().catch(() => null);
   },
 
   prepareMenuShare() {

@@ -1,11 +1,13 @@
 const {
   getPreparedShare,
   prepareShareSnapshot,
+  snapshotKey,
 } = require("../utils/share-snapshot");
 
 module.exports = Behavior({
   data: {
     preparedShares: {},
+    preparedShareKeys: {},
     sharePreparing: {},
     shareErrors: {},
   },
@@ -14,32 +16,63 @@ module.exports = Behavior({
     async prepareNativeShare(type, context = {}) {
       this._shareContexts ||= {};
       this._sharePending ||= {};
+      this._shareContextKeys ||= {};
+      const key = snapshotKey(type, context);
       this._shareContexts[type] = context;
-      if (this._sharePending[type]) return this._sharePending[type];
+      this._shareContextKeys[type] = key;
       const cached = getPreparedShare(type, context);
       if (cached) {
-        this.applyShareState(type, { payload: cached.payload, preparing: false, error: "" });
+        this.applyShareState(type, {
+          payload: cached.payload,
+          key,
+          preparing: false,
+          error: "",
+        });
         return cached;
       }
-      this.applyShareState(type, { payload: null, preparing: true, error: "" });
+      this.applyShareState(type, { payload: null, key: "", preparing: true, error: "" });
       const pending = prepareShareSnapshot(type, context)
         .then((snapshot) => {
-          this.applyShareState(type, { payload: snapshot.payload, preparing: false, error: "" });
+          if (this._shareContextKeys[type] === key) {
+            this.applyShareState(type, {
+              payload: snapshot.payload,
+              key,
+              preparing: false,
+              error: "",
+            });
+          }
           return snapshot;
         })
         .catch((error) => {
-          this.applyShareState(type, {
-            payload: null,
-            preparing: false,
-            error: "分享内容没准备好，点这里重试",
-          });
+          if (this._shareContextKeys[type] === key) {
+            this.applyShareState(type, {
+              payload: null,
+              key: "",
+              preparing: false,
+              error: "分享内容没准备好，点这里重试",
+            });
+          }
           throw error;
         })
         .finally(() => {
-          delete this._sharePending[type];
+          if (this._sharePending[type]?.promise === pending) delete this._sharePending[type];
         });
-      this._sharePending[type] = pending;
+      this._sharePending[type] = { key, promise: pending };
       return pending;
+    },
+
+    invalidateNativeShare(type, error = "") {
+      this._shareContexts ||= {};
+      this._shareContextKeys ||= {};
+      this._shareInvalidationVersion = Number(this._shareInvalidationVersion || 0) + 1;
+      this._shareContexts[type] = null;
+      this._shareContextKeys[type] = `invalid:${type}:${this._shareInvalidationVersion}`;
+      this.applyShareState(type, {
+        payload: null,
+        key: "",
+        preparing: false,
+        error,
+      });
     },
 
     retryNativeShare(event = {}) {
@@ -56,12 +89,16 @@ module.exports = Behavior({
         || defaultType,
       );
       const payload = this.data.preparedShares?.[type];
-      return payload || fallback;
+      const preparedKey = this.data.preparedShareKeys?.[type];
+      return payload && preparedKey && preparedKey === this._shareContextKeys?.[type]
+        ? payload
+        : fallback;
     },
 
-    applyShareState(type, { payload, preparing, error }) {
+    applyShareState(type, { payload, key, preparing, error }) {
       this.setData({
         preparedShares: { ...(this.data.preparedShares || {}), [type]: payload || null },
+        preparedShareKeys: { ...(this.data.preparedShareKeys || {}), [type]: String(key || "") },
         sharePreparing: { ...(this.data.sharePreparing || {}), [type]: Boolean(preparing) },
         shareErrors: { ...(this.data.shareErrors || {}), [type]: String(error || "") },
       });
