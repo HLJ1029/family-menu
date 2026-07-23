@@ -699,6 +699,7 @@ function App() {
                   householdId: family.id,
                   dateKey: localRun?.dateKey || todayDateKey,
                   mealSlot: "dinner",
+                  mealRunId: operation.mealRunId,
                 }),
               });
             } catch (refreshError) {
@@ -706,6 +707,18 @@ function App() {
               break;
             }
             if (recovery.latestMealRun) upsertMealExecutionRun(recovery.latestMealRun);
+            if (recovery.latestMealRun.status === "abandoned") {
+              try {
+                const current = await loadCurrentHumiMealRun(humiSession, {
+                  householdId: family.id,
+                  dateKey: recovery.latestMealRun.dateKey || localRun?.dateKey || todayDateKey,
+                  mealSlot: "dinner",
+                });
+                if (current.mealRun) upsertMealExecutionRun(current.mealRun);
+              } catch {
+                mealRunHydrationRef.current = "";
+              }
+            }
             recovery.discardedOperationIds.forEach((id) => discardedOperationIds.add(id));
             setMealExecutionStatus(
               recovery.discardedCompletion

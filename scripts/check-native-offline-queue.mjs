@@ -490,6 +490,38 @@ async function nextTask() {
 }
 
 {
+  const { queue, storage } = createRuntime();
+  queue.enqueueMutation({ id: "legacy-progress", type: "meal_progress", householdId: "h", mealRunId: "legacy-run", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
+  queue.enqueueMutation({ id: "legacy-complete", type: "meal_complete", householdId: "h", mealRunId: "legacy-run", createdAt: 2, data: { timelineVersion: 1 } });
+  queue.enqueueMutation({ id: "legacy-feedback", type: "meal_feedback", householdId: "h", mealRunId: "legacy-run", createdAt: 3, data: { value: "want_again" } });
+  const queueStorageKey = Array.from(storage.keys()).find((key) => key.startsWith("humi:offline-queue:v1:"));
+  storage.set(queueStorageKey, storage.get(queueStorageKey).map((action) => {
+    if (action.id === "legacy-progress") {
+      return { ...action, data: { currentStepId: action.data.currentStepId } };
+    }
+    if (action.id === "legacy-complete") {
+      const { data: _data, ...legacyAction } = action;
+      return legacyAction;
+    }
+    return action;
+  }));
+  queue.setMutationReplayer(async () => {
+    const error = new Error("legacy timeline changed");
+    error.status = 409;
+    error.code = "meal_timeline_version_conflict";
+    throw error;
+  });
+  const result = await queue.flushMutationQueue();
+  assert.equal(result.status, "timeline_conflict");
+  assert.deepEqual(
+    Array.from(result.discardedActionIds).sort(),
+    ["legacy-complete", "legacy-feedback", "legacy-progress"],
+    "an upgraded client explicitly clears legacy epoch work with no timelineVersion",
+  );
+  assert.deepEqual(Array.from(queue.readQueue()), [], "legacy persisted actions cannot block every restart");
+}
+
+{
   const { queue, session } = createRuntime();
   queue.enqueueMutation({ id: "dead", type: "meal_abandon", householdId: "h", mealRunId: "r", createdAt: 1, data: { reason: "plans_changed" } });
   queue.setMutationReplayer(async () => {

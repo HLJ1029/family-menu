@@ -52,6 +52,27 @@ for (const clientMethod of [
   updateHumiMealRunProgress,
 ]) assert.equal(typeof clientMethod, "function", "meal execution API client contract must be exported");
 
+{
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = "";
+  globalThis.fetch = async (url) => {
+    requestedUrl = String(url);
+    return { ok: true, json: async () => ({ mealRun: { id: "run-old" } }) };
+  };
+  try {
+    await loadCurrentHumiMealRun({ accessToken: "test-token" }, {
+      householdId: "home-1",
+      dateKey: "2026-07-23",
+      mealSlot: "dinner",
+      mealRunId: "run-old",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  const requested = new URL(requestedUrl);
+  assert.equal(requested.searchParams.get("mealRunId"), "run-old", "H5 recovery requests the exact terminal MealRun by ID");
+}
+
 const planned = createLocalMealRun({
   id: "guest-run-1",
   householdId: "guest",
@@ -216,6 +237,20 @@ assert.deepEqual(
   ["complete-v1", "feedback-v1", "progress-v1"],
   "H5 drops only obsolete epoch work and its dependent feedback",
 );
+assert.deepEqual(
+  obsoleteMealEpochOperationIds([
+    { id: "legacy-progress", mealRunId: "run-epoch", action: "progress", payload: { currentStepId: "step-1" } },
+    { id: "legacy-complete", mealRunId: "run-epoch", action: "complete", payload: {} },
+    { id: "legacy-feedback", mealRunId: "run-epoch", action: "feedback", payload: { value: "want_again" } },
+    { id: "current-v2", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 2 } },
+  ], {
+    mealRunId: "run-epoch",
+    timelineVersion: undefined,
+    failedOperationId: "legacy-progress",
+  }).sort(),
+  ["legacy-complete", "legacy-feedback", "legacy-progress"],
+  "H5 upgrades explicitly clear failed legacy actions that predate timelineVersion",
+);
 const recoveredEpoch = await recoverObsoleteMealEpoch({
   operations: [
     { id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } },
@@ -233,6 +268,21 @@ const recoveredEpoch = await recoverObsoleteMealEpoch({
 assert.equal(recoveredEpoch.latestMealRun.timelineVersion, 2);
 assert.equal(recoveredEpoch.discardedCompletion, true);
 assert.deepEqual(recoveredEpoch.discardedOperationIds.sort(), ["complete-v1", "progress-v1"]);
+const staleLocalCompletion = { ...completed, id: "run-epoch", timelineVersion: 1, householdId: "home-1" };
+const authoritativeAbandon = {
+  ...staleLocalCompletion,
+  timelineVersion: 2,
+  status: "abandoned",
+  completedAt: "",
+  abandonedAt: "2026-07-22T10:25:00.000Z",
+};
+const recoveredTerminal = mergeLocalMealRun(staleLocalCompletion, authoritativeAbandon);
+assert.equal(recoveredTerminal.status, "abandoned", "an ID-scoped higher epoch removes a stale local completion");
+assert.equal(
+  completedMealsInWeek([recoveredTerminal], { householdId: "home-1", weekStartDateKey: "2026-07-20" }),
+  0,
+  "an abandoned authoritative snapshot cannot remain counted as served",
+);
 await assert.rejects(
   () => recoverObsoleteMealEpoch({
     operations: [{ id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } }],
@@ -241,6 +291,15 @@ await assert.rejects(
   }),
   /offline/,
   "H5 keeps the old queue intact until the authoritative refresh succeeds",
+);
+await assert.rejects(
+  () => recoverObsoleteMealEpoch({
+    operations: [{ id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } }],
+    failedOperation: { id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } },
+    loadLatest: async () => ({ mealRun: null }),
+  }),
+  (error) => error.code === "meal_timeline_recovery_missing",
+  "H5 does not clear its local completed run until an ID-scoped authoritative snapshot exists",
 );
 
 const abandoned = transitionLocalMealRun(

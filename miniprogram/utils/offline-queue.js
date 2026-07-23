@@ -374,12 +374,19 @@ async function flushMutationQueue(options = {}) {
 
 function discardObsoleteMealEpoch(action, ownerUserId) {
   const obsoleteVersion = Number(action.data?.timelineVersion);
+  const hasObsoleteVersion = Number.isInteger(obsoleteVersion) && obsoleteVersion > 0;
   const discardedActionIds = [];
   const retained = readQueueForOwner(ownerUserId).filter((candidate) => {
     if (candidate.mealRunId !== action.mealRunId) return true;
+    const candidateVersion = Number(candidate.data?.timelineVersion);
+    const hasCandidateVersion = Number.isInteger(candidateVersion) && candidateVersion > 0;
     const sameEpochMutation = (
       ["meal_progress", "meal_complete"].includes(candidate.type)
-      && Number(candidate.data?.timelineVersion) === obsoleteVersion
+      && (
+        candidate.id === action.id
+        || (hasObsoleteVersion && hasCandidateVersion && candidateVersion === obsoleteVersion)
+        || (!hasObsoleteVersion && !hasCandidateVersion)
+      )
     );
     const dependentFeedback = candidate.type === "meal_feedback";
     if (!sameEpochMutation && !dependentFeedback) return true;

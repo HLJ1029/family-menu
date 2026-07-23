@@ -69,8 +69,14 @@ export function requestDinnerRecommendation(session, payload) {
   });
 }
 
-export function loadCurrentHumiMealRun(session, { householdId, dateKey, mealSlot = "dinner" }) {
+export function loadCurrentHumiMealRun(session, {
+  householdId,
+  dateKey,
+  mealSlot = "dinner",
+  mealRunId = "",
+}) {
   const params = new URLSearchParams({ householdId, dateKey, mealSlot });
+  if (mealRunId) params.set("mealRunId", mealRunId);
   return humiApiRequest(`/meal-runs/current?${params.toString()}`, { session });
 }
 

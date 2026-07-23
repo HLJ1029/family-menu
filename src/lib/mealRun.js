@@ -246,19 +246,25 @@ export function isCompletedGuestRunEquivalent(guestRun, remoteRun, ownerUserId) 
 export function obsoleteMealEpochOperationIds(operations, {
   mealRunId,
   timelineVersion,
+  failedOperationId,
 } = {}) {
   const obsoleteVersion = Number(timelineVersion);
+  const hasObsoleteVersion = Number.isInteger(obsoleteVersion) && obsoleteVersion > 0;
   return (Array.isArray(operations) ? operations : [])
-    .filter((operation) => (
-      operation?.mealRunId === mealRunId
-      && (
-        (
-          ["progress", "complete"].includes(operation.action)
-          && Number(operation.payload?.timelineVersion) === obsoleteVersion
+    .filter((operation) => {
+      if (operation?.mealRunId !== mealRunId) return false;
+      const candidateVersion = Number(operation.payload?.timelineVersion);
+      const hasCandidateVersion = Number.isInteger(candidateVersion) && candidateVersion > 0;
+      const sameEpochMutation = (
+        ["progress", "complete"].includes(operation.action)
+        && (
+          operation.id === failedOperationId
+          || (hasObsoleteVersion && hasCandidateVersion && candidateVersion === obsoleteVersion)
+          || (!hasObsoleteVersion && !hasCandidateVersion)
         )
-        || operation.action === "feedback"
-      )
-    ))
+      );
+      return sameEpochMutation || operation.action === "feedback";
+    })
     .map((operation) => operation.id)
     .filter(Boolean);
 }
@@ -274,10 +280,14 @@ export async function recoverObsoleteMealEpoch({
   const discardedOperationIds = obsoleteMealEpochOperationIds(operations, {
     mealRunId: failedOperation?.mealRunId,
     timelineVersion: failedOperation?.payload?.timelineVersion,
+    failedOperationId: failedOperation?.id,
   });
   const latest = await loadLatest();
+  if (!latest?.mealRun) {
+    throw mealRunError("meal_timeline_recovery_missing", "The authoritative cooking run is unavailable.");
+  }
   return {
-    latestMealRun: latest?.mealRun || null,
+    latestMealRun: latest.mealRun,
     discardedOperationIds,
     discardedCompletion: (Array.isArray(operations) ? operations : []).some((operation) => (
       discardedOperationIds.includes(operation.id) && operation.action === "complete"
