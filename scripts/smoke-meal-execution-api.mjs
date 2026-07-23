@@ -590,7 +590,7 @@ try {
     method: "POST",
     session: owner,
     body: { type: "buy", ingredientName: "鸡蛋" },
-    idempotencyKey: "task-buy-egg-replayed-with-another-transport-key",
+    idempotencyKey: "replayed-buy-egg-another-transport-key",
   });
   assert.equal(repeatedTask.task.id, task.task.id, "one declared task source can create at most one task per dinner");
   const taskListAfterReplay = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, { session: owner });
