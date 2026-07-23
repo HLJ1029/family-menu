@@ -61,7 +61,7 @@ Page({
       return;
     }
     if (bootstrap.capabilities?.mealExecutionEnabled !== true) {
-      wx.reLaunch({ url: "/pages/legacy/index?reason=meal_execution_disabled" });
+      wx.reLaunch({ url: "/pages/legacy/index" });
       return;
     }
     const ownerUserId = String(bootstrap.user?.id || "");

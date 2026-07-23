@@ -90,40 +90,64 @@ async function mergeActiveGuestMealRun({
     if (isNetworkError(error)) return { merged: false, reason: "offline", mealRun: null, guestRun };
     throw error;
   }
-  if (remote && ["cooking", "completed"].includes(remote.status)) {
+  if (remote && ["cooking", "completed"].includes(remote.status) && !isSyncedGuestRun(remote, guestRun)) {
     return { merged: false, reason: "remote_locked", mealRun: remote, guestRun };
   }
 
   const idempotencyKey = `guest-merge:${guestRun.id}`;
   try {
-    const result = await requestHumi({
-      path: "/meal-runs",
-      method: "POST",
-      data: {
-        householdId,
-        dateKey,
-        mealSlot: "dinner",
-        effortTier: guestRun.effortTier,
-        recipeIds: guestRun.recipeIds,
-        readyStaple: guestRun.readyStaple || "",
-        syncedFromLocalId: guestRun.id,
+    if (!isSyncedGuestRun(remote, guestRun)) {
+      const result = await requestHumi({
+        path: "/meal-runs",
+        method: "POST",
+        data: {
+          householdId,
+          dateKey,
+          mealSlot: "dinner",
+          effortTier: guestRun.effortTier,
+          recipeIds: guestRun.recipeIds,
+          readyStaple: guestRun.readyStaple || "",
+          syncedFromLocalId: guestRun.id,
+          idempotencyKey,
+        },
         idempotencyKey,
-      },
-      idempotencyKey,
-      expectedUserId: ownerUserId,
+        expectedUserId: ownerUserId,
+      });
+      remote = normalizeMealRun(result?.mealRun);
+      if (!remote) throw codedError("meal_run_response_invalid");
+      writeRemoteMealRun(remote, ownerUserId);
+    }
+    return await migrateGuestRunState({
+      guestRun,
+      remote,
+      ownerUserId,
+      dateKey,
     });
-    const mealRun = normalizeMealRun(result?.mealRun);
-    if (!mealRun) throw codedError("meal_run_response_invalid");
-    writeRemoteMealRun(mealRun, ownerUserId);
-    archiveMergedGuestRun(guestRun, mealRun.id);
-    wx.removeStorageSync(guestRunKey(ownerUserId, dateKey));
-    return { merged: true, reason: "merged", mealRun, guestRun };
   } catch (error) {
     if (isNetworkError(error)) {
       return { merged: false, reason: "offline", mealRun: null, guestRun };
     }
     if (Number(error?.status) !== 409) throw error;
-    const latest = await loadCurrentMealRun({ bootstrap, dateKey, allowCache: false });
+    let latest;
+    try {
+      latest = await loadCurrentMealRun({ bootstrap, dateKey, allowCache: false });
+    } catch (latestError) {
+      if (isNetworkError(latestError)) return { merged: false, reason: "offline", mealRun: null, guestRun };
+      throw latestError;
+    }
+    if (isSyncedGuestRun(latest, guestRun)) {
+      try {
+        return await migrateGuestRunState({
+          guestRun,
+          remote: latest,
+          ownerUserId,
+          dateKey,
+        });
+      } catch (latestError) {
+        if (isNetworkError(latestError)) return { merged: false, reason: "offline", mealRun: null, guestRun };
+        throw latestError;
+      }
+    }
     return {
       merged: false,
       reason: latest && ["cooking", "completed"].includes(latest.status) ? "remote_locked" : "state_conflict",
@@ -131,6 +155,92 @@ async function mergeActiveGuestMealRun({
       guestRun,
     };
   }
+}
+
+async function migrateGuestRunState({
+  guestRun,
+  remote,
+  ownerUserId,
+  dateKey,
+}) {
+  if (!isSyncedGuestRun(remote, guestRun)) {
+    return { merged: false, reason: "state_conflict", mealRun: null, guestRun };
+  }
+  let mealRun = remote;
+  if (guestRun.status === "cooking" && mealRun.status === "planned") {
+    const idempotencyKey = `guest-merge:${guestRun.id}:start`;
+    const result = await requestHumi({
+      path: `/meal-runs/${encodeURIComponent(mealRun.id)}/start`,
+      method: "POST",
+      data: {},
+      idempotencyKey,
+      expectedUserId: ownerUserId,
+    });
+    mealRun = normalizeMealRun(result?.mealRun);
+    if (!mealRun) throw codedError("meal_run_response_invalid");
+    writeRemoteMealRun(mealRun, ownerUserId);
+  }
+  if (guestRun.status === "cooking" && mealRun.status === "cooking") {
+    if (!compatibleProgressTimeline(guestRun, mealRun)) {
+      return { merged: false, reason: "timeline_conflict", mealRun: null, guestRun };
+    }
+    if (!sameCookingProgress(guestRun, mealRun)) {
+      const idempotencyKey = `guest-merge:${guestRun.id}:progress`;
+      const result = await requestHumi({
+        path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
+        method: "PUT",
+        data: {
+          currentStepId: guestRun.currentStepId,
+          timerEndsAt: guestRun.timerEndsAt || "",
+        },
+        idempotencyKey,
+        expectedUserId: ownerUserId,
+      });
+      mealRun = normalizeMealRun(result?.mealRun);
+      if (!mealRun) throw codedError("meal_run_response_invalid");
+      writeRemoteMealRun(mealRun, ownerUserId);
+    }
+    if (!compatibleProgressTimeline(guestRun, mealRun) || !sameCookingProgress(guestRun, mealRun)) {
+      return { merged: false, reason: "progress_conflict", mealRun: null, guestRun };
+    }
+  }
+  const remoteIsEquivalent = guestRun.status === "planned"
+    ? ["planned", "cooking", "completed"].includes(mealRun.status)
+    : mealRun.status === "cooking" || mealRun.status === "completed";
+  if (!remoteIsEquivalent) {
+    return { merged: false, reason: "state_conflict", mealRun: null, guestRun };
+  }
+  writeRemoteMealRun(mealRun, ownerUserId);
+  archiveMergedGuestRun(guestRun, mealRun.id);
+  wx.removeStorageSync(guestRunKey(ownerUserId, dateKey));
+  return { merged: true, reason: "merged", mealRun, guestRun };
+}
+
+function isSyncedGuestRun(remote, guestRun) {
+  return Boolean(remote && guestRun && clean(remote.syncedFromLocalId) === clean(guestRun.id));
+}
+
+function compatibleProgressTimeline(guestRun, remote) {
+  const guestStepIds = timelineStepIds(guestRun.timeline);
+  const remoteStepIds = timelineStepIds(remote.timeline);
+  if (!guestStepIds.length || guestStepIds.length !== remoteStepIds.length) return false;
+  if (guestStepIds.some((stepId, index) => stepId !== remoteStepIds[index])) return false;
+  return guestStepIds.includes(clean(guestRun.currentStepId));
+}
+
+function timelineStepIds(timeline) {
+  if (!Array.isArray(timeline?.steps)) return [];
+  return timeline.steps.map((step) => clean(step?.id)).filter(Boolean);
+}
+
+function sameCookingProgress(guestRun, remote) {
+  return clean(remote.currentStepId) === clean(guestRun.currentStepId)
+    && normalizeTimer(remote.timerEndsAt) === normalizeTimer(guestRun.timerEndsAt);
+}
+
+function normalizeTimer(value) {
+  const time = Date.parse(clean(value));
+  return Number.isFinite(time) ? new Date(time).toISOString() : "";
 }
 
 function createGuestMealRun(input) {

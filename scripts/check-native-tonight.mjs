@@ -17,6 +17,8 @@ await verifyForegroundRunRefresh();
 await verifyOwnerAndMemberPermissions();
 await verifyGuestMergeAndAccountIsolation();
 await verifyGuestMergeNetworkRecovery();
+await verifyCookingGuestStateMigration();
+await verifyCookingGuestConflictRecovery();
 await verifyMealExecutionFlagRollback();
 verifyInteractiveComponents();
 verifyProductionTemplateContract();
@@ -436,11 +438,6 @@ async function verifyGuestMergeNetworkRecovery() {
       effortTier: "quick_15",
       dateKey: "2026-07-23",
     });
-    if (failureStage === "get") {
-      const guestKey = [...storage.keys()].find((key) => key.startsWith("humi:meal-run:guest:v1:"));
-      storage.set(guestKey, { ...storage.get(guestKey), status: "cooking" });
-    }
-
     let online = false;
     const postKeys = [];
     const householdBootstrap = bootstrapFor({
@@ -467,6 +464,7 @@ async function verifyGuestMergeNetworkRecovery() {
                 id: `network-merged-${failureStage}`,
                 householdId: `network-home-${failureStage}`,
                 recipeIds: data.recipeIds,
+                syncedFromLocalId: data.syncedFromLocalId,
               }),
             }, 201);
           }
@@ -479,7 +477,7 @@ async function verifyGuestMergeNetworkRecovery() {
     await page.onLoad();
     assert.equal(page.data.mealRun.id, localRun.id, `${failureStage} disconnect must keep the guest dinner visible`);
     assert.equal(page.data.mealRun.localOnly, true);
-    assert.equal(page.data.viewState, failureStage === "get" ? "resuming" : "planned");
+    assert.equal(page.data.viewState, "planned");
     assert(
       [...storage.values()].some((value) => value?.id === localRun.id),
       `${failureStage} disconnect must retain local storage`,
@@ -497,6 +495,233 @@ async function verifyGuestMergeNetworkRecovery() {
   }
 }
 
+async function verifyCookingGuestStateMigration() {
+  await verifyCookingGuestMergeSuccess();
+  for (const failureStage of ["create", "start", "progress"]) {
+    await verifyCookingGuestMergeRetry(failureStage);
+  }
+  await verifySameGuestCompletedRemoteWins();
+}
+
+async function verifyCookingGuestMergeSuccess() {
+  const fixture = await createCookingGuestFixture("cooking-merge-success");
+  let remote = null;
+  const stageKeys = { create: [], start: [], progress: [] };
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, method, data, header, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) {
+        succeed({ mealRun: remote });
+        return;
+      }
+      if (pathname === "/meal-runs" && method === "POST") {
+        stageKeys.create.push(header["X-Humi-Idempotency-Key"]);
+        remote = remoteRun({
+          id: fixture.remoteId,
+          householdId: fixture.householdId,
+          syncedFromLocalId: data.syncedFromLocalId,
+        });
+        succeed({ mealRun: remote }, 201);
+        return;
+      }
+      if (pathname === `/meal-runs/${fixture.remoteId}/start` && method === "POST") {
+        stageKeys.start.push(header["X-Humi-Idempotency-Key"]);
+        remote = {
+          ...remote,
+          status: "cooking",
+          timelineVersion: fixture.localRun.timelineVersion,
+          timeline: clone(fixture.localRun.timeline),
+          currentStepId: fixture.localRun.timeline.steps[0].id,
+          timerEndsAt: "",
+        };
+        succeed({ mealRun: remote });
+        return;
+      }
+      if (pathname === `/meal-runs/${fixture.remoteId}/progress` && method === "PUT") {
+        stageKeys.progress.push(header["X-Humi-Idempotency-Key"]);
+        assert.equal(data.currentStepId, fixture.localRun.currentStepId);
+        assert.equal(data.timerEndsAt, fixture.localRun.timerEndsAt);
+        remote = { ...remote, currentStepId: data.currentStepId, timerEndsAt: data.timerEndsAt };
+        succeed({ mealRun: remote });
+        return;
+      }
+      throw new Error(`Unexpected cooking merge request: ${method} ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(merged.merged, true);
+  assert.equal(merged.mealRun.status, "cooking", "cooking guest must not be downgraded to remote planned");
+  assert.equal(merged.mealRun.currentStepId, fixture.localRun.currentStepId);
+  assert.equal(merged.mealRun.timerEndsAt, fixture.localRun.timerEndsAt);
+  assert.deepEqual(
+    plain(merged.mealRun.timeline.steps.map((step) => step.id)),
+    plain(fixture.localRun.timeline.steps.map((step) => step.id)),
+  );
+  assert.deepEqual(stageKeys, {
+    create: [`guest-merge:${fixture.localRun.id}`],
+    start: [`guest-merge:${fixture.localRun.id}:start`],
+    progress: [`guest-merge:${fixture.localRun.id}:progress`],
+  });
+  assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
+}
+
+async function verifyCookingGuestMergeRetry(failureStage) {
+  const fixture = await createCookingGuestFixture(`cooking-retry-${failureStage}`);
+  let remote = null;
+  let failed = false;
+  const stageKeys = { create: [], start: [], progress: [] };
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, method, data, header, succeed, fail }) => {
+      if (pathname.startsWith("/meal-runs/current")) {
+        succeed({ mealRun: remote });
+        return;
+      }
+      if (pathname === "/meal-runs" && method === "POST") {
+        stageKeys.create.push(header["X-Humi-Idempotency-Key"]);
+        if (failureStage === "create" && !failed) {
+          failed = true;
+          fail();
+          return;
+        }
+        remote = remoteRun({
+          id: fixture.remoteId,
+          householdId: fixture.householdId,
+          syncedFromLocalId: data.syncedFromLocalId,
+        });
+        succeed({ mealRun: remote }, 201);
+        return;
+      }
+      if (pathname === `/meal-runs/${fixture.remoteId}/start` && method === "POST") {
+        stageKeys.start.push(header["X-Humi-Idempotency-Key"]);
+        if (failureStage === "start" && !failed) {
+          failed = true;
+          fail();
+          return;
+        }
+        remote = {
+          ...remote,
+          status: "cooking",
+          timelineVersion: fixture.localRun.timelineVersion,
+          timeline: clone(fixture.localRun.timeline),
+          currentStepId: fixture.localRun.timeline.steps[0].id,
+          timerEndsAt: "",
+        };
+        succeed({ mealRun: remote });
+        return;
+      }
+      if (pathname === `/meal-runs/${fixture.remoteId}/progress` && method === "PUT") {
+        stageKeys.progress.push(header["X-Humi-Idempotency-Key"]);
+        if (failureStage === "progress" && !failed) {
+          failed = true;
+          fail();
+          return;
+        }
+        remote = { ...remote, currentStepId: data.currentStepId, timerEndsAt: data.timerEndsAt };
+        succeed({ mealRun: remote });
+        return;
+      }
+      throw new Error(`Unexpected ${failureStage} retry request: ${method} ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const first = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(first.merged, false);
+  assert.equal(first.reason, "offline");
+  assert.equal(first.guestRun.id, fixture.localRun.id);
+  assert.equal(first.guestRun.status, "cooking");
+  assert.equal(
+    mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }).id,
+    fixture.localRun.id,
+    `${failureStage} disconnect must retain the cooking guest run`,
+  );
+
+  const second = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(second.merged, true);
+  assert.equal(second.mealRun.status, "cooking");
+  assert.equal(second.mealRun.currentStepId, fixture.localRun.currentStepId);
+  assert.equal(second.mealRun.timerEndsAt, fixture.localRun.timerEndsAt);
+  assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
+  assert.equal(stageKeys[failureStage].length, 2, `${failureStage} must be retried`);
+  assert.equal(stageKeys[failureStage][0], stageKeys[failureStage][1], `${failureStage} retry must reuse its idempotency key`);
+}
+
+async function verifySameGuestCompletedRemoteWins() {
+  const fixture = await createCookingGuestFixture("cooking-remote-completed");
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (!pathname.startsWith("/meal-runs/current")) throw new Error(`Unexpected completed merge request: ${pathname}`);
+      succeed({
+        mealRun: remoteRun({
+          id: fixture.remoteId,
+          householdId: fixture.householdId,
+          status: "completed",
+          syncedFromLocalId: fixture.localRun.id,
+        }),
+      });
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(merged.merged, true);
+  assert.equal(merged.mealRun.status, "completed");
+  assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
+}
+
+async function verifyCookingGuestConflictRecovery() {
+  const fixture = await createCookingGuestFixture("cooking-conflict-get-offline");
+  let currentCalls = 0;
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, succeed, fail }) => {
+      if (pathname.startsWith("/meal-runs/current")) {
+        currentCalls += 1;
+        if (currentCalls === 1) succeed({ mealRun: null });
+        else fail();
+        return;
+      }
+      if (pathname === "/meal-runs") {
+        succeed({ error: "state_conflict" }, 409);
+        return;
+      }
+      throw new Error(`Unexpected conflict recovery request: ${pathname}`);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+  await page.onLoad();
+  assert.equal(page.data.viewState, "resuming", "409 recovery GET disconnect must keep showing the cooking guest");
+  assert.equal(page.data.mealRun.id, fixture.localRun.id);
+  assert.equal(page.data.mealRun.currentStepId, fixture.localRun.currentStepId);
+  assert.equal(page.data.errorText, "");
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  assert.equal(
+    mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }).id,
+    fixture.localRun.id,
+  );
+}
+
 async function verifyMealExecutionFlagRollback() {
   const runtime = createRuntime({
     session: sessionFor("disabled-user"),
@@ -512,7 +737,7 @@ async function verifyMealExecutionFlagRollback() {
   await page.onLoad();
   assert.deepEqual(runtime.routes, [{
     kind: "reLaunch",
-    url: "/pages/legacy/index?reason=meal_execution_disabled",
+    url: "/pages/legacy/index",
   }]);
   assert.equal(runtime.requests.length, 0);
 
@@ -523,6 +748,50 @@ async function verifyMealExecutionFlagRollback() {
   const guestPage = guestEnabled.loadPage("miniprogram/pages/tonight/index.js");
   await guestPage.onLoad();
   assert.equal(guestPage.data.viewState, "choose_effort", "an explicitly enabled household-free guest may use local certified dinners");
+}
+
+async function createCookingGuestFixture(label) {
+  const storage = new Map();
+  const userId = `guest-${label}`;
+  const householdId = `home-${label}`;
+  const remoteId = `remote-${label}`;
+  const dateKey = "2026-07-23";
+  const guestRuntime = createRuntime({
+    storage,
+    session: sessionFor(userId),
+    bootstrap: bootstrapFor({ userId }),
+  });
+  const mealRuns = guestRuntime.load("miniprogram/utils/meal-run.js");
+  const planned = await mealRuns.createMealRun({
+    bootstrap: bootstrapFor({ userId }),
+    recommendation: recommendation(`rec-${label}`, ["tomato-egg"], "local"),
+    effortTier: "quick_15",
+    dateKey,
+  });
+  const { buildMealTimeline } = guestRuntime.load("miniprogram/utils/meal-timeline.js");
+  const timeline = buildMealTimeline(planned.recipeIds, { startedAt: "2026-07-23T10:00:00.000Z" });
+  const progressStep = timeline.steps[Math.min(1, timeline.steps.length - 1)];
+  const localRun = {
+    ...planned,
+    status: "cooking",
+    timelineVersion: timeline.version,
+    timeline,
+    currentStepId: progressStep.id,
+    timerEndsAt: "2026-07-23T10:30:00.000Z",
+    startedAt: timeline.startedAt,
+    updatedAt: "2026-07-23T10:05:00.000Z",
+  };
+  const guestKey = [...storage.keys()].find((key) => key.startsWith("humi:meal-run:guest:v1:"));
+  storage.set(guestKey, clone(localRun));
+  return {
+    storage,
+    userId,
+    householdId,
+    remoteId,
+    dateKey,
+    localRun,
+    householdBootstrap: bootstrapFor({ userId, householdId, role: "owner" }),
+  };
 }
 
 function verifyInteractiveComponents() {

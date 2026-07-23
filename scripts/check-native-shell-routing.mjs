@@ -62,7 +62,7 @@ const assertRoute = (actual, expected) => assert.deepEqual(JSON.parse(JSON.strin
 
 assertRoute(resolveStartupRoute({ candidate: false, envelope: enabled }), { route: "/pages/legacy/index", reason: "package_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: disabled }), { route: "/pages/legacy/index", reason: "server_disabled" });
-assertRoute(resolveStartupRoute({ candidate: true, envelope: mealExecutionDisabled }), { route: "/pages/legacy/index?reason=meal_execution_disabled", reason: "meal_execution_disabled" });
+assertRoute(resolveStartupRoute({ candidate: true, envelope: mealExecutionDisabled }), { route: "/pages/legacy/index", reason: "meal_execution_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: incomplete }), { route: "/pages/identity/index", reason: "identity_incomplete" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: enabled }), { route: "/pages/tonight/index", reason: "native_enabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: { ...enabled, cacheState: "cached" } }), { route: "/pages/tonight/index", reason: "native_enabled" });
@@ -214,7 +214,7 @@ assert.deepEqual(runGuard({ bootstrap: null, candidate: true }), { allowed: fals
 assert.deepEqual(runGuard({ bootstrap: disabled, candidate: true }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a server-disabled direct tab entry must return to legacy");
 assert.deepEqual(
   runGuard({ bootstrap: mealExecutionDisabled, candidate: true }),
-  { allowed: false, guardRoutes: ["/pages/legacy/index?reason=meal_execution_disabled"] },
+  { allowed: false, guardRoutes: ["/pages/legacy/index"] },
   "a meal-execution-disabled direct tab entry must return to the stable legacy Tonight flow",
 );
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: false }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a package-disabled direct tab entry must return to legacy");
@@ -258,6 +258,47 @@ vm.runInNewContext(bootSource, {
 const legacyBootPage = { ...legacyBootDefinition, data: structuredClone(legacyBootDefinition.data), setData(patch) { this.data = { ...this.data, ...patch }; } };
 await legacyBootPage.onLoad({ view: "grocery", shareSource: "grocery", humiResume: "1", token: validToken, freeText: "nope" });
 assert.deepEqual(legacyBootRoutes, ["/pages/legacy/index?view=grocery&shareSource=grocery&humiResume=1"], "boot must preserve only safe tokenless compatibility parameters when it rolls back");
+let mealDisabledBootDefinition;
+const mealDisabledBootRoutes = [];
+vm.runInNewContext(bootSource, {
+  Page: (definition) => { mealDisabledBootDefinition = definition; },
+  getApp: () => ({ globalData: { nativeShellCandidate: true } }),
+  wx: { switchTab: () => assert.fail("meal-disabled boot must not switch to a tab"), reLaunch: ({ url }) => mealDisabledBootRoutes.push(url) },
+  require: (specifier) => {
+    if (specifier === "../../utils/bootstrap") {
+      return {
+        buildLegacyRoute,
+        extractLegacyOptions: (options) => options,
+        loadBootstrap: async () => mealExecutionDisabled,
+        resolveKnownShareRoute,
+        resolveStartupRoute,
+      };
+    }
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
+    if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
+    throw new Error(`Unexpected meal-disabled boot dependency: ${specifier}`);
+  }
+});
+const mealDisabledBootPage = {
+  ...mealDisabledBootDefinition,
+  data: structuredClone(mealDisabledBootDefinition.data),
+  setData(patch) { this.data = { ...this.data, ...patch }; },
+};
+await mealDisabledBootPage.onLoad({
+  view: "today",
+  shareSource: "today_menu",
+  humiLogout: "1",
+  humiExpired: true,
+  humiResume: "1",
+  token: validToken,
+  invite: "unsafe-token",
+  arbitrary: "drop",
+});
+assert.deepEqual(
+  mealDisabledBootRoutes,
+  ["/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1"],
+  "meal-disabled rollback must pass through buildLegacyRoute and retain only reviewed launch context",
+);
 let retryBootDefinition;
 const retryBootRoutes = [];
 let retryBootstrapCalls = 0;
