@@ -34,6 +34,9 @@ function resolveKnownShareRoute(options = {}) {
   const [key, type] = match;
   const landing = validateShareLandingOptions({ type, token: options[key] });
   if (!landing) return null;
+  if (landing.type === "invite") {
+    return `/packageFamily/pages/invite/index?token=${encodeURIComponent(landing.token)}`;
+  }
   const query = [`type=${encodeURIComponent(landing.type)}`, `token=${encodeURIComponent(landing.token)}`, `shareSource=${encodeURIComponent(landing.type)}`];
   return `/pages/share/index?${query.join("&")}`;
 }

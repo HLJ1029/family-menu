@@ -1,0 +1,13 @@
+.summary-card { padding: 34rpx; border: 2rpx solid rgba(17,17,17,.08); border-radius: 34rpx; background: #fff; box-shadow: 0 20rpx 64rpx rgba(17,17,17,.06); }
+.summary-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; }
+.eyebrow { display: block; color: rgba(17,17,17,.46); font-size: 22rpx; font-weight: 900; letter-spacing: .08em; }
+.household-name { display: block; margin-top: 10rpx; color: #111; font-size: 46rpx; line-height: 1.16; font-weight: 900; }
+.meta { display: block; margin-top: 10rpx; color: rgba(17,17,17,.56); font-size: 24rpx; line-height: 1.5; font-weight: 700; }
+.compact-button { min-height: 76rpx; margin: 24rpx 0 0; padding: 0 28rpx; border: 2rpx solid rgba(17,17,17,.12); border-radius: 999rpx; background: #fff; color: #111; font-size: 24rpx; font-weight: 900; }
+.compact-button.dark { min-width: 164rpx; margin-top: 0; border-color: #111; background: #111; color: #fff; }
+.switcher { width: 100%; margin-top: 28rpx; white-space: nowrap; }
+.household-pill { display: inline-flex; min-height: 66rpx; margin: 0 14rpx 0 0; padding: 0 24rpx; border: 2rpx solid rgba(17,17,17,.1); border-radius: 999rpx; background: #f6f6f4; color: rgba(17,17,17,.62); font-size: 22rpx; font-weight: 900; }
+.household-pill.active { border-color: #111; background: #111; color: #fff; }
+.dinner-panel { margin-top: 28rpx; padding: 28rpx; border-radius: 26rpx; background: #f5f5f3; }
+.dinner-title { display: block; margin-top: 12rpx; font-size: 32rpx; font-weight: 900; }
+.settings-link { display: flex; align-items: center; justify-content: space-between; min-height: 92rpx; margin: 22rpx 0 0; padding: 0; border: 0; border-top: 2rpx solid rgba(17,17,17,.08); border-radius: 0; background: transparent; color: #111; font-size: 25rpx; font-weight: 900; }

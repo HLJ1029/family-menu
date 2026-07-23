@@ -10,6 +10,8 @@ const scratch = await mkdtemp(join(tmpdir(), "humi-native-primary-tabs-"));
 process.env.HUMI_API_DATA_FILE = join(scratch, "data.json");
 process.env.HUMI_SESSION_SECRET = "native-primary-tabs-test-secret";
 process.env.HUMI_WECHAT_MOCK = "1";
+process.env.HUMI_MEAL_EXECUTION_ENABLED = "1";
+process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS = "*";
 const { createHumiApiServer } = await import("../api/server.js");
 const server = createHumiApiServer();
 await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
@@ -316,11 +318,59 @@ try {
     expectedStatus: 201,
     body: { householdId: ownerHousehold.family.id },
   });
-  await apiRequest(origin, `/household-invites/${invite.invite.token}/join`, {
+  const joinedHousehold = await apiRequest(origin, `/household-invites/${invite.invite.token}/join`, {
     method: "POST",
     token: memberLogin.accessToken,
-    body: { memberName: "家人" },
+    body: { memberName: "伪造的正式昵称" },
   });
+  assert.equal(
+    joinedHousehold.family.members.find((member) => member.memberId === memberLogin.user.id)?.nickname,
+    "家人",
+    "formal invite membership must use the authenticated profile instead of client memberName",
+  );
+  const householdMealRun = await apiRequest(origin, "/meal-runs", {
+    method: "POST",
+    token: ownerLogin.accessToken,
+    expectedStatus: 201,
+    body: {
+      householdId: ownerHousehold.family.id,
+      dateKey: "2026-07-24",
+      mealSlot: "dinner",
+      effortTier: "quick_15",
+      recipeIds: ["tomato-egg"],
+      idempotencyKey: "household-control-meal-run",
+    },
+  });
+  const emptyMealTasks = await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/tasks`, {
+    token: memberLogin.accessToken,
+  });
+  assert.deepEqual(emptyMealTasks.tasks, [], "a formal member sees an explicit empty task list");
+  await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/tasks`, {
+    method: "POST",
+    token: ownerLogin.accessToken,
+    expectedStatus: 201,
+    body: { type: "buy", ingredientName: "鸡蛋" },
+  });
+  const householdMealTasks = await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/tasks`, {
+    token: memberLogin.accessToken,
+  });
+  assert.equal(householdMealTasks.tasks.length, 1);
+  assert.deepEqual(
+    Object.keys(householdMealTasks.tasks[0]).sort(),
+    ["completedAt", "completedBy", "createdAt", "createdBy", "id", "label", "status", "type", "updatedAt", "claimedAt", "claimedBy"].sort(),
+    "household task summaries must omit share tokens and unrelated execution internals",
+  );
+  const outsiderLogin = await loginNativeUser(origin, "outsider");
+  const forbiddenMealTasks = await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/tasks`, {
+    token: outsiderLogin.accessToken,
+    expectedStatus: 404,
+  });
+  assert.equal(forbiddenMealTasks.code, "meal_run_not_found");
+  const missingMealTasks = await apiRequest(origin, `/meal-runs/${"0".repeat(32)}/tasks`, {
+    token: ownerLogin.accessToken,
+    expectedStatus: 404,
+  });
+  assert.equal(missingMealTasks.code, "meal_run_not_found");
   const legacySaved = await apiRequest(origin, "/state", {
     method: "PUT",
     token: ownerLogin.accessToken,
@@ -519,7 +569,7 @@ try {
     expectedStatus: 400,
     body: {
       householdId: ownerHousehold.family.id,
-      patch: { familyProfile: { familySize: 99 } },
+      patch: { arbitraryProfile: { familySize: 99 } },
     },
   });
   assert.equal(unknownPatchField.code, "state_patch_invalid");
@@ -564,7 +614,296 @@ try {
   assert.match(groceryMarkup, /grocery-item/);
   assert.match(groceryMarkup, /分享只读清单/);
 
-  console.log("Native Discover, recipe summaries, image fallback, and isolated H5 content routes passed.");
+  const noHouseholdBootstrap = {
+    schemaVersion: 1,
+    stateVersion: "empty-household-v1",
+    user: { id: "owner-1", displayName: "主理人" },
+    activeHouseholdId: "",
+    households: [],
+    householdState: null,
+    currentMealRun: null,
+    capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true },
+  };
+  const familyRequests = [];
+  const replacementBootstrap = buildNativeBootstrap({ role: "owner", stateVersion: "state-v2" });
+  const familyPageStubs = (bootstrap) => ({
+    "../../utils/native-shell-guard": { guardNativeTab: () => true },
+    "../../utils/store": { appStore: { getState: () => ({ bootstrap }), replaceBootstrap: () => {} } },
+    "../../utils/bootstrap": { loadBootstrap: async () => replacementBootstrap },
+    "../../utils/request": {
+      requestHumi: async (options) => {
+        familyRequests.push(options);
+        if (options.path.endsWith("/collaborations?limit=5")) {
+          return {
+            events: Array.from({ length: 7 }, (_, index) => ({
+              id: `event-${index}`,
+              participant: { displayName: index === 0 ? "游客 1" : "主理人", avatarUrl: "" },
+              actionType: "crave_vote",
+              createdAt: `2026-07-2${index}T10:00:00.000Z`,
+              payload: { feelingTag: "清淡" },
+            })),
+          };
+        }
+        if (options.path.endsWith("/tasks")) {
+          return {
+            tasks: [
+              { id: "task-open", label: "买鸡蛋", status: "open", createdByName: "主理人" },
+              { id: "task-claimed", label: "洗青菜", status: "claimed", claimedByName: "家人" },
+            ],
+          };
+        }
+        if (options.path === "/household-invites") {
+          return { invite: { token: "a".repeat(32), householdName: "测试家", inviterName: "主理人" } };
+        }
+        return {};
+      },
+    },
+  });
+  const noFamilyPage = await loadPage(
+    "miniprogram/pages/family/index.js",
+    familyPageStubs(noHouseholdBootstrap),
+  );
+  noFamilyPage.syncState();
+  assert.equal(noFamilyPage.data.primaryAction, "创建一个家");
+  assert.equal(noFamilyPage.data.secondaryAction, "我有邀请");
+  assert.equal(noFamilyPage.data.activeHousehold, null, "reading My Home must not create a household");
+
+  const familyRoutes = [];
+  const ownerFamilyPage = await loadPage(
+    "miniprogram/pages/family/index.js",
+    familyPageStubs(buildNativeBootstrap({ role: "owner" })),
+    { wx: { navigateTo: ({ url }) => familyRoutes.push(url) } },
+  );
+  ownerFamilyPage.syncState();
+  assert.equal(ownerFamilyPage.data.canOpenSettings, true);
+  assert.equal(ownerFamilyPage.data.canStartCooking, true);
+  await ownerFamilyPage.prepareInvite();
+  assert.equal(
+    familyRoutes.at(-1),
+    "/packageFamily/pages/invite/index?mode=prepare&householdId=household-1",
+    "the household owner must stay in the native invitation flow",
+  );
+
+  const memberFamilyPage = await loadPage(
+    "miniprogram/pages/family/index.js",
+    familyPageStubs(buildNativeBootstrap({ role: "member" })),
+  );
+  memberFamilyPage.syncState();
+  assert.equal(memberFamilyPage.data.canOpenSettings, false);
+  assert.equal(memberFamilyPage.data.canStartCooking, true);
+
+  const multiHouseholdBootstrap = buildNativeBootstrap({ role: "owner" });
+  multiHouseholdBootstrap.households.push({
+    id: "household-2",
+    name: "爸妈家",
+    ownerId: "owner-1",
+    role: "owner",
+    members: [{ id: "owner-1", displayName: "主理人", role: "owner" }],
+  });
+  const multiFamilyPage = await loadPage(
+    "miniprogram/pages/family/index.js",
+    familyPageStubs(multiHouseholdBootstrap),
+  );
+  multiFamilyPage.syncState();
+  assert.equal(multiFamilyPage.data.householdOptions.length, 2);
+  assert.equal(multiFamilyPage.data.householdOptions[0].isActive, true);
+  assert.equal(multiFamilyPage.data.householdOptions[1].isActive, false);
+
+  familyRequests.length = 0;
+  await multiFamilyPage.switchHousehold({ currentTarget: { dataset: { householdId: "household-2" } } });
+  assert.deepEqual(JSON.parse(JSON.stringify(familyRequests[0])), {
+    path: "/households/active",
+    method: "POST",
+    data: { householdId: "household-2" },
+    idempotencyKey: familyRequests[0].idempotencyKey,
+  });
+  assert.match(familyRequests[0].idempotencyKey, /^household-switch:/);
+
+  const activeDinnerBootstrap = buildNativeBootstrap({ role: "owner" });
+  activeDinnerBootstrap.currentMealRun = {
+    id: "meal-run-1",
+    status: "cooking",
+    startedBy: "member-1",
+    createdBy: "owner-1",
+    recipeSnapshot: [{ title: "西红柿炒鸡蛋" }],
+  };
+  activeDinnerBootstrap.householdState.groceryClaims = {
+    eggs: { itemKey: "eggs", itemName: "鸡蛋", memberId: "member-1", memberName: "家人", status: "claimed" },
+  };
+  const activeFamilyPage = await loadPage(
+    "miniprogram/pages/family/index.js",
+    familyPageStubs(activeDinnerBootstrap),
+  );
+  activeFamilyPage.syncState();
+  assert.equal(activeFamilyPage.data.bootstrapUserId, "owner-1", "the member list must identify the current formal member");
+  await activeFamilyPage.loadCollaborationData();
+  assert.equal(activeFamilyPage.data.dinner.operatorName, "家人", "the operator identity comes from formal backend membership");
+  assert.equal(activeFamilyPage.data.mealTasks.length, 2);
+  assert.equal(activeFamilyPage.data.groceryClaims[0].memberName, "家人");
+  assert.equal(activeFamilyPage.data.recentCollaborations.length, 5);
+  assert.equal(activeFamilyPage.data.recentCollaborations[0].participantName, "游客 1");
+  assert.equal(
+    familyRequests.some((request) => /\/meal-runs\/[^/]+\/tasks$/.test(request.path)),
+    true,
+    "the control center must load the reviewed formal-member task summary endpoint",
+  );
+
+  const familySource = await readFile(join(root, "miniprogram/pages/family/index.js"), "utf8");
+  const familyMarkup = await readFile(join(root, "miniprogram/pages/family/index.wxml"), "utf8");
+  assert.doesNotMatch(familyMarkup, /已创立我的家/);
+  for (const section of ["这个家", "今晚一起做", "成员", "最近协作", "家庭设置"]) {
+    assert.match(familyMarkup, new RegExp(section));
+  }
+  for (const handler of [
+    "openCreateHousehold",
+    "openInviteEntry",
+    "switchHousehold",
+    "prepareInvite",
+    "startOrResumeDinner",
+    "openSettings",
+    "leaveHousehold",
+  ]) {
+    assert.match(familySource, new RegExp(`\\b${handler}\\s*\\(`), `${handler} must be a real family-page handler`);
+  }
+  assert.doesNotMatch(familySource, /(?:询问|输入).{0,12}(?:身份|昵称)/, "formal collaboration must not re-ask identity");
+
+  for (const [component, marker] of [
+    ["household-summary", /bindtap/],
+    ["member-row", /正式成员/],
+    ["collaboration-row", /participantName/],
+  ]) {
+    const source = await readFile(join(root, `miniprogram/components/${component}/index.wxml`), "utf8");
+    assert.match(source, marker);
+  }
+  const settingsSource = await readFile(join(root, "miniprogram/packageFamily/pages/settings/index.js"), "utf8");
+  const settingsMarkup = await readFile(join(root, "miniprogram/packageFamily/pages/settings/index.wxml"), "utf8");
+  for (const handler of ["saveName", "savePreferences", "transferOwnership", "removeMember", "leaveHousehold"]) {
+    assert.match(settingsSource, new RegExp(`\\b${handler}\\s*\\(`));
+  }
+  assert.match(settingsSource, /showModal/, "destructive household changes require explicit confirmation");
+  assert.match(settingsMarkup, /家庭名称/);
+  assert.match(settingsMarkup, /过敏或必须避开/);
+  assert.match(settingsMarkup, /转让主厨/);
+  assert.doesNotMatch(settingsMarkup, /功能将在后续阶段启用/);
+
+  const inviteSource = await readFile(join(root, "miniprogram/packageFamily/pages/invite/index.js"), "utf8");
+  const inviteMarkup = await readFile(join(root, "miniprogram/packageFamily/pages/invite/index.wxml"), "utf8");
+  for (const handler of ["loadInvite", "loginAndJoin", "joinHousehold", "submitTemporaryWant"]) {
+    assert.match(inviteSource, new RegExp(`\\b${handler}\\s*\\(`));
+  }
+  assert.match(inviteMarkup, /邀请你加入/);
+  assert.match(inviteMarkup, /加入这个家/);
+  assert.match(inviteMarkup, /登录/);
+  assert.doesNotMatch(inviteMarkup, /功能将在后续阶段启用/);
+
+  const inviteToken = "i".repeat(32);
+  const inviteRequests = [];
+  const inviteStorage = new Map();
+  const inviteRoutes = [];
+  let inviteSession = null;
+  let joinedBootstrap = buildNativeBootstrap({ role: "member", stateVersion: "joined-v1" });
+  const invitePage = await loadPage(
+    "miniprogram/packageFamily/pages/invite/index.js",
+    {
+      "../../../utils/bootstrap": { loadBootstrap: async () => joinedBootstrap },
+      "../../../utils/request": {
+        rawRequest: async (options) => {
+          inviteRequests.push(options);
+          if (options.method === "POST") return { want: { id: "want-1", temporary: true } };
+          return {
+            invite: {
+              token: inviteToken,
+              householdName: "测试家",
+              inviterName: "主理人",
+              status: "open",
+            },
+          };
+        },
+        requestHumi: async (options) => {
+          inviteRequests.push(options);
+          return {};
+        },
+      },
+      "../../../utils/session": {
+        getSession: () => inviteSession,
+        loginWithWechat: async () => {
+          inviteSession = {
+            accessToken: "native-session",
+            expiresAt: Date.now() + 60_000,
+            user: { id: "member-1", displayName: "家人", profileStatus: "complete" },
+          };
+          return inviteSession;
+        },
+      },
+      "../../../utils/store": { appStore: { getState: () => ({ bootstrap: null }), replaceBootstrap: (value) => { joinedBootstrap = value; } } },
+    },
+    {
+      getApp: () => ({ setHumiSession: (value) => { inviteSession = value; } }),
+      wx: {
+        getStorageSync: (key) => inviteStorage.get(key),
+        setStorageSync: (key, value) => inviteStorage.set(key, value),
+        navigateTo: ({ url }) => inviteRoutes.push(url),
+        redirectTo: ({ url }) => inviteRoutes.push(url),
+        switchTab: ({ url }) => inviteRoutes.push(url),
+      },
+    },
+  );
+  await invitePage.onLoad({ token: inviteToken });
+  assert.equal(invitePage.data.invite.householdName, "测试家");
+  assert.equal(invitePage.data.isLoggedIn, false);
+  assert.equal(invitePage.data.primaryAction, "微信登录后加入");
+  invitePage.updateWant({ detail: { value: "番茄鸡蛋面" } });
+  await invitePage.submitTemporaryWant();
+  const guestWantRequest = inviteRequests.find((request) => request.path.endsWith("/wants"));
+  assert.equal(guestWantRequest.method, "POST");
+  assert.match(guestWantRequest.data.participantKey, /^guest_[A-Za-z0-9]+$/);
+  assert.equal(Object.hasOwn(guestWantRequest.data, "memberName"), false, "guest participation must not ask for a reusable identity");
+  await invitePage.loginAndJoin();
+  const joinRequest = inviteRequests.find((request) => request.path.endsWith("/join"));
+  assert.equal(joinRequest.method, "POST");
+  assert.equal(joinRequest.data.participantKey, guestWantRequest.data.participantKey);
+  assert.equal(Object.hasOwn(joinRequest.data, "memberName"), false, "formal identity must come from the authenticated backend session");
+  assert.equal(inviteRoutes.at(-1), "/pages/family/index");
+
+  const settingsRequests = [];
+  const settingsBootstrap = buildNativeBootstrap({ role: "owner" });
+  const settingsPage = await loadPage(
+    "miniprogram/packageFamily/pages/settings/index.js",
+    {
+      "../../../utils/bootstrap": { loadBootstrap: async () => settingsBootstrap },
+      "../../../utils/request": {
+        requestHumi: async (options) => {
+          settingsRequests.push(options);
+          if (options.path === "/state" && !options.method) {
+            return {
+              state: {
+                activeCraveRequest: { token: "server-owned-token" },
+                familyProfile: { familySize: 2, dislikes: [], allergies: [] },
+              },
+            };
+          }
+          return {};
+        },
+      },
+      "../../../utils/store": {
+        appStore: {
+          getState: () => ({ bootstrap: settingsBootstrap }),
+          replaceBootstrap: () => {},
+        },
+      },
+    },
+    { wx: { navigateTo() {}, navigateBack() {}, showModal() {} } },
+  );
+  settingsPage.onLoad({ householdId: "household-1" });
+  settingsPage.updateDislikes({ detail: { value: "香菜、芹菜" } });
+  settingsPage.updateAllergies({ detail: { value: "花生" } });
+  await settingsPage.savePreferences();
+  const savedSettingsState = settingsRequests.find((request) => request.method === "PUT")?.data?.state;
+  assert.equal(savedSettingsState.activeCraveRequest.token, "server-owned-token", "preference saving must merge into a fresh full state");
+  assert.deepEqual(JSON.parse(JSON.stringify(savedSettingsState.familyProfile.dislikes)), ["香菜", "芹菜"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(savedSettingsState.familyProfile.allergies)), ["花生"]);
+
+  console.log("Native primary tabs and household control center checks passed.");
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));
   await rm(scratch, { recursive: true, force: true });
@@ -579,11 +918,12 @@ async function loadComponent(relativePath) {
   return instantiate(definition);
 }
 
-async function loadPage(relativePath, stubs) {
+async function loadPage(relativePath, stubs, globals = {}) {
   let definition;
   await evaluateCommonJs(relativePath, stubs, {
+    ...globals,
     Page: (candidate) => { definition = candidate; },
-    wx: { navigateTo() {} },
+    wx: { navigateTo() {}, ...(globals.wx || {}) },
   });
   assert(definition, `${relativePath} must register a Page`);
   return instantiate(definition);

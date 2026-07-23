@@ -74,7 +74,7 @@ assert.equal(resolveKnownShareRoute({ grocery: validToken, shareSource: "ignored
 assert.equal(resolveKnownShareRoute({ groceryShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=grocery&token=${validToken}&shareSource=grocery`);
 assert.equal(resolveKnownShareRoute({ menuShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=today_menu&token=${validToken}&shareSource=today_menu`);
 assert.equal(resolveKnownShareRoute({ wishShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=wish&token=${validToken}&shareSource=wish`);
-assert.equal(resolveKnownShareRoute({ invite: validToken, shareSource: "ignored" }), `/pages/share/index?type=invite&token=${validToken}&shareSource=invite`);
+assert.equal(resolveKnownShareRoute({ invite: validToken, shareSource: "ignored" }), `/packageFamily/pages/invite/index?token=${validToken}`);
 assert.equal(resolveKnownShareRoute({ mealTask: validToken, shareSource: "ignored" }), `/pages/share/index?type=meal_task&token=${validToken}&shareSource=meal_task`);
 for (const invalidToken of [{ value: validToken }, "", "   ", "short", "x".repeat(65), "abcdefghijklmnopqrstuv!" ]) {
   assert.equal(resolveKnownShareRoute({ crave: invalidToken }), null, "only opaque 24–64 character token strings may use the native landing");
@@ -229,6 +229,7 @@ for (const tabPath of tabPaths) {
     Page: (page) => { definition = page; },
     require: (specifier) => {
       if (specifier === "../../utils/native-shell-guard") return { guardNativeTab: () => { guardCalls += 1; return false; } };
+      if (specifier === "../../utils/bootstrap") return { loadBootstrap: async () => null };
       if (specifier === "../../utils/store") return { appStore: { getState: () => ({ bootstrap: null }) } };
       if (specifier === "../../utils/recommendation") return {};
       if (specifier === "../../utils/meal-run") return {};
@@ -378,7 +379,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [{ result: "completed",
 
 routes.length = 0;
 await bootPage.onLoad({ invite: validToken, shareSource: "ignored" });
-assert.deepEqual(routes, [["reLaunch", `/pages/share/index?type=invite&token=${validToken}&shareSource=invite`]], "a recognized public token must bypass core-shell bootstrap routing");
+assert.deepEqual(routes, [["reLaunch", `/packageFamily/pages/invite/index?token=${validToken}`]], "a recognized household invite must open the controlled native join landing");
 
 const shimSource = readFileSync(new URL("../miniprogram/pages/index/index.js", import.meta.url), "utf8");
 let shimDefinition;

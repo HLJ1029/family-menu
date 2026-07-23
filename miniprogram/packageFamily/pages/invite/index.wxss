@@ -1,1 +1,16 @@
-.placeholder { padding: 48rpx 36rpx; color: #666666; font-size: 28rpx; }
+page { min-height: 100vh; background: #f5f5f3; color: #111; }
+.invite-page { padding: 44rpx 28rpx 100rpx; }
+.invite-card { padding: 38rpx 34rpx; border: 2rpx solid rgba(17,17,17,.08); border-radius: 36rpx; background: #fff; box-shadow: 0 24rpx 72rpx rgba(17,17,17,.06); }
+.eyebrow { display: block; color: rgba(17,17,17,.42); font-size: 21rpx; font-weight: 900; letter-spacing: .09em; }
+.title { display: block; margin-top: 12rpx; font-size: 43rpx; line-height: 1.25; font-weight: 900; }
+.section-title { display: block; margin-top: 10rpx; font-size: 29rpx; font-weight: 900; }
+.copy { display: block; margin-top: 18rpx; color: rgba(17,17,17,.56); font-size: 24rpx; line-height: 1.62; font-weight: 700; }
+.impact-list { margin-top: 28rpx; border-top: 2rpx solid rgba(17,17,17,.08); }
+.impact-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; padding: 22rpx 0; border-bottom: 2rpx solid rgba(17,17,17,.08); color: rgba(17,17,17,.62); font-size: 22rpx; font-weight: 800; }
+.field { box-sizing: border-box; min-height: 92rpx; margin-top: 24rpx; padding: 0 28rpx; border: 2rpx solid rgba(17,17,17,.1); border-radius: 999rpx; background: #f6f6f4; font-size: 25rpx; font-weight: 800; }
+.primary-button,.secondary-button { min-height: 94rpx; margin: 26rpx 0 0; border-radius: 999rpx; font-size: 26rpx; font-weight: 900; }
+.primary-button { background: #111; color: #fff; }
+.secondary-button { border: 2rpx solid rgba(17,17,17,.12); background: #fff; color: #111; }
+.temporary-panel { margin-top: 34rpx; padding: 28rpx; border-radius: 26rpx; background: #f5f5f3; }
+.success-copy { display: block; margin-top: 20rpx; color: rgba(17,17,17,.62); font-size: 22rpx; line-height: 1.55; font-weight: 800; }
+.inline-error { display: block; margin-top: 20rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: #f6eeee; color: #7b2929; font-size: 22rpx; line-height: 1.5; font-weight: 800; }

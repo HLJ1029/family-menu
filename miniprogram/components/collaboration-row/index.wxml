@@ -1,0 +1,8 @@
+<view class="collaboration-row">
+  <view class="identity">{{item.participantInitial}}</view>
+  <view class="copy">
+    <text class="title">{{item.participantName}}</text>
+    <text class="detail">{{item.detail}}</text>
+  </view>
+  <text class="time">{{item.timeLabel}}</text>
+</view>

@@ -290,6 +290,10 @@ export function createHumiApiServer() {
       }
 
       const mealRunTasksMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/tasks$/);
+      if (request.method === "GET" && mealRunTasksMatch) {
+        await handleGetMealTasks(request, response, mealRunTasksMatch[1]);
+        return;
+      }
       if (request.method === "POST" && mealRunTasksMatch) {
         await handleCreateMealTask(request, response, mealRunTasksMatch[1]);
         return;
@@ -1078,6 +1082,23 @@ async function handleCreateMealTask(request, response, mealRunId) {
   }
 }
 
+async function handleGetMealTasks(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(mealRun.householdId);
+    const tasks = await store.getMealTasksForRun(user.id, mealRunId);
+    sendJson(response, 200, {
+      tasks: tasks.map(toPublicMealTaskSummary),
+    }, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    if (error?.code === "household_not_found") {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
+    throw mapMealExecutionError(error);
+  }
+}
+
 async function handleGetMealTask(request, response, token) {
   const { user } = await requireMealExecutionUser(request);
   try {
@@ -1418,6 +1439,22 @@ function deriveMealTask(mealRun, body = {}) {
   throw httpError(400, "meal_task_invalid", "只支持买食材或帮忙备菜任务。");
 }
 
+function toPublicMealTaskSummary(task = {}) {
+  return {
+    id: stringValue(task.id, 100),
+    type: task.type === "buy" ? "buy" : "prep",
+    label: stringValue(task.label, 64),
+    status: ["open", "claimed", "completed"].includes(task.status) ? task.status : "open",
+    createdBy: stringValue(task.createdBy, 100),
+    claimedBy: stringValue(task.claimedBy, 100),
+    completedBy: stringValue(task.completedBy, 100),
+    createdAt: stringValue(task.createdAt, 48),
+    updatedAt: stringValue(task.updatedAt, 48),
+    claimedAt: stringValue(task.claimedAt, 48),
+    completedAt: stringValue(task.completedAt, 48),
+  };
+}
+
 function mapMealExecutionError(error) {
   if (error?.status) return error;
   const statusByCode = {
@@ -1539,7 +1576,6 @@ async function handleAddHouseholdInviteWant(request, response, token) {
   try {
     const result = await store.addHouseholdInviteWant(token, {
       participantKey: stringValue(body.participantKey, 80),
-      memberName: stringValue(body.memberName, 32),
       title: stringValue(body.title, 40),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
@@ -1565,7 +1601,7 @@ async function handleJoinHouseholdInvite(request, response, token) {
   const body = await readJson(request);
   try {
     const result = await store.acceptHouseholdInvite(token, user.id, {
-      memberName: stringValue(body.memberName, 32) || user.displayName,
+      memberName: user.displayName,
       participantKey: stringValue(body.participantKey, 80),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");

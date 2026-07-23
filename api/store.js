@@ -538,7 +538,7 @@ export class HumiStore {
       recipeId: "",
       note: "",
       memberId: temporaryMemberId,
-      memberName: sanitizeText(payload.memberName, "家人", 32),
+      memberName: "游客",
       status: "open",
       temporary: true,
       source: "household_invite",
@@ -1926,6 +1926,20 @@ export class HumiStore {
   async getMealTask(token) {
     await this.load();
     return this.data.mealTasks.find((task) => task.token === token) ?? null;
+  }
+
+  async getMealTasksForRun(userId, mealRunId) {
+    await this.load();
+    this.requireMealRunForMember(userId, mealRunId);
+    return this.data.mealTasks
+      .map((task, index) => ({ task, index }))
+      .filter(({ task }) => task.mealRunId === mealRunId)
+      .sort((left, right) => (
+        Date.parse(right.task.createdAt) - Date.parse(left.task.createdAt)
+        || left.index - right.index
+      ))
+      .slice(0, 100)
+      .map(({ task }) => structuredClone(task));
   }
 
   async claimMealTask(userId, token) {

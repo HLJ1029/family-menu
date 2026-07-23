@@ -1,1 +1,43 @@
-<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry"><view class="placeholder"><text>功能将在后续阶段启用</text></view></page-state>
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="invite-page">
+    <view wx:if="{{mode === 'entry'}}" class="invite-card">
+      <text class="eyebrow">我有邀请</text>
+      <text class="title">进入家人发来的家庭邀请</text>
+      <text class="copy">查看邀请不会自动创建家庭；只有你明确确认后才会正式加入。</text>
+      <input class="field" value="{{tokenInput}}" maxlength="80" placeholder="输入家庭邀请码" bindinput="updateTokenInput" />
+      <button class="primary-button" bindtap="openInviteToken" disabled="{{!!pendingAction}}">查看邀请</button>
+    </view>
+
+    <view wx:elif="{{mode === 'prepare'}}" class="invite-card">
+      <text class="eyebrow">邀请家人</text>
+      <text class="title">邀请家人加入 {{invite.householdName}}</text>
+      <text class="copy">正式加入后，对方会成为家庭成员，能同步菜单、清单、做饭进度和家庭任务。</text>
+      <button wx:if="{{!preparedInvite}}" class="primary-button" bindtap="prepareInvite" loading="{{pendingAction === 'prepare'}}" disabled="{{!!pendingAction}}">生成家庭邀请</button>
+      <button wx:else class="primary-button" open-type="share">选择微信好友发送</button>
+      <text wx:if="{{preparedInvite}}" class="success-copy">邀请已准备好。微信只会分享这次邀请，不会附带你的登录凭据。</text>
+    </view>
+
+    <view wx:else class="invite-card">
+      <text class="eyebrow">家庭邀请</text>
+      <text class="title">{{invite.inviterName || '家人'}}邀请你加入 {{invite.householdName || '这个家'}}</text>
+      <text class="copy">加入后，你会成为正式家庭成员，可以一起看今晚菜单、领取清单和推进做饭步骤。</text>
+      <view class="impact-list">
+        <view class="impact-row"><text>加入这个家</text><text>需要微信登录并确认</text></view>
+        <view class="impact-row"><text>只是看看</text><text>不会自动加入或创建家庭</text></view>
+        <view class="impact-row"><text>临时参与</text><text>只记为游客，不成为成员</text></view>
+      </view>
+      <button class="primary-button" bindtap="loginAndJoin" loading="{{pendingAction === 'login' || pendingAction === 'join'}}" disabled="{{!!pendingAction}}">{{primaryAction}}</button>
+
+      <view class="temporary-panel">
+        <text class="eyebrow">还不想加入也可以</text>
+        <text class="section-title">先告诉家人最近想吃什么</text>
+        <text class="copy">这次只按游客身份记录，不会把你加进家庭成员。</text>
+        <input class="field" value="{{wantText}}" maxlength="40" placeholder="例如：番茄鸡蛋面" bindinput="updateWant" />
+        <button class="secondary-button" bindtap="submitTemporaryWant" loading="{{pendingAction === 'want'}}" disabled="{{!!pendingAction}}">以游客身份送达</button>
+        <text wx:if="{{wantSaved}}" class="success-copy">已按游客身份送达，不会创建家庭成员。</text>
+      </view>
+    </view>
+
+    <text wx:if="{{errorText && status !== 'error'}}" class="inline-error">{{errorText}}</text>
+  </view>
+</page-state>

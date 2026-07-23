@@ -1,1 +1,9 @@
-{ "usingComponents": { "page-state": "/components/page-state/index" } }
+{
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "page-state": "/components/page-state/index",
+    "household-summary": "/components/household-summary/index",
+    "member-row": "/components/member-row/index",
+    "collaboration-row": "/components/collaboration-row/index"
+  }
+}

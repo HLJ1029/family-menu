@@ -1,1 +1,7 @@
-{ "usingComponents": { "page-state": "/components/page-state/index" } }
+{
+  "navigationBarTitleText": "家庭设置",
+  "usingComponents": {
+    "page-state": "/components/page-state/index",
+    "member-row": "/components/member-row/index"
+  }
+}

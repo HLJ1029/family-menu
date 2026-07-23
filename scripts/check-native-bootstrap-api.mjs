@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path, { join } from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { formatBusinessDateKey } from "../api/recommendation-rotation.js";
 import { HumiStore } from "../api/store.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -13,6 +14,7 @@ const directory = await mkdtemp(join(tmpdir(), "humi-native-bootstrap-"));
 let serverImportSequence = 0;
 
 try {
+  verifyShanghaiBusinessDateFixture();
   await verifyDefaultOffFirstUse();
   await verifyAllowlistedHouseholdSnapshot();
   await verifyExplicitNonAllowlistedHousehold();
@@ -426,7 +428,16 @@ async function rawRequest(url, { method = "GET", token = "", body } = {}) {
 }
 
 function todayDateKey() {
-  return new Date().toISOString().slice(0, 10);
+  return formatBusinessDateKey(new Date(), "Asia/Shanghai");
+}
+
+function verifyShanghaiBusinessDateFixture() {
+  const shanghaiAfterMidnight = new Date("2026-07-23T16:30:00.000Z");
+  assert.equal(
+    formatBusinessDateKey(shanghaiAfterMidnight, "Asia/Shanghai"),
+    "2026-07-24",
+    "bootstrap fixtures must follow the Shanghai business date across the UTC/CST midnight boundary",
+  );
 }
 
 function loadCommonJs(relativePath, modules = new Map()) {

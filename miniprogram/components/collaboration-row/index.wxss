@@ -1,0 +1,6 @@
+.collaboration-row { display: flex; align-items: center; gap: 18rpx; padding: 22rpx 0; border-bottom: 2rpx solid rgba(17,17,17,.07); }
+.identity { display: grid; width: 64rpx; height: 64rpx; flex: 0 0 auto; place-items: center; border-radius: 22rpx; background: #f2f2f0; font-size: 22rpx; font-weight: 900; }
+.copy { min-width: 0; flex: 1; }
+.title { display: block; font-size: 25rpx; font-weight: 900; }
+.detail { display: block; margin-top: 5rpx; overflow: hidden; color: rgba(17,17,17,.54); font-size: 21rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.time { color: rgba(17,17,17,.38); font-size: 19rpx; font-weight: 700; }
