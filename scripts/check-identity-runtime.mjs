@@ -1,24 +1,33 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import vm from "node:vm";
 
 const appConfig = JSON.parse(fs.readFileSync("miniprogram/app.json", "utf8"));
 assert.ok(appConfig.pages.includes("pages/identity/index"));
 
 const appSource = fs.readFileSync("miniprogram/app.js", "utf8");
-assert.match(appSource, /getStorageSync\(NATIVE_SESSION_KEY\)/);
+assert.match(appSource, /restoreSession\(\)/, "app startup must restore the shared native session foundation");
 assert.match(appSource, /setHumiSession\(session\)/);
 assert.match(appSource, /clearHumiSession\(\)/);
 
 const identityJs = fs.readFileSync("miniprogram/pages/identity/index.js", "utf8");
 const identityWxml = fs.readFileSync("miniprogram/pages/identity/index.wxml", "utf8");
-assert.match(identityWxml, /open-type="chooseAvatar"/);
+const identityJson = fs.readFileSync("miniprogram/pages/identity/index.json", "utf8");
 assert.match(identityWxml, /type="nickname"/);
 assert.match(identityJs, /\/identity\/profile/);
 assert.match(identityJs, /\/identity\/avatar/);
 assert.match(identityJs, /wx\.reLaunch/);
 assert.match(identityJs, /action === "login"/);
-assert.match(identityJs, /wx\.login/);
-assert.match(identityJs, /\/auth\/wechat\/login/);
+assert.match(identityJs, /loginWithWechat/, "identity login must reuse the native session foundation");
+assert.match(identityJs, /requestHumi/, "identity API calls must reuse authenticated request retries");
+assert.match(identityJs, /clearBootstrapCacheForUser/, "identity completion must invalidate user bootstrap cache");
+assert.doesNotMatch(identityJs, /\/households/, "identity completion must never create a household");
+const silentLoginSource = identityJs.slice(identityJs.indexOf("async loginWithWechat"), identityJs.indexOf("async useWechatProfile"));
+assert.doesNotMatch(silentLoginSource, /getUserProfile/, "silent login must not request profile permission");
+assert.match(identityJson, /"avatar-picker": "\/components\/avatar-picker\/index"/, "identity must register approved Humi avatar choices");
+assert.match(identityWxml, /使用微信头像和昵称/);
+assert.match(identityWxml, /保存并进入 Humi/);
+assert.match(identityWxml, /disabled="\{\{!canSubmit \|\| pending\}\}"/, "identity save must require an explicit name and avatar choice");
 
 const indexSource = fs.readFileSync("miniprogram/pages/legacy/index.js", "utf8");
 assert.doesNotMatch(indexSource, /appendSessionToUrl/);
@@ -30,6 +39,8 @@ assert.doesNotMatch(indexSource, /loginWithWechat\(\{\s*initial:\s*true/);
 
 const phoneBindSource = fs.readFileSync("miniprogram/pages/phone-bind/index.js", "utf8");
 assert.match(phoneBindSource, /app\.setHumiSession\(data\)/);
+assert.match(phoneBindSource, /requestHumi/, "phone binding must reuse the authenticated request foundation");
+assert.doesNotMatch(phoneBindSource, /wx\.request/, "phone binding must not duplicate raw authenticated requests");
 
 const mainSource = fs.readFileSync("src/main.jsx", "utf8");
 const authLandingSource = fs.readFileSync("src/components/AuthLanding.jsx", "utf8");
@@ -142,5 +153,124 @@ assert.deepEqual(
   "identity callback receipt must not stop fallback before native page visibility is confirmed",
 );
 delete globalThis.window;
+
+function loadIdentityPage({ user, loginResult = null, rejectProfile = false } = {}) {
+  let definition;
+  const routes = [];
+  const calls = { login: 0, getUserProfile: 0, request: [], clearCache: [] };
+  const app = {
+    globalData: { humiSession: user ? { accessToken: "token", expiresAt: Date.now() + 60_000, user } : null },
+    setHumiSession(session) { this.globalData.humiSession = session; },
+    clearHumiSession() { this.globalData.humiSession = null; }
+  };
+  const runtime = vm.createContext({
+    Page: (page) => { definition = page; },
+    getApp: () => app,
+    wx: {
+      reLaunch: ({ url }) => routes.push(url),
+      getUserProfile: ({ success, fail }) => {
+        calls.getUserProfile += 1;
+        if (rejectProfile) return fail?.(new Error("denied"));
+        success?.({ userInfo: { nickName: "微信小禾", avatarUrl: "https://wx.example/avatar.jpg" } });
+      }
+    },
+    require: (specifier) => {
+      if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
+      if (specifier === "../../utils/session") return {
+        loginWithWechat: async () => {
+          calls.login += 1;
+          return loginResult;
+        }
+      };
+      if (specifier === "../../utils/request") return {
+        requestHumi: async (options) => {
+          calls.request.push(options);
+          return { user: { ...app.globalData.humiSession?.user, profileStatus: "complete" } };
+        }
+      };
+      if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: (id) => calls.clearCache.push(id) };
+      throw new Error(`Unexpected identity dependency: ${specifier}`);
+    },
+    Promise,
+    Date,
+    String,
+    RegExp,
+    console,
+    setTimeout,
+    clearTimeout
+  });
+  vm.runInContext(identityJs, runtime, { filename: "miniprogram/pages/identity/index.js" });
+  const page = {
+    ...definition,
+    data: structuredClone(definition.data),
+    setData(patch) { this.data = { ...this.data, ...patch }; }
+  };
+  return { app, calls, page, routes };
+}
+
+const firstUse = {
+  id: "first-use",
+  displayName: "微信用户",
+  avatarKey: "humi-avatar-family-m-01",
+  avatarUrl: "",
+  profileStatus: "incomplete"
+};
+const firstUsePage = loadIdentityPage({ user: firstUse });
+firstUsePage.page.onLoad();
+assert.equal(firstUse.profileStatus, "incomplete", "silent account login must remain explicitly incomplete");
+assert.equal(firstUsePage.page.data.displayName, "", "first use must not prefill a default nickname");
+assert.equal(firstUsePage.page.data.selectedAvatarKey, "", "a server fallback avatar is not an explicit picker choice");
+assert.equal(firstUsePage.page.data.avatarUrl, "", "first use must not present a shared default avatar as chosen");
+assert.deepEqual(firstUsePage.calls.request.filter((call) => call.path === "/households"), [], "identity start must not create a household");
+assert.equal(firstUsePage.page.data.canSubmit, false, "a nickname and explicit avatar are both required before identity can save");
+
+await firstUsePage.page.useWechatProfile();
+assert.equal(firstUsePage.calls.getUserProfile, 1, "WeChat profile permission must be requested only after the explicit tap handler");
+assert.equal(firstUsePage.page.data.displayName, "微信小禾");
+assert.equal(firstUsePage.page.data.localAvatarUrl, "https://wx.example/avatar.jpg");
+
+const rejectedProfilePage = loadIdentityPage({ user: firstUse, rejectProfile: true });
+rejectedProfilePage.page.onLoad();
+await rejectedProfilePage.page.useWechatProfile();
+rejectedProfilePage.page.updateNickname({ detail: { value: "手工小禾" } });
+rejectedProfilePage.page.selectApprovedAvatar({ detail: { avatarKey: "humi-avatar-family-f-01" } });
+assert.equal(rejectedProfilePage.page.data.canSubmit, true, "refusing profile permission must still allow a manual nickname and approved Humi avatar");
+
+const firstSilentLogin = loadIdentityPage({ user: null, loginResult: { accessToken: "first-token", expiresAt: Date.now() + 60_000, user: firstUse } });
+await firstSilentLogin.page.loginWithWechat();
+assert.equal(firstSilentLogin.app.globalData.humiSession.user.profileStatus, "incomplete", "first silent login only creates an incomplete account session");
+assert.equal(firstSilentLogin.page.data.displayName, "", "first silent login must not turn the default name into a completed identity");
+assert.equal(firstSilentLogin.page.data.selectedAvatarKey, "", "first silent login must not turn the server fallback avatar into a selected avatar");
+assert.equal(firstSilentLogin.calls.getUserProfile, 0, "silent login must not claim WeChat profile permission");
+
+const manualIdentity = loadIdentityPage({ user: firstUse });
+manualIdentity.page.onLoad();
+manualIdentity.page.updateNickname({ detail: { value: "  手工小禾  " } });
+assert.equal(manualIdentity.page.data.canSubmit, false, "a name alone must not enable save");
+manualIdentity.page.selectApprovedAvatar({ detail: { avatarKey: "humi-avatar-parent-f-01" } });
+assert.equal(manualIdentity.page.data.canSubmit, true, "an approved avatar key and trimmed name enable save");
+await manualIdentity.page.submit();
+assert.deepEqual(JSON.parse(JSON.stringify(manualIdentity.calls.request)), [{
+  path: "/identity/profile",
+  method: "PUT",
+  data: { displayName: "手工小禾", avatarKey: "humi-avatar-parent-f-01", avatarUrl: "" }
+}], "save must persist the explicit identity payload through the authenticated client");
+assert.equal(manualIdentity.app.globalData.humiSession.user.profileStatus, "complete", "saved identity must replace the persisted session user");
+assert.deepEqual(manualIdentity.calls.clearCache, ["first-use"], "save must clear only this user's bootstrap cache");
+assert.deepEqual(manualIdentity.routes, ["/pages/boot/index?reason=identity_complete"], "post-save routing must return to boot for the real household decision");
+assert.deepEqual(JSON.parse(JSON.stringify(manualIdentity.calls.request.filter((call) => call.path === "/households"))), [], "identity save must not create a household");
+
+const existingUser = {
+  id: "existing-user",
+  displayName: "已完成",
+  avatarKey: "humi-avatar-parent-f-01",
+  avatarUrl: "",
+  profileStatus: "complete"
+};
+const existingUserPage = loadIdentityPage({ user: null, loginResult: { accessToken: "fresh", expiresAt: Date.now() + 60_000, user: existingUser } });
+await existingUserPage.page.loginWithWechat();
+assert.equal(existingUserPage.calls.login, 1, "identity login must delegate to the shared silent-login function");
+assert.equal(existingUserPage.calls.getUserProfile, 0, "silent login must not claim WeChat profile permission");
+assert.deepEqual(existingUserPage.routes, ["/pages/boot/index?humiResume=1"], "a complete user must return to boot for the real tonight/household decision");
 
 console.log("Identity runtime checks passed.");

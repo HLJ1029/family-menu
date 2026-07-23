@@ -1,9 +1,14 @@
-const { getHumiApiBaseUrl } = require("../../utils/config");
+const { loginWithWechat } = require("../../utils/session");
+const { requestHumi } = require("../../utils/request");
+const { clearBootstrapCacheForUser } = require("../../utils/bootstrap");
 
 Page({
   data: {
     displayName: "",
+    selectedAvatarKey: "",
     avatarUrl: "",
+    localAvatarUrl: "",
+    canSubmit: false,
     pending: false,
     error: ""
   },
@@ -11,114 +16,126 @@ Page({
   onLoad(options = {}) {
     if (options.action === "login") {
       getApp().clearHumiSession();
-      this.loginWithWechat();
-      return;
+      return this.loginWithWechat();
     }
     const user = getApp().globalData?.humiSession?.user;
-    if (user) {
-      this.hydrateUser(user);
-      return;
-    }
     if (!user) {
       wx.reLaunch({ url: "/pages/boot/index" });
+      return;
+    }
+    if (user.profileStatus === "complete") wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
+  },
+
+  async loginWithWechat() {
+    if (this.data.pending) return;
+    this.setData({ pending: true, error: "" });
+    try {
+      const session = await loginWithWechat();
+      getApp().setHumiSession(session);
+      if (session.user?.profileStatus === "complete") {
+        wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
+      }
+    } catch (error) {
+      this.setData({ error: "微信登录失败，请重新尝试。" });
+    } finally {
+      this.setData({ pending: false });
     }
   },
 
-  hydrateUser(user) {
-    this.setData({
-      displayName: user.displayName === "微信用户" ? "" : user.displayName,
-      avatarUrl: user.avatarUrl || ""
-    });
+  async useWechatProfile() {
+    if (this.data.pending) return;
+    try {
+      const profile = await callWx(wx.getUserProfile, { desc: "用于让家人认出你" });
+      const avatarUrl = String(profile?.userInfo?.avatarUrl || "");
+      this.setIdentityData({
+        displayName: String(profile?.userInfo?.nickName || "").slice(0, 32),
+        avatarUrl,
+        localAvatarUrl: avatarUrl,
+        selectedAvatarKey: "",
+        error: ""
+      });
+    } catch (_) {
+      this.setData({ error: "没有获取微信头像和昵称，你也可以手动填写。" });
+    }
   },
 
-  loginWithWechat() {
-    if (this.data.pending) return;
-    this.setData({ pending: true, error: "" });
-    wx.login({
-      success: ({ code }) => {
-        if (!code) {
-          this.setData({ pending: false, error: "微信登录失败，请重新尝试。" });
-          return;
-        }
-        wx.request({
-          url: `${getHumiApiBaseUrl()}/auth/wechat/login`,
-          method: "POST",
-          data: { code },
-          header: { "content-type": "application/json" },
-          success: ({ statusCode, data }) => {
-            if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
-              this.setData({ error: data?.message || "登录服务暂时不可用，请稍后重试。" });
-              return;
-            }
-            getApp().setHumiSession(data);
-            if (data.user?.profileStatus === "complete") {
-              wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
-              return;
-            }
-            this.hydrateUser(data.user || {});
-          },
-          fail: () => this.setData({ error: "网络连接失败，请检查网络后重试。" }),
-          complete: () => this.setData({ pending: false })
-        });
-      },
-      fail: () => this.setData({ pending: false, error: "微信登录失败，请重新尝试。" })
-    });
+  selectApprovedAvatar(event) {
+    const avatarKey = String(event.detail?.avatarKey || "");
+    this.setIdentityData({ selectedAvatarKey: avatarKey, avatarUrl: "", localAvatarUrl: "", error: "" });
   },
 
   chooseAvatar(event) {
-    this.setData({ avatarUrl: event.detail?.avatarUrl || "", error: "" });
+    const avatarUrl = String(event.detail?.avatarUrl || "");
+    this.setIdentityData({ avatarUrl, localAvatarUrl: avatarUrl, selectedAvatarKey: "", error: "" });
   },
 
   updateNickname(event) {
-    this.setData({ displayName: String(event.detail?.value || "").trim(), error: "" });
+    this.setIdentityData({ displayName: String(event.detail?.value || "").slice(0, 32), error: "" });
   },
 
-  submit() {
-    if (this.data.pending) return;
-    if (!this.data.displayName) {
-      this.setData({ error: "请输入你的昵称。" });
-      return;
-    }
+  setIdentityData(patch) {
+    const next = { ...this.data, ...patch };
+    this.setData({ ...patch, canSubmit: canSubmit(next) });
+  },
+
+  async submit() {
+    if (this.data.pending || !this.data.canSubmit) return;
     this.setData({ pending: true, error: "" });
-    this.saveIdentity()
-      .then(() => {
-        getApp().globalData.humiIdentityUpdatedAt = Date.now();
-        wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
-      })
-      .catch((error) => this.setData({ error: error.message || "身份暂时没有保存成功，请重试。" }))
-      .finally(() => this.setData({ pending: false }));
+    try {
+      const { user, session } = await this.saveIdentity({
+        displayName: String(this.data.displayName || "").trim(),
+        avatarKey: this.data.selectedAvatarKey,
+        avatarUrl: this.data.avatarUrl
+      });
+      const app = getApp();
+      app.setHumiSession({ ...app.globalData.humiSession, ...session, user });
+      app.globalData.humiIdentityUpdatedAt = Date.now();
+      clearBootstrapCacheForUser(user.id);
+      wx.reLaunch({ url: "/pages/boot/index?reason=identity_complete" });
+    } catch (error) {
+      this.setData({ error: error.message || "身份暂时没有保存成功，请重试。" });
+    } finally {
+      this.setData({ pending: false });
+    }
   },
 
-  async saveIdentity() {
-    const app = getApp();
-    const session = app.globalData?.humiSession;
+  async saveIdentity(payload) {
+    const session = getApp().globalData?.humiSession;
     if (!session?.accessToken) throw new Error("登录状态已失效，请重新登录。");
-    let user = session.user;
-    if (this.data.avatarUrl && !/^https:\/\//.test(this.data.avatarUrl)) {
-      const compressedPath = await compressAvatar(this.data.avatarUrl);
+    let uploadedAvatarUrl = "";
+    if (payload.avatarUrl) {
+      const compressedPath = await compressAvatar(await localAvatarPath(payload.avatarUrl));
       const dataBase64 = await readBase64(compressedPath);
-      const avatar = await apiRequest("/identity/avatar", session, {
-        mimeType: detectAvatarMime(dataBase64),
-        dataBase64
+      const avatar = await requestHumi({
+        path: "/identity/avatar",
+        method: "POST",
+        data: { mimeType: detectAvatarMime(dataBase64), dataBase64 }
       });
-      user = avatar.user;
+      uploadedAvatarUrl = avatar.user?.avatarUrl || "";
     }
-    const profile = await apiRequest("/identity/profile", session, { displayName: this.data.displayName }, "PUT");
-    app.setHumiSession({ ...session, user: { ...user, ...profile.user } });
+    const profile = await requestHumi({
+      path: "/identity/profile",
+      method: "PUT",
+      data: { displayName: payload.displayName, avatarKey: payload.avatarKey, avatarUrl: uploadedAvatarUrl }
+    });
+    return { user: profile.user, session: { ...session, user: profile.user } };
   }
 });
 
-function apiRequest(path, session, body, method = "POST") {
-  return new Promise((resolve, reject) => wx.request({
-    url: `${getHumiApiBaseUrl()}${path}`,
-    method,
-    data: body,
-    header: { "content-type": "application/json", Authorization: `Bearer ${session.accessToken}` },
-    success: ({ statusCode, data }) => statusCode >= 200 && statusCode < 300
-      ? resolve(data)
-      : reject(new Error(data?.message || "请求失败，请重试。")),
-    fail: () => reject(new Error("网络连接失败，请检查网络后重试。"))
-  }));
+function canSubmit(data = {}) {
+  return Boolean(String(data.displayName || "").trim() && (data.selectedAvatarKey || data.avatarUrl));
+}
+
+function callWx(method, options) {
+  return new Promise((resolve, reject) => method({ ...options, success: resolve, fail: reject }));
+}
+
+async function localAvatarPath(avatarUrl) {
+  if (!/^https:\/\//.test(avatarUrl)) return avatarUrl;
+  const result = await callWx(wx.downloadFile, { url: avatarUrl });
+  if (result.statusCode && result.statusCode >= 400) throw new Error("微信头像下载失败，请重新选择。");
+  if (!result.tempFilePath) throw new Error("微信头像下载失败，请重新选择。");
+  return result.tempFilePath;
 }
 
 function compressAvatar(src) {

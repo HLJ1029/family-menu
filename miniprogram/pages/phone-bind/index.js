@@ -1,4 +1,4 @@
-const { getHumiApiBaseUrl } = require("../../utils/config");
+const { requestHumi } = require("../../utils/request");
 
 Page({
   data: {
@@ -23,32 +23,20 @@ Page({
     }
 
     this.setData({ pending: true, error: "" });
-    wx.request({
-      url: `${getHumiApiBaseUrl()}/auth/wechat/phone`,
-      method: "POST",
-      data: { code },
-      header: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`
-      },
-      success: ({ statusCode, data }) => {
-        if (statusCode < 200 || statusCode >= 300 || !data?.accessToken) {
-          this.setData({ error: "手机号绑定暂时不可用，请稍后再试。" });
-          return;
-        }
-
+    requestHumi({ path: "/auth/wechat/phone", method: "POST", data: { code } })
+      .then((data) => {
+        if (!data?.accessToken) throw new Error("手机号绑定暂时不可用，请稍后再试。");
         app.setHumiSession(data);
         app.globalData.humiPhoneSessionUpdatedAt = Date.now();
         wx.showToast({ title: "手机号已绑定", icon: "success" });
         setTimeout(() => wx.navigateBack(), 450);
-      },
-      fail: () => {
-        this.setData({ error: "网络连接失败，请检查网络后重试。" });
-      },
-      complete: () => {
+      })
+      .catch((error) => {
+        this.setData({ error: error.message || "手机号绑定暂时不可用，请稍后再试。" });
+      })
+      .finally(() => {
         this.setData({ pending: false });
-      }
-    });
+      });
   },
 
   cancelPhoneBind() {

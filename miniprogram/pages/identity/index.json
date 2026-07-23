@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "你的 Humi 身份"
+  "navigationBarTitleText": "你的 Humi 身份",
+  "usingComponents": {
+    "avatar-picker": "/components/avatar-picker/index"
+  }
 }

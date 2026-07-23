@@ -1,4 +1,4 @@
-const { readHouseholdCache, writeHouseholdCache } = require("./cache");
+const { householdCacheKey, readHouseholdCache, writeHouseholdCache } = require("./cache");
 const { requestHumi } = require("./request");
 
 const LAST_HOUSEHOLD_KEY_PREFIX = "humi:bootstrap:last-household:v1:";
@@ -103,6 +103,15 @@ function lastHouseholdKey(userId) {
   return `${LAST_HOUSEHOLD_KEY_PREFIX}${userId}`;
 }
 
+function clearBootstrapCacheForUser(userId) {
+  const normalizedUserId = String(userId || "");
+  if (!normalizedUserId) return;
+  const pointerKey = lastHouseholdKey(normalizedUserId);
+  const householdId = wx.getStorageSync(pointerKey);
+  wx.removeStorageSync(pointerKey);
+  if (householdId) wx.removeStorageSync(householdCacheKey(householdId, normalizedUserId));
+}
+
 function isCacheableNetworkError(error = {}) {
   return error.status === 0 && error.retryable === true && (error.code === "network_error" || error.code === "request_timeout");
 }
@@ -119,4 +128,4 @@ function normalizeShareType(value) {
   return SHARE_LANDING_TYPES.has(type) ? type : "";
 }
 
-module.exports = { buildLegacyRoute, extractLegacyOptions, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, normalizeShareToken, validateShareLandingOptions, resolveKnownShareRoute, resolveStartupRoute };
+module.exports = { buildLegacyRoute, clearBootstrapCacheForUser, extractLegacyOptions, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, normalizeShareToken, validateShareLandingOptions, resolveKnownShareRoute, resolveStartupRoute };

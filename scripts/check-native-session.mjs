@@ -6,9 +6,51 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const utilDirectory = path.join(root, "miniprogram/utils");
-for (const name of ["errors.js", "session.js", "request.js", "cache.js", "telemetry.js", "store.js"]) {
+for (const name of ["errors.js", "session.js", "request.js", "cache.js", "bootstrap.js", "telemetry.js", "store.js"]) {
   const file = path.join(utilDirectory, name);
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
+}
+
+const bootstrapSource = fs.readFileSync(path.join(utilDirectory, "bootstrap.js"), "utf8");
+assert.match(
+  bootstrapSource,
+  /function clearBootstrapCacheForUser\(/,
+  "identity completion needs a user-scoped bootstrap cache reset before boot decides whether a household exists",
+);
+
+{
+  const storage = new Map();
+  const removed = [];
+  const bootstrapModule = { exports: {} };
+  vm.runInNewContext(bootstrapSource, {
+    module: bootstrapModule,
+    exports: bootstrapModule.exports,
+    wx: {
+      getStorageSync: (key) => storage.get(key),
+      removeStorageSync: (key) => {
+        removed.push(key);
+        storage.delete(key);
+      }
+    },
+    require: (specifier) => {
+      if (specifier === "./cache") return {
+        householdCacheKey: (householdId, userId) => `cache:${userId}:${householdId}`,
+        readHouseholdCache: () => null,
+        writeHouseholdCache: () => null
+      };
+      if (specifier === "./request") return { requestHumi: async () => ({}) };
+      throw new Error(`Unexpected bootstrap dependency: ${specifier}`);
+    },
+    Set,
+    String,
+    Object,
+    encodeURIComponent
+  });
+  storage.set("humi:bootstrap:last-household:v1:user-a", "household-a");
+  storage.set("humi:bootstrap:last-household:v1:user-b", "household-b");
+  bootstrapModule.exports.clearBootstrapCacheForUser("user-a");
+  assert.deepEqual(removed, ["humi:bootstrap:last-household:v1:user-a", "cache:user-a:household-a"], "identity completion clears only the completing user's bootstrap pointer and household cache");
+  assert.equal(storage.get("humi:bootstrap:last-household:v1:user-b"), "household-b", "identity completion must retain another user's cache");
 }
 
 function createRuntime({ responses = [], loginCode = "wechat-code", asyncResponses = false } = {}) {

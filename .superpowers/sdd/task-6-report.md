@@ -1,44 +1,38 @@
-# Task 6 Report — Final-Review Household Isolation Corrections
+# Task 6 Report — Explicit Native Identity Onboarding
 
-## Status
+## RED
 
-Completed locally on `codex@mbp-m5pro` from baseline `becfeb0`. No production API, deployment, migration, WeChat action, or publish action was performed. Local preview servers were stopped after browser validation.
+Before implementation, the required contracts failed as intended:
 
-## RED evidence
+- `npm run validate:identity` failed at `identity API calls must reuse authenticated request retries`; the page still duplicated raw `wx.login` and `wx.request`.
+- `npm run validate:native-session` failed at `identity completion needs a user-scoped bootstrap cache reset`; no cache-reset helper existed.
 
-After adding the direct store and API regressions, `npm run validate:household && npm run validate:api` was run. The two commands were then run independently so the first failure could not mask the second.
+## GREEN changes
 
-- `validate:household` failed as expected after removing a formal member and creating a new household. The old implementation migrated `states[userId]` into the new household (`migratedFromUserId` was present); the regression expected `null` state.
-- `validate:api` failed as expected on `generic crave claim must return only the collaboration request`, because the previous claim response contained `family`, `households`, and `state` and had created formal membership.
+- Silent login now uses the Task 4 `loginWithWechat()` session foundation. An incomplete user starts with empty `displayName`, `selectedAvatarKey`, and `avatarUrl`; the server's fallback avatar key is never displayed as an explicit choice.
+- Added the approved `avatar-picker` component and required an explicit avatar key or avatar URL plus a trimmed nickname before enabling `保存并进入 Humi`.
+- `wx.getUserProfile` is called only by the explicit `使用微信头像和昵称` tap handler. A declined permission still permits manual nickname plus an approved Humi avatar. Remote WeChat avatars download, compress, and upload through the same explicit avatar save path as locally chosen avatars.
+- Identity and phone binding reuse `requestHumi`; neither duplicates raw authenticated `wx.request` logic. POST operations keep the existing no-idempotency/no-401-replay rule.
+- Identity completion persists the returned user session, clears only that user's last-household pointer and household cache, then reLaunches boot with `reason=identity_complete`.
 
-## GREEN validation
+## No automatic household creation
 
-The following passed locally after the minimal implementation changes:
+The identity runtime contract asserts both startup and submit issue zero `/households` requests. It asserts the post-save route is `/pages/boot/index?reason=identity_complete`; boot/bootstrap remains the sole source for deciding whether a household exists. The household and API smoke suites also passed, including the new-user/no-household lifecycle contract.
 
-- `npm run validate:household`
-- `npm run validate:api`
-- `npm run validate:identity`
-- `npm run build`
-- `git diff --check`
-- `/Users/honglijie/AI-HQ/scripts/secret-scan.sh`
+## Verification output
 
-Both local browser-smoke commands also passed against `http://127.0.0.1:4174/`:
+Fresh final checks exited `0`:
 
-- `node scripts/smoke-product-entrypoints.mjs --base-url http://127.0.0.1:4174/ --evidence-dir /tmp/humi-task6-product-smoke`
-- `node scripts/smoke-collaboration-landings.mjs --base-url http://127.0.0.1:4174/ --evidence-dir /tmp/humi-task6-collaboration-smoke`
+- `npm run validate:identity` — `Identity store checks passed.` / `Identity runtime checks passed.`
+- `npm run validate:household` — `Household lifecycle checks passed.`
+- `npm run validate:native-session` — `Native session foundation contract passed.`
+- `npm run validate:native-shell-routing` — `Native shell routing checks passed.`
+- `npm run validate:native-bootstrap-api` — `Native bootstrap API contract passed.`
+- `npm run validate:native-offline` — `Native offline, cache, telemetry, and store foundation contract passed.`
+- `npm run validate:api` — `Humi API smoke test passed.`
+- `npm run build` — completed successfully (existing Rollup large-chunk warning only).
+- `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` — `Secret scan passed.`
 
-The collaboration landing manifest reported `ok: true`, including guest Crave, grocery, Wish, invite and no-auto-login checks. Build emitted only Vite's existing chunk-size warning.
+## Concerns
 
-## Changes
-
-- Generic Crave, grocery and Wish claims now bind the public collaboration record to the authenticated identity without calling `addHouseholdMember`.
-- Those three claim routes return only `{ request }`; they do not expose a family envelope or household state.
-- H5 participation merging no longer hydrates a family envelope or fabricates a local formal member. It preserves the user’s current household and uses participation terminology.
-- Formal membership remains covered through authenticated household-invite acceptance in both direct store and API smoke flows.
-- Removing a member, voluntary leave, and sole-owner household deletion now delete the departing user's legacy `states[userId]` snapshot. Regression coverage proves a newly created household has no former menu, meal log, or family profile state.
-- The API contract explicitly distinguishes collaboration participation claims from household-invite acceptance, and records the legacy-snapshot retirement behavior.
-
-## Scope and concerns
-
-- The parent-owned `docs/superpowers/plans/2026-07-19-humi-family-living-room.md` was left unstaged and unmodified by this task.
-- The additional, non-required `scripts/smoke-collaboration-flow.mjs` currently fails before browser assertions because it creates a collaboration request immediately after login, while the current API correctly requires explicit household creation first. It was not changed because it is outside this Task 6 brief; the two required registered local browser smokes passed.
+No unresolved functional concern. The production build retains its pre-existing large-chunk advisory; Task 6 adds no bundle split or deployment change.
