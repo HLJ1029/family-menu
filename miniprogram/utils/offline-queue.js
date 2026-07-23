@@ -132,8 +132,8 @@ function validateActionData(action) {
     return;
   }
   if (action.type === "grocery_item_check") {
-    assertExactData(action.data, new Set(["requestToken", "itemId", "checked"]), ["requestToken", "itemId", "checked"]);
-    if (!safeIdentifier(action.data.requestToken, 100) || !safeIdentifier(action.data.itemId, 100) || typeof action.data.checked !== "boolean") {
+    assertExactData(action.data, new Set(["itemId", "checked"]), ["itemId", "checked"]);
+    if (!safeIdentifier(action.data.itemId, 100) || typeof action.data.checked !== "boolean" || !safeStateVersion(action.stateVersion)) {
       throw invalidOfflineAction();
     }
   }
@@ -150,6 +150,10 @@ function safeIdentifier(value, maxLength) {
     && value.length > 0
     && value.length <= maxLength
     && /^[A-Za-z0-9:_-]+$/.test(value);
+}
+
+function safeStateVersion(value) {
+  return typeof value === "string" && value.length >= 8 && value.length <= 180 && /^[A-Za-z0-9_-]+$/.test(value);
 }
 
 function validIsoDate(value) {
@@ -313,13 +317,15 @@ function buildMutationRequest(action) {
   if (action.type === "meal_feedback" && mealRunId) return { path: `/meal-runs/${mealRunId}/feedback`, method: "PUT", data: action.data };
   if (action.type === "meal_abandon" && mealRunId) return { path: `/meal-runs/${mealRunId}/abandon`, method: "POST", data: action.data };
   if (action.type === "grocery_item_check") {
-    const requestToken = encodeURIComponent(String(action.data?.requestToken || ""));
-    const itemId = encodeURIComponent(String(action.data?.itemId || ""));
-    if (requestToken && itemId) {
+    const itemId = String(action.data?.itemId || "");
+    if (itemId && action.householdId) {
       return {
-        path: `/grocery-share-requests/${requestToken}/items/${itemId}/check`,
-        method: "POST",
-        data: { checked: Boolean(action.data?.checked) }
+        path: "/state",
+        method: "PUT",
+        data: {
+          householdId: action.householdId,
+          patch: { checkedItems: { [itemId]: Boolean(action.data?.checked) } },
+        },
       };
     }
   }

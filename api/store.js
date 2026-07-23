@@ -9,6 +9,7 @@ import {
   recommendationStateVersion,
   selectBalancedDinner,
 } from "./recommendation-rotation.js";
+import { buildBootstrapEnvelope, computeStateVersion } from "./bootstrap.js";
 
 const require = createRequire(import.meta.url);
 export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
@@ -34,6 +35,7 @@ const DEFAULT_DATA = {
   mealReminders: [],
   productEvents: [],
   recommendationRotations: [],
+  stateMutationReceipts: [],
   revokedTokens: [],
   h5Tickets: [],
 };
@@ -63,6 +65,9 @@ export class HumiStore {
     this.data.productEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
     this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
       ? this.data.recommendationRotations
+      : [];
+    this.data.stateMutationReceipts = Array.isArray(this.data.stateMutationReceipts)
+      ? this.data.stateMutationReceipts
       : [];
     this.loaded = true;
   }
@@ -750,6 +755,121 @@ export class HumiStore {
     return this.data.householdStates[household.id];
   }
 
+  async saveStatePatch(userId, patch, options = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const household = this.findActiveHouseholdByMember(userId);
+      if (!household || (options.householdId && household.id !== options.householdId)) {
+        throw codedError("household_not_found", "Household not found for user.");
+      }
+      const member = household.members.find((item) => item.memberId === userId && item.status === "formal");
+      if (!member) throw codedError("forbidden", "Only formal household members can update state.");
+      const user = this.data.users.find((item) => item.id === userId);
+      const patchKeys = Object.keys(patch || {});
+      if (!patchKeys.length || patchKeys.some((key) => !["mealPlan", "groceryClaims", "checkedItems"].includes(key))) {
+        throw codedError("state_patch_invalid", "State patch contains unsupported fields.");
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "mealPlan") && household.ownerId !== userId) {
+        throw codedError("forbidden", "Only the household owner can change the planned menu.");
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
+        const claims = Object.values(patch.groceryClaims || {});
+        if (claims.some((claim) => !claim?.memberId || claim.memberId !== userId)) {
+          throw codedError("forbidden", "Grocery claim identity must match the authenticated member.");
+        }
+      }
+      const trustedGroceryClaims = Object.fromEntries(
+        Object.entries(patch.groceryClaims || {}).map(([itemKey, claim]) => [
+          itemKey,
+          {
+            ...claim,
+            memberId: userId,
+            memberName: sanitizeText(user?.displayName, "家人", 32),
+          },
+        ]),
+      );
+
+      const idempotencyKey = sanitizeText(options.idempotencyKey, "", 100);
+      if (!idempotencyKey) throw codedError("idempotency_key_required", "An idempotency key is required.");
+      const patchFingerprint = computeStateVersion(patch);
+      const receipt = this.data.stateMutationReceipts.find((item) => (
+        item.userId === userId
+        && item.householdId === household.id
+        && item.idempotencyKey === idempotencyKey
+      ));
+      if (receipt) {
+        if (receipt.patchFingerprint !== patchFingerprint) {
+          throw codedError("idempotency_key_reused", "The idempotency key was already used for another mutation.");
+        }
+        return structuredClone({
+          state: this.data.householdStates[household.id] ?? null,
+          replayed: true,
+        });
+      }
+
+      const currentState = this.data.householdStates[household.id] ?? null;
+      const households = this.findHouseholdsByMember(userId);
+      const dateKey = sanitizeDateKey(options.dateKey);
+      const currentMealRun = this.data.mealRuns.find((run) => (
+        run.householdId === household.id
+        && run.dateKey === dateKey
+        && run.mealSlot === "dinner"
+        && run.status !== "abandoned"
+      )) ?? null;
+      const latestEnvelope = buildBootstrapEnvelope({
+        user,
+        households,
+        activeHousehold: household,
+        state: currentState,
+        mealRun: currentMealRun,
+        flags: options.flags,
+      });
+      const expectedStateVersion = sanitizeText(options.expectedStateVersion, "", 180);
+      if (!expectedStateVersion) {
+        throw codedError("state_precondition_required", "If-Match state version is required.");
+      }
+      if (expectedStateVersion !== latestEnvelope.stateVersion) {
+        const error = codedError("state_version_conflict", "Household state changed; reload before saving.");
+        error.latestEnvelope = latestEnvelope;
+        throw error;
+      }
+
+      const nextState = {
+        ...(currentState || {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "mealPlan") ? { mealPlan: patch.mealPlan } : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "groceryClaims")
+          ? {
+              groceryClaims: Object.fromEntries(Object.entries({
+                ...(currentState?.groceryClaims || {}),
+                ...trustedGroceryClaims,
+              }).slice(-400)),
+            }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "checkedItems")
+          ? {
+              checkedItems: Object.fromEntries(Object.entries({
+                ...(currentState?.checkedItems || {}),
+                ...patch.checkedItems,
+              }).slice(-400)),
+            }
+          : {}),
+        householdId: household.id,
+        updatedAt: new Date().toISOString(),
+      };
+      this.data.householdStates[household.id] = nextState;
+      this.data.states[userId] = nextState;
+      this.data.stateMutationReceipts.unshift({
+        userId,
+        householdId: household.id,
+        idempotencyKey,
+        patchFingerprint,
+        createdAt: nextState.updatedAt,
+      });
+      this.data.stateMutationReceipts = this.data.stateMutationReceipts.slice(0, 1000);
+      return structuredClone({ state: nextState, replayed: false });
+    });
+  }
+
   async getPreciseRecommendationAccess(userId) {
     await this.load();
     const household = await this.requireActiveHouseholdForUser(userId);
@@ -1121,7 +1241,7 @@ export class HumiStore {
   async createGroceryShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.requireOwnedHouseholdForUser(ownerUserId)
+      ? await this.requireActiveHouseholdForUser(ownerUserId)
       : null;
     const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
     const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({

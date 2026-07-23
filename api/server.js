@@ -475,9 +475,12 @@ export function createHumiApiServer() {
       if (process.env.NODE_ENV !== "production" && status >= 500) {
         console.error(error);
       }
+      const code = error.code || "internal_error";
       sendJson(response, status, {
-        error: error.code || "internal_error",
+        error: code,
+        code,
         message: status >= 500 ? "Humi API 暂时不可用。" : error.message,
+        ...(error.latestEnvelope ? { latestEnvelope: error.latestEnvelope } : {}),
       });
     }
   });
@@ -720,15 +723,7 @@ async function handleGetState(request, response) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const state = await store.getState(user.id);
-  const household = await store.getHouseholdForUser(user.id);
-  const households = await store.getHouseholdsForUser(user.id);
-  sendJson(response, 200, {
-    state,
-    family: toHumiFamily(household, user),
-    households: toHumiFamilies(households, user),
-    capabilities: mealExecutionCapabilities(household),
-  });
+  sendJson(response, 200, await buildStateResponse(user), { "Cache-Control": "private, no-store" });
 }
 
 async function handleSaveState(request, response) {
@@ -736,6 +731,26 @@ async function handleSaveState(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
+  if (body?.patch !== undefined) {
+    const patch = sanitizeStatePatch(body.patch);
+    const householdId = stringValue(body.householdId, 80);
+    const expectedStateVersion = normalizeIfMatch(request.headers["if-match"]);
+    const idempotencyKey = stringValue(request.headers["x-humi-idempotency-key"], 100);
+    const household = await store.getHouseholdForUser(user.id);
+    try {
+      await store.saveStatePatch(user.id, patch, {
+        householdId,
+        expectedStateVersion,
+        idempotencyKey,
+        dateKey: currentDinnerDateKey(),
+        flags: bootstrapCapabilityFlags(household),
+      });
+      sendJson(response, 200, await buildStateResponse(user), { "Cache-Control": "private, no-store" });
+      return;
+    } catch (error) {
+      throw mapStatePatchError(error);
+    }
+  }
   const householdId = stringValue(body.householdId || body.state?.householdId, 80);
   const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body), householdId);
   const household = await store.getHouseholdForUser(user.id);
@@ -746,6 +761,79 @@ async function handleSaveState(request, response) {
     households: toHumiFamilies(households, user),
     capabilities: mealExecutionCapabilities(household),
   });
+}
+
+async function buildStateResponse(user) {
+  const snapshot = await store.getBootstrapSnapshot(user.id, { dateKey: currentDinnerDateKey() });
+  const envelope = buildBootstrapEnvelope({
+    user,
+    households: snapshot.households,
+    activeHousehold: snapshot.activeHousehold,
+    state: snapshot.state,
+    mealRun: snapshot.mealRun,
+    flags: bootstrapCapabilityFlags(snapshot.activeHousehold),
+  });
+  return {
+    ...envelope,
+    // The legacy H5 client still consumes the fully sanitized app-state contract,
+    // while the native bootstrap projection deliberately removes token-like fields.
+    state: snapshot.state,
+    family: toHumiFamily(snapshot.activeHousehold, user),
+    households: toHumiFamilies(snapshot.households, user),
+  };
+}
+
+function bootstrapCapabilityFlags(household) {
+  const mealExecutionEnabled = mealExecutionCapabilities(household).mealExecution;
+  return {
+    nativeShellEnabled: isNativeShellEnabledFor(household?.id),
+    mealExecutionEnabled,
+    reminderEnabled: Boolean(mealExecutionEnabled && config.mealReminderTemplateId),
+  };
+}
+
+function sanitizeStatePatch(patch) {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw httpError(400, "state_patch_invalid", "State patch must be an object.");
+  }
+  const keys = Object.keys(patch);
+  const allowedKeys = new Set(["mealPlan", "groceryClaims", "checkedItems"]);
+  if (!keys.length || keys.some((key) => !allowedKeys.has(key))) {
+    throw httpError(400, "state_patch_invalid", "State patch contains unsupported fields.");
+  }
+  return Object.fromEntries(keys.map((key) => [
+    key,
+    key === "mealPlan"
+      ? sanitizeMealPlan(patch[key])
+      : key === "groceryClaims"
+        ? sanitizeGroceryClaims(patch[key])
+        : sanitizeBooleanMap(patch[key], 400),
+  ]));
+}
+
+function normalizeIfMatch(value) {
+  const header = Array.isArray(value) ? value[0] : value;
+  const normalized = stringValue(header, 184);
+  if (normalized.startsWith("\"") && normalized.endsWith("\"")) return normalized.slice(1, -1);
+  return normalized;
+}
+
+function mapStatePatchError(error) {
+  const statusByCode = {
+    household_not_found: 404,
+    forbidden: 403,
+    state_patch_invalid: 400,
+    idempotency_key_required: 400,
+    idempotency_key_reused: 409,
+    state_precondition_required: 428,
+    state_version_conflict: 409,
+    date_key_invalid: 400,
+  };
+  const status = statusByCode[error?.code];
+  if (!status) return error;
+  const mapped = httpError(status, error.code, error.message);
+  if (error.latestEnvelope) mapped.latestEnvelope = error.latestEnvelope;
+  return mapped;
 }
 
 async function handleDinnerRecommendation(request, response) {
@@ -1618,7 +1706,7 @@ async function handleCreateGroceryShareRequest(request, response) {
     });
   } catch (error) {
     if (error.code === "forbidden") {
-      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+      throw httpError(403, "forbidden", "只有正式家庭成员能分享这个家的买菜清单。");
     }
     throw error;
   }
@@ -2428,6 +2516,26 @@ function sanitizeMenuEntries(value) {
       .map((item) => ({
         recipeId: stringValue(item?.recipeId),
         quantity: Math.max(1, Math.min(12, Number.parseInt(item?.quantity, 10) || 1)),
+        ...(stringValue(item?.title || item?.name, 80) ? { title: stringValue(item?.title || item?.name, 80) } : {}),
+        ...(Number.isFinite(Number(item?.minutes ?? item?.timeMinutes))
+          ? { minutes: Math.max(0, Math.min(480, Math.round(Number(item?.minutes ?? item?.timeMinutes)))) }
+          : {}),
+        ...(Array.isArray(item?.ingredients)
+          ? {
+              ingredients: sanitizeList(item.ingredients, (ingredient) => {
+                const name = stringValue(ingredient?.name, 80);
+                if (!name) return null;
+                return {
+                  name,
+                  amount: typeof ingredient?.amount === "number"
+                    ? Math.max(0, Math.min(9999, ingredient.amount))
+                    : stringValue(ingredient?.amount, 40),
+                  unit: stringValue(ingredient?.unit, 24),
+                  required: ingredient?.required !== false,
+                };
+              }, 40),
+            }
+          : {}),
       }))
       .filter((item) => item.recipeId)
       .slice(0, 40)
@@ -2679,7 +2787,7 @@ function applyCors(request, response) {
     response.setHeader("Vary", "Origin");
   }
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,If-Match,X-Humi-Idempotency-Key");
 }
 
 function sendJson(response, status, data, headers = {}) {

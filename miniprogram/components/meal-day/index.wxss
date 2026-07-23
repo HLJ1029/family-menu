@@ -1,0 +1,14 @@
+.meal-day { margin-bottom: 24rpx; padding: 28rpx; border: 1rpx solid #e7e7e7; border-radius: 28rpx; background: #fff; }
+.day-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.day-label { display: block; color: #111; font-size: 34rpx; font-weight: 800; }
+.date-key { display: block; margin-top: 4rpx; color: #999; font-size: 22rpx; }
+.minutes { color: #555; font-size: 24rpx; }
+.compat-row, .dinner-row { display: flex; align-items: flex-start; gap: 16rpx; margin-top: 24rpx; }
+.slot-label { width: 72rpx; color: #777; font-size: 25rpx; }
+.slot-copy, .dinner-list { flex: 1; color: #222; font-size: 27rpx; }
+.readonly { color: #aaa; font-size: 21rpx; }
+.dinner-name { display: block; margin-bottom: 8rpx; font-weight: 700; }
+.empty { color: #999; }
+.missing { display: block; margin-top: 18rpx; color: #8b5a16; font-size: 24rpx; }
+.edit-button { margin: 22rpx 0 0; border-radius: 999rpx; background: #f2f2f2; color: #222; font-size: 24rpx; }
+.edit-button::after { border: 0; }

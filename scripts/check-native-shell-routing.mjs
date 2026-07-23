@@ -233,7 +233,12 @@ for (const tabPath of tabPaths) {
       if (specifier === "../../utils/recommendation") return {};
       if (specifier === "../../utils/meal-run") return {};
       if (specifier === "../../utils/telemetry") return {};
-      if (specifier === "../../utils/request") return { rawRequest: async () => ({ recipes: [], nextCursor: null }) };
+      if (specifier === "../../utils/request") return {
+        rawRequest: async () => ({ recipes: [], nextCursor: null }),
+        requestHumi: async () => ({}),
+      };
+      if (specifier === "../../utils/offline-queue") return { enqueueMutation: () => {} };
+      if (specifier === "../../utils/household-state") return {};
       if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.humi-home.com" };
       throw new Error(`Unexpected tab dependency: ${specifier}`);
     }

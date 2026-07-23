@@ -1,1 +1,18 @@
-<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry"><view class="native-tab"><text class="native-tab-title">计划</text><text class="native-tab-copy">{{status === 'cached' ? '已显示离线缓存。' : status === 'empty' ? '暂时没有可显示的计划。' : '计划页正在准备。'}}</text></view></page-state>
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="native-tab">
+    <text class="eyebrow">{{householdName}}</text>
+    <text class="native-tab-title">这周怎么吃</text>
+    <text class="native-tab-copy">{{canEditMenu ? "你可以调整晚餐；早餐和午餐先保留兼容查看。" : "家庭创建者负责调整菜单，你可以随时查看。"}}</text>
+    <view wx:if="{{status === 'cached'}}" class="notice">正在显示离线缓存；联网后才能修改菜单。</view>
+    <view wx:if="{{conflictVisible}}" class="notice conflict">家人刚更新了安排，下面已是最新版本。</view>
+    <view wx:if="{{errorText && status !== 'error'}}" class="notice conflict">{{errorText}}</view>
+    <meal-day
+      wx:for="{{days}}"
+      wx:key="dateKey"
+      day="{{item}}"
+      can-edit="{{canEditMenu}}"
+      busy="{{pendingAction !== ''}}"
+      bind:replace="replaceDinner"
+    />
+  </view>
+</page-state>

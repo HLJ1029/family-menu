@@ -9,6 +9,7 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const scratch = await mkdtemp(join(tmpdir(), "humi-native-primary-tabs-"));
 process.env.HUMI_API_DATA_FILE = join(scratch, "data.json");
 process.env.HUMI_SESSION_SECRET = "native-primary-tabs-test-secret";
+process.env.HUMI_WECHAT_MOCK = "1";
 const { createHumiApiServer } = await import("../api/server.js");
 const server = createHumiApiServer();
 await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
@@ -175,6 +176,354 @@ try {
     "an old pagination response must not overwrite a newer filter or search generation",
   );
 
+  const householdState = await loadModule("miniprogram/utils/household-state.js", {
+    "./request": {
+      requestHumi: async (options) => options,
+    },
+  });
+  const derivedItems = householdState.deriveGroceryItems({
+    "2026-07-24": {
+      dinner: [{
+        recipeId: "tomato-egg",
+        title: "西红柿炒鸡蛋",
+        minutes: 15,
+        ingredients: [
+          { name: "鸡蛋", amount: 3, unit: "个" },
+          { name: "西红柿", amount: 2, unit: "个" },
+        ],
+      }],
+    },
+  }, [{ name: "西红柿", status: "maybe" }]);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(derivedItems.map((item) => [item.name, item.status]))),
+    [["鸡蛋", "pending"], ["西红柿", "maybe_home"]],
+    "the grocery list must derive deterministic pending and maybe-at-home groups from the meal plan",
+  );
+  const mealDays = householdState.buildMealDays({
+    "2026-07-24": {
+      dinner: [{
+        recipeId: "tomato-egg",
+        ingredients: [{ name: "鸡蛋" }, { name: "西红柿" }],
+      }],
+    },
+  }, { startDate: "2026-07-24", pantrySignals: [{ name: "西红柿" }] });
+  assert.equal(mealDays[0].missingIngredientsText, "鸡蛋", "WXML receives preformatted missing-ingredient text");
+  const patchRequest = await householdState.saveHouseholdStatePatch(
+    { mealPlan: { "2026-07-24": { dinner: [{ recipeId: "tomato-egg" }] } } },
+    { householdId: "household-1", stateVersion: "state-v1", idempotencyKey: "plan-save-1" },
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(patchRequest)), {
+    path: "/state",
+    method: "PUT",
+    data: {
+      householdId: "household-1",
+      patch: { mealPlan: { "2026-07-24": { dinner: [{ recipeId: "tomato-egg" }] } } },
+    },
+    stateVersion: "state-v1",
+    idempotencyKey: "plan-save-1",
+  });
+
+  const ownerBootstrap = buildNativeBootstrap({ role: "owner" });
+  const ownerRequests = [];
+  const ownerPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../utils/native-shell-guard": { guardNativeTab: () => true },
+    "../../utils/store": { appStore: { getState: () => ({ bootstrap: ownerBootstrap }), replaceBootstrap: () => {} } },
+    "../../utils/household-state": {
+      buildMealDays: householdState.buildMealDays,
+      createMutationId: () => "owner-plan-patch",
+      getActiveHousehold: householdState.getActiveHousehold,
+      getHouseholdRole: householdState.getHouseholdRole,
+      saveHouseholdStatePatch: async (patch, context) => {
+        ownerRequests.push({ patch, context });
+        return buildNativeBootstrap({ role: "owner", stateVersion: "state-v2", mealPlan: patch.mealPlan });
+      },
+    },
+  });
+  ownerPlan.syncState();
+  assert.equal(ownerPlan.data.canEditMenu, true);
+  await ownerPlan.replaceDinner({
+    currentTarget: {
+      dataset: {
+        dateKey: "2026-07-24",
+        recipeId: "tomato-egg",
+      },
+    },
+  });
+  assert.equal(ownerRequests.length, 1, "an owner may replace dinner through a versioned state patch");
+
+  const memberBootstrap = buildNativeBootstrap({ role: "member" });
+  const memberPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../utils/native-shell-guard": { guardNativeTab: () => true },
+    "../../utils/store": { appStore: { getState: () => ({ bootstrap: memberBootstrap }), replaceBootstrap: () => {} } },
+    "../../utils/household-state": {
+      buildMealDays: householdState.buildMealDays,
+      createMutationId: () => "member-plan-patch",
+      getActiveHousehold: householdState.getActiveHousehold,
+      getHouseholdRole: householdState.getHouseholdRole,
+      saveHouseholdStatePatch: async () => {
+        throw new Error("member page must not send a menu mutation");
+      },
+    },
+  });
+  memberPlan.syncState();
+  assert.equal(memberPlan.data.canEditMenu, false);
+  await assert.rejects(() => memberPlan.replaceDinner({
+    currentTarget: { dataset: { dateKey: "2026-07-24", recipeId: "tomato-egg" } },
+  }), /forbidden/);
+
+  const conflictEnvelope = buildNativeBootstrap({ role: "owner", stateVersion: "state-v3" });
+  const conflictPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../utils/native-shell-guard": { guardNativeTab: () => true },
+    "../../utils/store": {
+      appStore: {
+        getState: () => ({ bootstrap: ownerBootstrap }),
+        replaceBootstrap: (envelope) => { conflictPlan._replacedEnvelope = envelope; },
+      },
+    },
+    "../../utils/household-state": {
+      buildMealDays: householdState.buildMealDays,
+      createMutationId: () => "conflict-plan-patch",
+      getActiveHousehold: householdState.getActiveHousehold,
+      getHouseholdRole: householdState.getHouseholdRole,
+      saveHouseholdStatePatch: async () => {
+        const error = new Error("state version conflict");
+        error.status = 409;
+        error.code = "state_version_conflict";
+        error.latestEnvelope = conflictEnvelope;
+        throw error;
+      },
+    },
+  });
+  conflictPlan.syncState();
+  await conflictPlan.replaceDinner({
+    currentTarget: { dataset: { dateKey: "2026-07-24", recipeId: "tomato-egg" } },
+  });
+  assert.equal(conflictPlan.data.conflictVisible, true);
+  assert.equal(conflictPlan.data.stateVersion, conflictEnvelope.stateVersion);
+  assert.equal(conflictPlan._replacedEnvelope, conflictEnvelope);
+
+  const ownerLogin = await loginNativeUser(origin, "owner");
+  const memberLogin = await loginNativeUser(origin, "member");
+  const ownerHousehold = await apiRequest(origin, "/households", {
+    method: "POST",
+    token: ownerLogin.accessToken,
+    expectedStatus: 201,
+    body: { householdName: "原生计划测试家", memberName: "主理人" },
+  });
+  const invite = await apiRequest(origin, "/household-invites", {
+    method: "POST",
+    token: ownerLogin.accessToken,
+    expectedStatus: 201,
+    body: { householdId: ownerHousehold.family.id },
+  });
+  await apiRequest(origin, `/household-invites/${invite.invite.token}/join`, {
+    method: "POST",
+    token: memberLogin.accessToken,
+    body: { memberName: "家人" },
+  });
+  const legacySaved = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    body: {
+      state: {
+        mealPlan: {
+          "2026-07-24": {
+            breakfast: [],
+            lunch: [],
+            dinner: [{ recipeId: "tomato-egg", quantity: 1 }],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(
+    legacySaved.state.mealPlan["2026-07-24"].dinner[0].recipeId,
+    "tomato-egg",
+    "legacy H5 full-state saves remain compatible without If-Match",
+  );
+  const ownerState = await apiRequest(origin, "/state", { token: ownerLogin.accessToken });
+  assert.equal(typeof ownerState.stateVersion, "string");
+  assert(ownerState.stateVersion.length > 20);
+  const ownerPatch = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: ownerState.stateVersion,
+    idempotencyKey: "owner-plan-patch",
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: {
+        mealPlan: {
+          "2026-07-24": {
+            breakfast: [],
+            lunch: [],
+            dinner: [{ recipeId: "potato-shreds", quantity: 1 }],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(ownerPatch.householdState.mealPlan["2026-07-24"].dinner[0].recipeId, "potato-shreds");
+  const ownerPatchReplay = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: ownerState.stateVersion,
+    idempotencyKey: "owner-plan-patch",
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: {
+        mealPlan: {
+          "2026-07-24": {
+            breakfast: [],
+            lunch: [],
+            dinner: [{ recipeId: "potato-shreds", quantity: 1 }],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(ownerPatchReplay.stateVersion, ownerPatch.stateVersion, "same idempotency key must replay safely");
+  const staleConflict = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: ownerState.stateVersion,
+    idempotencyKey: "stale-plan-patch",
+    expectedStatus: 409,
+    body: { householdId: ownerHousehold.family.id, patch: { checkedItems: { "ingredient:egg": true } } },
+  });
+  assert.equal(staleConflict.code, "state_version_conflict");
+  assert.equal(staleConflict.latestEnvelope.stateVersion, ownerPatch.stateVersion);
+  const memberState = await apiRequest(origin, "/state", { token: memberLogin.accessToken });
+  const memberLegacyAttempt = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    body: {
+      state: {
+        mealPlan: {
+          "2026-07-24": {
+            breakfast: [],
+            lunch: [],
+            dinner: [{ recipeId: "member-overwrite", quantity: 1 }],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(
+    memberLegacyAttempt.state.mealPlan["2026-07-24"].dinner[0].recipeId,
+    "potato-shreds",
+    "a member cannot bypass owner-only menu permissions through the legacy full-state endpoint",
+  );
+  const memberStateAfterLegacy = await apiRequest(origin, "/state", { token: memberLogin.accessToken });
+  const memberStateVersion = memberStateAfterLegacy.stateVersion;
+  const forbiddenMemberMenu = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    stateVersion: memberStateVersion,
+    idempotencyKey: "member-menu-patch",
+    expectedStatus: 403,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { mealPlan: { "2026-07-24": { breakfast: [], lunch: [], dinner: [] } } },
+    },
+  });
+  assert.equal(forbiddenMemberMenu.code, "forbidden");
+  const forbiddenSpoofedClaim = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    stateVersion: memberStateVersion,
+    idempotencyKey: "member-spoofed-claim",
+    expectedStatus: 403,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: {
+        groceryClaims: {
+          "ingredient:egg": {
+            itemKey: "ingredient:egg",
+            itemName: "鸡蛋",
+            memberId: ownerLogin.user.id,
+            memberName: "伪造主理人",
+            status: "claimed",
+          },
+        },
+      },
+    },
+  });
+  assert.equal(forbiddenSpoofedClaim.code, "forbidden");
+  const memberClaim = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    stateVersion: memberStateVersion,
+    idempotencyKey: "member-own-claim",
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: {
+        groceryClaims: {
+          "ingredient:egg": {
+            itemKey: "ingredient:egg",
+            itemName: "鸡蛋",
+            memberId: memberLogin.user.id,
+            memberName: "伪造昵称",
+            status: "claimed",
+          },
+        },
+      },
+    },
+  });
+  assert.equal(memberClaim.householdState.groceryClaims["ingredient:egg"].memberId, memberLogin.user.id);
+  assert.equal(
+    memberClaim.householdState.groceryClaims["ingredient:egg"].memberName,
+    "家人",
+    "claimant display identity must come from the authenticated profile",
+  );
+  const memberCheck = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    stateVersion: memberClaim.stateVersion,
+    idempotencyKey: "member-item-check",
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { checkedItems: { "ingredient:egg": true } },
+    },
+  });
+  assert.equal(memberCheck.householdState.checkedItems["ingredient:egg"], true, "formal members may check grocery items");
+  const memberShare = await apiRequest(origin, "/grocery-share-requests", {
+    method: "POST",
+    token: memberLogin.accessToken,
+    expectedStatus: 201,
+    body: {
+      idempotencyKey: "member-readonly-share",
+      householdId: ownerHousehold.family.id,
+      title: "当前只读清单",
+      items: [{ id: "ingredient:egg", name: "鸡蛋", amount: "3 个", checked: true }],
+    },
+  });
+  const publicMemberShare = await apiRequest(origin, `/grocery-share-requests/${memberShare.request.token}`);
+  assert.equal(publicMemberShare.request.items[0].name, "鸡蛋", "formal members may share a read-only snapshot");
+  assert.equal(publicMemberShare.request.items[0].checked, true);
+  const missingPrecondition = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    idempotencyKey: "missing-state-precondition",
+    expectedStatus: 428,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { checkedItems: { "ingredient:egg": false } },
+    },
+  });
+  assert.equal(missingPrecondition.code, "state_precondition_required");
+  const unknownPatchField = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: memberCheck.stateVersion,
+    idempotencyKey: "unknown-state-field",
+    expectedStatus: 400,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { familyProfile: { familySize: 99 } },
+    },
+  });
+  assert.equal(unknownPatchField.code, "state_patch_invalid");
+
   const guestRecipePage = await loadPage("miniprogram/packageContent/pages/recipe/index.js", {
     "../../../utils/request": {
       requestHumi: async () => {
@@ -205,6 +554,15 @@ try {
   assert.match(imageMarkup, /humi-dish-placeholder/);
   assert.match(imageMarkup, /bindload="onLoad"/);
   assert.match(imageMarkup, /binderror="onError"/);
+  const planMarkup = await readFile(join(root, "miniprogram/pages/plan/index.wxml"), "utf8");
+  assert.match(planMarkup, /meal-day/);
+  assert.match(planMarkup, /can-edit/);
+  const mealDayMarkup = await readFile(join(root, "miniprogram/components/meal-day/index.wxml"), "utf8");
+  assert.match(mealDayMarkup, /missingIngredientsText/);
+  assert.doesNotMatch(mealDayMarkup, /\.(?:join|map|filter|reduce|slice|includes)\(/, "WXML must bind precomputed fields");
+  const groceryMarkup = await readFile(join(root, "miniprogram/pages/grocery/index.wxml"), "utf8");
+  assert.match(groceryMarkup, /grocery-item/);
+  assert.match(groceryMarkup, /分享只读清单/);
 
   console.log("Native Discover, recipe summaries, image fallback, and isolated H5 content routes passed.");
 } finally {
@@ -269,4 +627,74 @@ function instantiate(definition) {
     if (typeof method === "function") method.bind(instance);
   }
   return instance;
+}
+
+function buildNativeBootstrap({
+  role,
+  stateVersion = "state-v1",
+  mealPlan = {
+    "2026-07-24": {
+      breakfast: [{ recipeId: "porridge", quantity: 1 }],
+      lunch: [{ recipeId: "leftovers", quantity: 1 }],
+      dinner: [{ recipeId: "tomato-egg", quantity: 1, title: "西红柿炒鸡蛋", minutes: 15 }],
+    },
+  },
+} = {}) {
+  return {
+    schemaVersion: 1,
+    stateVersion,
+    user: { id: role === "owner" ? "owner-1" : "member-1", displayName: role === "owner" ? "主理人" : "家人" },
+    activeHouseholdId: "household-1",
+    households: [{
+      id: "household-1",
+      name: "测试家",
+      ownerId: "owner-1",
+      role,
+      members: [
+        { id: "owner-1", displayName: "主理人", role: "owner" },
+        { id: "member-1", displayName: "家人", role: "member" },
+      ],
+    }],
+    householdState: { mealPlan, pantryItems: [], checkedItems: {}, groceryClaims: {} },
+    capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true },
+  };
+}
+
+async function loginNativeUser(origin, suffix) {
+  const login = await apiRequest(origin, "/auth/wechat/login", {
+    method: "POST",
+    body: { code: `native-primary-${suffix}` },
+  });
+  await apiRequest(origin, "/identity/profile", {
+    method: "PUT",
+    token: login.accessToken,
+    body: {
+      displayName: suffix === "owner" ? "主理人" : "家人",
+      avatarKey: "humi-avatar-parent-f-01",
+    },
+  });
+  return login;
+}
+
+async function apiRequest(origin, path, {
+  method = "GET",
+  token = "",
+  body,
+  stateVersion = "",
+  idempotencyKey = "",
+  expectedStatus = 200,
+} = {}) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (stateVersion) headers["If-Match"] = stateVersion;
+  if (idempotencyKey) headers["X-Humi-Idempotency-Key"] = idempotencyKey;
+  const response = await fetch(`${origin}${path}`, {
+    method,
+    headers,
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const payload = await response.json();
+  assert.equal(response.status, expectedStatus, `${method} ${path}: ${JSON.stringify(payload)}`);
+  return payload;
 }

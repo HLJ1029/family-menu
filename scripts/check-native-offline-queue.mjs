@@ -177,7 +177,7 @@ async function nextTask() {
       forbidden: { method: "DELETE" }
     },
     {
-      action: { id: "grocery-schema", type: "grocery_item_check", householdId: "h", createdAt: 1, data: { requestToken: "request-token", itemId: "item-1", checked: true } },
+      action: { id: "grocery-schema", type: "grocery_item_check", householdId: "h", createdAt: 1, stateVersion: "state-v1", data: { itemId: "ingredient:egg", checked: true } },
       forbidden: { mealRunId: "r" }
     }
   ];
@@ -418,6 +418,54 @@ async function nextTask() {
   );
   session.saveSession({ accessToken: "token-user-a", expiresAt: Date.now() + 60_000, user: { id: "user-a" } });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["switch-owner"], "an ownership switch must not delete account A's action");
+}
+
+{
+  const requests = [];
+  const { queue } = createRuntime({
+    requestHumi: async (options) => {
+      requests.push(structuredClone(options));
+      return { stateVersion: "state-v2" };
+    },
+  });
+  queue.enqueueMutation({
+    id: "native-grocery-check",
+    type: "grocery_item_check",
+    householdId: "household-1",
+    createdAt: 1,
+    stateVersion: "state-v1",
+    data: { itemId: "ingredient:egg", checked: true },
+  });
+  assert.equal((await queue.flushMutationQueue()).status, "flushed");
+  assert.deepEqual(requests, [{
+    path: "/state",
+    method: "PUT",
+    data: {
+      householdId: "household-1",
+      patch: { checkedItems: { "ingredient:egg": true } },
+    },
+    idempotencyKey: "native-grocery-check",
+    stateVersion: "state-v1",
+    expectedUserId: "user-a",
+  }], "native grocery checks replay only through the audited narrow state patch");
+}
+
+{
+  const { queue } = createRuntime();
+  assert.throws(() => queue.enqueueMutation({
+    id: "offline-menu-replacement",
+    type: "meal_plan_replace",
+    householdId: "household-1",
+    createdAt: 1,
+    data: { mealPlan: {} },
+  }), /offline_action_not_allowed/, "menu replacement must never enter the offline queue");
+  assert.throws(() => queue.enqueueMutation({
+    id: "offline-grocery-regeneration",
+    type: "grocery_regenerate",
+    householdId: "household-1",
+    createdAt: 2,
+    data: {},
+  }), /offline_action_not_allowed/, "grocery regeneration must never enter the offline queue");
 }
 
 {
