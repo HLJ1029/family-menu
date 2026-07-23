@@ -39,17 +39,51 @@ function buildTicketedH5ContentUrl(route, params, ticket) {
   buildAllowedContentUrl(route, params);
   const safeTicket = String(ticket || "");
   if (!/^[A-Za-z0-9_-]{16,200}$/.test(safeTicket)) throw contentRouteError();
-  const destination = new URL(getHumiH5Url());
-  if (destination.protocol !== "https:" || destination.hash) throw contentRouteError();
-  destination.pathname = "/";
-  for (const key of [...destination.searchParams.keys()]) {
-    if (!["channel", "h5v"].includes(key)) destination.searchParams.delete(key);
+  const destination = parseTrustedH5Base(getHumiH5Url());
+  const query = [
+    ...destination.baseParams,
+    ["contentRoute", route],
+    ...(route === "recipe" ? [["recipeId", params.recipeId]] : []),
+    ["humiTicket", safeTicket]
+  ];
+  return `${destination.origin}/?${query
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&")}`;
+}
+
+function parseTrustedH5Base(value) {
+  const source = String(value || "");
+  if (source.includes("#")) throw contentRouteError();
+  const match = /^https:\/\/www\.humi-home\.com(?::443)?\/?(?:\?([^#]*))?$/i.exec(source);
+  if (!match) throw contentRouteError();
+  const baseParams = [];
+  const seen = new Set();
+  for (const pair of String(match[1] || "").split("&")) {
+    if (!pair) continue;
+    const separator = pair.indexOf("=");
+    const rawKey = separator >= 0 ? pair.slice(0, separator) : pair;
+    const rawValue = separator >= 0 ? pair.slice(separator + 1) : "";
+    let key;
+    let decoded;
+    try {
+      key = decodeURIComponent(rawKey.replace(/\+/g, " "));
+      decoded = decodeURIComponent(rawValue.replace(/\+/g, " "));
+    } catch (_) {
+      throw contentRouteError();
+    }
+    if (seen.has(key)) continue;
+    if (key === "channel" && /^[A-Za-z0-9_-]{1,40}$/.test(decoded)) {
+      baseParams.push([key, decoded]);
+      seen.add(key);
+    } else if (key === "h5v" && /^[A-Za-z0-9._-]{1,32}$/.test(decoded)) {
+      baseParams.push([key, decoded]);
+      seen.add(key);
+    }
   }
-  destination.searchParams.set("contentRoute", route);
-  if (route === "recipe") destination.searchParams.set("recipeId", params.recipeId);
-  destination.searchParams.set("humiTicket", safeTicket);
-  destination.hash = "";
-  return destination.toString();
+  return {
+    origin: "https://www.humi-home.com",
+    baseParams
+  };
 }
 
 module.exports = {

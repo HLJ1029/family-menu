@@ -32,6 +32,7 @@ Page({
 
   onUnload() {
     clearTimeout(this._searchTimer);
+    this._requestGeneration = (this._requestGeneration || 0) + 1;
   },
 
   async loadFirstPage(overrides = {}) {
@@ -114,15 +115,16 @@ Page({
   onSearchInput(event) {
     clearTimeout(this._searchTimer);
     const query = String(event.detail?.value || "").slice(0, 40);
+    this._requestGeneration = (this._requestGeneration || 0) + 1;
     this.setData({ query });
     this._searchTimer = setTimeout(() => this.loadFirstPage({ query }), SEARCH_DELAY_MS);
   },
 
   selectCategory(event) {
-    clearTimeout(this._searchTimer);
     const selected = String(event.currentTarget?.dataset?.category || "");
     const category = selected === "全部" ? "" : selected.slice(0, 40);
     if (category === this.data.category) return;
+    clearTimeout(this._searchTimer);
     this.setData({ category });
     return this.loadFirstPage({ category });
   },
