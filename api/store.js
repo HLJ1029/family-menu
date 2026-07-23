@@ -207,6 +207,22 @@ export class HumiStore {
     return this.findHouseholdsByMember(userId);
   }
 
+  async getBootstrapSnapshot(userId, { dateKey } = {}) {
+    await this.load();
+    const households = this.findHouseholdsByMember(userId);
+    const activeHousehold = this.findActiveHouseholdByMember(userId);
+    const state = activeHousehold ? this.data.householdStates[activeHousehold.id] ?? null : null;
+    const mealRun = activeHousehold && dateKey
+      ? this.data.mealRuns.find((run) => (
+        run.householdId === activeHousehold.id
+        && run.dateKey === sanitizeDateKey(dateKey)
+        && run.mealSlot === "dinner"
+        && run.status !== "abandoned"
+      )) ?? null
+      : null;
+    return structuredClone({ households, activeHousehold, state, mealRun });
+  }
+
   async createHouseholdForUser(userId, options = {}) {
     await this.load();
     const householdName = sanitizeText(options.householdName, "", 32);

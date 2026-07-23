@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { HumiStore } from "./store.js";
+import { buildBootstrapEnvelope } from "./bootstrap.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
@@ -39,6 +40,11 @@ const config = {
   assetDir: process.env.HUMI_ASSET_DIR || resolve("public/assets"),
   mealExecutionEnabled: process.env.HUMI_MEAL_EXECUTION_ENABLED === "1",
   mealExecutionHouseholds: new Set((process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)),
+  nativeShellEnabled: process.env.HUMI_NATIVE_SHELL_ENABLED === "1",
+  nativeShellHouseholds: new Set((process.env.HUMI_NATIVE_SHELL_HOUSEHOLDS || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean)),
@@ -137,6 +143,11 @@ export function createHumiApiServer() {
 
       if (request.method === "GET" && url.pathname === "/me") {
         await handleMe(request, response);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/bootstrap") {
+        await handleBootstrap(request, response);
         return;
       }
 
@@ -603,6 +614,27 @@ async function handleMe(request, response) {
     households: toHumiFamilies(households, user),
     capabilities: mealExecutionCapabilities(household),
   });
+}
+
+async function handleBootstrap(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const snapshot = await store.getBootstrapSnapshot(user.id, { dateKey: currentDinnerDateKey() });
+  const mealExecutionEnabled = mealExecutionCapabilities(snapshot.activeHousehold).mealExecution;
+  const payload = buildBootstrapEnvelope({
+    user,
+    households: snapshot.households,
+    activeHousehold: snapshot.activeHousehold,
+    state: snapshot.state,
+    mealRun: snapshot.mealRun,
+    flags: {
+      nativeShellEnabled: isNativeShellEnabledFor(snapshot.activeHousehold?.id),
+      mealExecutionEnabled,
+      reminderEnabled: Boolean(mealExecutionEnabled && config.mealReminderTemplateId),
+    },
+  });
+  sendJson(response, 200, payload, { "Cache-Control": "private, no-store" });
 }
 
 async function handleProfile(request, response) {
@@ -1077,6 +1109,15 @@ function mealExecutionCapabilities(household) {
 function isMealExecutionEnabledFor(householdId) {
   if (!config.mealExecutionEnabled || !householdId) return false;
   return config.mealExecutionHouseholds.has("*") || config.mealExecutionHouseholds.has(householdId);
+}
+
+function isNativeShellEnabledFor(householdId) {
+  if (!config.nativeShellEnabled) return false;
+  return config.nativeShellHouseholds.has("*") || Boolean(householdId && config.nativeShellHouseholds.has(householdId));
+}
+
+function currentDinnerDateKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function assertMealExecutionEnabled(householdId) {
@@ -2473,8 +2514,8 @@ function applyCors(request, response) {
   response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 }
 
-function sendJson(response, status, data) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(response, status, data, headers = {}) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
   response.end(`${JSON.stringify(data)}\n`);
 }
 

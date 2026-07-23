@@ -25,6 +25,12 @@ npm run api:dev
 npm run validate:api
 ```
 
+原生启动合同：
+
+```bash
+npm run validate:native-bootstrap-api
+```
+
 环境变量：
 
 | 变量 | 用途 |
@@ -42,6 +48,16 @@ npm run validate:api
 | `WECHAT_APP_ID` | 微信小程序 AppID |
 | `WECHAT_APP_SECRET` | 微信小程序 AppSecret |
 | `HUMI_WECHAT_MOCK` | 仅本地测试使用，`1` 时不请求微信接口 |
+| `HUMI_NATIVE_SHELL_ENABLED` | 原生小程序壳总开关；默认 `0`。 |
+| `HUMI_NATIVE_SHELL_HOUSEHOLDS` | 原生壳家庭白名单，逗号分隔；空值不匹配任何家庭。仅测试环境在总开关为 `1` 时可使用 `*`，它也匹配尚未建家的首次用户。 |
+
+## 原生启动 Bootstrap
+
+`GET /bootstrap` 要求 `Authorization: Bearer <accessToken>`，并返回 `Cache-Control: private, no-store`。读取不会创建家庭、成员或家庭状态。响应使用 `schemaVersion: 1`，包含已脱敏的当前用户、全部家庭、当前家庭 ID、家庭状态、当天晚餐 `MealRun` 与能力开关。
+
+`stateVersion` 是对已脱敏家庭状态、当前家庭成员/角色、当前晚餐与相关能力开关做稳定 SHA-256 base64url 哈希；不包含 `generatedAt`，相同逻辑状态重复读取时保持不变。用户字段只包含 `id`、`displayName`、`avatarKey`、`avatarUrl` 与 `profileStatus`，不会返回 token、openid 或电话散列。
+
+原生壳只有在 `HUMI_NATIVE_SHELL_ENABLED=1` 且 allowlist 匹配当前家庭时才启用；空 allowlist 永不匹配。未命中时响应仍成功，但 `capabilities.nativeShellEnabled=false`，客户端继续进入既有 H5。
 
 ## 微信登录
 
