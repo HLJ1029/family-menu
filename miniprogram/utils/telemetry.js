@@ -8,10 +8,18 @@ const EVENT_NAMES = new Set([
 ]);
 const ENUM_FIELDS = {
   page: new Set(["boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder"]),
-  stage: new Set(["started", "completed", "failed", "retry", "offline"]),
-  result: new Set(["completed", "failed", "cancelled", "offline"])
+  stage: new Set(["started", "completed", "failed", "retry", "offline", "queue_flush"]),
+  result: new Set(["completed", "failed", "cancelled", "offline", "conflict", "retry"]),
+  errorCode: new Set([
+    "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized",
+    "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",
+    "offline_action_unconfigured", "offline_queue_full", "offline_queue_too_large", "offline_product_event_unsafe",
+    "queue_conflict", "queue_retry", "queue_flush_failed"
+  ])
 };
 const pending = [];
+const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "stateVersion", "styleId"]);
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 function sanitizeFields(fields = {}) {
   const clean = {};
@@ -22,7 +30,7 @@ function sanitizeFields(fields = {}) {
       continue;
     }
     if ((key === "durationMs" || key === "count") && Number.isFinite(value)) clean[key] = Math.max(0, Number(value));
-    else if (typeof value === "string" && value.length <= 128 && !/[?&](?:token|code|key)=/i.test(value)) clean[key] = value;
+    else if (ID_FIELDS.has(key) && typeof value === "string" && SAFE_ID.test(value)) clean[key] = value;
   }
   return clean;
 }
@@ -61,8 +69,20 @@ function startSpan(name, fields = {}) {
     end(result = "completed", finishFields = {}) {
       if (ended) return null;
       ended = true;
-      const eventName = result === "failed" ? `${name}_failed` : `${name}_completed`;
-      return trackEvent(eventName, { ...fields, ...finishFields, durationMs: finishFields.durationMs ?? Date.now() - startedAt });
+      const outcome = result === "completed"
+        ? { eventName: `${name}_completed`, stage: "completed", result: "completed", errorCode: "none" }
+        : result === "offline"
+          ? { eventName: `${name}_failed`, stage: "offline", result: "offline", errorCode: "network_error" }
+          : { eventName: `${name}_failed`, stage: "failed", result: "failed", errorCode: "request_failed" };
+      const { stage, result: ignoredResult, errorCode, durationMs, ...safeFinishFields } = finishFields;
+      return trackEvent(outcome.eventName, {
+        ...fields,
+        ...safeFinishFields,
+        stage: outcome.stage,
+        result: outcome.result,
+        durationMs: durationMs ?? Date.now() - startedAt,
+        errorCode: ENUM_FIELDS.errorCode.has(errorCode) ? errorCode : outcome.errorCode
+      });
     }
   };
 }

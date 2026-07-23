@@ -38,11 +38,25 @@ function validateAction(action) {
   }
 }
 
+function utf8ByteLength(value) {
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x7f) bytes += 1;
+    else if (code <= 0x7ff) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff && value.charCodeAt(index + 1) >= 0xdc00 && value.charCodeAt(index + 1) <= 0xdfff) {
+      bytes += 4;
+      index += 1;
+    } else bytes += 3;
+  }
+  return bytes;
+}
+
 function enqueueMutation(action) {
   validateAction(action);
   const queue = readQueue().filter((item) => item.id !== action.id);
   const next = [...queue, action];
-  if (JSON.stringify(next).length > MAX_QUEUE_BYTES) throw new HumiRequestError(0, "offline_queue_too_large", { retryable: false });
+  if (utf8ByteLength(JSON.stringify(next)) > MAX_QUEUE_BYTES) throw new HumiRequestError(0, "offline_queue_too_large", { retryable: false });
   if (next.length > MAX_ACTIONS) throw new HumiRequestError(0, "offline_queue_full", { retryable: false });
   writeQueue(next);
   return action;
@@ -106,5 +120,6 @@ module.exports = {
   readDeadLetters,
   flushMutationQueue,
   setMutationReplayer,
-  sortQueue
+  sortQueue,
+  utf8ByteLength
 };

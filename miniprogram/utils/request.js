@@ -50,7 +50,13 @@ async function requestHumi(options = {}) {
     if (error.status !== 401 || requestOptions.retry401 === false || !canReplay) throw error;
   }
 
-  await session.refreshSessionOnce();
+  try {
+    await session.refreshSessionOnce();
+  } catch (error) {
+    if (error.status !== 401) throw error;
+    session.clearSession();
+    throw new HumiRequestError(401, "invalid_session", { retryable: false });
+  }
   try {
     return await authenticatedRequest({ ...requestOptions, retry401: false });
   } catch (error) {

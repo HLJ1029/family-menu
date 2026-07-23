@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const utilDirectory = path.join(root, "miniprogram/utils");
+const appSource = fs.readFileSync(path.join(root, "miniprogram/app.js"), "utf8");
 for (const name of ["errors.js", "cache.js", "telemetry.js", "offline-queue.js", "store.js"]) {
   const file = path.join(utilDirectory, name);
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
@@ -51,6 +52,30 @@ function createRuntime() {
   };
 }
 
+function createAppRuntime(flush) {
+  let definition;
+  const events = [];
+  vm.runInNewContext(appSource, {
+    App: (value) => {
+      definition = value;
+    },
+    require: (specifier) => {
+      if (specifier === "./utils/session") return { restoreSession: () => null, saveSession: () => {}, clearSession: () => {} };
+      if (specifier === "./utils/offline-queue") return { flushMutationQueue: flush };
+      if (specifier === "./utils/config") return { HUMI_NATIVE_SHELL_CANDIDATE: true };
+      if (specifier === "./utils/telemetry") return { trackEvent: (name, fields) => events.push({ name, fields }) };
+      throw new Error(`Unexpected app dependency: ${specifier}`);
+    },
+    Date,
+    Promise
+  });
+  return { app: { ...definition, globalData: { ...definition.globalData } }, events };
+}
+
+async function nextTask() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 {
   const { queue } = createRuntime();
   assert.throws(() => queue.enqueueMutation({ type: "household_settings_update" }), /offline_action_not_allowed/);
@@ -76,6 +101,30 @@ function createRuntime() {
   }
   assert.throws(() => queue.enqueueMutation({ id: "one-too-many", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 101 }), /offline_queue_full/);
   assert.throws(() => queue.enqueueMutation({ id: "too-large", type: "meal_progress", householdId: "h2", mealRunId: "r2", createdAt: 1, payload: "x".repeat(256 * 1024) }), /offline_queue_too_large/);
+}
+
+{
+  const { queue } = createRuntime();
+  assert.throws(() => queue.enqueueMutation({
+    id: "utf8-limit",
+    type: "meal_progress",
+    householdId: "h1",
+    mealRunId: "r1",
+    createdAt: 1,
+    payload: "😀".repeat(65_550)
+  }), /offline_queue_too_large/, "queue capacity is measured in UTF-8 bytes, not JavaScript string length");
+}
+
+{
+  const { queue } = createRuntime();
+  assert.throws(() => queue.enqueueMutation({
+    id: "utf8-chinese-limit",
+    type: "meal_progress",
+    householdId: "h1",
+    mealRunId: "r1",
+    createdAt: 1,
+    payload: "汉".repeat(87_400)
+  }), /offline_queue_too_large/, "Chinese payloads use their UTF-8 byte size at the queue boundary");
 }
 
 {
@@ -138,15 +187,39 @@ function createRuntime() {
   });
   const event = telemetry.readPendingTelemetry()[0];
   assert.deepEqual(JSON.parse(JSON.stringify(event.fields)), { householdId: "h1", durationMs: 12 });
+  telemetry.trackEvent("bootstrap_failed", {
+    householdId: "this is arbitrary free text, not an id",
+    sessionId: "session details from a user message",
+    errorCode: "the server said something sensitive",
+    stage: "not-a-declared-stage",
+    result: "not-a-declared-result"
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), {}, "free text must not masquerade as IDs, error codes, stages, or results");
   assert.equal(telemetry.trackEvent("not_declared", { householdId: "h1" }), null);
   for (let index = 0; index < 24; index += 1) telemetry.trackEvent("native_boot_started", { page: "boot" });
   const batches = [];
   await telemetry.flushTelemetry(async (batch) => batches.push(batch));
   assert.equal(batches[0].length, 20, "telemetry deliveries must contain at most 20 events");
-  assert.deepEqual(batches.map((batch) => batch.length), [20, 5], "flush must drain remaining events in bounded batches");
+  assert.deepEqual(batches.map((batch) => batch.length), [20, 6], "flush must drain remaining events in bounded batches");
   const span = telemetry.startSpan("bootstrap", { householdId: "h1" });
   span.end("completed", { durationMs: 4, errorMessage: "ignored" });
-  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), { householdId: "h1", durationMs: 4 });
+  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), {
+    householdId: "h1",
+    stage: "completed",
+    result: "completed",
+    durationMs: 4,
+    errorCode: "none"
+  });
+  const offlineSpan = telemetry.startSpan("bootstrap", { householdId: "h1" });
+  const offlineEvent = offlineSpan.end("offline", { durationMs: 5, errorCode: "network_error" });
+  assert.equal(offlineEvent.name, "bootstrap_failed", "offline must not be represented as completed");
+  assert.deepEqual(JSON.parse(JSON.stringify(offlineEvent.fields)), {
+    householdId: "h1",
+    stage: "offline",
+    result: "offline",
+    durationMs: 5,
+    errorCode: "network_error"
+  });
 }
 
 {
@@ -156,6 +229,34 @@ function createRuntime() {
   store.appStore.setState({ currentHouseholdId: "h1" });
   unsubscribe();
   assert.deepEqual(snapshots, ["h1"]);
+}
+
+for (const [outcome, expectedName, expectedResult, expectedCode] of [
+  [{ status: "conflict" }, "native_boot_failed", "conflict", "queue_conflict"],
+  [{ status: "retry" }, "native_boot_failed", "retry", "queue_retry"]
+]) {
+  const { app, events } = createAppRuntime(() => Promise.resolve(outcome));
+  assert.doesNotThrow(() => app.onShow(), "foreground recovery must never block the app lifecycle");
+  await nextTask();
+  assert.equal(events.length, 1);
+  assert.equal(events[0].name, expectedName);
+  assert.equal(events[0].fields.stage, "queue_flush");
+  assert.equal(events[0].fields.result, expectedResult);
+  assert.equal(events[0].fields.errorCode, expectedCode);
+  assert.equal(typeof events[0].fields.durationMs, "number");
+}
+
+{
+  const { app, events } = createAppRuntime(() => Promise.reject(Object.assign(new Error("sensitive server detail"), { code: "untrusted_message" })));
+  assert.doesNotThrow(() => app.onShow(), "a rejected foreground flush must never block the app lifecycle");
+  await nextTask();
+  assert.equal(events.length, 1);
+  assert.equal(events[0].name, "native_boot_failed");
+  assert.equal(events[0].fields.page, "boot");
+  assert.equal(events[0].fields.stage, "queue_flush");
+  assert.equal(events[0].fields.result, "failed");
+  assert.equal(events[0].fields.errorCode, "queue_flush_failed");
+  assert.equal(typeof events[0].fields.durationMs, "number");
 }
 
 console.log("Native offline, cache, telemetry, and store foundation contract passed.");

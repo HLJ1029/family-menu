@@ -77,3 +77,42 @@ Secret scan passed.
 
 - No blocking concern. Task 5 should supply each queued mutation's explicit API `path`/payload and call `startSpan("bootstrap", ...)`; this foundation deliberately does not invent endpoint mappings.
 - This checkpoint does not change legacy page-local request code; migration of those callers belongs to the later native pages/identity work.
+
+## Review correction — native foundation hardening
+
+### RED
+
+The following additions were written before their corresponding minimal fixes:
+
+1. `npm run validate:native-session` failed the refresh-login-401 reproduction with `actual 'unauthorized'` / `expected 'invalid_session'`.
+2. `npm run validate:native-offline` failed the telemetry spoof test because arbitrary free text was retained as `householdId`, `sessionId`, and `errorCode`.
+3. The UTF-8 queue test failed with `Missing expected exception`, proving that an emoji payload above 256 KB in UTF-8 but below it in JavaScript code units was accepted. A matching Chinese-character boundary is now also covered.
+4. The mocked app lifecycle test failed with `0 !== 1`: conflict/retry/rejected queue flushes produced no telemetry event.
+
+The new concurrent-401 test passed before production changes because the existing `refreshPromise` already provided the required single-flight behavior; it now locks that Minor guarantee to one `wx.login` and one replay per original request.
+
+### GREEN
+
+Fresh final validation command:
+
+```sh
+npm run validate:native-session && npm run validate:native-offline && npm run validate:miniprogram-entry && npm run validate:native-bootstrap-api && /Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+Key output:
+
+```text
+Native session foundation contract passed.
+Native offline, cache, telemetry, and store foundation contract passed.
+Mini-program entrypoint resilience checks passed.
+Native bootstrap API contract passed.
+Secret scan passed.
+```
+
+### Corrective changes
+
+- A `401` returned by `/auth/wechat/login` during refresh clears the stored session and is normalized to non-retryable `invalid_session`.
+- Foreground queue flush records only fixed `page`, `stage`, `result`, `durationMs`, and allowlisted `errorCode` values. Conflict, retry, and rejected flushes are observed without blocking `onShow` or including action/error free text.
+- Telemetry IDs must match a constrained opaque-ID format; error codes, stages, and results are fixed enums. Spans always include fixed outcome fields, and `offline` emits the failure event with `offline` rather than `completed`.
+- Queue capacity uses a surrogate-aware UTF-8 byte counter instead of JavaScript string length.
+- Corrective commit: `fix: harden native platform foundations`.

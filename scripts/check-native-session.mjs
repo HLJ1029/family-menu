@@ -11,7 +11,7 @@ for (const name of ["errors.js", "session.js", "request.js", "cache.js", "teleme
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
 }
 
-function createRuntime({ responses = [], loginCode = "wechat-code" } = {}) {
+function createRuntime({ responses = [], loginCode = "wechat-code", asyncResponses = false } = {}) {
   const storage = new Map();
   const calls = { login: 0, request: [] };
   const wx = {
@@ -27,12 +27,16 @@ function createRuntime({ responses = [], loginCode = "wechat-code" } = {}) {
     request: (options) => {
       calls.request.push({ ...options, header: { ...(options.header || {}) } });
       const response = responses.shift() || { statusCode: 200, data: {} };
-      if (response.fail) {
-        options.fail?.(response.fail);
-      } else {
-        options.success?.({ statusCode: response.statusCode, data: response.data, header: response.header || {} });
-      }
-      options.complete?.();
+      const respond = () => {
+        if (response.fail) {
+          options.fail?.(response.fail);
+        } else {
+          options.success?.({ statusCode: response.statusCode, data: response.data, header: response.header || {} });
+        }
+        options.complete?.();
+      };
+      if (asyncResponses) queueMicrotask(respond);
+      else respond();
     }
   };
   const modules = new Map();
@@ -60,6 +64,24 @@ function createRuntime({ responses = [], loginCode = "wechat-code" } = {}) {
     return record.exports;
   }
   return { ...load(path.join(utilDirectory, "request.js")), session: load(path.join(utilDirectory, "session.js")), storage, calls };
+}
+
+{
+  const runtime = createRuntime({
+    asyncResponses: true,
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 200, data: { accessToken: "fresh-token", expiresAt: Date.now() + 60_000 } },
+      { statusCode: 200, data: { stateVersion: "v2-a" } },
+      { statusCode: 200, data: { stateVersion: "v2-b" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  const [first, second] = await Promise.all([runtime.requestHumi({ path: "/bootstrap" }), runtime.requestHumi({ path: "/bootstrap" })]);
+  assert.deepEqual([first.stateVersion, second.stateVersion].sort(), ["v2-a", "v2-b"]);
+  assert.equal(runtime.calls.login, 1, "concurrent 401 recoveries share one wx.login");
+  assert.equal(runtime.calls.request.filter((call) => call.url.endsWith("/bootstrap")).length, 4, "each concurrent request receives one replay only");
 }
 
 {
@@ -100,6 +122,23 @@ function createRuntime({ responses = [], loginCode = "wechat-code" } = {}) {
     return true;
   });
   assert.equal(runtime.session.getSession(), null, "a second 401 must clear the local session");
+  assert.equal(runtime.calls.login, 1);
+}
+
+{
+  const runtime = createRuntime({
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 401, data: { error: "unauthorized" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  await assert.rejects(() => runtime.requestHumi({ path: "/bootstrap" }), (error) => {
+    assert.equal(error.code, "invalid_session", "a rejected refresh must normalize to invalid_session");
+    assert.equal(error.retryable, false);
+    return true;
+  });
+  assert.equal(runtime.session.getSession(), null, "a rejected refresh must clear the stale session");
   assert.equal(runtime.calls.login, 1);
 }
 
