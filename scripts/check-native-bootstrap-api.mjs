@@ -376,6 +376,7 @@ async function startServer(name, overrides = {}) {
   Object.assign(process.env, {
     HUMI_API_DATA_FILE: dataFile,
     HUMI_SESSION_SECRET: "humi-native-bootstrap-contract-secret",
+    HUMI_TELEMETRY_HASH_SALT: "humi-native-bootstrap-contract-salt-32-characters",
     NODE_ENV: "test",
     HUMI_WECHAT_MOCK: "1",
     HUMI_MEAL_EXECUTION_ENABLED: "0",

@@ -50,7 +50,11 @@ try {
   assert(cookingFlow, "the quick tier flow must remain available for the cooking timeline checks");
   const { page } = cookingFlow;
 
-  await page.clock.install({ time: new Date("2026-07-23T10:00:00.000Z") });
+  const plannedDateKey = await page.evaluate(() => (
+    JSON.parse(localStorage.getItem("humi:meal-execution-runs:v1") || "[]")[0]?.dateKey
+  ));
+  assert.match(plannedDateKey, /^\d{4}-\d{2}-\d{2}$/, "accepted plan must retain its business date");
+  await page.clock.install({ time: new Date(`${plannedDateKey}T10:00:00.000Z`) });
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "开始做" }).waitFor();
   await page.getByRole("button", { name: "开始做" }).click();
