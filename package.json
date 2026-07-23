@@ -28,6 +28,7 @@
     "validate:share-bridge": "node scripts/validate-mini-share-runtime.mjs",
     "validate:native-sharing": "node scripts/check-native-sharing.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
+    "validate:startup-performance": "node scripts/check-startup-performance.mjs",
     "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:miniprogram-poster": "node scripts/check-miniprogram-poster-share.mjs",

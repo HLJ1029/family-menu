@@ -1,7 +1,8 @@
 <view class="boot-shell">
   <view wx:if="{{state === 'loading'}}" class="boot-card" aria-label="正在启动">
     <text class="boot-brand">Humi</text>
-    <text class="boot-copy">正在准备今晚的安排…</text>
+    <text wx:if="{{cacheState === 'cached' && hasCachedHousehold}}" class="boot-copy">已找到上次的家庭安排，正在确认最新状态…</text>
+    <text wx:else class="boot-copy">正在准备今晚的安排…</text>
   </view>
   <view wx:elif="{{state === 'error'}}" class="boot-card">
     <text class="boot-brand">Humi</text>

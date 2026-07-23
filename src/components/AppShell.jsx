@@ -1,5 +1,5 @@
 import { ArrowLeft, ChefHat, Search, UserRound } from "lucide-react";
-import { useState } from "react";
+import { Component, useState } from "react";
 import { auxiliaryNavItems, getNavItem, getPrimaryNavId, mobileNavItems, navItems } from "./navigation";
 import { humiAvatarScenes } from "./ui/brandScenes";
 import { stableHash } from "./ui/characterIllustrations";
@@ -7,6 +7,66 @@ import { HumiPeek } from "./ui/HumiBrandIllustration";
 
 export const ICP_RECORD_NUMBER = "闽ICP备2026021323号-1";
 export const ICP_RECORD_URL = "https://beian.miit.gov.cn/";
+
+export function RouteLoadingFallback({ label = "正在打开页面" }) {
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      data-testid="lazy-route-loading"
+      className="grid min-h-[240px] place-items-center rounded-[28px] border border-line bg-white p-8 text-center shadow-card"
+    >
+      <div>
+        <span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-ink/15 border-t-ink" />
+        <p className="mt-4 text-sm font-black text-ink/62">{label}…</p>
+      </div>
+    </section>
+  );
+}
+
+export class RouteLoadBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch() {
+    // React records the render failure; recovery stays explicit and privacy-safe.
+  }
+
+  componentDidUpdate(previousProps) {
+    if (this.state.error && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <section
+        role="alert"
+        data-testid="lazy-route-error"
+        className="grid min-h-[240px] place-items-center rounded-[28px] border border-line bg-white p-8 text-center shadow-card"
+      >
+        <div>
+          <p className="text-xl font-black">这个页面资源没有加载成功</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-ink/52">网络恢复后重新加载即可，已经保存的菜单不会受影响。</p>
+          <button
+            type="button"
+            className="mt-5 rounded-full bg-ink px-6 py-3 text-sm font-black text-white"
+            onClick={() => window.location.reload()}
+          >
+            重新加载
+          </button>
+        </div>
+      </section>
+    );
+  }
+}
 
 export function IcpFooter({ compact = false }) {
   return (

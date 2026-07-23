@@ -1,6 +1,7 @@
 const { loginWithWechat } = require("../../utils/session");
 const { requestHumi } = require("../../utils/request");
 const { clearBootstrapCacheForUser } = require("../../utils/bootstrap");
+const { startSpan } = require("../../utils/telemetry");
 const { toHumiUserMessage } = require("../../utils/user-message");
 const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.json");
 const WECHAT_AVATAR_HOSTS = new Set(["thirdwx.qlogo.cn", "wx.qlogo.cn"]);
@@ -31,14 +32,17 @@ Page({
 
   async loginWithWechat() {
     if (this.data.pending) return;
+    const span = startSpan("native_login", { page: "identity" });
     this.setData({ pending: true, error: "" });
     try {
       const session = await loginWithWechat();
       getApp().setHumiSession(session);
+      span.end("completed", { page: "identity" });
       if (session.user?.profileStatus === "complete") {
         wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
       }
     } catch (error) {
+      span.end("failed", { page: "identity", errorCode: error?.code || "wechat_login_failed" });
       this.setData({ error: toHumiUserMessage(error, "微信登录失败，请重新尝试。") });
     } finally {
       this.setData({ pending: false });

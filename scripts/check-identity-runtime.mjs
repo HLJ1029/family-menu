@@ -219,6 +219,7 @@ function loadIdentityPage({ user, loginResult = null, rejectProfile = false, pro
         }
       };
       if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: (id) => calls.clearCache.push(id) };
+      if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
       throw new Error(`Unexpected identity dependency: ${specifier}`);
     },
     Promise,

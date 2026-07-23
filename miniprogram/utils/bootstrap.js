@@ -89,6 +89,18 @@ async function loadBootstrap({ allowCache = false } = {}) {
   }
 }
 
+function readCachedBootstrapSummary() {
+  const activeUserId = getActiveUserId();
+  if (!activeUserId) return null;
+  const householdId = wx.getStorageSync(lastHouseholdKey(activeUserId));
+  const cached = householdId ? readHouseholdCache(householdId, activeUserId) : null;
+  if (!cached?.envelope || getUserId(cached.envelope) !== activeUserId) return null;
+  return {
+    cacheState: "cached",
+    hasHousehold: Boolean(getHouseholdId(cached.envelope)),
+  };
+}
+
 function getHouseholdId(envelope = {}) {
   if (Object.prototype.hasOwnProperty.call(envelope, "activeHouseholdId")) {
     return String(envelope.activeHouseholdId || "");
@@ -137,4 +149,4 @@ function normalizeShareType(value) {
   return SHARE_LANDING_TYPES.has(type) ? type : "";
 }
 
-module.exports = { buildLegacyRoute, clearBootstrapCacheForUser, extractLegacyOptions, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, normalizeShareToken, validateShareLandingOptions, resolveKnownShareRoute, resolveStartupRoute };
+module.exports = { buildLegacyRoute, clearBootstrapCacheForUser, extractLegacyOptions, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, normalizeShareToken, readCachedBootstrapSummary, validateShareLandingOptions, resolveKnownShareRoute, resolveStartupRoute };

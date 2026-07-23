@@ -1093,7 +1093,7 @@ async function evaluateCommonJs(relativePath, stubs, globals = {}) {
           },
         };
       }
-      if (request.endsWith("/utils/telemetry")) return { trackEvent: () => null };
+      if (request.endsWith("/utils/telemetry")) return { startSpan: () => ({ end: () => null }), trackEvent: () => null };
       throw new Error(`Unexpected require ${request} from ${relativePath}`);
     },
     setTimeout,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthLanding } from "./components/AuthLanding";
 import { CalendarPage } from "./components/CalendarPage";
@@ -15,10 +15,8 @@ import { MealTaskLanding } from "./components/MealTaskLanding";
 import { Planner } from "./components/Planner";
 import { PosterPreview } from "./components/PosterPreview";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
-import { RecipeDetailDrawer } from "./components/RecipeDetailDrawer";
 import { RecommendationsPage } from "./components/RecommendationsPage";
-import { IcpFooter, Sidebar, MobileTabbar, Topbar } from "./components/AppShell";
-import { StatsPage } from "./components/StatsPage";
+import { IcpFooter, MobileTabbar, RouteLoadBoundary, RouteLoadingFallback, Sidebar, Topbar } from "./components/AppShell";
 import { TodayMenu } from "./components/TodayMenu";
 import { UserCenter } from "./components/UserCenter";
 import { WishLanding } from "./components/WishLanding";
@@ -132,9 +130,12 @@ import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, isShare
 import { buildShareSnapshotKey, createAsyncSnapshotCache } from "./lib/shareSnapshot";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
+import { lazyRoutes } from "./routes/lazyRoutes";
 import "./styles.css";
 
 const weekPlanDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+const StatsPage = lazyRoutes.stats;
+const RecipeDetailDrawer = lazyRoutes.recipeDetail;
 const defaultFamilyProfile = {
   planningMode: "daily_family",
   familySize: 2,
@@ -4643,19 +4644,23 @@ function App() {
               />
             )}
             {activeView === "stats" && (
-              <StatsPage
-                todayRecipes={todayRecipes}
-                plannedRecipes={plannedRecipes}
-                groceryItems={visibleGroceryItems}
-                weekPlan={weekPlan}
-                mealCalendar={mealCalendar}
-                mealPlan={mealPlan}
-                mealLogs={mealLogs}
-                familyProfile={familyProfile}
-                nutritionGoals={nutritionGoals}
-                pantryItems={pantryItems}
-                onViewChange={navigateTo}
-              />
+              <RouteLoadBoundary resetKey={activeView}>
+                <Suspense fallback={<RouteLoadingFallback label="正在打开吃饭习惯" />}>
+                  <StatsPage
+                    todayRecipes={todayRecipes}
+                    plannedRecipes={plannedRecipes}
+                    groceryItems={visibleGroceryItems}
+                    weekPlan={weekPlan}
+                    mealCalendar={mealCalendar}
+                    mealPlan={mealPlan}
+                    mealLogs={mealLogs}
+                    familyProfile={familyProfile}
+                    nutritionGoals={nutritionGoals}
+                    pantryItems={pantryItems}
+                    onViewChange={navigateTo}
+                  />
+                </Suspense>
+              </RouteLoadBoundary>
             )}
             {activeView === "user" && (
               <UserCenter
@@ -4743,15 +4748,21 @@ function App() {
         onShare={sharePosterPreview}
         onRegenerate={regeneratePosterPreview}
       />
-      <RecipeDetailDrawer
-        recipe={selectedRecipe}
-        cookingStep={cookingStep}
-        setCookingStep={setCookingStep}
-        onClose={closeRecipe}
-        onAddToday={addToday}
-        todayEntry={todayMenu.find((item) => item.recipeId === selectedRecipeId)}
-        onUpdateTodayQuantity={updateTodayQuantity}
-      />
+      {selectedRecipe && (
+        <RouteLoadBoundary resetKey={selectedRecipeId}>
+          <Suspense fallback={<RouteLoadingFallback label="正在打开菜谱" />}>
+            <RecipeDetailDrawer
+              recipe={selectedRecipe}
+              cookingStep={cookingStep}
+              setCookingStep={setCookingStep}
+              onClose={closeRecipe}
+              onAddToday={addToday}
+              todayEntry={todayMenu.find((item) => item.recipeId === selectedRecipeId)}
+              onUpdateTodayQuantity={updateTodayQuantity}
+            />
+          </Suspense>
+        </RouteLoadBoundary>
+      )}
     </div>
   );
 }

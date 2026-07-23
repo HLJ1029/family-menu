@@ -899,6 +899,7 @@ git commit -m "feat: add balanced native dinner rotation"
 
 **Files:**
 - Modify: `miniprogram/pages/tonight/index.js`
+- Modify: `miniprogram/packageCooking/pages/cooking/index.js`
 - Modify: `miniprogram/pages/tonight/index.wxml`
 - Modify: `miniprogram/pages/tonight/index.wxss`
 - Create: `miniprogram/components/effort-picker/index.*`
@@ -1598,10 +1599,25 @@ git commit -m "feat: add native meal tasks and reminders"
 **Files:**
 - Modify: `src/main.jsx`
 - Modify: `src/components/AppShell.jsx`
+- Modify: `src/components/UserCenter.jsx`
 - Modify: `vite.config.js`
 - Create: `src/routes/lazyRoutes.js`
 - Create: `scripts/check-startup-performance.mjs`
 - Modify: `scripts/check-h5-entrypoint-resilience.mjs`
+- Modify: `miniprogram/pages/boot/index.js`
+- Modify: `miniprogram/pages/boot/index.wxml`
+- Modify: `miniprogram/utils/bootstrap.js`
+- Modify: `miniprogram/pages/identity/index.js`
+- Modify: `miniprogram/pages/tonight/index.js`
+- Modify: `miniprogram/components/image-with-fallback/index.js`
+- Modify: `miniprogram/utils/telemetry.js`
+- Modify: `miniprogram/utils/config.js`
+- Modify: `miniprogram/app.js`
+- Modify: `scripts/check-miniprogram-entrypoint-resilience.mjs`
+- Modify: `scripts/check-native-offline-queue.mjs`
+- Modify: `scripts/check-native-shell-routing.mjs`
+- Modify: `scripts/check-identity-runtime.mjs`
+- Modify: `scripts/check-native-primary-tabs.mjs`
 - Modify: `package.json`
 
 **Interfaces:**
@@ -1621,7 +1637,7 @@ assert(thumbnailFiles.every((file) => file.bytes <= 80 * 1024));
 
 Run: `npm run build && npm run validate:startup-performance`
 
-Expected: FAIL if the current monolithic H5 initial chunk exceeds 350 KB gzip; the report prints file names and byte counts without credentials or URLs containing tickets.
+Expected: the already-sub-budget 350 KB gzip and runtime WebP thumbnail checks remain truthfully green, while the current build fails because low-frequency routes are still part of the initial static graph and native cached-paint/telemetry contracts do not yet exist. Legacy JPEG thumbnails and hero images are warnings, not runtime-thumbnail failures. The report prints file names and byte counts without credentials or URLs containing tickets.
 
 - [ ] **Step 3: Lazy-load low-frequency H5 routes**
 
@@ -1653,7 +1669,7 @@ build: {
 
 - [ ] **Step 5: Add native performance spans and image timing**
 
-Emit only `native_boot`, `native_login`, `bootstrap`, `recommendation`, `meal_run_restore`, and `thumbnail_first_visible` durations with version/page/error code. Keep event batching non-blocking.
+Emit only `native_boot`, `native_login`, `bootstrap`, `recommendation`, `meal_run_restore`, and `thumbnail_first_visible` durations with version/page/error code. Keep event batching non-blocking. A cached bootstrap envelope may only paint a non-interactive boot summary; a fresh `/bootstrap` response must still arrive before `resolveStartupRoute` runs, so the seven-day cache can never bypass the remote kill switch.
 
 - [ ] **Step 6: Run performance, entry, product, and build checks**
 

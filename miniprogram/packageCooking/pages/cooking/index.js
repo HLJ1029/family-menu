@@ -25,7 +25,7 @@ const { guardNativeTab } = require("../../../utils/native-shell-guard");
 const { requestHumi } = require("../../../utils/request");
 const { prepareShareSnapshot } = require("../../../utils/share-snapshot");
 const { appStore } = require("../../../utils/store");
-const { startSpan } = require("../../../utils/telemetry");
+const { startSpan, trackEvent } = require("../../../utils/telemetry");
 
 const DOWNGRADES = [
   { id: "drop_side", apiAction: "remove_optional_side", label: "去掉非必要配菜" },
@@ -161,12 +161,20 @@ const pageDefinition = {
   async loadRun({ startIfPlanned = false } = {}) {
     const bootstrap = appStore.getState().bootstrap;
     if (!bootstrap?.user?.id) throw codedError("invalid_session");
-    let mealRun = await loadMealRunForCooking({
-      bootstrap,
-      mealRunId: this._mealRunId,
-      dateKey: this._dateKey,
-      allowCache: true,
-    });
+    const restoreSpan = startSpan("meal_run_restore", { page: "cooking" });
+    let mealRun;
+    try {
+      mealRun = await loadMealRunForCooking({
+        bootstrap,
+        mealRunId: this._mealRunId,
+        dateKey: this._dateKey,
+        allowCache: true,
+      });
+      restoreSpan.end("completed", { page: "cooking" });
+    } catch (error) {
+      restoreSpan.end("failed", { page: "cooking", errorCode: error?.code || "request_failed" });
+      throw error;
+    }
     this.applyMealRun(mealRun);
     if (startIfPlanned && mealRun.status === "planned") {
       mealRun = await this.runMutation("start", () => startCookingMealRun(mealRun, {
@@ -611,27 +619,51 @@ const pageDefinition = {
   async runMutation(key, mutate, { onOffline } = {}) {
     if (this._pendingMutations?.has(key)) return this._pendingMutations.get(key);
     const mealRunId = safeTelemetryId(this.data.mealRun?.id || this._mealRunId);
-    const span = startSpan("cooking_mutation", { page: "cooking", mealRunId });
+    trackEvent("cooking_mutation_started", { page: "cooking", mealRunId, stage: "started" });
     this.setData({ pendingAction: key, errorText: "" });
     const pending = Promise.resolve()
       .then(mutate)
       .then((mealRun) => {
         if (mealRun) this.applyMealRun(mealRun);
-        span.end("completed");
+        trackEvent("cooking_mutation_completed", {
+          page: "cooking",
+          mealRunId,
+          stage: "completed",
+          result: "completed",
+          errorCode: "none",
+        });
         return mealRun;
       })
       .catch(async (error) => {
         if (Number(error?.status) === 409) {
-          span.end("failed", { errorCode: "conflict" });
+          trackEvent("cooking_mutation_failed", {
+            page: "cooking",
+            mealRunId,
+            stage: "failed",
+            result: "conflict",
+            errorCode: "conflict",
+          });
           await this.handleConflict(error);
           return this.data.mealRun;
         }
         if (isNetworkError(error)) {
-          span.end("offline", { errorCode: "network_error" });
+          trackEvent("cooking_mutation_failed", {
+            page: "cooking",
+            mealRunId,
+            stage: "offline",
+            result: "offline",
+            errorCode: "network_error",
+          });
           this.setData({ isOnline: false, networkText: "网络已断开，进度会稍后同步" });
           if (typeof onOffline === "function") return onOffline();
         } else {
-          span.end("failed", { errorCode: safeErrorCode(error) });
+          trackEvent("cooking_mutation_failed", {
+            page: "cooking",
+            mealRunId,
+            stage: "failed",
+            result: "failed",
+            errorCode: safeErrorCode(error),
+          });
         }
         this.setData({ errorText: errorMessage(error, "这一步暂时没有保存成功，请重试。") });
         return this.data.mealRun;

@@ -738,7 +738,7 @@ async function nextTask() {
     errorMessage: "arbitrary error"
   });
   const event = telemetry.readPendingTelemetry()[0];
-  assert.deepEqual(JSON.parse(JSON.stringify(event.fields)), { householdId: "h1", durationMs: 12 });
+  assert.deepEqual(JSON.parse(JSON.stringify(event.fields)), { householdId: "h1", durationMs: 12, packageVersion: "1.1.72" });
   telemetry.trackEvent("bootstrap_failed", {
     householdId: "this is arbitrary free text, not an id",
     sessionId: "session details from a user message",
@@ -746,7 +746,7 @@ async function nextTask() {
     stage: "not-a-declared-stage",
     result: "not-a-declared-result"
   });
-  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), {}, "free text must not masquerade as IDs, error codes, stages, or results");
+  assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), { packageVersion: "1.1.72" }, "free text must not masquerade as IDs, error codes, stages, or results");
   assert.equal(telemetry.trackEvent("not_declared", { householdId: "h1" }), null);
   for (let index = 0; index < 24; index += 1) telemetry.trackEvent("native_boot_started", { page: "boot" });
   const batches = [];
@@ -760,7 +760,8 @@ async function nextTask() {
     stage: "completed",
     result: "completed",
     durationMs: 4,
-    errorCode: "none"
+    errorCode: "none",
+    packageVersion: "1.1.72"
   });
   const offlineSpan = telemetry.startSpan("bootstrap", { householdId: "h1" });
   const offlineEvent = offlineSpan.end("offline", { durationMs: 5, errorCode: "network_error" });
@@ -770,7 +771,8 @@ async function nextTask() {
     stage: "offline",
     result: "offline",
     durationMs: 5,
-    errorCode: "network_error"
+    errorCode: "network_error",
+    packageVersion: "1.1.72"
   });
 }
 
@@ -837,32 +839,18 @@ async function nextTask() {
   );
 }
 
-for (const [outcome, expectedName, expectedResult, expectedCode] of [
-  [{ status: "conflict" }, "native_boot_failed", "conflict", "queue_conflict"],
-  [{ status: "retry" }, "native_boot_failed", "retry", "queue_retry"]
-]) {
+for (const outcome of [{ status: "conflict" }, { status: "retry" }]) {
   const { app, events } = createAppRuntime(() => Promise.resolve(outcome));
   assert.doesNotThrow(() => app.onShow(), "foreground recovery must never block the app lifecycle");
   await nextTask();
-  assert.equal(events.length, 1);
-  assert.equal(events[0].name, expectedName);
-  assert.equal(events[0].fields.stage, "queue_flush");
-  assert.equal(events[0].fields.result, expectedResult);
-  assert.equal(events[0].fields.errorCode, expectedCode);
-  assert.equal(typeof events[0].fields.durationMs, "number");
+  assert.deepEqual(events, [], "foreground queue recovery must not masquerade as native startup telemetry");
 }
 
 {
   const { app, events } = createAppRuntime(() => Promise.reject(Object.assign(new Error("sensitive server detail"), { code: "untrusted_message" })));
   assert.doesNotThrow(() => app.onShow(), "a rejected foreground flush must never block the app lifecycle");
   await nextTask();
-  assert.equal(events.length, 1);
-  assert.equal(events[0].name, "native_boot_failed");
-  assert.equal(events[0].fields.page, "boot");
-  assert.equal(events[0].fields.stage, "queue_flush");
-  assert.equal(events[0].fields.result, "failed");
-  assert.equal(events[0].fields.errorCode, "queue_flush_failed");
-  assert.equal(typeof events[0].fields.durationMs, "number");
+  assert.deepEqual(events, [], "foreground queue failures must stay out of native boot duration metrics");
 }
 
 console.log("Native offline, cache, telemetry, and store foundation contract passed.");

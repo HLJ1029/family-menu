@@ -129,6 +129,7 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
       }
       if (specifier === "../../utils/request") return { requestHumi: async () => ({}) };
       if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: () => {} };
+      if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
       if (specifier === "../../utils/user-message") return { toHumiUserMessage: (_error, fallback) => fallback };
       if (specifier === "../../data/approved-avatar-keys.json") return ["humi-avatar-parent-f-01"];
       assert.fail(`Unexpected identity dependency: ${specifier}`);

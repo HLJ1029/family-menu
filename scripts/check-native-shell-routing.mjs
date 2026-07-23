@@ -258,7 +258,7 @@ vm.runInNewContext(bootSource, {
   getApp: () => ({ globalData: { nativeShellCandidate: true } }),
   wx: { switchTab: () => assert.fail("server-disabled boot must not switch to a tab"), reLaunch: ({ url }) => legacyBootRoutes.push(url) },
   require: (specifier) => {
-    if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, extractLegacyOptions: (options) => options, getHouseholdId: () => "", loadBootstrap: async () => disabled, resolveKnownShareRoute, resolveStartupRoute };
+    if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, extractLegacyOptions: (options) => options, getHouseholdId: () => "", loadBootstrap: async () => disabled, readCachedBootstrapSummary: () => null, resolveKnownShareRoute, resolveStartupRoute };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected legacy boot dependency: ${specifier}`);
@@ -279,6 +279,7 @@ vm.runInNewContext(bootSource, {
         buildLegacyRoute,
         extractLegacyOptions: (options) => options,
         loadBootstrap: async () => mealExecutionDisabled,
+        readCachedBootstrapSummary: () => null,
         resolveKnownShareRoute,
         resolveStartupRoute,
       };
@@ -325,6 +326,7 @@ vm.runInNewContext(bootSource, {
         if (retryBootstrapCalls === 1) throw { code: "network_error" };
         return disabled;
       },
+      readCachedBootstrapSummary: () => null,
       resolveKnownShareRoute,
       resolveStartupRoute
     };
@@ -346,6 +348,8 @@ let bootDefinition;
 const routes = [];
 const spanEvents = [];
 const storeUpdates = [];
+const bootSequence = [];
+let bootstrapOptions;
 vm.runInNewContext(bootSource, {
   Page: (definition) => { bootDefinition = definition; },
   getApp: () => ({ globalData: { nativeShellCandidate: true } }),
@@ -358,12 +362,20 @@ vm.runInNewContext(bootSource, {
       buildLegacyRoute,
       extractLegacyOptions: (options) => options,
       getHouseholdId: () => "",
-      loadBootstrap: async () => enabled,
+      loadBootstrap: async (options) => {
+        bootstrapOptions = options;
+        bootSequence.push("fresh_bootstrap");
+        return enabled;
+      },
+      readCachedBootstrapSummary: () => {
+        bootSequence.push("cached_summary");
+        return { cacheState: "cached", hasHousehold: true };
+      },
       resolveKnownShareRoute,
       resolveStartupRoute
     };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: (envelope) => storeUpdates.push({ bootstrap: envelope, currentHouseholdId: envelope.activeHouseholdId }) } };
-    if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: (result, fields) => spanEvents.push({ result, fields }) }) };
+    if (specifier === "../../utils/telemetry") return { startSpan: (name) => ({ end: (result, fields) => spanEvents.push({ name, result, fields }) }) };
     throw new Error(`Unexpected boot dependency: ${specifier}`);
   }
 });
@@ -374,9 +386,16 @@ const bootPage = {
   setData(patch) { this.data = { ...this.data, ...patch }; }
 };
 await bootPage.onLoad({});
+assert.deepEqual(JSON.parse(JSON.stringify(bootstrapOptions)), { allowCache: false }, "boot routing must wait for a fresh bootstrap and never route from the seven-day cache");
+assert.deepEqual(bootSequence, ["cached_summary", "fresh_bootstrap"], "cached summary must paint before the authoritative bootstrap starts");
+assert.equal(bootPage.data.cacheState, "cached");
+assert.equal(bootPage.data.hasCachedHousehold, true);
 assert.deepEqual(routes, [["switchTab", "/pages/tonight/index"]], "native core entry must use switchTab");
 assert.deepEqual(JSON.parse(JSON.stringify(storeUpdates)), [{ bootstrap: enabled, currentHouseholdId: "household-1" }], "boot must store the exact API activeHouseholdId");
-assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [{ result: "completed", fields: { page: "boot" } }]);
+assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [
+  { name: "bootstrap", result: "completed", fields: { page: "boot" } },
+  { name: "native_boot", result: "completed", fields: { page: "boot" } },
+]);
 
 routes.length = 0;
 await bootPage.onLoad({ invite: validToken, shareSource: "ignored" });

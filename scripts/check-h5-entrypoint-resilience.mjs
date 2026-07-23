@@ -12,6 +12,7 @@ const expectedChecks = [
   "pre-React fallback is visible when the main module fails",
   "retry action appears after six seconds",
   "normal React boot replaces the fallback",
+  "failed lazy chunks show an accessible reload recovery instead of a blank screen",
   "H5 login prefers the native identity page and recovers from navigation failure",
   "one-time H5 ticket is exchanged and removed from the URL",
   "ticket exchange gates stale-session hydration during silent recovery",
@@ -94,6 +95,34 @@ try {
   if (evidenceDir) {
     await normalBootPage.screenshot({ path: screenshots.normalBoot, fullPage: true });
   }
+
+  const lazyRecoveryContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await lazyRecoveryContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+  });
+  const lazyRecoveryPage = await lazyRecoveryContext.newPage();
+  let failLazyChunkOnce = true;
+  await lazyRecoveryPage.route("**/src/components/StatsPage.jsx*", (route) => {
+    if (failLazyChunkOnce) {
+      failLazyChunkOnce = false;
+      return route.abort("failed");
+    }
+    return route.continue();
+  });
+  await lazyRecoveryPage.goto(`${baseUrl}?view=stats`, { waitUntil: "domcontentloaded" });
+  const lazyError = lazyRecoveryPage.getByTestId("lazy-route-error");
+  await lazyError.waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await lazyError.getByRole("button", { name: "重新加载" }).isVisible(), true);
+  await lazyError.getByRole("button", { name: "重新加载" }).click();
+  await lazyRecoveryPage.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
+  assert.equal(await lazyRecoveryPage.getByTestId("lazy-route-error").count(), 0);
+  await lazyRecoveryContext.close();
 
   const bridgeContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -452,7 +481,7 @@ try {
     await chmod(manifestPath, 0o600);
     await access(manifestPath);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact 12 validation checks");
+    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact validation checks");
     assert.deepEqual(manifest.screenshots, screenshots);
     assert.equal(manifest.ok, true);
     assert.equal(manifest.evidenceDir, evidenceDir);

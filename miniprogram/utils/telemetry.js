@@ -1,8 +1,13 @@
-const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId", "shareSource"]);
+const { HUMI_PACKAGE_VERSION } = require("./config");
+
+const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId", "shareSource", "packageVersion"]);
 const EVENT_NAMES = new Set([
   "native_boot_started", "native_boot_completed", "native_boot_failed",
   "native_login_started", "native_login_completed", "native_login_failed",
   "bootstrap_completed", "bootstrap_failed",
+  "recommendation_completed", "recommendation_failed",
+  "meal_run_restore_completed", "meal_run_restore_failed",
+  "thumbnail_first_visible_completed", "thumbnail_first_visible_failed",
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
   "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
   "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
@@ -24,11 +29,16 @@ const ENUM_FIELDS = {
 const pending = [];
 const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "stateVersion", "styleId"]);
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+const SAFE_VERSION = /^\d+\.\d+\.\d+$/;
 
 function sanitizeFields(fields = {}) {
   const clean = {};
   for (const [key, value] of Object.entries(fields)) {
     if (!EVENT_FIELDS.has(key) || value === undefined || value === null) continue;
+    if (key === "packageVersion") {
+      if (typeof value === "string" && SAFE_VERSION.test(value)) clean[key] = value;
+      continue;
+    }
     if (ENUM_FIELDS[key]) {
       if (ENUM_FIELDS[key].has(value)) clean[key] = value;
       continue;
@@ -41,7 +51,7 @@ function sanitizeFields(fields = {}) {
 
 function trackEvent(name, fields) {
   if (!EVENT_NAMES.has(name)) return null;
-  const event = { name, fields: sanitizeFields(fields), at: Date.now() };
+  const event = { name, fields: sanitizeFields({ ...fields, packageVersion: HUMI_PACKAGE_VERSION }), at: Date.now() };
   pending.push(event);
   return event;
 }

@@ -1,3 +1,7 @@
+const { startSpan } = require("../../utils/telemetry");
+
+let firstVisibleReported = false;
+
 Component({
   properties: {
     src: {
@@ -16,6 +20,9 @@ Component({
   },
   lifetimes: {
     attached() {
+      this._firstVisibleSpan = firstVisibleReported
+        ? null
+        : startSpan("thumbnail_first_visible", { page: "discover" });
       this.resetSource(this.properties.src);
     }
   },
@@ -29,6 +36,11 @@ Component({
     },
     onLoad() {
       this.setData({ state: "loaded" });
+      if (!firstVisibleReported && this._firstVisibleSpan) {
+        firstVisibleReported = true;
+        this._firstVisibleSpan.end("completed", { page: "discover" });
+        this._firstVisibleSpan = null;
+      }
     },
     onError() {
       this.setData({ state: "fallback" });

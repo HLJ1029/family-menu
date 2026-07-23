@@ -10,7 +10,7 @@ const {
   loadCurrentMealRun,
   mergeActiveGuestMealRun,
 } = require("../../utils/meal-run");
-const { trackEvent } = require("../../utils/telemetry");
+const { startSpan, trackEvent } = require("../../utils/telemetry");
 const shareablePage = require("../../behaviors/shareable-page");
 
 const EFFORT_OPTIONS = [
@@ -83,9 +83,11 @@ Page({
       canReplacePlan: canReplaceHouseholdPlan(bootstrap, ownerUserId),
       cacheState: bootstrap.cacheState || "",
     });
+    const restoreSpan = startSpan("meal_run_restore", { page: "tonight" });
     try {
       let mealRun = bootstrap.currentMealRun || null;
       if (mealRun && ["cooking", "completed"].includes(mealRun.status)) {
+        restoreSpan.end("completed", { page: "tonight" });
         return this.applyMealRun(mealRun);
       }
       const merge = await mergeActiveGuestMealRun({ bootstrap, dateKey });
@@ -99,7 +101,9 @@ Page({
         plan: null,
         effortTier: this._reminderEntry?.effortTier || "",
       });
+      restoreSpan.end("completed", { page: "tonight" });
     } catch (error) {
+      restoreSpan.end("failed", { page: "tonight", errorCode: error?.code || "request_failed" });
       this.setView("error", { errorText: errorMessage(error, "今晚的安排暂时没有加载成功。") });
     } finally {
       this.setData({ pendingAction: "" });
@@ -273,18 +277,26 @@ Page({
     }
   },
 
-  requestRecommendation(action, override = {}) {
+  async requestRecommendation(action, override = {}) {
     const bootstrap = appStore.getState().bootstrap;
-    return recommendDinner({
-      bootstrap,
-      householdId: bootstrap?.activeHouseholdId || "guest",
-      dateKey: this._dateKey || formatDinnerDateKey(),
-      effortTier: override.effortTier || this.data.effortTier,
-      action,
-      stateVersion: override.stateVersion ?? this.data.recommendation?.stateVersion ?? "",
-      expectedUserId: bootstrap?.user?.id || "",
-      timeoutMs: 4500,
-    });
+    const span = startSpan("recommendation", { page: "tonight" });
+    try {
+      const recommendation = await recommendDinner({
+        bootstrap,
+        householdId: bootstrap?.activeHouseholdId || "guest",
+        dateKey: this._dateKey || formatDinnerDateKey(),
+        effortTier: override.effortTier || this.data.effortTier,
+        action,
+        stateVersion: override.stateVersion ?? this.data.recommendation?.stateVersion ?? "",
+        expectedUserId: bootstrap?.user?.id || "",
+        timeoutMs: 4500,
+      });
+      span.end("completed", { page: "tonight" });
+      return recommendation;
+    } catch (error) {
+      span.end("failed", { page: "tonight", errorCode: error?.code || "request_failed" });
+      throw error;
+    }
   },
 
   applyRecommendation(recommendation, effortTier) {
