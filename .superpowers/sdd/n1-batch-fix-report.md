@@ -157,3 +157,88 @@ Final safety command:
 ```
 
 It exited `0` with `Secret scan passed.` and no diff-check output.
+
+## Final privacy-schema remediation
+
+### RED
+
+The final batch reviewer found that the first top-level allowlist was shared by
+all action types. A `product_event` could therefore pass
+`isSafeTelemetryEvent(event, fields)` while separately persisting attacker
+controlled `data`, `path`, `method`, and meal-mutation fields.
+
+After adding the exact reviewer regression, this command failed:
+
+```sh
+npm run validate:native-offline
+```
+
+Observed failure:
+
+```text
+Missing expected exception:
+product events must reject caller-controlled data, path, method, and meal mutation fields
+```
+
+The malicious action carried nickname/token/note data, a URL query containing a
+token, `DELETE`, and `mealRunId`; the pre-fix queue accepted it.
+
+An additional API-drift contract initially failed because the client product
+event allowlist was not exported for comparison:
+
+```text
+TypeError: undefined is not iterable
+```
+
+### Correction
+
+- Replaced the shared action-field set with one schema per allowed action type.
+  `product_event` accepts only `id`, `type`, `householdId`, `createdAt`,
+  `event`, `fields`, and the trusted internal `ownerUserId`. Caller-controlled
+  `data`, `path`, `method`, idempotency fields, and meal fields are rejected
+  before any storage write.
+- Meal and grocery actions retain only their own required fields. Replay paths
+  and HTTP methods are derived from action type and identifiers rather than
+  persisted caller-controlled routing.
+- Product-event replay is fixed to `POST /product-events`. Its idempotency key
+  is the trusted action ID, its expected owner remains enforced, and its body is
+  projected only from the already strict `event`/`fields` pair into the
+  existing API fields `eventType`, `mealRunId`, `recommendationId`, and
+  `effortTier`.
+- The five product-event types exactly match
+  `api/store.js#sanitizeProductEventType`; the offline contract dynamically
+  compares both allowlists to prevent drift. This reuses the existing API event
+  contract and does not implement Task 17 observability storage or rollout.
+- Regression coverage proves the malicious event leaves storage untouched,
+  legal replay has the fixed endpoint/method/body, and every allowed action
+  rejects fields outside its own schema. Existing A/B isolation, UTF-8 bounds,
+  ordered replay, conflict stop, and dead-letter behavior remain covered.
+
+### GREEN and fresh final gate
+
+Fresh command:
+
+```sh
+npm run validate:native-offline &&
+npm run validate:native-session &&
+npm run validate:native-shell-routing &&
+npm run validate:miniprogram-entry &&
+npm run validate:share-bridge &&
+npm run release:candidate:privacy:check &&
+npm run validate:identity &&
+npm run validate:api &&
+npm run validate:supabase-retirement &&
+npm run build
+```
+
+Every command exited `0`. The candidate privacy check returned `ok: true` with
+zero findings; build completed in `1.22s` with only the unchanged informational
+large-chunk warning.
+
+Final safety command:
+
+```sh
+/Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+It exited `0` with `Secret scan passed.` and no diff-check output.

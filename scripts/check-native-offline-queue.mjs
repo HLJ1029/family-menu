@@ -7,12 +7,13 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const utilDirectory = path.join(root, "miniprogram/utils");
 const appSource = fs.readFileSync(path.join(root, "miniprogram/app.js"), "utf8");
+const apiStoreSource = fs.readFileSync(path.join(root, "api/store.js"), "utf8");
 for (const name of ["errors.js", "cache.js", "telemetry.js", "offline-queue.js", "store.js"]) {
   const file = path.join(utilDirectory, name);
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
 }
 
-function createRuntime({ userId = "user-a" } = {}) {
+function createRuntime({ userId = "user-a", requestHumi } = {}) {
   const storage = new Map();
   if (userId) {
     storage.set("humi:native-session:v1", {
@@ -36,7 +37,11 @@ function createRuntime({ userId = "user-a" } = {}) {
     const context = vm.createContext({
       module: record,
       exports: record.exports,
-      require: (specifier) => load(path.resolve(path.dirname(resolved), `${specifier}.js`)),
+      require: (specifier) => (
+        specifier === "./request" && requestHumi
+          ? { requestHumi }
+          : load(path.resolve(path.dirname(resolved), `${specifier}.js`))
+      ),
       wx,
       console,
       Date,
@@ -106,6 +111,19 @@ async function nextTask() {
 
 {
   const { queue } = createRuntime();
+  const apiAllowlistSource = apiStoreSource
+    .match(/function sanitizeProductEventType\(value\) \{[\s\S]*?\[([^\]]+)\]\.includes\(value\)/)?.[1];
+  assert(apiAllowlistSource, "the API product event allowlist must remain inspectable");
+  const apiProductEventTypes = JSON.parse(`[${apiAllowlistSource}]`).sort();
+  assert.deepEqual(
+    Array.from(queue.PRODUCT_EVENT_TYPES).sort(),
+    apiProductEventTypes,
+    "offline product event types must exactly match api/store.js",
+  );
+}
+
+{
+  const { queue, storage } = createRuntime();
   assert.throws(() => queue.enqueueMutation({ type: "household_settings_update" }), /offline_action_not_allowed/);
   assert.throws(() => queue.enqueueMutation({
     id: "unsafe-event",
@@ -115,11 +133,119 @@ async function nextTask() {
     event: "bootstrap_completed",
     fields: { nickname: "private" }
   }), /offline_product_event_unsafe/);
+  const storageSizeBeforeBypass = storage.size;
+  assert.throws(() => queue.enqueueMutation({
+    id: "unsafe-data-bypass",
+    type: "product_event",
+    householdId: "h1",
+    createdAt: 2,
+    event: "bootstrap_completed",
+    fields: { householdId: "h1", durationMs: 12 },
+    data: {
+      nickname: "private nickname",
+      token: "private-token",
+      note: "private note"
+    },
+    path: "/arbitrary?token=private-token",
+    method: "DELETE",
+    mealRunId: "must-not-be-a-product-event-field"
+  }), /offline_product_event_unsafe|offline_action_invalid/, "product events must reject caller-controlled data, path, method, and meal mutation fields");
+  assert.equal(storage.size, storageSizeBeforeBypass, "an unsafe product event must not write any queue storage");
   queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1 });
   queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h1", mealRunId: "r1", createdAt: 2 });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["a", "b"]);
   queue.enqueueMutation({ id: "c", type: "meal_feedback", householdId: "h0", mealRunId: "r2", createdAt: 3 });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["c", "a", "b"], "queue replay order is household, meal run, then creation order");
+}
+
+{
+  const schemaCases = [
+    {
+      action: { id: "progress-schema", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1" } },
+      forbidden: { event: "bootstrap_completed" }
+    },
+    {
+      action: { id: "complete-schema", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1 },
+      forbidden: { data: { note: "must-not-persist" } }
+    },
+    {
+      action: { id: "feedback-schema", type: "meal_feedback", householdId: "h", mealRunId: "r", createdAt: 1, data: { feedback: "want_again" } },
+      forbidden: { path: "/arbitrary" }
+    },
+    {
+      action: { id: "abandon-schema", type: "meal_abandon", householdId: "h", mealRunId: "r", createdAt: 1, data: { reason: "plans_changed" } },
+      forbidden: { method: "DELETE" }
+    },
+    {
+      action: { id: "grocery-schema", type: "grocery_item_check", householdId: "h", createdAt: 1, data: { requestToken: "request-token", itemId: "item-1", checked: true } },
+      forbidden: { mealRunId: "r" }
+    }
+  ];
+  for (const { action, forbidden } of schemaCases) {
+    const { queue } = createRuntime();
+    assert.doesNotThrow(() => queue.enqueueMutation(action), `${action.type} must retain its necessary fields`);
+    assert.throws(
+      () => queue.enqueueMutation({ ...action, id: `${action.id}-forbidden`, ...forbidden }),
+      /offline_action_invalid/,
+      `${action.type} must reject fields outside its type-specific schema`,
+    );
+  }
+}
+
+{
+  const requests = [];
+  const { queue } = createRuntime({
+    requestHumi: async (options) => {
+      requests.push(structuredClone(options));
+      return { ok: true };
+    }
+  });
+  const stored = queue.enqueueMutation({
+    id: "safe-product-event",
+    type: "product_event",
+    householdId: "h1",
+    createdAt: 1,
+    event: "plan_presented",
+    fields: {
+      mealRunId: "run-1",
+      recommendationId: "recommendation-1",
+      effortTier: "quick_15"
+    }
+  });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(stored)),
+    {
+      id: "safe-product-event",
+      type: "product_event",
+      householdId: "h1",
+      createdAt: 1,
+      event: "plan_presented",
+      fields: {
+        mealRunId: "run-1",
+        recommendationId: "recommendation-1",
+        effortTier: "quick_15"
+      },
+      ownerUserId: "user-a"
+    },
+    "a legal product event stores only its reviewed schema",
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(await queue.flushMutationQueue())), { status: "flushed" });
+  assert.deepEqual(
+    requests,
+    [{
+      path: "/product-events",
+      method: "POST",
+      data: {
+        eventType: "plan_presented",
+        mealRunId: "run-1",
+        recommendationId: "recommendation-1",
+        effortTier: "quick_15"
+      },
+      idempotencyKey: "safe-product-event",
+      expectedUserId: "user-a"
+    }],
+    "product event replay must use the fixed audited endpoint and a payload derived only from safe event fields",
+  );
 }
 
 {

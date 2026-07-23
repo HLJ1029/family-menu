@@ -6,21 +6,17 @@ const DEAD_LETTER_KEY_PREFIX = "humi:offline-dead-letter:v1:";
 const MAX_ACTIONS = 100;
 const MAX_QUEUE_BYTES = 256 * 1024;
 const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedback", "meal_abandon", "grocery_item_check", "product_event"]);
-const ALLOWED_ACTION_FIELDS = new Set([
-  "id",
-  "type",
-  "householdId",
-  "mealRunId",
-  "createdAt",
-  "path",
-  "method",
-  "data",
-  "idempotencyKey",
-  "stateVersion",
-  "event",
-  "fields",
-  "ownerUserId"
-]);
+const COMMON_ACTION_FIELDS = ["id", "type", "householdId", "createdAt", "ownerUserId"];
+const ACTION_FIELD_SCHEMAS = Object.freeze({
+  meal_progress: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
+  meal_complete: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "idempotencyKey", "stateVersion"]),
+  meal_feedback: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
+  meal_abandon: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
+  grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion"]),
+  product_event: new Set([...COMMON_ACTION_FIELDS, "event", "fields"])
+});
+const PRODUCT_EVENT_TYPES = new Set(["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"]);
+const PRODUCT_EVENT_FIELDS = ["mealRunId", "recommendationId", "effortTier"];
 let customReplayer = null;
 
 function getOwnerUserId() {
@@ -66,7 +62,7 @@ function validateAction(action) {
   }
   if (action.type === "product_event") {
     const { isSafeTelemetryEvent } = require("./telemetry");
-    if (!isSafeTelemetryEvent(action.event, action.fields || {})) {
+    if (!PRODUCT_EVENT_TYPES.has(action.event) || !isSafeTelemetryEvent(action.event, action.fields || {})) {
       throw new HumiRequestError(0, "offline_product_event_unsafe", { retryable: false });
     }
   }
@@ -76,13 +72,16 @@ function projectAction(action, ownerUserId) {
   if (!action || typeof action !== "object" || Array.isArray(action)) {
     throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
   }
+  const schema = ACTION_FIELD_SCHEMAS[action.type];
+  if (!schema) throw new HumiRequestError(0, "offline_action_not_allowed", { retryable: false });
   for (const key of Object.keys(action)) {
-    if (!ALLOWED_ACTION_FIELDS.has(key)) {
-      throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
+    if (!schema.has(key)) {
+      const code = action.type === "product_event" ? "offline_product_event_unsafe" : "offline_action_invalid";
+      throw new HumiRequestError(0, code, { retryable: false });
     }
   }
   const projected = {};
-  for (const key of ALLOWED_ACTION_FIELDS) {
+  for (const key of schema) {
     if (key !== "ownerUserId" && Object.prototype.hasOwnProperty.call(action, key) && action[key] !== undefined) {
       projected[key] = action[key];
     }
@@ -145,15 +144,46 @@ function setMutationReplayer(replayer) {
 async function replayAction(action) {
   if (customReplayer) return customReplayer(action);
   const { requestHumi } = require("./request");
-  if (!action.path) throw new HumiRequestError(0, "offline_action_unconfigured", { retryable: false });
+  if (action.type === "product_event") {
+    const data = { eventType: action.event };
+    PRODUCT_EVENT_FIELDS.forEach((key) => {
+      if (action.fields?.[key] !== undefined) data[key] = action.fields[key];
+    });
+    return requestHumi({
+      path: "/product-events",
+      method: "POST",
+      data,
+      idempotencyKey: action.id,
+      expectedUserId: action.ownerUserId
+    });
+  }
+  const request = buildMutationRequest(action);
   return requestHumi({
-    path: action.path,
-    method: action.method || "POST",
-    data: action.data,
+    ...request,
     idempotencyKey: action.idempotencyKey || action.id,
     stateVersion: action.stateVersion,
     expectedUserId: action.ownerUserId
   });
+}
+
+function buildMutationRequest(action) {
+  const mealRunId = encodeURIComponent(String(action.mealRunId || ""));
+  if (action.type === "meal_progress" && mealRunId) return { path: `/meal-runs/${mealRunId}/progress`, method: "PUT", data: action.data };
+  if (action.type === "meal_complete" && mealRunId) return { path: `/meal-runs/${mealRunId}/complete`, method: "POST" };
+  if (action.type === "meal_feedback" && mealRunId) return { path: `/meal-runs/${mealRunId}/feedback`, method: "PUT", data: action.data };
+  if (action.type === "meal_abandon" && mealRunId) return { path: `/meal-runs/${mealRunId}/abandon`, method: "POST", data: action.data };
+  if (action.type === "grocery_item_check") {
+    const requestToken = encodeURIComponent(String(action.data?.requestToken || ""));
+    const itemId = encodeURIComponent(String(action.data?.itemId || ""));
+    if (requestToken && itemId) {
+      return {
+        path: `/grocery-share-requests/${requestToken}/items/${itemId}/check`,
+        method: "POST",
+        data: { checked: Boolean(action.data?.checked) }
+      };
+    }
+  }
+  throw new HumiRequestError(0, "offline_action_unconfigured", { retryable: false });
 }
 
 async function flushMutationQueue() {
@@ -181,7 +211,8 @@ async function flushMutationQueue() {
 
 module.exports = {
   ALLOWED_ACTIONS,
-  ALLOWED_ACTION_FIELDS,
+  ACTION_FIELD_SCHEMAS,
+  PRODUCT_EVENT_TYPES,
   MAX_ACTIONS,
   MAX_QUEUE_BYTES,
   enqueueMutation,

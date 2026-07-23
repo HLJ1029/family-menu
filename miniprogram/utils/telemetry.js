@@ -1,15 +1,17 @@
-const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId"]);
+const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId"]);
 const EVENT_NAMES = new Set([
   "native_boot_started", "native_boot_completed", "native_boot_failed",
   "native_login_started", "native_login_completed", "native_login_failed",
   "bootstrap_completed", "bootstrap_failed",
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
-  "poster_style_changed", "poster_saved", "poster_shared", "poster_failed"
+  "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
+  "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"
 ]);
 const ENUM_FIELDS = {
   page: new Set(["boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder"]),
   stage: new Set(["started", "completed", "failed", "retry", "offline", "queue_flush"]),
   result: new Set(["completed", "failed", "cancelled", "offline", "conflict", "retry"]),
+  effortTier: new Set(["quick_15", "easy_30", "normal"]),
   errorCode: new Set([
     "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized",
     "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",
@@ -18,7 +20,7 @@ const ENUM_FIELDS = {
   ])
 };
 const pending = [];
-const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "stateVersion", "styleId"]);
+const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "stateVersion", "styleId"]);
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 function sanitizeFields(fields = {}) {
