@@ -95,13 +95,13 @@ Page({
       if (!mealRun && !bootstrap.activeHouseholdId) {
         mealRun = await loadCurrentMealRun({ bootstrap, dateKey });
       }
+      restoreSpan.end("completed", { page: "tonight" });
       if (mealRun) await this.applyMealRun(mealRun);
       else this.setView("choose_effort", {
         mealRun: null,
         plan: null,
         effortTier: this._reminderEntry?.effortTier || "",
       });
-      restoreSpan.end("completed", { page: "tonight" });
     } catch (error) {
       restoreSpan.end("failed", { page: "tonight", errorCode: error?.code || "request_failed" });
       this.setView("error", { errorText: errorMessage(error, "今晚的安排暂时没有加载成功。") });

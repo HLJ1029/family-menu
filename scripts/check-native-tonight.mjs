@@ -14,6 +14,7 @@ await verifyAuthenticatedServerFlowAndPendingGuards();
 await verifyTimeoutFallbackAndStateConflictRefresh();
 await verifyLockedRecommendationLoadsCurrentRun();
 await verifyRunRecoveryAndNavigation();
+await verifyMealRunRestoreSpanExcludesSharePreparation();
 await verifyForegroundRunRefresh();
 await verifyOwnerAndMemberPermissions();
 await verifyGuestMergeAndAccountIsolation();
@@ -25,6 +26,53 @@ verifyInteractiveComponents();
 verifyProductionTemplateContract();
 
 console.log("Native Tonight decision flow checks passed.");
+
+async function verifyMealRunRestoreSpanExcludesSharePreparation() {
+  let releaseShare;
+  const shareGate = new Promise((resolve) => {
+    releaseShare = resolve;
+  });
+  const runtime = createRuntime({
+    session: sessionFor("restore-span-owner"),
+    bootstrap: bootstrapFor({
+      userId: "restore-span-owner",
+      householdId: "restore-span-home",
+      role: "owner",
+      currentMealRun: remoteRun({
+        id: "restore-span-run",
+        householdId: "restore-span-home",
+        status: "planned",
+      }),
+    }),
+    menuShareHandler: async ({ succeed }) => {
+      await shareGate;
+      succeed({
+        request: {
+          token: "restore_span_share_token_123456",
+          cacheExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      }, 201);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+  const pendingInitialize = page.initialize();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    runtime.requests.some((request) => request.pathname === "/menu-share-requests"),
+    true,
+    "applying a restored run should start preparing its menu share",
+  );
+  const restoreEventsWhileSharePending = runtime.load("miniprogram/utils/telemetry.js")
+    .readPendingTelemetry()
+    .filter((event) => event.name === "meal_run_restore_completed");
+  assert.equal(
+    restoreEventsWhileSharePending.length,
+    1,
+    "meal_run_restore must end before menu share preparation settles",
+  );
+  releaseShare();
+  await pendingInitialize;
+}
 
 async function verifyReminderDeepLinkEntry() {
   const runtime = createRuntime({
@@ -1284,7 +1332,7 @@ function verifyProductionTemplateContract() {
   );
 }
 
-function createRuntime({ storage = new Map(), session = null, bootstrap = null, requestHandler } = {}) {
+function createRuntime({ storage = new Map(), session = null, bootstrap = null, requestHandler, menuShareHandler } = {}) {
   const modules = new Map();
   const routes = [];
   const requests = [];
@@ -1331,6 +1379,11 @@ function createRuntime({ storage = new Map(), session = null, bootstrap = null, 
       const succeed = (data, statusCode = 200) => options.success({ statusCode, data: clone(data) });
       const fail = () => options.fail({ errMsg: "request:fail timeout" });
       if (record.pathname === "/menu-share-requests") {
+        if (typeof menuShareHandler === "function") {
+          Promise.resolve(menuShareHandler({ ...record, succeed, fail }))
+            .catch((error) => options.fail({ errMsg: error.message }));
+          return;
+        }
         succeed({
           request: {
             token: "menu_test_snapshot_1234567890",

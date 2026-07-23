@@ -1,6 +1,6 @@
 const { startSpan } = require("../../utils/telemetry");
 
-let firstVisibleReported = false;
+let firstVisibleSettled = false;
 
 Component({
   properties: {
@@ -20,10 +20,13 @@ Component({
   },
   lifetimes: {
     attached() {
-      this._firstVisibleSpan = firstVisibleReported
+      this._firstVisibleSpan = firstVisibleSettled
         ? null
         : startSpan("thumbnail_first_visible", { page: "discover" });
       this.resetSource(this.properties.src);
+    },
+    detached() {
+      if (this.data.state === "fallback") this.settleFirstVisibleFailure();
     }
   },
   methods: {
@@ -36,14 +39,21 @@ Component({
     },
     onLoad() {
       this.setData({ state: "loaded" });
-      if (!firstVisibleReported && this._firstVisibleSpan) {
-        firstVisibleReported = true;
+      if (!firstVisibleSettled && this._firstVisibleSpan) {
+        firstVisibleSettled = true;
         this._firstVisibleSpan.end("completed", { page: "discover" });
         this._firstVisibleSpan = null;
       }
     },
     onError() {
       this.setData({ state: "fallback" });
+      if (this.data.retryUsed) this.settleFirstVisibleFailure();
+    },
+    settleFirstVisibleFailure() {
+      if (firstVisibleSettled || !this._firstVisibleSpan) return;
+      firstVisibleSettled = true;
+      this._firstVisibleSpan.end("failed", { page: "discover", errorCode: "network_error" });
+      this._firstVisibleSpan = null;
     },
     retry() {
       if (this.data.retryUsed || !this.data.imageSource) return;

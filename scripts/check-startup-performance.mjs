@@ -235,7 +235,7 @@ await check("runtime thumbnail first-visible timing emits once without image sou
       if (specifier === "../../utils/telemetry") {
         return {
           startSpan: (name, fields) => ({
-            end: (_result, finishFields) => events.push({ name, fields: { ...fields, ...finishFields } }),
+            end: (result, finishFields) => events.push({ name, result, fields: { ...fields, ...finishFields } }),
           }),
         };
       }
@@ -263,9 +263,54 @@ await check("runtime thumbnail first-visible timing emits once without image sou
   component.onLoad();
   assert.equal(events.length, 1, "first visible thumbnail must emit once after the first successful load");
   assert.equal(events[0].name, "thumbnail_first_visible");
+  assert.equal(events[0].result, "completed");
   assert.equal(events[0].fields.page, "discover", "the only runtime thumbnail consumer is the discover page");
   assert.equal(JSON.stringify(events[0]).includes("example.test"), false, "telemetry must not include the image URL");
   assert.equal(JSON.stringify(events[0]).includes("secret"), false, "telemetry must not include URL tickets");
+});
+
+await check("terminal thumbnail failure ends its span once with a safe error code", () => {
+  let componentDefinition;
+  const events = [];
+  loadCommonJs("miniprogram/components/image-with-fallback/index.js", {
+    require: (specifier) => {
+      if (specifier === "../../utils/telemetry") {
+        return {
+          startSpan: (name, fields) => ({
+            end: (result, finishFields) => events.push({ name, result, fields: { ...fields, ...finishFields } }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected image component dependency: ${specifier}`);
+    },
+    globals: {
+      Component: (definition) => {
+        componentDefinition = definition;
+      },
+    },
+  });
+  const component = {
+    properties: { src: "https://example.test/dish.webp?token=secret" },
+    data: { ...componentDefinition.data },
+    setData(patch) {
+      this.data = { ...this.data, ...patch };
+    },
+    ...componentDefinition.methods,
+  };
+  componentDefinition.lifetimes.attached.call(component);
+  component.onError();
+  assert.equal(events.length, 0, "the first image error still allows one retry");
+  component.retry();
+  component.onError();
+  component.onError();
+  component.onLoad();
+  assert.deepEqual(events, [{
+    name: "thumbnail_first_visible",
+    result: "failed",
+    fields: { page: "discover", errorCode: "network_error" },
+  }]);
+  assert.equal(JSON.stringify(events).includes("example.test"), false);
+  assert.equal(JSON.stringify(events).includes("secret"), false);
 });
 
 await check("performance spans wrap the actual native business calls", () => {
@@ -307,6 +352,14 @@ await check("H5 lazy routes have an accessible recoverable fallback", () => {
   assert.match(shellSource, /componentDidCatch|getDerivedStateFromError/);
 });
 
+await check("H5 resilience exercises a production hashed chunk 404", () => {
+  const source = read("scripts/check-h5-entrypoint-resilience.mjs");
+  assert.match(source, /dist\/\.vite\/manifest\.json/);
+  assert.match(source, /isDynamicEntry/);
+  assert.match(source, /status:\s*404/);
+  assert.match(source, /createVitePreview|preview\s+as\s+createVitePreview/);
+});
+
 await check("identity exchange, content parsing, and share landings stay in the H5 entry", () => {
   const mainSource = read("src/main.jsx");
   for (const requiredStaticImport of [
@@ -326,8 +379,12 @@ await check("identity exchange, content parsing, and share landings stay in the 
   assert.doesNotMatch(lazySource, /AuthLanding|ContentEntry|Landing|humiIdentity/);
 });
 
+const contractOk = failures.length === 0;
+const deviceBudgetsVerified = false;
 const report = {
-  ok: failures.length === 0,
+  overallStatus: contractOk && deviceBudgetsVerified ? "passed" : contractOk ? "blocked" : "failed",
+  contractOk,
+  deviceBudgetsVerified,
   checkedAt: new Date().toISOString(),
   checks,
   warnings,
@@ -343,6 +400,6 @@ const report = {
   },
 };
 console.log(JSON.stringify(report, null, 2));
-if (failures.length) {
+if (!contractOk) {
   throw new AggregateError(failures.map((message) => new Error(message)), `${failures.length} startup performance checks failed`);
 }

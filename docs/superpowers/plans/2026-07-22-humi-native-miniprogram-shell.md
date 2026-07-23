@@ -1603,7 +1603,9 @@ git commit -m "feat: add native meal tasks and reminders"
 - Modify: `vite.config.js`
 - Create: `src/routes/lazyRoutes.js`
 - Create: `scripts/check-startup-performance.mjs`
+- Create: `scripts/selftest-startup-performance-report.mjs`
 - Modify: `scripts/check-h5-entrypoint-resilience.mjs`
+- Modify: `scripts/check-native-tonight.mjs`
 - Modify: `miniprogram/pages/boot/index.js`
 - Modify: `miniprogram/pages/boot/index.wxml`
 - Modify: `miniprogram/utils/bootstrap.js`
@@ -1622,6 +1624,7 @@ git commit -m "feat: add native meal tasks and reminders"
 
 **Interfaces:**
 - Produces lazy content routes and budgets: native cached first paint ≤ 400 ms in DevTools automation, native warm bootstrap ≤ 1000 ms, native cold authenticated bootstrap ≤ 2500 ms on the agreed 4G test profile, H5 initial JS chunk ≤ 350 KB gzip, thumbnails ≤ 80 KB each.
+- The local startup contract report uses `contractOk`, `deviceBudgetsVerified`, and `overallStatus`. Passing static/runtime contracts may exit `0`, but must report `overallStatus: "blocked"` until real-device budget evidence exists; it must never expose a top-level `ok: true` that implies device verification.
 
 - [ ] **Step 1: Add failing build-artifact and startup-budget checks**
 
@@ -1677,10 +1680,12 @@ Run: `npm run validate:startup-performance && npm run validate:h5-entry && npm r
 
 Expected: all commands exit `0`; the initial H5 gzip chunk is within budget and native cached UI paints before network bootstrap finishes.
 
+The local performance command exits `0` when `contractOk` is true even if DevTools is unavailable, but its JSON remains `overallStatus: "blocked"` and `deviceBudgetsVerified: false` until the three real-device budgets have verified evidence. Production-like H5 recovery must also prove that a hashed lazy chunk returning HTTP `404` through Vite preview reaches the accessible retry UI and recovers after reload.
+
 - [ ] **Step 7: Commit performance isolation**
 
 ```bash
-git add src/main.jsx src/components/AppShell.jsx src/routes/lazyRoutes.js vite.config.js scripts/check-startup-performance.mjs scripts/check-h5-entrypoint-resilience.mjs package.json
+git add src/main.jsx src/components/AppShell.jsx src/routes/lazyRoutes.js vite.config.js scripts/check-startup-performance.mjs scripts/selftest-startup-performance-report.mjs scripts/check-h5-entrypoint-resilience.mjs scripts/check-native-tonight.mjs package.json
 git commit -m "perf: isolate native startup from H5 content"
 ```
 
