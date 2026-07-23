@@ -11,6 +11,7 @@ try {
   await verifyDefaultOffFirstUse();
   await verifyAllowlistedHouseholdSnapshot();
   await verifyExplicitNonAllowlistedHousehold();
+  await verifyProductionWildcardIsBlocked();
   await verifyTestOnlyWildcardAllowlist();
   console.log("Native bootstrap API contract passed.");
 } finally {
@@ -130,11 +131,45 @@ async function verifyTestOnlyWildcardAllowlist() {
   }
 }
 
+async function verifyProductionWildcardIsBlocked() {
+  const wildcardServer = await startServer("production-wildcard", {
+    NODE_ENV: "production",
+    HUMI_NATIVE_SHELL_ENABLED: "1",
+    HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+  });
+  try {
+    const session = await login(wildcardServer.baseUrl, "bootstrap-production-wildcard");
+    const bootstrap = await request(`${wildcardServer.baseUrl}/bootstrap`, { token: session.accessToken });
+    assert.equal(bootstrap.capabilities.nativeShellEnabled, false, "production must reject the wildcard allowlist");
+  } finally {
+    await stopServer(wildcardServer);
+  }
+
+  const dataFile = join(directory, "production-explicit.json");
+  const store = new HumiStore(dataFile);
+  const user = await store.findOrCreateWechatUser({ openid: "mock-openid-bootstrap-production-explicit", unionid: null });
+  const household = await store.createHouseholdForUser(user.id, { householdName: "生产显式灰度家庭" });
+  const explicitServer = await startServer("production-explicit", {
+    NODE_ENV: "production",
+    HUMI_API_DATA_FILE: dataFile,
+    HUMI_NATIVE_SHELL_ENABLED: "1",
+    HUMI_NATIVE_SHELL_HOUSEHOLDS: household.id,
+  });
+  try {
+    const session = await login(explicitServer.baseUrl, "bootstrap-production-explicit");
+    const bootstrap = await request(`${explicitServer.baseUrl}/bootstrap`, { token: session.accessToken });
+    assert.equal(bootstrap.capabilities.nativeShellEnabled, true, "production still permits explicit household rollout");
+  } finally {
+    await stopServer(explicitServer);
+  }
+}
+
 async function startServer(name, overrides = {}) {
   const dataFile = overrides.HUMI_API_DATA_FILE || join(directory, `${name}.json`);
   Object.assign(process.env, {
     HUMI_API_DATA_FILE: dataFile,
     HUMI_SESSION_SECRET: "humi-native-bootstrap-contract-secret",
+    NODE_ENV: "test",
     HUMI_WECHAT_MOCK: "1",
     HUMI_MEAL_EXECUTION_ENABLED: "0",
     HUMI_MEAL_EXECUTION_HOUSEHOLDS: "",
