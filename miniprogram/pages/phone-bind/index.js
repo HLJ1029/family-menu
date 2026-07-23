@@ -1,4 +1,5 @@
 const { requestHumi } = require("../../utils/request");
+const { toHumiUserMessage } = require("../../utils/user-message");
 
 Page({
   data: {
@@ -32,7 +33,7 @@ Page({
         setTimeout(() => wx.navigateBack(), 450);
       })
       .catch((error) => {
-        this.setData({ error: error.message || "手机号绑定暂时不可用，请稍后再试。" });
+        this.setData({ error: toHumiUserMessage(error, "手机号绑定暂时不可用，请稍后再试。") });
       })
       .finally(() => {
         this.setData({ pending: false });

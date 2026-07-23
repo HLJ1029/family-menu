@@ -4,7 +4,7 @@ import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promi
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
-import { HumiStore } from "./store.js";
+import { APPROVED_AVATAR_KEYS, HumiStore } from "./store.js";
 import { buildBootstrapEnvelope } from "./bootstrap.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
@@ -499,7 +499,21 @@ async function handleIdentityProfile(request, response) {
   const displayName = stringValue(body.displayName, 32);
   if (!displayName) throw httpError(400, "display_name_required", "请输入你的昵称。");
   const avatarKey = stringValue(body.avatarKey, 80);
-  const user = await store.updateIdentityProfile(auth.userId, { displayName, avatarKey });
+  if (avatarKey && !APPROVED_AVATAR_KEYS.includes(avatarKey)) {
+    throw httpError(400, "invalid_avatar_key", "请选择 Humi 提供的头像。");
+  }
+  let user;
+  try {
+    user = await store.updateIdentityProfile(auth.userId, { displayName, avatarKey });
+  } catch (error) {
+    if (error?.code === "avatar_required") {
+      throw httpError(400, "avatar_required", "请选择一个 Humi 头像，或使用微信头像。");
+    }
+    if (error?.code === "invalid_avatar_key") {
+      throw httpError(400, "invalid_avatar_key", "请选择 Humi 提供的头像。");
+    }
+    throw error;
+  }
   if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
   sendJson(response, 200, { user: toPublicUser(user) });
 }

@@ -54,7 +54,7 @@ try {
   const ownerProfile = await request(`${apiBaseUrl}/identity/profile`, {
     method: "PUT",
     headers: ownerAuthHeaders(),
-    body: { displayName: "主厨" },
+    body: { displayName: "主厨", avatarKey: "humi-avatar-parent-f-01" },
   });
   smokeOwnerSession = { ...smokeOwnerSession, user: ownerProfile.user };
   await createSmokeOwnerHousehold();
@@ -972,7 +972,7 @@ async function verifyProfileOnboardingHardInfoOnly({ browser, apiBaseUrl, webBas
   const profile = await request(`${apiBaseUrl}/identity/profile`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${login.accessToken}` },
-    body: { displayName: "主厨" },
+    body: { displayName: "主厨", avatarKey: "humi-avatar-parent-f-01" },
   });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -1292,7 +1292,7 @@ async function verifyHouseholdUserCenterFlow({ browser, apiBaseUrl, webBaseUrl }
   const profile = await request(`${apiBaseUrl}/identity/profile`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${login.accessToken}` },
-    body: { displayName: "主厨" },
+    body: { displayName: "主厨", avatarKey: "humi-avatar-parent-f-01" },
   });
   login = { ...login, user: profile.user };
   const firstFamily = await request(`${apiBaseUrl}/households`, {

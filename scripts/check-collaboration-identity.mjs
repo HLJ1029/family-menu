@@ -8,9 +8,9 @@ const directory = await mkdtemp(join(tmpdir(), "humi-collaboration-identity-"));
 const store = new HumiStore(join(directory, "data.json"));
 
 const owner = await store.findOrCreateWechatUser({ openid: "collaboration-owner", unionid: null });
+await store.updateIdentityAvatar(owner.id, { avatarUrl: "https://api.humi-home.com/avatars/xiaohe.png" });
 await store.updateIdentityProfile(owner.id, {
   displayName: "小禾",
-  avatarUrl: "https://api.humi-home.com/avatars/xiaohe.png",
 });
 const household = await store.createHouseholdForUser(owner.id, { householdName: "小禾家" });
 
@@ -259,7 +259,7 @@ const atomicDirectory = await mkdtemp(join(tmpdir(), "humi-collaboration-atomic-
 const atomicFile = join(atomicDirectory, "data.json");
 const atomicStore = new HumiStore(atomicFile);
 const atomicUser = await atomicStore.findOrCreateWechatUser({ openid: "atomic-user", unionid: null });
-await atomicStore.updateIdentityProfile(atomicUser.id, { displayName: "原子小禾" });
+await atomicStore.updateIdentityProfile(atomicUser.id, { displayName: "原子小禾", avatarKey: "humi-avatar-parent-f-01" });
 const atomicRequests = {
   crave: await atomicStore.createCraveRequest({ householdName: "原子家" }),
   grocery: await atomicStore.createGroceryShareRequest({

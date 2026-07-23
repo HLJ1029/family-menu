@@ -189,6 +189,32 @@ try {
     body: { displayName: "" },
   }, 400, "display_name_required");
 
+  explicitWechatOpenIds.add(`identity-fresh-${runId}`);
+  const freshIdentity = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `identity-fresh-${runId}` },
+  });
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "只填昵称" },
+  }, 400, "avatar_required");
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "伪造上传", avatarUrl: "https://attacker.example/avatar.jpg" },
+  }, 400, "avatar_required");
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "伪造头像", avatarKey: "not-an-approved-avatar" },
+  }, 400, "invalid_avatar_key");
+  const stillIncomplete = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `identity-fresh-${runId}` },
+  });
+  assert.equal(stillIncomplete.user.profileStatus, "incomplete", "rejected identity saves must not complete the first-use account");
+
   await assertRejectedRequest(`${baseUrl}/auth/h5-ticket`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },

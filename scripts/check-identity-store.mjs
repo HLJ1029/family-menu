@@ -19,6 +19,26 @@ await assert.rejects(
   (error) => error.code === "household_required",
 );
 
+await assert.rejects(
+  store.updateIdentityProfile(user.id, { displayName: "只填昵称" }),
+  (error) => error.code === "avatar_required",
+  "an incomplete user must not complete identity from the server fallback avatar",
+);
+assert.equal((await store.getUser(user.id)).profileStatus, "incomplete");
+
+await assert.rejects(
+  store.updateIdentityProfile(user.id, { displayName: "伪造上传", avatarUrl: "https://attacker.example/avatar.jpg" }),
+  (error) => error.code === "avatar_required",
+  "only the successful identity-avatar upload path may establish an uploaded avatar",
+);
+
+await assert.rejects(
+  store.updateIdentityProfile(user.id, { displayName: "伪造头像", avatarKey: "not-an-approved-avatar" }),
+  (error) => error.code === "invalid_avatar_key",
+  "an arbitrary avatar key must never complete identity",
+);
+assert.equal((await store.getUser(user.id)).profileStatus, "incomplete");
+
 const avatarOnly = await store.updateIdentityAvatar(user.id, {
   avatarUrl: "https://api.humi-home.com/avatars/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.jpg",
 });
@@ -31,7 +51,7 @@ await store.createHouseholdForUser(user.id, { householdName: "旧家庭", member
 
 const updated = await store.updateIdentityProfile(user.id, {
   displayName: "小禾",
-  avatarKey: user.avatarKey,
+  avatarKey: "",
   avatarUrl: "",
 });
 assert.equal(updated.displayName, "小禾");
@@ -41,6 +61,13 @@ const updatedMember = updatedHousehold.members.find((member) => member.memberId 
 assert.equal(updatedMember.nickname, "小禾", "identity completion must update existing household presentation");
 assert.equal(updatedMember.avatarKey, updated.avatarKey);
 assert.equal(updatedMember.avatarUrl, avatarOnly.avatarUrl);
+
+const approvedUser = await store.findOrCreateWechatUser({ openid: "approved-avatar-openid", unionid: null });
+const approved = await store.updateIdentityProfile(approvedUser.id, {
+  displayName: "已选择头像",
+  avatarKey: "humi-avatar-parent-f-01",
+});
+assert.equal(approved.profileStatus, "complete", "an approved avatar key may explicitly complete identity");
 
 const issued = await store.issueH5Ticket(user.id, { now: 1_000, ttlMs: 60_000 });
 assert.match(issued.ticket, /^[A-Za-z0-9_-]{32,}$/);

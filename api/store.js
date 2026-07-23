@@ -2,17 +2,11 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 
-const DEFAULT_AVATAR_KEYS = [
-  "humi-avatar-dev-front-m-01",
-  "humi-avatar-dev-side-m-01",
-  "humi-avatar-dev-thinking-m-01",
-  "humi-avatar-dev-laptop-m-01",
-  "humi-avatar-family-f-01",
-  "humi-avatar-family-m-01",
-  "humi-avatar-parent-f-01",
-  "humi-avatar-parent-m-01",
-];
+const require = createRequire(import.meta.url);
+export const APPROVED_AVATAR_KEYS = Object.freeze([...require("../miniprogram/data/approved-avatar-keys.json")]);
+const DEFAULT_AVATAR_KEYS = APPROVED_AVATAR_KEYS;
 
 const DEFAULT_DATA = {
   users: [],
@@ -153,9 +147,15 @@ export class HumiStore {
     if (!user) return null;
     const displayName = sanitizeText(profile.displayName, "", 32);
     if (!displayName) throw codedError("display_name_required", "displayName is required.");
+    const avatarKey = sanitizeText(profile.avatarKey, "", 80);
+    if (avatarKey && !APPROVED_AVATAR_KEYS.includes(avatarKey)) {
+      throw codedError("invalid_avatar_key", "avatarKey must be approved.");
+    }
+    if (user.profileStatus !== "complete" && !avatarKey && !user.avatarUrl) {
+      throw codedError("avatar_required", "An explicit approved avatar or uploaded avatar is required.");
+    }
     user.displayName = displayName;
-    user.avatarKey = sanitizeText(profile.avatarKey, user.avatarKey || defaultAvatarKey(user.id), 80);
-    user.avatarUrl = sanitizeText(profile.avatarUrl, user.avatarUrl || "", 240);
+    if (avatarKey) user.avatarKey = avatarKey;
     user.profileStatus = "complete";
     user.updatedAt = new Date().toISOString();
     this.syncIdentityToHouseholdMembers(user, { updateNickname: true });

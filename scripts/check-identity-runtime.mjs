@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import { createRequire } from "node:module";
+
+const nodeRequire = createRequire(import.meta.url);
 
 const appConfig = JSON.parse(fs.readFileSync("miniprogram/app.json", "utf8"));
 assert.ok(appConfig.pages.includes("pages/identity/index"));
@@ -13,6 +16,13 @@ assert.match(appSource, /clearHumiSession\(\)/);
 const identityJs = fs.readFileSync("miniprogram/pages/identity/index.js", "utf8");
 const identityWxml = fs.readFileSync("miniprogram/pages/identity/index.wxml", "utf8");
 const identityJson = fs.readFileSync("miniprogram/pages/identity/index.json", "utf8");
+const userMessageModule = { exports: {} };
+vm.runInNewContext(fs.readFileSync("miniprogram/utils/user-message.js", "utf8"), {
+  module: userMessageModule,
+  exports: userMessageModule.exports,
+});
+assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "invalid_session", message: "invalid_session" }), "登录状态已失效，请重新登录。");
+assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "network_error", message: "network_error" }), "网络连接失败，请检查网络后重试。");
 assert.match(identityWxml, /type="nickname"/);
 assert.match(identityJs, /\/identity\/profile/);
 assert.match(identityJs, /\/identity\/avatar/);
@@ -41,6 +51,8 @@ const phoneBindSource = fs.readFileSync("miniprogram/pages/phone-bind/index.js",
 assert.match(phoneBindSource, /app\.setHumiSession\(data\)/);
 assert.match(phoneBindSource, /requestHumi/, "phone binding must reuse the authenticated request foundation");
 assert.doesNotMatch(phoneBindSource, /wx\.request/, "phone binding must not duplicate raw authenticated requests");
+assert.match(phoneBindSource, /toHumiUserMessage/, "phone binding must map request codes to fixed recovery copy");
+assert.doesNotMatch(phoneBindSource, /error\.message \|\|/, "phone binding must not render raw request error codes");
 
 const mainSource = fs.readFileSync("src/main.jsx", "utf8");
 const authLandingSource = fs.readFileSync("src/components/AuthLanding.jsx", "utf8");
@@ -154,10 +166,10 @@ assert.deepEqual(
 );
 delete globalThis.window;
 
-function loadIdentityPage({ user, loginResult = null, rejectProfile = false } = {}) {
+function loadIdentityPage({ user, loginResult = null, rejectProfile = false, profileAvatarUrl = "https://thirdwx.qlogo.cn/mmopen/avatar.jpg", requestError = null } = {}) {
   let definition;
   const routes = [];
-  const calls = { login: 0, getUserProfile: 0, request: [], clearCache: [] };
+  const calls = { login: 0, getUserProfile: 0, request: [], clearCache: [], downloadFile: [], compressImage: [], readFile: [] };
   const app = {
     globalData: { humiSession: user ? { accessToken: "token", expiresAt: Date.now() + 60_000, user } : null },
     setHumiSession(session) { this.globalData.humiSession = session; },
@@ -171,11 +183,27 @@ function loadIdentityPage({ user, loginResult = null, rejectProfile = false } = 
       getUserProfile: ({ success, fail }) => {
         calls.getUserProfile += 1;
         if (rejectProfile) return fail?.(new Error("denied"));
-        success?.({ userInfo: { nickName: "微信小禾", avatarUrl: "https://wx.example/avatar.jpg" } });
-      }
+        success?.({ userInfo: { nickName: "微信小禾", avatarUrl: profileAvatarUrl } });
+      },
+      downloadFile: ({ url, success }) => {
+        calls.downloadFile.push(url);
+        success?.({ statusCode: 200, tempFilePath: "/tmp/wechat-avatar.jpg" });
+      },
+      compressImage: ({ src, success }) => {
+        calls.compressImage.push(src);
+        success?.({ tempFilePath: "/tmp/compressed-avatar.jpg" });
+      },
+      getFileSystemManager: () => ({
+        readFile: ({ filePath, success }) => {
+          calls.readFile.push(filePath);
+          success?.({ data: "/9j/AA==" });
+        }
+      })
     },
     require: (specifier) => {
       if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
+      if (specifier === "../../utils/user-message") return userMessageModule.exports;
+      if (specifier === "../../data/approved-avatar-keys.json") return nodeRequire("../miniprogram/data/approved-avatar-keys.json");
       if (specifier === "../../utils/session") return {
         loginWithWechat: async () => {
           calls.login += 1;
@@ -185,6 +213,8 @@ function loadIdentityPage({ user, loginResult = null, rejectProfile = false } = 
       if (specifier === "../../utils/request") return {
         requestHumi: async (options) => {
           calls.request.push(options);
+          if (requestError) throw requestError;
+          if (options.path === "/identity/avatar") return { user: { ...app.globalData.humiSession?.user, avatarUrl: "https://api.example/avatars/uploaded.jpg", profileStatus: "incomplete" } };
           return { user: { ...app.globalData.humiSession?.user, profileStatus: "complete" } };
         }
       };
@@ -227,7 +257,33 @@ assert.equal(firstUsePage.page.data.canSubmit, false, "a nickname and explicit a
 await firstUsePage.page.useWechatProfile();
 assert.equal(firstUsePage.calls.getUserProfile, 1, "WeChat profile permission must be requested only after the explicit tap handler");
 assert.equal(firstUsePage.page.data.displayName, "微信小禾");
-assert.equal(firstUsePage.page.data.localAvatarUrl, "https://wx.example/avatar.jpg");
+assert.equal(firstUsePage.page.data.localAvatarUrl, "https://thirdwx.qlogo.cn/mmopen/avatar.jpg");
+
+const forgedPickerPage = loadIdentityPage({ user: firstUse });
+forgedPickerPage.page.onLoad();
+forgedPickerPage.page.updateNickname({ detail: { value: "手工小禾" } });
+forgedPickerPage.page.selectApprovedAvatar({ detail: { avatarKey: "not-an-approved-avatar" } });
+assert.equal(forgedPickerPage.page.data.selectedAvatarKey, "", "the page must reject forged avatar-picker events");
+assert.equal(forgedPickerPage.page.data.canSubmit, false, "a forged avatar key must not enable save");
+
+for (const profileAvatarUrl of [
+  "https://evil.example/avatar.jpg",
+  "http://thirdwx.qlogo.cn/avatar.jpg",
+  "https://thirdwx.qlogo.cn.evil/avatar.jpg",
+  "https://thirdwx.qlogo.cn@evil.example/avatar.jpg"
+]) {
+  const untrustedWechatProfile = loadIdentityPage({ user: firstUse, profileAvatarUrl });
+  await untrustedWechatProfile.page.useWechatProfile();
+  assert.equal(untrustedWechatProfile.page.data.avatarUrl, "", `untrusted remote avatar URL must not enter upload: ${profileAvatarUrl}`);
+  assert.equal(untrustedWechatProfile.page.data.canSubmit, false, `untrusted remote avatar must not enable identity save: ${profileAvatarUrl}`);
+}
+
+const forgedLocalAvatar = loadIdentityPage({ user: firstUse });
+forgedLocalAvatar.page.onLoad();
+forgedLocalAvatar.page.updateNickname({ detail: { value: "伪造本地文件" } });
+forgedLocalAvatar.page.chooseAvatar({ detail: { avatarUrl: "https://evil.example/avatar.jpg" } });
+assert.equal(forgedLocalAvatar.page.data.avatarUrl, "", "chooseAvatar must reject forged remote file paths");
+assert.equal(forgedLocalAvatar.page.data.canSubmit, false, "a forged local-avatar event must not enable save");
 
 const rejectedProfilePage = loadIdentityPage({ user: firstUse, rejectProfile: true });
 rejectedProfilePage.page.onLoad();
@@ -259,6 +315,36 @@ assert.equal(manualIdentity.app.globalData.humiSession.user.profileStatus, "comp
 assert.deepEqual(manualIdentity.calls.clearCache, ["first-use"], "save must clear only this user's bootstrap cache");
 assert.deepEqual(manualIdentity.routes, ["/pages/boot/index?reason=identity_complete"], "post-save routing must return to boot for the real household decision");
 assert.deepEqual(JSON.parse(JSON.stringify(manualIdentity.calls.request.filter((call) => call.path === "/households"))), [], "identity save must not create a household");
+
+const remoteAvatarIdentity = loadIdentityPage({ user: firstUse });
+remoteAvatarIdentity.page.onLoad();
+await remoteAvatarIdentity.page.useWechatProfile();
+await remoteAvatarIdentity.page.submit();
+assert.deepEqual(remoteAvatarIdentity.calls.downloadFile, ["https://thirdwx.qlogo.cn/mmopen/avatar.jpg"], "an allowed WeChat CDN avatar must download before upload");
+assert.deepEqual(remoteAvatarIdentity.calls.compressImage, ["/tmp/wechat-avatar.jpg"]);
+assert.deepEqual(remoteAvatarIdentity.calls.readFile, ["/tmp/compressed-avatar.jpg"]);
+assert.deepEqual(JSON.parse(JSON.stringify(remoteAvatarIdentity.calls.request)), [
+  { path: "/identity/avatar", method: "POST", data: { mimeType: "image/jpeg", dataBase64: "/9j/AA==" } },
+  { path: "/identity/profile", method: "PUT", data: { displayName: "微信小禾", avatarKey: "", avatarUrl: "https://api.example/avatars/uploaded.jpg" } }
+], "a remote WeChat avatar must upload then complete identity through the normal session/cache/boot path");
+assert.deepEqual(remoteAvatarIdentity.calls.clearCache, ["first-use"]);
+assert.deepEqual(remoteAvatarIdentity.routes, ["/pages/boot/index?reason=identity_complete"]);
+
+const localAvatarIdentity = loadIdentityPage({ user: firstUse });
+localAvatarIdentity.page.onLoad();
+localAvatarIdentity.page.updateNickname({ detail: { value: "本地头像" } });
+localAvatarIdentity.page.chooseAvatar({ detail: { avatarUrl: "wxfile://tmp/local-avatar.jpg" } });
+await localAvatarIdentity.page.submit();
+assert.deepEqual(localAvatarIdentity.calls.downloadFile, [], "a local chooseAvatar file must not download again");
+assert.deepEqual(localAvatarIdentity.calls.compressImage, ["wxfile://tmp/local-avatar.jpg"]);
+assert.deepEqual(localAvatarIdentity.calls.readFile, ["/tmp/compressed-avatar.jpg"]);
+
+const identityErrorPage = loadIdentityPage({ user: firstUse, requestError: { code: "invalid_session", message: "invalid_session" } });
+identityErrorPage.page.onLoad();
+identityErrorPage.page.updateNickname({ detail: { value: "错误映射" } });
+identityErrorPage.page.selectApprovedAvatar({ detail: { avatarKey: "humi-avatar-parent-f-01" } });
+await identityErrorPage.page.submit();
+assert.equal(identityErrorPage.page.data.error, "登录状态已失效，请重新登录。", "identity errors must map request codes to recoverable Chinese text");
 
 const existingUser = {
   id: "existing-user",

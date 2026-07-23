@@ -15,6 +15,13 @@ Before implementation, the required contracts failed as intended:
 - Identity and phone binding reuse `requestHumi`; neither duplicates raw authenticated `wx.request` logic. POST operations keep the existing no-idempotency/no-401-replay rule.
 - Identity completion persists the returned user session, clears only that user's last-household pointer and household cache, then reLaunches boot with `reason=identity_complete`.
 
+## Review remediation RED/GREEN
+
+- RED: store and API contracts accepted nickname-only identity and therefore converted the server fallback avatar into a completed identity (`Missing expected rejection` / HTTP `200 !== 400`).
+- GREEN: `miniprogram/data/approved-avatar-keys.json` is now the single approved-key contract consumed by the picker, identity page, store, and API handler. Incomplete users must provide an approved key in this save or already have a successfully uploaded avatar URL. Empty and arbitrary keys are rejected with stable `avatar_required` and `invalid_avatar_key` codes without changing profile status.
+- Runtime tests execute remote and local avatar submit paths: allowed WeChat CDN URL → `downloadFile` → `compressImage` → file read → avatar POST → profile PUT → session/cache/boot; local `wxfile://` skips download. HTTPS host parsing is anchored and rejects HTTP, subdomain, userinfo, and arbitrary-host bypasses.
+- Identity and phone-bind map request codes to fixed recoverable Chinese text; raw `invalid_session` and `network_error` are not rendered to the user.
+
 ## No automatic household creation
 
 The identity runtime contract asserts both startup and submit issue zero `/households` requests. It asserts the post-save route is `/pages/boot/index?reason=identity_complete`; boot/bootstrap remains the sole source for deciding whether a household exists. The household and API smoke suites also passed, including the new-user/no-household lifecycle contract.
@@ -30,9 +37,12 @@ Fresh final checks exited `0`:
 - `npm run validate:native-bootstrap-api` — `Native bootstrap API contract passed.`
 - `npm run validate:native-offline` — `Native offline, cache, telemetry, and store foundation contract passed.`
 - `npm run validate:api` — `Humi API smoke test passed.`
+- `npm run validate:collaboration-identity` — `Collaboration identity checks passed.`
+- `npm run release:collaboration:smoke` — completed with `"ok": true`.
+- `npm run validate:meal-execution`, `npm run validate:meal-execution-api`, `npm run validate:meal-run-client`, `npm run validate:meal-execution-ui`, and `npm run validate:miniprogram-meal-reminder` — all passed.
 - `npm run build` — completed successfully (existing Rollup large-chunk warning only).
 - `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` — `Secret scan passed.`
 
 ## Concerns
 
-No unresolved functional concern. The production build retains its pre-existing large-chunk advisory; Task 6 adds no bundle split or deployment change.
+External deployment gate remains unresolved: this code accepts only `https://thirdwx.qlogo.cn` and `https://wx.qlogo.cn` for remote WeChat avatars, but the 微信公众平台 `downloadFile` domain configuration and true-device download have not been performed or verified by this task. The runbook now marks this as a hard pre-release gate, requiring control-panel configuration and real-device evidence for those domains and `https://api.humi-home.com`. The production build also retains its pre-existing large-chunk advisory.

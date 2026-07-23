@@ -17,7 +17,7 @@
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
 - request 合法域名：`api.humi-home.com`
-- downloadFile 合法域名：`api.humi-home.com`
+- downloadFile 合法域名：**未完成外部平台核验/配置；不得因本文件而视为已配置**
 - web-view 业务域名：`www.humi-home.com`
 - 隐私政策：`https://www.humi-home.com/privacy.html`
 - 用户协议：`https://www.humi-home.com/terms.html`
@@ -63,8 +63,10 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 
 1. 登录微信公众平台，进入 Humi 小程序。
 2. 检查开发管理/版本管理里是否存在上传版本 `1.1.72`，描述为 `海报原生分享与保存到相册`。
-3. 检查服务器域名：
-   - request 与 downloadFile 合法域名均包含 `https://api.humi-home.com`。
+3. 检查服务器域名（身份头像与海报保存的部署前硬门禁）：
+   - request 合法域名包含 `https://api.humi-home.com`。
+   - 在微信公众平台实际配置并用真机验证 downloadFile 合法域名至少包含 `https://api.humi-home.com`、`https://thirdwx.qlogo.cn` 和 `https://wx.qlogo.cn`。身份页只接受后两者的 HTTPS 微信头像地址；任一域名尚未配置、控制台未显示或真机下载失败时，禁止发布包含该链路的版本。
+   - 本仓库不能读取或改变微信公众平台服务器域名配置；上述状态目前未由本次代码变更验证，必须由有权限的操作者在控制台完成并留存真机证据。
    - web-view 业务域名包含 `https://www.humi-home.com`。
 4. 检查用户隐私保护指引：
    - 微信身份标识用于账号登录、会话恢复和家庭协作。
@@ -103,6 +105,7 @@ Humi 是一款家庭晚饭安排工具，核心功能无需注册即可体验。
 | --- | --- |
 | 上传版本 `1.1.72` 列表 | `humi-1.1.72-version-list.png` |
 | request 合法域名 | `humi-request-domain-api.png` |
+| downloadFile 合法域名与真机微信头像下载 | `humi-download-domain-avatar.png` |
 | web-view 业务域名 | `humi-webview-domain-www.png` |
 | 隐私保护指引关键项 | `humi-privacy-settings.png` |
 | 审核备注/提交页 | `humi-review-submit-note.png` |

@@ -1,6 +1,9 @@
 const { loginWithWechat } = require("../../utils/session");
 const { requestHumi } = require("../../utils/request");
 const { clearBootstrapCacheForUser } = require("../../utils/bootstrap");
+const { toHumiUserMessage } = require("../../utils/user-message");
+const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.json");
+const WECHAT_AVATAR_HOSTS = new Set(["thirdwx.qlogo.cn", "wx.qlogo.cn"]);
 
 Page({
   data: {
@@ -36,7 +39,7 @@ Page({
         wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
       }
     } catch (error) {
-      this.setData({ error: "微信登录失败，请重新尝试。" });
+      this.setData({ error: toHumiUserMessage(error, "微信登录失败，请重新尝试。") });
     } finally {
       this.setData({ pending: false });
     }
@@ -47,6 +50,10 @@ Page({
     try {
       const profile = await callWx(wx.getUserProfile, { desc: "用于让家人认出你" });
       const avatarUrl = String(profile?.userInfo?.avatarUrl || "");
+      if (avatarUrl && !isAllowedWechatAvatarUrl(avatarUrl)) {
+        this.setData({ error: "微信头像地址不受支持，请手动选择头像。" });
+        return;
+      }
       this.setIdentityData({
         displayName: String(profile?.userInfo?.nickName || "").slice(0, 32),
         avatarUrl,
@@ -61,11 +68,19 @@ Page({
 
   selectApprovedAvatar(event) {
     const avatarKey = String(event.detail?.avatarKey || "");
+    if (!APPROVED_AVATAR_KEYS.includes(avatarKey)) {
+      this.setIdentityData({ selectedAvatarKey: "", error: "请选择 Humi 提供的头像。" });
+      return;
+    }
     this.setIdentityData({ selectedAvatarKey: avatarKey, avatarUrl: "", localAvatarUrl: "", error: "" });
   },
 
   chooseAvatar(event) {
     const avatarUrl = String(event.detail?.avatarUrl || "");
+    if (avatarUrl && !/^wxfile:\/\//.test(avatarUrl)) {
+      this.setData({ error: "请选择微信提供的本地头像文件。" });
+      return;
+    }
     this.setIdentityData({ avatarUrl, localAvatarUrl: avatarUrl, selectedAvatarKey: "", error: "" });
   },
 
@@ -93,7 +108,7 @@ Page({
       clearBootstrapCacheForUser(user.id);
       wx.reLaunch({ url: "/pages/boot/index?reason=identity_complete" });
     } catch (error) {
-      this.setData({ error: error.message || "身份暂时没有保存成功，请重试。" });
+      this.setData({ error: toHumiUserMessage(error, "身份暂时没有保存成功，请重试。") });
     } finally {
       this.setData({ pending: false });
     }
@@ -136,6 +151,11 @@ async function localAvatarPath(avatarUrl) {
   if (result.statusCode && result.statusCode >= 400) throw new Error("微信头像下载失败，请重新选择。");
   if (!result.tempFilePath) throw new Error("微信头像下载失败，请重新选择。");
   return result.tempFilePath;
+}
+
+function isAllowedWechatAvatarUrl(value) {
+  const match = /^https:\/\/([^/?#]+)(?:[/?#]|$)/.exec(String(value || ""));
+  return Boolean(match && WECHAT_AVATAR_HOSTS.has(match[1]));
 }
 
 function compressAvatar(src) {
