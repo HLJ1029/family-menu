@@ -54,14 +54,19 @@ const timeline = {
 
 await verifyAuthenticatedLifecycle();
 await verifyPassiveConcurrencyAndBackgroundRestore();
+await verifyConsecutivePassiveRecovery();
+await verifyCertifiedAutoPassiveCases();
+verifyCertifiedTimelineReachability();
 await verifyRapidTapAndMonotonicProgress();
 await verifyOfflineRecoveryAndAccountIsolation();
+await verifyCompletedReceiptFeedbackRefresh();
 await verifyNetworkRaceQueuesMutation();
 await verifyOfflinePlannedRunStaysActionable();
 await verifyOfflineAbandonReasons();
 await verifyAllDowngrades();
 await verifyConflictFreezeAndReload();
 await verifyConflictReplacementGuidance();
+await verifyCrossDeviceAbandonConflict();
 await verifyGuestLifecycle();
 await verifyMemberPermissionsAndCompletedReadOnly();
 await verifyRetryRecovery();
@@ -200,6 +205,186 @@ async function verifyPassiveConcurrencyAndBackgroundRestore() {
   assert(!JSON.stringify(runtime.storageEntries()).includes('"remainingCounter"'), "a decrementing timer is never persisted");
 }
 
+async function verifyConsecutivePassiveRecovery() {
+  const chainedTimeline = clone(timeline);
+  chainedTimeline.endsAt = "2026-07-23T10:06:00.000Z";
+  chainedTimeline.totalSeconds = 360;
+  chainedTimeline.steps = [
+    clone(timeline.steps[0]),
+    clone(timeline.steps[1]),
+    {
+      ...clone(timeline.steps[2]),
+      id: "seaweed-egg-soup:step:passive-2",
+      attention: "passive",
+      resources: ["pot"],
+      dependsOn: [timeline.steps[1].id],
+      startOffsetSeconds: 180,
+      endOffsetSeconds: 300,
+      startsAt: "2026-07-23T10:03:00.000Z",
+      endsAt: "2026-07-23T10:05:00.000Z",
+      timerLabel: "继续焖煮",
+    },
+    {
+      ...clone(timeline.steps[3]),
+      id: "seaweed-egg-soup:step:finish",
+      dependsOn: ["seaweed-egg-soup:step:passive-2"],
+      startOffsetSeconds: 300,
+      endOffsetSeconds: 360,
+      startsAt: "2026-07-23T10:05:00.000Z",
+      endsAt: "2026-07-23T10:06:00.000Z",
+    },
+  ];
+  const cooking = remoteRun({
+    id: "run-passive-chain",
+    status: "cooking",
+    timeline: chainedTimeline,
+    currentStepId: chainedTimeline.steps[1].id,
+    timerEndsAt: chainedTimeline.steps[1].endsAt,
+  });
+  const sharedStorage = new Map();
+  const offline = createRuntime({
+    initialRun: cooking,
+    storage: sharedStorage,
+    userId: "passive-chain-member",
+    online: false,
+    now: "2026-07-23T10:03:00.000Z",
+  });
+  const offlinePage = offline.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await offlinePage.onLoad({ mealRunId: cooking.id });
+  await offline.settle();
+  assert.equal(
+    offlinePage.data.mealRun.currentStepId,
+    chainedTimeline.steps[2].id,
+    "an unlocked passive successor is advanced automatically without asking the user to tap a waiting step",
+  );
+  assert.deepEqual(
+    offlinePage.data.runningTimers.map((item) => item.id),
+    [chainedTimeline.steps[2].id],
+    "the successor absolute timer starts from its authoritative endsAt",
+  );
+  assert.equal(offlinePage.data.unsyncedCount, 1, "automatic offline progress is persisted through the same safe queue");
+
+  const restarted = createRuntime({
+    initialRun: cooking,
+    storage: sharedStorage,
+    userId: "passive-chain-member",
+    online: false,
+    now: "2026-07-23T10:03:30.000Z",
+  });
+  const restartedPage = restarted.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await restartedPage.onLoad({ mealRunId: cooking.id });
+  assert.equal(restartedPage.data.mealRun.currentStepId, chainedTimeline.steps[2].id, "automatic passive progress survives restart");
+  assert.equal(restartedPage.data.unsyncedCount, 1, "restart never duplicates the automatic mutation");
+
+  const backgroundRuntime = createRuntime({
+    initialRun: cooking,
+    now: "2026-07-23T10:02:30.000Z",
+  });
+  const backgroundPage = backgroundRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await backgroundPage.onLoad({ mealRunId: cooking.id });
+  await backgroundPage.onShow();
+  assert.equal(backgroundPage.data.mealRun.currentStepId, chainedTimeline.steps[1].id);
+  backgroundPage.onHide();
+  backgroundRuntime.advanceClock(30_000);
+  await backgroundPage.onShow();
+  assert.equal(backgroundPage.data.mealRun.currentStepId, chainedTimeline.steps[2].id, "foreground recovery drains a newly unlocked passive successor");
+}
+
+async function verifyCertifiedAutoPassiveCases() {
+  const catalogRuntime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+  const recipes = catalogRuntime.load("miniprogram/data/certified-recipes.js");
+  const { buildMealTimeline } = catalogRuntime.load("miniprogram/utils/meal-timeline.js");
+  const idsByTier = new Map();
+  for (const recipe of recipes) {
+    const ids = idsByTier.get(recipe.cookAssist.effortTier) || [];
+    ids.push(recipe.id);
+    idsByTier.set(recipe.cookAssist.effortTier, ids);
+  }
+  const cases = recipes.map((recipe) => [recipe.id]);
+  for (const ids of idsByTier.values()) {
+    for (let left = 0; left < ids.length; left += 1) {
+      for (let right = left + 1; right < ids.length; right += 1) cases.push([ids[left], ids[right]]);
+    }
+  }
+  const consecutivePassiveCases = [];
+  for (const recipeIds of cases) {
+    const candidateTimeline = buildMealTimeline(recipeIds, { startedAt: "2026-07-23T10:00:00.000Z" });
+    for (let index = 0; index < candidateTimeline.steps.length - 1; index += 1) {
+      if (candidateTimeline.steps[index].attention === "passive" && candidateTimeline.steps[index + 1].attention === "passive") {
+        consecutivePassiveCases.push({ recipeIds, candidateTimeline, index });
+      }
+    }
+  }
+  assert.equal(consecutivePassiveCases.length, 5, "the certified 30-recipe/165-case catalog currently has five real passive-chain presentations");
+  for (const [caseIndex, contract] of consecutivePassiveCases.entries()) {
+    const current = contract.candidateTimeline.steps[contract.index];
+    const successor = contract.candidateTimeline.steps[contract.index + 1];
+    const cooking = remoteRun({
+      id: `run-real-passive-${caseIndex}`,
+      status: "cooking",
+      recipeIds: contract.recipeIds,
+      timeline: contract.candidateTimeline,
+      currentStepId: current.id,
+      timerEndsAt: current.endsAt,
+    });
+    const runtime = createRuntime({ initialRun: cooking, now: successor.startsAt });
+    const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+    await page.onLoad({ mealRunId: cooking.id });
+    assert.equal(
+      page.data.mealRun.currentStepId,
+      successor.id,
+      `${contract.recipeIds.join("+")}: real certified passive chain advances`,
+    );
+    assert(
+      runtime.requests.some((request) => (
+        request.path.endsWith("/progress")
+        && request.data.currentStepId === successor.id
+        && request.data.timerEndsAt === successor.endsAt
+      )),
+      `${contract.recipeIds.join("+")}: automatic progress uses the certified absolute endsAt`,
+    );
+  }
+}
+
+function verifyCertifiedTimelineReachability() {
+  const runtime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+  const recipes = runtime.load("miniprogram/data/certified-recipes.js");
+  const timelineHelpers = runtime.load("miniprogram/utils/meal-timeline.js");
+  const idsByTier = new Map();
+  for (const recipe of recipes) {
+    const ids = idsByTier.get(recipe.cookAssist.effortTier) || [];
+    ids.push(recipe.id);
+    idsByTier.set(recipe.cookAssist.effortTier, ids);
+  }
+  const cases = recipes.map((recipe) => [recipe.id]);
+  for (const ids of idsByTier.values()) {
+    for (let left = 0; left < ids.length; left += 1) {
+      for (let right = left + 1; right < ids.length; right += 1) cases.push([ids[left], ids[right]]);
+    }
+  }
+  assert.equal(cases.length, 165);
+  for (const recipeIds of cases) {
+    const candidateTimeline = timelineHelpers.buildMealTimeline(recipeIds, {
+      startedAt: "2026-07-23T10:00:00.000Z",
+    });
+    let currentStepId = candidateTimeline.steps[0].id;
+    let now = candidateTimeline.steps[0].startsAt;
+    let guard = 0;
+    while (timelineHelpers.nextTimelineStep(candidateTimeline, currentStepId)) {
+      assert(guard++ < candidateTimeline.steps.length * 2, `${recipeIds.join("+")}: presentation must not loop`);
+      const candidate = timelineHelpers.nextTimelineStep(candidateTimeline, currentStepId);
+      let available = timelineHelpers.nextAvailableTimelineStep(candidateTimeline, currentStepId, now);
+      if (!available) {
+        now = candidate.startsAt;
+        available = timelineHelpers.nextAvailableTimelineStep(candidateTimeline, currentStepId, now);
+      }
+      assert.equal(available?.id, candidate.id, `${recipeIds.join("+")}: every scheduled successor becomes reachable`);
+      currentStepId = available.id;
+    }
+    assert.equal(currentStepId, candidateTimeline.steps.at(-1).id, `${recipeIds.join("+")}: presentation reaches the final step`);
+  }
+}
+
 async function verifyRapidTapAndMonotonicProgress() {
   let active = remoteRun({ status: "cooking" });
   let resolveProgress;
@@ -277,11 +462,19 @@ async function verifyOfflineRecoveryAndAccountIsolation() {
   await restartedPage.onLoad({ mealRunId: cooking.id });
   assert.equal(restartedPage.data.mealRun.currentStepId, timeline.steps[1].id, "offline process restart restores the user/household/date scoped optimistic step");
 
+  let serverRun = clone(cooking);
+  const serverCalls = [];
+  const reconnectHandler = requestRouter({
+    getRun: () => serverRun,
+    setRun: (value) => { serverRun = value; },
+    calls: serverCalls,
+  });
   const appFirstA = createRuntime({
     initialRun: cooking,
     storage: sharedStorage,
     userId: "member-a",
     online: true,
+    requestHandler: reconnectHandler,
   });
   const appFirstQueue = appFirstA.load("miniprogram/utils/offline-queue.js");
   assert.equal((await appFirstQueue.flushMutationQueue()).status, "flushed", "App may flush before the cooking page is created");
@@ -292,6 +485,7 @@ async function verifyOfflineRecoveryAndAccountIsolation() {
     storage: sharedStorage,
     userId: "member-a",
     online: true,
+    requestHandler: reconnectHandler,
   });
   const resumedPage = resumedA.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
   await resumedPage.onLoad({ mealRunId: cooking.id });
@@ -304,6 +498,74 @@ async function verifyOfflineRecoveryAndAccountIsolation() {
     appFirstA.requests.some((request) => request.path.endsWith("/progress") && request.data.currentStepId === timeline.steps[1].id),
     `App-first reconnect replays the allowlisted progress endpoint: ${JSON.stringify(appFirstA.requests)}`,
   );
+}
+
+async function verifyCompletedReceiptFeedbackRefresh() {
+  const storage = new Map();
+  const cooking = remoteRun({ id: "run-completed-receipt", status: "cooking" });
+  let serverRun = clone(cooking);
+  const offline = createRuntime({
+    initialRun: cooking,
+    storage,
+    userId: "receipt-member",
+    online: false,
+  });
+  const offlinePage = offline.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await offlinePage.onLoad({ mealRunId: cooking.id });
+  await offlinePage.completeMeal();
+  assert.equal(offlinePage.data.unsyncedCount, 1);
+
+  const requestHandler = ({ path: pathname, data, succeed }) => {
+    if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: serverRun });
+    if (pathname.endsWith("/complete")) {
+      serverRun = {
+        ...serverRun,
+        status: "completed",
+        completedAt: "2026-07-23T10:04:00.000Z",
+        updatedAt: "2026-07-23T10:04:00.000Z",
+        timerEndsAt: "",
+      };
+      return succeed({ mealRun: serverRun });
+    }
+    if (pathname.endsWith("/feedback")) {
+      serverRun = {
+        ...serverRun,
+        feedback: [{ userId: "receipt-member", value: data.value }],
+        updatedAt: "2026-07-23T10:05:00.000Z",
+      };
+      return succeed({ mealRun: serverRun });
+    }
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+  const appFirst = createRuntime({
+    initialRun: cooking,
+    storage,
+    userId: "receipt-member",
+    requestHandler,
+  });
+  await appFirst.load("miniprogram/utils/offline-queue.js").flushMutationQueue();
+
+  const feedbackRuntime = createRuntime({
+    initialRun: serverRun,
+    storage,
+    userId: "receipt-member",
+    requestHandler,
+  });
+  const feedbackPage = feedbackRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await feedbackPage.onLoad({ mealRunId: cooking.id });
+  assert.equal(feedbackPage.data.mealRun.status, "completed");
+  await feedbackPage.saveFeedback({ detail: { value: "want_again" } });
+  assert.equal(feedbackPage.data.feedbackValue, "want_again");
+
+  const coldRuntime = createRuntime({
+    initialRun: serverRun,
+    storage,
+    userId: "receipt-member",
+    requestHandler,
+  });
+  const coldPage = coldRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await coldPage.onLoad({ mealRunId: cooking.id });
+  assert.equal(coldPage.data.feedbackValue, "want_again", "server feedback supersedes the older completed replay receipt after cold launch");
 }
 
 async function verifyOfflineAbandonReasons() {
@@ -322,11 +584,18 @@ async function verifyOfflineAbandonReasons() {
     assert.equal(offlinePage.data.unsyncedCount, 1, `${reason} is queued offline`);
     assert.equal(offlinePage.data.mealRun.status, "cooking", "queued abandon does not count as a terminal server state");
 
+    let serverRun = clone(cooking);
+    const replayHandler = requestRouter({
+      getRun: () => serverRun,
+      setRun: (value) => { serverRun = value; },
+      calls: [],
+    });
     const appFirst = createRuntime({
       initialRun: cooking,
       storage,
       userId: "member-abandon",
       online: true,
+      requestHandler: replayHandler,
     });
     const appQueue = appFirst.load("miniprogram/utils/offline-queue.js");
     assert.equal((await appQueue.flushMutationQueue()).status, "flushed", `${reason} may be replayed by App before Page`);
@@ -337,6 +606,7 @@ async function verifyOfflineAbandonReasons() {
       storage,
       userId: "member-abandon",
       online: true,
+      requestHandler: replayHandler,
     });
     const onlinePage = online.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
     await onlinePage.onLoad({ mealRunId: cooking.id });
@@ -467,6 +737,43 @@ async function verifyConflictReplacementGuidance() {
   assert.equal(page.data.viewState, "replaced");
   page.goToLatestPlan();
   assert.deepEqual(runtime.routes.at(-1), { kind: "reLaunch", url: "/pages/tonight/index" });
+}
+
+async function verifyCrossDeviceAbandonConflict() {
+  const initial = remoteRun({ id: "run-cross-device-abandon", status: "cooking" });
+  const abandoned = {
+    ...initial,
+    status: "abandoned",
+    abandonReason: "plans_changed",
+    abandonedAt: "2026-07-23T10:02:00.000Z",
+    updatedAt: "2026-07-23T10:02:00.000Z",
+    timerEndsAt: "",
+  };
+  let abandonedOnServer = false;
+  const runtime = createRuntime({
+    initialRun: initial,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) {
+        if (pathname.includes("mealRunId=")) return succeed({ mealRun: abandonedOnServer ? abandoned : initial });
+        return succeed({ mealRun: abandonedOnServer ? null : initial });
+      }
+      if (pathname.endsWith("/progress")) {
+        abandonedOnServer = true;
+        return succeed({
+          error: "state_conflict",
+          latestEnvelope: bootstrapFor({ currentMealRun: null }),
+        }, 409);
+      }
+      throw new Error(`Unexpected request: ${pathname}`);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: initial.id });
+  await page.advanceStep({ detail: { stepId: initial.currentStepId } });
+  assert.equal(page.data.syncFrozen, true);
+  assert.equal(page.data.mealRun.status, "abandoned", "409 reloads the exact cross-device terminal snapshot instead of stale cooking");
+  assert.equal(page.data.mealRun.abandonReason, "plans_changed");
+  assert.equal(page._clock, null);
 }
 
 async function verifyGuestLifecycle() {

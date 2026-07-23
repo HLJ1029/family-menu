@@ -122,7 +122,9 @@ function safeIdentifier(value, maxLength) {
 }
 
 function validIsoDate(value) {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
 }
 
 function invalidOfflineAction() {

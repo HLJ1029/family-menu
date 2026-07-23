@@ -95,6 +95,7 @@ const pageDefinition = {
       if (this._entryAction === "invalid") throw codedError("meal_run_route_invalid");
       await this.loadRun({ startIfPlanned: this._entryAction === "start" });
       if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
+      await this.advanceUnlockedPassiveSteps();
       this.startClock();
     } catch (error) {
       this.setError(errorMessage(error, "这顿饭暂时没有加载成功，请返回今晚重试。"));
@@ -109,6 +110,7 @@ const pageDefinition = {
       return;
     }
     if (!this.data.syncFrozen) await this.reconcile();
+    await this.advanceUnlockedPassiveSteps();
     this.startClock();
   },
 
@@ -133,6 +135,7 @@ const pageDefinition = {
     try {
       await this.loadRun({ startIfPlanned: this._entryAction === "start" });
       if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
+      await this.advanceUnlockedPassiveSteps();
       this.startClock();
     } catch (error) {
       this.setError(errorMessage(error, "这顿饭暂时没有加载成功，请返回今晚重试。"));
@@ -212,6 +215,36 @@ const pageDefinition = {
         return optimistic;
       },
     });
+  },
+
+  async advanceUnlockedPassiveSteps() {
+    if (this._autoAdvancePromise || this.data.syncFrozen || this.data.pendingAction) {
+      return this._autoAdvancePromise;
+    }
+    this._autoAdvancePromise = (async () => {
+      const stepLimit = this.data.mealRun?.timeline?.steps?.length || 0;
+      for (let count = 0; count < stepLimit; count += 1) {
+        const mealRun = this.data.mealRun;
+        const currentIndex = timelineStepIndex(mealRun?.timeline, mealRun?.currentStepId);
+        const currentStep = mealRun?.timeline?.steps?.[currentIndex] || null;
+        const nextStep = nextAvailableTimelineStep(
+          mealRun?.timeline,
+          mealRun?.currentStepId,
+          new Date().toISOString(),
+        );
+        if (
+          mealRun?.status !== "cooking"
+          || currentStep?.attention !== "passive"
+          || nextStep?.attention !== "passive"
+        ) return;
+        const previousStepId = mealRun.currentStepId;
+        await this.advanceStep({ detail: { stepId: previousStepId } });
+        if (this.data.mealRun?.currentStepId === previousStepId) return;
+      }
+    })().finally(() => {
+      this._autoAdvancePromise = null;
+    });
+    return this._autoAdvancePromise;
   },
 
   showDowngradeSheet() {
@@ -572,7 +605,10 @@ const pageDefinition = {
   startClock() {
     this.stopClock();
     if (this._hidden || this.data.mealRun?.status !== "cooking") return;
-    this._clock = setInterval(() => this.refreshDerivedState(), 1000);
+    this._clock = setInterval(() => {
+      this.refreshDerivedState();
+      this.advanceUnlockedPassiveSteps().catch(() => {});
+    }, 1000);
   },
 
   stopClock() {

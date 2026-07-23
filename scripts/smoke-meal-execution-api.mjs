@@ -189,6 +189,51 @@ try {
   assert.equal(feedbackUpdated.mealRun.feedback.length, 2, "feedback is one upserted value per member");
   assert.equal(feedbackUpdated.mealRun.feedback.find((entry) => entry.userId === member.user.id).value, "change_it");
 
+  const abandonedPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: mealPlan(householdId, "2026-07-26", "abandoned-exact-read"),
+  });
+  await request(`${baseUrl}/meal-runs/${abandonedPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: member,
+    body: {},
+  });
+  const abandonedRun = await request(`${baseUrl}/meal-runs/${abandonedPlan.mealRun.id}/abandon`, {
+    method: "POST",
+    session: owner,
+    body: { reason: "plans_changed" },
+  });
+  assert.equal(abandonedRun.mealRun.status, "abandoned");
+  const noCurrentAfterAbandon = await request(
+    `${baseUrl}/meal-runs/current?householdId=${householdId}&dateKey=2026-07-26&mealSlot=dinner`,
+    { session: member },
+  );
+  assert.equal(noCurrentAfterAbandon.mealRun, null, "current dinner continues to exclude abandoned runs");
+  const exactAbandoned = await request(
+    `${baseUrl}/meal-runs/current?householdId=${householdId}&dateKey=2026-07-26&mealSlot=dinner&mealRunId=${abandonedPlan.mealRun.id}`,
+    { session: member },
+  );
+  assert.equal(exactAbandoned.mealRun.status, "abandoned", "a formal member can recover an exact terminal run");
+  await assertRejected(
+    `${baseUrl}/meal-runs/current?householdId=${householdId}&dateKey=2026-07-27&mealSlot=dinner&mealRunId=${abandonedPlan.mealRun.id}`,
+    { session: member },
+    404,
+    "meal_run_not_found",
+  );
+  await assertRejected(
+    `${baseUrl}/meal-runs/current?householdId=another-household&dateKey=2026-07-26&mealSlot=dinner&mealRunId=${abandonedPlan.mealRun.id}`,
+    { session: member },
+    404,
+    "meal_run_not_found",
+  );
+  await assertRejected(
+    `${baseUrl}/meal-runs/current?householdId=${householdId}&dateKey=2026-07-26&mealSlot=dinner&mealRunId=${abandonedPlan.mealRun.id}`,
+    { session: outsider },
+    404,
+    "household_not_found",
+  );
+
   const taskPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",
     session: owner,

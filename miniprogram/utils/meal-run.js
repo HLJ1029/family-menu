@@ -1,7 +1,7 @@
 const certifiedRecipes = require("../data/certified-recipes");
 const { requestHumi } = require("./request");
 const { buildMealTimeline, summarizeMealTimeline } = require("./meal-timeline");
-const { readMealMutationResult } = require("./offline-queue");
+const { clearMealMutationResult, readMealMutationResult } = require("./offline-queue");
 
 const GUEST_RUN_PREFIX = "humi:meal-run:guest:v1:";
 const REMOTE_RUN_PREFIX = "humi:meal-run:remote:v1:";
@@ -291,23 +291,47 @@ async function loadMealRunForCooking({
     if (!guestRun || guestRun.id !== safeMealRunId) throw codedError("meal_run_not_found");
     return guestRun;
   }
-  const replayedRun = normalizeMealRun(readMealMutationResult(safeMealRunId));
-  if (replayedRun && ["completed", "abandoned"].includes(replayedRun.status)) {
-    clearOptimisticMealProgress(replayedRun, ownerUserId);
-    writeRemoteMealRun(replayedRun, ownerUserId);
-    return replayedRun;
-  }
-  const mealRun = await loadCurrentMealRun({ bootstrap, dateKey, allowCache });
-  const latestRun = chooseLatestMealRunSnapshot(mealRun, replayedRun);
-  if (latestRun?.id === safeMealRunId) {
+  return loadExactMealRun({
+    bootstrap,
+    mealRunId: safeMealRunId,
+    dateKey,
+    allowCache,
+  });
+}
+
+async function loadExactMealRun({
+  bootstrap = {},
+  mealRunId,
+  dateKey = formatDinnerDateKey(),
+  allowCache = true,
+} = {}) {
+  const ownerUserId = bootstrapUserId(bootstrap);
+  const householdId = clean(bootstrap.activeHouseholdId);
+  if (!ownerUserId || !householdId) throw codedError("meal_run_not_found");
+  try {
+    const result = await requestHumi({
+      path: `/meal-runs/current?householdId=${encodeURIComponent(householdId)}&dateKey=${encodeURIComponent(dateKey)}&mealSlot=dinner&mealRunId=${encodeURIComponent(mealRunId)}`,
+      expectedUserId: ownerUserId,
+    });
+    const mealRun = normalizeMealRun(result?.mealRun);
+    if (!mealRun || mealRun.id !== mealRunId) throw codedError("meal_run_response_invalid");
+    writeRemoteMealRun(mealRun, ownerUserId);
+    clearMealMutationResult(mealRunId);
+    return applyOptimisticMealProgress(mealRun, ownerUserId);
+  } catch (error) {
+    if (!allowCache || !isNetworkError(error)) throw error;
+    const cachedRun = normalizeMealRun(wx.getStorageSync(remoteRunKey(ownerUserId, householdId, dateKey)));
+    const replayedRun = normalizeMealRun(readMealMutationResult(mealRunId));
+    const bootstrapRun = normalizeMealRun(bootstrap.currentMealRun);
+    const latestRun = [
+      cachedRun?.id === mealRunId ? cachedRun : null,
+      replayedRun?.id === mealRunId ? replayedRun : null,
+      bootstrapRun?.id === mealRunId ? bootstrapRun : null,
+    ].reduce((latest, candidate) => chooseLatestMealRunSnapshot(latest, candidate), null);
+    if (!latestRun) throw codedError("meal_run_not_found");
     writeRemoteMealRun(latestRun, ownerUserId);
-    return applyOptimisticMealProgress(latestRun, ownerUserId);
+    return applyOptimisticMealProgress({ ...latestRun, cacheState: "cached" }, ownerUserId);
   }
-  const bootstrapRun = normalizeMealRun(bootstrap.currentMealRun);
-  if (allowCache && bootstrapRun?.id === safeMealRunId) {
-    return applyOptimisticMealProgress({ ...bootstrapRun, cacheState: "bootstrap" }, ownerUserId);
-  }
-  throw codedError("meal_run_not_found");
 }
 
 function chooseLatestMealRunSnapshot(remote, replayed) {
@@ -584,6 +608,7 @@ async function requestMealRunMutation(mealRun, action, method, data, {
   const next = normalizeMealRun(result?.mealRun);
   if (!next || next.id !== mealRun.id) throw codedError("meal_run_response_invalid");
   writeRemoteMealRun(next, ownerUserId);
+  clearMealMutationResult(mealRun.id);
   return next;
 }
 

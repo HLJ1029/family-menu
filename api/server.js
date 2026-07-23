@@ -774,6 +774,27 @@ async function handleCreateMealRun(request, response) {
 
 async function handleGetCurrentMealRun(request, response, searchParams) {
   const householdId = stringValue(searchParams.get("householdId"), 100);
+  const mealRunId = stringValue(searchParams.get("mealRunId"), 100);
+  if (mealRunId) {
+    const { user } = await requireMealExecutionUser(request);
+    try {
+      const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+      assertMealExecutionEnabled(mealRun.householdId);
+      const requestedDateKey = stringValue(searchParams.get("dateKey"), 10);
+      const requestedMealSlot = stringValue(searchParams.get("mealSlot"), 24) || "dinner";
+      if (
+        (householdId && mealRun.householdId !== householdId)
+        || (requestedDateKey && mealRun.dateKey !== requestedDateKey)
+        || mealRun.mealSlot !== requestedMealSlot
+      ) {
+        throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+      }
+      sendJson(response, 200, { mealRun });
+      return;
+    } catch (error) {
+      throw mapMealExecutionError(error);
+    }
+  }
   const { user } = await requireMealExecutionContext(request, householdId);
   try {
     const mealRun = await store.getCurrentMealRun(user.id, {

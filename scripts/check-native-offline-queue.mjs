@@ -193,6 +193,28 @@ async function nextTask() {
 }
 
 {
+  const { queue } = createRuntime();
+  assert.doesNotThrow(() => queue.enqueueMutation({
+    id: "canonical-timer",
+    type: "meal_progress",
+    householdId: "h",
+    mealRunId: "r",
+    createdAt: 1,
+    data: { currentStepId: "step-1", timerEndsAt: "2026-07-23T10:03:00.000Z" },
+  }));
+  for (const timerEndsAt of ["1", "2026-07-23", "2026-07-23T10:03:00Z", "2026-07-23T10:03:00.000+00:00"]) {
+    assert.throws(() => queue.enqueueMutation({
+      id: `non-canonical-${timerEndsAt}`,
+      type: "meal_progress",
+      householdId: "h",
+      mealRunId: "r",
+      createdAt: 2,
+      data: { currentStepId: "step-1", timerEndsAt },
+    }), /offline_action_invalid/, `timerEndsAt must reject non-canonical input ${timerEndsAt}`);
+  }
+}
+
+{
   const requests = [];
   const { queue } = createRuntime({
     requestHumi: async (options) => {
