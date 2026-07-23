@@ -183,7 +183,11 @@ const pageDefinition = {
     const next = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId, mealRun.timers, now);
     if (!next) return;
     const timer = next.attention === "passive" ? createActualPassiveTimer(next, now) : null;
-    const payload = { currentStepId: next.id, ...(timer ? { timer } : {}) };
+    const payload = {
+      currentStepId: next.id,
+      timelineVersion: Number(mealRun.timelineVersion || 1),
+      ...(timer ? { timer } : {}),
+    };
     if (!this.data.isOnline && !mealRun.localOnly) {
       this.queueMealMutation("meal_progress", payload, `progress:${next.id}`);
       writeOptimisticMealProgress(mealRun, {
@@ -230,7 +234,11 @@ const pageDefinition = {
     const currentStep = mealRun.timeline?.steps?.find((step) => step.id === mealRun.currentStepId);
     if (currentStep?.attention !== "passive" || mealRun.timers?.[currentStep.id]) return mealRun;
     const timer = createActualPassiveTimer(currentStep, new Date().toISOString());
-    const payload = { currentStepId: currentStep.id, timer };
+    const payload = {
+      currentStepId: currentStep.id,
+      timelineVersion: Number(mealRun.timelineVersion || 1),
+      timer,
+    };
     if (!this.data.isOnline && !mealRun.localOnly) {
       this.queueMealMutation("meal_progress", payload, `timer:${currentStep.id}`);
       writeOptimisticMealProgress(mealRun, {
@@ -679,6 +687,10 @@ Page(pageDefinition);
 
 function chooseMonotonicMealRun(current, incoming) {
   if (!current || !incoming || current.id !== incoming.id) return incoming || current;
+  const currentTimelineVersion = Number(current.timelineVersion || 1);
+  const incomingTimelineVersion = Number(incoming.timelineVersion || 1);
+  if (incomingTimelineVersion > currentTimelineVersion) return incoming;
+  if (incomingTimelineVersion < currentTimelineVersion) return current;
   const timers = mergeTimerMaps(incoming.timers, current.timers);
   const ranks = { planned: 0, cooking: 1, abandoned: 2, completed: 3 };
   if ((ranks[incoming.status] ?? -1) < (ranks[current.status] ?? -1)) return { ...current, timers };

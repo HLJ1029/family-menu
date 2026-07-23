@@ -760,6 +760,7 @@ async function handleCreateMealRun(request, response) {
       idempotencyKey: body.idempotencyKey,
       readyStaple: body.readyStaple,
       syncedFromLocalId: body.syncedFromLocalId,
+      syncedStartedAt: body.syncedStartedAt,
       timelineVersion: 1,
       recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
     });
@@ -815,7 +816,7 @@ async function handleStartMealRun(request, response, mealRunId) {
     assertMealExecutionEnabled(current.householdId);
     const timeline = current.status === "cooking"
       ? current.timeline
-      : buildMealTimeline(current.recipeIds, { startedAt: new Date().toISOString() });
+      : buildMealTimeline(current.recipeIds, { startedAt: current.syncedStartedAt || new Date().toISOString() });
     const mealRun = await store.startMealRun(auth.userId, mealRunId, timeline);
     sendJson(response, 200, { mealRun });
   } catch (error) {
@@ -831,6 +832,7 @@ async function handleUpdateMealRunProgress(request, response, mealRunId) {
     assertMealExecutionEnabled(current.householdId);
     const mealRun = await store.updateMealRunProgress(user.id, mealRunId, {
       currentStepId: body.currentStepId,
+      timelineVersion: body.timelineVersion,
       timer: body.timer,
     });
     sendJson(response, 200, { mealRun });
@@ -859,9 +861,11 @@ async function handleDowngradeMealRun(request, response, mealRunId) {
     assertMealExecutionEnabled(current.householdId);
     const downgradedPlan = downgradeMealPlan(current.recipeIds, body.action);
     const certifiedRecipes = downgradedPlan.recipeIds.map((recipeId) => getCertifiedRecipe(recipeId));
-    const timeline = current.status === "cooking"
+    const recipeChanged = current.recipeIds.length !== downgradedPlan.recipeIds.length
+      || current.recipeIds.some((recipeId, index) => recipeId !== downgradedPlan.recipeIds[index]);
+    const timeline = current.status === "cooking" && recipeChanged
       ? buildMealTimeline(downgradedPlan.recipeIds, { startedAt: new Date().toISOString() })
-      : null;
+      : current.timeline;
     const mealRun = await store.downgradeMealRun(user.id, mealRunId, {
       action: body.action,
       recipeIds: downgradedPlan.recipeIds,
@@ -1271,6 +1275,8 @@ function mapMealExecutionError(error) {
     meal_timer_step_invalid: 400,
     meal_timer_time_invalid: 400,
     meal_timer_duration_invalid: 400,
+    meal_timeline_version_conflict: 409,
+    meal_synced_started_at_invalid: 400,
     meal_timer_dependency_blocked: 409,
     meal_timer_resource_busy: 409,
     meal_task_invalid: 400,

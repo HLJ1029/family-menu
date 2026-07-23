@@ -77,7 +77,9 @@ export function downgradeLocalMealRun(run, action, { now = new Date().toISOStrin
     changedBy: userId,
     changedAt,
   }];
-  if (next.status === "cooking") {
+  const recipeChanged = !sameStringArray(previousRecipeIds, next.recipeIds);
+  next.timelineVersion = Number(next.timelineVersion || 1) + 1;
+  if (next.status === "cooking" && recipeChanged) {
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: changedAt });
     next.currentStepId = next.timeline.steps[0]?.id || "";
     next.timers = {};
@@ -120,6 +122,15 @@ export function transitionLocalMealRun(run, action, payload = {}) {
 
   if (action === "progress") {
     if (next.status !== "cooking") throw mealRunError("meal_run_transition_invalid", "Progress requires an active dinner.");
+    const expectedTimelineVersion = payload.timelineVersion === undefined
+      ? Number(next.timelineVersion || 1)
+      : Number(payload.timelineVersion);
+    if (
+      !Number.isInteger(expectedTimelineVersion)
+      || expectedTimelineVersion !== Number(next.timelineVersion || 1)
+    ) {
+      throw mealRunError("meal_timeline_version_conflict", "The cooking timeline changed.");
+    }
     const step = next.timeline?.steps?.find((candidate) => candidate.id === payload.currentStepId);
     if (!step) throw mealRunError("meal_step_invalid", "The step does not belong to this dinner.");
     const currentIndex = next.timeline.steps.findIndex((candidate) => candidate.id === next.currentStepId);
@@ -183,6 +194,17 @@ export function transitionLocalMealRun(run, action, payload = {}) {
 export function mergeLocalMealRun(localRun, remoteRun) {
   if (!localRun) return remoteRun ?? null;
   if (!remoteRun) return localRun;
+  const sameRun = localRun.id === remoteRun.id
+    || remoteRun.syncedFromLocalId === localRun.id
+    || localRun.syncedToRemoteId === remoteRun.id;
+  if (sameRun) {
+    const localTimelineVersion = Number(localRun.timelineVersion || 1);
+    const remoteTimelineVersion = Number(remoteRun.timelineVersion || 1);
+    if (remoteTimelineVersion > localTimelineVersion) {
+      return { ...structuredClone(remoteRun), localOnly: false, syncStatus: "synced" };
+    }
+    if (localTimelineVersion > remoteTimelineVersion) return localRun;
+  }
   const timers = mergeTimerMaps(remoteRun.timers, localRun.timers);
   if (remoteRun.syncedFromLocalId === localRun.id || localRun.syncedToRemoteId === remoteRun.id) {
     return { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" };
@@ -194,6 +216,31 @@ export function mergeLocalMealRun(localRun, remoteRun) {
   return Date.parse(remoteRun.updatedAt || 0) >= Date.parse(localRun.updatedAt || 0)
     ? { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" }
     : { ...localRun, timers };
+}
+
+export function isCompletedGuestRunEquivalent(guestRun, remoteRun, ownerUserId) {
+  if (guestRun?.status !== "completed" || remoteRun?.status !== "completed") return false;
+  const guestStepIds = timelineStepIds(guestRun.timeline);
+  const remoteStepIds = timelineStepIds(remoteRun.timeline);
+  if (
+    !guestStepIds.length
+    || guestStepIds.length !== remoteStepIds.length
+    || guestStepIds.some((stepId, index) => stepId !== remoteStepIds[index])
+  ) return false;
+  const guestIndex = guestStepIds.indexOf(guestRun.currentStepId);
+  const remoteIndex = remoteStepIds.indexOf(remoteRun.currentStepId);
+  if (guestIndex < 0 || remoteIndex < guestIndex) return false;
+  const guestTimers = normalizeTimerMap(guestRun.timers, guestRun.timeline);
+  const remoteTimers = normalizeTimerMap(remoteRun.timers, remoteRun.timeline);
+  if (Object.entries(guestTimers).some(([stepId, timer]) => !sameTimer(timer, remoteTimers[stepId]))) {
+    return false;
+  }
+  const guestFeedbackValue = [...(guestRun.feedback || [])]
+    .reverse()
+    .find((entry) => ["want_again", "change_it", "too_hard"].includes(entry?.value))?.value;
+  return !guestFeedbackValue || (remoteRun.feedback || []).some((entry) => (
+    entry.userId === ownerUserId && entry.value === guestFeedbackValue
+  ));
 }
 
 export function remainingLocalTimerSeconds(run, now = new Date().toISOString()) {
@@ -275,6 +322,36 @@ function mergeTimerMaps(primary, fallback) {
     if (!merged[stepId]) merged[stepId] = timer;
   }
   return merged;
+}
+
+function timelineStepIds(timeline) {
+  return Array.isArray(timeline?.steps)
+    ? timeline.steps.map((step) => String(step?.id || "").trim()).filter(Boolean)
+    : [];
+}
+
+function normalizeTimerMap(timers, timeline) {
+  const result = {};
+  for (const [stepId, timer] of Object.entries(timers || {})) {
+    try {
+      const normalized = normalizeActualTimer(timer, timeline);
+      if (normalized.stepId === stepId) result[stepId] = normalized;
+    } catch {
+      // Invalid legacy timers never count as successfully synchronized.
+    }
+  }
+  return result;
+}
+
+function sameTimer(left, right) {
+  return Boolean(left && right
+    && left.stepId === right.stepId
+    && left.startedAt === right.startedAt
+    && left.endsAt === right.endsAt);
+}
+
+function sameStringArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function normalizeAbandonReason(value) {

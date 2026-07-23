@@ -344,16 +344,16 @@ Authorization: Bearer <accessToken>
 
 正式接口均要求 `Authorization: Bearer <accessToken>`：
 
-- `POST /meal-runs`：owner 为指定日期晚餐创建或替换 `planned` 记录；必须携带 `idempotencyKey`。当天现有 `planned` 可替换，`cooking` 或 `completed` 不可覆盖。
+- `POST /meal-runs`：owner 为指定日期晚餐创建或替换 `planned` 记录；必须携带 `idempotencyKey`。当天现有 `planned` 可替换，`cooking` 或 `completed` 不可覆盖。游客合并可同时携带 `syncedFromLocalId` 与规范 ISO `syncedStartedAt`；后者不得晚于服务端当前时间，且按上海时区必须属于该 `dateKey`，普通创建不可借此回填历史开始时间。
 - `GET /meal-runs/current?householdId=...&dateKey=YYYY-MM-DD&mealSlot=dinner`：正式成员读取当天当前晚餐。
 - `POST /meal-runs/:id/start`：正式成员开始做饭；重复调用返回同一 `startedAt`。
-- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤。进入被动步骤时携带 `timer: { stepId, startedAt, endsAt }`；服务端校验该步骤属于当前时间线且为被动步骤、时间为规范 ISO、`endsAt - startedAt` 严格等于认证时长，并按步骤 first-write immutable 合并。依赖或厨具仍被实际计时占用时返回 `409`。旧 `timerEndsAt` 仅保留为响应兼容字段，不再驱动步骤解锁或倒计时。
-- `POST /meal-runs/:id/downgrade`：正式成员执行 `remove_optional_side | lower_effort_recipe | ready_staple`。
+- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤，必须携带当前正整数 `timelineVersion`；缺失或与服务端不一致统一返回 `409 meal_timeline_version_conflict`，旧 epoch 不参与步骤或计时器合并。进入被动步骤时携带 `timer: { stepId, startedAt, endsAt }`；服务端校验该步骤属于当前时间线且为被动步骤、时间为规范 ISO、开始时间不晚于服务端当前时间且不得早于本次做饭开始（仅保留 5 秒设备时钟容差）、`endsAt - startedAt` 严格等于认证时长，并按步骤 first-write immutable 合并。依赖或厨具仍被实际计时占用时返回 `409`。旧 `timerEndsAt` 仅保留为响应兼容字段，不再驱动步骤解锁或倒计时。
+- `POST /meal-runs/:id/downgrade`：正式成员执行 `remove_optional_side | lower_effort_recipe | ready_staple`。每次降级都递增 `timelineVersion`；菜谱集合未变化时保留当前时间线、游标和实际计时器，菜谱变化时重建时间线并清空旧游标/计时器。
 - `POST /meal-runs/:id/complete`：只有该接口对应的明确“上桌了”动作把状态改为 `completed`；重复调用不重复计数。
 - `POST /meal-runs/:id/abandon`：原因仅允许 `too_much_effort | missing_ingredients | plans_changed | cooking_failed`，不破坏周节奏。
 - `PUT /meal-runs/:id/feedback`：完成后按成员幂等更新 `want_again | change_next_time | too_much_effort`。
 
-`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、按步骤索引的实际绝对计时器 `timers`、操作者、时间戳、降级历史和家庭反馈。时间线中的 `startsAt/endsAt` 只表示预计排程；真正进入被动步骤时才以实际 `startedAt` 创建完整时长计时器。多个不冲突的被动步骤可同时运行，依赖、厨具锁和后台恢复只读取 `timers`。运行时不调用 AI 生成烹饪步骤。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并逐个重放计时器和进度，`syncedFromLocalId` 用于避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放幂等状态操作。
+`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、按步骤索引的实际绝对计时器 `timers`、操作者、时间戳、降级历史和家庭反馈。时间线中的 `startsAt/endsAt` 只表示预计排程；真正进入被动步骤时才以实际 `startedAt` 创建完整时长计时器。多个不冲突的被动步骤可同时运行，依赖、厨具锁和后台恢复只读取 `timers`。运行时不调用 AI 生成烹饪步骤。不同 `timelineVersion` 的快照和 optimistic overlay 永不合并，高版本完整快照始终权威。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并逐个重放计时器、游标、完成状态和本人反馈，只有远端状态、游标、全部本地计时器与反馈完全等价后才归档并清除本地完成记录；`syncedFromLocalId` 用于恢复中断合并并避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放带 `timelineVersion` 的幂等状态操作。
 
 权限边界：
 

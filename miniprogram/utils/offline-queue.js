@@ -83,8 +83,14 @@ function validateActionData(action) {
     return;
   }
   if (action.type === "meal_progress") {
-    assertExactData(action.data, new Set(["currentStepId", "timer", "timerEndsAt"]), ["currentStepId"]);
+    assertExactData(action.data, new Set(["currentStepId", "timelineVersion", "timer", "timerEndsAt"]), ["currentStepId", "timelineVersion"]);
     if (!safeIdentifier(action.data.currentStepId, 160)) throw invalidOfflineAction();
+    if (
+      !Number.isInteger(action.data.timelineVersion)
+      || action.data.timelineVersion <= 0
+    ) {
+      throw invalidOfflineAction();
+    }
     if (action.data.timer !== undefined) {
       assertExactData(action.data.timer, new Set(["stepId", "startedAt", "endsAt"]), ["stepId", "startedAt", "endsAt"]);
       if (

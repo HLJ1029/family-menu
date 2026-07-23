@@ -1408,6 +1408,11 @@ export class HumiStore {
       const recipeIds = sanitizeRecipeIds(input.recipeIds);
       const idempotencyKey = sanitizeText(input.idempotencyKey, "", 100);
       if (!idempotencyKey) throw codedError("idempotency_key_required", "idempotencyKey is required.");
+      const syncedFromLocalId = sanitizeText(input.syncedFromLocalId, "", 100);
+      const syncedStartedAt = sanitizeSyncedMealStartedAt(input.syncedStartedAt, {
+        syncedFromLocalId,
+        dateKey,
+      });
 
       const idempotent = this.data.mealRuns.find((run) => (
         run.householdId === householdId && run.idempotencyKey === idempotencyKey
@@ -1439,7 +1444,8 @@ export class HumiStore {
         timers: {},
         timerEndsAt: "",
         readyStaple: sanitizeText(input.readyStaple, "", 40),
-        syncedFromLocalId: sanitizeText(input.syncedFromLocalId, "", 100),
+        syncedFromLocalId,
+        syncedStartedAt,
         status: "planned",
         abandonReason: "",
         feedback: [],
@@ -1583,20 +1589,21 @@ export class HumiStore {
       if (mealRun.status === "cooking") return mealRun;
       if (mealRun.status !== "planned") throw codedError("meal_run_transition_invalid", "Only a planned dinner can start cooking.");
       const now = new Date().toISOString();
+      const startedAt = mealRun.syncedStartedAt || now;
       mealRun.status = "cooking";
       mealRun.timeline = structuredClone(timeline);
       mealRun.currentStepId = timeline?.steps?.[0]?.id || "";
       mealRun.timers = {};
       const firstStep = timeline?.steps?.[0];
-      if (firstStep?.attention === "passive") {
-        const timer = createActualMealTimer(firstStep, now);
+      if (firstStep?.attention === "passive" && !mealRun.syncedStartedAt) {
+        const timer = createActualMealTimer(firstStep, startedAt);
         mealRun.timers[timer.stepId] = timer;
         mealRun.timerEndsAt = timer.endsAt;
       } else {
         mealRun.timerEndsAt = "";
       }
       mealRun.startedBy = userId;
-      mealRun.startedAt = now;
+      mealRun.startedAt = startedAt;
       mealRun.updatedAt = now;
       return mealRun;
     });
@@ -1607,6 +1614,14 @@ export class HumiStore {
     return this.mutateAndSave(() => {
       const mealRun = this.requireMealRunForMember(userId, mealRunId);
       if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Cooking progress can only update an active dinner.");
+      const expectedTimelineVersion = Number(input.timelineVersion);
+      if (
+        !Number.isInteger(expectedTimelineVersion)
+        || expectedTimelineVersion <= 0
+        || expectedTimelineVersion !== Number(mealRun.timelineVersion || 1)
+      ) {
+        throw codedError("meal_timeline_version_conflict", "The cooking timeline changed; refresh before saving progress.");
+      }
       const currentStepId = sanitizeText(input.currentStepId, "", 160);
       const steps = Array.isArray(mealRun.timeline?.steps) ? mealRun.timeline.steps : [];
       const incomingStepIndex = steps.findIndex((item) => item.id === currentStepId);
@@ -1618,6 +1633,7 @@ export class HumiStore {
       if (incomingTimer && incomingTimer.stepId !== currentStepId) {
         throw codedError("meal_timer_step_invalid", "The timer must belong to the progressed step.");
       }
+      if (incomingTimer) assertActualMealTimerBounds(incomingTimer, mealRun);
       const existingTimer = incomingTimer ? mealRun.timers[incomingTimer.stepId] : null;
       if (incomingTimer && !existingTimer) {
         assertActualMealTimerCanStart(incomingTimer, steps, mealRun.timers);
@@ -1666,6 +1682,7 @@ export class HumiStore {
       const recipeIds = sanitizeRecipeIds(input.recipeIds);
       const now = new Date().toISOString();
       const previousRecipeIds = [...mealRun.recipeIds];
+      const recipeChanged = !sameStringArray(previousRecipeIds, recipeIds);
       mealRun.recipeIds = recipeIds;
       mealRun.recipeSnapshot = structuredClone(input.recipeSnapshot ?? []);
       mealRun.readyStaple = sanitizeText(input.readyStaple, mealRun.readyStaple || "", 40);
@@ -1676,7 +1693,8 @@ export class HumiStore {
         changedBy: userId,
         changedAt: now,
       }];
-      if (mealRun.status === "cooking") {
+      mealRun.timelineVersion = Number(mealRun.timelineVersion || 1) + 1;
+      if (mealRun.status === "cooking" && recipeChanged) {
         mealRun.timeline = structuredClone(input.timeline);
         mealRun.currentStepId = input.timeline?.steps?.[0]?.id || "";
         mealRun.timers = {};
@@ -2072,13 +2090,36 @@ function sanitizeActualMealTimer(value, steps) {
   }
   const startedAt = sanitizeCanonicalTimerIso(value.startedAt);
   const endsAt = sanitizeCanonicalTimerIso(value.endsAt);
-  if (Date.parse(startedAt) > Date.now() + 5 * 60 * 1000) {
-    throw codedError("meal_timer_time_invalid", "Timer start cannot be in the future.");
-  }
   if (Date.parse(endsAt) - Date.parse(startedAt) !== Number(step.durationSeconds) * 1000) {
     throw codedError("meal_timer_duration_invalid", "The timer duration must match the certified step.");
   }
   return { stepId, startedAt, endsAt };
+}
+
+function assertActualMealTimerBounds(timer, mealRun) {
+  if (Date.parse(timer.startedAt) > Date.now()) {
+    throw codedError("meal_timer_time_invalid", "Timer start cannot be in the future.");
+  }
+  const mealStartedAt = Date.parse(mealRun.startedAt || "");
+  if (Number.isFinite(mealStartedAt) && Date.parse(timer.startedAt) < mealStartedAt - 5 * 1000) {
+    throw codedError("meal_timer_time_invalid", "Timer start cannot predate this cooking run.");
+  }
+}
+
+function sanitizeSyncedMealStartedAt(value, { syncedFromLocalId, dateKey }) {
+  if (value === undefined || value === null || value === "") return "";
+  if (!syncedFromLocalId || typeof value !== "string") {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time requires a synced guest run.");
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value || timestamp > Date.now()) {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time is invalid.");
+  }
+  const businessDateKey = new Date(timestamp + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (businessDateKey !== dateKey) {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time must match the dinner date.");
+  }
+  return value;
 }
 
 function sanitizeCanonicalTimerIso(value) {
@@ -2159,6 +2200,10 @@ function resourcesOverlap(left, right) {
 function timerIntervalsOverlap(left, right) {
   return Date.parse(left.startedAt) < Date.parse(right.endsAt)
     && Date.parse(right.startedAt) < Date.parse(left.endsAt);
+}
+
+function sameStringArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function sanitizeEffortTier(value) {

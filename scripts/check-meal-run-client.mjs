@@ -3,6 +3,7 @@ import {
   completedMealsInWeek,
   createLocalMealRun,
   downgradeLocalMealRun,
+  isCompletedGuestRunEquivalent,
   mergeLocalMealRun,
   remainingLocalTimerSeconds,
   transitionLocalMealRun,
@@ -127,7 +128,27 @@ assert.equal(downgraded.status, "cooking");
 assert.equal(downgraded.readyStaple, "即食米饭");
 assert.equal(downgraded.downgrades.length, 1);
 assert.equal(downgraded.downgrades[0].action, "ready_staple");
-assert.deepEqual(downgraded.timers, {}, "downgrade starts a fresh timeline without retaining obsolete timers");
+assert.equal(downgraded.timelineVersion, progressed.timelineVersion + 1);
+assert.equal(downgraded.currentStepId, progressed.currentStepId);
+assert.deepEqual(downgraded.timers, progressed.timers, "ready staple preserves an unchanged cooking timeline");
+
+const recipeDowngraded = downgradeLocalMealRun(downgraded, "lower_effort_recipe", { now: "2026-07-22T10:08:00.000Z" });
+assert.equal(recipeDowngraded.timelineVersion, downgraded.timelineVersion + 1);
+assert.deepEqual(recipeDowngraded.recipeIds, ["tomato-egg"]);
+assert.equal(recipeDowngraded.currentStepId, recipeDowngraded.timeline.steps[0].id);
+assert.deepEqual(recipeDowngraded.timers, {}, "a changed recipe starts a new timer epoch");
+
+const higherVersionReset = {
+  ...progressed,
+  timelineVersion: progressed.timelineVersion + 1,
+  currentStepId: progressed.timeline.steps[0].id,
+  timers: {},
+  updatedAt: "2026-07-22T10:04:00.000Z",
+};
+const mergedHigherVersion = mergeLocalMealRun(progressed, higherVersionReset);
+assert.equal(mergedHigherVersion.timelineVersion, higherVersionReset.timelineVersion);
+assert.equal(mergedHigherVersion.currentStepId, higherVersionReset.currentStepId);
+assert.deepEqual(mergedHigherVersion.timers, {}, "a higher timeline epoch is authoritative even with an earlier cursor");
 
 assert.throws(
   () => transitionLocalMealRun(planned, "complete", { now: "2026-07-22T10:10:00.000Z" }),
@@ -146,6 +167,36 @@ const remoteCompleted = { ...completed, id: "remote-run-9", localOnly: false, sy
 const merged = mergeLocalMealRun(completed, remoteCompleted);
 assert.equal(merged.id, "remote-run-9");
 assert.equal(merged.status, "completed");
+
+const completedWithFeedback = transitionLocalMealRun(completed, "feedback", {
+  now: "2026-07-22T10:21:00.000Z",
+  userId: "guest",
+  value: "want_again",
+});
+const equivalentRemoteCompleted = {
+  ...remoteCompleted,
+  feedback: [{
+    userId: "owner-1",
+    value: "want_again",
+    createdAt: "2026-07-22T10:22:00.000Z",
+    updatedAt: "2026-07-22T10:22:00.000Z",
+  }],
+};
+assert.equal(
+  isCompletedGuestRunEquivalent(completedWithFeedback, equivalentRemoteCompleted, "owner-1"),
+  true,
+  "H5 only clears a completed guest run after cursor, timers, completion, and owner feedback converge",
+);
+assert.equal(
+  isCompletedGuestRunEquivalent(completedWithFeedback, { ...equivalentRemoteCompleted, timers: {} }, "owner-1"),
+  false,
+  "a missing remote timer keeps the completed H5 guest record available for retry",
+);
+assert.equal(
+  isCompletedGuestRunEquivalent(completedWithFeedback, { ...equivalentRemoteCompleted, feedback: [] }, "owner-1"),
+  false,
+  "missing owner feedback keeps the completed H5 guest record available for retry",
+);
 
 const abandoned = transitionLocalMealRun(
   createLocalMealRun({ id: "guest-run-2", dateKey: "2026-07-23", effortTier: "easy_30", recipeIds: ["mapo-tofu"] }),

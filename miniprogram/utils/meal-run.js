@@ -7,7 +7,7 @@ const GUEST_RUN_PREFIX = "humi:meal-run:guest:v1:";
 const REMOTE_RUN_PREFIX = "humi:meal-run:remote:v1:";
 const MERGED_RUN_PREFIX = "humi:meal-run:merged:v1:";
 const OPTIMISTIC_PROGRESS_PREFIX = "humi:meal-run:optimistic-progress:v1:";
-const ACTIVE_STATUSES = new Set(["planned", "cooking"]);
+const MERGEABLE_GUEST_STATUSES = new Set(["planned", "cooking", "completed"]);
 const RUN_STATUSES = new Set(["planned", "cooking", "completed", "abandoned"]);
 const EFFORT_TIERS = new Set(["quick_15", "easy_30", "normal"]);
 const recipesById = new Map(certifiedRecipes.map((recipe) => [recipe.id, recipe]));
@@ -81,7 +81,7 @@ async function mergeActiveGuestMealRun({
   const householdId = clean(bootstrap.activeHouseholdId);
   if (!ownerUserId || !householdId) return { merged: false, reason: "no_household", mealRun: null, guestRun: null };
   const guestRun = readActiveGuestMealRun({ ownerUserId, dateKey });
-  if (!guestRun || !ACTIVE_STATUSES.has(guestRun.status)) {
+  if (!guestRun || !MERGEABLE_GUEST_STATUSES.has(guestRun.status)) {
     return { merged: false, reason: "no_guest_run", mealRun: null, guestRun: null };
   }
   if (!canReplaceHouseholdPlan(bootstrap, ownerUserId)) {
@@ -113,6 +113,7 @@ async function mergeActiveGuestMealRun({
           recipeIds: guestRun.recipeIds,
           readyStaple: guestRun.readyStaple || "",
           syncedFromLocalId: guestRun.id,
+          ...(guestRun.startedAt ? { syncedStartedAt: guestRun.startedAt } : {}),
           idempotencyKey,
         },
         idempotencyKey,
@@ -172,7 +173,7 @@ async function migrateGuestRunState({
     return { merged: false, reason: "state_conflict", mealRun: null, guestRun };
   }
   let mealRun = remote;
-  if (guestRun.status === "cooking" && mealRun.status === "planned") {
+  if (["cooking", "completed"].includes(guestRun.status) && mealRun.status === "planned") {
     const idempotencyKey = `guest-merge:${guestRun.id}:start`;
     const result = await requestHumi({
       path: `/meal-runs/${encodeURIComponent(mealRun.id)}/start`,
@@ -185,7 +186,7 @@ async function migrateGuestRunState({
     if (!mealRun) throw codedError("meal_run_response_invalid");
     writeRemoteMealRun(mealRun, ownerUserId);
   }
-  if (guestRun.status === "cooking" && mealRun.status === "cooking") {
+  if (["cooking", "completed"].includes(guestRun.status) && mealRun.status === "cooking") {
     const guestTimers = normalizeActualTimers(guestRun.timers, guestRun.timeline);
     const remoteTimers = normalizeActualTimers(mealRun.timers, mealRun.timeline);
     const orderedGuestTimers = timelineStepIds(guestRun.timeline)
@@ -196,7 +197,11 @@ async function migrateGuestRunState({
       const timerResult = await requestHumi({
         path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
         method: "PUT",
-        data: { currentStepId: timer.stepId, timer },
+        data: {
+          currentStepId: timer.stepId,
+          timelineVersion: Number(mealRun.timelineVersion || 1),
+          timer,
+        },
         idempotencyKey: `guest-merge:${guestRun.id}:timer:${timer.stepId}`,
         expectedUserId: ownerUserId,
       });
@@ -214,7 +219,10 @@ async function migrateGuestRunState({
       const result = await requestHumi({
         path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
         method: "PUT",
-        data: { currentStepId: guestRun.currentStepId },
+        data: {
+          currentStepId: guestRun.currentStepId,
+          timelineVersion: Number(mealRun.timelineVersion || 1),
+        },
         idempotencyKey,
         expectedUserId: ownerUserId,
       });
@@ -227,11 +235,52 @@ async function migrateGuestRunState({
       return { merged: false, reason: "progress_conflict", mealRun: null, guestRun };
     }
   }
+  if (guestRun.status === "completed" && mealRun.status === "cooking") {
+    const completeResult = await requestHumi({
+      path: `/meal-runs/${encodeURIComponent(mealRun.id)}/complete`,
+      method: "POST",
+      data: {},
+      idempotencyKey: `guest-merge:${guestRun.id}:complete`,
+      expectedUserId: ownerUserId,
+    });
+    mealRun = normalizeMealRun(completeResult?.mealRun);
+    if (!mealRun) throw codedError("meal_run_response_invalid");
+    writeRemoteMealRun(mealRun, ownerUserId);
+  }
+  const guestFeedbackValue = guestRun.status === "completed"
+    ? [...(guestRun.feedback || [])].reverse().find((entry) => FEEDBACK_VALUES.has(entry?.value))?.value
+    : "";
+  if (
+    guestFeedbackValue
+    && mealRun.status === "completed"
+    && !(mealRun.feedback || []).some((entry) => entry.userId === ownerUserId && entry.value === guestFeedbackValue)
+  ) {
+    const feedbackResult = await requestHumi({
+      path: `/meal-runs/${encodeURIComponent(mealRun.id)}/feedback`,
+      method: "PUT",
+      data: { value: guestFeedbackValue },
+      idempotencyKey: `guest-merge:${guestRun.id}:feedback:${guestFeedbackValue}`,
+      expectedUserId: ownerUserId,
+    });
+    mealRun = normalizeMealRun(feedbackResult?.mealRun);
+    if (!mealRun) throw codedError("meal_run_response_invalid");
+    writeRemoteMealRun(mealRun, ownerUserId);
+  }
   const remoteIsEquivalent = guestRun.status === "planned"
     ? ["planned", "cooking", "completed"].includes(mealRun.status)
-    : mealRun.status === "cooking" || mealRun.status === "completed";
-  if (!remoteIsEquivalent) {
-    return { merged: false, reason: "state_conflict", mealRun: null, guestRun };
+    : guestRun.status === "cooking"
+      ? mealRun.status === "cooking" || mealRun.status === "completed"
+      : mealRun.status === "completed";
+  if (
+    !remoteIsEquivalent
+    || (guestRun.status === "completed" && !isCompletedGuestRunEquivalent(guestRun, mealRun, ownerUserId))
+  ) {
+    return {
+      merged: false,
+      reason: remoteIsEquivalent ? "progress_conflict" : "state_conflict",
+      mealRun,
+      guestRun,
+    };
   }
   writeRemoteMealRun(mealRun, ownerUserId);
   archiveMergedGuestRun(guestRun, mealRun.id);
@@ -251,6 +300,23 @@ function compareCookingProgress(guestRun, remote) {
   const guestIndex = guestStepIds.indexOf(clean(guestRun.currentStepId));
   const remoteIndex = remoteStepIds.indexOf(clean(remote.currentStepId));
   return guestIndex >= 0 && remoteIndex >= 0 ? remoteIndex - guestIndex : null;
+}
+
+function isCompletedGuestRunEquivalent(guestRun, remote, ownerUserId) {
+  if (guestRun?.status !== "completed" || remote?.status !== "completed") return false;
+  const progressComparison = compareCookingProgress(guestRun, remote);
+  if (progressComparison === null || progressComparison < 0) return false;
+  const guestTimers = normalizeActualTimers(guestRun.timers, guestRun.timeline);
+  const remoteTimers = normalizeActualTimers(remote.timers, remote.timeline);
+  if (Object.entries(guestTimers).some(([stepId, timer]) => !sameActualTimer(timer, remoteTimers[stepId]))) {
+    return false;
+  }
+  const guestFeedbackValue = [...(guestRun.feedback || [])]
+    .reverse()
+    .find((entry) => FEEDBACK_VALUES.has(entry?.value))?.value;
+  return !guestFeedbackValue || (remote.feedback || []).some((entry) => (
+    entry.userId === ownerUserId && entry.value === guestFeedbackValue
+  ));
 }
 
 function timelineStepIds(timeline) {
@@ -353,6 +419,10 @@ async function loadExactMealRun({
 
 function chooseLatestMealRunSnapshot(remote, replayed) {
   if (!remote || !replayed || remote.id !== replayed.id) return remote || replayed || null;
+  const remoteTimelineVersion = Number(remote.timelineVersion || 1);
+  const replayedTimelineVersion = Number(replayed.timelineVersion || 1);
+  if (remoteTimelineVersion > replayedTimelineVersion) return remote;
+  if (replayedTimelineVersion > remoteTimelineVersion) return replayed;
   const mergedTimers = mergeActualTimers(remote.timers, replayed.timers);
   const ranks = { planned: 0, cooking: 1, abandoned: 2, completed: 2 };
   if ((ranks[replayed.status] ?? -1) > (ranks[remote.status] ?? -1)) return { ...replayed, timers: mergedTimers };
@@ -503,6 +573,7 @@ async function progressCookingMealRun(mealRun, {
   }
   return requestMealRunMutation(mealRun, "progress", "PUT", {
     currentStepId,
+    timelineVersion: Number(mealRun.timelineVersion || 1),
     ...(normalizedTimer ? { timer: normalizedTimer } : {}),
   }, { bootstrap, idempotencyKey });
 }
@@ -544,7 +615,9 @@ async function downgradeCookingMealRun(mealRun, action, {
     changedBy: bootstrapUserId(bootstrap) || "guest",
     changedAt: now,
   }];
-  if (next.status === "cooking") {
+  const recipeChanged = !sameStringArray(previousRecipeIds, next.recipeIds);
+  next.timelineVersion = Number(next.timelineVersion || 1) + 1;
+  if (next.status === "cooking" && recipeChanged) {
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
     next.currentStepId = next.timeline.steps[0]?.id || "";
     next.timers = {};
@@ -800,6 +873,10 @@ function sameActualTimer(left, right) {
     && left.stepId === right.stepId
     && left.startedAt === right.startedAt
     && left.endsAt === right.endsAt);
+}
+
+function sameStringArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function writeRemoteMealRun(mealRun, userId) {

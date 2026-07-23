@@ -115,7 +115,14 @@ import {
   updateHumiMealRunProgress,
   uploadPosterShare,
 } from "./lib/humiApi";
-import { completedMealsInWeek, createLocalMealRun, downgradeLocalMealRun, mergeLocalMealRun, transitionLocalMealRun } from "./lib/mealRun";
+import {
+  completedMealsInWeek,
+  createLocalMealRun,
+  downgradeLocalMealRun,
+  isCompletedGuestRunEquivalent,
+  mergeLocalMealRun,
+  transitionLocalMealRun,
+} from "./lib/mealRun";
 import { createActualPassiveTimer } from "./lib/mealExecution";
 import { explainRecommendationViaApi as explainRecommendation } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "./lib/runtime";
@@ -507,49 +514,71 @@ function App() {
           mealSlot: "dinner",
         });
         if (!active) return;
-        if (remote.mealRun) {
-          upsertMealExecutionRun(remote.mealRun);
-          return;
-        }
         const guestRun = mealExecutionRuns.find((run) => (
           run?.householdId === "guest"
           && run.dateKey === todayDateKey
           && run.mealSlot === "dinner"
           && run.status !== "abandoned"
         ));
-        if (!guestRun || !canManageHousehold) return;
-        const created = await createHumiMealRun(humiSession, {
-          householdId: family.id,
-          dateKey: guestRun.dateKey,
-          mealSlot: "dinner",
-          effortTier: guestRun.effortTier,
-          recipeIds: guestRun.recipeIds,
-          readyStaple: guestRun.readyStaple,
-          syncedFromLocalId: guestRun.id,
-          idempotencyKey: `guest-merge:${guestRun.id}`,
-        });
-        let synced = created.mealRun;
+        if (
+          remote.mealRun
+          && (!guestRun || remote.mealRun.syncedFromLocalId !== guestRun.id)
+        ) {
+          upsertMealExecutionRun(remote.mealRun);
+          return;
+        }
+        if (!guestRun || !canManageHousehold) {
+          if (remote.mealRun) upsertMealExecutionRun(remote.mealRun);
+          return;
+        }
+        let synced = remote.mealRun;
+        if (!synced) {
+          const created = await createHumiMealRun(humiSession, {
+            householdId: family.id,
+            dateKey: guestRun.dateKey,
+            mealSlot: "dinner",
+            effortTier: guestRun.effortTier,
+            recipeIds: guestRun.recipeIds,
+            readyStaple: guestRun.readyStaple,
+            syncedFromLocalId: guestRun.id,
+            ...(guestRun.startedAt ? { syncedStartedAt: guestRun.startedAt } : {}),
+            idempotencyKey: `guest-merge:${guestRun.id}`,
+          });
+          synced = created.mealRun;
+        }
         if (["cooking", "completed"].includes(guestRun.status)) {
-          synced = (await startHumiMealRun(humiSession, synced.id)).mealRun;
-          const guestTimers = guestRun.timers || {};
-          for (const step of guestRun.timeline?.steps || []) {
-            const timer = guestTimers[step.id];
-            if (!timer || synced.timers?.[step.id]) continue;
-            synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
-              currentStepId: step.id,
-              timer,
-            })).mealRun;
+          if (synced.status === "planned") synced = (await startHumiMealRun(humiSession, synced.id)).mealRun;
+          if (synced.status === "cooking") {
+            const guestTimers = guestRun.timers || {};
+            for (const step of guestRun.timeline?.steps || []) {
+              const timer = guestTimers[step.id];
+              if (!timer || synced.timers?.[step.id]) continue;
+              synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
+                currentStepId: step.id,
+                timelineVersion: Number(synced.timelineVersion || 1),
+                timer,
+              })).mealRun;
+            }
+            if (guestRun.currentStepId) {
+              synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
+                currentStepId: guestRun.currentStepId,
+                timelineVersion: Number(synced.timelineVersion || 1),
+              })).mealRun;
+            }
           }
-          if (guestRun.currentStepId) {
-            synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
-              currentStepId: guestRun.currentStepId,
-            })).mealRun;
+          if (guestRun.status === "completed" && synced.status === "cooking") {
+            synced = (await completeHumiMealRun(humiSession, synced.id)).mealRun;
           }
-          if (guestRun.status === "completed") synced = (await completeHumiMealRun(humiSession, synced.id)).mealRun;
         }
         const guestFeedback = guestRun.feedback?.at(-1)?.value;
         if (guestFeedback && synced.status === "completed") {
           synced = (await updateHumiMealRunFeedback(humiSession, synced.id, guestFeedback)).mealRun;
+        }
+        if (
+          guestRun.status === "completed"
+          && !isCompletedGuestRunEquivalent(guestRun, synced, humiSession.user?.id)
+        ) {
+          throw new Error("meal_run_guest_merge_incomplete");
         }
         if (active) upsertMealExecutionRun({ ...synced, syncedFromLocalId: guestRun.id }, guestRun.id);
       } catch (error) {
@@ -1394,6 +1423,7 @@ function App() {
       : null;
     await performMealRunTransition("progress", {
       currentStepId: step.id,
+      timelineVersion: Number(activeMealRun.timelineVersion || 1),
       ...(timer ? { timer } : {}),
     });
   }

@@ -504,7 +504,132 @@ async function verifyCookingGuestStateMigration() {
   for (const failureStage of ["create", "start", "progress"]) {
     await verifyCookingGuestMergeRetry(failureStage);
   }
+  for (const failureStage of ["create", "start", "progress", "complete", "feedback"]) {
+    await verifyCompletedGuestMergeRetry(failureStage);
+  }
   await verifySameGuestCompletedRemoteWins();
+}
+
+async function verifyCompletedGuestMergeRetry(failureStage) {
+  const fixture = await createCookingGuestFixture(`completed-retry-${failureStage}`);
+  fixture.localRun.status = "completed";
+  fixture.localRun.completedAt = "2026-07-23T10:30:00.000Z";
+  fixture.localRun.feedback = [{
+    userId: "guest",
+    value: "want_again",
+    createdAt: "2026-07-23T10:31:00.000Z",
+    updatedAt: "2026-07-23T10:31:00.000Z",
+  }];
+  const guestKey = [...fixture.storage.keys()].find((key) => key.startsWith("humi:meal-run:guest:v1:"));
+  fixture.storage.set(guestKey, clone(fixture.localRun));
+  let remote = null;
+  let failed = false;
+  let successfulCompletions = 0;
+  const stageCalls = { create: 0, start: 0, progress: 0, complete: 0, feedback: 0 };
+  const requestHandler = ({ path: pathname, method, data, succeed, fail }) => {
+    if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: remote });
+    let stage = "";
+    if (pathname === "/meal-runs" && method === "POST") stage = "create";
+    if (pathname.endsWith("/start")) stage = "start";
+    if (pathname.endsWith("/progress")) stage = "progress";
+    if (pathname.endsWith("/complete")) stage = "complete";
+    if (pathname.endsWith("/feedback")) stage = "feedback";
+    if (!stage) throw new Error(`Unexpected completed merge request: ${method} ${pathname}`);
+    stageCalls[stage] += 1;
+    if (failureStage === stage && !failed) {
+      failed = true;
+      fail();
+      return;
+    }
+    if (stage === "create") {
+      assert.equal(data.syncedFromLocalId, fixture.localRun.id);
+      assert.equal(data.syncedStartedAt, fixture.localRun.startedAt);
+      remote = remoteRun({
+        id: fixture.remoteId,
+        householdId: fixture.householdId,
+        syncedFromLocalId: fixture.localRun.id,
+        syncedStartedAt: fixture.localRun.startedAt,
+      });
+    }
+    if (stage === "start") {
+      remote = {
+        ...remote,
+        status: "cooking",
+        timelineVersion: fixture.localRun.timelineVersion,
+        timeline: clone(fixture.localRun.timeline),
+        currentStepId: fixture.localRun.timeline.steps[0].id,
+        timers: {},
+        startedAt: fixture.localRun.startedAt,
+      };
+    }
+    if (stage === "progress") {
+      assert.equal(data.timelineVersion, remote.timelineVersion);
+      remote = {
+        ...remote,
+        currentStepId: data.currentStepId,
+        timers: data.timer
+          ? { ...(remote.timers || {}), [data.timer.stepId]: data.timer }
+          : remote.timers || {},
+      };
+    }
+    if (stage === "complete") {
+      if (remote.status !== "completed") successfulCompletions += 1;
+      remote = { ...remote, status: "completed", completedAt: fixture.localRun.completedAt };
+    }
+    if (stage === "feedback") {
+      remote = {
+        ...remote,
+        feedback: [{ userId: fixture.userId, value: data.value }],
+      };
+    }
+    succeed({ mealRun: remote }, stage === "create" ? 201 : 200);
+  };
+  const firstRuntime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler,
+  });
+  const firstMealRuns = firstRuntime.load("miniprogram/utils/meal-run.js");
+  const first = await firstMealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(first.merged, false, `${failureStage}: interrupted completed merge stays local`);
+  assert.equal(first.reason, "offline");
+  assert.equal(
+    firstMealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }).status,
+    "completed",
+  );
+
+  const restartedRuntime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler,
+  });
+  const restartedMealRuns = restartedRuntime.load("miniprogram/utils/meal-run.js");
+  const second = await restartedMealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(second.merged, true, `${failureStage}: App restart converges the completed guest run`);
+  assert.equal(second.mealRun.status, "completed");
+  assert.deepEqual(plain(second.mealRun.timers), plain(fixture.localRun.timers));
+  assert.equal(second.mealRun.feedback.find((entry) => entry.userId === fixture.userId)?.value, "want_again");
+  assert.equal(successfulCompletions, 1, "a completed guest dinner is counted exactly once");
+  assert.equal(
+    restartedMealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }),
+    null,
+    "the local completed run is archived only after remote completion and feedback converge",
+  );
+  const repeated = await restartedMealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(repeated.reason, "no_guest_run");
+  assert.equal(successfulCompletions, 1);
+  assert.equal(stageCalls[failureStage], 2, `${failureStage}: only the interrupted stage is retried`);
 }
 
 async function verifyTwoTimerGuestMerge() {

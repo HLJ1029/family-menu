@@ -57,6 +57,7 @@ await verifyDelayedActualPassiveTimers();
 await verifyParallelActualPassiveTimers();
 await verifyConsecutiveActualPassiveTimers();
 verifyCertifiedActualTimerReachability();
+verifyTimelineVersionAuthorityAndOverlay();
 await verifyPassiveConcurrencyAndBackgroundRestore();
 await verifyConsecutivePassiveRecovery();
 await verifyCertifiedAutoPassiveCases();
@@ -256,6 +257,51 @@ function verifyCertifiedActualTimerReachability() {
   assert(maxParallelTimers >= 2, "the certified catalog exercises at least two simultaneous actual passive timers");
 }
 
+function verifyTimelineVersionAuthorityAndOverlay() {
+  const actualTimer = {
+    stepId: timeline.steps[1].id,
+    startedAt: timeline.steps[1].startsAt,
+    endsAt: timeline.steps[1].endsAt,
+  };
+  const oldRun = remoteRun({
+    status: "cooking",
+    timelineVersion: 1,
+    currentStepId: timeline.steps[2].id,
+    timers: { [actualTimer.stepId]: actualTimer },
+    downgrades: [],
+  });
+  const higherVersionReset = {
+    ...oldRun,
+    timelineVersion: 2,
+    currentStepId: timeline.steps[0].id,
+    timers: {},
+    downgrades: [{ action: "lower_effort_recipe" }],
+  };
+  const runtime = createRuntime({ initialRun: oldRun });
+  const pageHelpers = runtime.load("miniprogram/packageCooking/pages/cooking/index.js");
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const authoritative = pageHelpers.chooseMonotonicMealRun(oldRun, higherVersionReset);
+  assert.equal(authoritative.timelineVersion, 2);
+  assert.equal(authoritative.currentStepId, timeline.steps[0].id);
+  assert.deepEqual(clone(authoritative.timers), {}, "a higher timeline epoch clears obsolete timers even with identical step ids");
+  const ignoredStale = pageHelpers.chooseMonotonicMealRun(higherVersionReset, oldRun);
+  assert.equal(ignoredStale.timelineVersion, 2);
+  assert.deepEqual(clone(ignoredStale.timers), {});
+
+  mealRuns.writeOptimisticMealProgress(oldRun, {
+    ownerUserId: "owner-1",
+    currentStepId: timeline.steps[2].id,
+    timer: actualTimer,
+  });
+  const afterEpochChange = mealRuns.applyOptimisticMealProgress(higherVersionReset, "owner-1");
+  assert.equal(afterEpochChange.currentStepId, timeline.steps[0].id);
+  assert.deepEqual(clone(afterEpochChange.timers), {}, "an old offline overlay cannot cross a timeline epoch");
+  assert(
+    !runtime.storageEntries().some(([key]) => key.startsWith("humi:meal-run:optimistic-progress:v1:")),
+    "the stale optimistic overlay is deleted after an epoch change",
+  );
+}
+
 async function verifyAuthenticatedLifecycle() {
   let active = remoteRun({ status: "planned" });
   const calls = [];
@@ -309,6 +355,11 @@ async function verifyAuthenticatedLifecycle() {
   await page.advanceStep({ currentTarget: { dataset: { stepId: timeline.steps[0].id } } });
   assert.equal(page.data.mealRun.currentStepId, timeline.steps[1].id);
   assert.equal(page.data.runningTimers.length, 1);
+  assert.equal(
+    calls.find((call) => call.path.endsWith("/progress"))?.data?.timelineVersion,
+    1,
+    "every progress mutation carries its expected timeline epoch",
+  );
   await page.advanceStep({ currentTarget: { dataset: { stepId: timeline.steps[1].id } } });
   assert.equal(page.data.mealRun.currentStepId, timeline.steps[2].id);
 
@@ -542,45 +593,6 @@ async function verifyCertifiedAutoPassiveCases() {
       )),
       `${contract.recipeIds.join("+")}: automatic progress starts the successor's actual full-duration timer`,
     );
-  }
-}
-
-function verifyCertifiedTimelineReachability() {
-  const runtime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
-  const recipes = runtime.load("miniprogram/data/certified-recipes.js");
-  const timelineHelpers = runtime.load("miniprogram/utils/meal-timeline.js");
-  const idsByTier = new Map();
-  for (const recipe of recipes) {
-    const ids = idsByTier.get(recipe.cookAssist.effortTier) || [];
-    ids.push(recipe.id);
-    idsByTier.set(recipe.cookAssist.effortTier, ids);
-  }
-  const cases = recipes.map((recipe) => [recipe.id]);
-  for (const ids of idsByTier.values()) {
-    for (let left = 0; left < ids.length; left += 1) {
-      for (let right = left + 1; right < ids.length; right += 1) cases.push([ids[left], ids[right]]);
-    }
-  }
-  assert.equal(cases.length, 165);
-  for (const recipeIds of cases) {
-    const candidateTimeline = timelineHelpers.buildMealTimeline(recipeIds, {
-      startedAt: "2026-07-23T10:00:00.000Z",
-    });
-    let currentStepId = candidateTimeline.steps[0].id;
-    let now = candidateTimeline.steps[0].startsAt;
-    let guard = 0;
-    while (timelineHelpers.nextTimelineStep(candidateTimeline, currentStepId)) {
-      assert(guard++ < candidateTimeline.steps.length * 2, `${recipeIds.join("+")}: presentation must not loop`);
-      const candidate = timelineHelpers.nextTimelineStep(candidateTimeline, currentStepId);
-      let available = timelineHelpers.nextAvailableTimelineStep(candidateTimeline, currentStepId, now);
-      if (!available) {
-        now = candidate.startsAt;
-        available = timelineHelpers.nextAvailableTimelineStep(candidateTimeline, currentStepId, now);
-      }
-      assert.equal(available?.id, candidate.id, `${recipeIds.join("+")}: every scheduled successor becomes reachable`);
-      currentStepId = available.id;
-    }
-    assert.equal(currentStepId, candidateTimeline.steps.at(-1).id, `${recipeIds.join("+")}: presentation reaches the final step`);
   }
 }
 

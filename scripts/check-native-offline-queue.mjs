@@ -151,7 +151,7 @@ async function nextTask() {
     mealRunId: "must-not-be-a-product-event-field"
   }), /offline_product_event_unsafe|offline_action_invalid/, "product events must reject caller-controlled data, path, method, and meal mutation fields");
   assert.equal(storage.size, storageSizeBeforeBypass, "an unsafe product event must not write any queue storage");
-  queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1, data: { currentStepId: "step-1" } });
+  queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
   queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h1", mealRunId: "r1", createdAt: 2 });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["a", "b"]);
   queue.enqueueMutation({ id: "c", type: "meal_feedback", householdId: "h0", mealRunId: "r2", createdAt: 3, data: { value: "want_again" } });
@@ -161,7 +161,7 @@ async function nextTask() {
 {
   const schemaCases = [
     {
-      action: { id: "progress-schema", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1" } },
+      action: { id: "progress-schema", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } },
       forbidden: { event: "bootstrap_completed" }
     },
     {
@@ -202,6 +202,7 @@ async function nextTask() {
     createdAt: 1,
     data: {
       currentStepId: "step-1",
+      timelineVersion: 2,
       timer: {
         stepId: "step-1",
         startedAt: "2026-07-23T10:03:00.000Z",
@@ -210,6 +211,22 @@ async function nextTask() {
     },
   }));
   assert.throws(() => queue.enqueueMutation({
+    id: "invalid-timeline-version",
+    type: "meal_progress",
+    householdId: "h",
+    mealRunId: "r",
+    createdAt: 1,
+    data: { currentStepId: "step-1", timelineVersion: 0 },
+  }), /offline_action_invalid/);
+  assert.throws(() => queue.enqueueMutation({
+    id: "missing-timeline-version",
+    type: "meal_progress",
+    householdId: "h",
+    mealRunId: "r",
+    createdAt: 1,
+    data: { currentStepId: "step-1" },
+  }), /offline_action_invalid/);
+  assert.throws(() => queue.enqueueMutation({
     id: "actual-step-timer-extra",
     type: "meal_progress",
     householdId: "h",
@@ -217,6 +234,7 @@ async function nextTask() {
     createdAt: 1,
     data: {
       currentStepId: "step-1",
+      timelineVersion: 1,
       timer: {
         stepId: "step-1",
         startedAt: "2026-07-23T10:03:00.000Z",
@@ -231,7 +249,7 @@ async function nextTask() {
     householdId: "h",
     mealRunId: "r",
     createdAt: 1,
-    data: { currentStepId: "step-1", timerEndsAt: "2026-07-23T10:03:00.000Z" },
+    data: { currentStepId: "step-1", timelineVersion: 1, timerEndsAt: "2026-07-23T10:03:00.000Z" },
   }));
   for (const timerEndsAt of ["1", "2026-07-23", "2026-07-23T10:03:00Z", "2026-07-23T10:03:00.000+00:00"]) {
     assert.throws(() => queue.enqueueMutation({
@@ -240,7 +258,7 @@ async function nextTask() {
       householdId: "h",
       mealRunId: "r",
       createdAt: 2,
-      data: { currentStepId: "step-1", timerEndsAt },
+      data: { currentStepId: "step-1", timelineVersion: 1, timerEndsAt },
     }), /offline_action_invalid/, `timerEndsAt must reject non-canonical input ${timerEndsAt}`);
   }
 }
@@ -318,7 +336,7 @@ async function nextTask() {
     householdId: "h1",
     mealRunId: "r1",
     createdAt: 1,
-    data: { currentStepId: "step-2" },
+    data: { currentStepId: "step-2", timelineVersion: 1 },
     ownerUserId: "caller-spoof"
   });
   assert.equal(stored.ownerUserId, "user-a", "the queue owner must come from the trusted native session");
@@ -330,7 +348,7 @@ async function nextTask() {
       householdId: "h1",
       mealRunId: "r1",
       createdAt: 1,
-      data: { currentStepId: "step-2" },
+      data: { currentStepId: "step-2", timelineVersion: 1 },
       ownerUserId: "user-a"
     },
     "persisted actions must use an explicit top-level projection",
@@ -342,7 +360,7 @@ async function nextTask() {
       householdId: "h1",
       mealRunId: "r1",
       createdAt: 2,
-      data: { currentStepId: "step-3" },
+      data: { currentStepId: "step-3", timelineVersion: 1 },
       privateTopLevel: "must-not-persist"
     }),
     /offline_action_invalid/,
@@ -353,10 +371,10 @@ async function nextTask() {
 {
   const { queue } = createRuntime();
   for (let index = 0; index < 100; index += 1) {
-    queue.enqueueMutation({ id: `a-${index}`, type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: index, data: { currentStepId: `step-${index}` } });
+    queue.enqueueMutation({ id: `a-${index}`, type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: index, data: { currentStepId: `step-${index}`, timelineVersion: 1 } });
   }
-  assert.throws(() => queue.enqueueMutation({ id: "one-too-many", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 101, data: { currentStepId: "step-101" } }), /offline_queue_full/);
-  assert.throws(() => queue.enqueueMutation({ id: "unsafe-large", type: "meal_progress", householdId: "h2", mealRunId: "r2", createdAt: 1, data: { currentStepId: "step-1", message: "x".repeat(256 * 1024) } }), /offline_action_invalid/);
+  assert.throws(() => queue.enqueueMutation({ id: "one-too-many", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 101, data: { currentStepId: "step-101", timelineVersion: 1 } }), /offline_queue_full/);
+  assert.throws(() => queue.enqueueMutation({ id: "unsafe-large", type: "meal_progress", householdId: "h2", mealRunId: "r2", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1, message: "x".repeat(256 * 1024) } }), /offline_action_invalid/);
 }
 
 {
@@ -389,7 +407,7 @@ async function nextTask() {
 
 {
   const { queue, session } = createRuntime();
-  queue.enqueueMutation({ id: "switch-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1" } });
+  queue.enqueueMutation({ id: "switch-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
   queue.setMutationReplayer(async () => {
     session.saveSession({ accessToken: "token-user-b", expiresAt: Date.now() + 60_000, user: { id: "user-b" } });
   });
@@ -404,7 +422,7 @@ async function nextTask() {
 
 {
   const { queue, storage } = createRuntime();
-  queue.enqueueMutation({ id: "tampered-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1" } });
+  queue.enqueueMutation({ id: "tampered-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
   const queueStorageKey = Array.from(storage.keys()).find((key) => key.startsWith("humi:offline-queue:v1:"));
   storage.set(queueStorageKey, [{ ...storage.get(queueStorageKey)[0], ownerUserId: "user-b" }]);
   let replayCount = 0;
@@ -420,7 +438,7 @@ async function nextTask() {
 
 {
   const { queue, session } = createRuntime();
-  queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1" } });
+  queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
   queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 2 });
   const replayed = [];
   queue.setMutationReplayer(async (action) => {

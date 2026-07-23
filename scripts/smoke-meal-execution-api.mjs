@@ -94,17 +94,69 @@ try {
   });
   assert.equal(repeatedStart.mealRun.startedAt, started.mealRun.startedAt, "start must be idempotent");
 
+  const importedStartedAt = new Date(Date.now() - 30 * 60_000).toISOString();
+  const importedDateKey = new Date(Date.parse(importedStartedAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
+  const importedPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: {
+      ...mealPlan(householdId, importedDateKey, "imported-guest-run"),
+      recipeIds: ["cola-wings"],
+      effortTier: "normal",
+      syncedFromLocalId: "guest-completed-run",
+      syncedStartedAt: importedStartedAt,
+    },
+  });
+  const importedStarted = await request(`${baseUrl}/meal-runs/${importedPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: owner,
+    body: {},
+  });
+  assert.equal(importedStarted.mealRun.startedAt, importedStartedAt, "a controlled guest merge preserves its historical cooking start");
+  const importedPassiveStep = importedStarted.mealRun.timeline.steps.find((step) => step.attention === "passive");
+  const importedTimer = actualTimer(
+    importedPassiveStep,
+    new Date(Date.parse(importedStartedAt) + 60_000).toISOString(),
+  );
+  const importedProgress = await request(`${baseUrl}/meal-runs/${importedPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: {
+      currentStepId: importedPassiveStep.id,
+      timelineVersion: importedStarted.mealRun.timelineVersion,
+      timer: importedTimer,
+    },
+  });
+  assert.deepEqual(importedProgress.mealRun.timers[importedPassiveStep.id], importedTimer, "historical guest timers remain bounded by the imported start");
+  await request(`${baseUrl}/meal-runs/${importedPlan.mealRun.id}/abandon`, {
+    method: "POST",
+    session: owner,
+    body: { reason: "plans_changed" },
+  });
+
   await assertRejected(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: "unknown-step" },
+    body: {
+      currentStepId: "unknown-step",
+      timelineVersion: started.mealRun.timelineVersion,
+    },
   }, 400, "meal_step_invalid");
+  await assertRejected(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: started.mealRun.currentStepId },
+  }, 409, "meal_timeline_version_conflict");
   const [, secondStep, thirdStep, fourthStep] = started.mealRun.timeline.steps;
   assert(fourthStep, "monotonic progress smoke requires at least four certified timeline steps");
   const memberProgressed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: thirdStep.id, timerEndsAt: thirdStep.endsAt },
+    body: {
+      currentStepId: thirdStep.id,
+      timelineVersion: started.mealRun.timelineVersion,
+      timerEndsAt: thirdStep.endsAt,
+    },
   });
   assert.equal(memberProgressed.mealRun.currentStepId, thirdStep.id);
   assert.deepEqual(memberProgressed.mealRun.timers, {}, "legacy singular timer input cannot drive actual cooking timers");
@@ -113,7 +165,11 @@ try {
   const staleGuestProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
-    body: { currentStepId: secondStep.id, timerEndsAt: secondStep.endsAt },
+    body: {
+      currentStepId: secondStep.id,
+      timelineVersion: started.mealRun.timelineVersion,
+      timerEndsAt: secondStep.endsAt,
+    },
   });
   assert.equal(staleGuestProgress.mealRun.currentStepId, thirdStep.id, "a stale guest step must not roll back family progress");
   assert.equal(staleGuestProgress.mealRun.timerEndsAt, "", "legacy singular timer remains compatibility-only");
@@ -123,7 +179,11 @@ try {
   const staleSameStepTimer = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
-    body: { currentStepId: thirdStep.id, timerEndsAt: secondStep.endsAt },
+    body: {
+      currentStepId: thirdStep.id,
+      timelineVersion: started.mealRun.timelineVersion,
+      timerEndsAt: secondStep.endsAt,
+    },
   });
   assert.equal(staleSameStepTimer.mealRun.currentStepId, thirdStep.id);
   assert.equal(staleSameStepTimer.mealRun.timerEndsAt, "");
@@ -133,14 +193,22 @@ try {
   const repeatedProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: thirdStep.id, timerEndsAt: thirdStep.endsAt },
+    body: {
+      currentStepId: thirdStep.id,
+      timelineVersion: started.mealRun.timelineVersion,
+      timerEndsAt: thirdStep.endsAt,
+    },
   });
   assert.equal(repeatedProgress.mealRun.updatedAt, memberProgressUpdatedAt, "identical progress must be idempotent");
 
   const advancedProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: fourthStep.id, timerEndsAt: fourthStep.endsAt },
+    body: {
+      currentStepId: fourthStep.id,
+      timelineVersion: started.mealRun.timelineVersion,
+      timerEndsAt: fourthStep.endsAt,
+    },
   });
   assert.equal(advancedProgress.mealRun.currentStepId, fourthStep.id, "a later timeline step must advance");
   assert.equal(advancedProgress.mealRun.timerEndsAt, "");
@@ -209,6 +277,9 @@ try {
   });
   const timerPassive = timerStarted.mealRun.timeline.steps.find((step) => step.attention === "passive");
   const timerActive = timerStarted.mealRun.timeline.steps.find((step) => step.attention === "active");
+  while (Date.now() <= Date.parse(timerStarted.mealRun.startedAt)) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
   const actualTimerStartedAt = new Date().toISOString();
   const validActualTimer = {
     stepId: timerPassive.id,
@@ -217,7 +288,11 @@ try {
   };
   const futureActualTimer = actualTimer(
     timerPassive,
-    new Date(Date.now() + 10 * 60_000).toISOString(),
+    new Date(Date.now() + 60_000).toISOString(),
+  );
+  const beforeRunActualTimer = actualTimer(
+    timerPassive,
+    new Date(Date.parse(timerStarted.mealRun.startedAt) - 60_000).toISOString(),
   );
   for (const [timer, code] of [
     [{ ...validActualTimer, stepId: "unknown-step" }, "meal_timer_step_invalid"],
@@ -226,29 +301,43 @@ try {
     [{ ...validActualTimer, endsAt: new Date(Date.parse(validActualTimer.endsAt) + 1000).toISOString() }, "meal_timer_duration_invalid"],
     [{ ...validActualTimer, startedAt: actualTimerStartedAt.replace(/\.\d{3}Z$/, "Z") }, "meal_timer_time_invalid"],
     [futureActualTimer, "meal_timer_time_invalid"],
+    [beforeRunActualTimer, "meal_timer_time_invalid"],
     [{ ...validActualTimer, note: "must-not-persist" }, "meal_timer_step_invalid"],
   ]) {
     await assertRejected(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
       method: "PUT",
       session: member,
-      body: { currentStepId: timerPassive.id, timer },
+      body: {
+        currentStepId: timerPassive.id,
+        timelineVersion: timerStarted.mealRun.timelineVersion,
+        timer,
+      },
     }, 400, code);
   }
   const actualTimerProgress = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: timerPassive.id, timer: validActualTimer },
+    body: {
+      currentStepId: timerPassive.id,
+      timelineVersion: timerStarted.mealRun.timelineVersion,
+      timer: validActualTimer,
+    },
   });
   assert.deepEqual(actualTimerProgress.mealRun.timers[timerPassive.id], validActualTimer);
-  const conflictingButValidTimer = {
-    ...validActualTimer,
-    startedAt: new Date(Date.parse(validActualTimer.startedAt) + 60_000).toISOString(),
-    endsAt: new Date(Date.parse(validActualTimer.endsAt) + 60_000).toISOString(),
-  };
+  const conflictingButValidTimer = actualTimer(timerPassive, timerStarted.mealRun.startedAt);
+  assert.notDeepEqual(
+    conflictingButValidTimer,
+    validActualTimer,
+    "the immutable first-write check needs two distinct valid non-future timers",
+  );
   const repeatedActualTimer = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
-    body: { currentStepId: timerPassive.id, timer: conflictingButValidTimer },
+    body: {
+      currentStepId: timerPassive.id,
+      timelineVersion: timerStarted.mealRun.timelineVersion,
+      timer: conflictingButValidTimer,
+    },
   });
   assert.deepEqual(repeatedActualTimer.mealRun.timers[timerPassive.id], validActualTimer, "a second member cannot restart or extend an existing timer");
   const downgradedTimerRun = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/downgrade`, {
@@ -256,7 +345,34 @@ try {
     session: member,
     body: { action: "ready_staple" },
   });
-  assert.deepEqual(downgradedTimerRun.mealRun.timers, {}, "downgrade resets timers for the replacement timeline");
+  assert.equal(downgradedTimerRun.mealRun.timelineVersion, timerStarted.mealRun.timelineVersion + 1);
+  assert.equal(downgradedTimerRun.mealRun.currentStepId, repeatedActualTimer.mealRun.currentStepId);
+  assert.deepEqual(
+    downgradedTimerRun.mealRun.timers,
+    repeatedActualTimer.mealRun.timers,
+    "a ready-staple downgrade invalidates stale writes without resetting an unchanged cooking timeline",
+  );
+  await assertRejected(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: {
+      currentStepId: timerPassive.id,
+      timelineVersion: timerStarted.mealRun.timelineVersion,
+      timer: validActualTimer,
+    },
+  }, 409, "meal_timeline_version_conflict");
+  const recipeDowngradedTimerRun = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/downgrade`, {
+    method: "POST",
+    session: owner,
+    body: { action: "lower_effort_recipe" },
+  });
+  assert.equal(recipeDowngradedTimerRun.mealRun.timelineVersion, downgradedTimerRun.mealRun.timelineVersion + 1);
+  assert.deepEqual(recipeDowngradedTimerRun.mealRun.recipeIds, ["tomato-egg"]);
+  assert.deepEqual(recipeDowngradedTimerRun.mealRun.timers, {}, "a real recipe downgrade resets obsolete timers");
+  assert.equal(
+    recipeDowngradedTimerRun.mealRun.currentStepId,
+    recipeDowngradedTimerRun.mealRun.timeline.steps[0].id,
+  );
 
   const parallelTimerPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",
@@ -280,12 +396,20 @@ try {
   await request(`${baseUrl}/meal-runs/${parallelTimerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: colaTimerStep.id, timer: colaTimer },
+    body: {
+      currentStepId: colaTimerStep.id,
+      timelineVersion: parallelStarted.mealRun.timelineVersion,
+      timer: colaTimer,
+    },
   });
   const twoTimers = await request(`${baseUrl}/meal-runs/${parallelTimerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
-    body: { currentStepId: shiitakeTimerStep.id, timer: shiitakeTimer },
+    body: {
+      currentStepId: shiitakeTimerStep.id,
+      timelineVersion: parallelStarted.mealRun.timelineVersion,
+      timer: shiitakeTimer,
+    },
   });
   assert.deepEqual(Object.keys(twoTimers.mealRun.timers).sort(), [colaTimerStep.id, shiitakeTimerStep.id].sort());
 
@@ -309,13 +433,18 @@ try {
   await request(`${baseUrl}/meal-runs/${resourceTimerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: firstSteamerTimerStep.id, timer: firstSteamerTimer },
+    body: {
+      currentStepId: firstSteamerTimerStep.id,
+      timelineVersion: resourceStarted.mealRun.timelineVersion,
+      timer: firstSteamerTimer,
+    },
   });
   await assertRejected(`${baseUrl}/meal-runs/${resourceTimerPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
     body: {
       currentStepId: nextSteamerTimerStep.id,
+      timelineVersion: resourceStarted.mealRun.timelineVersion,
       timer: actualTimer(nextSteamerTimerStep, firstSteamerTimer.startedAt),
     },
   }, 409, "meal_timer_dependency_blocked");
@@ -340,12 +469,20 @@ try {
   await request(`${baseUrl}/meal-runs/${resourceOverlapPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: fishTimerStep.id, timer: actualTimer(fishTimerStep, sharedSteamerStartedAt) },
+    body: {
+      currentStepId: fishTimerStep.id,
+      timelineVersion: resourceOverlapStarted.mealRun.timelineVersion,
+      timer: actualTimer(fishTimerStep, sharedSteamerStartedAt),
+    },
   });
   await assertRejected(`${baseUrl}/meal-runs/${resourceOverlapPlan.mealRun.id}/progress`, {
     method: "PUT",
     session: owner,
-    body: { currentStepId: chickenTimerStep.id, timer: actualTimer(chickenTimerStep, sharedSteamerStartedAt) },
+    body: {
+      currentStepId: chickenTimerStep.id,
+      timelineVersion: resourceOverlapStarted.mealRun.timelineVersion,
+      timer: actualTimer(chickenTimerStep, sharedSteamerStartedAt),
+    },
   }, 409, "meal_timer_resource_busy");
 
   const abandonedPlan = await request(`${baseUrl}/meal-runs`, {
