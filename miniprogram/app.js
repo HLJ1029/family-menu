@@ -1,27 +1,31 @@
-const NATIVE_SESSION_KEY = "humi:native-session:v1";
+const { restoreSession, saveSession, clearSession } = require("./utils/session");
+const { flushMutationQueue } = require("./utils/offline-queue");
+const { HUMI_NATIVE_SHELL_CANDIDATE } = require("./utils/config");
 
 App({
   globalData: {
     humiSession: null,
     humiIdentityUpdatedAt: 0,
-    humiPhoneSessionUpdatedAt: 0
+    humiPhoneSessionUpdatedAt: 0,
+    nativeShellCandidate: false
   },
 
   onLaunch() {
-    const stored = wx.getStorageSync(NATIVE_SESSION_KEY);
-    this.globalData.humiSession = stored?.accessToken && stored?.expiresAt > Date.now()
-      ? stored
-      : null;
-    if (!this.globalData.humiSession) wx.removeStorageSync(NATIVE_SESSION_KEY);
+    this.globalData.humiSession = restoreSession();
+    this.globalData.nativeShellCandidate = HUMI_NATIVE_SHELL_CANDIDATE;
+  },
+
+  onShow() {
+    flushMutationQueue().catch(() => undefined);
   },
 
   setHumiSession(session) {
     this.globalData.humiSession = session;
-    wx.setStorageSync(NATIVE_SESSION_KEY, session);
+    saveSession(session);
   },
 
   clearHumiSession() {
     this.globalData.humiSession = null;
-    wx.removeStorageSync(NATIVE_SESSION_KEY);
+    clearSession();
   }
 });

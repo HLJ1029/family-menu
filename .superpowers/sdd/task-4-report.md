@@ -1,61 +1,79 @@
-# Task 4 — Members, Settings, Activity and Account Pages
+# Task 4 — Native Session, Request, Cache, Telemetry, and Offline Foundations
 
 ## Status
 
-Completed locally on 2026-07-19. No production API, deployment, WeChat review, or publish action was performed.
+Implemented on baseline `682ea4cdd1ab5e1201af3c0d94886f2eda4310cd`. Scope is limited to the N1 native platform utilities, lifecycle wiring, package scripts, and their mocked-`wx` contracts. No API, deployment, upload, identity UI, tab/boot page, Supabase, or advertising code was changed.
 
-## RED → GREEN evidence
+## TDD evidence
 
-- RED: local product smoke against `http://127.0.0.1:4173/` failed at 2026-07-19T14:19:48Z because `household-members-page` did not exist. Evidence: `/Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260719T141908Z/manifest.json`.
-- GREEN: local product smoke passed at 2026-07-19T14:32:44Z. Evidence: `/Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260719T143253Z/manifest.json`.
-  - It opens all four living-room child pages, returns to the living room, and retains five primary tabs.
-  - It checks owner controls and the absence of member invite/remove/transfer and `邀请家人写想吃` controls.
-  - It checks settings-based multi-household switching, the valid Dashboard nutrition path, truthful avatar/phone/link display, and metadata-only lifecycle preservation.
-- Correction RED: the expanded local smoke failed at 2026-07-19T14:40:11Z because an owner with other formal members could still activate leave, and remove/transfer metadata-refresh evidence was absent. Evidence: `/Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260719T143925Z/manifest.json`.
-- Correction GREEN: local product smoke passed at 2026-07-19T14:47:41Z. Evidence: `/Users/honglijie/.humi-release-evidence/product-entrypoint-smoke-20260719T144656Z/manifest.json`.
-  - The isolated three-member owner fixture runs rename, confirmed remove, and confirmed transfer against metadata-only envelopes.
-  - After every returned envelope it verifies menu, meal plan, and household constraints persist; remove and transfer also verify formal members, ownership role, and refreshed avatar data.
-  - The owner leave button is disabled with `先转让主厨后再退出` while other formal members exist, so the known-doomed request is never sent.
+### RED
+
+1. After adding the two contract scripts, ran:
+
+   ```sh
+   npm run validate:native-session; native_session_status=$?; npm run validate:native-offline; native_offline_status=$?; exit $(( native_session_status || native_offline_status ))
+   ```
+
+   Both scripts failed as intended with `Error: Cannot find module '.../miniprogram/utils/errors.js'`.
+
+2. Added the `product_event` privacy test and ran:
+
+   ```sh
+   npm run validate:native-offline
+   ```
+
+   It failed with `AssertionError [ERR_ASSERTION]: Missing expected exception`, proving an event carrying `nickname` was still accepted.
+
+3. Added bounded multi-batch flush coverage and ran the same command. It failed with:
+
+   ```text
+   AssertionError [ERR_ASSERTION]: flush must drain remaining events in bounded batches
+   actual: [20]
+   expected: [20, 5]
+   ```
+
+### GREEN
+
+After each minimal implementation increment, the focused scripts passed. Final fresh command:
+
+```sh
+npm run validate:native-session && npm run validate:native-offline && npm run validate:miniprogram-entry && npm run validate:native-bootstrap-api && /Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+Key output:
+
+```text
+Native session foundation contract passed.
+Native offline, cache, telemetry, and store foundation contract passed.
+Mini-program entrypoint resilience checks passed.
+Native bootstrap API contract passed.
+Secret scan passed.
+```
+
+`validate:miniprogram-entry` intentionally emitted its existing mocked `Humi web-view error { errMsg: 'domain blocked' }` diagnostic before reporting success.
 
 ## Implementation
 
-- Added focused members, household settings, activity, and account pages, routed inside `UserCenter` so they remain under the existing My Home tab.
-- Added complete-session H5 lifecycle callbacks in `main.jsx` for rename, remove, transfer, and leave. They update state only after the Task 2 client returns.
-- Added `preserveStateWhenMissing` to the state hydrator. Rename/remove/transfer responses contain household metadata but no state, so their fresh authoritative member data now updates without clearing menu, meal plan, logs, or preferences. The preserve branch keeps only existing non-formal collaborators beside the refreshed formal membership.
-- Re-enabled the multi-household, owner-managed household-constraints, and nutrition product-review gates.
-- Account/member avatars use server `avatarUrl` when available; the account page uses `phoneVerified` plus `phoneMasked` and honestly displays `未绑定` otherwise. Policy links target `/privacy.html` and `/terms.html`.
+- `miniprogram/utils/errors.js`: typed `HumiRequestError` with status, code, retryability, and conflict envelope/version metadata.
+- `miniprogram/utils/session.js` and `request.js`: expiry-safe storage; WeChat login; single-flight refresh; one GET/idempotent replay only; second `401` clears storage and returns `invalid_session`; sensitive request headers are never logged.
+- `miniprogram/utils/cache.js`: per-household cache schema v1 with a seven-day TTL. It stores a local read envelope only and is never a shared-state source of truth.
+- `miniprogram/utils/telemetry.js`: event and field allowlists, sanitization of identity/secrets/free text, 20-event maximum batches, and the `startSpan("bootstrap", ...)` contract for Task 5.
+- `miniprogram/utils/offline-queue.js`: strict action allowlist, ordered household/MealRun replay, 100-action/256-KB bounds, conflict stop, retry stop, and non-retryable dead-letter handling. Queued `product_event` uses the same privacy-safe telemetry allowlist.
+- `miniprogram/utils/store.js`: a narrow observable in-memory app store.
+- `miniprogram/app.js`: restores session and marks the package as a native-shell candidate during launch; attempts queue flushes on foreground.
+- `miniprogram/utils/config.js` and `package.json`: central native constants plus `validate:native-session` and `validate:native-offline` commands.
+- `scripts/check-native-session.mjs` and `scripts/check-native-offline-queue.mjs`: mocked-`wx` contract coverage for all foundations above.
 
-## Commit and scope
+## Self-review
 
-- `ab6c46d feat: add Humi family management pages`
-  - `src/components/HouseholdMembersPage.jsx`
-  - `src/components/HouseholdSettingsPage.jsx`
-  - `src/components/FamilyActivityPage.jsx`
-  - `src/components/HumiAccountPage.jsx`
-  - `src/components/UserCenter.jsx`
-  - `src/main.jsx`
-  - `scripts/smoke-product-entrypoints.mjs`
-  - `scripts/check-product-review-readiness.mjs`
-- `45b3322 fix: preserve household lifecycle state`
-  - `src/components/HouseholdSettingsPage.jsx`
-  - `scripts/smoke-product-entrypoints.mjs`
-  - `scripts/check-product-review-readiness.mjs`
+- A `401` cannot cause more than one `wx.login` or one authenticated replay. Non-GET requests without an idempotency key do not refresh/replay.
+- `Authorization`, `X-Humi-Idempotency-Key`, and `If-Match` are only sent when present and no utility logs request headers.
+- Cache key includes schema v1 and household ID; invalid/expired cache is removed before returning `null`.
+- Only the six specified offline action types are accepted. Conflicts retain the current action and stop later replay; non-retryable failures are retained only as `{ id, code }` dead letters.
+- Telemetry permits declared event/field values only; nickname, token, URL query, note, and arbitrary error-message fields are discarded or rejected for queued product events.
+- `git diff --check` and the AI-HQ secret scan are clean.
 
-The parent-owned `docs/superpowers/plans/2026-07-19-humi-family-living-room.md` change was deliberately not staged or committed.
+## Follow-up / concerns
 
-## Validation
-
-- `npm run release:product:smoke -- --base-url http://127.0.0.1:4173/` — passed.
-- `npm run release:collaboration:smoke -- --base-url http://127.0.0.1:4173/` — passed.
-- `npm run validate:identity` — passed.
-- `npm run release:product:review` — passed with no deferred gates.
-- `npm run build` — passed; only the pre-existing Vite chunk-size warning remains.
-- `git diff --check` — passed.
-- `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` — passed.
-
-## Self-review and concerns
-
-- Reviewed lifecycle responses against `api/server.js`: rename/remove/transfer omit `state`; the explicit preservation branch prevents the prior data-loss behavior while still replacing formal members from the server response.
-- The correction uses a mocked `window.confirm` only inside the isolated Playwright context. Product callbacks still mutate no local family data before their API envelope returns.
-- The server remains the authorization authority; UI controls only mirror owner/member state and API errors are shown as natural-language notices.
-- Device-specific real WeChat account data and real avatar images were not exercised because this task intentionally used local mocked smoke only. The smoke uses data URL avatars and masked phone state to assert rendering paths without contacting production.
+- No blocking concern. Task 5 should supply each queued mutation's explicit API `path`/payload and call `startSpan("bootstrap", ...)`; this foundation deliberately does not invent endpoint mappings.
+- This checkpoint does not change legacy page-local request code; migration of those callers belongs to the later native pages/identity work.
