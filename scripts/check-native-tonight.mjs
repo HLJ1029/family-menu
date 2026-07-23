@@ -65,8 +65,13 @@ async function verifyMealRunRestoreSpanExcludesSharePreparation() {
   const restoreEventsWhileSharePending = runtime.load("miniprogram/utils/telemetry.js")
     .readPendingTelemetry()
     .filter((event) => event.name === "meal_run_restore_completed");
+  const flushedRestoreEventsWhileSharePending = runtime.requests
+    .filter((request) => (
+      request.pathname === "/product-events"
+      && request.data?.eventType === "meal_run_restore_completed"
+    ));
   assert.equal(
-    restoreEventsWhileSharePending.length,
+    restoreEventsWhileSharePending.length + flushedRestoreEventsWhileSharePending.length,
     1,
     "meal_run_restore must end before menu share preparation settles",
   );
@@ -162,7 +167,12 @@ async function verifyGuestDecisionFlow() {
   assert.equal(page.data.mealRun.localOnly, true);
   assert.match(page.data.mealRun.id, /^guest:[0-9a-f-]{36}$/);
   assert.equal(page.data.mealRun.recipeIds[0], page.data.recommendation.recipeIds[0]);
-  assert.equal(runtime.requests.length, 0, "a household-free guest must remain local-only");
+  assert.equal(
+    runtime.requests.filter((request) => request.pathname !== "/product-events").length,
+    0,
+    "a household-free guest keeps recommendation and MealRun work local",
+  );
+  assertHouseholdFreeTelemetry(runtime.requests, { required: true });
 
   const { buildDinnerPlan } = runtime.load("miniprogram/utils/meal-run.js");
   const twoDishPlan = buildDinnerPlan(
@@ -1212,7 +1222,12 @@ async function verifyMealExecutionFlagRollback() {
     kind: "reLaunch",
     url: "/pages/legacy/index",
   }]);
-  assert.equal(runtime.requests.length, 0);
+  assert.equal(
+    runtime.requests.filter((request) => request.pathname !== "/product-events").length,
+    0,
+    "rollback must not call recommendation or MealRun APIs",
+  );
+  assertHouseholdFreeTelemetry(runtime.requests);
 
   const guestEnabled = createRuntime({
     session: sessionFor("enabled-guest"),
@@ -1378,6 +1393,10 @@ function createRuntime({ storage = new Map(), session = null, bootstrap = null, 
       requests.push(record);
       const succeed = (data, statusCode = 200) => options.success({ statusCode, data: clone(data) });
       const fail = () => options.fail({ errMsg: "request:fail timeout" });
+      if (record.pathname === "/product-events") {
+        succeed({ ok: true }, 202);
+        return;
+      }
       if (record.pathname === "/menu-share-requests") {
         if (typeof menuShareHandler === "function") {
           Promise.resolve(menuShareHandler({ ...record, succeed, fail }))
@@ -1503,6 +1522,30 @@ function resolveModulePath(candidate) {
     }
   }
   return candidate;
+}
+
+function assertHouseholdFreeTelemetry(requests, { required = false } = {}) {
+  const telemetryRequests = requests.filter((request) => request.pathname === "/product-events");
+  const expectedFields = [
+    "anonymousSessionId", "businessId", "durationMs", "errorCode", "eventType",
+    "householdId", "packageVersion", "page", "stage",
+  ];
+  if (required) assert(telemetryRequests.length > 0, "guest telemetry must flush without blocking local Tonight");
+  assert(
+    telemetryRequests.every((request) => request.data.householdId === ""),
+    "household-free telemetry must not claim household attribution",
+  );
+  assert(
+    telemetryRequests.every((request) => (
+      JSON.stringify(Object.keys(request.data).sort()) === JSON.stringify(expectedFields)
+    )),
+    "telemetry must use only the reviewed HTTP fields",
+  );
+  assert.equal(
+    /nickname|displayName|token|note/.test(JSON.stringify(telemetryRequests.map((request) => request.data))),
+    false,
+    "telemetry payloads must not upload identity, token, or free-text fields",
+  );
 }
 
 function bootstrapFor({

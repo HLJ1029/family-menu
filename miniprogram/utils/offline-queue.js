@@ -7,18 +7,15 @@ const MEAL_REPLAY_RESULT_KEY_PREFIX = "humi:offline-meal-results:v1:";
 const MAX_ACTIONS = 100;
 const MAX_MEAL_REPLAY_RESULTS = 20;
 const MAX_QUEUE_BYTES = 256 * 1024;
-const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedback", "meal_abandon", "grocery_item_check", "product_event"]);
+const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedback", "meal_abandon", "grocery_item_check"]);
 const COMMON_ACTION_FIELDS = ["id", "type", "householdId", "createdAt", "ownerUserId"];
 const ACTION_FIELD_SCHEMAS = Object.freeze({
   meal_progress: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_complete: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_feedback: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_abandon: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
-  grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion", "conflictRetryCount"]),
-  product_event: new Set([...COMMON_ACTION_FIELDS, "event", "fields"])
+  grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion", "conflictRetryCount"])
 });
-const PRODUCT_EVENT_TYPES = new Set(["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"]);
-const PRODUCT_EVENT_FIELDS = ["mealRunId", "recommendationId", "effortTier"];
 const FEEDBACK_VALUES = new Set(["want_again", "change_it", "too_hard"]);
 const ABANDON_REASONS = new Set(["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"]);
 let customReplayer = null;
@@ -79,12 +76,6 @@ function validateAction(action) {
     throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
   }
   validateActionData(action);
-  if (action.type === "product_event") {
-    const { isSafeTelemetryEvent } = require("./telemetry");
-    if (!PRODUCT_EVENT_TYPES.has(action.event) || !isSafeTelemetryEvent(action.event, action.fields || {})) {
-      throw new HumiRequestError(0, "offline_product_event_unsafe", { retryable: false });
-    }
-  }
 }
 
 function validateActionData(action) {
@@ -179,8 +170,7 @@ function projectAction(action, ownerUserId) {
   if (!schema) throw new HumiRequestError(0, "offline_action_not_allowed", { retryable: false });
   for (const key of Object.keys(action)) {
     if (!schema.has(key)) {
-      const code = action.type === "product_event" ? "offline_product_event_unsafe" : "offline_action_invalid";
-      throw new HumiRequestError(0, code, { retryable: false });
+      throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
     }
   }
   const projected = {};
@@ -297,19 +287,6 @@ function setMutationReplayer(replayer) {
 async function replayAction(action) {
   if (customReplayer) return customReplayer(action);
   const { requestHumi } = require("./request");
-  if (action.type === "product_event") {
-    const data = { eventType: action.event };
-    PRODUCT_EVENT_FIELDS.forEach((key) => {
-      if (action.fields?.[key] !== undefined) data[key] = action.fields[key];
-    });
-    return requestHumi({
-      path: "/product-events",
-      method: "POST",
-      data,
-      idempotencyKey: action.id,
-      expectedUserId: action.ownerUserId
-    });
-  }
   const request = buildMutationRequest(action);
   return requestHumi({
     ...request,
@@ -480,7 +457,6 @@ function discardObsoleteMealEpoch(action, ownerUserId) {
 module.exports = {
   ALLOWED_ACTIONS,
   ACTION_FIELD_SCHEMAS,
-  PRODUCT_EVENT_TYPES,
   MAX_ACTIONS,
   MAX_QUEUE_BYTES,
   enqueueMutation,

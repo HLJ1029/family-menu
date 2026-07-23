@@ -7,6 +7,7 @@ const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-meal-execution-"));
 const dataFile = join(smokeDirectory, "data.json");
 process.env.HUMI_API_DATA_FILE = dataFile;
 process.env.HUMI_SESSION_SECRET = "humi-meal-execution-smoke-secret";
+process.env.HUMI_TELEMETRY_HASH_SALT = "humi-meal-execution-telemetry-salt";
 process.env.HUMI_WECHAT_MOCK = "1";
 process.env.HUMI_MEAL_EXECUTION_ENABLED = "1";
 process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS = "*";
@@ -798,25 +799,70 @@ try {
     session: member,
     body: {
       eventType: "plan_presented",
-      mealRunId: taskPlan.mealRun.id,
-      effortTier: "quick_15",
-      displayName: "must-not-persist",
-      note: "must-not-persist",
+      anonymousSessionId: "meal-api-anonymous-session",
+      householdId,
+      page: "tonight",
+      stage: "completed",
+      durationMs: 12,
+      errorCode: "none",
+      packageVersion: "1.1.72",
+      businessId: "meal-api-plan-presented",
     },
   });
   assert.equal(event.ok, true);
   await assertRejected(`${baseUrl}/product-events`, {
     method: "POST",
     session: member,
-    body: { eventType: "arbitrary_event" },
-  }, 400, "product_event_invalid");
+    body: {
+      eventType: "plan_presented",
+      anonymousSessionId: "meal-api-anonymous-session",
+      householdId,
+      page: "tonight",
+      stage: "completed",
+      durationMs: 12,
+      errorCode: "none",
+      packageVersion: "1.1.72",
+      businessId: "meal-api-unsafe-field",
+      nickname: "must-not-persist",
+    },
+  }, 400, "product_event_field_invalid");
+  await assertRejected(`${baseUrl}/product-events`, {
+    method: "POST",
+    session: member,
+    body: {
+      eventType: "meal_run_completed",
+      anonymousSessionId: "meal-api-anonymous-session",
+      householdId,
+      page: "cooking",
+      stage: "completed",
+      durationMs: 12,
+      errorCode: "none",
+      packageVersion: "1.1.72",
+      businessId: "meal-api-forged-server-fact",
+    },
+  }, 400, "product_event_not_allowed");
   const persisted = JSON.parse(await readFile(dataFile, "utf8"));
-  const savedEvent = persisted.productEvents.at(-1);
+  const savedEvent = persisted.productEvents.find((entry) => entry.businessId === "meal-api-plan-presented");
   assert.equal(savedEvent.eventType, "plan_presented");
-  assert.equal(savedEvent.userId, member.user.id);
   assert.equal(savedEvent.householdId, householdId);
-  assert.equal("displayName" in savedEvent, false);
-  assert.equal("note" in savedEvent, false);
+  assert.match(savedEvent.anonymousSessionHash, /^[a-f0-9]{64}$/);
+  assert.equal("anonymousSessionId" in savedEvent, false);
+  assert.equal("userId" in savedEvent, false);
+  assert.equal(JSON.stringify(savedEvent).includes("meal-api-anonymous-session"), false);
+  for (const [eventType, mealRunId] of [
+    ["meal_run_started", replacement.mealRun.id],
+    ["meal_run_completed", replacement.mealRun.id],
+    ["meal_run_abandoned", abandonedRun.mealRun.id],
+  ]) {
+    assert.equal(
+      persisted.productEvents.filter((entry) => (
+        entry.eventType === eventType
+        && entry.businessId === `${mealRunId}:${eventType}`
+      )).length,
+      1,
+      `${eventType} must be persisted exactly once with its MealRun transition`,
+    );
+  }
 
   const retentionStore = new HumiStore(join(smokeDirectory, "retention.json"));
   await retentionStore.load();
@@ -826,7 +872,21 @@ try {
     members: [{ memberId: owner.user.id, role: "owner", status: "formal" }],
   }];
   retentionStore.data.productEvents = [{ id: "old", occurredAt: "2025-01-01T00:00:00.000Z" }];
-  await retentionStore.recordProductEvent(owner.user.id, householdId, { eventType: "plan_accepted", effortTier: "quick_15" });
+  await retentionStore.recordClientProductEvent({
+    userId: owner.user.id,
+    telemetryHashSalt: "retention-test-salt",
+    input: {
+      eventType: "plan_accepted",
+      anonymousSessionId: "retention-anonymous-session",
+      householdId,
+      page: "tonight",
+      stage: "completed",
+      durationMs: 1,
+      errorCode: "none",
+      packageVersion: "1.1.72",
+      businessId: "retention-plan-accepted",
+    },
+  });
   assert.equal(retentionStore.data.productEvents.some((entry) => entry.id === "old"), false, "raw events older than 180 days must be pruned");
 
   console.log("Meal execution API smoke test passed.");

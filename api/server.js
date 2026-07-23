@@ -50,6 +50,9 @@ const config = {
     .map((value) => value.trim())
     .filter(Boolean)),
   nativeShellWildcardAllowed: process.env.NODE_ENV === "test",
+  telemetryHashSalt: process.env.HUMI_TELEMETRY_HASH_SALT || (process.env.NODE_ENV === "production" ? "" : "humi-dev-telemetry-salt"),
+  telemetryRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_RATE_LIMIT || 120)),
+  telemetryRateWindowMs: Math.max(1_000, Number(process.env.HUMI_TELEMETRY_RATE_WINDOW_MS || 60_000)),
   mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
   mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
   mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",
@@ -57,6 +60,9 @@ const config = {
 
 if (!config.sessionSecret) {
   throw new Error("HUMI_SESSION_SECRET is required in production.");
+}
+if (!config.telemetryHashSalt) {
+  throw new Error("HUMI_TELEMETRY_HASH_SALT is required in production.");
 }
 
 const store = new HumiStore(config.dataFile);
@@ -1243,19 +1249,56 @@ async function handleCancelMealReminder(request, response, reminderId) {
 }
 
 async function handleProductEvent(request, response) {
-  const { user, household } = await requireMealExecutionContext(request);
+  enforceTelemetryAccess(request);
+  const auth = await optionalAuth(request);
+  const user = auth ? await store.getUser(auth.userId) : null;
+  if (auth && !user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
   try {
-    await store.recordProductEvent(user.id, household.id, {
-      eventType: body.eventType,
-      mealRunId: body.mealRunId,
-      recommendationId: body.recommendationId,
-      effortTier: body.effortTier,
+    await store.recordClientProductEvent({
+      userId: user?.id || "",
+      telemetryHashSalt: config.telemetryHashSalt,
+      input: body,
     });
     sendJson(response, 202, { ok: true });
   } catch (error) {
-    throw mapMealExecutionError(error);
+    const statusByCode = {
+      product_event_field_invalid: 400,
+      product_event_not_allowed: 400,
+      product_event_household_forbidden: 403,
+      household_not_found: 404,
+      telemetry_hash_salt_required: 503,
+    };
+    const status = statusByCode[error?.code];
+    if (status) throw httpError(status, error.code, error.message);
+    throw error;
   }
+}
+
+const telemetryRateBuckets = new Map();
+let telemetryRateBucketsPrunedAt = 0;
+
+function enforceTelemetryAccess(request) {
+  const now = Date.now();
+  if (
+    now - telemetryRateBucketsPrunedAt >= config.telemetryRateWindowMs
+    || telemetryRateBuckets.size > 1000
+  ) {
+    for (const [key, bucket] of telemetryRateBuckets) {
+      if (now >= bucket.resetAt) telemetryRateBuckets.delete(key);
+    }
+    telemetryRateBucketsPrunedAt = now;
+  }
+  const key = request.socket?.remoteAddress || "unknown";
+  const bucket = telemetryRateBuckets.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    telemetryRateBuckets.set(key, { count: 1, resetAt: now + config.telemetryRateWindowMs });
+    return;
+  }
+  if (bucket.count >= config.telemetryRateLimit) {
+    throw httpError(429, "telemetry_rate_limited", "数据上报有点快，请稍后再试。");
+  }
+  bucket.count += 1;
 }
 
 async function handleGetHouseholds(request, response) {

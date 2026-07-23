@@ -1290,7 +1290,32 @@ async function verifyGuestLifecycle() {
   assert.equal(page.data.mealRun.status, "completed");
   await page.saveFeedback({ detail: { value: "too_hard" } });
   assert.equal(page.data.feedbackValue, "too_hard");
-  assert.equal(runtime.requests.length, 0, "guest cooking stays local");
+  assert.equal(
+    runtime.requests.filter((request) => request.path !== "/product-events").length,
+    0,
+    "guest cooking keeps every MealRun mutation local",
+  );
+  const telemetryRequests = runtime.requests.filter((request) => request.path === "/product-events");
+  assert(telemetryRequests.length > 0, "guest telemetry still flushes without blocking local cooking");
+  assert(
+    telemetryRequests.every((request) => request.data.householdId === ""),
+    "a guest event must never claim household attribution",
+  );
+  const telemetryFields = [
+    "anonymousSessionId", "businessId", "durationMs", "errorCode", "eventType",
+    "householdId", "packageVersion", "page", "stage",
+  ];
+  assert(
+    telemetryRequests.every((request) => (
+      JSON.stringify(Object.keys(request.data).sort()) === JSON.stringify(telemetryFields)
+    )),
+    "guest telemetry must use only the reviewed HTTP fields",
+  );
+  assert.equal(
+    /nickname|displayName|token|note/.test(JSON.stringify(telemetryRequests)),
+    false,
+    "guest telemetry must not upload identity, token, or free-text fields",
+  );
 }
 
 async function verifyMemberPermissionsAndCompletedReadOnly() {
@@ -1318,7 +1343,11 @@ async function verifyMemberPermissionsAndCompletedReadOnly() {
   await readOnlyPage.onLoad({ mealRunId: completed.id, action: "start" });
   await readOnlyPage.advanceStep({ currentTarget: { dataset: { stepId: timeline.steps[0].id } } });
   await readOnlyPage.completeMeal();
-  assert.equal(readOnlyRuntime.requests.filter((item) => item.method !== "GET").length, 0, "completed dinner is read-only");
+  assert.equal(
+    readOnlyRuntime.requests.filter((item) => item.method !== "GET" && item.path !== "/product-events").length,
+    0,
+    "completed dinner emits no business mutation",
+  );
 }
 
 async function verifyRetryRecovery() {
@@ -1459,6 +1488,7 @@ function createRuntime({
       const succeed = (data, statusCode = 200) => options.success({ data: clone(data), statusCode });
       const fail = () => options.fail({ errMsg: "request:fail network" });
       if (!online) return fail();
+      if (call.path === "/product-events") return succeed({ ok: true }, 202);
       if (requestHandler) return requestHandler({ ...call, succeed, fail });
       if (call.path.startsWith("/meal-runs/current")) return succeed({ mealRun: currentRun });
       if (call.path.endsWith("/progress")) {

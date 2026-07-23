@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import {
   buildRecommendationScope,
@@ -14,6 +14,34 @@ import { buildBootstrapEnvelope, computeStateVersion } from "./bootstrap.js";
 const require = createRequire(import.meta.url);
 export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
 const DEFAULT_AVATAR_KEYS = APPROVED_AVATAR_KEYS;
+export const PRODUCT_EVENT_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+export const PRODUCT_EVENT_FIELDS = new Set([
+  "eventType",
+  "anonymousSessionId",
+  "householdId",
+  "page",
+  "stage",
+  "durationMs",
+  "errorCode",
+  "packageVersion",
+  "businessId",
+]);
+export const NATIVE_CLIENT_EVENT_TYPES = new Set([
+  "native_boot_started", "native_boot_completed", "native_boot_failed",
+  "native_login_started", "native_login_completed", "native_login_failed",
+  "bootstrap_completed", "bootstrap_failed",
+  "recommendation_completed", "recommendation_failed",
+  "meal_run_restore_completed", "meal_run_restore_failed",
+  "thumbnail_first_visible_completed", "thumbnail_first_visible_failed",
+  "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
+  "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
+  "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+]);
+export const MEAL_RUN_SERVER_EVENT_TYPES = new Set([
+  "meal_run_started",
+  "meal_run_completed",
+  "meal_run_abandoned",
+]);
 
 const DEFAULT_DATA = {
   users: [],
@@ -62,7 +90,9 @@ export class HumiStore {
     this.data.mealRuns = Array.isArray(this.data.mealRuns) ? this.data.mealRuns : [];
     this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
     this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
-    this.data.productEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
+    this.data.productEvents = Array.isArray(this.data.productEvents)
+      ? this.data.productEvents.map(normalizeStoredProductEvent).filter(Boolean)
+      : [];
     this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
       ? this.data.recommendationRotations
       : [];
@@ -1767,6 +1797,7 @@ export class HumiStore {
       mealRun.startedBy = userId;
       mealRun.startedAt = startedAt;
       mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_started", mealRun, now);
       return mealRun;
     });
   }
@@ -1844,6 +1875,7 @@ export class HumiStore {
       mealRun.firstHouseholdCompletion = isFirstHouseholdCompletion;
       mealRun.timerEndsAt = "";
       mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_completed", mealRun, now);
       return mealRun;
     });
   }
@@ -1906,6 +1938,7 @@ export class HumiStore {
       mealRun.abandonedAt = now;
       mealRun.timerEndsAt = "";
       mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_abandoned", mealRun, now);
       return mealRun;
     });
   }
@@ -2247,32 +2280,58 @@ export class HumiStore {
     ))?.providerUserId || "";
   }
 
-  async recordProductEvent(userId, householdId, input = {}) {
+  async recordClientProductEvent({ userId = "", telemetryHashSalt = "", input = {} } = {}) {
     await this.load();
     return this.mutateAndSave(() => {
-      this.requireFormalMemberHousehold(userId, householdId);
-      const eventType = sanitizeProductEventType(input.eventType);
-      const effortTier = input.effortTier ? sanitizeEffortTier(input.effortTier) : "";
-      const mealRunId = sanitizeText(input.mealRunId, "", 100);
-      if (mealRunId) {
-        const mealRun = this.data.mealRuns.find((run) => run.id === mealRunId && run.householdId === householdId);
-        if (!mealRun) throw codedError("meal_run_not_found", "Meal run not found for this household.");
+      const event = sanitizeClientProductEvent(input, telemetryHashSalt);
+      if (event.householdId && !userId) {
+        throw codedError("product_event_household_forbidden", "Anonymous events cannot claim a household.");
       }
+      if (event.householdId) this.requireFormalMemberHousehold(userId, event.householdId);
       const now = new Date().toISOString();
-      const cutoff = Date.parse(now) - 180 * 24 * 60 * 60 * 1000;
-      this.data.productEvents = this.data.productEvents.filter((event) => Date.parse(event.occurredAt || event.createdAt) >= cutoff);
-      const event = {
+      this.pruneProductEvents(now);
+      const duplicate = this.data.productEvents.find((candidate) => (
+        candidate.eventType === event.eventType
+        && candidate.anonymousSessionHash === event.anonymousSessionHash
+        && candidate.businessId === event.businessId
+      ));
+      if (duplicate) return duplicate;
+      const persistedEvent = {
         id: randomUUID(),
-        eventType,
-        userId,
-        householdId,
-        mealRunId,
-        recommendationId: sanitizeText(input.recommendationId, "", 100),
-        effortTier,
+        ...event,
         occurredAt: now,
       };
-      this.data.productEvents.push(event);
-      return event;
+      this.data.productEvents.push(persistedEvent);
+      return persistedEvent;
+    });
+  }
+
+  appendMealRunServerEvent(eventType, mealRun, occurredAt = new Date().toISOString()) {
+    if (!MEAL_RUN_SERVER_EVENT_TYPES.has(eventType)) {
+      throw codedError("product_event_not_allowed", "Unsupported server product event.");
+    }
+    this.pruneProductEvents(occurredAt);
+    const businessId = `${mealRun.id}:${eventType}`;
+    const duplicate = this.data.productEvents.find((event) => (
+      event.eventType === eventType && event.businessId === businessId
+    ));
+    if (duplicate) return duplicate;
+    const event = {
+      id: randomUUID(),
+      eventType,
+      householdId: mealRun.householdId,
+      businessId,
+      occurredAt,
+    };
+    this.data.productEvents.push(event);
+    return event;
+  }
+
+  pruneProductEvents(now = new Date().toISOString()) {
+    const cutoff = Date.parse(now) - PRODUCT_EVENT_RETENTION_MS;
+    this.data.productEvents = this.data.productEvents.filter((event) => {
+      const timestamp = Date.parse(event.occurredAt || event.createdAt);
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
     });
   }
 
@@ -2608,9 +2667,107 @@ function sanitizeMealFeedback(value) {
   throw codedError("meal_feedback_invalid", "Unsupported meal feedback.");
 }
 
-function sanitizeProductEventType(value) {
-  if (["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"].includes(value)) return value;
-  throw codedError("product_event_invalid", "Unsupported product event.");
+function sanitizeClientProductEvent(input, telemetryHashSalt) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw codedError("product_event_field_invalid", "Product event must be an object.");
+  }
+  if (Object.keys(input).some((key) => !PRODUCT_EVENT_FIELDS.has(key))) {
+    throw codedError("product_event_field_invalid", "Product event contains an unsupported field.");
+  }
+  const eventType = sanitizeText(input.eventType, "", 80);
+  if (!NATIVE_CLIENT_EVENT_TYPES.has(eventType)) {
+    throw codedError("product_event_not_allowed", "Unsupported client product event.");
+  }
+  const salt = String(telemetryHashSalt || "");
+  if (!salt) throw codedError("telemetry_hash_salt_required", "Telemetry hash salt is required.");
+  const anonymousSessionId = sanitizeTelemetryIdentifier(input.anonymousSessionId, "anonymousSessionId", 100);
+  const businessId = sanitizeTelemetryIdentifier(input.businessId, "businessId", 100);
+  const householdId = input.householdId
+    ? sanitizeTelemetryIdentifier(input.householdId, "householdId", 100)
+    : "";
+  const page = sanitizeTelemetryEnum(input.page, [
+    "boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder",
+  ], "page", { allowEmpty: true });
+  const stage = sanitizeTelemetryEnum(input.stage, [
+    "started", "completed", "failed", "retry", "offline", "queue_flush",
+  ], "stage", { allowEmpty: true });
+  const errorCode = sanitizeTelemetryEnum(input.errorCode, [
+    "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized", "permission_denied",
+    "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",
+    "offline_action_unconfigured", "offline_queue_full", "offline_queue_too_large", "offline_product_event_unsafe",
+    "queue_conflict", "queue_retry", "queue_flush_failed",
+  ], "errorCode", { allowEmpty: true });
+  const packageVersion = sanitizeText(input.packageVersion, "", 24);
+  if (!/^\d+\.\d+\.\d+$/.test(packageVersion)) {
+    throw codedError("product_event_field_invalid", "packageVersion is invalid.");
+  }
+  const durationMs = input.durationMs === undefined
+    ? 0
+    : Number(input.durationMs);
+  if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 24 * 60 * 60 * 1000) {
+    throw codedError("product_event_field_invalid", "durationMs is invalid.");
+  }
+  return {
+    eventType,
+    anonymousSessionHash: createHmac("sha256", salt).update(anonymousSessionId).digest("hex"),
+    householdId,
+    page,
+    stage,
+    durationMs: Math.round(durationMs),
+    errorCode,
+    packageVersion,
+    businessId,
+  };
+}
+
+function normalizeStoredProductEvent(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const eventType = sanitizeText(input.eventType, "", 80);
+  if (!NATIVE_CLIENT_EVENT_TYPES.has(eventType) && !MEAL_RUN_SERVER_EVENT_TYPES.has(eventType)) return null;
+  const occurredAt = sanitizeOptionalIsoDate(input.occurredAt || input.createdAt);
+  if (!occurredAt) return null;
+  const id = normalizeStoredTelemetryIdentifier(input.id, 100) || randomUUID();
+  const businessId = normalizeStoredTelemetryIdentifier(
+    input.businessId || input.mealRunId || input.recommendationId || input.styleId || id,
+    100,
+  );
+  if (!businessId) return null;
+  const event = { id, eventType };
+  const anonymousSessionHash = sanitizeText(input.anonymousSessionHash, "", 64).toLowerCase();
+  if (/^[a-f0-9]{64}$/.test(anonymousSessionHash)) event.anonymousSessionHash = anonymousSessionHash;
+  const householdId = normalizeStoredTelemetryIdentifier(input.householdId, 100);
+  if (householdId) event.householdId = householdId;
+  for (const [field, maxLength] of [["page", 40], ["stage", 40], ["errorCode", 40], ["packageVersion", 24]]) {
+    const value = sanitizeText(input[field], "", maxLength);
+    if (value) event[field] = value;
+  }
+  const durationMs = Number(input.durationMs);
+  if (Number.isFinite(durationMs) && durationMs >= 0 && durationMs <= 24 * 60 * 60 * 1000) {
+    event.durationMs = Math.round(durationMs);
+  }
+  event.businessId = businessId;
+  event.occurredAt = occurredAt;
+  return event;
+}
+
+function normalizeStoredTelemetryIdentifier(value, maxLength) {
+  const normalized = sanitizeText(value, "", maxLength);
+  return normalized && /^[A-Za-z0-9:_-]+$/.test(normalized) ? normalized : "";
+}
+
+function sanitizeTelemetryIdentifier(value, fieldName, maxLength) {
+  const normalized = sanitizeText(value, "", maxLength);
+  if (!normalized || !/^[A-Za-z0-9:_-]+$/.test(normalized)) {
+    throw codedError("product_event_field_invalid", `${fieldName} is invalid.`);
+  }
+  return normalized;
+}
+
+function sanitizeTelemetryEnum(value, allowed, fieldName, { allowEmpty = false } = {}) {
+  const normalized = sanitizeText(value, "", 40);
+  if (allowEmpty && !normalized) return "";
+  if (allowed.includes(normalized)) return normalized;
+  throw codedError("product_event_field_invalid", `${fieldName} is invalid.`);
 }
 
 function sanitizeCollaborationRequestType(value) {

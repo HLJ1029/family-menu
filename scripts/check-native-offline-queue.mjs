@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const utilDirectory = path.join(root, "miniprogram/utils");
 const appSource = fs.readFileSync(path.join(root, "miniprogram/app.js"), "utf8");
-const apiStoreSource = fs.readFileSync(path.join(root, "api/store.js"), "utf8");
 for (const name of ["errors.js", "cache.js", "telemetry.js", "offline-queue.js", "store.js"]) {
   const file = path.join(utilDirectory, name);
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
@@ -104,7 +103,12 @@ function createAppRuntime(flush, restoredSession = null) {
       if (specifier === "./utils/session") return { restoreSession: () => restoredSession, saveSession: () => {}, clearSession: () => {} };
       if (specifier === "./utils/offline-queue") return { flushMutationQueue: flush };
       if (specifier === "./utils/config") return { HUMI_NATIVE_SHELL_CANDIDATE: true };
-      if (specifier === "./utils/telemetry") return { trackEvent: (name, fields) => events.push({ name, fields }) };
+      if (specifier === "./utils/telemetry") {
+        return {
+          trackEvent: (name, fields) => events.push({ name, fields }),
+          scheduleTelemetryFlush: () => {},
+        };
+      }
       if (specifier === "./utils/store") return { appStore };
       throw new Error(`Unexpected app dependency: ${specifier}`);
     },
@@ -238,14 +242,10 @@ async function nextTask() {
 
 {
   const { queue } = createRuntime();
-  const apiAllowlistSource = apiStoreSource
-    .match(/function sanitizeProductEventType\(value\) \{[\s\S]*?\[([^\]]+)\]\.includes\(value\)/)?.[1];
-  assert(apiAllowlistSource, "the API product event allowlist must remain inspectable");
-  const apiProductEventTypes = JSON.parse(`[${apiAllowlistSource}]`).sort();
-  assert.deepEqual(
-    Array.from(queue.PRODUCT_EVENT_TYPES).sort(),
-    apiProductEventTypes,
-    "offline product event types must exactly match api/store.js",
+  assert.equal(
+    queue.ALLOWED_ACTIONS.has("product_event"),
+    false,
+    "telemetry owns its durable retry queue and must not be duplicated into the meal mutation queue",
   );
 }
 
@@ -259,7 +259,7 @@ async function nextTask() {
     createdAt: 1,
     event: "bootstrap_completed",
     fields: { nickname: "private" }
-  }), /offline_product_event_unsafe/);
+  }), /offline_action_not_allowed/);
   const storageSizeBeforeBypass = storage.size;
   assert.throws(() => queue.enqueueMutation({
     id: "unsafe-data-bypass",
@@ -276,7 +276,7 @@ async function nextTask() {
     path: "/arbitrary?token=private-token",
     method: "DELETE",
     mealRunId: "must-not-be-a-product-event-field"
-  }), /offline_product_event_unsafe|offline_action_invalid/, "product events must reject caller-controlled data, path, method, and meal mutation fields");
+  }), /offline_action_not_allowed/, "product events must not enter the meal mutation queue");
   assert.equal(storage.size, storageSizeBeforeBypass, "an unsafe product event must not write any queue storage");
   queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
   queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h1", mealRunId: "r1", createdAt: 2, data: { timelineVersion: 1 } });
@@ -391,14 +391,8 @@ async function nextTask() {
 }
 
 {
-  const requests = [];
-  const { queue } = createRuntime({
-    requestHumi: async (options) => {
-      requests.push(structuredClone(options));
-      return { ok: true };
-    }
-  });
-  const stored = queue.enqueueMutation({
+  const { queue } = createRuntime();
+  assert.throws(() => queue.enqueueMutation({
     id: "safe-product-event",
     type: "product_event",
     householdId: "h1",
@@ -409,41 +403,7 @@ async function nextTask() {
       recommendationId: "recommendation-1",
       effortTier: "quick_15"
     }
-  });
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(stored)),
-    {
-      id: "safe-product-event",
-      type: "product_event",
-      householdId: "h1",
-      createdAt: 1,
-      event: "plan_presented",
-      fields: {
-        mealRunId: "run-1",
-        recommendationId: "recommendation-1",
-        effortTier: "quick_15"
-      },
-      ownerUserId: "user-a"
-    },
-    "a legal product event stores only its reviewed schema",
-  );
-  assert.deepEqual(JSON.parse(JSON.stringify(await queue.flushMutationQueue())), { status: "flushed" });
-  assert.deepEqual(
-    requests,
-    [{
-      path: "/product-events",
-      method: "POST",
-      data: {
-        eventType: "plan_presented",
-        mealRunId: "run-1",
-        recommendationId: "recommendation-1",
-        effortTier: "quick_15"
-      },
-      idempotencyKey: "safe-product-event",
-      expectedUserId: "user-a"
-    }],
-    "product event replay must use the fixed audited endpoint and a payload derived only from safe event fields",
-  );
+  }), /offline_action_not_allowed/);
 }
 
 {

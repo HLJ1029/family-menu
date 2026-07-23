@@ -25,7 +25,7 @@ const { guardNativeTab } = require("../../../utils/native-shell-guard");
 const { requestHumi } = require("../../../utils/request");
 const { prepareShareSnapshot } = require("../../../utils/share-snapshot");
 const { appStore } = require("../../../utils/store");
-const { startSpan, trackEvent } = require("../../../utils/telemetry");
+const { startSpan } = require("../../../utils/telemetry");
 
 const DOWNGRADES = [
   { id: "drop_side", apiAction: "remove_optional_side", label: "去掉非必要配菜" },
@@ -618,52 +618,21 @@ const pageDefinition = {
 
   async runMutation(key, mutate, { onOffline } = {}) {
     if (this._pendingMutations?.has(key)) return this._pendingMutations.get(key);
-    const mealRunId = safeTelemetryId(this.data.mealRun?.id || this._mealRunId);
-    trackEvent("cooking_mutation_started", { page: "cooking", mealRunId, stage: "started" });
     this.setData({ pendingAction: key, errorText: "" });
     const pending = Promise.resolve()
       .then(mutate)
       .then((mealRun) => {
         if (mealRun) this.applyMealRun(mealRun);
-        trackEvent("cooking_mutation_completed", {
-          page: "cooking",
-          mealRunId,
-          stage: "completed",
-          result: "completed",
-          errorCode: "none",
-        });
         return mealRun;
       })
       .catch(async (error) => {
         if (Number(error?.status) === 409) {
-          trackEvent("cooking_mutation_failed", {
-            page: "cooking",
-            mealRunId,
-            stage: "failed",
-            result: "conflict",
-            errorCode: "conflict",
-          });
           await this.handleConflict(error);
           return this.data.mealRun;
         }
         if (isNetworkError(error)) {
-          trackEvent("cooking_mutation_failed", {
-            page: "cooking",
-            mealRunId,
-            stage: "offline",
-            result: "offline",
-            errorCode: "network_error",
-          });
           this.setData({ isOnline: false, networkText: "网络已断开，进度会稍后同步" });
           if (typeof onOffline === "function") return onOffline();
-        } else {
-          trackEvent("cooking_mutation_failed", {
-            page: "cooking",
-            mealRunId,
-            stage: "failed",
-            result: "failed",
-            errorCode: safeErrorCode(error),
-          });
         }
         this.setData({ errorText: errorMessage(error, "这一步暂时没有保存成功，请重试。") });
         return this.data.mealRun;
@@ -991,15 +960,6 @@ function errorMessage(error, fallback) {
 
 function isNetworkError(error = {}) {
   return Number(error.status) === 0 || ["network_error", "request_timeout"].includes(error.code);
-}
-
-function safeTelemetryId(value) {
-  const result = String(value || "").replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 64);
-  return result || undefined;
-}
-
-function safeErrorCode(error) {
-  return ["invalid_session", "forbidden", "network_error"].includes(error?.code) ? error.code : "request_failed";
 }
 
 function codedError(code) {

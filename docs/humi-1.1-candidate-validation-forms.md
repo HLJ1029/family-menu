@@ -215,3 +215,87 @@ npm run release:candidate:review
 
 - `insufficient-share-type-coverage`：五类小程序卡片尚未逐类完成。
 - `insufficient-poster-coverage`：菜单海报或清单海报尚未完成实际生成及分享/保存。
+
+## 7. 原生骨架真机证据合同
+
+原生骨架候选使用独立的 36 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
+
+每一行必须只包含以下字段，禁止增加昵称、手机号、微信号、备注、openid、token 或其他自由文本：
+
+```json
+{
+  "device": "iPhone 15 Pro",
+  "platform": "iOS",
+  "wechatVersion": "8.0.56",
+  "packageVersion": "1.1.72",
+  "householdFixture": "owner-household",
+  "startedAt": "2026-07-23T08:00:00.000Z",
+  "finishedAt": "2026-07-23T08:02:00.000Z",
+  "result": "pass",
+  "evidencePath": "owner_cooking_flow.png"
+}
+```
+
+字段规则：
+
+- `platform` 只能是 `iOS` 或 `Android`。
+- `packageVersion` 必须对应实际上传或预览的候选包，不能填写 H5 版本代替。
+- `householdFixture` 使用不含个人信息的稳定测试夹具名，例如 `guest`、`owner-household`、`member-household`。
+- `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit。
+- `result` 只能是 `pass`、`fail`、`pending` 或 `blocked`。只有 `pass` 计入通过数。
+- `evidencePath` 必须指向证据目录内经过脱敏且不复用的文件；不得使用绝对路径、软链接、`..` 或 manifest 自身。
+- 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
+
+固定 36 行如下：
+
+```text
+登录与身份（6）
+fresh_guest_start
+explicit_wechat_login
+new_identity_profile
+legacy_identity_recovery
+session_revocation_relogin
+logout_to_guest
+
+推荐轮换（15）
+recommendation_quick_15_rotation_1 ... recommendation_quick_15_rotation_5
+recommendation_easy_30_rotation_1 ... recommendation_easy_30_rotation_5
+recommendation_normal_rotation_1 ... recommendation_normal_rotation_5
+
+烹饪、恢复与权限（4）
+cooking_background_restore
+offline_sync_recovery
+owner_cooking_flow
+member_cooking_flow
+
+真实发送与接收（5）
+menu_share_send_and_recipient_open
+grocery_share_send_and_recipient_open
+invite_share_send_and_recipient_open
+meal_task_share_send_and_recipient_open
+poster_share_send_and_recipient_open
+
+海报风格（2）
+poster_style_change_primary
+poster_style_change_secondary
+
+提醒（3）
+reminder_accept
+reminder_reject
+reminder_cancel
+
+回滚（1）
+immediate_h5_rollback
+```
+
+证据目录的 `manifest.json` 使用 `schemaVersion: 2`，并在 `scenarios` 对象中以以上稳定 ID 为键。验收命令：
+
+```bash
+node scripts/check-humi-true-device-evidence.mjs --selftest
+npm run validate:true-device-evidence
+node scripts/check-humi-true-device-evidence.mjs \
+  --evidence-dir /absolute/private/evidence-dir \
+  --candidate-commit <candidate-sha>
+```
+
+无证据参数运行时，门禁必须逐行报告 36 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。

@@ -1,5 +1,6 @@
 const { restoreSession, saveSession, clearSession } = require("./utils/session");
 const { flushMutationQueue } = require("./utils/offline-queue");
+const { scheduleTelemetryFlush } = require("./utils/telemetry");
 const { HUMI_NATIVE_SHELL_CANDIDATE } = require("./utils/config");
 const { appStore } = require("./utils/store");
 
@@ -16,9 +17,11 @@ App({
     appStore.replaceSession(restoredSession);
     this.globalData.humiSession = restoredSession;
     this.globalData.nativeShellCandidate = HUMI_NATIVE_SHELL_CANDIDATE;
+    scheduleTelemetryFlush();
   },
 
   onShow() {
+    scheduleTelemetryFlush();
     const applyEnvelope = (envelope) => {
       if (envelope?.schemaVersion === 1 && envelope?.stateVersion) {
         appStore.replaceBootstrap(envelope);
