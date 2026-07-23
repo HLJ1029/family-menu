@@ -74,12 +74,15 @@ function createPage(wxOverrides = {}, runtimeOverrides = {}) {
 
 function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
   let definition;
+  let sharedLoginCalls = 0;
+  let clearSessionCalls = 0;
   const app = {
     globalData: { humiSession: runtimeOverrides.appSession ?? null },
     setHumiSession(session) {
       this.globalData.humiSession = session;
     },
     clearHumiSession() {
+      clearSessionCalls += 1;
       this.globalData.humiSession = null;
     }
   };
@@ -112,8 +115,23 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
     console,
     Date,
     require: (specifier) => {
-      assert.equal(specifier, "../../utils/config");
-      return { getHumiApiBaseUrl: () => "https://api.humi-home.com" };
+      if (specifier === "../../utils/session") {
+        return {
+          loginWithWechat: async () => {
+            sharedLoginCalls += 1;
+            return runtimeOverrides.loginResult || {
+              accessToken: "identity-session-token",
+              expiresAt: Date.now() + 60_000,
+              user: { id: "user-1", displayName: "微信用户", profileStatus: "incomplete" }
+            };
+          }
+        };
+      }
+      if (specifier === "../../utils/request") return { requestHumi: async () => ({}) };
+      if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: () => {} };
+      if (specifier === "../../utils/user-message") return { toHumiUserMessage: (_error, fallback) => fallback };
+      if (specifier === "../../data/approved-avatar-keys.json") return ["humi-avatar-parent-f-01"];
+      assert.fail(`Unexpected identity dependency: ${specifier}`);
     }
   });
   assert.ok(definition, "identity page definition should load");
@@ -125,7 +143,7 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
       this.data = { ...this.data, ...patch };
     }
   };
-  return { page, app, requestUrls, relaunches };
+  return { page, app, requestUrls, relaunches, getSharedLoginCalls: () => sharedLoginCalls, getClearSessionCalls: () => clearSessionCalls };
 }
 
 {
@@ -153,24 +171,26 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
 }
 
 {
-  let loginCalls = 0;
+  let rawWxLoginCalls = 0;
   const revokedSession = {
     accessToken: "revoked-native-session",
     expiresAt: Date.now() + 60_000,
     user: { id: "revoked-user", displayName: "旧用户", profileStatus: "complete" }
   };
-  const { page, app, requestUrls } = createIdentityPage(
+  const { page, app, requestUrls, getSharedLoginCalls, getClearSessionCalls } = createIdentityPage(
     {
       login: ({ success }) => {
-        loginCalls += 1;
+        rawWxLoginCalls += 1;
         success({ code: "wechat-code" });
       }
     },
     { appSession: revokedSession }
   );
-  page.onLoad({ action: "login" });
-  assert.equal(loginCalls, 1, "explicit identity route must replace a stale native session via wx.login");
-  assert.equal(requestUrls.filter((url) => url.endsWith("/auth/wechat/login")).length, 1);
+  await page.onLoad({ action: "login" });
+  assert.equal(getClearSessionCalls(), 1, "explicit identity route must clear the stale native session before shared login");
+  assert.equal(getSharedLoginCalls(), 1, "explicit identity route must trigger exactly one shared login");
+  assert.equal(rawWxLoginCalls, 0, "identity page must not duplicate wx.login outside the shared session foundation");
+  assert.deepEqual(requestUrls, [], "identity page must not issue a raw /auth/wechat/login request");
   assert.equal(app.globalData.humiSession?.accessToken, "identity-session-token");
 }
 

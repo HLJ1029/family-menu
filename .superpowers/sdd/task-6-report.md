@@ -28,6 +28,11 @@ Before implementation, the required contracts failed as intended:
 - GREEN: `api/data/approved-avatar-keys.json` is now canonical. The miniprogram JSON is an explicitly tested value projection. `validate:api-deploy-set` deep-compares both contracts, stages only the documented deployment set in a temporary directory, and successfully imports both `api/store.js` and `api/server.js` there.
 - The API deployment runbook now synchronizes and backs up/restores all runtime imports (`api/`, `src/lib/mealExecution.js`, recipe/cook-assist JSON, package manifests), and its production pre-start command resolves real imports after `npm ci`; it is not limited to `node --check`.
 - The temporary staging test explicitly creates every copied parent directory before `cp`; the runbook conditions `src`/`data` backup and rollback so an older production layout lacking either directory does not abort the procedure or delete an unrecoverable directory.
+
+## Final regression correction
+
+- RED: `npm run validate:miniprogram-entry` reproducibly failed because its identity-page VM only allowed the pre-Task-6 `../../utils/config` dependency while the page now correctly uses shared session/request/bootstrap/error-message and approved-avatar contracts.
+- GREEN: the entry fixture now maps the current dependencies, supplies a counted shared `loginWithWechat` stub with a valid incomplete session, and asserts `action=login` clears stale session, invokes shared login exactly once, persists that session, and issues no raw `/auth/wechat/login` request. This corrects fixture drift without changing production identity behavior or weakening the legacy entry/H5/401 checks.
 - `docs/humi-api-contract.md` records the explicit-avatar completion rule and stable `400 avatar_required` / `400 invalid_avatar_key` responses.
 
 ## No automatic household creation
