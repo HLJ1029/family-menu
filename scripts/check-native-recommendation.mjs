@@ -1,0 +1,535 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path, { join } from "node:path";
+import vm from "node:vm";
+import { createServer as createViteServer } from "vite";
+
+const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-native-recommendation-"));
+process.env.HUMI_API_DATA_FILE = join(smokeDirectory, "api.json");
+process.env.HUMI_SESSION_SECRET = "humi-native-recommendation-secret";
+process.env.HUMI_WECHAT_MOCK = "1";
+process.env.HUMI_MEAL_EXECUTION_ENABLED = "1";
+process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS = "*";
+
+const {
+  buildRecommendationScope,
+  selectBalancedDinner,
+  validateRecommendationGroup,
+  formatBusinessDateKey,
+  legacyRecommendationCatalog,
+} = await import("../api/recommendation-rotation.js");
+const { HumiStore } = await import("../api/store.js");
+const { createHumiApiServer } = await import("../api/server.js");
+const vite = await createViteServer({ logLevel: "silent", server: { middlewareMode: true } });
+const {
+  requestBalancedDinnerWithFallback,
+  rotateLocalDinner,
+} = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
+const guestStorage = new Map();
+const nativeRuntime = createMiniProgramRuntime(guestStorage);
+const certifiedRecipes = nativeRuntime.load(path.resolve("miniprogram/data/certified-recipes.js"));
+const { rotateGuestDinner } = nativeRuntime.load(path.resolve("miniprogram/utils/recommendation.js"));
+const mainSource = await readFile(new URL("../src/main.jsx", import.meta.url), "utf8");
+
+const contextFingerprint = createHash("sha256").update("safe-family-context").digest("base64url");
+const baseInput = {
+  householdId: "household-a",
+  dateKey: "2026-07-22",
+  mode: "meal_execution",
+  effortTier: "quick_15",
+  contextFingerprint,
+  targetDishCount: 2,
+  catalog: certifiedRecipes,
+  familyProfile: { familySize: 2, allergies: [], dislikes: [] },
+  familyMembers: [],
+  recommendationFeedback: [],
+};
+
+assert.equal(
+  (mainSource.match(/void loadMealExecutionRecommendation\(/g) ?? []).length,
+  1,
+  "effort selection must rely on one effect-owned recommendation request instead of double loading",
+);
+assert.equal(
+  mainSource.includes("if (!signedIn || !family?.id || mealExecutionExperienceEnabled"),
+  false,
+  "guest legacy Tonight must hydrate a local current group before explicit rotation",
+);
+assert.equal(certifiedRecipes.length, 30, "native projection must contain exactly 30 certified recipes");
+assert.equal(legacyRecommendationCatalog.length, 138, "legacy mode must retain the complete 138-recipe catalog");
+assert.deepEqual(
+  Array.from(certifiedRecipes, (recipe) => recipe.id),
+  Array.from(certifiedRecipes, (recipe) => recipe.id).sort(),
+  "native projection must be deterministic and sorted by recipe id",
+);
+for (const recipe of certifiedRecipes) {
+  assert.equal(recipe.cookAssist.status, "certified");
+  assert(recipe.title && recipe.thumbnailUrl);
+  assert(Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0);
+  assert(Array.isArray(recipe.cookAssist.steps) && recipe.cookAssist.steps.length > 0);
+  assert(Array.isArray(recipe.cookAssist.dependencies));
+  assert(Array.isArray(recipe.cookAssist.downgradeRecipeIds));
+  assert(Array.isArray(recipe.cookAssist.substitutions));
+  assert(recipe.cookAssist.readyStaple);
+}
+
+for (const effortTier of ["quick_15", "easy_30", "normal"]) {
+  let rotation = null;
+  const groups = [];
+  for (let index = 0; index < 5; index += 1) {
+    const result = selectBalancedDinner({
+      ...baseInput,
+      effortTier,
+      action: index === 0 ? "initial" : "next",
+      rotation,
+    });
+    groups.push(result.group);
+    rotation = result.rotation;
+    assert.equal(
+      validateRecommendationGroup(result.group, { ...baseInput, effortTier }),
+      true,
+      `${effortTier} group ${index + 1} must obey hard constraints`,
+    );
+  }
+  const ids = groups.flatMap((group) => group.recipeIds);
+  assert.equal(new Set(ids).size, ids.length, `${effortTier} must produce five groups without a repeated recipe`);
+
+  const refreshed = selectBalancedDinner({ ...baseInput, effortTier, action: "initial", rotation });
+  assert.deepEqual(refreshed.group.recipeIds, groups.at(-1).recipeIds, "refresh must return the current group without advancing");
+  assert.deepEqual(refreshed.rotation, rotation, "refresh must not mutate the rotation cursor");
+
+  const exhausted = selectBalancedDinner({ ...baseInput, effortTier, action: "next", rotation });
+  assert.equal(exhausted.group.cycle, 1, "the sixth group must start a new cycle");
+  assert.equal(exhausted.group.exhausted, true, "cycle rollover must be explicit");
+  const protectedIds = new Set(groups.slice(-2).flatMap((group) => group.recipeIds));
+  assert.equal(
+    exhausted.group.recipeIds.some((recipeId) => protectedIds.has(recipeId)),
+    false,
+    "a new cycle must protect the most recent two groups",
+  );
+}
+
+const eggSafe = selectBalancedDinner({
+  ...baseInput,
+  effortTier: "easy_30",
+  action: "initial",
+  familyProfile: { familySize: 2, allergies: ["鸡蛋"], dislikes: [] },
+});
+assert.equal(
+  validateRecommendationGroup(eggSafe.group, {
+    ...baseInput,
+    effortTier: "easy_30",
+    familyProfile: { familySize: 2, allergies: ["鸡蛋"], dislikes: [] },
+  }),
+  true,
+  "allergy exclusion is a hard constraint",
+);
+assert.equal(
+  eggSafe.group.recipeIds.some((id) => certifiedRecipes.find((recipe) => recipe.id === id).searchText.includes("鸡蛋")),
+  false,
+);
+
+const dislikedRecipeId = "tomato-egg";
+const dislikeSafe = selectBalancedDinner({
+  ...baseInput,
+  action: "initial",
+  dislikedRecipeIds: [dislikedRecipeId],
+});
+assert.equal(dislikeSafe.group.recipeIds.includes(dislikedRecipeId), false, "explicit recipe dislikes must never be recommended");
+assert.equal(
+  validateRecommendationGroup({ recipeIds: [dislikedRecipeId] }, { ...baseInput, dislikedRecipeIds: [dislikedRecipeId] }),
+  false,
+  "invalid server groups must be rejected locally",
+);
+
+const scopes = [
+  buildRecommendationScope(baseInput),
+  buildRecommendationScope({ ...baseInput, householdId: "household-b" }),
+  buildRecommendationScope({ ...baseInput, dateKey: "2026-07-23" }),
+  buildRecommendationScope({ ...baseInput, effortTier: "easy_30" }),
+  buildRecommendationScope({ ...baseInput, contextFingerprint: createHash("sha256").update("other").digest("base64url") }),
+];
+assert.equal(new Set(scopes).size, scopes.length, "household/date/tier/context scopes must be isolated");
+
+const feedbackCatalog = certifiedRecipes.filter((recipe) => recipe.cookAssist.effortTier === "quick_15");
+const feedbackFavorite = feedbackCatalog.at(-1).id;
+const feedbackResult = selectBalancedDinner({
+  ...baseInput,
+  action: "initial",
+  recommendationFeedback: [{ recipeId: feedbackFavorite, value: "want_again" }],
+});
+assert(
+  feedbackResult.group.recipeIds.includes(feedbackFavorite),
+  "positive feedback must affect ranking inside the high-score window",
+);
+const feedbackNext = selectBalancedDinner({
+  ...baseInput,
+  action: "next",
+  recommendationFeedback: [{ recipeId: feedbackFavorite, value: "want_again" }],
+  rotation: feedbackResult.rotation,
+});
+assert.equal(
+  feedbackNext.group.recipeIds.includes(feedbackFavorite),
+  false,
+  "feedback must not permit same-cycle repetition",
+);
+
+assert.equal(
+  formatBusinessDateKey(new Date("2026-07-22T16:30:00.000Z"), "Asia/Shanghai"),
+  "2026-07-23",
+  "server dinner date must cross at Asia/Shanghai midnight, not UTC midnight",
+);
+assert.equal(
+  formatBusinessDateKey(new Date("2026-07-22T15:59:59.000Z"), "Asia/Shanghai"),
+  "2026-07-22",
+);
+
+const guestGroups = [];
+for (let index = 0; index < 5; index += 1) {
+  guestGroups.push(rotateGuestDinner({
+    ...baseInput,
+    householdId: "",
+    action: index === 0 ? "initial" : "next",
+  }));
+}
+assert.equal(
+  new Set(guestGroups.flatMap((group) => group.recipeIds)).size,
+  guestGroups.flatMap((group) => group.recipeIds).length,
+  "guest rotation must share the server no-repeat semantics",
+);
+const guestRefresh = rotateGuestDinner({ ...baseInput, householdId: "", action: "initial" });
+assert.equal(
+  JSON.stringify(guestRefresh.recipeIds),
+  JSON.stringify(guestGroups.at(-1).recipeIds),
+  "guest refresh must not advance",
+);
+assert.equal(guestStorage.size, 1, "guest rotation must persist one scoped cursor");
+
+const invalidServerFallback = await requestBalancedDinnerWithFallback({
+  requestServer: async () => ({ recipeIds: ["not-certified"] }),
+  serverPayload: baseInput,
+  localInput: baseInput,
+  validateServerGroup: (group) => validateRecommendationGroup(group, baseInput),
+});
+assert.equal(invalidServerFallback.source, "local_fallback");
+assert.equal(validateRecommendationGroup(invalidServerFallback.group, baseInput), true);
+const networkFallback = await requestBalancedDinnerWithFallback({
+  requestServer: async () => {
+    throw new TypeError("Failed to fetch");
+  },
+  serverPayload: baseInput,
+  localInput: baseInput,
+  validateServerGroup: (group) => validateRecommendationGroup(group, baseInput),
+});
+assert.equal(networkFallback.source, "local_fallback", "network failure must immediately use local balanced fallback");
+const normalizedNetworkFallback = await requestBalancedDinnerWithFallback({
+  requestServer: async () => {
+    throw new Error("同步连接失败，请检查网络后重试。");
+  },
+  serverPayload: baseInput,
+  localInput: baseInput,
+  validateServerGroup: (group) => validateRecommendationGroup(group, baseInput),
+});
+assert.equal(
+  normalizedNetworkFallback.source,
+  "local_fallback",
+  "normalized Humi API connectivity errors must also use the local fallback",
+);
+
+const h5GuestStorage = createStringStorage();
+const h5GuestGroups = [];
+for (let index = 0; index < 5; index += 1) {
+  h5GuestGroups.push(rotateLocalDinner({
+    ...baseInput,
+    action: index === 0 ? "initial" : "next",
+    storage: h5GuestStorage,
+  }));
+}
+assert.equal(
+  new Set(h5GuestGroups.flatMap((group) => group.recipeIds)).size,
+  h5GuestGroups.flatMap((group) => group.recipeIds).length,
+  "H5 guest fallback must rotate through five groups without same-cycle repetition",
+);
+assert.equal(
+  JSON.stringify(rotateLocalDinner({ ...baseInput, action: "initial", storage: h5GuestStorage }).recipeIds),
+  JSON.stringify(h5GuestGroups.at(-1).recipeIds),
+  "H5 page refresh must recover the current local group without advancing",
+);
+
+const store = new HumiStore(join(smokeDirectory, "rotation-store.json"));
+await store.load();
+store.data.users = [{ id: "owner-a" }];
+store.data.households = [{
+  id: "household-a",
+  ownerId: "owner-a",
+  members: [{ memberId: "owner-a", role: "owner", status: "formal" }],
+}];
+store.data.householdStates = {
+  "household-a": {
+    familyProfile: { familySize: 2, allergies: [], dislikes: [] },
+    recommendationFeedback: [],
+  },
+};
+const persistedInitial = await store.rotateDinnerRecommendation("owner-a", { ...baseInput, action: "initial" });
+const persistedNext = await store.rotateDinnerRecommendation("owner-a", {
+  ...baseInput,
+  action: "next",
+  stateVersion: persistedInitial.stateVersion,
+});
+assert.notDeepEqual(persistedNext.recipeIds, persistedInitial.recipeIds);
+const diskState = JSON.parse(await readFile(join(smokeDirectory, "rotation-store.json"), "utf8"));
+assert.equal(diskState.recommendationRotations.length, 1);
+assert.deepEqual(
+  Object.keys(diskState.recommendationRotations[0]).sort(),
+  ["cycle", "householdId", "recentGroupIds", "scopeKey", "seenRecipeIds", "updatedAt"].sort(),
+  "rotation persistence must contain only the approved cursor fields",
+);
+await assert.rejects(
+  () => store.rotateDinnerRecommendation("owner-a", {
+    ...baseInput,
+    action: "next",
+    stateVersion: persistedInitial.stateVersion,
+  }),
+  (error) => error.code === "recommendation_state_conflict",
+  "stale rotation writes must not advance the cursor",
+);
+await assert.rejects(
+  () => store.rotateDinnerRecommendation("owner-a", {
+    ...baseInput,
+    action: "next",
+    stateVersion: "",
+  }),
+  (error) => error.code === "recommendation_state_conflict",
+  "an existing server cursor must require its stateVersion before advancing",
+);
+
+const concurrentInput = { ...baseInput, dateKey: "2026-07-24", action: "initial" };
+const concurrentInitial = await store.rotateDinnerRecommendation("owner-a", concurrentInput);
+const concurrentResults = await Promise.allSettled([
+  store.rotateDinnerRecommendation("owner-a", {
+    ...concurrentInput,
+    action: "next",
+    stateVersion: concurrentInitial.stateVersion,
+  }),
+  store.rotateDinnerRecommendation("owner-a", {
+    ...concurrentInput,
+    action: "next",
+    stateVersion: concurrentInitial.stateVersion,
+  }),
+]);
+assert.equal(concurrentResults.filter((result) => result.status === "fulfilled").length, 1);
+assert.equal(
+  concurrentResults.filter((result) => result.status === "rejected" && result.reason.code === "recommendation_state_conflict").length,
+  1,
+  "atomic rotation persistence must allow only one concurrent advance for a stateVersion",
+);
+
+store.data.recommendationRotations.push({
+  scopeKey: "expired",
+  householdId: "household-a",
+  seenRecipeIds: [],
+  recentGroupIds: [],
+  cycle: 0,
+  updatedAt: "2026-01-01T00:00:00.000Z",
+});
+for (let index = 0; index < 22; index += 1) {
+  store.data.recommendationRotations.push({
+    scopeKey: `scope-${index}`,
+    householdId: "household-a",
+    seenRecipeIds: [],
+    recentGroupIds: [],
+    cycle: 0,
+    updatedAt: new Date(Date.now() - index * 1000).toISOString(),
+  });
+}
+store.pruneRecommendationRotations();
+assert.equal(
+  store.data.recommendationRotations.filter((rotation) => rotation.householdId === "household-a").length,
+  20,
+  "only the 20 most recent recommendation scopes may remain per household",
+);
+assert.equal(
+  store.data.recommendationRotations.some((rotation) => rotation.scopeKey === "expired"),
+  false,
+  "recommendation scopes older than 14 days must be pruned",
+);
+
+store.data.mealRuns = [{
+  id: "cooking-run",
+  householdId: "household-a",
+  dateKey: baseInput.dateKey,
+  mealSlot: "dinner",
+  status: "cooking",
+}];
+await assert.rejects(
+  () => store.rotateDinnerRecommendation("owner-a", { ...baseInput, action: "next" }),
+  (error) => error.code === "meal_run_locked",
+  "active cooking must refuse recommendation replacement",
+);
+store.data.mealRuns[0].status = "completed";
+await assert.rejects(
+  () => store.rotateDinnerRecommendation("owner-a", { ...baseInput, action: "next" }),
+  (error) => error.code === "meal_run_locked",
+  "completed dinner must refuse recommendation replacement",
+);
+
+const server = createHumiApiServer();
+await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+try {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const session = await apiRequest(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: "recommendation-owner" },
+  });
+  const profile = await apiRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    session,
+    body: { displayName: "推荐主厨", avatarKey: "humi-avatar-family-f-01" },
+  });
+  session.user = profile.user;
+  const household = await apiRequest(`${baseUrl}/households`, {
+    method: "POST",
+    session,
+    body: { householdName: "推荐测试家" },
+  });
+  const householdId = household.family.id;
+  await apiRequest(`${baseUrl}/state`, {
+    method: "PUT",
+    session,
+    body: {
+      householdId,
+      state: {
+        householdId,
+        familyProfile: { familySize: 2, allergies: [], dislikes: [] },
+        recommendationFeedback: [],
+      },
+    },
+  });
+  const payload = { ...baseInput, householdId, action: "initial" };
+  const first = await apiRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    session,
+    body: payload,
+  });
+  assert.match(first.recommendationId, /^[0-9a-f-]{36}$/);
+  assert.equal(first.recipeIds.length, 1, "quick_15 server plans must stay a one-dish minimum-action plan");
+  const refreshed = await apiRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    session,
+    body: { ...payload, stateVersion: first.stateVersion },
+  });
+  assert.deepEqual(refreshed.recipeIds, first.recipeIds);
+  const next = await apiRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    session,
+    body: { ...payload, action: "next", stateVersion: first.stateVersion },
+  });
+  assert.notDeepEqual(next.recipeIds, first.recipeIds);
+  const mealRun = await apiRequest(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session,
+    body: {
+      householdId,
+      dateKey: payload.dateKey,
+      mealSlot: "dinner",
+      effortTier: "quick_15",
+      recipeIds: next.recipeIds,
+      idempotencyKey: "recommendation-lock-run",
+    },
+  });
+  await apiRequest(`${baseUrl}/meal-runs/${mealRun.mealRun.id}/start`, {
+    method: "POST",
+    session,
+    body: {},
+  });
+  await assertApiRejected(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    session,
+    body: { ...payload, action: "next", stateVersion: next.stateVersion },
+  }, 409, "meal_run_locked");
+  await apiRequest(`${baseUrl}/meal-runs/${mealRun.mealRun.id}/complete`, {
+    method: "POST",
+    session,
+    body: {},
+  });
+  await assertApiRejected(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    session,
+    body: { ...payload, action: "next", stateVersion: next.stateVersion },
+  }, 409, "meal_run_locked");
+} finally {
+  await new Promise((resolve) => server.close(resolve));
+}
+
+console.log("Native recommendation rotation check passed.");
+await vite.close();
+await rm(smokeDirectory, { recursive: true, force: true });
+
+async function apiRequest(url, { method = "GET", session, body } = {}) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.message || `HTTP ${response.status}`);
+    error.status = response.status;
+    error.code = data.error;
+    throw error;
+  }
+  return data;
+}
+
+async function assertApiRejected(url, options, status, code) {
+  await assert.rejects(
+    () => apiRequest(url, options),
+    (error) => error.status === status && error.code === code,
+    `${options.method || "GET"} ${url} should reject with ${status} ${code}`,
+  );
+}
+
+function createMiniProgramRuntime(storage) {
+  const modules = new Map();
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+  };
+  function load(file) {
+    const resolved = path.resolve(file);
+    if (modules.has(resolved)) return modules.get(resolved).exports;
+    const record = { exports: {} };
+    modules.set(resolved, record);
+    const source = fs.readFileSync(resolved, "utf8");
+    const context = vm.createContext({
+      module: record,
+      exports: record.exports,
+      require: (specifier) => load(path.resolve(path.dirname(resolved), `${specifier}.js`)),
+      wx,
+      console,
+      Date,
+      JSON,
+      Math,
+      Set,
+      Map,
+      structuredClone,
+    });
+    new vm.Script(source, { filename: resolved }).runInContext(context);
+    return record.exports;
+  }
+  return { load };
+}
+
+function createStringStorage() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+}

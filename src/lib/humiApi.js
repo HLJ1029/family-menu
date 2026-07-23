@@ -61,6 +61,14 @@ export function createHumiMealRun(session, payload) {
   return humiApiRequest("/meal-runs", { method: "POST", session, body: payload });
 }
 
+export function requestDinnerRecommendation(session, payload) {
+  return humiApiRequest("/recommendations/dinner", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
 export function loadCurrentHumiMealRun(session, { householdId, dateKey, mealSlot = "dinner" }) {
   const params = new URLSearchParams({ householdId, dateKey, mealSlot });
   return humiApiRequest(`/meal-runs/current?${params.toString()}`, { session });

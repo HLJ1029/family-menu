@@ -3,6 +3,11 @@ import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import {
+  buildRecommendationScope,
+  recommendationStateVersion,
+  selectBalancedDinner,
+} from "./recommendation-rotation.js";
 
 const require = createRequire(import.meta.url);
 export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
@@ -27,6 +32,7 @@ const DEFAULT_DATA = {
   mealTasks: [],
   mealReminders: [],
   productEvents: [],
+  recommendationRotations: [],
   revokedTokens: [],
   h5Tickets: [],
 };
@@ -54,6 +60,9 @@ export class HumiStore {
     this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
     this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
     this.data.productEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
+    this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
+      ? this.data.recommendationRotations
+      : [];
     this.loaded = true;
   }
 
@@ -1417,6 +1426,93 @@ export class HumiStore {
     });
   }
 
+  async rotateDinnerRecommendation(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const mode = input.mode === "legacy" ? "legacy" : input.mode === "meal_execution" ? "meal_execution" : "";
+      if (!mode) throw codedError("recommendation_mode_invalid", "Unsupported recommendation mode.");
+      const effortTier = mode === "meal_execution"
+        ? sanitizeEffortTier(input.effortTier)
+        : sanitizeText(input.effortTier, "legacy", 24);
+      const action = ["initial", "next", "reject"].includes(input.action) ? input.action : "initial";
+      const contextFingerprint = sanitizeText(input.contextFingerprint, "", 128);
+      const scopeKey = buildRecommendationScope({
+        householdId,
+        dateKey,
+        mode,
+        effortTier,
+        contextFingerprint,
+      });
+      const currentMealRun = this.data.mealRuns.find((run) => (
+        run.householdId === household.id
+        && run.dateKey === dateKey
+        && run.mealSlot === "dinner"
+        && ["cooking", "completed"].includes(run.status)
+      ));
+      if (currentMealRun && action !== "initial") {
+        throw codedError("meal_run_locked", "Cooking or completed dinner cannot be replaced.");
+      }
+
+      this.pruneRecommendationRotations();
+      const rotationIndex = this.data.recommendationRotations.findIndex((entry) => entry.scopeKey === scopeKey);
+      const currentRotation = rotationIndex >= 0 ? this.data.recommendationRotations[rotationIndex] : null;
+      const currentStateVersion = currentRotation ? recommendationStateVersion(currentRotation) : "";
+      const expectedStateVersion = sanitizeText(input.stateVersion, "", 128);
+      if (action !== "initial" && currentRotation && expectedStateVersion !== currentStateVersion) {
+        throw codedError("recommendation_state_conflict", "Recommendation cursor changed; refresh before choosing another group.");
+      }
+
+      const state = this.data.householdStates[household.id] ?? {};
+      const targetDishCount = normalizeRecommendationDishCount(input.targetDishCount, mode, effortTier, state.familyProfile);
+      const result = selectBalancedDinner({
+        householdId,
+        dateKey,
+        mode,
+        effortTier,
+        action,
+        contextFingerprint,
+        targetDishCount,
+        rotation: currentRotation,
+        familyProfile: state.familyProfile ?? {},
+        familyMembers: state.familyMembers ?? [],
+        recommendationFeedback: state.recommendationFeedback ?? [],
+        pantryItems: state.pantryItems ?? [],
+        wantToEatItems: state.wantToEatItems ?? state.wishPool ?? [],
+        dislikedRecipeIds: state.dislikedRecipeIds ?? [],
+      });
+      const persisted = {
+        scopeKey: result.rotation.scopeKey,
+        householdId: result.rotation.householdId,
+        seenRecipeIds: [...result.rotation.seenRecipeIds],
+        recentGroupIds: [...result.rotation.recentGroupIds],
+        cycle: result.rotation.cycle,
+        updatedAt: result.rotation.updatedAt,
+      };
+      if (rotationIndex >= 0) this.data.recommendationRotations[rotationIndex] = persisted;
+      else this.data.recommendationRotations.push(persisted);
+      this.pruneRecommendationRotations();
+      return structuredClone(result.group);
+    });
+  }
+
+  pruneRecommendationRotations(now = Date.now()) {
+    const cutoff = now - 14 * 24 * 60 * 60 * 1000;
+    const recent = (this.data.recommendationRotations ?? []).filter((entry) => {
+      const updatedAt = Date.parse(entry?.updatedAt || "");
+      return Number.isFinite(updatedAt) && updatedAt >= cutoff;
+    });
+    const perHousehold = new Map();
+    for (const entry of recent.sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))) {
+      const entries = perHousehold.get(entry.householdId) ?? [];
+      if (entries.length < 20) entries.push(entry);
+      perHousehold.set(entry.householdId, entries);
+    }
+    this.data.recommendationRotations = [...perHousehold.values()].flat();
+  }
+
   async getCurrentMealRun(userId, { householdId, dateKey, mealSlot = "dinner" } = {}) {
     await this.load();
     this.requireFormalMemberHousehold(userId, householdId);
@@ -1864,6 +1960,14 @@ function sanitizeOptionalIsoDate(value) {
 function sanitizeEffortTier(value) {
   if (["quick_15", "easy_30", "normal"].includes(value)) return value;
   throw codedError("effort_tier_invalid", "Unsupported effort tier.");
+}
+
+function normalizeRecommendationDishCount(value, mode, effortTier, familyProfile = {}) {
+  const requested = Number.parseInt(value, 10);
+  if (Number.isFinite(requested)) return Math.max(1, Math.min(4, requested));
+  if (mode === "meal_execution") return effortTier === "quick_15" ? 1 : 2;
+  const familySize = Math.max(1, Number.parseInt(familyProfile?.familySize, 10) || 2);
+  return familySize <= 1 ? 1 : familySize >= 5 ? 3 : 2;
 }
 
 function sanitizeRecipeIds(value) {

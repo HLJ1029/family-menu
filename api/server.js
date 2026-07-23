@@ -10,6 +10,7 @@ import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessa
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
 import { buildMealTimeline, downgradeMealPlan, getCertifiedRecipe } from "../src/lib/mealExecution.js";
+import { formatBusinessDateKey } from "./recommendation-rotation.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -227,6 +228,11 @@ export function createHumiApiServer() {
 
       if ((request.method === "PUT" || request.method === "POST") && url.pathname === "/state") {
         await handleSaveState(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/recommendations/dinner") {
+        await handleDinnerRecommendation(request, response);
         return;
       }
 
@@ -696,6 +702,34 @@ async function handleSaveState(request, response) {
   });
 }
 
+async function handleDinnerRecommendation(request, response) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  const requestedHouseholdId = stringValue(body.householdId, 100);
+  const households = await store.getHouseholdsForUser(user.id);
+  const activeHousehold = await store.getHouseholdForUser(user.id);
+  const household = requestedHouseholdId
+    ? households.find((item) => item.id === requestedHouseholdId)
+    : activeHousehold;
+  if (!household) throw httpError(404, "household_not_found", "没有找到这个家。");
+  const mode = stringValue(body.mode, 24);
+  if (mode === "meal_execution") assertMealExecutionEnabled(household.id);
+  try {
+    const recommendation = await store.rotateDinnerRecommendation(user.id, {
+      householdId: household.id,
+      dateKey: body.dateKey,
+      mode,
+      effortTier: body.effortTier,
+      action: body.action,
+      contextFingerprint: body.contextFingerprint,
+      stateVersion: body.stateVersion,
+    });
+    sendJson(response, 200, recommendation, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
 async function handleCreateMealRun(request, response) {
   const { user, household } = await requireMealExecutionContext(request);
   const body = await readJson(request);
@@ -1132,8 +1166,8 @@ function isNativeShellEnabledFor(householdId) {
     || Boolean(householdId && config.nativeShellHouseholds.has(householdId));
 }
 
-function currentDinnerDateKey() {
-  return new Date().toISOString().slice(0, 10);
+function currentDinnerDateKey(now = new Date()) {
+  return formatBusinessDateKey(now, "Asia/Shanghai");
 }
 
 function assertMealExecutionEnabled(householdId) {
@@ -1203,6 +1237,11 @@ function mapMealExecutionError(error) {
     abandon_reason_invalid: 400,
     invalid_downgrade_action: 400,
     product_event_invalid: 400,
+    recommendation_state_conflict: 409,
+    recommendation_candidates_exhausted: 409,
+    recommendation_mode_invalid: 400,
+    recommendation_action_invalid: 400,
+    context_fingerprint_invalid: 400,
     idempotency_key_required: 400,
     date_key_invalid: 400,
     effort_tier_invalid: 400,
