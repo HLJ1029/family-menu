@@ -82,8 +82,8 @@ export function updateHumiMealRunProgress(session, mealRunId, payload) {
   return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/progress`, { method: "PUT", session, body: payload });
 }
 
-export function completeHumiMealRun(session, mealRunId) {
-  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/complete`, { method: "POST", session, body: {} });
+export function completeHumiMealRun(session, mealRunId, payload = {}) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/complete`, { method: "POST", session, body: payload });
 }
 
 export function downgradeHumiMealRun(session, mealRunId, action) {

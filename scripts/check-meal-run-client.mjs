@@ -5,6 +5,8 @@ import {
   downgradeLocalMealRun,
   isCompletedGuestRunEquivalent,
   mergeLocalMealRun,
+  obsoleteMealEpochOperationIds,
+  recoverObsoleteMealEpoch,
   remainingLocalTimerSeconds,
   transitionLocalMealRun,
 } from "../src/lib/mealRun.js";
@@ -196,6 +198,49 @@ assert.equal(
   isCompletedGuestRunEquivalent(completedWithFeedback, { ...equivalentRemoteCompleted, feedback: [] }, "owner-1"),
   false,
   "missing owner feedback keeps the completed H5 guest record available for retry",
+);
+
+const obsoleteOperationIds = obsoleteMealEpochOperationIds([
+  { id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } },
+  { id: "complete-v1", mealRunId: "run-epoch", action: "complete", payload: { timelineVersion: 1 } },
+  { id: "feedback-v1", mealRunId: "run-epoch", action: "feedback", payload: { value: "want_again" } },
+  { id: "abandon-safe", mealRunId: "run-epoch", action: "abandon", payload: { reason: "plans_changed" } },
+  { id: "progress-v2", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 2 } },
+  { id: "other-run", mealRunId: "other", action: "progress", payload: { timelineVersion: 1 } },
+], {
+  mealRunId: "run-epoch",
+  timelineVersion: 1,
+});
+assert.deepEqual(
+  obsoleteOperationIds.sort(),
+  ["complete-v1", "feedback-v1", "progress-v1"],
+  "H5 drops only obsolete epoch work and its dependent feedback",
+);
+const recoveredEpoch = await recoverObsoleteMealEpoch({
+  operations: [
+    { id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } },
+    { id: "complete-v1", mealRunId: "run-epoch", action: "complete", payload: { timelineVersion: 1 } },
+    { id: "other-run", mealRunId: "other", action: "progress", payload: { timelineVersion: 1 } },
+  ],
+  failedOperation: {
+    id: "progress-v1",
+    mealRunId: "run-epoch",
+    action: "progress",
+    payload: { timelineVersion: 1 },
+  },
+  loadLatest: async () => ({ mealRun: { id: "run-epoch", timelineVersion: 2, status: "cooking" } }),
+});
+assert.equal(recoveredEpoch.latestMealRun.timelineVersion, 2);
+assert.equal(recoveredEpoch.discardedCompletion, true);
+assert.deepEqual(recoveredEpoch.discardedOperationIds.sort(), ["complete-v1", "progress-v1"]);
+await assert.rejects(
+  () => recoverObsoleteMealEpoch({
+    operations: [{ id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } }],
+    failedOperation: { id: "progress-v1", mealRunId: "run-epoch", action: "progress", payload: { timelineVersion: 1 } },
+    loadLatest: async () => { throw new Error("offline"); },
+  }),
+  /offline/,
+  "H5 keeps the old queue intact until the authoritative refresh succeeds",
 );
 
 const abandoned = transitionLocalMealRun(

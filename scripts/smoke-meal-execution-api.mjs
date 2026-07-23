@@ -223,17 +223,27 @@ try {
   assert.equal(downgradedRun.mealRun.readyStaple, "即食米饭");
   assert.equal(downgradedRun.mealRun.downgrades.length, 1);
 
-  const completed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
+  await assertRejected(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
     method: "POST",
     session: member,
     body: {},
+  }, 409, "meal_timeline_version_conflict");
+  await assertRejected(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
+    method: "POST",
+    session: member,
+    body: { timelineVersion: started.mealRun.timelineVersion },
+  }, 409, "meal_timeline_version_conflict");
+  const completed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
+    method: "POST",
+    session: member,
+    body: { timelineVersion: downgradedRun.mealRun.timelineVersion },
   });
   assert.equal(completed.mealRun.status, "completed");
   assert.equal(completed.mealRun.completedBy, member.user.id);
   const completedAgain = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
     method: "POST",
     session: member,
-    body: {},
+    body: { timelineVersion: downgradedRun.mealRun.timelineVersion },
   });
   assert.equal(completedAgain.mealRun.completedAt, completed.mealRun.completedAt, "completion must count exactly once");
 

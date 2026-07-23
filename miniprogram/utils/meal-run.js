@@ -239,7 +239,7 @@ async function migrateGuestRunState({
     const completeResult = await requestHumi({
       path: `/meal-runs/${encodeURIComponent(mealRun.id)}/complete`,
       method: "POST",
-      data: {},
+      data: { timelineVersion: Number(mealRun.timelineVersion || 1) },
       idempotencyKey: `guest-merge:${guestRun.id}:complete`,
       expectedUserId: ownerUserId,
     });
@@ -666,7 +666,9 @@ async function completeCookingMealRun(mealRun, {
   if (mealRun?.status === "completed") return mealRun;
   assertMealRunWritable(mealRun, ["cooking"]);
   if (!mealRun.localOnly) {
-    return requestMealRunMutation(mealRun, "complete", "POST", {}, {
+    return requestMealRunMutation(mealRun, "complete", "POST", {
+      timelineVersion: Number(mealRun.timelineVersion || 1),
+    }, {
       bootstrap,
       idempotencyKey,
     });

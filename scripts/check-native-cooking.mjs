@@ -68,6 +68,7 @@ await verifyNetworkRaceQueuesMutation();
 await verifyOfflinePlannedRunStaysActionable();
 await verifyOfflineAbandonReasons();
 await verifyAllDowngrades();
+await verifyOfflineEpochConflictConverges();
 await verifyConflictFreezeAndReload();
 await verifyConflictReplacementGuidance();
 await verifyCrossDeviceAbandonConflict();
@@ -368,6 +369,11 @@ async function verifyAuthenticatedLifecycle() {
   assert.equal(page.data.mealRun.status, "completed");
   assert.equal(page._clock, null, "completion stops the page timer immediately");
   assert.equal(calls.filter((call) => call.path.endsWith("/complete")).length, 1, "serve must be exactly once");
+  assert.equal(
+    calls.find((call) => call.path.endsWith("/complete"))?.data?.timelineVersion,
+    1,
+    "serving is bound to the timeline epoch the family actually cooked",
+  );
 
   await page.saveFeedback({ detail: { value: "want_again" } });
   await page.saveFeedback({ detail: { value: "want_again" } });
@@ -942,6 +948,110 @@ async function verifyConflictFreezeAndReload() {
   assert.equal(page.data.mealRun.currentStepId, timeline.steps[2].id);
   await page.advanceStep({ currentTarget: { dataset: { stepId: timeline.steps[2].id } } });
   assert.equal(progressCalls, 1, "a conflict freezes later mutations");
+}
+
+async function verifyOfflineEpochConflictConverges() {
+  const initial = remoteRun({ id: "run-epoch-recovery", status: "cooking", timelineVersion: 1 });
+  const latest = remoteRun({
+    ...initial,
+    timelineVersion: 2,
+    recipeIds: ["tomato-egg"],
+    currentStepId: timeline.steps[0].id,
+    timers: {},
+    downgrades: [{ action: "lower_effort_recipe" }],
+  });
+  let serverRun = initial;
+  const calls = [];
+  const runtime = createRuntime({
+    initialRun: initial,
+    online: false,
+    requestHandler: ({ path: pathname, method, data, succeed }) => {
+      calls.push({ path: pathname, method, data: clone(data) });
+      if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: serverRun });
+      if (pathname.endsWith("/progress")) {
+        if (Number(data.timelineVersion) !== Number(serverRun.timelineVersion)) {
+          return succeed({ error: "meal_timeline_version_conflict" }, 409);
+        }
+        serverRun = { ...serverRun, currentStepId: data.currentStepId };
+        return succeed({ mealRun: serverRun });
+      }
+      if (pathname.endsWith("/complete")) {
+        assert.equal(data.timelineVersion, 2, "serving after recovery must confirm the authoritative epoch");
+        serverRun = { ...serverRun, status: "completed" };
+        return succeed({ mealRun: serverRun });
+      }
+      throw new Error(`Unexpected request: ${method} ${pathname}`);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: initial.id });
+  await page.advanceStep({ detail: { stepId: initial.currentStepId } });
+  await page.completeMeal();
+  const queue = runtime.load("miniprogram/utils/offline-queue.js");
+  assert.deepEqual(
+    Array.from(queue.readQueue(), (action) => action.type),
+    ["meal_progress", "meal_complete"],
+    "offline progress and serving remain ordered in the old epoch",
+  );
+
+  serverRun = latest;
+  runtime.setOnline(true);
+  await runtime.settle();
+  await runtime.settle();
+  assert.equal(page.data.mealRun.timelineVersion, 2, "reconnect adopts the authoritative timeline epoch");
+  assert.equal(page.data.syncFrozen, false, "an obsolete progress action never permanently freezes cooking");
+  assert.deepEqual(Array.from(queue.readQueue()), [], "old progress and its dependent completion are removed");
+  assert.match(page.data.errorText, /重新确认上桌/, "a discarded stale completion asks for a fresh explicit confirmation");
+  assert.equal(calls.filter((call) => call.path.endsWith("/complete")).length, 0, "old dishes never complete a replacement timeline");
+
+  await page.completeMeal();
+  assert.equal(page.data.mealRun.status, "completed");
+  assert.equal(calls.filter((call) => call.path.endsWith("/complete")).length, 1);
+
+  const coldLatest = remoteRun({
+    id: "run-cold-epoch-recovery",
+    status: "cooking",
+    timelineVersion: 2,
+    recipeIds: ["tomato-egg"],
+    downgrades: [{ action: "lower_effort_recipe" }],
+  });
+  const coldRuntime = createRuntime({
+    initialRun: { ...coldLatest, timelineVersion: 1, recipeIds: [...timeline.recipeIds], downgrades: [] },
+    online: false,
+    requestHandler: ({ path: pathname, data, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: coldLatest });
+      if (pathname.endsWith("/progress")) {
+        assert.equal(data.timelineVersion, 1);
+        return succeed({ error: "meal_timeline_version_conflict" }, 409);
+      }
+      throw new Error(`Unexpected cold recovery request: ${pathname}`);
+    },
+  });
+  const coldQueue = coldRuntime.load("miniprogram/utils/offline-queue.js");
+  coldQueue.enqueueMutation({
+    id: "cold-progress-v1",
+    type: "meal_progress",
+    householdId: coldLatest.householdId,
+    mealRunId: coldLatest.id,
+    createdAt: 1,
+    data: { currentStepId: timeline.steps[1].id, timelineVersion: 1 },
+  });
+  coldQueue.enqueueMutation({
+    id: "cold-complete-v1",
+    type: "meal_complete",
+    householdId: coldLatest.householdId,
+    mealRunId: coldLatest.id,
+    createdAt: 2,
+    data: { timelineVersion: 1 },
+  });
+  coldRuntime.setOnline(true);
+  const bootRecovery = await coldQueue.flushMutationQueue();
+  assert.equal(bootRecovery.status, "timeline_conflict");
+  assert.deepEqual(Array.from(coldQueue.readQueue()), [], "cold-start replay cannot retain an obsolete epoch");
+  const coldPage = coldRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await coldPage.onLoad({ mealRunId: coldLatest.id });
+  assert.equal(coldPage.data.mealRun.timelineVersion, 2);
+  assert.equal(coldPage.data.syncFrozen, false, "cold-start recovery opens the authoritative timeline without a freeze");
 }
 
 async function verifyConflictReplacementGuidance() {

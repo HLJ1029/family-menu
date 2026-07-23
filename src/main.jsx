@@ -121,6 +121,7 @@ import {
   downgradeLocalMealRun,
   isCompletedGuestRunEquivalent,
   mergeLocalMealRun,
+  recoverObsoleteMealEpoch,
   transitionLocalMealRun,
 } from "./lib/mealRun";
 import { createActualPassiveTimer } from "./lib/mealExecution";
@@ -567,7 +568,9 @@ function App() {
             }
           }
           if (guestRun.status === "completed" && synced.status === "cooking") {
-            synced = (await completeHumiMealRun(humiSession, synced.id)).mealRun;
+            synced = (await completeHumiMealRun(humiSession, synced.id, {
+              timelineVersion: Number(synced.timelineVersion || 1),
+            })).mealRun;
           }
         }
         const guestFeedback = guestRun.feedback?.at(-1)?.value;
@@ -655,37 +658,75 @@ function App() {
   }, [family?.id, humiSession, identityComplete]);
 
   useEffect(() => {
-    if (!mealExecutionEnabled || !online || !isHumiApiSession(humiSession) || mealExecutionQueue.length === 0) return undefined;
+    if (
+      !mealExecutionEnabled
+      || !online
+      || !isHumiApiSession(humiSession)
+      || !family?.id
+      || mealExecutionQueue.length === 0
+    ) return undefined;
     let active = true;
 
     async function flushMealExecutionQueue() {
       const completedOperationIds = [];
+      const discardedOperationIds = new Set();
       for (const operation of mealExecutionQueue) {
         if (!active) return;
+        if (discardedOperationIds.has(operation.id)) continue;
         try {
           let data;
           if (operation.action === "start") data = await startHumiMealRun(humiSession, operation.mealRunId);
           if (operation.action === "progress") data = await updateHumiMealRunProgress(humiSession, operation.mealRunId, operation.payload);
-          if (operation.action === "complete") data = await completeHumiMealRun(humiSession, operation.mealRunId);
+          if (operation.action === "complete") data = await completeHumiMealRun(humiSession, operation.mealRunId, operation.payload);
           if (operation.action === "abandon") data = await abandonHumiMealRun(humiSession, operation.mealRunId, operation.payload.reason);
           if (operation.action === "downgrade") data = await downgradeHumiMealRun(humiSession, operation.mealRunId, operation.payload.action);
           if (operation.action === "feedback") data = await updateHumiMealRunFeedback(humiSession, operation.mealRunId, operation.payload.value);
           if (data?.mealRun) upsertMealExecutionRun(data.mealRun);
           completedOperationIds.push(operation.id);
         } catch (error) {
+          if (
+            error?.status === 409
+            && error?.code === "meal_timeline_version_conflict"
+            && ["progress", "complete"].includes(operation.action)
+          ) {
+            const localRun = mealExecutionRuns.find((run) => run?.id === operation.mealRunId);
+            let recovery;
+            try {
+              recovery = await recoverObsoleteMealEpoch({
+                operations: mealExecutionQueue,
+                failedOperation: operation,
+                loadLatest: () => loadCurrentHumiMealRun(humiSession, {
+                  householdId: family.id,
+                  dateKey: localRun?.dateKey || todayDateKey,
+                  mealSlot: "dinner",
+                }),
+              });
+            } catch (refreshError) {
+              setMealExecutionStatus(refreshError.message || "最新做饭进度暂时无法读取，稍后会继续恢复。" );
+              break;
+            }
+            if (recovery.latestMealRun) upsertMealExecutionRun(recovery.latestMealRun);
+            recovery.discardedOperationIds.forEach((id) => discardedOperationIds.add(id));
+            setMealExecutionStatus(
+              recovery.discardedCompletion
+                ? "家人更新了这顿饭，已切换到最新安排；完成后请重新确认上桌。"
+                : "家人更新了这顿饭，已自动切换到最新进度。",
+            );
+            continue;
+          }
           setMealExecutionStatus(error.message || "网络恢复了，但有一项做饭进度还没同步。" );
           break;
         }
       }
-      if (active && completedOperationIds.length > 0) {
-        const completedSet = new Set(completedOperationIds);
+      if (active && (completedOperationIds.length > 0 || discardedOperationIds.size > 0)) {
+        const completedSet = new Set([...completedOperationIds, ...discardedOperationIds]);
         setMealExecutionQueue((current) => current.filter((item) => !completedSet.has(item.id)));
       }
     }
 
     flushMealExecutionQueue();
     return () => { active = false; };
-  }, [humiSession, mealExecutionEnabled, mealExecutionQueue, online]);
+  }, [family?.id, humiSession, mealExecutionEnabled, mealExecutionQueue, online, todayDateKey]);
 
   useEffect(() => {
     if (!isHumiApiSession(humiSession) || !humiStateLoadedRef.current || humiStateHydratingRef.current) return;
@@ -1625,12 +1666,17 @@ function App() {
   async function performMealRunTransition(action, payload = {}) {
     setMealExecutionPending(true);
     setMealExecutionStatus("");
+    const mutationPayload = action === "complete"
+      ? { ...payload, timelineVersion: Number(activeMealRun?.timelineVersion || 1) }
+      : payload;
     try {
       let nextRun;
       if (isHumiApiSession(humiSession) && family?.id && online) {
         if (action === "start") nextRun = (await startHumiMealRun(humiSession, activeMealRun.id)).mealRun;
-        if (action === "progress") nextRun = (await updateHumiMealRunProgress(humiSession, activeMealRun.id, payload)).mealRun;
-        if (action === "complete") nextRun = (await completeHumiMealRun(humiSession, activeMealRun.id)).mealRun;
+        if (action === "progress") nextRun = (await updateHumiMealRunProgress(humiSession, activeMealRun.id, mutationPayload)).mealRun;
+        if (action === "complete") nextRun = (await completeHumiMealRun(humiSession, activeMealRun.id, {
+          timelineVersion: Number(activeMealRun.timelineVersion || 1),
+        })).mealRun;
         if (action === "abandon") nextRun = (await abandonHumiMealRun(humiSession, activeMealRun.id, payload.reason)).mealRun;
       } else {
         nextRun = transitionLocalMealRun(activeMealRun, action, {
@@ -1639,7 +1685,7 @@ function App() {
         });
         if (isHumiApiSession(humiSession) && family?.id) {
           nextRun = { ...nextRun, syncStatus: "pending" };
-          enqueueMealExecutionOperation(activeMealRun.id, action, payload);
+          enqueueMealExecutionOperation(activeMealRun.id, action, mutationPayload);
         }
       }
       upsertMealExecutionRun(nextRun);
@@ -1648,12 +1694,12 @@ function App() {
       if (isHumiApiSession(humiSession) && family?.id && isMealExecutionNetworkError(error)) {
         const pendingRun = {
           ...transitionLocalMealRun(activeMealRun, action, {
-            ...payload,
+            ...mutationPayload,
             userId: currentHouseholdMemberId || "guest",
           }),
           syncStatus: "pending",
         };
-        enqueueMealExecutionOperation(activeMealRun.id, action, payload);
+        enqueueMealExecutionOperation(activeMealRun.id, action, mutationPayload);
         upsertMealExecutionRun(pendingRun);
         setMealExecutionStatus("网络不稳，进度已先保存在本机，恢复后会同步。" );
         return pendingRun;

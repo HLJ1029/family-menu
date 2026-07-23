@@ -843,10 +843,13 @@ async function handleUpdateMealRunProgress(request, response, mealRunId) {
 
 async function handleCompleteMealRun(request, response, mealRunId) {
   const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
   try {
     const current = await store.getMealRunForUser(user.id, mealRunId);
     assertMealExecutionEnabled(current.householdId);
-    const mealRun = await store.completeMealRun(user.id, mealRunId);
+    const mealRun = await store.completeMealRun(user.id, mealRunId, {
+      timelineVersion: body.timelineVersion,
+    });
     sendJson(response, 200, { mealRun });
   } catch (error) {
     throw mapMealExecutionError(error);

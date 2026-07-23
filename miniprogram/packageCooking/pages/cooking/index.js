@@ -367,8 +367,9 @@ const pageDefinition = {
   async completeMeal() {
     const mealRun = this.data.mealRun;
     if (this.data.pendingAction || this.data.syncFrozen || mealRun?.status !== "cooking") return;
+    const payload = { timelineVersion: Number(mealRun.timelineVersion || 1) };
     if (!this.data.isOnline && !mealRun.localOnly) {
-      this.queueMealMutation("meal_complete", {}, "complete");
+      this.queueMealMutation("meal_complete", payload, "complete");
       this.setData({ errorText: "已记下“上桌了”，联网确认后才会计为完成。" });
       return;
     }
@@ -377,7 +378,7 @@ const pageDefinition = {
       idempotencyKey: this.idempotencyKey("complete"),
     }), {
       onOffline: () => {
-        this.queueMealMutation("meal_complete", {}, "complete");
+        this.queueMealMutation("meal_complete", payload, "complete");
         this.setData({ errorText: "已记下“上桌了”，联网确认后才会计为完成。" });
         return mealRun;
       },
@@ -427,6 +428,27 @@ const pageDefinition = {
       });
       if (outcome?.status === "conflict") {
         await this.handleConflict({ latestEnvelope: outcome.envelope });
+        return;
+      }
+      if (outcome?.status === "timeline_conflict") {
+        const discardedCompletion = (outcome.discardedActionIds || []).some((id) => (
+          String(id).includes(":complete")
+        ));
+        clearOptimisticMealProgress(this.data.mealRun, appStore.getState().bootstrap?.user?.id);
+        const latest = await loadMealRunForCooking({
+          bootstrap: appStore.getState().bootstrap,
+          mealRunId: this._mealRunId,
+          dateKey: this._dateKey,
+          allowCache: false,
+        });
+        this.setData({ syncFrozen: false });
+        this.applyMealRun(latest);
+        this.updateUnsyncedState();
+        this.setData({
+          errorText: discardedCompletion
+            ? "家人更新了这顿饭，已切换到最新安排，请完成后重新确认上桌。"
+            : "家人更新了这顿饭，已自动切换到最新进度。",
+        });
         return;
       }
       this.updateUnsyncedState();

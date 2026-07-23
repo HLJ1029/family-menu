@@ -876,7 +876,7 @@ try {
       idempotencyKey: "recommendation-lock-run",
     },
   });
-  await apiRequest(`${baseUrl}/meal-runs/${mealRun.mealRun.id}/start`, {
+  const startedMealRun = await apiRequest(`${baseUrl}/meal-runs/${mealRun.mealRun.id}/start`, {
     method: "POST",
     session,
     body: {},
@@ -889,7 +889,7 @@ try {
   await apiRequest(`${baseUrl}/meal-runs/${mealRun.mealRun.id}/complete`, {
     method: "POST",
     session,
-    body: {},
+    body: { timelineVersion: startedMealRun.mealRun.timelineVersion },
   });
   await assertApiRejected(`${baseUrl}/recommendations/dinner`, {
     method: "POST",

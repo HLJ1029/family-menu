@@ -50,7 +50,7 @@ try {
   assert(cookingFlow, "the quick tier flow must remain available for the cooking timeline checks");
   const { page } = cookingFlow;
 
-  await page.clock.install({ time: new Date() });
+  await page.clock.install({ time: new Date("2026-07-23T10:00:00.000Z") });
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "开始做" }).waitFor();
   await page.getByRole("button", { name: "开始做" }).click();

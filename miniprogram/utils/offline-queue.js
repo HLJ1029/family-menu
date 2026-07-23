@@ -11,7 +11,7 @@ const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedbac
 const COMMON_ACTION_FIELDS = ["id", "type", "householdId", "createdAt", "ownerUserId"];
 const ACTION_FIELD_SCHEMAS = Object.freeze({
   meal_progress: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
-  meal_complete: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "idempotencyKey", "stateVersion"]),
+  meal_complete: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_feedback: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_abandon: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion"]),
@@ -59,8 +59,18 @@ function sortQueue(queue) {
     String(left.householdId || "").localeCompare(String(right.householdId || "")) ||
     String(left.mealRunId || "").localeCompare(String(right.mealRunId || "")) ||
     Number(left.createdAt || 0) - Number(right.createdAt || 0) ||
+    mealMutationOrder(left.type) - mealMutationOrder(right.type) ||
     String(left.id || "").localeCompare(String(right.id || ""))
   ));
+}
+
+function mealMutationOrder(type) {
+  return {
+    meal_progress: 0,
+    meal_complete: 1,
+    meal_feedback: 2,
+    meal_abandon: 3,
+  }[type] ?? 4;
 }
 
 function validateAction(action) {
@@ -79,7 +89,10 @@ function validateAction(action) {
 
 function validateActionData(action) {
   if (action.type === "meal_complete") {
-    if (action.data !== undefined) throw invalidOfflineAction();
+    assertExactData(action.data, new Set(["timelineVersion"]), ["timelineVersion"]);
+    if (!Number.isInteger(action.data.timelineVersion) || action.data.timelineVersion <= 0) {
+      throw invalidOfflineAction();
+    }
     return;
   }
   if (action.type === "meal_progress") {
@@ -296,7 +309,7 @@ async function replayAction(action) {
 function buildMutationRequest(action) {
   const mealRunId = encodeURIComponent(String(action.mealRunId || ""));
   if (action.type === "meal_progress" && mealRunId) return { path: `/meal-runs/${mealRunId}/progress`, method: "PUT", data: action.data };
-  if (action.type === "meal_complete" && mealRunId) return { path: `/meal-runs/${mealRunId}/complete`, method: "POST" };
+  if (action.type === "meal_complete" && mealRunId) return { path: `/meal-runs/${mealRunId}/complete`, method: "POST", data: action.data };
   if (action.type === "meal_feedback" && mealRunId) return { path: `/meal-runs/${mealRunId}/feedback`, method: "PUT", data: action.data };
   if (action.type === "meal_abandon" && mealRunId) return { path: `/meal-runs/${mealRunId}/abandon`, method: "POST", data: action.data };
   if (action.type === "grocery_item_check") {
@@ -335,6 +348,19 @@ async function flushMutationQueue(options = {}) {
       }
     } catch (error) {
       if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+      if (
+        error.status === 409
+        && error.code === "meal_timeline_version_conflict"
+        && ["meal_progress", "meal_complete"].includes(action.type)
+      ) {
+        const discardedActionIds = discardObsoleteMealEpoch(action, ownerUserId);
+        return {
+          status: "timeline_conflict",
+          action,
+          discardedActionIds,
+          envelope: error.latestEnvelope,
+        };
+      }
       if (error.status === 409) return { status: "conflict", action, envelope: error.latestEnvelope };
       if (!error.retryable) {
         moveToDeadLetter(action, error.code, ownerUserId);
@@ -344,6 +370,24 @@ async function flushMutationQueue(options = {}) {
     }
   }
   return { status: "flushed" };
+}
+
+function discardObsoleteMealEpoch(action, ownerUserId) {
+  const obsoleteVersion = Number(action.data?.timelineVersion);
+  const discardedActionIds = [];
+  const retained = readQueueForOwner(ownerUserId).filter((candidate) => {
+    if (candidate.mealRunId !== action.mealRunId) return true;
+    const sameEpochMutation = (
+      ["meal_progress", "meal_complete"].includes(candidate.type)
+      && Number(candidate.data?.timelineVersion) === obsoleteVersion
+    );
+    const dependentFeedback = candidate.type === "meal_feedback";
+    if (!sameEpochMutation && !dependentFeedback) return true;
+    discardedActionIds.push(candidate.id);
+    return false;
+  });
+  writeQueue(retained, ownerUserId);
+  return discardedActionIds;
 }
 
 module.exports = {

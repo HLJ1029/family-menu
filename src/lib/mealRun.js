@@ -243,6 +243,48 @@ export function isCompletedGuestRunEquivalent(guestRun, remoteRun, ownerUserId) 
   ));
 }
 
+export function obsoleteMealEpochOperationIds(operations, {
+  mealRunId,
+  timelineVersion,
+} = {}) {
+  const obsoleteVersion = Number(timelineVersion);
+  return (Array.isArray(operations) ? operations : [])
+    .filter((operation) => (
+      operation?.mealRunId === mealRunId
+      && (
+        (
+          ["progress", "complete"].includes(operation.action)
+          && Number(operation.payload?.timelineVersion) === obsoleteVersion
+        )
+        || operation.action === "feedback"
+      )
+    ))
+    .map((operation) => operation.id)
+    .filter(Boolean);
+}
+
+export async function recoverObsoleteMealEpoch({
+  operations,
+  failedOperation,
+  loadLatest,
+} = {}) {
+  if (typeof loadLatest !== "function") {
+    throw mealRunError("meal_timeline_recovery_invalid", "A latest-run loader is required.");
+  }
+  const discardedOperationIds = obsoleteMealEpochOperationIds(operations, {
+    mealRunId: failedOperation?.mealRunId,
+    timelineVersion: failedOperation?.payload?.timelineVersion,
+  });
+  const latest = await loadLatest();
+  return {
+    latestMealRun: latest?.mealRun || null,
+    discardedOperationIds,
+    discardedCompletion: (Array.isArray(operations) ? operations : []).some((operation) => (
+      discardedOperationIds.includes(operation.id) && operation.action === "complete"
+    )),
+  };
+}
+
 export function remainingLocalTimerSeconds(run, now = new Date().toISOString()) {
   const timer = run?.timers?.[run.currentStepId];
   return timer ? remainingTimerSeconds(timer.endsAt, now) : 0;

@@ -152,7 +152,7 @@ async function nextTask() {
   }), /offline_product_event_unsafe|offline_action_invalid/, "product events must reject caller-controlled data, path, method, and meal mutation fields");
   assert.equal(storage.size, storageSizeBeforeBypass, "an unsafe product event must not write any queue storage");
   queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
-  queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h1", mealRunId: "r1", createdAt: 2 });
+  queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h1", mealRunId: "r1", createdAt: 2, data: { timelineVersion: 1 } });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["a", "b"]);
   queue.enqueueMutation({ id: "c", type: "meal_feedback", householdId: "h0", mealRunId: "r2", createdAt: 3, data: { value: "want_again" } });
   assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["c", "a", "b"], "queue replay order is household, meal run, then creation order");
@@ -165,8 +165,8 @@ async function nextTask() {
       forbidden: { event: "bootstrap_completed" }
     },
     {
-      action: { id: "complete-schema", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1 },
-      forbidden: { data: { note: "must-not-persist" } }
+      action: { id: "complete-schema", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1, data: { timelineVersion: 1 } },
+      forbidden: { data: { timelineVersion: 1, note: "must-not-persist" } }
     },
     {
       action: { id: "feedback-schema", type: "meal_feedback", householdId: "h", mealRunId: "r", createdAt: 1, data: { value: "want_again" } },
@@ -390,7 +390,7 @@ async function nextTask() {
 {
   const runtime = createRuntime();
   const { queue, session } = runtime;
-  queue.enqueueMutation({ id: "account-a", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1 });
+  queue.enqueueMutation({ id: "account-a", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1, data: { timelineVersion: 1 } });
   const replayed = [];
   queue.setMutationReplayer(async (action) => replayed.push(action.id));
   session.saveSession({ accessToken: "token-user-b", expiresAt: Date.now() + 60_000, user: { id: "user-b" } });
@@ -439,7 +439,7 @@ async function nextTask() {
 {
   const { queue, session } = createRuntime();
   queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
-  queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 2 });
+  queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 2, data: { timelineVersion: 1 } });
   const replayed = [];
   queue.setMutationReplayer(async (action) => {
     replayed.push(action.id);
@@ -455,6 +455,38 @@ async function nextTask() {
   assert.equal(result.action.id, "a");
   assert.deepEqual(JSON.parse(JSON.stringify(result.envelope)), { stateVersion: "v2" });
   assert.deepEqual(replayed, ["a"], "a conflict must stop ordered replay");
+}
+
+{
+  const { queue } = createRuntime();
+  queue.enqueueMutation({ id: "stale-progress-1", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1, data: { currentStepId: "step-1", timelineVersion: 1 } });
+  queue.enqueueMutation({ id: "stale-progress-2", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 2, data: { currentStepId: "step-2", timelineVersion: 1 } });
+  queue.enqueueMutation({ id: "stale-complete", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 3, data: { timelineVersion: 1 } });
+  queue.enqueueMutation({ id: "stale-feedback", type: "meal_feedback", householdId: "h", mealRunId: "r", createdAt: 4, data: { value: "want_again" } });
+  queue.enqueueMutation({ id: "safe-abandon", type: "meal_abandon", householdId: "h", mealRunId: "r", createdAt: 5, data: { reason: "plans_changed" } });
+  queue.enqueueMutation({ id: "other-run", type: "meal_progress", householdId: "h", mealRunId: "r2", createdAt: 6, data: { currentStepId: "step-1", timelineVersion: 1 } });
+  const replayed = [];
+  queue.setMutationReplayer(async (action) => {
+    replayed.push(action.id);
+    const error = new Error("timeline changed");
+    error.status = 409;
+    error.code = "meal_timeline_version_conflict";
+    throw error;
+  });
+  const result = await queue.flushMutationQueue();
+  assert.equal(result.status, "timeline_conflict");
+  assert.equal(result.action.id, "stale-progress-1");
+  assert.deepEqual(
+    Array.from(result.discardedActionIds).sort(),
+    ["stale-complete", "stale-feedback", "stale-progress-1", "stale-progress-2"],
+    "an obsolete epoch discards only causally dependent progress, completion, and feedback",
+  );
+  assert.deepEqual(
+    Array.from(queue.readQueue(), (item) => item.id),
+    ["safe-abandon", "other-run"],
+    "safe abandon and unrelated meal actions survive epoch recovery",
+  );
+  assert.deepEqual(replayed, ["stale-progress-1"], "epoch recovery stops before replaying dependent actions");
 }
 
 {

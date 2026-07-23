@@ -1655,12 +1655,20 @@ export class HumiStore {
     });
   }
 
-  async completeMealRun(userId, mealRunId) {
+  async completeMealRun(userId, mealRunId, input = {}) {
     await this.load();
     return this.mutateAndSave(() => {
       const mealRun = this.requireMealRunForMember(userId, mealRunId);
       if (mealRun.status === "completed") return mealRun;
       if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Only an active dinner can be served.");
+      const expectedTimelineVersion = Number(input.timelineVersion);
+      if (
+        !Number.isInteger(expectedTimelineVersion)
+        || expectedTimelineVersion <= 0
+        || expectedTimelineVersion !== Number(mealRun.timelineVersion || 1)
+      ) {
+        throw codedError("meal_timeline_version_conflict", "The cooking timeline changed; refresh before serving.");
+      }
       const now = new Date().toISOString();
       mealRun.status = "completed";
       mealRun.completedBy = userId;
