@@ -137,9 +137,15 @@ Page({
           this.setData(patch);
           return;
         }
-        this.setData({ status: "做饭提醒暂时没有配置好，可以直接返回 Humi。" });
+        if (!this.data.rejected && !this.data.saved) {
+          this.setData({ status: "做饭提醒暂时没有配置好，可以直接返回 Humi。" });
+        }
       },
-      fail: () => this.setData({ status: "网络连接失败，暂时没有设置提醒。" }),
+      fail: () => {
+        if (!this.data.rejected && !this.data.saved) {
+          this.setData({ status: "网络连接失败，暂时没有设置提醒。" });
+        }
+      },
       complete: () => this.setData({ loading: false })
     });
   },

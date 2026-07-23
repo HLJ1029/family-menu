@@ -144,6 +144,20 @@ for (const [status, label] of [
 }
 
 {
+  const storage = new Map([[decisionKey, { state: "rejected" }]]);
+  const runtime = createReminderPage({ configStatusCode: 503, storage });
+  runtime.page.onLoad({ scheduledAt, mealRunId: "meal-1" });
+  assert.match(runtime.page.data.status, /拒绝/, "a config HTTP failure must not overwrite the stored rejection");
+}
+
+{
+  const storage = new Map([[decisionKey, { state: "cancelled" }]]);
+  const runtime = createReminderPage({ configFailure: true, storage });
+  runtime.page.onLoad({ scheduledAt, mealRunId: "meal-1" });
+  assert.match(runtime.page.data.status, /不会再次索取授权/, "a config network failure must not overwrite the stored cancellation");
+}
+
+{
   const runtime = createReminderPage({ session: null });
   runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "quick_15" });
   assert.equal(runtime.requests.length, 0, "a signed-out user must not call reminder APIs");
@@ -162,6 +176,8 @@ function createReminderPage({
   subscriptionResult = "accept",
   subscriptionFailure = false,
   postStatusCode = 201,
+  configStatusCode = 200,
+  configFailure = false,
   session = defaultSession(),
   existingReminder = null,
   storage = new Map(),
@@ -177,11 +193,16 @@ function createReminderPage({
     setStorageSync(key, value) {
       storage.set(key, value);
     },
-    request({ url, method = "GET", data, header = {}, success, complete = () => {} }) {
+    request({ url, method = "GET", data, header = {}, success, fail, complete = () => {} }) {
       requests.push({ url, method, data, header });
       if (method === "GET") {
+        if (configFailure) {
+          fail?.({ errMsg: "request:fail network" });
+          complete();
+          return;
+        }
         success?.({
-          statusCode: 200,
+          statusCode: configStatusCode,
           data: { enabled: true, templateId: "template-1", existingReminder },
         });
       }
