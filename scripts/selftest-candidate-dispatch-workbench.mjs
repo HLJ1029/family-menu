@@ -62,13 +62,13 @@ assert(html.includes("复制体验者文案"), "workbench should expose copy but
 assert(html.includes("小程序卡片发送确认"), "workbench should expose mini program share card send guidance");
 assert(html.includes("小程序卡片证据目录"), "workbench should expose mini program share evidence directory");
 assert(html.includes("pages/share/index?type=crave&amp;token=&lt;真实征集token&gt;&amp;householdName=&lt;家庭名&gt;"), "workbench should show crave share confirmation path template");
-assert(html.includes("/pages/index/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");
+assert(html.includes("/pages/boot/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");
 assert(html.includes("pages/share/index?type=invite&amp;token=&lt;真实邀请token&gt;"), "workbench should show invite share confirmation path template");
 assert(html.includes("pages/share/index?type=grocery&amp;token=&lt;真实清单token&gt;"), "workbench should show grocery share confirmation path template");
 assert(html.includes("pages/share/index?type=wish&amp;token=&lt;真实想吃token&gt;"), "workbench should show wish share confirmation path template");
-assert(html.includes("pages/share/index?type=menu&amp;token=&lt;真实菜单token&gt;"), "workbench should show menu share confirmation path template");
-assert(html.includes("/pages/index/index?wishShare=&lt;真实想吃token&gt;"), "workbench should show wish landing path template");
-assert(html.includes("/pages/index/index?menuShare=&lt;真实菜单token&gt;"), "workbench should show menu landing path template");
+assert(html.includes("pages/share/index?type=today_menu&amp;token=&lt;真实菜单token&gt;"), "workbench should show menu share confirmation path template");
+assert(html.includes("/pages/boot/index?wishShare=&lt;真实想吃token&gt;"), "workbench should show wish landing path template");
+assert(html.includes("/pages/boot/index?menuShare=&lt;真实菜单token&gt;"), "workbench should show menu landing path template");
 assert(html.includes("必须看到真实微信联系人面板"), "workbench should require the real contact picker");
 assert(html.includes("选择家人发清单"), "workbench should show the grocery second-step button");
 assert(html.includes("选择家人发菜单"), "workbench should show the menu second-step button");

@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { directPreviewFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -16,68 +17,10 @@ const outputDir = join(evidenceDir, "direct-preview");
 const cliPath = process.env.HUMI_WECHAT_DEVTOOLS_CLI || DEFAULT_WECHAT_CLI;
 const dryRun = process.env.HUMI_SHARE_DIRECT_PREVIEW_DRY_RUN === "1" || process.argv.includes("--dry-run");
 
-const previews = [
-  {
-    key: "crave",
-    pathName: "pages/share/index",
-    query: buildQuery({
-      type: "crave",
-      token: "crave-token-123",
-      householdName: "周末家",
-    }),
-    expectedTitle: "周末家今晚征集口味，点一下就行",
-    expectedPath: "/pages/index/index?crave=crave-token-123",
-  },
-  {
-    key: "invite",
-    pathName: "pages/share/index",
-    query: buildQuery({
-      type: "invite",
-      token: "invite-token-123",
-      householdName: "周末家",
-      inviterName: "小林",
-    }),
-    expectedTitle: "小林邀请你加入 周末家",
-    expectedPath: "/pages/index/index?invite=invite-token-123",
-  },
-  {
-    key: "grocery",
-    pathName: "pages/share/index",
-    query: buildQuery({
-      type: "grocery",
-      token: "grocery-token-123",
-      householdName: "周末家",
-      initiatorName: "小林",
-      itemCount: "6",
-    }),
-    expectedTitle: "小林发来 6 项买菜清单",
-    expectedPath: "/pages/index/index?groceryShare=grocery-token-123",
-  },
-  {
-    key: "wish",
-    pathName: "pages/share/index",
-    query: buildQuery({
-      type: "wish",
-      token: "wish-token-123",
-      householdName: "周末家",
-      initiatorName: "小林",
-    }),
-    expectedTitle: "小林想收集家里最近想吃的菜",
-    expectedPath: "/pages/index/index?wishShare=wish-token-123",
-  },
-  {
-    key: "menu",
-    pathName: "pages/share/index",
-    query: buildQuery({
-      type: "today_menu",
-      token: "menu-token-123",
-      householdName: "周末家",
-      title: "香煎豆腐 + 番茄鸡蛋",
-    }),
-    expectedTitle: "香煎豆腐 + 番茄鸡蛋",
-    expectedPath: "/pages/index/index?menuShare=menu-token-123",
-  },
-];
+const previews = directPreviewFixtures.map((fixture) => ({
+  ...fixture,
+  query: buildQuery(fixture.query),
+}));
 
 await assertFile(cliPath, "WeChat DevTools CLI");
 await assertDirectory(projectDir, "mini program project");

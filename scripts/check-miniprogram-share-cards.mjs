@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const source = await readFile("miniprogram/pages/legacy/index.js", "utf8");
 const pageDefinition = loadMiniProgramPage(source);
 const sharePageSource = await readFile("miniprogram/pages/share/index.js", "utf8");
-const shareRelay = loadShareRelay(sharePageSource);
+const shareRelay = loadShareRelay(sharePageSource, loadShareLandingValidator());
 const indexHtml = await readFile("index.html", "utf8");
 if (!indexHtml.includes("/vendor/jweixin-1.6.0.js")) {
   throw new Error("index.html must load the WeChat JSSDK before miniProgram share actions can navigate to the native relay page.");
@@ -196,13 +197,17 @@ function loadMiniProgramPage(code) {
   return capturedPage;
 }
 
-function loadShareRelay(code) {
+function loadShareRelay(code, shareLandingValidator) {
   const module = { exports: {} };
   const context = {
     console,
     module,
     exports: module.exports,
     Page() {},
+    require(request) {
+      if (request === "../../utils/bootstrap") return shareLandingValidator;
+      throw new Error(`Unexpected require: ${request}`);
+    },
     wx: {
       showShareMenu() {},
       navigateBack() {},
@@ -214,6 +219,20 @@ function loadShareRelay(code) {
     throw new Error("Share relay buildShareData was not exported.");
   }
   return module.exports;
+}
+
+function loadShareLandingValidator() {
+  const source = readFileSync("miniprogram/utils/bootstrap.js", "utf8");
+  const module = { exports: {} };
+  vm.runInNewContext(source, {
+    module,
+    exports: module.exports,
+    require(request) {
+      if (request === "./cache" || request === "./request") return {};
+      throw new Error(`Unexpected require: ${request}`);
+    },
+  }, { filename: "miniprogram/utils/bootstrap.js" });
+  return { validateShareLandingOptions: module.exports.validateShareLandingOptions };
 }
 
 function createPageInstance(definition) {

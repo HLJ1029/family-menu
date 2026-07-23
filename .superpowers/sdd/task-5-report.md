@@ -213,3 +213,33 @@ Secret scan passed.
 ```
 
 `git diff --check` produced no output. The existing Vite large-H5-chunk warning remains informational and unchanged.
+
+## Third review correction — strict share QA fixtures
+
+### RED
+
+`npm run release:wechat:share:selftest` initially failed after the strict direct-landing module was added because its VM fixture did not provide the page's new `../../utils/bootstrap` dependency:
+
+```text
+ReferenceError: require is not defined
+at miniprogram/pages/share/index.js:1:41
+```
+
+The inspection also found five direct-preview dummy tokens shorter than the audited 24-character minimum, legacy `/pages/index/index?...` expected paths, and a workbench `type=menu` template that did not match the strict `today_menu` allowlist.
+
+### Corrective changes
+
+- Added one non-runtime QA fixture module for all five direct previews and five workbench card guides. Every token is 24–64 URL-safe characters; every guide now points to its canonical `/pages/boot/index?...` landing path.
+- The workbench now renders `type=today_menu`, and its selftest/readiness checks consume the same fixture contract instead of maintaining a stale `menu` alias.
+- The native-shell routing contract dynamically iterates both fixture groups, requires each type/token to pass `validateShareLandingOptions`, and confirms `buildShareData` emits the exact canonical boot path.
+- Restored the share-card selftest VM's bootstrap-validator dependency; this only aligns QA execution with the existing strict page dependency and does not add a runtime alias.
+
+### GREEN
+
+Fresh final command:
+
+```sh
+npm run validate:native-shell-routing && npm run validate:share-bridge && npm run release:wechat:share:direct-previews -- --dry-run && npm run release:wechat:share:selftest && npm run release:candidate:dispatch:workbench:selftest && npm run release:candidate:check && npm run validate:miniprogram-entry && npm run build && /Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+Actual key output: routing and share bridge passed; direct-preview dry-run returned `ok: true` and listed all five canonical boot paths; share selftest, workbench selftest, and candidate readiness passed; entrypoint resilience passed; build completed with the unchanged large-H5-chunk warning; secret scan passed; `git diff --check` had no output.

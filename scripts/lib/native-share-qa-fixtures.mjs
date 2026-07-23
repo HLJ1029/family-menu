@@ -1,0 +1,98 @@
+const previewTokens = {
+  crave: "crave_preview_token_123456",
+  invite: "invite_preview_token_12345",
+  grocery: "grocery_preview_token_1234",
+  wish: "wish_preview_token_1234567",
+  menu: "menu_preview_token_1234567",
+};
+
+export const directPreviewFixtures = [
+  {
+    key: "crave",
+    pathName: "pages/share/index",
+    query: { type: "crave", token: previewTokens.crave, householdName: "周末家" },
+    expectedTitle: "周末家今晚征集口味，点一下就行",
+    expectedPath: `/pages/boot/index?crave=${previewTokens.crave}`,
+  },
+  {
+    key: "invite",
+    pathName: "pages/share/index",
+    query: { type: "invite", token: previewTokens.invite, householdName: "周末家", inviterName: "小林" },
+    expectedTitle: "小林邀请你加入 周末家",
+    expectedPath: `/pages/boot/index?invite=${previewTokens.invite}`,
+  },
+  {
+    key: "grocery",
+    pathName: "pages/share/index",
+    query: { type: "grocery", token: previewTokens.grocery, householdName: "周末家", initiatorName: "小林", itemCount: "6" },
+    expectedTitle: "小林发来 6 项买菜清单",
+    expectedPath: `/pages/boot/index?groceryShare=${previewTokens.grocery}`,
+  },
+  {
+    key: "wish",
+    pathName: "pages/share/index",
+    query: { type: "wish", token: previewTokens.wish, householdName: "周末家", initiatorName: "小林" },
+    expectedTitle: "小林想收集家里最近想吃的菜",
+    expectedPath: `/pages/boot/index?wishShare=${previewTokens.wish}`,
+  },
+  {
+    key: "menu",
+    pathName: "pages/share/index",
+    query: { type: "today_menu", token: previewTokens.menu, householdName: "周末家", title: "香煎豆腐 + 番茄鸡蛋" },
+    expectedTitle: "香煎豆腐 + 番茄鸡蛋",
+    expectedPath: `/pages/boot/index?menuShare=${previewTokens.menu}`,
+  },
+];
+
+export const shareCardGuideFixtures = {
+  "crave-card": {
+    type: "crave",
+    token: previewTokens.crave,
+    actionLabel: "问问大家",
+    actionButtonLabel: "选择家人发送",
+    sharePageTemplate: "pages/share/index?type=crave&token=<真实征集token>&householdName=<家庭名>",
+    landingPathTemplate: "/pages/boot/index?crave=<真实征集token>",
+    expectedPath: `/pages/boot/index?crave=${previewTokens.crave}`,
+    directPreviewFile: "direct-preview/crave-preview-qr.png",
+  },
+  "invite-card": {
+    type: "invite",
+    token: previewTokens.invite,
+    actionLabel: "邀请家人",
+    actionButtonLabel: "选择家人发邀请",
+    sharePageTemplate: "pages/share/index?type=invite&token=<真实邀请token>&householdName=<家庭名>&inviterName=<邀请人>",
+    landingPathTemplate: "/pages/boot/index?invite=<真实邀请token>",
+    expectedPath: `/pages/boot/index?invite=${previewTokens.invite}`,
+    directPreviewFile: "direct-preview/invite-preview-qr.png",
+  },
+  "grocery-card": {
+    type: "grocery",
+    token: previewTokens.grocery,
+    actionLabel: "买菜清单",
+    actionButtonLabel: "选择家人发清单",
+    sharePageTemplate: "pages/share/index?type=grocery&token=<真实清单token>&householdName=<家庭名>&initiatorName=<发起人>&itemCount=<清单项数>",
+    landingPathTemplate: "/pages/boot/index?groceryShare=<真实清单token>",
+    expectedPath: `/pages/boot/index?groceryShare=${previewTokens.grocery}`,
+    directPreviewFile: "direct-preview/grocery-preview-qr.png",
+  },
+  "wish-card": {
+    type: "wish",
+    token: previewTokens.wish,
+    actionLabel: "分享想吃入口",
+    actionButtonLabel: "选择家人发送",
+    sharePageTemplate: "pages/share/index?type=wish&token=<真实想吃token>&householdName=<家庭名>&initiatorName=<发起人>",
+    landingPathTemplate: "/pages/boot/index?wishShare=<真实想吃token>",
+    expectedPath: `/pages/boot/index?wishShare=${previewTokens.wish}`,
+    directPreviewFile: "direct-preview/wish-preview-qr.png",
+  },
+  "menu-card": {
+    type: "today_menu",
+    token: previewTokens.menu,
+    actionLabel: "去微信发菜单",
+    actionButtonLabel: "选择家人发菜单",
+    sharePageTemplate: "pages/share/index?type=today_menu&token=<真实菜单token>&householdName=<家庭名>&title=<菜单标题>",
+    landingPathTemplate: "/pages/boot/index?menuShare=<真实菜单token>",
+    expectedPath: `/pages/boot/index?menuShare=${previewTokens.menu}`,
+    directPreviewFile: "direct-preview/menu-preview-qr.png",
+  },
+};

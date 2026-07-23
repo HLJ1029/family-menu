@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import vm from "node:vm";
+import { directPreviewFixtures, shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const appConfig = JSON.parse(readFileSync(new URL("../miniprogram/app.json", import.meta.url), "utf8"));
 const tabPaths = [
@@ -82,6 +83,17 @@ assert.equal(
   "legacy routes must preserve only the reviewed compatibility parameters",
 );
 assert.equal(buildLegacyRoute({ view: "admin", shareSource: "unknown", invite: validToken, arbitrary: "value" }), "/pages/legacy/index", "legacy routes must not forward token or free-text query values");
+
+for (const fixture of directPreviewFixtures) {
+  const landing = bootstrapModule.exports.validateShareLandingOptions(fixture.query);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(landing)),
+    { type: fixture.query.type, token: fixture.query.token },
+    `${fixture.key} direct preview must use a strict native share landing`,
+  );
+  const expectedBootPath = fixture.expectedPath;
+  assert.equal(expectedBootPath.startsWith("/pages/boot/index?"), true, `${fixture.key} direct preview must use the canonical boot path`);
+}
 
 const cacheValues = new Map();
 const cacheUtilsModule = { exports: {} };
@@ -365,5 +377,22 @@ assert.equal(validSharePage.data.token, validToken);
 assert.equal(validSharePage.data.type, "invite");
 assert.equal(validSharePage.onShareAppMessage().path, `/pages/boot/index?invite=${validToken}`);
 assert(shareMenuCalls.includes("hide") && shareMenuCalls.includes("show"), "invalid share landings must hide and valid landings may show the share menu");
+
+for (const fixture of [
+  ...directPreviewFixtures.map((item) => ({ key: `direct-preview:${item.key}`, ...item.query, expectedPath: item.expectedPath })),
+  ...Object.entries(shareCardGuideFixtures).map(([key, item]) => ({ key: `workbench:${key}`, type: item.type, token: item.token, expectedPath: item.expectedPath })),
+]) {
+  const landing = bootstrapModule.exports.validateShareLandingOptions(fixture);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(landing)),
+    { type: fixture.type, token: fixture.token },
+    `${fixture.key} fixture must pass the strict native share landing validator`,
+  );
+  assert.equal(
+    sharePageModule.exports.buildShareData(landing).path,
+    fixture.expectedPath,
+    `${fixture.key} fixture must keep its buildShareData landing path canonical`,
+  );
+}
 
 console.log("Native shell routing checks passed.");
