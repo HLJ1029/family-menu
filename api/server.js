@@ -48,7 +48,7 @@ const config = {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean)),
-  nativeShellWildcardAllowed: process.env.NODE_ENV !== "production",
+  nativeShellWildcardAllowed: process.env.NODE_ENV === "test",
   mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
   mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
   mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",

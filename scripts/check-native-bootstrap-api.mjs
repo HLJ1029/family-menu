@@ -12,6 +12,7 @@ try {
   await verifyAllowlistedHouseholdSnapshot();
   await verifyExplicitNonAllowlistedHousehold();
   await verifyProductionWildcardIsBlocked();
+  await verifyDevelopmentWildcardIsBlocked();
   await verifyTestOnlyWildcardAllowlist();
   console.log("Native bootstrap API contract passed.");
 } finally {
@@ -161,6 +162,21 @@ async function verifyProductionWildcardIsBlocked() {
     assert.equal(bootstrap.capabilities.nativeShellEnabled, true, "production still permits explicit household rollout");
   } finally {
     await stopServer(explicitServer);
+  }
+}
+
+async function verifyDevelopmentWildcardIsBlocked() {
+  const server = await startServer("development-wildcard", {
+    NODE_ENV: "development",
+    HUMI_NATIVE_SHELL_ENABLED: "1",
+    HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+  });
+  try {
+    const session = await login(server.baseUrl, "bootstrap-development-wildcard");
+    const bootstrap = await request(`${server.baseUrl}/bootstrap`, { token: session.accessToken });
+    assert.equal(bootstrap.capabilities.nativeShellEnabled, false, "only an explicit test environment may use the wildcard allowlist");
+  } finally {
+    await stopServer(server);
   }
 }
 
