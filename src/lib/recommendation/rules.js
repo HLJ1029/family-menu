@@ -272,6 +272,47 @@ export function recipeMatchesHardAvoid(recipe, context = {}) {
   });
 }
 
+export function collectDinnerRecommendationFeedback({
+  recommendationFeedback = [],
+  mealRuns = [],
+  householdId = "",
+} = {}) {
+  const legacy = (Array.isArray(recommendationFeedback) ? recommendationFeedback : [])
+    .map((item) => ({
+      ...item,
+      recipeIds: [...new Set([
+        ...(Array.isArray(item?.recipeIds) ? item.recipeIds : []),
+        item?.recipeId,
+      ].filter(Boolean))],
+      value: normalizeDinnerFeedbackValue(item?.value || item?.reasonId),
+    }))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  const completed = (Array.isArray(mealRuns) ? mealRuns : [])
+    .filter((run) => (
+      run?.status === "completed"
+      && (!householdId || run.householdId === householdId)
+      && Array.isArray(run.recipeIds)
+    ))
+    .flatMap((run) => (Array.isArray(run.feedback) ? run.feedback : []).map((entry) => ({
+      recipeIds: [...new Set(run.recipeIds.filter(Boolean))],
+      value: normalizeDinnerFeedbackValue(entry?.value),
+      mealRunId: run.id || "",
+      userId: entry?.userId || "",
+      createdAt: entry?.updatedAt || entry?.createdAt || run.completedAt || "",
+    })))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  return [...legacy, ...completed].slice(-100);
+}
+
+export function normalizeDinnerFeedbackValue(value) {
+  if (value === "want_again") return "want_again";
+  if (["change_it", "change_next_time", "family_dislikes", "hard_to_buy", "wrong_taste", "not_dinner"].includes(value)) {
+    return "change_it";
+  }
+  if (["too_hard", "too_much_effort", "too_much_work"].includes(value)) return "too_hard";
+  return "";
+}
+
 export async function requestBalancedDinnerWithFallback({
   requestServer,
   serverPayload,
@@ -323,11 +364,7 @@ export function buildLocalBalancedDinner(input = {}) {
       )) return false;
       if ((input.dislikedRecipeIds ?? []).includes(recipe.id)) return false;
       return !recipeMatchesHardAvoid(recipe, input);
-    })
-    .sort((left, right) => (
-      localFeedbackScore(right, input.recommendationFeedback) - localFeedbackScore(left, input.recommendationFeedback)
-      || left.id.localeCompare(right.id)
-    ));
+    });
   const pool = safe.length >= targetDishCount ? safe : catalog.filter((recipe) => (
     !seenIds.has(recipe.id)
     && !(input.dislikedRecipeIds ?? []).includes(recipe.id)
@@ -337,7 +374,16 @@ export function buildLocalBalancedDinner(input = {}) {
       && recipe.cookAssist.effortTier === input.effortTier
     ))
   ));
-  const recipeIds = pool.slice(0, targetDishCount).map((recipe) => recipe.id);
+  const ranked = pool
+    .map((recipe) => ({ recipe, score: localRecipeScore(recipe, input) }))
+    .sort((left, right) => right.score - left.score || left.recipe.id.localeCompare(right.recipe.id));
+  const best = ranked[0]?.score ?? 0;
+  const highScoreWindow = ranked.filter((item) => item.score >= best - 12);
+  const selected = chooseLocalComplementaryGroup(
+    highScoreWindow.length >= targetDishCount ? highScoreWindow : ranked,
+    targetDishCount,
+  );
+  const recipeIds = selected.map((item) => item.recipe.id);
   if (recipeIds.length !== targetDishCount) {
     const error = new Error("没有足够的安全菜谱可供推荐。");
     error.code = "recommendation_candidates_exhausted";
@@ -450,15 +496,54 @@ function isRecommendationConnectivityError(error) {
   return /failed to fetch|network|timeout|load failed|网络|连接|超时/i.test(String(error?.message || ""));
 }
 
-function localFeedbackScore(recipe, feedback = []) {
-  return (Array.isArray(feedback) ? feedback : []).reduce((score, item) => {
+function localRecipeScore(recipe, input = {}) {
+  let score = (Array.isArray(input.recommendationFeedback) ? input.recommendationFeedback : []).reduce((total, item) => {
     const recipeIds = [item?.recipeId, ...(Array.isArray(item?.recipeIds) ? item.recipeIds : [])];
-    if (!recipeIds.includes(recipe.id)) return score;
-    if (item.value === "want_again") return score + 12;
-    if (item.value === "change_next_time") return score - 7;
-    if (item.value === "too_much_effort") return score - 12;
-    return score;
+    if (!recipeIds.includes(recipe.id)) return total;
+    return total + feedbackScoreDelta(item.value || item.reasonId);
   }, 100);
+  const pantryNames = new Set((input.pantryItems ?? []).map((item) => normalize(item?.name || item)));
+  score += (recipe.ingredients ?? []).filter((ingredient) => pantryNames.has(normalize(ingredient?.name))).length * 3;
+  const haystack = [
+    recipe.searchText,
+    recipe.name,
+    recipe.title,
+    recipe.description,
+    ...(recipe.categories ?? []),
+    ...(recipe.tags ?? []),
+    ...(recipe.ingredients ?? []).map((ingredient) => ingredient?.name),
+  ].filter(Boolean).map(normalize).join(" ");
+  const wanted = (input.wantToEatItems ?? []).map((item) => normalize(item?.name || item?.title || item));
+  if (wanted.some((signal) => signal && haystack.includes(signal))) score += 8;
+  if (recipe.cookAssist?.cleanupLevel === "low") score += input.effortTier === "quick_15" ? 4 : 1;
+  return score;
+}
+
+function feedbackScoreDelta(value) {
+  const normalized = normalizeDinnerFeedbackValue(value);
+  if (normalized === "want_again") return 12;
+  if (normalized === "change_it") return -7;
+  if (normalized === "too_hard") return -12;
+  return 0;
+}
+
+function chooseLocalComplementaryGroup(scored, targetDishCount) {
+  const selected = [];
+  const usedPrimaryCategories = new Set();
+  for (const item of scored) {
+    if (selected.length >= targetDishCount) break;
+    const primaryCategory = item.recipe.categories?.[0] || "";
+    if (selected.length > 0 && primaryCategory && usedPrimaryCategories.has(primaryCategory)) continue;
+    selected.push(item);
+    if (primaryCategory) usedPrimaryCategories.add(primaryCategory);
+  }
+  if (selected.length < targetDishCount) {
+    for (const item of scored) {
+      if (selected.length >= targetDishCount) break;
+      if (!selected.some((entry) => entry.recipe.id === item.recipe.id)) selected.push(item);
+    }
+  }
+  return selected;
 }
 
 function localDinnerCandidates(input = {}) {
@@ -710,12 +795,17 @@ function buildHardAvoidSignals(familyPreference) {
 }
 
 function expandAvoidSignal(signal) {
-  const normalized = normalize(signal);
+  const normalized = normalize(signal).replace(/[，。,.；;、\s]/g, "");
   if (!normalized) return [];
-  const expanded = [normalized];
+  const stripped = normalized
+    .replace(/^(?:我|本人|孩子|小孩|宝宝)?对/, "")
+    .replace(/(?:严重)?(?:过敏|不耐受|不能吃|吃不了|忌口|不吃)$/g, "");
+  const expanded = [stripped || normalized];
   if (normalized.includes("太辣") || normalized.includes("不吃辣") || normalized.includes("少辣")) expanded.push("辣");
   if (normalized.includes("海鲜")) expanded.push("鱼", "虾", "贝", "蟹");
-  if (normalized.includes("坚果")) expanded.push("花生", "核桃", "杏仁");
+  if (normalized.includes("坚果") || normalized.includes("花生") || normalized.includes("腰果")) expanded.push("坚果", "花生", "核桃", "杏仁", "腰果");
+  if (normalized.includes("鸡蛋") || normalized.includes("蛋类")) expanded.push("鸡蛋", "蛋");
+  if (normalized.includes("豆制品")) expanded.push("豆腐", "豆浆", "豆皮");
   if (normalized.includes("乳糖")) expanded.push("牛奶", "奶酪", "奶");
   return [...new Set(expanded)];
 }

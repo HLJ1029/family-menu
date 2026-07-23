@@ -12,18 +12,19 @@ const evidenceDir = args.evidenceDir
   || process.env.HUMI_PRODUCT_SMOKE_EVIDENCE_DIR
   || join(process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR, `product-entrypoint-smoke-${timestamp}`);
 const minRecipeCards = Number.parseInt(args.minRecipeCards || process.env.HUMI_PRODUCT_SMOKE_MIN_RECIPE_CARDS || "20", 10);
+const recommendationMockCalls = [];
 
 await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
 
 let browser;
 try {
   browser = await chromium.launch({ headless: !args.headed });
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
     serviceWorkers: "block",
-  });
+  }, recommendationMockCalls);
   const page = await context.newPage();
   const pageErrors = [];
   const posterUploadRequests = [];
@@ -653,6 +654,7 @@ try {
     { key: "signed-in-onboarding-can-skip-without-diet-tags", ok: hardConstraintOnboarding.canSkip },
     { key: "signed-in-onboarding-saves-diet-constraint", ok: hardConstraintOnboarding.savedConstraint, actual: hardConstraintOnboarding.savedProfile },
     { key: "signed-in-onboarding-page-errors", ok: hardConstraintOnboarding.pageErrors.length === 0, errors: hardConstraintOnboarding.pageErrors },
+    { key: "dinner-recommendation-api-is-locally-mocked", ok: recommendationMockCalls.length > 0, actual: recommendationMockCalls.length },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
   ];
   const manifest = {
@@ -739,7 +741,7 @@ async function seedGuestDinnerState(page) {
 
 async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
   const viewport = { width: 390, height: 844 };
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport,
     deviceScaleFactor: 3,
     isMobile: true,
@@ -980,7 +982,7 @@ async function waitForTransientUi(page) {
 }
 
 async function verifyNoHouseholdStart(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1063,7 +1065,7 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
 }
 
 async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1273,7 +1275,7 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
 }
 
 async function verifySoloOwnerFlow(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1362,7 +1364,7 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
 }
 
 async function verifyFamilyActivityHistory(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1504,7 +1506,7 @@ function historyEvents() {
 }
 
 async function verifyFamilyManagementPages(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1732,7 +1734,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
 }
 
 async function verifyFamilyIdentityRouteReset(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1823,7 +1825,7 @@ async function verifyFamilyIdentityRouteReset(browser, base, evidenceDir) {
 }
 
 async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2010,7 +2012,7 @@ function hasOriginalMultiHouseholdState(state) {
 }
 
 async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2156,7 +2158,7 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
 }
 
 async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2262,7 +2264,7 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
 }
 
 async function verifyImplicitPantryPipeline(browser, base) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2341,7 +2343,7 @@ async function verifyImplicitPantryPipeline(browser, base) {
 }
 
 async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2408,6 +2410,58 @@ async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
 
 async function fulfillJson(route, body) {
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+}
+
+async function createProductSmokeContext(browser, options, calls = recommendationMockCalls) {
+  const context = await browser.newContext(options);
+  await installDinnerRecommendationMock(context, calls);
+  return context;
+}
+
+async function installDinnerRecommendationMock(context, calls) {
+  const cursors = new Map();
+  const groups = {
+    legacy: [
+      ["potato-shreds", "vinegar-cabbage"],
+      ["garlic-broccoli", "braised-eggplant"],
+      ["wintermelon-rib-soup", "celery-lily"],
+    ],
+    quick_15: [["tomato-egg"], ["potato-shreds"], ["cucumber-egg"], ["vinegar-cabbage"]],
+    easy_30: [
+      ["tomato-tofu-shrimp-soup", "vinegar-cabbage"],
+      ["seaweed-egg-soup", "garlic-broccoli"],
+    ],
+    normal: [
+      ["cola-wings", "spinach-tofu-egg-drop-soup"],
+      ["steamed-sea-bass", "braised-eggplant"],
+    ],
+  };
+  await context.route("**/recommendations/dinner", async (route) => {
+    const payload = route.request().postDataJSON();
+    const key = [
+      payload.householdId || "guest",
+      payload.dateKey,
+      payload.mode,
+      payload.effortTier || "legacy",
+      payload.contextFingerprint,
+    ].join(":");
+    const options = payload.mode === "legacy" ? groups.legacy : groups[payload.effortTier] || groups.quick_15;
+    const current = cursors.get(key) ?? 0;
+    const index = ["next", "reject"].includes(payload.action)
+      ? (current + 1) % options.length
+      : current;
+    cursors.set(key, index);
+    calls.push({ mode: payload.mode, effortTier: payload.effortTier, action: payload.action });
+    await fulfillJson(route, {
+      recommendationId: `00000000-0000-4000-a000-${String(index + 1).padStart(12, "0")}`,
+      recipeIds: options[index],
+      cycle: 0,
+      groupIndex: index,
+      exhausted: false,
+      reasonCode: "product_smoke_mock",
+      stateVersion: `product_smoke_state_${String(index).padStart(4, "0")}`,
+    });
+  });
 }
 
 function getLocalDateKey(date = new Date()) {

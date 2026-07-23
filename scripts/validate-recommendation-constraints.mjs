@@ -32,7 +32,7 @@ function assertHardAvoidFromFamilyProfile() {
     },
   };
   const hardAvoidSignals = getHardAvoidSignals(context);
-  assert.deepEqual(hardAvoidSignals, ["鸡蛋"], "family profile allergies should become hard avoid signals");
+  assert.deepEqual(hardAvoidSignals, ["鸡蛋", "蛋"], "family profile allergies should expand to concrete hard avoid signals");
 
   const recommendation = buildTodayRecommendation(context);
   assert(recommendation.recipes.length > 0, "recommendation should still produce safe recipes");

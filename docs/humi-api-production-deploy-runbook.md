@@ -116,7 +116,7 @@ rsync -az --delete --relative \
   -e "ssh -i $HOME/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes" \
   --exclude node_modules \
   --exclude .git \
-  api src/lib/mealExecution.js data/recipes.json data/cook-assist.json package.json package-lock.json \
+  api src/lib/date.js src/lib/mealExecution.js data/recipes.json data/cook-assist.json package.json package-lock.json \
   ubuntu@api.humi-home.com:/opt/humi/
 ```
 

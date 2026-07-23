@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import {
   buildRecommendationScope,
+  normalizeRecommendationFeedbackValue,
   recommendationStateVersion,
   selectBalancedDinner,
 } from "./recommendation-rotation.js";
@@ -1466,6 +1467,11 @@ export class HumiStore {
       }
 
       const state = this.data.householdStates[household.id] ?? {};
+      const recommendationFeedback = collectRecommendationFeedback(
+        state.recommendationFeedback,
+        this.data.mealRuns,
+        household.id,
+      );
       const targetDishCount = normalizeRecommendationDishCount(input.targetDishCount, mode, effortTier, state.familyProfile);
       const result = selectBalancedDinner({
         householdId,
@@ -1478,7 +1484,7 @@ export class HumiStore {
         rotation: currentRotation,
         familyProfile: state.familyProfile ?? {},
         familyMembers: state.familyMembers ?? [],
-        recommendationFeedback: state.recommendationFeedback ?? [],
+        recommendationFeedback,
         pantryItems: state.pantryItems ?? [],
         wantToEatItems: state.wantToEatItems ?? state.wishPool ?? [],
         dislikedRecipeIds: state.dislikedRecipeIds ?? [],
@@ -1970,6 +1976,27 @@ function normalizeRecommendationDishCount(value, mode, effortTier, familyProfile
   return familySize <= 1 ? 1 : familySize >= 5 ? 3 : 2;
 }
 
+function collectRecommendationFeedback(recommendationFeedback, mealRuns, householdId) {
+  const legacy = (Array.isArray(recommendationFeedback) ? recommendationFeedback : [])
+    .map((item) => ({
+      recipeIds: [...new Set([
+        ...(Array.isArray(item?.recipeIds) ? item.recipeIds : []),
+        item?.recipeId,
+      ].filter(Boolean))],
+      value: normalizeRecommendationFeedbackValue(item?.value || item?.reasonId),
+    }))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  const completed = (Array.isArray(mealRuns) ? mealRuns : [])
+    .filter((run) => run?.householdId === householdId && run.status === "completed")
+    .flatMap((run) => (Array.isArray(run.feedback) ? run.feedback : []).map((entry) => ({
+      recipeIds: [...new Set((run.recipeIds ?? []).filter(Boolean))],
+      value: normalizeRecommendationFeedbackValue(entry?.value),
+      mealRunId: run.id || "",
+    })))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  return [...legacy, ...completed].slice(-100);
+}
+
 function sanitizeRecipeIds(value) {
   const recipeIds = [...new Set((Array.isArray(value) ? value : [])
     .map((recipeId) => sanitizeText(recipeId, "", 100))
@@ -1989,7 +2016,8 @@ function sanitizeDowngradeAction(value) {
 }
 
 function sanitizeMealFeedback(value) {
-  if (["want_again", "change_next_time", "too_much_effort"].includes(value)) return value;
+  const normalized = normalizeRecommendationFeedbackValue(value);
+  if (normalized) return normalized;
   throw codedError("meal_feedback_invalid", "Unsupported meal feedback.");
 }
 

@@ -144,15 +144,15 @@ try {
   await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/feedback`, {
     method: "PUT",
     session: member,
-    body: { value: "too_much_effort" },
+    body: { value: "too_hard" },
   });
   const feedbackUpdated = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/feedback`, {
     method: "PUT",
     session: member,
-    body: { value: "change_next_time" },
+    body: { value: "change_it" },
   });
   assert.equal(feedbackUpdated.mealRun.feedback.length, 2, "feedback is one upserted value per member");
-  assert.equal(feedbackUpdated.mealRun.feedback.find((entry) => entry.userId === member.user.id).value, "change_next_time");
+  assert.equal(feedbackUpdated.mealRun.feedback.find((entry) => entry.userId === member.user.id).value, "change_it");
 
   const taskPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",

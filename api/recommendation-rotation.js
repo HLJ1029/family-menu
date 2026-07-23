@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 
+export { formatBusinessDateKey } from "../src/lib/date.js";
+
 const require = createRequire(import.meta.url);
 const rawRecipes = require("../data/recipes.json");
 const cookAssistEntries = require("../data/cook-assist.json");
@@ -14,6 +16,7 @@ const signalAliases = new Map([
   ["蛋类", ["鸡蛋", "蛋"]],
   ["豆制品", ["豆腐", "豆浆", "豆皮", "豆制品"]],
   ["坚果", ["坚果", "花生", "腰果"]],
+  ["乳糖", ["乳糖", "牛奶", "奶酪", "奶"]],
 ]);
 
 export const certifiedRecommendationCatalog = Object.freeze(
@@ -155,19 +158,13 @@ export function recommendationStateVersion(rotation) {
   return createHash("sha256").update(stableStringify(normalizePersistedRotation(rotation))).digest("base64url");
 }
 
-export function formatBusinessDateKey(value = new Date(), timeZone = "Asia/Shanghai") {
-  const date = value instanceof Date ? value : new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    throw recommendationError("date_key_invalid", "A valid dinner date is required.");
+export function normalizeRecommendationFeedbackValue(value) {
+  if (value === "want_again") return "want_again";
+  if (["change_it", "change_next_time", "family_dislikes", "hard_to_buy", "wrong_taste", "not_dinner"].includes(value)) {
+    return "change_it";
   }
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const valueFor = (type) => parts.find((part) => part.type === type)?.value || "";
-  return `${valueFor("year")}-${valueFor("month")}-${valueFor("day")}`;
+  if (["too_hard", "too_much_effort", "too_much_work"].includes(value)) return "too_hard";
+  return "";
 }
 
 function buildGroup({ recipeIds, rotation, targetDishCount, reasonCode, exhausted }) {
@@ -212,7 +209,23 @@ function collectHardSignals(input) {
   return [...new Set(profileSignals
     .map((value) => normalizeText(value, 40).toLowerCase())
     .filter(Boolean)
-    .flatMap((signal) => signalAliases.get(signal) ?? [signal]))];
+    .flatMap(expandHardSignal))];
+}
+
+function expandHardSignal(signal) {
+  const normalized = normalizeText(signal, 80)
+    .toLowerCase()
+    .replace(/[，。,.；;、\s]/g, "");
+  if (!normalized) return [];
+  for (const [canonical, aliases] of signalAliases) {
+    if (normalized.includes(canonical) || aliases.some((alias) => normalized.includes(alias))) {
+      return aliases;
+    }
+  }
+  const stripped = normalized
+    .replace(/^(?:我|本人|孩子|小孩|宝宝)?对/, "")
+    .replace(/(?:严重)?(?:过敏|不耐受|不能吃|吃不了|忌口|不吃)$/g, "");
+  return stripped ? [stripped] : [];
 }
 
 function scoreRecipe(recipe, input) {
@@ -224,10 +237,7 @@ function scoreRecipe(recipe, input) {
       ...(Array.isArray(item?.recipeIds) ? item.recipeIds : []),
     ].filter(Boolean);
     if (!recipeIds.includes(recipe.id)) continue;
-    const value = item.value || item.reasonId;
-    if (value === "want_again") score += 12;
-    if (value === "change_next_time") score -= 7;
-    if (value === "too_much_effort") score -= 12;
+    score += feedbackScoreDelta(item.value || item.reasonId);
   }
   const pantryNames = new Set((input.pantryItems ?? []).map((item) => normalizeText(item?.name || item, 40).toLowerCase()));
   score += recipe.ingredients.filter((ingredient) => pantryNames.has(normalizeText(ingredient.name, 40).toLowerCase())).length * 3;
@@ -235,6 +245,14 @@ function scoreRecipe(recipe, input) {
   if (wanted.some((signal) => signal && recipe.searchText.includes(signal))) score += 8;
   if (recipe.cookAssist?.cleanupLevel === "low") score += input.effortTier === "quick_15" ? 4 : 1;
   return score;
+}
+
+function feedbackScoreDelta(value) {
+  const normalized = normalizeRecommendationFeedbackValue(value);
+  if (normalized === "want_again") return 12;
+  if (normalized === "change_it") return -7;
+  if (normalized === "too_hard") return -12;
+  return 0;
 }
 
 function chooseComplementaryGroup(scored, targetDishCount) {

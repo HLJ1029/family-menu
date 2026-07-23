@@ -25,14 +25,24 @@ const { HumiStore } = await import("../api/store.js");
 const { createHumiApiServer } = await import("../api/server.js");
 const vite = await createViteServer({ logLevel: "silent", server: { middlewareMode: true } });
 const {
+  buildLocalBalancedDinner,
+  collectDinnerRecommendationFeedback,
   requestBalancedDinnerWithFallback,
   rotateLocalDinner,
+  validateDinnerRecommendationIds,
 } = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
+const { recipes: h5Recipes } = await vite.ssrLoadModule("/src/lib/recipes.js");
+const { formatBusinessDateKey: formatH5BusinessDateKey } = await vite.ssrLoadModule("/src/lib/date.js");
 const guestStorage = new Map();
 const nativeRuntime = createMiniProgramRuntime(guestStorage);
 const certifiedRecipes = nativeRuntime.load(path.resolve("miniprogram/data/certified-recipes.js"));
-const { rotateGuestDinner } = nativeRuntime.load(path.resolve("miniprogram/utils/recommendation.js"));
+const nativeRecommendation = nativeRuntime.load(path.resolve("miniprogram/utils/recommendation.js"));
+const {
+  buildRecommendationScope: buildNativeRecommendationScope,
+  rotateGuestDinner,
+} = nativeRecommendation;
 const mainSource = await readFile(new URL("../src/main.jsx", import.meta.url), "utf8");
+const nativeLegacyCatalogPath = path.resolve("miniprogram/data/legacy-recipes.js");
 
 const contextFingerprint = createHash("sha256").update("safe-family-context").digest("base64url");
 const baseInput = {
@@ -50,15 +60,61 @@ const baseInput = {
 
 assert.equal(
   (mainSource.match(/void loadMealExecutionRecommendation\(/g) ?? []).length,
-  1,
-  "effort selection must rely on one effect-owned recommendation request instead of double loading",
+  2,
+  "meal execution needs one effect-owned initial load and one explicit rotate handler without a duplicate tier request",
 );
 assert.equal(
   mainSource.includes("if (!signedIn || !family?.id || mealExecutionExperienceEnabled"),
   false,
   "guest legacy Tonight must hydrate a local current group before explicit rotation",
 );
+assert.equal(
+  mainSource.includes("collectDinnerRecommendationFeedback"),
+  true,
+  "H5 must merge completed MealRun feedback into dinner recommendation scoring",
+);
+const scopedRequestSource = mainSource.slice(
+  mainSource.indexOf("async function requestScopedDinnerRecommendation"),
+  mainSource.indexOf("async function loadMealExecutionRecommendation"),
+);
+assert.equal(
+  scopedRequestSource.includes("pantryItems: pantryItems.map"),
+  true,
+  "the recommendation fingerprint must include normalized pantry scoring input",
+);
+assert.equal(
+  mainSource.includes("legacyRecommendationRequestRef"),
+  true,
+  "legacy initial, next, and reject responses need a shared stale-response request guard",
+);
+assert.equal(
+  scopedRequestSource.includes("recommendationFeedbackOverride"),
+  true,
+  "legacy reject must score the just-recorded feedback without starting a second initial request",
+);
+assert.equal(
+  scopedRequestSource.includes('value: item.value || item.reasonId || ""'),
+  true,
+  "legacy feedback reasons must participate in the H5 recommendation fingerprint",
+);
+assert.equal(
+  mainSource.includes("error: error.message"),
+  false,
+  "recommendation telemetry must not upload free-text error messages",
+);
+assert.equal(
+  mainSource.includes("const todayDateKey = formatBusinessDateKey(new Date())"),
+  true,
+  "H5 Today must use the same Asia/Shanghai business date as the server",
+);
 assert.equal(certifiedRecipes.length, 30, "native projection must contain exactly 30 certified recipes");
+assert.equal(
+  fs.existsSync(nativeLegacyCatalogPath),
+  true,
+  "native legacy guest rotation must ship the complete legacy recipe projection",
+);
+const nativeLegacyRecipes = nativeRuntime.load(nativeLegacyCatalogPath);
+assert.equal(nativeLegacyRecipes.length, 138, "native legacy guest rotation must use all 138 recipes");
 assert.equal(legacyRecommendationCatalog.length, 138, "legacy mode must retain the complete 138-recipe catalog");
 assert.deepEqual(
   Array.from(certifiedRecipes, (recipe) => recipe.id),
@@ -177,6 +233,204 @@ assert.equal(
   "feedback must not permit same-cycle repetition",
 );
 
+const hardAvoidProbes = [
+  {
+    label: "free-form nut allergy",
+    recipeId: "kung-pao-chicken",
+    familyProfile: { allergies: ["坚果过敏"], dislikes: [] },
+    familyMembers: [],
+  },
+  {
+    label: "member seafood allergy suffix",
+    recipeId: "salt-pepper-shrimp",
+    familyProfile: { allergies: [], dislikes: [] },
+    familyMembers: [{ preference: { allergies: ["海鲜过敏"], dislikes: [] } }],
+  },
+  {
+    label: "free-form egg allergy prefix and suffix",
+    recipeId: "tomato-egg",
+    familyProfile: { allergies: ["对鸡蛋过敏"], dislikes: [] },
+    familyMembers: [],
+  },
+];
+for (const probe of hardAvoidProbes) {
+  const serverInput = {
+    ...baseInput,
+    mode: "legacy",
+    effortTier: "legacy",
+    targetDishCount: 1,
+    catalog: legacyRecommendationCatalog,
+    familyProfile: probe.familyProfile,
+    familyMembers: probe.familyMembers,
+  };
+  assert.equal(
+    validateRecommendationGroup({ recipeIds: [probe.recipeId] }, serverInput),
+    false,
+    `server must reject ${probe.label}`,
+  );
+  assert.equal(
+    validateDinnerRecommendationIds({ recipeIds: [probe.recipeId] }, {
+      ...serverInput,
+      catalog: h5Recipes,
+    }),
+    false,
+    `H5 must reject ${probe.label}`,
+  );
+  assert.equal(
+    nativeRuntime.load(path.resolve("miniprogram/utils/recommendation.js")).validateRecommendationGroup(
+      { recipeIds: [probe.recipeId] },
+      {
+        ...serverInput,
+        catalog: certifiedRecipes,
+      },
+    ),
+    false,
+    `native guest must reject ${probe.label}`,
+  );
+}
+
+const portableRecipe = (id, category, ingredient) => ({
+  id,
+  name: id,
+  title: id,
+  description: "",
+  categories: [category],
+  tags: [],
+  ingredients: [{ name: ingredient, required: true }],
+  searchText: `${id} ${category} ${ingredient}`,
+  cookAssist: {
+    status: "certified",
+    effortTier: "quick_15",
+    cleanupLevel: "medium",
+  },
+});
+const scoringCatalog = [
+  portableRecipe("a-no-pantry", "肉菜", "鸡肉"),
+  portableRecipe("z-pantry", "素菜", "土豆"),
+];
+const scoringInput = {
+  ...baseInput,
+  householdId: "guest",
+  contextFingerprint: "f2aaaaaaaaaaaaaa",
+  targetDishCount: 1,
+  catalog: scoringCatalog,
+  pantryItems: [{ name: "土豆" }],
+};
+assert.deepEqual(
+  selectBalancedDinner(scoringInput).group.recipeIds,
+  ["z-pantry"],
+  "server scoring must prefer a safe pantry match",
+);
+assert.deepEqual(
+  buildLocalBalancedDinner(scoringInput).recipeIds,
+  ["z-pantry"],
+  "H5 fallback scoring must prefer the same safe pantry match",
+);
+assert.deepEqual(
+  Array.from(rotateGuestDinner(scoringInput).recipeIds),
+  ["z-pantry"],
+  "native guest scoring must prefer the same safe pantry match",
+);
+
+const complementaryCatalog = [
+  portableRecipe("a-meat", "肉菜", "鸡肉"),
+  portableRecipe("b-meat", "肉菜", "猪肉"),
+  portableRecipe("c-veg", "素菜", "青菜"),
+];
+const complementaryInput = {
+  ...baseInput,
+  householdId: "guest",
+  contextFingerprint: "c1bbbbbbbbbbbbbb",
+  targetDishCount: 2,
+  catalog: complementaryCatalog,
+  recommendationFeedback: [{ recipeId: "a-meat", value: "want_again" }],
+};
+for (const [runtimeLabel, group] of [
+  ["server", selectBalancedDinner(complementaryInput).group],
+  ["H5", buildLocalBalancedDinner(complementaryInput)],
+  ["native guest", rotateGuestDinner(complementaryInput)],
+]) {
+  const categories = group.recipeIds.map((id) => complementaryCatalog.find((recipe) => recipe.id === id).categories[0]);
+  assert.equal(new Set(categories).size, 2, `${runtimeLabel} must choose a complementary two-dish group`);
+}
+
+const feedbackSemanticsCatalog = [
+  portableRecipe("feedback-a", "肉菜", "鸡肉"),
+  portableRecipe("feedback-b", "素菜", "青菜"),
+];
+for (const value of ["change_it", "too_hard"]) {
+  const input = {
+    ...baseInput,
+    householdId: "guest",
+    contextFingerprint: createHash("sha256").update(`feedback:${value}`).digest("base64url"),
+    targetDishCount: 1,
+    catalog: feedbackSemanticsCatalog,
+    recommendationFeedback: [],
+  };
+  const serverBaseline = selectBalancedDinner(input).group.recipeIds[0];
+  assert.notEqual(
+    selectBalancedDinner({
+      ...input,
+      recommendationFeedback: [{ recipeId: serverBaseline, value }],
+    }).group.recipeIds[0],
+    serverBaseline,
+    `server ${value} must reduce the next-round score`,
+  );
+  const h5Baseline = buildLocalBalancedDinner(input).recipeIds[0];
+  assert.notEqual(
+    buildLocalBalancedDinner({
+      ...input,
+      recommendationFeedback: [{ recipeId: h5Baseline, value }],
+    }).recipeIds[0],
+    h5Baseline,
+    `H5 ${value} must reduce the next-round score`,
+  );
+  const nativeStorageKey = `humi:recommendation:v1:${buildNativeRecommendationScope(input)}`;
+  guestStorage.delete(nativeStorageKey);
+  const nativeBaseline = rotateGuestDinner(input).recipeIds[0];
+  guestStorage.delete(nativeStorageKey);
+  assert.notEqual(
+    rotateGuestDinner({
+      ...input,
+      recommendationFeedback: [{ recipeId: nativeBaseline, value }],
+    }).recipeIds[0],
+    nativeBaseline,
+    `native guest ${value} must reduce the next-round score`,
+  );
+}
+
+const aggregatedFeedback = collectDinnerRecommendationFeedback({
+  recommendationFeedback: [{
+    recipeIds: ["legacy-recipe"],
+    reasonId: "too_much_work",
+  }],
+  mealRuns: [
+    {
+      id: "completed-feedback",
+      householdId: "household-a",
+      status: "completed",
+      recipeIds: ["tomato-egg"],
+      feedback: [{ userId: "member-a", value: "change_next_time", updatedAt: "2026-07-22T12:00:00.000Z" }],
+    },
+    {
+      id: "other-household",
+      householdId: "household-b",
+      status: "completed",
+      recipeIds: ["salt-pepper-shrimp"],
+      feedback: [{ userId: "member-b", value: "want_again" }],
+    },
+  ],
+  householdId: "household-a",
+});
+assert.deepEqual(
+  aggregatedFeedback.map((item) => ({ recipeIds: item.recipeIds, value: item.value })),
+  [
+    { recipeIds: ["legacy-recipe"], value: "too_hard" },
+    { recipeIds: ["tomato-egg"], value: "change_it" },
+  ],
+  "H5 feedback aggregation must canonicalize legacy and completed MealRun feedback",
+);
+
 assert.equal(
   formatBusinessDateKey(new Date("2026-07-22T16:30:00.000Z"), "Asia/Shanghai"),
   "2026-07-23",
@@ -186,7 +440,13 @@ assert.equal(
   formatBusinessDateKey(new Date("2026-07-22T15:59:59.000Z"), "Asia/Shanghai"),
   "2026-07-22",
 );
+assert.equal(
+  formatH5BusinessDateKey(new Date("2026-07-22T16:30:00.000Z")),
+  "2026-07-23",
+  "H5 business date must cross at Asia/Shanghai midnight even when the process TZ is UTC",
+);
 
+const guestStorageCountBeforeRotation = guestStorage.size;
 const guestGroups = [];
 for (let index = 0; index < 5; index += 1) {
   guestGroups.push(rotateGuestDinner({
@@ -206,7 +466,11 @@ assert.equal(
   JSON.stringify(guestGroups.at(-1).recipeIds),
   "guest refresh must not advance",
 );
-assert.equal(guestStorage.size, 1, "guest rotation must persist one scoped cursor");
+assert.equal(
+  guestStorage.size,
+  guestStorageCountBeforeRotation + 1,
+  "guest rotation must persist one scoped cursor",
+);
 
 const invalidServerFallback = await requestBalancedDinnerWithFallback({
   requestServer: async () => ({ recipeIds: ["not-certified"] }),
@@ -258,6 +522,24 @@ assert.equal(
   JSON.stringify(h5GuestGroups.at(-1).recipeIds),
   "H5 page refresh must recover the current local group without advancing",
 );
+
+const feedbackStoreInput = {
+  householdId: "feedback-household",
+  dateKey: "2026-07-25",
+  mode: "legacy",
+  effortTier: "legacy",
+  action: "initial",
+  contextFingerprint: createHash("sha256").update("completed-meal-feedback").digest("base64url"),
+};
+const feedbackBaseline = await selectWithCompletedMealFeedback("", "feedback-baseline");
+for (const value of ["want_again", "change_it", "too_hard"]) {
+  const selected = await selectWithCompletedMealFeedback(value, `feedback-${value}`);
+  assert.equal(
+    selected.recipeIds.includes(feedbackBaseline.recipeIds[0]),
+    value === "want_again",
+    `server must apply completed MealRun ${value} to the next recommendation`,
+  );
+}
 
 const store = new HumiStore(join(smokeDirectory, "rotation-store.json"));
 await store.load();
@@ -532,4 +814,34 @@ function createStringStorage() {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, String(value)),
   };
+}
+
+async function selectWithCompletedMealFeedback(value, fileLabel) {
+  const feedbackStore = new HumiStore(join(smokeDirectory, `${fileLabel}.json`));
+  await feedbackStore.load();
+  feedbackStore.data.users = [{ id: "feedback-owner" }];
+  feedbackStore.data.households = [{
+    id: feedbackStoreInput.householdId,
+    ownerId: "feedback-owner",
+    members: [{ memberId: "feedback-owner", role: "owner", status: "formal" }],
+  }];
+  feedbackStore.data.householdStates = {
+    [feedbackStoreInput.householdId]: {
+      familyProfile: { familySize: 1, allergies: [], dislikes: [] },
+      recommendationFeedback: [],
+    },
+  };
+  if (value) {
+    feedbackStore.data.mealRuns = [{
+      id: `${fileLabel}-run`,
+      householdId: feedbackStoreInput.householdId,
+      dateKey: "2026-07-24",
+      mealSlot: "dinner",
+      status: "completed",
+      recipeIds: [feedbackBaseline.recipeIds[0]],
+      feedback: [{ userId: "feedback-owner", value }],
+      completedAt: "2026-07-24T12:00:00.000Z",
+    }];
+  }
+  return feedbackStore.rotateDinnerRecommendation("feedback-owner", feedbackStoreInput);
 }

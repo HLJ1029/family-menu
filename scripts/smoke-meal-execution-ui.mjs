@@ -61,10 +61,44 @@ try {
   await acceptPlan.waitFor();
   assert.equal(await acceptPlan.count(), 1, "the plan has one primary acceptance action");
   assert.equal(await acceptPlan.isEnabled(), true, "the rotated plan must finish loading before it can be accepted");
-  const displayedQuickNames = (await experience.locator("span").allTextContents())
+  const readDisplayedQuickNames = async () => (await experience.getByTestId("meal-plan-recipe").allTextContents())
     .map((name) => name.trim())
     .filter((name) => quickCertifiedByName.has(name));
+  let displayedQuickNames = await readDisplayedQuickNames();
   assert.equal(displayedQuickNames.length, 1, "the 15-minute plan must display one certified quick recipe");
+  const seenQuickNames = new Set(displayedQuickNames);
+  const rotatePlan = page.getByRole("button", { name: "换一组" });
+  assert.equal(await rotatePlan.count(), 1, "effort plans need an explicit rotate action");
+  for (let index = 0; index < 5; index += 1) {
+    const previousName = displayedQuickNames[0];
+    await rotatePlan.click();
+    await page.waitForFunction((previous) => {
+      const current = document.querySelector('[data-testid="meal-plan-recipe"]')?.textContent?.trim();
+      return Boolean(current && current !== previous);
+    }, previousName);
+    displayedQuickNames = await readDisplayedQuickNames();
+    assert.equal(displayedQuickNames.length, 1, "every rotated 15-minute plan stays certified and non-empty");
+    seenQuickNames.add(displayedQuickNames[0]);
+  }
+  assert.equal(seenQuickNames.size, 6, "five real rotate actions must produce five new quick plans");
+
+  const cursorSizeBeforeRapidTap = await currentQuickCursorSize(page);
+  const beforeRapidTapName = displayedQuickNames[0];
+  await page.evaluate(() => {
+    const rotate = [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "换一组");
+    rotate?.click();
+    rotate?.click();
+  });
+  await page.waitForFunction((previous) => {
+    const current = document.querySelector('[data-testid="meal-plan-recipe"]')?.textContent?.trim();
+    return Boolean(current && current !== previous);
+  }, beforeRapidTapName);
+  assert.equal(
+    await currentQuickCursorSize(page),
+    cursorSizeBeforeRapidTap + 1,
+    "two same-tick taps must advance the persisted cursor only once",
+  );
+  displayedQuickNames = await readDisplayedQuickNames();
   await acceptPlan.click();
   await page.getByRole("button", { name: "开始做" }).waitFor();
   const plannedRuns = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:meal-execution-runs:v1") || "[]"));
@@ -87,6 +121,7 @@ try {
   await page.reload({ waitUntil: "networkidle" });
   await page.getByTestId("meal-cooking-timeline").waitFor();
   assert.equal(await page.getByTestId("meal-current-step").textContent(), stepAfterAdvance, "cooking progress must survive a reload");
+  assert.equal(await page.getByTestId("mobile-primary-navigation").count(), 0, "mobile navigation must not cover active cooking controls");
   await page.getByRole("button", { name: "太累了" }).click();
   await page.getByRole("button", { name: "主食改现成" }).click();
   await page.getByText("即食米饭", { exact: false }).waitFor();
@@ -102,6 +137,8 @@ try {
   console.log(JSON.stringify({ ok: true, evidenceDir, checks: [
     "three effort tiers",
     "rotated quick plan uses a certified recipe",
+    "five explicit rotations stay non-repeating",
+    "rapid taps advance the cursor once",
     "accepting the displayed recipe creates a matching planned run",
     "plan acceptance is not completion",
     "cooking progress survives reload",
@@ -112,4 +149,15 @@ try {
 } finally {
   await browser?.close();
   await vite.close();
+}
+
+async function currentQuickCursorSize(page) {
+  return page.evaluate(() => {
+    const key = Object.keys(localStorage).find((candidate) => (
+      candidate.startsWith("humi:recommendation:v1:guest:")
+      && candidate.includes(":meal_execution:quick_15:")
+    ));
+    const cursor = key ? JSON.parse(localStorage.getItem(key) || "null") : null;
+    return Array.isArray(cursor?.seenRecipeIds) ? cursor.seenRecipeIds.length : 0;
+  });
 }

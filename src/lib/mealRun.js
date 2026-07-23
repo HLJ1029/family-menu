@@ -211,7 +211,9 @@ function normalizeAbandonReason(value) {
 }
 
 function normalizeFeedback(value) {
-  if (["want_again", "change_next_time", "too_much_effort"].includes(value)) return value;
+  if (value === "want_again") return "want_again";
+  if (["change_it", "change_next_time"].includes(value)) return "change_it";
+  if (["too_hard", "too_much_effort"].includes(value)) return "too_hard";
   throw mealRunError("meal_feedback_invalid", "Unsupported meal feedback.");
 }
 

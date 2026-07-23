@@ -24,7 +24,7 @@ import { WishLanding } from "./components/WishLanding";
 import { OfflineStatus } from "./components/system/OfflineStatus";
 import { HumiPeek } from "./components/ui/HumiBrandIllustration";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
-import { addDays, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, getWeekStartDate, parseDateKey } from "./lib/date";
+import { addDays, formatBusinessDateKey, formatDateKey, formatDateLabel, getCurrentPlanDay, getWeekKey, getWeekStartDate, parseDateKey } from "./lib/date";
 import {
   buildRecipeGroceryGroups,
   buildShoppingListFromEntries,
@@ -66,6 +66,7 @@ import {
 import {
   buildRecommendationItems,
   buildTodayRecommendation,
+  collectDinnerRecommendationFeedback,
   getHardAvoidSignals,
   recipeMatchesHardAvoid,
   requestBalancedDinnerWithFallback,
@@ -149,8 +150,10 @@ function App() {
   const shareSnapshotCacheRef = useRef(createAsyncSnapshotCache());
   const shareRecoveryReplayRef = useRef("");
   const dinnerRecommendationRequestRef = useRef(0);
+  const dinnerRecommendationInFlightRef = useRef(false);
   const dinnerRecommendationStateRef = useRef(new Map());
   const legacyRecommendationHydrationRef = useRef("");
+  const legacyRecommendationRequestRef = useRef(0);
   const [activeView, setActiveView] = useState(() => getInitialView());
   const [landingCraveToken, setLandingCraveToken] = useState(() => getInitialCraveToken());
   const [landingGroceryShareToken, setLandingGroceryShareToken] = useState(() => getInitialGroceryShareToken());
@@ -255,7 +258,7 @@ function App() {
   const currentHouseholdMemberId = family?.currentMemberId || humiSession?.user?.id || displaySession?.user?.id || "";
   const currentHouseholdMemberName = getDisplayName(displaySession) || "家人";
   const canManageHousehold = !isHumiApiSession(humiSession) || family?.role !== "member";
-  const todayDateKey = formatDateKey(new Date());
+  const todayDateKey = formatBusinessDateKey(new Date());
   const mealExecutionPreview = import.meta.env.DEV
     && typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("mealExecutionPreview") === "1";
@@ -288,6 +291,11 @@ function App() {
       .sort((left, right) => Date.parse(right.updatedAt || 0) - Date.parse(left.updatedAt || 0));
     return candidates.reduce((selected, candidate) => mergeLocalMealRun(selected, candidate), null);
   }, [mealExecutionHouseholdId, mealExecutionRuns, signedIn, todayDateKey]);
+  const dinnerRecommendationFeedback = useMemo(() => collectDinnerRecommendationFeedback({
+    recommendationFeedback,
+    mealRuns: mealExecutionRuns,
+    householdId: mealExecutionHouseholdId,
+  }), [mealExecutionHouseholdId, mealExecutionRuns, recommendationFeedback]);
   const mealExecutionRecipeIds = activeMealRun?.recipeIds
     ?? mealExecutionRecommendation?.recipeIds
     ?? candidateMealRecipeIds(mealEffortTier, todayMenu, { familyMembers, familyProfile });
@@ -543,7 +551,8 @@ function App() {
     mealEffortTier,
     mealExecutionEnabled,
     mealExecutionFallback,
-    recommendationFeedback,
+    dinnerRecommendationFeedback,
+    pantryItems,
     todayDateKey,
     wishPool,
   ]);
@@ -891,11 +900,17 @@ function App() {
       family?.id || "guest",
       todayDateKey,
       todayRecommendation.title,
-      JSON.stringify(familyProfile),
-      recommendationFeedback.length,
+      JSON.stringify({
+        familyProfile,
+        familyMembers,
+        pantryItems: pantryItems.map((item) => item?.name || ""),
+        wishPool,
+      }),
     ].join(":");
     if (legacyRecommendationHydrationRef.current === hydrationKey) return undefined;
     legacyRecommendationHydrationRef.current = hydrationKey;
+    const requestId = legacyRecommendationRequestRef.current + 1;
+    legacyRecommendationRequestRef.current = requestId;
     let active = true;
     setAiRecommendationLoading(true);
     requestScopedDinnerRecommendation({
@@ -903,7 +918,7 @@ function App() {
       effortTier: "normal",
       action: "initial",
     }).then((result) => {
-      if (!active) return;
+      if (!active || legacyRecommendationRequestRef.current !== requestId) return;
       setAiRecommendation(hydrateBalancedDinnerRecommendation(result, todayRecommendation));
       setAiRecommendationStatus(result.source === "server"
         ? "已读取这个家今天当前的一组；刷新页面不会偷偷换菜。"
@@ -911,23 +926,25 @@ function App() {
           ? "网络不稳，已用本机规则保留一组安全搭配。"
           : "已在本机保留今天这组安全搭配；刷新页面不会偷偷换菜。");
     }).catch((error) => {
-      if (active) {
+      if (active && legacyRecommendationRequestRef.current === requestId) {
         legacyRecommendationHydrationRef.current = "";
         setAiRecommendationStatus(error.message || "今晚推荐暂时无法读取，已保留当前搭配。");
       }
     }).finally(() => {
-      if (active) setAiRecommendationLoading(false);
+      if (active && legacyRecommendationRequestRef.current === requestId) setAiRecommendationLoading(false);
     });
     return () => { active = false; };
   }, [
     family?.id,
+    familyMembers,
     familyProfile,
     mealExecutionExperienceEnabled,
-    recommendationFeedback.length,
+    pantryItems,
     signedIn,
     todayDateKey,
     todayMenu.length,
     todayRecommendation.title,
+    wishPool,
   ]);
 
   const displayedRecommendation = aiRecommendation ?? todayRecommendation;
@@ -944,6 +961,7 @@ function App() {
     pending: mealExecutionPending,
     status: mealExecutionStatus,
     onAcceptPlan: acceptMealExecutionPlan,
+    onRotatePlan: rotateMealExecutionPlan,
     onStart: startMealExecutionRun,
     onProgress: progressMealExecutionRun,
     onComplete: completeMealExecutionRun,
@@ -1144,8 +1162,14 @@ function App() {
     updateMealPlanSlot(todayDateKey, "dinner", () => entries);
   }
 
-  async function requestScopedDinnerRecommendation({ mode, effortTier, action }) {
+  async function requestScopedDinnerRecommendation({
+    mode,
+    effortTier,
+    action,
+    recommendationFeedbackOverride,
+  }) {
     const householdId = family?.id || "guest";
+    const feedbackInput = recommendationFeedbackOverride || dinnerRecommendationFeedback;
     const contextFingerprint = await buildRecommendationContextFingerprint({
       householdId,
       dateKey: todayDateKey,
@@ -1156,9 +1180,12 @@ function App() {
         id: member.id || member.memberId || "",
         preference: member.preference || {},
       })),
-      recommendationFeedback: recommendationFeedback.map((item) => ({
+      recommendationFeedback: feedbackInput.map((item) => ({
         recipeIds: item.recipeIds || [],
         value: item.value || item.reasonId || "",
+      })),
+      pantryItems: pantryItems.map((item) => ({
+        name: item?.name || "",
       })),
       wishPool: wishPool.map((item) => ({
         recipeId: item.recipeId || "",
@@ -1188,7 +1215,7 @@ function App() {
       targetDishCount: dinnerRecommendationDishCount(mode, effortTier, familyProfile.familySize),
       familyProfile,
       familyMembers,
-      recommendationFeedback,
+      recommendationFeedback: feedbackInput,
       pantryItems,
       wantToEatItems: wishPool,
       catalog: recipes,
@@ -1215,7 +1242,9 @@ function App() {
   }
 
   async function loadMealExecutionRecommendation(effortTier, action = "initial") {
-    if (activeMealRun) return null;
+    const advancesRotation = action === "next" || action === "reject";
+    if (activeMealRun || (advancesRotation && dinnerRecommendationInFlightRef.current)) return null;
+    if (advancesRotation) dinnerRecommendationInFlightRef.current = true;
     const requestId = dinnerRecommendationRequestRef.current + 1;
     dinnerRecommendationRequestRef.current = requestId;
     setMealExecutionPending(true);
@@ -1242,8 +1271,13 @@ function App() {
       }
       return null;
     } finally {
+      if (advancesRotation) dinnerRecommendationInFlightRef.current = false;
       if (dinnerRecommendationRequestRef.current === requestId) setMealExecutionPending(false);
     }
+  }
+
+  function rotateMealExecutionPlan() {
+    void loadMealExecutionRecommendation(mealEffortTier, "next");
   }
 
   function selectMealExecutionEffortTier(effortTier) {
@@ -2526,9 +2560,9 @@ function App() {
       currentRecipeIds,
       reasonId: feedbackReason?.id,
     });
-    if (feedbackReason) {
-      recordRecommendationFeedback(feedbackReason);
-    }
+    const feedbackEntry = feedbackReason ? recordRecommendationFeedback(feedbackReason) : null;
+    const requestId = legacyRecommendationRequestRef.current + 1;
+    legacyRecommendationRequestRef.current = requestId;
 
     setAiRecommendationLoading(true);
     setAiRecommendationStatus("正在从今天还没出现过的菜里换一组...");
@@ -2538,12 +2572,14 @@ function App() {
             mode: "legacy",
             effortTier: "normal",
             action: "reject",
+            recommendationFeedbackOverride: [feedbackEntry, ...dinnerRecommendationFeedback],
           })
         : await requestScopedDinnerRecommendation({
             mode: "legacy",
             effortTier: "normal",
             action: "next",
           });
+      if (legacyRecommendationRequestRef.current !== requestId) return;
       const nextRecommendation = hydrateBalancedDinnerRecommendation(result, alternateRuleRecommendation);
       setAiRecommendation(nextRecommendation);
       setAiExplanation(nextRecommendation.reason);
@@ -2558,22 +2594,29 @@ function App() {
       });
       showNotice("晚饭推荐已更新");
     } catch (error) {
+      if (legacyRecommendationRequestRef.current !== requestId) return;
       setAiRecommendation((current) => current ?? { ...alternateRuleRecommendation, source: "rule" });
       setAiRecommendationStatus(error.message || "当前晚饭已经开始或完成，不能再替换菜单。");
       trackProductEvent(productEvents.recommendationShown, {
         source: "rule",
         reason: "rotation_error",
-        error: error.message,
         recipeIds: currentRecipeIds,
       });
       showNotice("这次没有替换当前菜单");
     } finally {
-      setAiRecommendationLoading(false);
+      if (legacyRecommendationRequestRef.current === requestId) setAiRecommendationLoading(false);
     }
   }
 
   function recordRecommendationFeedback(reason) {
     const currentRecipeIds = displayedRecommendation.recipes.map((recipe) => recipe.id);
+    const feedbackEntry = {
+      id: `feedback:${Date.now()}`,
+      reasonId: reason.id,
+      reasonLabel: reason.label,
+      recipeIds: currentRecipeIds,
+      createdAt: new Date().toISOString(),
+    };
     trackProductEvent(productEvents.recommendationFeedback, {
       reasonId: reason.id,
       reasonLabel: reason.label,
@@ -2589,16 +2632,8 @@ function App() {
       recipeIds: currentRecipeIds,
       title: displayedRecommendation.title,
     });
-    setRecommendationFeedback((current) => [
-      {
-        id: `feedback:${Date.now()}`,
-        reasonId: reason.id,
-        reasonLabel: reason.label,
-        recipeIds: currentRecipeIds,
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ].slice(0, 12));
+    setRecommendationFeedback((current) => [feedbackEntry, ...current].slice(0, 12));
+    return feedbackEntry;
   }
 
   function updateTodayQuantity(recipeId, delta) {
@@ -4507,7 +4542,7 @@ function App() {
         </main>
       </div>
       <IcpFooter />
-      <MobileTabbar activeView={activeView} onChange={navigateTo} />
+      {activeMealRun?.status !== "cooking" && <MobileTabbar activeView={activeView} onChange={navigateTo} />}
       {entryMotion && <EntryTableMotion />}
       {notice && (
         <div className="toast-enter fixed left-1/2 top-5 z-[70] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-full bg-ink py-2 pl-2 pr-5 text-sm font-black text-white shadow-lift">

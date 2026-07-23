@@ -11,8 +11,8 @@ const tierDetails = {
 
 const feedbackOptions = [
   { id: "want_again", label: "下次还想吃" },
-  { id: "change_next_time", label: "可以换换" },
-  { id: "too_much_effort", label: "太费劲" },
+  { id: "change_it", label: "可以换换" },
+  { id: "too_hard", label: "太费劲" },
 ];
 
 export function MealExecutionExperience({
@@ -27,6 +27,7 @@ export function MealExecutionExperience({
   pending = false,
   status = "",
   onAcceptPlan,
+  onRotatePlan,
   onStart,
   onProgress,
   onComplete,
@@ -215,13 +216,16 @@ export function MealExecutionExperience({
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">今晚最低行动力方案</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {planRecipes.map((recipe) => <span key={recipe.id} className="rounded-full bg-white px-3 py-2 text-sm font-black">{recipe.name}</span>)}
+              {planRecipes.map((recipe) => <span data-testid="meal-plan-recipe" key={recipe.id} className="rounded-full bg-white px-3 py-2 text-sm font-black">{recipe.name}</span>)}
             </div>
           </div>
           <Clock3 className="shrink-0 text-ink/35" size={22} />
         </div>
         <p className="mt-3 text-xs font-bold leading-5 text-ink/48">约 {totalMinutes || 15} 分钟 · {cookwareLabel(cookware)}{effortTier === "quick_15" ? " · 不腌制、不多锅" : ""}</p>
       </div>
+      <button type="button" onClick={onRotatePlan} disabled={pending || planRecipes.length === 0} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink disabled:opacity-40">
+        {pending ? <LoaderCircle className="animate-spin" size={17} /> : <TimerReset size={17} />}换一组
+      </button>
       {canAcceptPlan ? (
         <button type="button" onClick={onAcceptPlan} disabled={pending || planRecipes.length === 0} className="mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-black text-white disabled:opacity-40">
           {pending ? <LoaderCircle className="animate-spin" size={19} /> : <Check size={19} />}就做这顿

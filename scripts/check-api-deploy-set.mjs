@@ -10,6 +10,7 @@ const apiCanonicalPath = "api/data/approved-avatar-keys.json";
 const miniProgramProjectionPath = "miniprogram/data/approved-avatar-keys.json";
 const deploymentSet = [
   "api",
+  "src/lib/date.js",
   "src/lib/mealExecution.js",
   "data/recipes.json",
   "data/cook-assist.json",
