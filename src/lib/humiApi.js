@@ -384,11 +384,12 @@ export async function loadMenuShareRequest(token) {
   return humiPublicRequest(`/menu-share-requests/${encodeURIComponent(token)}`);
 }
 
-export async function uploadPosterShare(session, blob) {
+export async function uploadPosterShare(session, blob, options = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   if (!(blob instanceof Blob) || !["image/jpeg", "image/png"].includes(blob.type)) {
     throw new Error("海报图片没有准备完整，请重新生成。");
   }
+  const styleId = options.styleId === "theme" ? "theme" : "default";
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
   try {
@@ -397,6 +398,7 @@ export async function uploadPosterShare(session, blob) {
       headers: {
         "Content-Type": blob.type,
         Authorization: `Bearer ${session.accessToken}`,
+        "X-Humi-Poster-Style": styleId,
       },
       body: blob,
       signal: controller.signal,

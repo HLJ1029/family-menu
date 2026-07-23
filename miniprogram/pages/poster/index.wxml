@@ -10,7 +10,7 @@
   </view>
 
   <view class="poster-frame" wx:if="{{imageUrl}}">
-    <image class="poster-image" src="{{imageUrl}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+    <image class="poster-image" src="{{imageUrl}}" mode="widthFix" show-menu-by-longpress="{{true}}" data-style-id="{{styleId}}" />
   </view>
   <view class="poster-missing" wx:else>
     <view class="missing-title">海报没有准备完整</view>
@@ -20,6 +20,9 @@
   <view class="poster-status">{{statusText}}</view>
 
   <view class="actions">
+    <button class="style-button" wx:if="{{showStyleAction}}" bindtap="changeStyle" disabled="{{pending}}">
+      换成{{nextStyleLabel}}版
+    </button>
     <button class="primary-button" bindtap="sharePosterImage" loading="{{pending}}" disabled="{{pending || !token}}">发给家人</button>
     <button class="secondary-button" bindtap="savePosterImage" disabled="{{pending || !token}}">保存到相册</button>
     <button class="ghost-button" bindtap="goBack" disabled="{{pending}}">返回 Humi</button>

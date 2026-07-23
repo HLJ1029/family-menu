@@ -2061,6 +2061,7 @@ async function handleCloseCraveRequest(request, response, token) {
 async function handleCreatePosterShare(request, response) {
   const auth = await requireAuth(request);
   enforcePosterUploadAccess(request, auth.userId);
+  const styleId = normalizePosterStyleId(request.headers["x-humi-poster-style"]);
   const declaredLength = Number(request.headers["content-length"] || 0);
   if (declaredLength > config.posterMaxBytes) {
     throw httpError(413, "poster_too_large", "海报图片太大，请重新生成后再试。");
@@ -2085,8 +2086,14 @@ async function handleCreatePosterShare(request, response) {
       url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
       expiresAt,
       bytes: body.length,
+      styleId,
     },
   });
+}
+
+function normalizePosterStyleId(value) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "theme" ? "theme" : "default";
 }
 
 async function handleGetPosterShare(request, response, token, format) {
@@ -2902,7 +2909,7 @@ function applyCors(request, response) {
     response.setHeader("Vary", "Origin");
   }
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,If-Match,X-Humi-Idempotency-Key");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,If-Match,X-Humi-Idempotency-Key,X-Humi-Poster-Style");
 }
 
 function sendJson(response, status, data, headers = {}) {

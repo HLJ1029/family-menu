@@ -15,7 +15,7 @@ const ENUM_FIELDS = {
   effortTier: new Set(["quick_15", "easy_30", "normal"]),
   shareSource: new Set(["menu", "grocery", "invite", "meal_task", "poster"]),
   errorCode: new Set([
-    "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized",
+    "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized", "permission_denied",
     "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",
     "offline_action_unconfigured", "offline_queue_full", "offline_queue_too_large", "offline_product_event_unsafe",
     "queue_conflict", "queue_retry", "queue_flush_failed"

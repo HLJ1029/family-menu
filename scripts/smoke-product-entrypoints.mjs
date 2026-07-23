@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -195,16 +196,19 @@ try {
     if (route.request().method() !== "POST") return route.fallback();
     const body = route.request().postDataBuffer();
     const contentType = route.request().headers()["content-type"] || "";
+    const styleId = route.request().headers()["x-humi-poster-style"] === "theme" ? "theme" : "default";
     const format = contentType.includes("png") ? "png" : "jpg";
     const sequence = posterUploadRequests.length + 1;
     const token = `product_smoke_poster_token_${String(sequence).padStart(4, "0")}`;
-    posterUploadRequests.push({ size: body?.length || 0, contentType });
+    const bodySha256 = createHash("sha256").update(body || Buffer.alloc(0)).digest("hex");
+    posterUploadRequests.push({ size: body?.length || 0, contentType, styleId, bodySha256 });
     await fulfillJson(route, {
       poster: {
         token,
         format,
         url: `https://api.humi-home.com/poster-shares/${token}.${format}`,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        styleId,
       },
     });
   });
@@ -531,10 +535,17 @@ try {
     { key: "grocery-poster-opens-native-album-save-page", ok: groceryPosterNativeSaveOpened },
     {
       key: "poster-uploads-stay-under-api-limit",
-      ok: posterUploadRequests.length === 2
+      ok: posterUploadRequests.length === 3
         && posterUploadRequests.every((request) => request.size > 0
           && request.size <= 950 * 1024
-          && /^image\/(?:jpeg|png)/.test(request.contentType)),
+          && /^image\/(?:jpeg|png)/.test(request.contentType))
+        && posterUploadRequests.filter((request) => request.styleId === "default").length === 2
+        && posterUploadRequests.filter((request) => request.styleId === "theme").length === 1
+        && posterUploadRequests
+          .filter((request) => request.styleId === "theme")
+          .every((themeRequest) => posterUploadRequests
+            .filter((request) => request.styleId === "default")
+            .every((defaultRequest) => defaultRequest.bodySha256 !== themeRequest.bodySha256)),
       actual: posterUploadRequests,
     },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },

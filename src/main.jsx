@@ -3305,14 +3305,14 @@ function App() {
     setPosterLoading(true);
     setPosterPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
-      return current ? { ...current, blob: null, url: "", remotePoster: null } : null;
+      return current ? { ...current, blob: null, url: "", remotePoster: null, remotePosters: {} } : null;
     });
     try {
       const blob = await posterPreview.createBlob(nextStyleId);
       const url = URL.createObjectURL(blob);
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return current ? { ...current, blob, url, styleId: nextStyleId, remotePoster: null } : null;
+        return current ? { ...current, blob, url, styleId: nextStyleId, remotePoster: null, remotePosters: {} } : null;
       });
       showNotice("换好一版海报了");
     } catch {
@@ -3339,18 +3339,49 @@ function App() {
 
     setPosterLoading(true);
     try {
-      let remotePoster = posterPreview.remotePoster;
-      if (!remotePoster?.token) {
-        const uploadBlob = await preparePosterUploadBlob(posterPreview.blob);
-        const data = await uploadPosterShare(humiSession, uploadBlob);
-        remotePoster = data.poster;
+      const previewStyleId = posterPreview.styleId === "theme" ? "theme" : "default";
+      const availableStyleIds = [...new Set(
+        (posterPreview.availableStyleIds?.length ? posterPreview.availableStyleIds : [previewStyleId])
+          .filter((styleId) => styleId === "default" || styleId === "theme"),
+      )];
+      if (!availableStyleIds.includes(previewStyleId)) availableStyleIds.unshift(previewStyleId);
+      const orderedStyleIds = [
+        previewStyleId,
+        ...availableStyleIds.filter((styleId) => styleId !== previewStyleId),
+      ];
+      const remotePosters = { ...(posterPreview.remotePosters || {}) };
+      for (const styleId of orderedStyleIds) {
+        if (remotePosters[styleId]?.token) continue;
+        const styleBlob = styleId === previewStyleId
+          ? posterPreview.blob
+          : await posterPreview.createBlob(styleId);
+        const uploadBlob = await preparePosterUploadBlob(styleBlob);
+        const data = await uploadPosterShare(humiSession, uploadBlob, { styleId });
+        if (data.poster?.styleId !== styleId) {
+          throw new Error("海报风格没有正确传到微信，请重新生成。");
+        }
+        remotePosters[styleId] = data.poster;
         setPosterPreview((current) => (
-          current?.blob === posterPreview.blob ? { ...current, remotePoster } : current
+          current?.blob === posterPreview.blob
+            ? { ...current, remotePosters: { ...remotePosters } }
+            : current
         ));
       }
+      const remotePoster = remotePosters[previewStyleId];
+      setPosterPreview((current) => (
+        current?.blob === posterPreview.blob ? { ...current, remotePoster, remotePosters } : current
+      ));
+      const defaultPoster = remotePosters.default;
+      const themePoster = remotePosters.theme;
       const status = await requestMiniProgramPoster({
         token: remotePoster.token,
         format: remotePoster.format,
+        styleId: previewStyleId,
+        posterType: posterPreview.type,
+        defaultToken: defaultPoster?.token || "",
+        defaultFormat: defaultPoster?.format || "",
+        themeToken: themePoster?.token || "",
+        themeFormat: themePoster?.format || "",
         title: posterPreview.title,
         action,
       }, getNativeHandoffOptions(`poster_${action}`, { timeoutMs: 2400 }));

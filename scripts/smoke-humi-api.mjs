@@ -27,6 +27,20 @@ try {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
+  const posterPreflight = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://www.humi-home.com",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "authorization,content-type,x-humi-poster-style",
+    },
+  });
+  assert.equal(posterPreflight.status, 204, "poster upload preflight should be accepted");
+  assert.match(
+    posterPreflight.accessControlAllowHeaders || "",
+    /(?:^|,)X-Humi-Poster-Style(?:,|$)/i,
+    "poster style header must be allowed through the H5 CORS preflight",
+  );
   const dishThumb = await rawRequest(`${baseUrl}/assets/dishes/thumbs/tomato-egg.webp`, { method: "HEAD" });
   assert.equal(dishThumb.status, 200, "optimized dish thumbnails should be served by the API asset origin");
   assert.equal(dishThumb.contentType, "image/webp");
@@ -66,11 +80,13 @@ try {
     headers: {
       "Content-Type": "image/jpeg",
       Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
     },
     body: posterJpeg,
   });
   assert(uploadedPoster.status === 201, "poster upload should return 201");
   assert(uploadedPoster.data.poster?.format === "jpg", "poster upload should detect JPEG");
+  assert.equal(uploadedPoster.data.poster?.styleId, "theme", "poster upload should preserve an allowlisted style ID");
   assert(uploadedPoster.data.poster?.bytes === posterJpeg.length, "poster upload should report exact bytes");
   assert(/^[A-Za-z0-9_-]{24,64}$/.test(uploadedPoster.data.poster?.token || ""), "poster upload should return an opaque token");
   const posterPath = `/poster-shares/${uploadedPoster.data.poster.token}.jpg`;
@@ -81,6 +97,17 @@ try {
   const posterHead = await rawRequest(`${baseUrl}${posterPath}`, { method: "HEAD" });
   assert(posterHead.status === 200, "poster HEAD should succeed");
   assert(posterHead.contentLength === String(posterJpeg.length), "poster HEAD should expose content length");
+  const sanitizedPosterStyle = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "receipt<script>",
+    },
+    body: posterJpeg,
+  });
+  assert.equal(sanitizedPosterStyle.status, 201, "invalid style metadata should not block a valid poster image");
+  assert.equal(sanitizedPosterStyle.data.poster?.styleId, "default", "poster style metadata must be reduced to the allowlist");
   const invalidPoster = await rawRequest(`${baseUrl}/poster-shares`, {
     method: "POST",
     headers: {
@@ -2153,6 +2180,7 @@ async function rawRequest(url, options = {}) {
     contentType,
     contentLength: response.headers.get("content-length"),
     cacheControl: response.headers.get("cache-control"),
+    accessControlAllowHeaders: response.headers.get("access-control-allow-headers"),
     buffer,
     data,
   };

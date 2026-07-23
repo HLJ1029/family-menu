@@ -140,6 +140,7 @@ assert.match(
 );
 
 const appJson = JSON.parse(readFileSync(resolve(root, "miniprogram/app.json"), "utf8"));
+assert(appJson.pages.includes("pages/poster/index"), "app.json must register the native poster share page");
 const packageShare = appJson.subPackages.find((item) => item.root === "packageShare");
 assert(packageShare, "app.json must register the native packageShare subpackage");
 assert.deepEqual(packageShare.pages.sort(), ["pages/grocery/index", "pages/menu/index"]);
@@ -180,6 +181,12 @@ assert.doesNotMatch(
   /token/i,
   "opaque share tokens must never enter telemetry",
 );
+const posterSource = readFileSync(resolve(root, "miniprogram/pages/poster/index.js"), "utf8");
+const posterWxml = readFileSync(resolve(root, "miniprogram/pages/poster/index.wxml"), "utf8");
+assert.match(posterSource, /showShareImageMenu/, "poster sharing must use WeChat's native image menu");
+assert.match(posterSource, /saveImageToPhotosAlbum/, "poster saving must use WeChat's native album API");
+assert.match(posterSource, /poster-styles/, "poster style switching must use the deterministic native style utility");
+assert.match(posterWxml, /wx:if="\{\{showStyleAction\}\}"/, "single-template posters must hide the style action");
 
 await assertDynamicNativeSharePages();
 await assertNativeShareApiContracts();

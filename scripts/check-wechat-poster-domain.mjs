@@ -9,6 +9,19 @@ const DEFAULT_PROBE_URL = "https://api.humi-home.com/health";
 const EXPECTED_ORIGIN = "https://api.humi-home.com";
 const EXPECTED_APP_ID = "wx4040b89f3b363416";
 
+if (process.argv.includes("--selftest")) {
+  assert(
+    classifyCliDiagnostics("错误 Error: 需要重新登录 (code 10)") === "devtools_login_required",
+    "DevTools login expiry should be classified before waiting for a dead automation socket.",
+  );
+  assert(
+    classifyCliDiagnostics("url not in domain list") === "download_domain_missing",
+    "downloadFile legal-domain rejection should keep its distinct external blocker.",
+  );
+  console.log("WeChat poster domain diagnostics self-test passed.");
+  process.exit(0);
+}
+
 const root = resolve(new URL("..", import.meta.url).pathname);
 const projectPath = resolve(root, "miniprogram");
 const projectConfigPath = resolve(projectPath, "project.config.json");
@@ -31,29 +44,48 @@ assert(privateConfig?.setting?.urlCheck !== false, "project.private.config.json 
 let connection;
 let cliProcess;
 let result;
+let cliDiagnostics = "";
 try {
   const port = await findAvailablePort();
   cliProcess = spawn(cliPath, ["auto", "--project", projectPath, "--auto-port", String(port)], {
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  connection = await connectToDevTools(`ws://127.0.0.1:${port}`, timeout);
-  const response = await connection.send("App.callFunction", {
-    functionDeclaration: `function (url) {
-      return new Promise(function (resolveProbe) {
-        wx.downloadFile({
-          url: url,
-          success: function (downloadResponse) {
-            resolveProbe({ kind: "success", statusCode: downloadResponse.statusCode });
-          },
-          fail: function (error) {
-            resolveProbe({ kind: "fail", errMsg: error && error.errMsg ? error.errMsg : String(error) });
-          }
+  const appendDiagnostics = (chunk) => {
+    cliDiagnostics = `${cliDiagnostics}${String(chunk || "")}`.slice(-12_000);
+  };
+  cliProcess.stdout?.on("data", appendDiagnostics);
+  cliProcess.stderr?.on("data", appendDiagnostics);
+  try {
+    connection = await connectToDevTools(
+      `ws://127.0.0.1:${port}`,
+      timeout,
+      () => classifyCliDiagnostics(cliDiagnostics),
+    );
+    const response = await connection.send("App.callFunction", {
+      functionDeclaration: `function (url) {
+        return new Promise(function (resolveProbe) {
+          wx.downloadFile({
+            url: url,
+            success: function (downloadResponse) {
+              resolveProbe({ kind: "success", statusCode: downloadResponse.statusCode });
+            },
+            fail: function (error) {
+              resolveProbe({ kind: "fail", errMsg: error && error.errMsg ? error.errMsg : String(error) });
+            }
+          });
         });
-      });
-    }`,
-    args: [probeUrl.toString()],
-  });
-  result = response.result;
+      }`,
+      args: [probeUrl.toString()],
+    });
+    result = response.result;
+  } catch (error) {
+    const errorCode = error?.code || classifyCliDiagnostics(cliDiagnostics) || "automation_unavailable";
+    result = {
+      kind: "blocked",
+      errorCode,
+      errMsg: externalBlockerMessage(errorCode),
+    };
+  }
 } finally {
   await connection?.send("Tool.close", {}, 5_000).catch(() => {});
   connection?.close();
@@ -62,6 +94,7 @@ try {
 
 const errorMessage = result?.errMsg || "";
 const rejectedByDomainPolicy = /url not in domain list/i.test(errorMessage);
+const externalBlocker = result?.errorCode || classifyCliDiagnostics(errorMessage);
 const domainAllowed = result?.kind === "success" && !rejectedByDomainPolicy;
 const httpHealthy = domainAllowed && result.statusCode >= 200 && result.statusCode < 300;
 const report = {
@@ -74,8 +107,11 @@ const report = {
   domainAllowed,
   httpHealthy,
   result,
-  nextAction: rejectedByDomainPolicy
+  externalBlocker: rejectedByDomainPolicy ? "download_domain_missing" : externalBlocker || null,
+  nextAction: rejectedByDomainPolicy || externalBlocker === "download_domain_missing"
     ? `Add ${EXPECTED_ORIGIN} to the mini program downloadFile legal-domain list, then run this command again.`
+    : externalBlocker === "devtools_login_required"
+      ? "Sign in to WeChat DevTools, then rerun this read-only domain probe. Do not disable urlCheck."
     : domainAllowed
       ? "The domain gate passed. Continue with real-device menu poster sharing and grocery poster saving."
       : "Inspect the DevTools connection or network failure, then run this command again.",
@@ -114,18 +150,43 @@ async function findAvailablePort() {
   return port;
 }
 
-async function connectToDevTools(endpoint, timeoutMs) {
+async function connectToDevTools(endpoint, timeoutMs, readBlocker = () => "") {
   const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
+    const blocker = readBlocker();
+    if (blocker) {
+      const error = new Error(externalBlockerMessage(blocker));
+      error.code = blocker;
+      throw error;
+    }
     try {
       return await openProtocolConnection(endpoint, Math.min(2_000, deadline - Date.now()));
     } catch (error) {
       lastError = error;
+      const failedBlocker = readBlocker();
+      if (failedBlocker) {
+        const blockerError = new Error(externalBlockerMessage(failedBlocker));
+        blockerError.code = failedBlocker;
+        throw blockerError;
+      }
       await delay(500);
     }
   }
   throw new Error(`Unable to connect to WeChat DevTools automation: ${lastError?.message || "timed out"}`);
+}
+
+function classifyCliDiagnostics(value) {
+  const message = String(value || "");
+  if (/需要重新登录|not logged in|login required|login:false/i.test(message)) return "devtools_login_required";
+  if (/url not in domain list/i.test(message)) return "download_domain_missing";
+  return "";
+}
+
+function externalBlockerMessage(errorCode) {
+  if (errorCode === "devtools_login_required") return "WeChat DevTools login is required before legal-domain evidence can be refreshed.";
+  if (errorCode === "download_domain_missing") return `${EXPECTED_ORIGIN} is absent from the WeChat downloadFile legal-domain list.`;
+  return "WeChat DevTools automation was unavailable before the legal-domain probe completed.";
 }
 
 function openProtocolConnection(endpoint, openTimeoutMs) {

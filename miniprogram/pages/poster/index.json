@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "分享海报",
   "navigationBarBackgroundColor": "#111111",
-  "navigationBarTextStyle": "white"
+  "navigationBarTextStyle": "white",
+  "enableShareAppMessage": true
 }
