@@ -1,5 +1,6 @@
 const certifiedRecipes = require("../data/certified-recipes");
 const legacyRecipes = require("../data/legacy-recipes");
+const { requestHumi } = require("./request");
 
 const storagePrefix = "humi:recommendation:v1:";
 
@@ -66,6 +67,92 @@ function rotateGuestDinner(input = {}) {
   };
   storage.setStorageSync(storageKey, next);
   return toGroup(recipeIds, next, targetDishCount, exhausted, exhausted ? "cycle_reset_recent_protected" : "balanced_unseen");
+}
+
+async function recommendDinner(input = {}) {
+  const context = recommendationContext({
+    ...input,
+    mode: "meal_execution",
+    contextFingerprint: input.contextFingerprint || buildContextFingerprint(input),
+  });
+  const canUseServer = Boolean(clean(context.householdId) && context.householdId !== "guest");
+  if (!canUseServer) return localRecommendation(context);
+  try {
+    const group = await requestHumi({
+      path: "/recommendations/dinner",
+      method: "POST",
+      data: {
+        householdId: context.householdId,
+        dateKey: context.dateKey,
+        mode: "meal_execution",
+        effortTier: context.effortTier,
+        action: normalizeAction(context.action),
+        contextFingerprint: context.contextFingerprint,
+        stateVersion: clean(context.stateVersion),
+      },
+      idempotencyKey: [
+        "recommendation",
+        clean(context.dateKey),
+        clean(context.effortTier),
+        normalizeAction(context.action),
+        clean(context.stateVersion),
+      ].filter(Boolean).join(":"),
+      expectedUserId: clean(context.expectedUserId),
+      timeoutMs: Number(context.timeoutMs) || 4500,
+    });
+    if (!validateRecommendationGroup(group, context)) throw codedError("recommendation_group_invalid");
+    return { ...group, source: "server" };
+  } catch (error) {
+    if (Number(error?.status) === 409 || error?.code === "recommendation_state_conflict" || error?.code === "meal_run_locked") {
+      throw error;
+    }
+    if (!isFallbackError(error)) throw error;
+    return localRecommendation(context, error?.code || "request_failed");
+  }
+}
+
+function localRecommendation(context, fallbackReason = "") {
+  const group = rotateGuestDinner({ ...context, storage: context.storage || wx });
+  return {
+    ...group,
+    source: "local_fallback",
+    fallbackReason: clean(fallbackReason),
+  };
+}
+
+function buildContextFingerprint(input = {}) {
+  const context = recommendationContext(input);
+  const state = {
+    familyProfile: {
+      familySize: Number(context.familyProfile?.familySize || 2),
+      allergies: normalizedStrings(context.familyProfile?.allergies),
+      dislikes: normalizedStrings(context.familyProfile?.dislikes),
+    },
+    familyMembers: (context.familyMembers || []).map((member) => ({
+      id: clean(member?.id || member?.memberId),
+      allergies: normalizedStrings(member?.preference?.allergies),
+      dislikes: normalizedStrings(member?.preference?.dislikes),
+    })).sort((left, right) => left.id.localeCompare(right.id)),
+    dislikedRecipeIds: normalizedStrings(context.dislikedRecipeIds),
+    pantryItems: normalizedStrings((context.pantryItems || []).map((item) => item?.name || item)),
+    wantToEatItems: normalizedStrings((context.wantToEatItems || []).map((item) => item?.name || item?.title || item)),
+  };
+  const serialized = JSON.stringify(state);
+  return [0, 1, 2, 3].map((index) => hash(`${index}:${serialized}`).toString(16).padStart(8, "0")).join("");
+}
+
+function normalizeAction(value) {
+  return ["initial", "next", "reject"].includes(value) ? value : "initial";
+}
+
+function normalizedStrings(values) {
+  return [...new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean))].sort();
+}
+
+function isFallbackError(error = {}) {
+  return Number(error.status) === 0
+    || error.retryable === true
+    || ["network_error", "request_timeout", "recommendation_group_invalid", "request_failed"].includes(error.code);
 }
 
 function validateRecommendationGroup(group, input = {}) {
@@ -249,7 +336,9 @@ function codedError(code) {
 }
 
 module.exports = {
+  buildContextFingerprint,
   buildRecommendationScope,
+  recommendDinner,
   rotateGuestDinner,
   validateRecommendationGroup
 };

@@ -223,6 +223,9 @@ for (const tabPath of tabPaths) {
     require: (specifier) => {
       if (specifier === "../../utils/native-shell-guard") return { guardNativeTab: () => { guardCalls += 1; return false; } };
       if (specifier === "../../utils/store") return { appStore: { getState: () => ({ bootstrap: null }) } };
+      if (specifier === "../../utils/recommendation") return {};
+      if (specifier === "../../utils/meal-run") return {};
+      if (specifier === "../../utils/telemetry") return {};
       throw new Error(`Unexpected tab dependency: ${specifier}`);
     }
   });

@@ -1,0 +1,18 @@
+<view class="effort-picker" aria-label="选择今晚的行动力">
+  <button
+    wx:for="{{options}}"
+    wx:key="id"
+    class="effort-option {{selectedTier === item.id ? 'selected' : ''}}"
+    data-tier="{{item.id}}"
+    bindtap="selectEffort"
+    disabled="{{pending}}"
+    aria-label="{{item.title}}"
+    aria-pressed="{{selectedTier === item.id}}"
+  >
+    <view class="effort-copy">
+      <text class="effort-title">{{item.title}}</text>
+      <text class="effort-detail">{{item.detail}}</text>
+    </view>
+    <text class="effort-badge">{{item.badge}}</text>
+  </button>
+</view>

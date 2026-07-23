@@ -1,0 +1,53 @@
+.effort-picker {
+  display: grid;
+  gap: 18rpx;
+}
+
+.effort-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 144rpx;
+  margin: 0;
+  padding: 28rpx 30rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.1);
+  border-radius: 30rpx;
+  background: #ffffff;
+  color: #111111;
+  text-align: left;
+}
+
+.effort-option.selected {
+  border-color: #111111;
+  box-shadow: 0 12rpx 34rpx rgba(17, 17, 17, 0.08);
+}
+
+.effort-copy,
+.effort-title,
+.effort-detail {
+  display: block;
+}
+
+.effort-title {
+  font-size: 31rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.effort-detail {
+  margin-top: 10rpx;
+  color: rgba(17, 17, 17, 0.55);
+  font-size: 23rpx;
+  font-weight: 650;
+}
+
+.effort-badge {
+  flex: none;
+  margin-left: 20rpx;
+  padding: 10rpx 14rpx;
+  border-radius: 999rpx;
+  background: #f0eee8;
+  font-size: 20rpx;
+  font-weight: 800;
+}
