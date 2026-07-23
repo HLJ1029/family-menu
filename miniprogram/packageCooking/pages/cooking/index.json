@@ -1,1 +1,9 @@
-{ "usingComponents": { "page-state": "/components/page-state/index" } }
+{
+  "navigationBarTitleText": "正在做饭",
+  "usingComponents": {
+    "page-state": "/components/page-state/index",
+    "cooking-step": "/components/cooking-step/index",
+    "absolute-timer": "/components/absolute-timer/index",
+    "meal-feedback": "/components/meal-feedback/index"
+  }
+}

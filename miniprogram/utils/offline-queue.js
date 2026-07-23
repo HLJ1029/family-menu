@@ -17,6 +17,7 @@ const ACTION_FIELD_SCHEMAS = Object.freeze({
 });
 const PRODUCT_EVENT_TYPES = new Set(["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"]);
 const PRODUCT_EVENT_FIELDS = ["mealRunId", "recommendationId", "effortTier"];
+const PRIVATE_DATA_FIELDS = new Set(["nickname", "token", "note", "notes", "comment", "text", "freeText"]);
 let customReplayer = null;
 
 function getOwnerUserId() {
@@ -60,12 +61,23 @@ function validateAction(action) {
   if (!action.id || !action.householdId || !Number.isFinite(Number(action.createdAt))) {
     throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
   }
+  if (action.type.startsWith("meal_") && containsPrivateData(action.data)) {
+    throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
+  }
   if (action.type === "product_event") {
     const { isSafeTelemetryEvent } = require("./telemetry");
     if (!PRODUCT_EVENT_TYPES.has(action.event) || !isSafeTelemetryEvent(action.event, action.fields || {})) {
       throw new HumiRequestError(0, "offline_product_event_unsafe", { retryable: false });
     }
   }
+}
+
+function containsPrivateData(value) {
+  if (!value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some(containsPrivateData);
+  return Object.entries(value).some(([key, child]) => (
+    PRIVATE_DATA_FIELDS.has(key) || containsPrivateData(child)
+  ));
 }
 
 function projectAction(action, ownerUserId) {

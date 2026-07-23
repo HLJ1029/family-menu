@@ -1,1 +1,110 @@
-<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry"><view class="placeholder"><text>功能将在后续阶段启用</text></view></page-state>
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="cooking-shell">
+    <view class="cooking-header">
+      <text class="eyebrow">HUMI · 正在做饭</text>
+      <text class="title">{{mealRun.status === 'completed' ? '今晚，做成了。' : mealRun.status === 'abandoned' ? '今晚先到这里。' : '一步一步，把饭端上桌。'}}</text>
+      <view class="status-row">
+        <text class="network-pill {{isOnline ? '' : 'offline'}}" aria-label="网络状态">{{networkText}}</text>
+        <text wx:if="{{unsyncedCount}}" class="sync-pill">{{unsyncedCount}} 项待同步</text>
+      </view>
+      <view wx:if="{{mealRun.status === 'cooking'}}" class="progress-track">
+        <view class="progress-fill" style="width: {{progressPercent}}%;"></view>
+      </view>
+      <text wx:if="{{mealRun.status === 'cooking'}}" class="time-summary">已进行 {{elapsedMinutes}} 分钟 · 预计 {{estimatedTotalMinutes}} 分钟</text>
+    </view>
+
+    <view wx:if="{{showBackWarning}}" class="back-warning">还有进度未同步，先保持 Humi 在后台，联网后会自动补上。</view>
+    <view wx:if="{{syncFrozen}}" class="conflict-warning">家里的安排刚刚有更新，请确认最新进度</view>
+
+    <view wx:if="{{mealRun.status === 'planned'}}" class="completed-card">
+      <text class="completed-title">这顿饭已经准备好</text>
+      <text class="completed-detail">开始后，Humi 会把多道菜合成一条做饭时间线。</text>
+      <button class="serve-button" bindtap="startPlanned" loading="{{pendingAction === 'start'}}">联网后开始做饭</button>
+    </view>
+
+    <view wx:if="{{mealRun.status === 'cooking'}} class="cooking-content">
+      <view wx:if="{{runningTimers.length}}" class="timer-section">
+        <text class="section-label">同时在等</text>
+        <absolute-timer
+          wx:for="{{runningTimers}}"
+          wx:key="id"
+          label="{{item.timerLabel || item.recipeName}}"
+          ends-at="{{item.endsAt}}"
+          remaining-seconds="{{item.remainingSeconds}}"
+        />
+      </view>
+
+      <view class="step-section">
+        <text class="section-label">现在做</text>
+        <cooking-step
+          wx:if="{{currentStep}}"
+          step="{{currentStep}}"
+          next-step="{{nextStep}}"
+          has-remaining-steps="{{hasRemainingSteps}}"
+          pending="{{!!pendingAction || syncFrozen}}"
+          bind:advance="advanceStep"
+        />
+      </view>
+
+      <view class="secondary-actions">
+        <button class="secondary-button" bindtap="showDowngradeSheet">太累了</button>
+        <button class="text-button" bindtap="showAbandonSheet">今晚不做了</button>
+      </view>
+
+      <button
+        class="serve-button"
+        bindtap="completeMeal"
+        loading="{{pendingAction === 'complete'}}"
+        disabled="{{!!pendingAction || syncFrozen}}"
+      >上桌了</button>
+      <text class="serve-hint">只有点“上桌了”，这一顿才会计为完成。</text>
+    </view>
+
+    <view wx:if="{{mealRun.status === 'completed'}}" class="completed-card">
+      <text class="completed-mark">✓</text>
+      <text class="completed-title">这一顿已经上桌</text>
+      <text class="completed-detail">不需要晒图，也没有签到。你们只是一起把饭做成了。</text>
+      <meal-feedback
+        wx:if="{{!feedbackValue}}"
+        pending="{{!!pendingAction}}"
+        bind:select="saveFeedback"
+      />
+      <view wx:else class="feedback-saved">反馈已记下，下次推荐会更贴合你家。</view>
+    </view>
+
+    <view wx:if="{{mealRun.status === 'abandoned'}}" class="completed-card">
+      <text class="completed-title">计划变了也没关系</text>
+      <text class="completed-detail">这不算失败，也不会破坏任何连续记录。</text>
+    </view>
+
+    <view wx:if="{{downgradeSheetVisible}}" class="sheet-mask" bindtap="hideDowngradeSheet">
+      <view class="action-sheet" catchtap="noop">
+        <text class="sheet-title">把这顿变轻一点</text>
+        <button
+          wx:for="{{downgradeOptions}}"
+          wx:key="id"
+          class="sheet-action"
+          data-action="{{item.id}}"
+          bindtap="downgrade"
+        >{{item.label}}</button>
+        <button class="sheet-cancel" bindtap="hideDowngradeSheet">先不改</button>
+      </view>
+    </view>
+
+    <view wx:if="{{abandonSheetVisible}}" class="sheet-mask" bindtap="hideAbandonSheet">
+      <view class="action-sheet" catchtap="noop">
+        <text class="sheet-title">这次为什么先停下？</text>
+        <button
+          wx:for="{{abandonReasons}}"
+          wx:key="id"
+          class="sheet-action"
+          data-reason="{{item.id}}"
+          bindtap="abandon"
+        >{{item.label}}</button>
+        <button class="sheet-cancel" bindtap="hideAbandonSheet">继续做</button>
+      </view>
+    </view>
+
+    <view wx:if="{{errorText && status !== 'error' && !syncFrozen}}" class="inline-error">{{errorText}}</view>
+  </view>
+</page-state>

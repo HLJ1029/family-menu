@@ -9,6 +9,9 @@ const ACTIVE_STATUSES = new Set(["planned", "cooking"]);
 const RUN_STATUSES = new Set(["planned", "cooking", "completed", "abandoned"]);
 const EFFORT_TIERS = new Set(["quick_15", "easy_30", "normal"]);
 const recipesById = new Map(certifiedRecipes.map((recipe) => [recipe.id, recipe]));
+const ABANDON_REASONS = new Set(["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"]);
+const FEEDBACK_VALUES = new Set(["want_again", "change_it", "too_hard"]);
+const DOWNGRADE_ACTIONS = new Set(["remove_optional_side", "lower_effort_recipe", "ready_staple"]);
 
 async function createMealRun({
   bootstrap = {},
@@ -273,6 +276,240 @@ function readActiveGuestMealRun({ ownerUserId = "", dateKey = formatDinnerDateKe
   return mealRun;
 }
 
+async function loadMealRunForCooking({
+  bootstrap = {},
+  mealRunId,
+  dateKey = formatDinnerDateKey(),
+  allowCache = true,
+} = {}) {
+  const safeMealRunId = normalizeMealRunId(mealRunId);
+  const ownerUserId = bootstrapUserId(bootstrap);
+  if (safeMealRunId.startsWith("guest:")) {
+    const guestRun = readActiveGuestMealRun({ ownerUserId, dateKey });
+    if (!guestRun || guestRun.id !== safeMealRunId) throw codedError("meal_run_not_found");
+    return guestRun;
+  }
+  const mealRun = await loadCurrentMealRun({ bootstrap, dateKey, allowCache });
+  if (mealRun?.id === safeMealRunId) return mealRun;
+  const bootstrapRun = normalizeMealRun(bootstrap.currentMealRun);
+  if (allowCache && bootstrapRun?.id === safeMealRunId) {
+    return { ...bootstrapRun, cacheState: "bootstrap" };
+  }
+  throw codedError("meal_run_not_found");
+}
+
+async function startCookingMealRun(mealRun, { bootstrap = {}, idempotencyKey, now = new Date().toISOString() } = {}) {
+  assertMealRunWritable(mealRun, ["planned", "cooking"]);
+  if (mealRun.status === "cooking") return mealRun;
+  if (mealRun.localOnly) {
+    const next = clone(mealRun);
+    next.status = "cooking";
+    next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
+    next.currentStepId = next.timeline.steps[0]?.id || "";
+    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+    next.startedBy = bootstrapUserId(bootstrap) || "guest";
+    next.startedAt = now;
+    next.updatedAt = now;
+    writeGuestMealRun(next);
+    return next;
+  }
+  return requestMealRunMutation(mealRun, "start", "POST", {}, {
+    bootstrap,
+    idempotencyKey,
+  });
+}
+
+async function progressCookingMealRun(mealRun, {
+  bootstrap = {},
+  currentStepId,
+  timerEndsAt = "",
+  idempotencyKey,
+  now = new Date().toISOString(),
+} = {}) {
+  assertMealRunWritable(mealRun, ["cooking"]);
+  const stepIndex = timelineStepIndex(mealRun.timeline, currentStepId);
+  if (stepIndex < 0) throw codedError("meal_step_invalid");
+  const currentIndex = timelineStepIndex(mealRun.timeline, mealRun.currentStepId);
+  if (currentIndex >= stepIndex) return mealRun;
+  if (mealRun.localOnly) {
+    const next = clone(mealRun);
+    next.currentStepId = currentStepId;
+    next.timerEndsAt = timerEndsAt || "";
+    next.updatedAt = now;
+    writeGuestMealRun(next);
+    return next;
+  }
+  return requestMealRunMutation(mealRun, "progress", "PUT", {
+    currentStepId,
+    timerEndsAt,
+  }, { bootstrap, idempotencyKey });
+}
+
+async function downgradeCookingMealRun(mealRun, action, {
+  bootstrap = {},
+  idempotencyKey,
+  now = new Date().toISOString(),
+} = {}) {
+  assertMealRunWritable(mealRun, ["planned", "cooking"]);
+  if (!DOWNGRADE_ACTIONS.has(action)) throw codedError("invalid_downgrade_action");
+  if (!mealRun.localOnly) {
+    return requestMealRunMutation(mealRun, "downgrade", "POST", { action }, {
+      bootstrap,
+      idempotencyKey,
+    });
+  }
+  const next = clone(mealRun);
+  const previousRecipeIds = [...next.recipeIds];
+  if (action === "remove_optional_side") next.recipeIds = next.recipeIds.slice(0, 1);
+  if (action === "lower_effort_recipe") {
+    next.recipeIds = [...new Set(next.recipeIds.map((recipeId) => (
+      recipesById.get(recipeId)?.cookAssist?.downgradeRecipeIds?.[0] || recipeId
+    )))];
+  }
+  if (action === "ready_staple") {
+    next.readyStaple = next.recipeIds
+      .map((recipeId) => recipesById.get(recipeId)?.cookAssist?.readyStaple)
+      .find(Boolean) || "即食米饭";
+  }
+  if (!next.recipeIds.every((recipeId) => recipesById.get(recipeId)?.cookAssist?.status === "certified")) {
+    throw codedError("recipe_not_certified");
+  }
+  next.recipeSnapshot = next.recipeIds.map((recipeId) => clone(recipesById.get(recipeId)));
+  next.downgrades = [...(next.downgrades || []), {
+    action,
+    previousRecipeIds,
+    recipeIds: [...next.recipeIds],
+    changedBy: bootstrapUserId(bootstrap) || "guest",
+    changedAt: now,
+  }];
+  if (next.status === "cooking") {
+    next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
+    next.currentStepId = next.timeline.steps[0]?.id || "";
+    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+  }
+  next.updatedAt = now;
+  writeGuestMealRun(next);
+  return next;
+}
+
+async function abandonCookingMealRun(mealRun, reason, {
+  bootstrap = {},
+  idempotencyKey,
+  now = new Date().toISOString(),
+} = {}) {
+  if (mealRun?.status === "abandoned") return mealRun;
+  assertMealRunWritable(mealRun, ["planned", "cooking"]);
+  if (!ABANDON_REASONS.has(reason)) throw codedError("abandon_reason_invalid");
+  if (!mealRun.localOnly) {
+    return requestMealRunMutation(mealRun, "abandon", "POST", { reason }, {
+      bootstrap,
+      idempotencyKey,
+    });
+  }
+  const next = clone(mealRun);
+  next.status = "abandoned";
+  next.abandonReason = reason;
+  next.abandonedAt = now;
+  next.timerEndsAt = "";
+  next.updatedAt = now;
+  writeGuestMealRun(next);
+  return next;
+}
+
+async function completeCookingMealRun(mealRun, {
+  bootstrap = {},
+  idempotencyKey,
+  now = new Date().toISOString(),
+} = {}) {
+  if (mealRun?.status === "completed") return mealRun;
+  assertMealRunWritable(mealRun, ["cooking"]);
+  if (!mealRun.localOnly) {
+    return requestMealRunMutation(mealRun, "complete", "POST", {}, {
+      bootstrap,
+      idempotencyKey,
+    });
+  }
+  const next = clone(mealRun);
+  next.status = "completed";
+  next.completedBy = bootstrapUserId(bootstrap) || "guest";
+  next.completedAt = now;
+  next.timerEndsAt = "";
+  next.updatedAt = now;
+  writeGuestMealRun(next);
+  return next;
+}
+
+async function saveCookingFeedback(mealRun, value, {
+  bootstrap = {},
+  idempotencyKey,
+  now = new Date().toISOString(),
+} = {}) {
+  assertMealRunWritable(mealRun, ["completed"]);
+  if (!FEEDBACK_VALUES.has(value)) throw codedError("meal_feedback_invalid");
+  const userId = bootstrapUserId(bootstrap) || "guest";
+  const existing = (mealRun.feedback || []).find((entry) => entry.userId === userId);
+  if (existing?.value === value) return mealRun;
+  if (!mealRun.localOnly) {
+    return requestMealRunMutation(mealRun, "feedback", "PUT", { value }, {
+      bootstrap,
+      idempotencyKey,
+    });
+  }
+  const next = clone(mealRun);
+  const feedback = [...(next.feedback || [])];
+  const index = feedback.findIndex((entry) => entry.userId === userId);
+  if (index >= 0) feedback[index] = { ...feedback[index], value, updatedAt: now };
+  else feedback.push({ userId, value, createdAt: now, updatedAt: now });
+  next.feedback = feedback;
+  next.updatedAt = now;
+  writeGuestMealRun(next);
+  return next;
+}
+
+async function requestMealRunMutation(mealRun, action, method, data, {
+  bootstrap = {},
+  idempotencyKey,
+} = {}) {
+  const ownerUserId = bootstrapUserId(bootstrap);
+  if (!ownerUserId) throw codedError("invalid_session");
+  const result = await requestHumi({
+    path: `/meal-runs/${encodeURIComponent(mealRun.id)}/${action}`,
+    method,
+    data,
+    idempotencyKey,
+    stateVersion: bootstrap.stateVersion || "",
+    expectedUserId: ownerUserId,
+  });
+  const next = normalizeMealRun(result?.mealRun);
+  if (!next || next.id !== mealRun.id) throw codedError("meal_run_response_invalid");
+  writeRemoteMealRun(next, ownerUserId);
+  return next;
+}
+
+function writeGuestMealRun(mealRun) {
+  if (!mealRun?.localOnly || !mealRun.ownerUserId || !validDateKey(mealRun.dateKey)) {
+    throw codedError("guest_meal_run_invalid");
+  }
+  wx.setStorageSync(guestRunKey(mealRun.ownerUserId, mealRun.dateKey), mealRun);
+}
+
+function assertMealRunWritable(mealRun, statuses) {
+  if (!mealRun?.id || !statuses.includes(mealRun.status)) throw codedError("meal_run_transition_invalid");
+}
+
+function normalizeMealRunId(value) {
+  const mealRunId = clean(value);
+  const remoteId = /^[A-Za-z0-9][A-Za-z0-9_-]{2,99}$/;
+  const guestId = /^guest:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!remoteId.test(mealRunId) && !guestId.test(mealRunId)) throw codedError("meal_run_id_invalid");
+  return mealRunId;
+}
+
+function timelineStepIndex(timeline, stepId) {
+  if (!Array.isArray(timeline?.steps)) return -1;
+  return timeline.steps.findIndex((step) => step.id === stepId);
+}
+
 function buildDinnerPlan(recommendation, bootstrap = {}) {
   const recipes = (recommendation?.recipeIds || []).map((recipeId) => recipesById.get(recipeId)).filter(Boolean);
   if (!recipes.length || recipes.length !== recommendation?.recipeIds?.length) throw codedError("recommendation_group_invalid");
@@ -419,11 +656,20 @@ function codedError(code) {
 
 module.exports = {
   buildDinnerPlan,
+  abandonCookingMealRun,
   canReplaceHouseholdPlan,
+  completeCookingMealRun,
   createMealRun,
   currentHouseholdRole,
+  downgradeCookingMealRun,
   formatDinnerDateKey,
+  loadMealRunForCooking,
   loadCurrentMealRun,
   mergeActiveGuestMealRun,
+  normalizeMealRunId,
+  progressCookingMealRun,
   readActiveGuestMealRun,
+  saveCookingFeedback,
+  startCookingMealRun,
+  writeGuestMealRun,
 };

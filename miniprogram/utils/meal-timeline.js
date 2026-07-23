@@ -89,10 +89,66 @@ function summarizeMealTimeline(timeline) {
   };
 }
 
+function remainingSeconds(endsAt, now = new Date().toISOString()) {
+  const remainingMs = Date.parse(endsAt) - Date.parse(now);
+  if (!Number.isFinite(remainingMs)) return 0;
+  return Math.max(0, Math.ceil(remainingMs / 1000));
+}
+
+function timelineStepIndex(timeline, stepId) {
+  if (!Array.isArray(timeline?.steps)) return -1;
+  return timeline.steps.findIndex((step) => step.id === stepId);
+}
+
+function nextTimelineStep(timeline, currentStepId) {
+  const currentIndex = timelineStepIndex(timeline, currentStepId);
+  if (currentIndex < 0) return timeline?.steps?.[0] || null;
+  return timeline.steps[currentIndex + 1] || null;
+}
+
+function nextAvailableTimelineStep(timeline, currentStepId, now = new Date().toISOString()) {
+  const candidate = nextTimelineStep(timeline, currentStepId);
+  if (!candidate) return null;
+  const currentIndex = timelineStepIndex(timeline, currentStepId);
+  const progressedSteps = timeline.steps.slice(0, currentIndex + 1);
+  const stepById = new Map(timeline.steps.map((step) => [step.id, step]));
+  const passiveDependencyRunning = candidate.dependsOn.some((dependencyId) => {
+    const dependency = stepById.get(dependencyId);
+    return dependency?.attention === "passive"
+      && progressedSteps.some((step) => step.id === dependencyId)
+      && remainingSeconds(dependency.endsAt, now) > 0;
+  });
+  if (passiveDependencyRunning) return null;
+  const candidateResources = new Set(candidate.resources || []);
+  const resourceBusy = progressedSteps.some((step) => (
+    step.attention === "passive"
+    && remainingSeconds(step.endsAt, now) > 0
+    && (step.resources || []).some((resource) => candidateResources.has(resource))
+  ));
+  return resourceBusy ? null : candidate;
+}
+
+function runningPassiveTimers(timeline, currentStepId, now = new Date().toISOString()) {
+  const currentIndex = timelineStepIndex(timeline, currentStepId);
+  if (currentIndex < 0) return [];
+  return timeline.steps
+    .slice(0, currentIndex + 1)
+    .filter((step) => step.attention === "passive")
+    .map((step) => ({ ...step, remainingSeconds: remainingSeconds(step.endsAt, now) }));
+}
+
 function timelineError(code) {
   const error = new Error(code);
   error.code = code;
   return error;
 }
 
-module.exports = { buildMealTimeline, summarizeMealTimeline };
+module.exports = {
+  buildMealTimeline,
+  nextAvailableTimelineStep,
+  nextTimelineStep,
+  remainingSeconds,
+  runningPassiveTimers,
+  summarizeMealTimeline,
+  timelineStepIndex,
+};

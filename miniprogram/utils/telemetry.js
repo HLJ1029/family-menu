@@ -5,7 +5,8 @@ const EVENT_NAMES = new Set([
   "bootstrap_completed", "bootstrap_failed",
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
   "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
-  "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"
+  "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+  "cooking_mutation_started", "cooking_mutation_completed", "cooking_mutation_failed"
 ]);
 const ENUM_FIELDS = {
   page: new Set(["boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder"]),

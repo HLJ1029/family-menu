@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runtime = createGuestTonightRuntime();
 const tonight = runtime.loadPage("miniprogram/pages/tonight/index.js");
+let cooking = null;
 await tonight.onLoad();
 assert.equal(tonight.data.viewState, "choose_effort");
 
@@ -20,6 +21,15 @@ try {
     if (action === "accept") await tonight.acceptRecommendation();
     if (action === "start") tonight.startCooking();
     return { data: plain(tonight.data), routes: plain(runtime.routes) };
+  });
+  await page.exposeFunction("nativeCookingAction", async (action, value = "") => {
+    if (!cooking) throw new Error("Cooking page has not been entered.");
+    if (action === "advance") {
+      await cooking.advanceStep({ currentTarget: { dataset: { stepId: cooking.data.mealRun.currentStepId } } });
+    }
+    if (action === "complete") await cooking.completeMeal();
+    if (action === "feedback") await cooking.saveFeedback({ detail: { value } });
+    return plain(cooking.data);
   });
   await page.setContent(shellDocument(nativeStyles()));
   await page.evaluate((data) => window.renderTonight(data), plain(tonight.data));
@@ -44,7 +54,31 @@ try {
   await page.getByRole("button", { name: "开始做饭" }).click();
   assert.match(runtime.routes.at(-1)?.url || "", /^\/packageCooking\/pages\/cooking\/index\?mealRunId=guest%3A.+&action=start$/);
 
-  console.log("Native shell 390x844 interaction smoke passed.");
+  const cookingRoute = new URL(`https://humi.local${runtime.routes.at(-1).url}`);
+  cooking = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await cooking.onLoad({
+    mealRunId: cookingRoute.searchParams.get("mealRunId"),
+    action: cookingRoute.searchParams.get("action"),
+  });
+  assert.equal(cooking.data.mealRun.status, "cooking");
+  await page.evaluate((data) => window.renderCooking(data), plain(cooking.data));
+  await page.waitForSelector("[data-testid=cooking-shell]");
+  await assertFitsViewport(page, "[data-testid=cooking-shell]");
+  assert.equal(await page.locator("[data-testid=active-cooking-step]").count(), 1, "cooking shows one current step");
+
+  for (let index = 0; index < 12 && cooking.data.nextStep; index += 1) {
+    await page.getByRole("button", { name: "这一步完成了" }).click();
+  }
+  assert.equal(cooking.data.nextStep, null, "the deterministic timeline reaches its last step");
+  const serve = page.getByRole("button", { name: "上桌了" });
+  await serve.scrollIntoViewIfNeeded();
+  await serve.click();
+  assert.equal(cooking.data.mealRun.status, "completed");
+  await page.waitForSelector("[data-testid=meal-feedback]");
+  await page.getByRole("button", { name: "下次还想吃" }).click();
+  assert.equal(cooking.data.feedbackValue, "want_again");
+
+  console.log("Native shell 390x844 Tonight-to-serve interaction smoke passed.");
 } finally {
   await browser.close();
 }
@@ -88,6 +122,10 @@ function shellDocument(styles) {
         const result = await window.nativeAction(action, tier);
         window.renderTonight(result.data);
       }
+      async function cook(action, value = "") {
+        const data = await window.nativeCookingAction(action, value);
+        window.renderCooking(data);
+      }
       window.renderTonight = (data) => {
         const headerTitle = data.viewState === "choose_effort"
           ? "今晚有多少力气？"
@@ -127,6 +165,37 @@ function shellDocument(styles) {
         app.innerHTML = '<section class="tonight-shell" data-testid="tonight-shell"><header class="tonight-header"><span class="eyebrow">HUMI · 今晚</span>'
           + '<span class="title">' + headerTitle + '</span><span class="subtitle">先选行动力，再把真的做得完的晚饭端上桌。</span></header>' + content + '</section>';
       };
+      window.renderCooking = (data) => {
+        const timerHtml = data.runningTimers.map((timer) => (
+          '<article class="timer-card"><span class="timer-label">' + escapeHtml(timer.timerLabel || timer.recipeName) + '</span>'
+          + '<span class="timer-value">' + Math.ceil(timer.remainingSeconds / 60) + ' 分钟</span></article>'
+        )).join("");
+        let content = "";
+        if (data.mealRun.status === "cooking") {
+          const next = data.nextStep
+            ? '<div class="next-preview"><span class="next-label">接下来</span><span class="next-text">' + escapeHtml(data.nextStep.text) + '</span></div>'
+              + '<button class="advance-button" aria-label="这一步完成了" onclick="cook(\\'advance\\')">这一步完成了</button>'
+            : '<div class="last-step">最后一步完成后，就可以点“上桌了”。</div>';
+          content = timerHtml
+            + '<article class="step-card" data-testid="active-cooking-step"><div class="step-topline"><span class="recipe-name">'
+            + escapeHtml(data.currentStep.recipeName) + '</span></div><span class="step-text">' + escapeHtml(data.currentStep.text) + '</span>'
+            + next + '</article><div class="secondary-actions"><button class="secondary-button">太累了</button></div>'
+            + '<button class="serve-button" aria-label="上桌了" onclick="cook(\\'complete\\')">上桌了</button>';
+        }
+        if (data.mealRun.status === "completed") {
+          content = '<section class="completed-card"><span class="completed-title">这一顿已经上桌</span>'
+            + (data.feedbackValue ? '<div class="feedback-saved">反馈已记下</div>'
+              : '<div class="feedback-card" data-testid="meal-feedback"><span class="feedback-title">这顿饭，下次怎么安排？</span>'
+                + '<button class="feedback-option" aria-label="下次还想吃" onclick="cook(\\'feedback\\',\\'want_again\\')">下次还想吃</button>'
+                + '<button class="feedback-option" aria-label="可以换换" onclick="cook(\\'feedback\\',\\'change_it\\')">可以换换</button>'
+                + '<button class="feedback-option" aria-label="太费劲" onclick="cook(\\'feedback\\',\\'too_hard\\')">太费劲</button></div>')
+            + '</section>';
+        }
+        app.innerHTML = '<section class="cooking-shell" data-testid="cooking-shell"><header class="cooking-header">'
+          + '<span class="eyebrow">HUMI · 正在做饭</span><span class="title">'
+          + (data.mealRun.status === "completed" ? "今晚，做成了。" : "一步一步，把饭端上桌。")
+          + '</span><span class="network-pill">网络正常</span></header>' + content + '</section>';
+      };
     </script>
   </body>
 </html>`;
@@ -138,6 +207,10 @@ function nativeStyles() {
     "miniprogram/components/effort-picker/index.wxss",
     "miniprogram/components/dinner-plan-card/index.wxss",
     "miniprogram/components/meal-run-resume/index.wxss",
+    "miniprogram/packageCooking/pages/cooking/index.wxss",
+    "miniprogram/components/cooking-step/index.wxss",
+    "miniprogram/components/absolute-timer/index.wxss",
+    "miniprogram/components/meal-feedback/index.wxss",
   ].map((relativePath) => readFileSync(path.join(root, relativePath), "utf8"))
     .join("\n")
     .replace(/(\d+(?:\.\d+)?)rpx/g, (_, value) => `${Number(value) * 390 / 750}px`);
@@ -179,6 +252,9 @@ function createGuestTonightRuntime() {
     navigateTo: ({ url }) => routes.push({ kind: "navigateTo", url }),
     reLaunch: ({ url }) => routes.push({ kind: "reLaunch", url }),
     getDeviceInfo: () => ({ platform: "devtools" }),
+    getNetworkType: ({ success }) => success({ networkType: "wifi" }),
+    onNetworkStatusChange: () => {},
+    offNetworkStatusChange: () => {},
     getRandomValues: (array) => {
       for (let index = 0; index < array.length; index += 1) array[index] = (random++ * 23) % 256;
       return array;
@@ -205,8 +281,11 @@ function createGuestTonightRuntime() {
       Promise,
       Uint8Array,
       encodeURIComponent,
+      decodeURIComponent,
       setTimeout,
       clearTimeout,
+      setInterval: () => 1,
+      clearInterval: () => {},
     });
     new vm.Script(readFileSync(absolutePath, "utf8"), { filename: absolutePath }).runInContext(context);
     return module.exports;

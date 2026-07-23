@@ -1,0 +1,38 @@
+.feedback-card {
+  margin-top: 32rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid rgba(17, 17, 17, 0.08);
+  text-align: left;
+}
+
+.feedback-title,
+.feedback-detail {
+  display: block;
+}
+
+.feedback-title {
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.feedback-detail {
+  margin-top: 8rpx;
+  color: rgba(17, 17, 17, 0.5);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.feedback-options {
+  display: grid;
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.feedback-option {
+  height: 82rpx;
+  border-radius: 22rpx;
+  background: #f0eee8;
+  color: #111111;
+  font-size: 24rpx;
+  font-weight: 850;
+}

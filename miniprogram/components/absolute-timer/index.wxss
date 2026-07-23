@@ -1,0 +1,49 @@
+.timer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22rpx;
+  margin-top: 12rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 24rpx;
+  background: #20201f;
+  color: #ffffff;
+}
+
+.timer-card.expired {
+  background: #dfe6d7;
+  color: #2f4328;
+}
+
+.timer-copy {
+  min-width: 0;
+}
+
+.timer-label,
+.timer-state,
+.timer-value {
+  display: block;
+}
+
+.timer-label {
+  overflow: hidden;
+  font-size: 23rpx;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-state {
+  margin-top: 6rpx;
+  opacity: 0.62;
+  font-size: 19rpx;
+  font-weight: 650;
+}
+
+.timer-value {
+  flex: 0 0 auto;
+  font-size: 38rpx;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
