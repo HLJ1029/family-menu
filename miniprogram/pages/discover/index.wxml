@@ -1,0 +1,1 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry"><view class="native-tab"><text class="native-tab-title">发现</text><text class="native-tab-copy">{{status === 'cached' ? '已显示离线缓存。' : status === 'empty' ? '暂时没有可显示的内容。' : '发现页正在准备。'}}</text></view></page-state>

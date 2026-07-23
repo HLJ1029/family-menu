@@ -1,0 +1,44 @@
+.boot-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 72rpx 44rpx;
+  background: #f5f5f5;
+}
+
+.boot-card {
+  display: flex;
+  min-height: 60vh;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.boot-brand {
+  color: #111111;
+  font-size: 36rpx;
+  font-weight: 900;
+}
+
+.boot-copy {
+  margin-top: 24rpx;
+  color: rgba(17, 17, 17, 0.6);
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.boot-primary,
+.boot-secondary {
+  margin: 36rpx 0 0;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+
+.boot-primary {
+  background: #111111;
+  color: #ffffff;
+}
+
+.boot-secondary {
+  margin-top: 20rpx;
+  background: #ffffff;
+  color: #111111;
+}

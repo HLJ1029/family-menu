@@ -622,6 +622,8 @@ Expected: FAIL because `pages/boot/index` and the five native tabs are not regis
 
 Keep this N1 tab bar text-only exactly as shown above. Icon assets are not required for routing acceptance and no unapproved visual asset is generated or registered in this implementation plan.
 
+Compatibility clarification: retain `pages/index/index` immediately after `pages/legacy/index` as a non-tab historical share-entry shim. It contains no WebView. Recognized public token queries (`crave`, `grocery`/`groceryShare`, `menuShare`, `wishShare`, `invite`, `mealTask`) reLaunch the existing `/pages/share/index` with the mapped type, token, and `shareSource` before the core-shell flag check; unknown historical queries preserve their parameters and reLaunch `/pages/legacy/index`.
+
 - [ ] **Step 4: Implement the boot state machine**
 
 ```js
@@ -644,7 +646,7 @@ Use `wx.switchTab` only for tab pages and `wx.reLaunch` for identity/legacy. The
 
 - [ ] **Step 5: Adapt the old WebView controller into `pages/legacy/index`**
 
-Replace every fallback `/pages/index/index` route with `/pages/legacy/index`. Preserve existing share-token landing compatibility by having boot parse legacy share query parameters and route known tokens to native landing pages; only unrecognized legacy entry paths go to the H5 shell.
+Move the old WebView controller to `pages/legacy/index` and replace internal H5 fallbacks with `/pages/boot/index` or `/pages/legacy/index`; do not keep `pages/index/index` as an H5 controller. `pages/index/index` remains only as the non-tab historical share shim: boot and the shim route recognized public token queries to the existing native `/pages/share/index` landing, preserving `token` and `shareSource`; unknown legacy entry paths go to the H5 shell through `/pages/legacy/index` with compatible parameters.
 
 - [ ] **Step 6: Add native page skeletons with loading, cached, empty, error, and ready states**
 

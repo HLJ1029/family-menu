@@ -1,0 +1,1 @@
+.native-tab { padding: 48rpx 36rpx; }.native-tab-title { display: block; color: #111; font-size: 48rpx; font-weight: 800; }.native-tab-copy { display: block; margin-top: 20rpx; color: #666; font-size: 28rpx; }

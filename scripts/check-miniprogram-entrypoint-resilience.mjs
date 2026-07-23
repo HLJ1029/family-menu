@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const pageSource = fs.readFileSync(new URL("../miniprogram/pages/index/index.js", import.meta.url), "utf8");
+const pageSource = fs.readFileSync(new URL("../miniprogram/pages/legacy/index.js", import.meta.url), "utf8");
 const identityPageSource = fs.readFileSync(new URL("../miniprogram/pages/identity/index.js", import.meta.url), "utf8");
 
 function createPage(wxOverrides = {}, runtimeOverrides = {}) {

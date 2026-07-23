@@ -20,7 +20,7 @@ assert.match(identityJs, /action === "login"/);
 assert.match(identityJs, /wx\.login/);
 assert.match(identityJs, /\/auth\/wechat\/login/);
 
-const indexSource = fs.readFileSync("miniprogram/pages/index/index.js", "utf8");
+const indexSource = fs.readFileSync("miniprogram/pages/legacy/index.js", "utf8");
 assert.doesNotMatch(indexSource, /appendSessionToUrl/);
 assert.doesNotMatch(indexSource, /humiSession=/);
 assert.match(indexSource, /humiTicket/);

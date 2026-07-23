@@ -19,7 +19,7 @@ assert(miniProgramApp.pages.includes("pages/index/index"), "mini program app.jso
 assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.json should include native share page");
 assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
 
-assertMiniProgramSharePage("miniprogram/pages/index/index", { requiresOpenTypeButton: false, supportsTimeline: false });
+assertMiniProgramSharePage("miniprogram/pages/legacy/index", { requiresOpenTypeButton: false, supportsTimeline: false });
 assertMiniProgramSharePage("miniprogram/pages/share/index", { requiresOpenTypeButton: true, supportsTimeline: true });
 assertNativeShareReceiptTemplate();
 assertShareFeedbackDoesNotClaimUnverifiedSuccess();
@@ -480,7 +480,7 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch }) {
 
 function assertMiniProgramVisibleCopyKeepsPantryInvisible() {
   [
-    "miniprogram/pages/index/index.wxml",
+    "miniprogram/pages/legacy/index.wxml",
     "miniprogram/pages/share/index.wxml",
     "miniprogram/pages/share/index.js",
     "miniprogram/pages/poster/index.wxml",
@@ -503,7 +503,7 @@ function assertMiniProgramGuestShareRouting() {
     householdName: "小家",
   });
   assert.equal(craveShare.title, "小家今晚要做饭，你想吃点啥？");
-  assert.equal(craveShare.path, "/pages/index/index?crave=crave-token&shareSource=crave");
+  assert.equal(craveShare.path, "/pages/boot/index?crave=crave-token&shareSource=crave");
   const craveOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(craveShare.path))));
   assert.equal(shouldOpenAsGuest(craveOptions), true, "crave card should bypass login as a guest landing");
   assert.equal(
@@ -517,7 +517,7 @@ function assertMiniProgramGuestShareRouting() {
     itemCount: 5,
   });
   assert.equal(groceryShare.title, "Humi 买菜清单：5 项");
-  assert.equal(groceryShare.path, "/pages/index/index?groceryShare=grocery-token&shareSource=grocery");
+  assert.equal(groceryShare.path, "/pages/boot/index?groceryShare=grocery-token&shareSource=grocery");
   const groceryOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(groceryShare.path))));
   assert.equal(shouldOpenAsGuest(groceryOptions), true, "grocery card should bypass login as a guest landing");
   assert.equal(
@@ -531,7 +531,7 @@ function assertMiniProgramGuestShareRouting() {
     householdName: "小家",
   });
   assert.equal(wishShare.title, "小家最近想吃什么？写一道给 Humi");
-  assert.equal(wishShare.path, "/pages/index/index?wishShare=wish-token&shareSource=wish");
+  assert.equal(wishShare.path, "/pages/boot/index?wishShare=wish-token&shareSource=wish");
   const wishOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(wishShare.path))));
   assert.equal(shouldOpenAsGuest(wishOptions), true, "wish card should bypass login as a guest landing");
   assert.equal(
@@ -544,7 +544,7 @@ function assertMiniProgramGuestShareRouting() {
     title: "番茄鸡蛋 + 青菜",
     token: "menu-token",
   });
-  assert.equal(menuShare.path, "/pages/index/index?menuShare=menu-token&shareSource=today_menu");
+  assert.equal(menuShare.path, "/pages/boot/index?menuShare=menu-token&shareSource=today_menu");
   const menuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(menuShare.path))));
   assert.equal(shouldOpenAsGuest(menuOptions), true, "today menu card should bypass login into a tokenized menu view");
   assert.equal(
@@ -556,7 +556,7 @@ function assertMiniProgramGuestShareRouting() {
     type: "today_menu",
     title: "番茄鸡蛋 + 青菜",
   });
-  assert.equal(legacyMenuShare.path, "/pages/index/index?view=today&shareSource=today_menu");
+  assert.equal(legacyMenuShare.path, "/pages/boot/index?view=today&shareSource=today_menu");
   const legacyMenuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(legacyMenuShare.path))));
   assert.equal(shouldOpenAsGuest(legacyMenuOptions), true, "legacy today menu card should bypass login into the menu view");
 
@@ -566,7 +566,7 @@ function assertMiniProgramGuestShareRouting() {
     householdName: "小家",
   });
   assert.equal(inviteShare.title, "邀请你加入 小家，一起用 Humi");
-  assert.equal(inviteShare.path, "/pages/index/index?invite=invite-token&shareSource=invite");
+  assert.equal(inviteShare.path, "/pages/boot/index?invite=invite-token&shareSource=invite");
   const inviteOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(inviteShare.path))));
   assert.equal(shouldOpenAsGuest(inviteOptions), true, "household invite should open its landing before normal app login");
   assert.equal(

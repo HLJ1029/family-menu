@@ -50,7 +50,7 @@ Page({
       wx.navigateBack();
       return;
     }
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.reLaunch({ url: "/pages/boot/index" });
   }
 });
 
@@ -78,7 +78,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "登录 Humi 后认领这件具体小事" },
         { label: "你继续做", value: "任务不会卡住单人做饭流程" }
       ],
-      path: `/pages/index/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
+      path: `/pages/boot/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
     };
   }
 
@@ -100,7 +100,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "可以直接查看，不用先登录" },
         { label: "你回来后", value: "刷新就能看到谁来买、买了什么" }
       ],
-      path: `/pages/index/index?groceryShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?groceryShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -119,7 +119,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "不用登录，写一道菜就行" },
         { label: "你回来后", value: "刷新“最近想吃”就能看到" }
       ],
-      path: `/pages/index/index?wishShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?wishShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -138,7 +138,7 @@ function buildShareData(options = {}) {
         { label: "家人会看到", value: "今晚的菜和份数" },
         { label: "菜单还会带上", value: "对应的买菜清单" }
       ],
-      path: `/pages/index/index?menuShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?menuShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -158,7 +158,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "登录一次就能加入这个家" },
         { label: "加入以后", value: "菜单、清单和回复都在一起" }
       ],
-      path: `/pages/index/index?invite=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?invite=${encodeURIComponent(token)}`
     };
   }
 
@@ -177,7 +177,7 @@ function buildShareData(options = {}) {
       { label: "家人打开后", value: "不用登录，点一个感觉就行" },
       { label: "你回来后", value: "刷新就能看到大家的回复" }
     ],
-    path: `/pages/index/index?crave=${encodeURIComponent(token)}`
+    path: `/pages/boot/index?crave=${encodeURIComponent(token)}`
   };
 }
 

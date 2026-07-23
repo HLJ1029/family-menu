@@ -1,5 +1,5 @@
 {
-  "description": "Humi WeChat Mini Program WebView shell",
+  "description": "Humi feature-gated native shell with H5 rollback",
   "packOptions": {
     "ignore": [],
     "include": []

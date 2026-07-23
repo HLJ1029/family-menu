@@ -30,6 +30,7 @@
     "validate:meal-execution": "node scripts/check-meal-execution.mjs",
     "validate:meal-execution-api": "node scripts/smoke-meal-execution-api.mjs",
     "validate:native-bootstrap-api": "node scripts/check-native-bootstrap-api.mjs",
+    "validate:native-shell-routing": "node scripts/check-native-shell-routing.mjs",
     "validate:native-session": "node scripts/check-native-session.mjs",
     "validate:native-offline": "node scripts/check-native-offline-queue.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",

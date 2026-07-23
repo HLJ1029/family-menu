@@ -49,8 +49,8 @@ function buildSharePayload(payload = {}) {
     return {
       title: label,
       path: token
-        ? `/pages/index/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
-        : "/pages/index/index",
+        ? `/pages/boot/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
+        : "/pages/boot/index",
     };
   }
   if (type === "invite") {
@@ -59,8 +59,8 @@ function buildSharePayload(payload = {}) {
     return {
       title: `邀请你加入 ${householdName}，一起用 Humi`,
       path: token
-        ? `/pages/index/index?invite=${encodeURIComponent(token)}&shareSource=invite`
-        : "/pages/index/index?view=user&shareSource=invite",
+        ? `/pages/boot/index?invite=${encodeURIComponent(token)}&shareSource=invite`
+        : "/pages/boot/index?view=user&shareSource=invite",
     };
   }
   if (type === "grocery") {
@@ -69,8 +69,8 @@ function buildSharePayload(payload = {}) {
     return {
       title: itemCount > 0 ? `Humi 买菜清单：${itemCount} 项` : "Humi 买菜清单",
       path: token
-        ? `/pages/index/index?groceryShare=${encodeURIComponent(token)}&shareSource=grocery`
-        : "/pages/index/index?view=grocery&shareSource=grocery",
+        ? `/pages/boot/index?groceryShare=${encodeURIComponent(token)}&shareSource=grocery`
+        : "/pages/boot/index?view=grocery&shareSource=grocery",
     };
   }
   if (type === "today_menu") {
@@ -79,8 +79,8 @@ function buildSharePayload(payload = {}) {
     return {
       title: `Humi 今晚菜单：${title}`,
       path: token
-        ? `/pages/index/index?menuShare=${encodeURIComponent(token)}&shareSource=today_menu`
-        : "/pages/index/index?view=today&shareSource=today_menu",
+        ? `/pages/boot/index?menuShare=${encodeURIComponent(token)}&shareSource=today_menu`
+        : "/pages/boot/index?view=today&shareSource=today_menu",
     };
   }
   if (type === "wish") {
@@ -89,8 +89,8 @@ function buildSharePayload(payload = {}) {
     return {
       title: `${householdName}最近想吃什么？写一道给 Humi`,
       path: token
-        ? `/pages/index/index?wishShare=${encodeURIComponent(token)}&shareSource=wish`
-        : "/pages/index/index?view=user&shareSource=wish",
+        ? `/pages/boot/index?wishShare=${encodeURIComponent(token)}&shareSource=wish`
+        : "/pages/boot/index?view=user&shareSource=wish",
     };
   }
   const token = sanitizeOption(payload.token);
@@ -98,8 +98,8 @@ function buildSharePayload(payload = {}) {
   return {
     title: `${householdName}今晚要做饭，你想吃点啥？`,
     path: token
-      ? `/pages/index/index?crave=${encodeURIComponent(token)}&shareSource=crave`
-      : "/pages/index/index",
+      ? `/pages/boot/index?crave=${encodeURIComponent(token)}&shareSource=crave`
+      : "/pages/boot/index",
   };
 }
 

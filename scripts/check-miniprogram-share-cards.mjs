@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
-const source = await readFile("miniprogram/pages/index/index.js", "utf8");
+const source = await readFile("miniprogram/pages/legacy/index.js", "utf8");
 const pageDefinition = loadMiniProgramPage(source);
 const sharePageSource = await readFile("miniprogram/pages/share/index.js", "utf8");
 const shareRelay = loadShareRelay(sharePageSource);
@@ -22,13 +22,13 @@ const cases = [
     },
     expectedShare: {
       title: "周末家今晚征集口味，点一下就行",
-      path: "/pages/index/index?crave=crave-token-123",
+      path: "/pages/boot/index?crave=crave-token-123",
     },
     launchOptions: { crave: "crave-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?crave=crave-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "今晚征集口味，点一下就行",
-      path: "/pages/index/index?crave=crave-token-123",
+      path: "/pages/boot/index?crave=crave-token-123",
     },
   },
   {
@@ -41,13 +41,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林邀请你加入 周末家",
-      path: "/pages/index/index?invite=invite-token-123",
+      path: "/pages/boot/index?invite=invite-token-123",
     },
     launchOptions: { invite: "invite-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?invite=invite-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨邀请你加入 这个家",
-      path: "/pages/index/index?invite=invite-token-123",
+      path: "/pages/boot/index?invite=invite-token-123",
     },
   },
   {
@@ -61,13 +61,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林发来 6 项买菜清单",
-      path: "/pages/index/index?groceryShare=grocery-token-123",
+      path: "/pages/boot/index?groceryShare=grocery-token-123",
     },
     launchOptions: { groceryShare: "grocery-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?groceryShare=grocery-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨发来买菜清单",
-      path: "/pages/index/index?groceryShare=grocery-token-123",
+      path: "/pages/boot/index?groceryShare=grocery-token-123",
     },
   },
   {
@@ -80,13 +80,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林想收集家里最近想吃的菜",
-      path: "/pages/index/index?wishShare=wish-token-123",
+      path: "/pages/boot/index?wishShare=wish-token-123",
     },
     launchOptions: { wishShare: "wish-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?wishShare=wish-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨想收集家里最近想吃的菜",
-      path: "/pages/index/index?wishShare=wish-token-123",
+      path: "/pages/boot/index?wishShare=wish-token-123",
     },
   },
   {
@@ -99,13 +99,13 @@ const cases = [
     },
     expectedShare: {
       title: "周末家今晚菜单",
-      path: "/pages/index/index?menuShare=menu-token-123",
+      path: "/pages/boot/index?menuShare=menu-token-123",
     },
     launchOptions: { menuShare: "menu-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?menuShare=menu-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "今晚菜单已经安排好",
-      path: "/pages/index/index?menuShare=menu-token-123",
+      path: "/pages/boot/index?menuShare=menu-token-123",
     },
   },
   {
@@ -119,13 +119,13 @@ const cases = [
     },
     expectedShare: {
       title: "请家人买鸡蛋",
-      path: "/pages/index/index?mealTask=meal-task-token-123&shareSource=meal_task",
+      path: "/pages/boot/index?mealTask=meal-task-token-123&shareSource=meal_task",
     },
     launchOptions: { mealTask: "meal-task-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?mealTask=meal-task-token-123&shareSource=meal_task&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "一起把今晚这顿端上桌",
-      path: "/pages/index/index?mealTask=meal-task-token-123&shareSource=meal_task",
+      path: "/pages/boot/index?mealTask=meal-task-token-123&shareSource=meal_task",
     },
   },
 ];
@@ -191,7 +191,7 @@ function loadMiniProgramPage(code) {
     },
   };
 
-  vm.runInNewContext(code, context, { filename: "miniprogram/pages/index/index.js" });
+  vm.runInNewContext(code, context, { filename: "miniprogram/pages/legacy/index.js" });
   if (!capturedPage) throw new Error("Mini program page definition was not captured.");
   return capturedPage;
 }

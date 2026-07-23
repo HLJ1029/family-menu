@@ -20,7 +20,7 @@ Page({
       return;
     }
     if (!user) {
-      wx.reLaunch({ url: "/pages/index/index" });
+      wx.reLaunch({ url: "/pages/boot/index" });
     }
   },
 
@@ -52,7 +52,7 @@ Page({
             }
             getApp().setHumiSession(data);
             if (data.user?.profileStatus === "complete") {
-              wx.reLaunch({ url: "/pages/index/index?humiResume=1" });
+              wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
               return;
             }
             this.hydrateUser(data.user || {});
@@ -83,7 +83,7 @@ Page({
     this.saveIdentity()
       .then(() => {
         getApp().globalData.humiIdentityUpdatedAt = Date.now();
-        wx.reLaunch({ url: "/pages/index/index?humiResume=1" });
+        wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
       })
       .catch((error) => this.setData({ error: error.message || "身份暂时没有保存成功，请重试。" }))
       .finally(() => this.setData({ pending: false }));

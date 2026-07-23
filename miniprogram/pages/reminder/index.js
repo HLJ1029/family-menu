@@ -123,7 +123,7 @@ Page({
       wx.navigateBack();
       return;
     }
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.reLaunch({ url: "/pages/boot/index" });
   }
 });
 

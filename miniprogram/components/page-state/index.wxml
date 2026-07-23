@@ -1,0 +1,8 @@
+<view class="page-shell">
+  <view wx:if="{{status === 'loading'}}" class="skeleton" aria-label="正在加载"></view>
+  <view wx:elif="{{status === 'error'}}" class="state-card">
+    <text>{{errorText}}</text>
+    <button bindtap="retry">重新加载</button>
+  </view>
+  <slot wx:else></slot>
+</view>
