@@ -14,7 +14,7 @@ const ACTION_FIELD_SCHEMAS = Object.freeze({
   meal_complete: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_feedback: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
   meal_abandon: new Set([...COMMON_ACTION_FIELDS, "mealRunId", "data", "idempotencyKey", "stateVersion"]),
-  grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion"]),
+  grocery_item_check: new Set([...COMMON_ACTION_FIELDS, "data", "idempotencyKey", "stateVersion", "conflictRetryCount"]),
   product_event: new Set([...COMMON_ACTION_FIELDS, "event", "fields"])
 });
 const PRODUCT_EVENT_TYPES = new Set(["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"]);
@@ -133,7 +133,12 @@ function validateActionData(action) {
   }
   if (action.type === "grocery_item_check") {
     assertExactData(action.data, new Set(["itemId", "checked"]), ["itemId", "checked"]);
-    if (!safeIdentifier(action.data.itemId, 100) || typeof action.data.checked !== "boolean" || !safeStateVersion(action.stateVersion)) {
+    if (
+      !safeIdentifier(action.data.itemId, 100)
+      || typeof action.data.checked !== "boolean"
+      || !safeStateVersion(action.stateVersion)
+      || (action.conflictRetryCount !== undefined && ![0, 1].includes(action.conflictRetryCount))
+    ) {
       throw invalidOfflineAction();
     }
   }
@@ -217,6 +222,10 @@ function enqueueMutation(action) {
 
 function removeAction(actionId, ownerUserId) {
   writeQueue(readQueueForOwner(ownerUserId).filter((action) => action.id !== actionId), ownerUserId);
+}
+
+function replaceAction(nextAction, ownerUserId) {
+  writeQueue(readQueueForOwner(ownerUserId).map((action) => action.id === nextAction.id ? nextAction : action), ownerUserId);
 }
 
 function readDeadLettersForOwner(ownerUserId) {
@@ -367,6 +376,56 @@ async function flushMutationQueue(options = {}) {
           envelope: error.latestEnvelope,
         };
       }
+      if (
+        action.type === "grocery_item_check"
+        && error.status === 409
+        && error.code === "state_version_conflict"
+        && error.latestEnvelope
+      ) {
+        notifyEnvelope(options, error.latestEnvelope);
+        if (groceryIntentSatisfied(action, error.latestEnvelope)) {
+          removeAction(action.id, ownerUserId);
+          continue;
+        }
+        if (action.conflictRetryCount === 1) {
+          moveToDeadLetter(action, "state_version_conflict", ownerUserId);
+          return { status: "conflict", action, envelope: error.latestEnvelope, retryExhausted: true };
+        }
+        const retryAction = {
+          ...action,
+          stateVersion: error.latestEnvelope.stateVersion,
+          conflictRetryCount: 1,
+        };
+        replaceAction(retryAction, ownerUserId);
+        try {
+          const response = await replayAction(retryAction);
+          if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+          removeAction(retryAction.id, ownerUserId);
+          notifyReplayed(options, retryAction, response);
+          notifyEnvelope(options, response);
+          continue;
+        } catch (retryError) {
+          if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+          if (
+            retryError.status === 409
+            && retryError.code === "state_version_conflict"
+          ) {
+            notifyEnvelope(options, retryError.latestEnvelope);
+            moveToDeadLetter(retryAction, "state_version_conflict", ownerUserId);
+            return {
+              status: "conflict",
+              action: retryAction,
+              envelope: retryError.latestEnvelope,
+              retryExhausted: true,
+            };
+          }
+          if (!retryError.retryable) {
+            moveToDeadLetter(retryAction, retryError.code, ownerUserId);
+            continue;
+          }
+          return { status: "retry", action: retryAction, envelope: error.latestEnvelope };
+        }
+      }
       if (error.status === 409) return { status: "conflict", action, envelope: error.latestEnvelope };
       if (!error.retryable) {
         moveToDeadLetter(action, error.code, ownerUserId);
@@ -376,6 +435,21 @@ async function flushMutationQueue(options = {}) {
     }
   }
   return { status: "flushed" };
+}
+
+function groceryIntentSatisfied(action, envelope) {
+  const checkedItems = envelope?.householdState?.checkedItems || envelope?.state?.checkedItems || {};
+  return Boolean(checkedItems[action.data?.itemId]) === Boolean(action.data?.checked);
+}
+
+function notifyEnvelope(options, envelope) {
+  if (!envelope || typeof options.onEnvelope !== "function") return;
+  try { options.onEnvelope(envelope); } catch (_) {}
+}
+
+function notifyReplayed(options, action, response) {
+  if (typeof options.onReplayed !== "function") return;
+  try { options.onReplayed(action, response); } catch (_) {}
 }
 
 function discardObsoleteMealEpoch(action, ownerUserId) {

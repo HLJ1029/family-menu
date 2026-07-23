@@ -85,7 +85,16 @@ function createAppRuntime(flush, restoredSession = null) {
         storeState.offlineStatus = "idle";
       }
       return { ...storeState };
-    }
+    },
+    replaceBootstrap(envelope) {
+      storeState.bootstrap = envelope;
+      storeState.currentHouseholdId = envelope?.activeHouseholdId || "";
+      return { ...storeState };
+    },
+    setState(patch) {
+      Object.assign(storeState, patch || {});
+      return { ...storeState };
+    },
   };
   vm.runInNewContext(appSource, {
     App: (value) => {
@@ -107,6 +116,124 @@ function createAppRuntime(flush, restoredSession = null) {
 
 async function nextTask() {
   await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+{
+  const envelopes = [];
+  let attempts = 0;
+  const { queue } = createRuntime({
+    requestHumi: async () => {
+      attempts += 1;
+      const error = new Error("conflict");
+      error.status = 409;
+      error.code = "state_version_conflict";
+      error.latestEnvelope = {
+        schemaVersion: 1,
+        stateVersion: "state-v2",
+        activeHouseholdId: "h1",
+        householdState: { checkedItems: { "ingredient:egg": true } },
+        user: { id: "user-a" },
+      };
+      throw error;
+    },
+  });
+  queue.enqueueMutation({
+    id: "already-satisfied", type: "grocery_item_check", householdId: "h1",
+    createdAt: 1, stateVersion: "state-v1", data: { itemId: "ingredient:egg", checked: true },
+  });
+  const result = await queue.flushMutationQueue({ onEnvelope: (envelope) => envelopes.push(envelope) });
+  assert.equal(result.status, "flushed");
+  assert.equal(attempts, 1);
+  assert.deepEqual(Array.from(queue.readQueue()), []);
+  assert.equal(envelopes[0].stateVersion, "state-v2");
+}
+
+{
+  const versions = [];
+  const { queue } = createRuntime({
+    requestHumi: async (options) => {
+      versions.push(options.stateVersion);
+      if (versions.length === 1) {
+        const error = new Error("conflict");
+        error.status = 409;
+        error.code = "state_version_conflict";
+        error.latestEnvelope = {
+          schemaVersion: 1,
+          stateVersion: "state-v2",
+          activeHouseholdId: "h1",
+          householdState: { checkedItems: { "ingredient:egg": false } },
+          user: { id: "user-a" },
+        };
+        throw error;
+      }
+      return {
+        schemaVersion: 1,
+        stateVersion: "state-v3",
+        activeHouseholdId: "h1",
+        householdState: { checkedItems: { "ingredient:egg": true } },
+        user: { id: "user-a" },
+      };
+    },
+  });
+  queue.enqueueMutation({
+    id: "retry-once", type: "grocery_item_check", householdId: "h1",
+    createdAt: 1, stateVersion: "state-v1", data: { itemId: "ingredient:egg", checked: true },
+  });
+  assert.equal((await queue.flushMutationQueue()).status, "flushed");
+  assert.deepEqual(versions, ["state-v1", "state-v2"]);
+  assert.deepEqual(Array.from(queue.readQueue()), []);
+}
+
+{
+  let attempts = 0;
+  const { queue } = createRuntime({
+    requestHumi: async () => {
+      attempts += 1;
+      const error = new Error("conflict");
+      error.status = 409;
+      error.code = "state_version_conflict";
+      error.latestEnvelope = {
+        schemaVersion: 1,
+        stateVersion: `state-v${attempts + 1}`,
+        activeHouseholdId: "h1",
+        householdState: { checkedItems: { "ingredient:egg": false } },
+        user: { id: "user-a" },
+      };
+      throw error;
+    },
+  });
+  queue.enqueueMutation({
+    id: "conflict-exhausted", type: "grocery_item_check", householdId: "h1",
+    createdAt: 1, stateVersion: "state-v1", data: { itemId: "ingredient:egg", checked: true },
+  });
+  const result = await queue.flushMutationQueue();
+  assert.equal(result.status, "conflict");
+  assert.equal(result.retryExhausted, true);
+  assert.equal(attempts, 2);
+  assert.deepEqual(Array.from(queue.readQueue()), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(queue.readDeadLetters())), [{
+    id: "conflict-exhausted",
+    code: "state_version_conflict",
+  }]);
+}
+
+{
+  const envelope = {
+    schemaVersion: 1,
+    stateVersion: "state-v2",
+    activeHouseholdId: "h1",
+    user: { id: "user-a" },
+  };
+  const restored = { accessToken: "restored", expiresAt: Date.now() + 60_000, user: { id: "user-a" } };
+  const { app, storeState } = createAppRuntime(async (options) => {
+    options.onEnvelope(envelope);
+    return { status: "conflict", envelope, retryExhausted: true };
+  }, restored);
+  app.onLaunch();
+  app.onShow();
+  await nextTask();
+  assert.equal(storeState.bootstrap.stateVersion, "state-v2");
+  assert.equal(storeState.offlineStatus, "conflict");
 }
 
 {

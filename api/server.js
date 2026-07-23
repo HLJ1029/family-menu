@@ -801,6 +801,26 @@ function sanitizeStatePatch(patch) {
   if (!keys.length || keys.some((key) => !allowedKeys.has(key))) {
     throw httpError(400, "state_patch_invalid", "State patch contains unsupported fields.");
   }
+  if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
+    if (!patch.groceryClaims || typeof patch.groceryClaims !== "object" || Array.isArray(patch.groceryClaims)) {
+      throw httpError(400, "grocery_claim_invalid", "Grocery claims must be an object map.");
+    }
+    if (Object.keys(patch.groceryClaims).length > 400) {
+      throw httpError(400, "grocery_claim_invalid", "Too many grocery claims in one patch.");
+    }
+    for (const [mapKey, claim] of Object.entries(patch.groceryClaims).slice(0, 401)) {
+      if (
+        !mapKey
+        || !claim
+        || typeof claim !== "object"
+        || Array.isArray(claim)
+        || stringValue(claim.itemKey, 180) !== stringValue(mapKey, 180)
+        || !stringValue(claim.memberId, 100)
+      ) {
+        throw httpError(400, "grocery_claim_invalid", "Grocery claim key, itemKey, and member identity must match.");
+      }
+    }
+  }
   return Object.fromEntries(keys.map((key) => [
     key,
     key === "mealPlan"
@@ -827,6 +847,8 @@ function mapStatePatchError(error) {
     idempotency_key_reused: 409,
     state_precondition_required: 428,
     state_version_conflict: 409,
+    grocery_item_claim_conflict: 409,
+    grocery_claim_invalid: 400,
     date_key_invalid: 400,
   };
   const status = statusByCode[error?.code];
@@ -1698,6 +1720,10 @@ async function handleCreateGroceryShareRequest(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
+  const requestedMode = stringValue(body.mode, 24);
+  if (requestedMode && !["collaboration", "read_only"].includes(requestedMode)) {
+    throw httpError(400, "grocery_share_mode_invalid", "Unsupported grocery share mode.");
+  }
   try {
     const groceryRequest = await store.createGroceryShareRequest(body, user.id);
     sendJson(response, 201, {
@@ -1721,7 +1747,15 @@ async function handleGetGroceryShareRequest(response, token) {
 async function handleGroceryShareClaim(request, response, token) {
   const body = await readJson(request);
   const participant = await resolveCollaborationParticipant(request, body);
-  const groceryRequest = await store.addGroceryShareClaim(token, body, participant);
+  let groceryRequest;
+  try {
+    groceryRequest = await store.addGroceryShareClaim(token, body, participant);
+  } catch (error) {
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能认领或修改。");
+    }
+    throw error;
+  }
   if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
   sendJson(response, 200, {
     request: toPublicGroceryShareRequest(groceryRequest),
@@ -1731,7 +1765,15 @@ async function handleGroceryShareClaim(request, response, token) {
 
 async function handleGroceryShareItemCheck(request, response, token, itemId) {
   const body = await readJson(request);
-  const groceryRequest = await store.updateGroceryShareItemChecked(token, decodeURIComponent(itemId), Boolean(body.checked));
+  let groceryRequest;
+  try {
+    groceryRequest = await store.updateGroceryShareItemChecked(token, decodeURIComponent(itemId), Boolean(body.checked));
+  } catch (error) {
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能认领或修改。");
+    }
+    throw error;
+  }
   if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
   sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
 }
@@ -1767,6 +1809,9 @@ async function handleJoinGroceryShare(request, response, token) {
     }
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
+    }
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能绑定参与记录。");
     }
     throw error;
   }
@@ -2140,6 +2185,7 @@ function toPublicGroceryShareRequest(request) {
     initiatorName: request.initiatorName,
     title: request.title,
     status: request.status,
+    mode: request.mode === "read_only" ? "read_only" : "collaboration",
     items: (request.items ?? []).map((item) => ({
       id: item.id,
       name: item.name,

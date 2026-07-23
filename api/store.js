@@ -772,12 +772,6 @@ export class HumiStore {
       if (Object.prototype.hasOwnProperty.call(patch, "mealPlan") && household.ownerId !== userId) {
         throw codedError("forbidden", "Only the household owner can change the planned menu.");
       }
-      if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
-        const claims = Object.values(patch.groceryClaims || {});
-        if (claims.some((claim) => !claim?.memberId || claim.memberId !== userId)) {
-          throw codedError("forbidden", "Grocery claim identity must match the authenticated member.");
-        }
-      }
       const trustedGroceryClaims = Object.fromEntries(
         Object.entries(patch.groceryClaims || {}).map(([itemKey, claim]) => [
           itemKey,
@@ -832,6 +826,23 @@ export class HumiStore {
         const error = codedError("state_version_conflict", "Household state changed; reload before saving.");
         error.latestEnvelope = latestEnvelope;
         throw error;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
+        const claims = Object.values(patch.groceryClaims || {});
+        if (claims.some((claim) => !claim?.memberId || claim.memberId !== userId)) {
+          const error = codedError("forbidden", "Grocery claim identity must match the authenticated member.");
+          error.latestEnvelope = latestEnvelope;
+          throw error;
+        }
+        const conflictingClaim = Object.entries(patch.groceryClaims).find(([itemKey]) => {
+          const existingClaim = currentState?.groceryClaims?.[itemKey];
+          return existingClaim?.memberId && existingClaim.memberId !== userId;
+        });
+        if (conflictingClaim) {
+          const error = codedError("grocery_item_claim_conflict", "This grocery item is already claimed by another member.");
+          error.latestEnvelope = latestEnvelope;
+          throw error;
+        }
       }
 
       const nextState = {
@@ -1272,6 +1283,7 @@ export class HumiStore {
         householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
         initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
         title: sanitizeText(payload.title, "Humi 买菜清单", 48),
+        mode: payload.mode === "read_only" ? "read_only" : "collaboration",
         status: "open",
         items,
         claims: [],
@@ -1294,9 +1306,11 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     return this.mutateAndSave(async () => {
       const request = this.data.groceryShareRequests.find((item) => item.token === token);
       if (!request || request.status !== "open") return request;
+      if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
       const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
       const claimStatus = claim.status === "declined" ? "declined" : "claimed";
       const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
@@ -1329,6 +1343,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     const item = request.items.find((entry) => entry.id === itemId);
     if (!item) return request;
     item.checked = Boolean(checked);
@@ -1341,6 +1356,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request) return null;
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const participantClaim = request.claims.find((item) => item.participantKey === participantKey);

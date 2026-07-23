@@ -21,9 +21,21 @@ App({
 
   onShow() {
     const startedAt = Date.now();
-    flushMutationQueue()
+    const applyEnvelope = (envelope) => {
+      if (envelope?.schemaVersion === 1 && envelope?.stateVersion) {
+        appStore.replaceBootstrap(envelope);
+      }
+    };
+    flushMutationQueue({
+      onEnvelope: applyEnvelope,
+      onReplayed: (action, response) => {
+        if (action?.type === "grocery_item_check") applyEnvelope(response);
+      }
+    })
       .then((outcome) => {
+        applyEnvelope(outcome?.envelope);
         const result = outcome?.status === "conflict" || outcome?.status === "retry" ? outcome.status : "completed";
+        appStore.setState({ offlineStatus: result === "completed" ? "idle" : result });
         trackEvent(result === "completed" ? "native_boot_completed" : "native_boot_failed", {
           page: "boot",
           stage: "queue_flush",

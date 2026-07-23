@@ -156,6 +156,7 @@ Page({
         path: "/grocery-share-requests",
         method: "POST",
         data: {
+          mode: "read_only",
           householdId: bootstrap.activeHouseholdId,
           householdName: this.data.householdName,
           initiatorName: this.data.currentMemberName,
