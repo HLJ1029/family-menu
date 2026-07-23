@@ -18,6 +18,24 @@ if (process.argv.includes("--selftest")) {
     classifyCliDiagnostics("url not in domain list") === "download_domain_missing",
     "downloadFile legal-domain rejection should keep its distinct external blocker.",
   );
+  assert(
+    nextActionForDomainStatus({
+      rejectedByDomainPolicy: false,
+      externalBlocker: "",
+      domainAllowed: true,
+      httpHealthy: false,
+    }).includes("API health"),
+    "an allowed download domain with a non-2xx probe must point to API health, not claim the gate passed.",
+  );
+  assert(
+    nextActionForDomainStatus({
+      rejectedByDomainPolicy: false,
+      externalBlocker: "",
+      domainAllowed: true,
+      httpHealthy: true,
+    }).includes("gate passed"),
+    "only an allowed domain with a healthy API probe may claim the gate passed.",
+  );
   console.log("WeChat poster domain diagnostics self-test passed.");
   process.exit(0);
 }
@@ -108,13 +126,12 @@ const report = {
   httpHealthy,
   result,
   externalBlocker: rejectedByDomainPolicy ? "download_domain_missing" : externalBlocker || null,
-  nextAction: rejectedByDomainPolicy || externalBlocker === "download_domain_missing"
-    ? `Add ${EXPECTED_ORIGIN} to the mini program downloadFile legal-domain list, then run this command again.`
-    : externalBlocker === "devtools_login_required"
-      ? "Sign in to WeChat DevTools, then rerun this read-only domain probe. Do not disable urlCheck."
-    : domainAllowed
-      ? "The domain gate passed. Continue with real-device menu poster sharing and grocery poster saving."
-      : "Inspect the DevTools connection or network failure, then run this command again.",
+  nextAction: nextActionForDomainStatus({
+    rejectedByDomainPolicy,
+    externalBlocker,
+    domainAllowed,
+    httpHealthy,
+  }),
 };
 
 console.log(JSON.stringify(report, null, 2));
@@ -187,6 +204,27 @@ function externalBlockerMessage(errorCode) {
   if (errorCode === "devtools_login_required") return "WeChat DevTools login is required before legal-domain evidence can be refreshed.";
   if (errorCode === "download_domain_missing") return `${EXPECTED_ORIGIN} is absent from the WeChat downloadFile legal-domain list.`;
   return "WeChat DevTools automation was unavailable before the legal-domain probe completed.";
+}
+
+function nextActionForDomainStatus({
+  rejectedByDomainPolicy = false,
+  externalBlocker = "",
+  domainAllowed = false,
+  httpHealthy = false,
+} = {}) {
+  if (rejectedByDomainPolicy || externalBlocker === "download_domain_missing") {
+    return `Add ${EXPECTED_ORIGIN} to the mini program downloadFile legal-domain list, then run this command again.`;
+  }
+  if (externalBlocker === "devtools_login_required") {
+    return "Sign in to WeChat DevTools, then rerun this read-only domain probe. Do not disable urlCheck.";
+  }
+  if (domainAllowed && httpHealthy) {
+    return "The domain gate passed. Continue with real-device menu poster sharing and grocery poster saving.";
+  }
+  if (domainAllowed) {
+    return `The download domain is allowed, but the API health probe failed. Restore ${EXPECTED_ORIGIN} health, then run this command again.`;
+  }
+  return "Inspect the DevTools connection or network failure, then run this command again.";
 }
 
 function openProtocolConnection(endpoint, openTimeoutMs) {

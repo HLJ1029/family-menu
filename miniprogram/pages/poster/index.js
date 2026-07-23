@@ -26,19 +26,28 @@ Page({
     const action = options.action === "save" ? "save" : "share";
     const posterType = normalizePosterType(options.posterType);
     const requestedStyleId = normalizeStyleId(options.styleId);
-    const styleVariants = parsePosterVariants([
+    const explicitMappingProvided = [options.defaultToken, options.themeToken]
+      .some((value) => String(value || "").trim().length > 0);
+    const explicitVariants = parsePosterVariants([
       { styleId: "default", token: options.defaultToken, format: options.defaultFormat },
       { styleId: "theme", token: options.themeToken, format: options.themeFormat },
-    ], { token, format, styleId: requestedStyleId });
-    const selectedVariant = styleVariants.find((variant) => (
-      variant.styleId === requestedStyleId && (!token || variant.token === token)
-    )) || styleVariants.find((variant) => variant.styleId === requestedStyleId) || styleVariants[0] || null;
+    ]);
+    let styleVariants;
+    let selectedVariant;
+    if (explicitMappingProvided) {
+      const mappedVariant = explicitVariants.find((variant) => variant.styleId === requestedStyleId);
+      selectedVariant = mappedVariant?.token === token ? mappedVariant : null;
+      styleVariants = selectedVariant ? explicitVariants : [];
+    } else {
+      styleVariants = parsePosterVariants([], { token, format, styleId: requestedStyleId });
+      selectedVariant = styleVariants[0] || null;
+    }
     const availableStyles = normalizeStyles(styleVariants);
     const styleId = selectedVariant?.styleId || requestedStyleId;
     const showStyleAction = posterTypeSupportsStyles(posterType) && availableStyles.length > 1;
     const followingStyleId = nextStyleId(styleId, availableStyles);
     this.setData({
-      token: selectedVariant?.token || token,
+      token: selectedVariant?.token || "",
       format: selectedVariant?.format || format,
       title,
       action,

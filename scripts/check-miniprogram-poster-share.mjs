@@ -192,6 +192,35 @@ assert(invalidPage.data.token === "", "poster page should reject malformed token
 assert(invalidPage.data.imageUrl === "", "invalid poster should not build a remote URL");
 assert(invalidPage.data.showStyleAction === false, "invalid poster should never expose style switching");
 
+const conflictingPrimaryPage = createPageInstance(capturedPage);
+conflictingPrimaryPage.onLoad({
+  token: themeToken,
+  format: "jpg",
+  styleId: "default",
+  posterType: "grocery_list",
+  defaultToken: token,
+  defaultFormat: "jpg",
+  themeToken,
+  themeFormat: "jpg",
+});
+assert(conflictingPrimaryPage.data.token === "", "explicit style mapping should reject a conflicting primary token");
+assert(conflictingPrimaryPage.data.imageUrl === "", "conflicting primary and explicit mappings must render an invalid poster");
+assert(conflictingPrimaryPage.data.showStyleAction === false, "conflicting mappings must not leave another style selectable");
+
+const legacySingleTokenPage = createPageInstance(capturedPage);
+legacySingleTokenPage.onLoad({
+  token,
+  format: "jpg",
+  styleId: "default",
+  posterType: "grocery_list",
+});
+assert(legacySingleTokenPage.data.token === token, "legacy single-token poster links should remain compatible");
+assert(
+  legacySingleTokenPage.data.imageUrl === `https://api.humi-home.com/poster-shares/${token}.jpg`,
+  "legacy single-token links should use the primary token only when no explicit mapping exists",
+);
+assert(legacySingleTokenPage.data.showStyleAction === false, "legacy single-token links must not invent an alternate style");
+
 const singleTemplatePage = createPageInstance(capturedPage);
 singleTemplatePage.onLoad({
   token,
