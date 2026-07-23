@@ -439,6 +439,7 @@ try {
   const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
   await familyLivingRoom.screenshot({ path: familyLivingRoomScreenshot });
   await familyLivingRoom.getByTestId("family-preference-action").click();
+  await page.getByTestId("household-settings-page").waitFor({ state: "visible", timeout: 15_000 });
   const preferenceOpenedSettings = await page.getByTestId("household-settings-page").isVisible();
   await page.getByTestId("household-settings-page").getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: "邀请家人", exact: true }).click();
@@ -1682,6 +1683,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.getByRole("button", { name: "出去吃", exact: true }).click();
   await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
+  await page.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
   const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
   await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("button", { name: /^成员管理/ }).click();
