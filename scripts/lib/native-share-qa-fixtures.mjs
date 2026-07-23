@@ -4,7 +4,59 @@ const previewTokens = {
   grocery: "grocery_preview_token_1234",
   wish: "wish_preview_token_1234567",
   menu: "menu_preview_token_1234567",
+  mealTask: "meal_task_preview_token_123",
 };
+
+export const shareLandingFixtures = [
+  {
+    type: "crave",
+    token: previewTokens.crave,
+    launchKey: "crave",
+    shareSource: "crave",
+    expectedPath: `/pages/boot/index?crave=${previewTokens.crave}`,
+    guestPath: `/pages/boot/index?crave=${previewTokens.crave}&shareSource=crave`,
+  },
+  {
+    type: "grocery",
+    token: previewTokens.grocery,
+    launchKey: "groceryShare",
+    shareSource: "grocery",
+    expectedPath: `/pages/boot/index?groceryShare=${previewTokens.grocery}`,
+    guestPath: `/pages/boot/index?groceryShare=${previewTokens.grocery}&shareSource=grocery`,
+  },
+  {
+    type: "wish",
+    token: previewTokens.wish,
+    launchKey: "wishShare",
+    shareSource: "wish",
+    expectedPath: `/pages/boot/index?wishShare=${previewTokens.wish}`,
+    guestPath: `/pages/boot/index?wishShare=${previewTokens.wish}&shareSource=wish`,
+  },
+  {
+    type: "today_menu",
+    token: previewTokens.menu,
+    launchKey: "menuShare",
+    shareSource: "today_menu",
+    expectedPath: `/pages/boot/index?menuShare=${previewTokens.menu}`,
+    guestPath: `/pages/boot/index?menuShare=${previewTokens.menu}&shareSource=today_menu`,
+  },
+  {
+    type: "invite",
+    token: previewTokens.invite,
+    launchKey: "invite",
+    shareSource: "invite",
+    expectedPath: `/pages/boot/index?invite=${previewTokens.invite}`,
+    guestPath: `/pages/boot/index?invite=${previewTokens.invite}&shareSource=invite`,
+  },
+  {
+    type: "meal_task",
+    token: previewTokens.mealTask,
+    launchKey: "mealTask",
+    shareSource: "meal_task",
+    expectedPath: `/pages/boot/index?mealTask=${previewTokens.mealTask}&shareSource=meal_task`,
+    guestPath: `/pages/boot/index?mealTask=${previewTokens.mealTask}&shareSource=meal_task`,
+  },
+];
 
 export const directPreviewFixtures = [
   {

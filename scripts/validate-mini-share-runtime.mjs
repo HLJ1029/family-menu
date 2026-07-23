@@ -5,6 +5,7 @@ import { buildMiniProgramPosterUrl, buildMiniProgramReminderUrl, buildMiniProgra
 import { createMenuShareRequest, subscribeHumiSessionInvalid } from "../src/lib/humiApi.js";
 import { buildShareSnapshotKey, createAsyncSnapshotCache } from "../src/lib/shareSnapshot.js";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
+import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const {
   buildHumiUrl,
@@ -13,6 +14,7 @@ const {
   pathToQuery,
   shouldOpenAsGuest,
 } = loadMiniProgramCommonJs("miniprogram/utils/share-routing.js");
+const { validateShareLandingOptions } = loadShareLandingValidator();
 
 const miniProgramApp = JSON.parse(readFileSync("miniprogram/app.json", "utf8"));
 assert(miniProgramApp.pages.includes("pages/index/index"), "mini program app.json should include index page");
@@ -497,60 +499,33 @@ function assertMiniProgramVisibleCopyKeepsPantryInvisible() {
 
 function assertMiniProgramGuestShareRouting() {
   const baseUrl = "https://www.humi-home.com/?channel=wechat-miniprogram";
-  const craveShare = buildSharePayload({
-    type: "crave",
-    token: "crave-token",
-    householdName: "小家",
-  });
-  assert.equal(craveShare.title, "小家今晚要做饭，你想吃点啥？");
-  assert.equal(craveShare.path, "/pages/boot/index?crave=crave-token&shareSource=crave");
-  const craveOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(craveShare.path))));
-  assert.equal(shouldOpenAsGuest(craveOptions), true, "crave card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, craveOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&crave=crave-token&shareSource=crave",
-  );
+  const labels = {
+    crave: "小家今晚要做饭，你想吃点啥？",
+    grocery: "Humi 买菜清单：5 项",
+    wish: "小家最近想吃什么？写一道给 Humi",
+    today_menu: "Humi 今晚菜单：番茄鸡蛋 + 青菜",
+    invite: "邀请你加入 小家，一起用 Humi",
+    meal_task: "请家人买鸡蛋",
+  };
+  const details = {
+    crave: { householdName: "小家" },
+    grocery: { itemCount: 5 },
+    wish: { householdName: "小家" },
+    today_menu: { title: "番茄鸡蛋 + 青菜" },
+    invite: { householdName: "小家" },
+    meal_task: { label: "请家人买鸡蛋" },
+  };
 
-  const groceryShare = buildSharePayload({
-    type: "grocery",
-    token: "grocery-token",
-    itemCount: 5,
-  });
-  assert.equal(groceryShare.title, "Humi 买菜清单：5 项");
-  assert.equal(groceryShare.path, "/pages/boot/index?groceryShare=grocery-token&shareSource=grocery");
-  const groceryOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(groceryShare.path))));
-  assert.equal(shouldOpenAsGuest(groceryOptions), true, "grocery card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, groceryOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&groceryShare=grocery-token&shareSource=grocery",
-  );
-
-  const wishShare = buildSharePayload({
-    type: "wish",
-    token: "wish-token",
-    householdName: "小家",
-  });
-  assert.equal(wishShare.title, "小家最近想吃什么？写一道给 Humi");
-  assert.equal(wishShare.path, "/pages/boot/index?wishShare=wish-token&shareSource=wish");
-  const wishOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(wishShare.path))));
-  assert.equal(shouldOpenAsGuest(wishOptions), true, "wish card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, wishOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&wishShare=wish-token&shareSource=wish",
-  );
-
-  const menuShare = buildSharePayload({
-    type: "today_menu",
-    title: "番茄鸡蛋 + 青菜",
-    token: "menu-token",
-  });
-  assert.equal(menuShare.path, "/pages/boot/index?menuShare=menu-token&shareSource=today_menu");
-  const menuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(menuShare.path))));
-  assert.equal(shouldOpenAsGuest(menuOptions), true, "today menu card should bypass login into a tokenized menu view");
-  assert.equal(
-    buildHumiUrl(baseUrl, menuOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&menuShare=menu-token&shareSource=today_menu",
-  );
+  for (const fixture of shareLandingFixtures) {
+    const landing = validateShareLandingOptions({ type: fixture.type, token: fixture.token });
+    assert.deepEqual(JSON.parse(JSON.stringify(landing)), { type: fixture.type, token: fixture.token }, `${fixture.type} guest bypass must use a valid native landing first`);
+    const share = buildSharePayload({ type: fixture.type, token: fixture.token, ...details[fixture.type] });
+    assert.equal(share.title, labels[fixture.type]);
+    assert.equal(share.path, fixture.guestPath);
+    const launchOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(share.path))));
+    assert.equal(shouldOpenAsGuest(launchOptions), true, `${fixture.type} card should bypass login only after strict landing validation`);
+    assert.equal(buildHumiUrl(baseUrl, launchOptions), `${baseUrl}&${pathToQuery(fixture.guestPath)}`);
+  }
 
   const legacyMenuShare = buildSharePayload({
     type: "today_menu",
@@ -560,19 +535,6 @@ function assertMiniProgramGuestShareRouting() {
   const legacyMenuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(legacyMenuShare.path))));
   assert.equal(shouldOpenAsGuest(legacyMenuOptions), true, "legacy today menu card should bypass login into the menu view");
 
-  const inviteShare = buildSharePayload({
-    type: "invite",
-    token: "invite-token",
-    householdName: "小家",
-  });
-  assert.equal(inviteShare.title, "邀请你加入 小家，一起用 Humi");
-  assert.equal(inviteShare.path, "/pages/boot/index?invite=invite-token&shareSource=invite");
-  const inviteOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(inviteShare.path))));
-  assert.equal(shouldOpenAsGuest(inviteOptions), true, "household invite should open its landing before normal app login");
-  assert.equal(
-    buildHumiUrl(baseUrl, inviteOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&invite=invite-token&shareSource=invite",
-  );
 }
 
 function loadMiniProgramCommonJs(path) {
@@ -581,6 +543,19 @@ function loadMiniProgramCommonJs(path) {
     module,
     exports: module.exports,
   }, { filename: path });
+  return module.exports;
+}
+
+function loadShareLandingValidator() {
+  const module = { exports: {} };
+  vm.runInNewContext(readFileSync("miniprogram/utils/bootstrap.js", "utf8"), {
+    module,
+    exports: module.exports,
+    require(request) {
+      if (request === "./cache" || request === "./request") return {};
+      throw new Error(`Unexpected bootstrap dependency: ${request}`);
+    },
+  }, { filename: "miniprogram/utils/bootstrap.js" });
   return module.exports;
 }
 

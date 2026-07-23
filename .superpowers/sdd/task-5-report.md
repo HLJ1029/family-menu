@@ -66,7 +66,7 @@ Mini-program share runtime validation passed.
 
 - 无 token 的普通启动或未知深链先走 bootstrap；package candidate 关闭或 server flag 关闭均 `reLaunch('/pages/legacy/index')`。tab 只用 `switchTab`，identity、legacy 和 share landing 使用 `reLaunch`。
 - 已发历史 `/pages/index/index?...` 卡片由 shim 保留。`crave`、`grocery`/`groceryShare`、`menuShare`、`wishShare`、`invite`、`mealTask` 保留 token 与 `shareSource`，直接进入既有 `/pages/share/index`；这是不读取家庭状态的公共 share 例外，不进入五个 core tabs。
-- 新分享路径指向 `/pages/boot/index`；boot 用同一 resolver 保持 token landing。未知旧 query 被原样编码后转发到 legacy H5 shell。
+- 新分享路径指向 `/pages/boot/index`；boot 用同一 resolver 保持 token landing。未知旧 query 仅保留受审的 `view`、固定 `shareSource` 与 Humi compatibility flags 后转发到 legacy H5 shell。
 
 ## Self-review
 
@@ -243,3 +243,32 @@ npm run validate:native-shell-routing && npm run validate:share-bridge && npm ru
 ```
 
 Actual key output: routing and share bridge passed; direct-preview dry-run returned `ok: true` and listed all five canonical boot paths; share selftest, workbench selftest, and candidate readiness passed; entrypoint resilience passed; build completed with the unchanged large-H5-chunk warning; secret scan passed; `git diff --check` had no output.
+
+## Fourth review correction — strict landing before share QA bypass
+
+### RED
+
+First, both target checks were changed to require the shared six-type landing fixture before that export existed:
+
+```text
+SyntaxError: The requested module './lib/native-share-qa-fixtures.mjs' does not provide an export named 'shareLandingFixtures'
+```
+
+After adding the fixture, the guest-bypass contract exposed VM realm handling in its strict-object assertion; serializing the validator result made the intended value contract explicit. The card selftest then exposed an incorrect assumption that every legacy relay appends `shareSource`; only meal-task does so in that existing legacy output.
+
+### Corrective changes
+
+- Added one legal `meal_task` token and exported `shareLandingFixtures` for all six audited types: `crave`, `grocery`, `wish`, `today_menu`, `invite`, and `meal_task`. All are 24–64 URL-safe characters.
+- `validate:share-bridge` now derives guest-bypass cases from the shared fixtures and requires `validateShareLandingOptions` to succeed before evaluating guest routing.
+- `release:wechat:share:selftest` derives all six tokens/launch keys from that fixture and exercises the real native share page `onLoad` before asserting its share payload; it no longer treats direct `buildShareData` as sufficient landing coverage.
+- Routing also iterates all six landing fixtures. The report's migration note now states that unknown queries retain only reviewed compatibility parameters.
+
+### GREEN
+
+Fresh final command:
+
+```sh
+npm run validate:native-shell-routing && npm run validate:share-bridge && npm run release:wechat:share:selftest && npm run release:wechat:share:direct-previews -- --dry-run && npm run release:candidate:dispatch:workbench:selftest && npm run release:candidate:check && npm run validate:miniprogram-entry && npm run build && /Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+Actual output: routing, share bridge, six-card selftest, direct-preview dry-run, workbench selftest, candidate readiness, and entrypoint resilience all passed; build succeeded with the existing large-H5-chunk warning; secret scan passed and `git diff --check` had no output.

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const source = await readFile("miniprogram/pages/legacy/index.js", "utf8");
 const pageDefinition = loadMiniProgramPage(source);
@@ -11,7 +12,7 @@ if (!indexHtml.includes("/vendor/jweixin-1.6.0.js")) {
   throw new Error("index.html must load the WeChat JSSDK before miniProgram share actions can navigate to the native relay page.");
 }
 
-const cases = [
+const caseDefinitions = [
   {
     name: "crave",
     message: {
@@ -131,6 +132,21 @@ const cases = [
   },
 ];
 
+const fixturesByType = new Map(shareLandingFixtures.map((fixture) => [fixture.type, fixture]));
+const cases = caseDefinitions.map((testCase) => {
+  const fixture = fixturesByType.get(testCase.name);
+  if (!fixture) throw new Error(`Missing native landing fixture for ${testCase.name}`);
+  return {
+    ...testCase,
+    fixture,
+    message: { ...testCase.message, token: fixture.token },
+    expectedShare: { ...testCase.expectedShare, path: fixture.expectedPath },
+    launchOptions: { [fixture.launchKey]: fixture.token },
+    expectedLaunchUrl: `https://www.humi-home.com/?${fixture.launchKey}=${fixture.token}${fixture.type === "meal_task" ? `&shareSource=${fixture.shareSource}` : ""}&channel=wechat-miniprogram`,
+    expectedLaunchShare: { ...testCase.expectedLaunchShare, path: fixture.expectedPath },
+  };
+});
+
 const results = cases.map((testCase) => {
   const sharePage = createPageInstance(pageDefinition);
   sharePage.handleMessage({ detail: { data: [testCase.message] } });
@@ -138,9 +154,11 @@ const results = cases.map((testCase) => {
   assertEqual(`${testCase.name} title`, share.title, testCase.expectedShare.title);
   assertEqual(`${testCase.name} path`, share.path, testCase.expectedShare.path);
 
-  const relay = shareRelay.buildShareData({ ...testCase.message, type: testCase.name });
-  assertEqual(`${testCase.name} relay title`, relay.title, testCase.expectedShare.title);
-  assertEqual(`${testCase.name} relay path`, relay.path, testCase.expectedShare.path);
+  const nativeSharePage = createPageInstance(shareRelay.pageDefinition);
+  nativeSharePage.onLoad({ ...testCase.message, type: testCase.fixture.type, token: testCase.fixture.token });
+  const nativeShare = nativeSharePage.onShareAppMessage();
+  assertEqual(`${testCase.name} native title`, nativeShare.title, testCase.expectedShare.title);
+  assertEqual(`${testCase.name} native path`, nativeShare.path, testCase.expectedShare.path);
 
   const launchPage = createPageInstance(pageDefinition);
   launchPage.onLoad(testCase.launchOptions);
@@ -153,8 +171,8 @@ const results = cases.map((testCase) => {
     name: testCase.name,
     title: share.title,
     path: share.path,
-    relayTitle: relay.title,
-    relayPath: relay.path,
+    nativeTitle: nativeShare.title,
+    nativePath: nativeShare.path,
     launchUrl: launchPage.data.url,
     launchShareTitle: launchShare.title,
     launchSharePath: launchShare.path,
@@ -199,16 +217,18 @@ function loadMiniProgramPage(code) {
 
 function loadShareRelay(code, shareLandingValidator) {
   const module = { exports: {} };
+  let pageDefinition = null;
   const context = {
     console,
     module,
     exports: module.exports,
-    Page() {},
+    Page(definition) { pageDefinition = definition; },
     require(request) {
       if (request === "../../utils/bootstrap") return shareLandingValidator;
       throw new Error(`Unexpected require: ${request}`);
     },
     wx: {
+      hideShareMenu() {},
       showShareMenu() {},
       navigateBack() {},
     },
@@ -218,7 +238,8 @@ function loadShareRelay(code, shareLandingValidator) {
   if (typeof module.exports.buildShareData !== "function") {
     throw new Error("Share relay buildShareData was not exported.");
   }
-  return module.exports;
+  if (!pageDefinition) throw new Error("Native share page definition was not captured.");
+  return { ...module.exports, pageDefinition };
 }
 
 function loadShareLandingValidator() {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import vm from "node:vm";
-import { directPreviewFixtures, shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
+import { directPreviewFixtures, shareCardGuideFixtures, shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const appConfig = JSON.parse(readFileSync(new URL("../miniprogram/app.json", import.meta.url), "utf8"));
 const tabPaths = [
@@ -381,6 +381,7 @@ assert(shareMenuCalls.includes("hide") && shareMenuCalls.includes("show"), "inva
 for (const fixture of [
   ...directPreviewFixtures.map((item) => ({ key: `direct-preview:${item.key}`, ...item.query, expectedPath: item.expectedPath })),
   ...Object.entries(shareCardGuideFixtures).map(([key, item]) => ({ key: `workbench:${key}`, type: item.type, token: item.token, expectedPath: item.expectedPath })),
+  ...shareLandingFixtures.map((item) => ({ key: `landing:${item.type}`, type: item.type, token: item.token, expectedPath: item.expectedPath })),
 ]) {
   const landing = bootstrapModule.exports.validateShareLandingOptions(fixture);
   assert.deepEqual(
