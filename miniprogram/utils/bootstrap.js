@@ -20,6 +20,9 @@ const SHARE_TOKEN = /^[A-Za-z0-9_-]{24,64}$/;
 function resolveStartupRoute({ candidate, envelope }) {
   if (!candidate) return { route: "/pages/legacy/index", reason: "package_disabled" };
   if (!envelope?.capabilities?.nativeShellEnabled) return { route: "/pages/legacy/index", reason: "server_disabled" };
+  if (!envelope?.capabilities?.mealExecutionEnabled) {
+    return { route: "/pages/legacy/index?reason=meal_execution_disabled", reason: "meal_execution_disabled" };
+  }
   if (envelope.user?.profileStatus !== "complete") return { route: "/pages/identity/index", reason: "identity_incomplete" };
   return { route: "/pages/tonight/index", reason: "native_enabled" };
 }

@@ -11,11 +11,15 @@ const future = Date.now() + 60 * 60 * 1000;
 await verifyGuestDecisionFlow();
 await verifyAuthenticatedServerFlowAndPendingGuards();
 await verifyTimeoutFallbackAndStateConflictRefresh();
+await verifyLockedRecommendationLoadsCurrentRun();
 await verifyRunRecoveryAndNavigation();
 await verifyForegroundRunRefresh();
 await verifyOwnerAndMemberPermissions();
 await verifyGuestMergeAndAccountIsolation();
+await verifyGuestMergeNetworkRecovery();
+await verifyMealExecutionFlagRollback();
 verifyInteractiveComponents();
+verifyProductionTemplateContract();
 
 console.log("Native Tonight decision flow checks passed.");
 
@@ -164,6 +168,55 @@ async function verifyTimeoutFallbackAndStateConflictRefresh() {
   assert.equal(calls, 3, "a recommendation cursor conflict must refresh the server current group");
   assert.equal(page.data.recommendation.recommendationId, "refreshed-current");
   assert.equal(page.data.recommendation.stateVersion, "remote-new");
+}
+
+async function verifyLockedRecommendationLoadsCurrentRun() {
+  for (const [errorCode, remoteStatus, expectedViewState] of [
+    ["meal_run_locked", "cooking", "resuming"],
+    ["state_conflict", "completed", "completed"],
+  ]) {
+    let recommendationCalls = 0;
+    let currentCalls = 0;
+    const runtime = createRuntime({
+      session: sessionFor(`member-lock-${errorCode}`),
+      bootstrap: bootstrapFor({
+        userId: `member-lock-${errorCode}`,
+        householdId: `home-lock-${errorCode}`,
+        role: "member",
+      }),
+      requestHandler: ({ path: pathname, data, succeed }) => {
+        if (pathname === "/recommendations/dinner") {
+          recommendationCalls += 1;
+          if (data.action === "initial") {
+            succeed(recommendation(`lock-${errorCode}`, ["tomato-egg"], `lock-state-${errorCode}`));
+          } else {
+            succeed({ error: errorCode }, 409);
+          }
+          return;
+        }
+        if (pathname.startsWith("/meal-runs/current")) {
+          currentCalls += 1;
+          succeed({
+            mealRun: remoteRun({
+              id: `member-started-${errorCode}`,
+              householdId: `home-lock-${errorCode}`,
+              status: remoteStatus,
+            }),
+          });
+          return;
+        }
+        throw new Error(`Unexpected request: ${pathname}`);
+      },
+    });
+    const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+    await page.onLoad();
+    await page.selectEffort({ currentTarget: { dataset: { tier: "quick_15" } } });
+    await page.nextRecommendation();
+    assert.equal(recommendationCalls, 2, `${errorCode} must not re-request an initial recommendation`);
+    assert.equal(currentCalls, 1, `${errorCode} must load the current dinner`);
+    assert.equal(page.data.viewState, expectedViewState);
+    assert.equal(page.data.mealRun.id, `member-started-${errorCode}`);
+  }
 }
 
 async function verifyRunRecoveryAndNavigation() {
@@ -367,6 +420,111 @@ async function verifyGuestMergeAndAccountIsolation() {
   assert.equal(switched.reason, "no_guest_run");
 }
 
+async function verifyGuestMergeNetworkRecovery() {
+  for (const failureStage of ["get", "post"]) {
+    const storage = new Map();
+    const userId = `guest-network-${failureStage}`;
+    const guestRuntime = createRuntime({
+      storage,
+      session: sessionFor(userId),
+      bootstrap: bootstrapFor({ userId }),
+    });
+    const guestMealRun = guestRuntime.load("miniprogram/utils/meal-run.js");
+    const localRun = await guestMealRun.createMealRun({
+      bootstrap: bootstrapFor({ userId }),
+      recommendation: recommendation(`guest-network-rec-${failureStage}`, ["tomato-egg"], "local"),
+      effortTier: "quick_15",
+      dateKey: "2026-07-23",
+    });
+    if (failureStage === "get") {
+      const guestKey = [...storage.keys()].find((key) => key.startsWith("humi:meal-run:guest:v1:"));
+      storage.set(guestKey, { ...storage.get(guestKey), status: "cooking" });
+    }
+
+    let online = false;
+    const postKeys = [];
+    const householdBootstrap = bootstrapFor({
+      userId,
+      householdId: `network-home-${failureStage}`,
+      role: "owner",
+    });
+    const runtime = createRuntime({
+      storage,
+      session: sessionFor(userId),
+      bootstrap: householdBootstrap,
+      requestHandler: ({ path: pathname, data, header, succeed, fail }) => {
+        if (pathname.startsWith("/meal-runs/current")) {
+          if (!online && failureStage === "get") fail();
+          else succeed({ mealRun: null });
+          return;
+        }
+        if (pathname === "/meal-runs") {
+          postKeys.push(header["X-Humi-Idempotency-Key"]);
+          if (!online && failureStage === "post") fail();
+          else {
+            succeed({
+              mealRun: remoteRun({
+                id: `network-merged-${failureStage}`,
+                householdId: `network-home-${failureStage}`,
+                recipeIds: data.recipeIds,
+              }),
+            }, 201);
+          }
+          return;
+        }
+        throw new Error(`Unexpected request: ${pathname}`);
+      },
+    });
+    const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+    await page.onLoad();
+    assert.equal(page.data.mealRun.id, localRun.id, `${failureStage} disconnect must keep the guest dinner visible`);
+    assert.equal(page.data.mealRun.localOnly, true);
+    assert.equal(page.data.viewState, failureStage === "get" ? "resuming" : "planned");
+    assert(
+      [...storage.values()].some((value) => value?.id === localRun.id),
+      `${failureStage} disconnect must retain local storage`,
+    );
+
+    online = true;
+    await page.onShow();
+    await page.onShow();
+    assert.equal(page.data.mealRun.id, `network-merged-${failureStage}`);
+    assert.equal(page.data.mealRun.localOnly, false);
+    if (failureStage === "post") {
+      assert.equal(postKeys.length, 2);
+      assert.equal(postKeys[0], postKeys[1], "POST recovery must reuse localRunId idempotency material");
+    }
+  }
+}
+
+async function verifyMealExecutionFlagRollback() {
+  const runtime = createRuntime({
+    session: sessionFor("disabled-user"),
+    bootstrap: bootstrapFor({
+      userId: "disabled-user",
+      householdId: "disabled-home",
+      role: "owner",
+      mealExecutionEnabled: false,
+    }),
+    requestHandler: () => assert.fail("a disabled household must not call recommendation or MealRun APIs"),
+  });
+  const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+  await page.onLoad();
+  assert.deepEqual(runtime.routes, [{
+    kind: "reLaunch",
+    url: "/pages/legacy/index?reason=meal_execution_disabled",
+  }]);
+  assert.equal(runtime.requests.length, 0);
+
+  const guestEnabled = createRuntime({
+    session: sessionFor("enabled-guest"),
+    bootstrap: bootstrapFor({ userId: "enabled-guest", mealExecutionEnabled: true }),
+  });
+  const guestPage = guestEnabled.loadPage("miniprogram/pages/tonight/index.js");
+  await guestPage.onLoad();
+  assert.equal(guestPage.data.viewState, "choose_effort", "an explicitly enabled household-free guest may use local certified dinners");
+}
+
 function verifyInteractiveComponents() {
   const runtime = createRuntime();
   const picker = runtime.loadComponent("miniprogram/components/effort-picker/index.js");
@@ -382,6 +540,9 @@ function verifyInteractiveComponents() {
 
   const resume = runtime.loadComponent("miniprogram/components/meal-run-resume/index.js");
   resume.data.mealRun = { status: "planned" };
+  resume.data.canReplacePlan = false;
+  resume.replace();
+  assert.equal(resume.events.length, 0, "a member must not trigger planned-menu replacement");
   resume.primaryAction();
   assert.equal(resume.events[0].name, "start");
   resume.data.mealRun = { status: "cooking" };
@@ -390,6 +551,37 @@ function verifyInteractiveComponents() {
   resume.data.mealRun = { status: "completed" };
   resume.primaryAction();
   assert.equal(resume.events.length, 2, "completed dinner must stay read-only");
+}
+
+function verifyProductionTemplateContract() {
+  const pageConfig = JSON.parse(readFileSync(path.join(root, "miniprogram/pages/tonight/index.json"), "utf8"));
+  assert.deepEqual(pageConfig.usingComponents, {
+    "page-state": "/components/page-state/index",
+    "effort-picker": "/components/effort-picker/index",
+    "dinner-plan-card": "/components/dinner-plan-card/index",
+    "meal-run-resume": "/components/meal-run-resume/index",
+  });
+  const pageTemplate = readFileSync(path.join(root, "miniprogram/pages/tonight/index.wxml"), "utf8");
+  for (const binding of [
+    'bind:select="selectEffort"',
+    'bind:accept="acceptRecommendation"',
+    'bind:next="nextRecommendation"',
+    'bind:start="startCooking"',
+    'bind:resume="resumeCooking"',
+    'bind:replace="replacePlannedMeal"',
+    'can-replace-plan="{{canReplacePlan}}"',
+  ]) assert(pageTemplate.includes(binding), `Tonight production WXML must wire ${binding}`);
+
+  const planTemplate = readFileSync(path.join(root, "miniprogram/components/dinner-plan-card/index.wxml"), "utf8");
+  assert.equal((planTemplate.match(/<button\b/g) || []).length, 2, "production recommendation card must have exactly two buttons");
+  assert(planTemplate.includes('bindtap="accept"'));
+  assert(planTemplate.includes('bindtap="next"'));
+
+  const resumeTemplate = readFileSync(path.join(root, "miniprogram/components/meal-run-resume/index.wxml"), "utf8");
+  assert(
+    /wx:if="{{mealRun\.status === 'planned' && canReplacePlan}}".*bindtap="replace"/s.test(resumeTemplate),
+    "production resume template must render replacement only for an owner",
+  );
 }
 
 function createRuntime({ storage = new Map(), session = null, bootstrap = null, requestHandler } = {}) {
@@ -539,7 +731,13 @@ function resolveModulePath(candidate) {
   return candidate;
 }
 
-function bootstrapFor({ userId = "", householdId = "", role = "", currentMealRun = null } = {}) {
+function bootstrapFor({
+  userId = "",
+  householdId = "",
+  role = "",
+  currentMealRun = null,
+  mealExecutionEnabled = true,
+} = {}) {
   return {
     schemaVersion: 1,
     stateVersion: `bootstrap-${userId || "guest"}`,
@@ -559,7 +757,7 @@ function bootstrapFor({ userId = "", householdId = "", role = "", currentMealRun
       dislikedRecipeIds: [],
     },
     currentMealRun,
-    capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true },
+    capabilities: { nativeShellEnabled: true, mealExecutionEnabled },
   };
 }
 

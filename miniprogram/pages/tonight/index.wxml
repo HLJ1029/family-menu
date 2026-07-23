@@ -27,6 +27,7 @@
       wx:if="{{viewState === 'planned' || viewState === 'resuming' || viewState === 'completed'}}"
       meal-run="{{mealRun}}"
       plan="{{plan}}"
+      can-replace-plan="{{canReplacePlan}}"
       bind:start="startCooking"
       bind:resume="resumeCooking"
       bind:replace="replacePlannedMeal"

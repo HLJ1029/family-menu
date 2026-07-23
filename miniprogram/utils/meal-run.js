@@ -1,5 +1,6 @@
 const certifiedRecipes = require("../data/certified-recipes");
 const { requestHumi } = require("./request");
+const { buildMealTimeline, summarizeMealTimeline } = require("./meal-timeline");
 
 const GUEST_RUN_PREFIX = "humi:meal-run:guest:v1:";
 const REMOTE_RUN_PREFIX = "humi:meal-run:remote:v1:";
@@ -118,6 +119,9 @@ async function mergeActiveGuestMealRun({
     wx.removeStorageSync(guestRunKey(ownerUserId, dateKey));
     return { merged: true, reason: "merged", mealRun, guestRun };
   } catch (error) {
+    if (isNetworkError(error)) {
+      return { merged: false, reason: "offline", mealRun: null, guestRun };
+    }
     if (Number(error?.status) !== 409) throw error;
     const latest = await loadCurrentMealRun({ bootstrap, dateKey, allowCache: false });
     return {
@@ -175,9 +179,8 @@ function buildDinnerPlan(recommendation, bootstrap = {}) {
     recipe.ingredients || []
   ).filter((ingredient) => ingredient.required !== false).map((ingredient) => clean(ingredient.name))).filter(Boolean);
   const missingIngredients = [...new Set(requiredIngredients.filter((name) => !pantry.has(name.toLowerCase())))];
-  const cookware = [...new Set(recipes.flatMap((recipe) => recipe.cookAssist?.cookware || []))];
-  const activeMinutes = recipes.reduce((total, recipe) => total + (Number(recipe.cookAssist?.activeMinutes) || 0), 0);
-  const longestRecipeMinutes = Math.max(...recipes.map((recipe) => Number(recipe.cookAssist?.totalMinutes) || 0));
+  const timeline = buildMealTimeline(recommendation.recipeIds, { startedAt: "2000-01-01T00:00:00.000Z" });
+  const timelineSummary = summarizeMealTimeline(timeline);
   return {
     recommendationId: clean(recommendation.recommendationId),
     recipes: recipes.map((recipe) => ({
@@ -188,10 +191,11 @@ function buildDinnerPlan(recommendation, bootstrap = {}) {
       totalMinutes: Number(recipe.cookAssist.totalMinutes) || 0,
       activeMinutes: Number(recipe.cookAssist.activeMinutes) || 0,
     })),
-    totalMinutes: Math.max(activeMinutes, longestRecipeMinutes),
-    activeMinutes,
-    cookwareCount: cookware.length,
-    cookware,
+    totalMinutes: timelineSummary.totalMinutes,
+    activeMinutes: timelineSummary.activeMinutes,
+    cookwareCount: timelineSummary.cookware.length,
+    cookware: timelineSummary.cookware,
+    timelineVersion: timeline.version,
     missingIngredients,
     missingIngredientsText: missingIngredients.length ? missingIngredients.slice(0, 4).join("、") : "家里现有食材基本够用",
   };

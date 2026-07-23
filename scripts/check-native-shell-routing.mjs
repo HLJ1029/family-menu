@@ -53,14 +53,16 @@ vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/bootstrap.js", imp
   }
 });
 const { buildLegacyRoute, resolveKnownShareRoute, resolveStartupRoute } = bootstrapModule.exports;
-const enabled = { schemaVersion: 1, stateVersion: "state-enabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: true }, user: { id: "user-1", profileStatus: "complete" } };
+const enabled = { schemaVersion: 1, stateVersion: "state-enabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true }, user: { id: "user-1", profileStatus: "complete" } };
 const disabled = { schemaVersion: 1, stateVersion: "state-disabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: false }, user: { id: "user-1", profileStatus: "complete" } };
-const incomplete = { schemaVersion: 1, stateVersion: "state-incomplete", activeHouseholdId: "", capabilities: { nativeShellEnabled: true }, user: { id: "user-1", profileStatus: "incomplete" } };
+const mealExecutionDisabled = { ...enabled, stateVersion: "state-meal-disabled", capabilities: { nativeShellEnabled: true, mealExecutionEnabled: false } };
+const incomplete = { schemaVersion: 1, stateVersion: "state-incomplete", activeHouseholdId: "", capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true }, user: { id: "user-1", profileStatus: "incomplete" } };
 const validToken = "abcdefghijklmnopqrstuvwx";
 const assertRoute = (actual, expected) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 
 assertRoute(resolveStartupRoute({ candidate: false, envelope: enabled }), { route: "/pages/legacy/index", reason: "package_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: disabled }), { route: "/pages/legacy/index", reason: "server_disabled" });
+assertRoute(resolveStartupRoute({ candidate: true, envelope: mealExecutionDisabled }), { route: "/pages/legacy/index?reason=meal_execution_disabled", reason: "meal_execution_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: incomplete }), { route: "/pages/identity/index", reason: "identity_incomplete" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: enabled }), { route: "/pages/tonight/index", reason: "native_enabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: { ...enabled, cacheState: "cached" } }), { route: "/pages/tonight/index", reason: "native_enabled" });
@@ -210,6 +212,11 @@ function runGuard({ bootstrap, candidate, sessionUserId = "user-1" }) {
 }
 assert.deepEqual(runGuard({ bootstrap: null, candidate: true }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "an unknown direct tab entry must return to boot");
 assert.deepEqual(runGuard({ bootstrap: disabled, candidate: true }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a server-disabled direct tab entry must return to legacy");
+assert.deepEqual(
+  runGuard({ bootstrap: mealExecutionDisabled, candidate: true }),
+  { allowed: false, guardRoutes: ["/pages/legacy/index?reason=meal_execution_disabled"] },
+  "a meal-execution-disabled direct tab entry must return to the stable legacy Tonight flow",
+);
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: false }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a package-disabled direct tab entry must return to legacy");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true }), { allowed: true, guardRoutes: [] }, "an enabled envelope may enter any core tab");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true, sessionUserId: "" }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "a native tab requires an authenticated app session user");

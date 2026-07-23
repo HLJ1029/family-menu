@@ -22,6 +22,7 @@
     "validate:recommendation": "node scripts/check-recommendation-constraints.mjs && node scripts/validate-recommendation-constraints.mjs",
     "validate:native-recommendation": "node scripts/check-native-recommendation.mjs && node scripts/generate-native-certified-recipes.mjs --check",
     "validate:native-tonight": "node scripts/check-native-tonight.mjs",
+    "validate:native-meal-timeline": "node scripts/check-native-meal-timeline.mjs",
     "smoke:native-shell-ui": "node scripts/smoke-native-shell-ui.mjs",
     "validate:share-bridge": "node scripts/validate-mini-share-runtime.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",

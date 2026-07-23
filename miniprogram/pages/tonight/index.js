@@ -60,6 +60,10 @@ Page({
       this.setView("error", { errorText: "今晚的家庭信息还没有准备好，请重新加载。" });
       return;
     }
+    if (bootstrap.capabilities?.mealExecutionEnabled !== true) {
+      wx.reLaunch({ url: "/pages/legacy/index?reason=meal_execution_disabled" });
+      return;
+    }
     const ownerUserId = String(bootstrap.user?.id || "");
     const dateKey = formatDinnerDateKey();
     this._dateKey = dateKey;
@@ -77,7 +81,7 @@ Page({
         return;
       }
       const merge = await mergeActiveGuestMealRun({ bootstrap, dateKey });
-      if (merge.mealRun) mealRun = merge.mealRun;
+      if (merge.mealRun || merge.guestRun) mealRun = merge.mealRun || merge.guestRun;
       if (!mealRun && !bootstrap.activeHouseholdId) {
         mealRun = await loadCurrentMealRun({ bootstrap, dateKey });
       }
@@ -119,8 +123,15 @@ Page({
           stateVersion: this.data.recommendation?.stateVersion || "",
         });
       } catch (error) {
-        if (Number(error?.status) !== 409 && error?.code !== "recommendation_state_conflict") throw error;
-        recommendation = await this.requestRecommendation("initial", { stateVersion: "" });
+        if (error?.code === "recommendation_state_conflict") {
+          recommendation = await this.requestRecommendation("initial", { stateVersion: "" });
+        } else if (Number(error?.status) === 409) {
+          const latest = await this.refreshMealRun();
+          if (latest) return;
+          throw error;
+        } else {
+          throw error;
+        }
       }
       this.applyRecommendation(recommendation, this.data.effortTier);
     } catch (error) {
@@ -224,6 +235,14 @@ Page({
     if (!bootstrap) return this.initialize();
     this.setData({ pendingAction: "refresh", errorText: "" });
     try {
+      const merge = await mergeActiveGuestMealRun({
+        bootstrap,
+        dateKey: this._dateKey || formatDinnerDateKey(),
+      });
+      if (merge.mealRun || merge.guestRun) {
+        this.applyMealRun(merge.mealRun || merge.guestRun);
+        return;
+      }
       const mealRun = await loadCurrentMealRun({
         bootstrap,
         dateKey: this._dateKey || formatDinnerDateKey(),

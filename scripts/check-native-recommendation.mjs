@@ -760,6 +760,40 @@ await assert.rejects(
   "completed dinner must refuse recommendation replacement",
 );
 
+const memberStartInput = {
+  ...baseInput,
+  dateKey: "2026-07-26",
+  contextFingerprint: createHash("sha256").update("formal-member-start-lock").digest("base64url"),
+  action: "initial",
+};
+store.data.households[0].members.push({ memberId: "member-start-a", role: "member", status: "formal" });
+const beforeMemberStart = await store.rotateDinnerRecommendation("owner-a", memberStartInput);
+const memberStartedRun = await store.createMealRun("owner-a", {
+  householdId: "household-a",
+  dateKey: memberStartInput.dateKey,
+  mealSlot: "dinner",
+  effortTier: "quick_15",
+  recipeIds: beforeMemberStart.recipeIds,
+  idempotencyKey: "formal-member-start-lock-run",
+});
+await store.startMealRun("member-start-a", memberStartedRun.mealRun.id, {
+  version: 1,
+  steps: [{
+    id: `${beforeMemberStart.recipeIds[0]}:step:1`,
+    attention: "active",
+    endsAt: "2026-07-26T10:01:00.000Z",
+  }],
+});
+await assert.rejects(
+  () => store.rotateDinnerRecommendation("owner-a", {
+    ...memberStartInput,
+    action: "next",
+    stateVersion: beforeMemberStart.stateVersion,
+  }),
+  (error) => error.code === "meal_run_locked",
+  "a formal member starting dinner between display and rotate must lock the owner's stale recommendation",
+);
+
 const server = createHumiApiServer();
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 try {

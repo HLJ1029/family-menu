@@ -9,5 +9,5 @@
   <button wx:if="{{mealRun.status === 'planned'}}" class="run-primary" bindtap="primaryAction">开始做饭</button>
   <button wx:elif="{{mealRun.status === 'cooking'}}" class="run-primary" bindtap="primaryAction">继续做饭</button>
   <view wx:else class="completed-note">这一顿已完成。反馈会在上桌后收集，不打断今晚的决定。</view>
-  <button wx:if="{{mealRun.status === 'planned'}}" class="replace-action" bindtap="replace">重新选一套</button>
+  <button wx:if="{{mealRun.status === 'planned' && canReplacePlan}}" class="replace-action" bindtap="replace">重新选一套</button>
 </view>
