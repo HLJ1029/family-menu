@@ -114,6 +114,70 @@ assert.throws(
   )),
   /must remain false/,
 );
+assert.throws(
+  () => validateNativeCandidateState(candidateYaml.replace(
+    "  true_device_evidence: 0/36",
+    "  true_device_evidence: 0/36\n  unreviewed_release_state: true",
+  )),
+  /unexpected candidate key/,
+  "candidate state must use the exact reviewed key set",
+);
+assert.throws(
+  () => validateNativeCandidateState([
+    candidateYaml,
+    "```yaml",
+    "native_shell_candidate: { status: approved, miniprogram_uploaded: true }",
+    "```",
+  ].join("\n")),
+  /noncanonical YAML syntax/,
+  "a second flow-style candidate mapping must not hide an approved/uploaded state",
+);
+assert.throws(
+  () => validateNativeCandidateState([
+    candidateYaml,
+    "```yaml",
+    "release: { miniprogram_uploaded: true }",
+    "```",
+  ].join("\n")),
+  /noncanonical YAML syntax/,
+  "a flow-style release mapping must not hide an uploaded state",
+);
+assert.throws(
+  () => validateNativeCandidateState([
+    candidateYaml,
+    "```yaml",
+    "release:",
+    "  miniprogram_uploaded: true",
+    "```",
+  ].join("\n")),
+  /candidate key outside canonical block/,
+);
+assert.throws(
+  () => validateNativeCandidateState([
+    candidateYaml,
+    "```yaml",
+    "release:",
+    "  status: approved",
+    "```",
+  ].join("\n")),
+  /(?:candidate key outside canonical block|unexpected structured YAML outside canonical block)/,
+);
+for (const maliciousYaml of [
+  "defaults: &uploaded",
+  "release: *uploaded",
+  "release: !uploaded true",
+  "release: !<tag:example.com,2026:uploaded> true",
+  "release: |\n  miniprogram_uploaded: true",
+  "release: >-\n  miniprogram_uploaded: true",
+  "release:\tfalse",
+  "release: [miniprogram_uploaded, true]",
+]) {
+  assert.throws(
+    () => validateNativeCandidateState(`${candidateYaml}\n\`\`\`yaml\n${maliciousYaml}\n\`\`\``),
+    /noncanonical YAML syntax/,
+    `noncanonical YAML must fail closed: ${maliciousYaml}`,
+  );
+}
 
 const rollback = await runNativeRollbackDrill({
   root: resolve(fileURLToPath(new URL("..", import.meta.url))),

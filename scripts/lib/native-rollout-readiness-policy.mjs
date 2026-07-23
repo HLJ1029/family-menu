@@ -6,6 +6,14 @@ const EXTERNAL_ACTION_KEYS = Object.freeze([
   "wechat_released",
   "native_allowlist_enabled",
 ]);
+const CANDIDATE_KEYS = Object.freeze([
+  "status",
+  "package_version",
+  "ads",
+  ...EXTERNAL_ACTION_KEYS,
+  "true_device_evidence",
+]);
+const CANDIDATE_KEY_SET = new Set(CANDIDATE_KEYS);
 
 const SUPABASE_PATTERNS = Object.freeze([
   /@supabase\//i,
@@ -63,6 +71,7 @@ export function validateNativeCandidateState(markdown, {
 } = {}) {
   const yamlBlocks = [...String(markdown || "").matchAll(/```ya?ml[ \t]*\r?\n([\s\S]*?)```/gi)]
     .map((match) => match[1]);
+  for (const yamlBlock of yamlBlocks) assertCanonicalYamlSyntax(yamlBlock);
   const candidateBlocks = yamlBlocks.filter((block) => (
     block.split(/\r?\n/).some((line) => line.trim() === "native_shell_candidate:")
   ));
@@ -70,25 +79,44 @@ export function validateNativeCandidateState(markdown, {
     throw new Error("expected exactly one native_shell_candidate block");
   }
   const block = candidateBlocks[0];
+  for (const yamlBlock of yamlBlocks) {
+    if (yamlBlock === block) continue;
+    if (yamlBlock.split(/\r?\n/).some((line) => (
+      CANDIDATE_KEY_SET.has(line.trimStart().split(":")[0])
+    ))) {
+      throw new Error("candidate key outside canonical block");
+    }
+  }
+  if (yamlBlocks.length !== 1) {
+    throw new Error("unexpected structured YAML outside canonical block");
+  }
   const state = {};
   let insideCandidate = false;
   for (const rawLine of block.split(/\r?\n/)) {
     if (!rawLine.trim()) continue;
     if (rawLine.trim() === "native_shell_candidate:") {
+      if (rawLine !== "native_shell_candidate:") {
+        throw new Error("noncanonical YAML syntax: native_shell_candidate indentation");
+      }
       if (insideCandidate) throw new Error("expected exactly one native_shell_candidate block");
       insideCandidate = true;
       continue;
     }
-    if (!insideCandidate) continue;
+    if (!insideCandidate) throw new Error("unexpected structured YAML outside canonical block");
     const match = rawLine.match(/^ {2}([a-z][a-z0-9_]*):[ \t]*(.*?)\s*$/);
     if (!match) throw new Error(`invalid native_shell_candidate line: ${rawLine.trim()}`);
     const [, key, rawValue] = match;
     if (Object.prototype.hasOwnProperty.call(state, key)) {
       throw new Error(`duplicate candidate key: ${key}`);
     }
+    if (!CANDIDATE_KEY_SET.has(key)) throw new Error(`unexpected candidate key: ${key}`);
     state[key] = parseYamlScalar(rawValue);
   }
 
+  const missingKeys = CANDIDATE_KEYS.filter((key) => !Object.prototype.hasOwnProperty.call(state, key));
+  if (missingKeys.length || Object.keys(state).length !== CANDIDATE_KEYS.length) {
+    throw new Error(`candidate key set must be exact; missing: ${missingKeys.join(", ")}`);
+  }
   for (const key of EXTERNAL_ACTION_KEYS) {
     const count = yamlBlocks.reduce((total, yamlBlock) => (
       total + yamlBlock.split(/\r?\n/).filter((line) => line.trimStart().startsWith(`${key}:`)).length
@@ -108,6 +136,22 @@ export function validateNativeCandidateState(markdown, {
     throw new Error("native candidate true_device_evidence must remain 0/36");
   }
   return state;
+}
+
+function assertCanonicalYamlSyntax(block) {
+  for (const rawLine of String(block || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (
+      rawLine.includes("\t")
+      || /[{}\[\]]/.test(rawLine)
+      || /(^|[\s:])(?:[&*][^\s]+|!(?:<[^>]+>|[^\s]+))/.test(rawLine)
+      || /:\s*[|>][+-]?\s*(?:#.*)?$/.test(rawLine)
+      || /^(?:---|\.\.\.|%|<<:|\? )/.test(line)
+    ) {
+      throw new Error(`noncanonical YAML syntax: ${line}`);
+    }
+  }
 }
 
 function hasAdRuntime(source, path) {

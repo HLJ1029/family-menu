@@ -242,7 +242,7 @@ if (externalHandoffPath) {
       expectedPackageVersion: packageVersion,
     });
     assert.deepEqual(
-      Object.fromEntries(Object.keys(repositoryCandidateState).map((key) => [key, externalCandidateState[key]])),
+      externalCandidateState,
       repositoryCandidateState,
       "AI-HQ candidate state must match the repository handoff",
     );
