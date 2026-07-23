@@ -10,12 +10,12 @@
     <text class="next-text">{{nextStep.recipeName}} · {{nextStep.text}}</text>
   </view>
   <button
-    wx:if="{{nextStep}}"
+    wx:if="{{actionLabel}}"
     class="advance-button"
     bindtap="advance"
     loading="{{pending}}"
     disabled="{{pending}}"
-  >这一步完成了</button>
+  >{{actionLabel}}</button>
   <view wx:elif="{{hasRemainingSteps}}" class="last-step">还在等待计时，结束后会自动出现下一步。</view>
   <view wx:else class="last-step">最后一步完成后，就可以点“上桌了”。</view>
 </view>

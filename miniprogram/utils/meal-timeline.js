@@ -134,7 +134,8 @@ function runningPassiveTimers(timeline, currentStepId, now = new Date().toISOStr
   return timeline.steps
     .slice(0, currentIndex + 1)
     .filter((step) => step.attention === "passive")
-    .map((step) => ({ ...step, remainingSeconds: remainingSeconds(step.endsAt, now) }));
+    .map((step) => ({ ...step, remainingSeconds: remainingSeconds(step.endsAt, now) }))
+    .filter((step) => step.remainingSeconds > 0);
 }
 
 function timelineError(code) {

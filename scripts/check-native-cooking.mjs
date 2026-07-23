@@ -58,10 +58,13 @@ await verifyRapidTapAndMonotonicProgress();
 await verifyOfflineRecoveryAndAccountIsolation();
 await verifyNetworkRaceQueuesMutation();
 await verifyOfflinePlannedRunStaysActionable();
+await verifyOfflineAbandonReasons();
 await verifyAllDowngrades();
 await verifyConflictFreezeAndReload();
+await verifyConflictReplacementGuidance();
 await verifyGuestLifecycle();
 await verifyMemberPermissionsAndCompletedReadOnly();
+await verifyRetryRecovery();
 verifyPresentationContracts();
 
 console.log("Native whole-meal cooking checks passed.");
@@ -86,6 +89,30 @@ async function verifyAuthenticatedLifecycle() {
     createdAt: 1,
     data: { currentStepId: timeline.steps[1].id, note: "private free text" },
   }), /offline_action_invalid/, "offline meal actions reject extra free text");
+  assert.throws(() => queue.enqueueMutation({
+    id: "unsafe-progress-shape",
+    type: "meal_progress",
+    householdId: "home-1",
+    mealRunId: active.id,
+    createdAt: 2,
+    data: { currentStepId: timeline.steps[1].id, arbitraryField: true },
+  }), /offline_action_invalid/, "offline meal actions use exact nested schemas");
+  assert.throws(() => queue.enqueueMutation({
+    id: "unsafe-feedback-value",
+    type: "meal_feedback",
+    householdId: "home-1",
+    mealRunId: active.id,
+    createdAt: 3,
+    data: { value: "tell_everyone_the_note" },
+  }), /offline_action_invalid/, "offline feedback is enum-only");
+  assert.throws(() => queue.enqueueMutation({
+    id: "unsafe-abandon-shape",
+    type: "meal_abandon",
+    householdId: "home-1",
+    mealRunId: active.id,
+    createdAt: 4,
+    data: { reason: "plans_changed", message: "private free text" },
+  }), /offline_action_invalid/, "offline abandon accepts only a reason enum");
   const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
   await page.onLoad({ mealRunId: active.id, action: "start" });
   assert.equal(page.data.mealRun.status, "cooking");
@@ -101,6 +128,7 @@ async function verifyAuthenticatedLifecycle() {
   await page.completeMeal();
   await page.completeMeal();
   assert.equal(page.data.mealRun.status, "completed");
+  assert.equal(page._clock, null, "completion stops the page timer immediately");
   assert.equal(calls.filter((call) => call.path.endsWith("/complete")).length, 1, "serve must be exactly once");
 
   await page.saveFeedback({ detail: { value: "want_again" } });
@@ -112,7 +140,7 @@ async function verifyAuthenticatedLifecycle() {
 async function verifyPassiveConcurrencyAndBackgroundRestore() {
   const cooking = remoteRun({
     status: "cooking",
-    currentStepId: timeline.steps[2].id,
+    currentStepId: timeline.steps[1].id,
     timerEndsAt: timeline.steps[1].endsAt,
   });
   const runtime = createRuntime({
@@ -137,13 +165,38 @@ async function verifyPassiveConcurrencyAndBackgroundRestore() {
   );
   const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
   await page.onLoad({ mealRunId: cooking.id });
-  assert.equal(page.data.currentActiveStep.id, timeline.steps[2].id, "only one active step is shown");
+  assert.equal(page.data.currentStep.id, timeline.steps[1].id, "the persisted cursor remains the passive timer");
+  assert.equal(page.data.currentActiveStep.id, timeline.steps[2].id, "the Now card promotes only the safe parallel active step");
+  assert.equal(page.data.stepActionLabel, "开始这一步", "parallel progress never pretends the passive timer was manually completed");
+  assert.equal(page.data.stepActionFromId, timeline.steps[1].id);
   assert.deepEqual(page.data.runningTimers.map((item) => item.id), [timeline.steps[1].id], "passive work may run beside an active step");
   assert.equal(page.data.runningTimers[0].remainingSeconds, 90);
+  await page.advanceStep({ detail: { stepId: timeline.steps[1].id } });
+  assert.equal(page.data.mealRun.currentStepId, timeline.steps[2].id, "starting the promoted active step advances from the passive cursor");
+  assert.equal(page.data.currentActiveStep.id, timeline.steps[2].id);
+
+  const blockedTimeline = clone(timeline);
+  blockedTimeline.steps[2].resources = ["pot"];
+  const blocked = remoteRun({
+    id: "run-passive-wait",
+    status: "cooking",
+    timeline: blockedTimeline,
+    currentStepId: blockedTimeline.steps[1].id,
+    timerEndsAt: blockedTimeline.steps[1].endsAt,
+  });
+  const blockedRuntime = createRuntime({
+    initialRun: blocked,
+    now: "2026-07-23T10:01:30.000Z",
+  });
+  const blockedPage = blockedRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await blockedPage.onLoad({ mealRunId: blocked.id });
+  assert.equal(blockedPage.data.currentActiveStep, null, "a passive step is never rendered as actionable when no active step is safe");
+  assert.equal(blockedPage.data.waitingForTimer, true, "the UI exposes an explicit waiting state");
+
   page.onHide();
   runtime.advanceClock(90_000);
   await page.onShow();
-  assert.equal(page.data.runningTimers[0].remainingSeconds, 0, "foreground recovery derives from endsAt");
+  assert.equal(page.data.runningTimers.length, 0, "expired passive timers are removed after absolute-time foreground recovery");
   assert(!JSON.stringify(runtime.storageEntries()).includes('"remainingCounter"'), "a decrementing timer is never persisted");
 }
 
@@ -212,11 +265,27 @@ async function verifyOfflineRecoveryAndAccountIsolation() {
   const pageB = accountB.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
   await pageB.onLoad({ mealRunId: "run-b" });
   assert.equal(pageB.data.unsyncedCount, 0, "another account cannot see pending progress");
+  assert.equal(pageB.data.mealRun.currentStepId, timeline.steps[0].id, "another account cannot see account A's optimistic progress");
 
-  runtime.setOnline(true);
-  await page.onShow();
-  await runtime.settle();
-  assert.equal(sharedStorage.get("humi:offline-queue:v1:member-a").length, 1, "the old account runtime cannot replay after account B became active");
+  const restartedA = createRuntime({
+    initialRun: cooking,
+    storage: sharedStorage,
+    userId: "member-a",
+    online: false,
+  });
+  const restartedPage = restartedA.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await restartedPage.onLoad({ mealRunId: cooking.id });
+  assert.equal(restartedPage.data.mealRun.currentStepId, timeline.steps[1].id, "offline process restart restores the user/household/date scoped optimistic step");
+
+  const appFirstA = createRuntime({
+    initialRun: cooking,
+    storage: sharedStorage,
+    userId: "member-a",
+    online: true,
+  });
+  const appFirstQueue = appFirstA.load("miniprogram/utils/offline-queue.js");
+  assert.equal((await appFirstQueue.flushMutationQueue()).status, "flushed", "App may flush before the cooking page is created");
+  assert.equal(appFirstQueue.readQueue().length, 0);
 
   const resumedA = createRuntime({
     initialRun: cooking,
@@ -226,15 +295,55 @@ async function verifyOfflineRecoveryAndAccountIsolation() {
   });
   const resumedPage = resumedA.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
   await resumedPage.onLoad({ mealRunId: cooking.id });
-  await resumedPage.onShow();
-  await resumedPage.onShow();
   await resumedA.settle();
+  await resumedA.settle();
+  assert.equal(resumedPage.data.mealRun.currentStepId, timeline.steps[1].id, "cold page load consumes the App-first replay result instead of regressing");
   assert.equal(resumedPage.data.unsyncedCount, 0);
   assert.equal(resumedPage.data.showBackWarning, false);
   assert(
-    resumedA.requests.some((request) => request.path.endsWith("/progress") && request.data.currentStepId === timeline.steps[1].id),
-    `reconnecting replays the allowlisted progress endpoint: ${JSON.stringify(resumedA.requests)}`,
+    appFirstA.requests.some((request) => request.path.endsWith("/progress") && request.data.currentStepId === timeline.steps[1].id),
+    `App-first reconnect replays the allowlisted progress endpoint: ${JSON.stringify(appFirstA.requests)}`,
   );
+}
+
+async function verifyOfflineAbandonReasons() {
+  for (const reason of ["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"]) {
+    const storage = new Map();
+    const cooking = remoteRun({ id: `run-${reason}`, status: "cooking" });
+    const offline = createRuntime({
+      initialRun: cooking,
+      storage,
+      userId: "member-abandon",
+      online: false,
+    });
+    const offlinePage = offline.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+    await offlinePage.onLoad({ mealRunId: cooking.id });
+    await offlinePage.abandon({ currentTarget: { dataset: { reason } } });
+    assert.equal(offlinePage.data.unsyncedCount, 1, `${reason} is queued offline`);
+    assert.equal(offlinePage.data.mealRun.status, "cooking", "queued abandon does not count as a terminal server state");
+
+    const appFirst = createRuntime({
+      initialRun: cooking,
+      storage,
+      userId: "member-abandon",
+      online: true,
+    });
+    const appQueue = appFirst.load("miniprogram/utils/offline-queue.js");
+    assert.equal((await appQueue.flushMutationQueue()).status, "flushed", `${reason} may be replayed by App before Page`);
+    assert.equal(appQueue.readQueue().length, 0);
+
+    const online = createRuntime({
+      initialRun: cooking,
+      storage,
+      userId: "member-abandon",
+      online: true,
+    });
+    const onlinePage = online.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+    await onlinePage.onLoad({ mealRunId: cooking.id });
+    assert.equal(onlinePage.data.mealRun.status, "abandoned", `${reason} converges from replay response`);
+    assert.equal(onlinePage.data.mealRun.abandonReason, reason);
+    assert.equal(onlinePage.data.unsyncedCount, 0);
+  }
 }
 
 async function verifyAllDowngrades() {
@@ -334,6 +443,32 @@ async function verifyConflictFreezeAndReload() {
   assert.equal(progressCalls, 1, "a conflict freezes later mutations");
 }
 
+async function verifyConflictReplacementGuidance() {
+  const initial = remoteRun({ id: "old-run", status: "cooking" });
+  const replacement = remoteRun({ id: "new-run", status: "planned", timeline: null, currentStepId: "" });
+  const runtime = createRuntime({
+    initialRun: initial,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: initial });
+      if (pathname.endsWith("/progress")) {
+        return succeed({
+          error: "state_conflict",
+          latestEnvelope: bootstrapFor({ currentMealRun: replacement }),
+        }, 409);
+      }
+      throw new Error(`Unexpected request: ${pathname}`);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: initial.id });
+  await page.advanceStep({ currentTarget: { dataset: { stepId: timeline.steps[0].id } } });
+  assert.equal(page.data.replacementDetected, true);
+  assert.equal(page.data.mealRun.id, replacement.id, "a 409 never presents the replaced run as latest");
+  assert.equal(page.data.viewState, "replaced");
+  page.goToLatestPlan();
+  assert.deepEqual(runtime.routes.at(-1), { kind: "reLaunch", url: "/pages/tonight/index" });
+}
+
 async function verifyGuestLifecycle() {
   const sharedStorage = new Map();
   const ownerUserId = "guest-cook";
@@ -376,6 +511,7 @@ async function verifyMemberPermissionsAndCompletedReadOnly() {
   assert.equal(page.data.mealRun.status, "cooking", "formal members can start");
   await page.abandon({ currentTarget: { dataset: { reason: "plans_changed" } } });
   assert.equal(page.data.mealRun.status, "abandoned", "formal members can abandon");
+  assert.equal(page._clock, null, "abandon stops the page timer immediately");
 
   const completed = remoteRun({ status: "completed", completedAt: "2026-07-23T10:04:00.000Z" });
   const readOnlyRuntime = createRuntime({ initialRun: completed });
@@ -386,10 +522,41 @@ async function verifyMemberPermissionsAndCompletedReadOnly() {
   assert.equal(readOnlyRuntime.requests.filter((item) => item.method !== "GET").length, 0, "completed dinner is read-only");
 }
 
+async function verifyRetryRecovery() {
+  const cooking = remoteRun({ status: "cooking" });
+  let attempts = 0;
+  const runtime = createRuntime({
+    initialRun: cooking,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (!pathname.startsWith("/meal-runs/current")) throw new Error(`Unexpected request: ${pathname}`);
+      attempts += 1;
+      if (attempts <= 2) return succeed({ error: "request_failed" }, 500);
+      return succeed({ mealRun: cooking });
+    },
+  });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: cooking.id });
+  assert.equal(page.data.status, "error");
+  await assert.doesNotReject(() => page.retry());
+  assert.equal(page.data.status, "error", "a retry failure returns to a retryable error state");
+  await page.retry();
+  assert.equal(page.data.status, "ready");
+  assert.equal(page.data.mealRun.status, "cooking");
+  assert(page._clock, "successful retry restarts the absolute-time refresh clock");
+}
+
 function verifyPresentationContracts() {
   const pageWxml = readFileSync(path.join(root, "miniprogram/packageCooking/pages/cooking/index.wxml"), "utf8");
   const pageJson = JSON.parse(readFileSync(path.join(root, "miniprogram/packageCooking/pages/cooking/index.json"), "utf8"));
+  for (const [index, line] of pageWxml.split("\n").entries()) {
+    if (line.includes("wx:if=") || line.includes("wx:elif=")) {
+      assert.match(line, /wx:(?:if|elif)="\{\{.*\}\}"/, `WXML conditional on line ${index + 1} must close its quoted expression`);
+    }
+  }
   assert.match(pageWxml, /<cooking-step/);
+  assert.match(pageWxml, /step="\{\{currentActiveStep\}\}"/, "the action card must render only an active step");
+  assert.doesNotMatch(pageWxml, /step="\{\{currentStep\}\}"/, "the passive cursor must never masquerade as the action card");
+  assert.match(pageWxml, /先等计时结束/, "a blocked passive cursor has an explicit waiting state");
   assert.match(pageWxml, /<absolute-timer/);
   assert.match(pageWxml, /<meal-feedback/);
   assert.match(pageWxml, />上桌了</);
@@ -492,6 +659,15 @@ function createRuntime({
           ...currentRun,
           currentStepId: call.data.currentStepId,
           timerEndsAt: call.data.timerEndsAt || "",
+        };
+        return succeed({ mealRun: currentRun });
+      }
+      if (call.path.endsWith("/abandon")) {
+        currentRun = {
+          ...currentRun,
+          status: "abandoned",
+          abandonReason: call.data.reason,
+          timerEndsAt: "",
         };
         return succeed({ mealRun: currentRun });
       }

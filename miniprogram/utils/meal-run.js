@@ -1,10 +1,12 @@
 const certifiedRecipes = require("../data/certified-recipes");
 const { requestHumi } = require("./request");
 const { buildMealTimeline, summarizeMealTimeline } = require("./meal-timeline");
+const { readMealMutationResult } = require("./offline-queue");
 
 const GUEST_RUN_PREFIX = "humi:meal-run:guest:v1:";
 const REMOTE_RUN_PREFIX = "humi:meal-run:remote:v1:";
 const MERGED_RUN_PREFIX = "humi:meal-run:merged:v1:";
+const OPTIMISTIC_PROGRESS_PREFIX = "humi:meal-run:optimistic-progress:v1:";
 const ACTIVE_STATUSES = new Set(["planned", "cooking"]);
 const RUN_STATUSES = new Set(["planned", "cooking", "completed", "abandoned"]);
 const EFFORT_TIERS = new Set(["quick_15", "easy_30", "normal"]);
@@ -289,13 +291,112 @@ async function loadMealRunForCooking({
     if (!guestRun || guestRun.id !== safeMealRunId) throw codedError("meal_run_not_found");
     return guestRun;
   }
+  const replayedRun = normalizeMealRun(readMealMutationResult(safeMealRunId));
+  if (replayedRun && ["completed", "abandoned"].includes(replayedRun.status)) {
+    clearOptimisticMealProgress(replayedRun, ownerUserId);
+    writeRemoteMealRun(replayedRun, ownerUserId);
+    return replayedRun;
+  }
   const mealRun = await loadCurrentMealRun({ bootstrap, dateKey, allowCache });
-  if (mealRun?.id === safeMealRunId) return mealRun;
+  const latestRun = chooseLatestMealRunSnapshot(mealRun, replayedRun);
+  if (latestRun?.id === safeMealRunId) {
+    writeRemoteMealRun(latestRun, ownerUserId);
+    return applyOptimisticMealProgress(latestRun, ownerUserId);
+  }
   const bootstrapRun = normalizeMealRun(bootstrap.currentMealRun);
   if (allowCache && bootstrapRun?.id === safeMealRunId) {
-    return { ...bootstrapRun, cacheState: "bootstrap" };
+    return applyOptimisticMealProgress({ ...bootstrapRun, cacheState: "bootstrap" }, ownerUserId);
   }
   throw codedError("meal_run_not_found");
+}
+
+function chooseLatestMealRunSnapshot(remote, replayed) {
+  if (!remote || !replayed || remote.id !== replayed.id) return remote || replayed || null;
+  const ranks = { planned: 0, cooking: 1, abandoned: 2, completed: 2 };
+  if ((ranks[replayed.status] ?? -1) > (ranks[remote.status] ?? -1)) return replayed;
+  if ((ranks[replayed.status] ?? -1) < (ranks[remote.status] ?? -1)) return remote;
+  if (remote.status !== "cooking" || replayed.status !== "cooking") {
+    const remoteTime = Date.parse(remote.updatedAt || "");
+    const replayedTime = Date.parse(replayed.updatedAt || "");
+    return replayedTime >= remoteTime ? replayed : remote;
+  }
+  const remoteIds = timelineStepIds(remote.timeline);
+  const replayedIds = timelineStepIds(replayed.timeline);
+  if (
+    remoteIds.length
+    && remoteIds.length === replayedIds.length
+    && remoteIds.every((id, index) => id === replayedIds[index])
+  ) {
+    return replayedIds.indexOf(replayed.currentStepId) >= remoteIds.indexOf(remote.currentStepId)
+      ? replayed
+      : remote;
+  }
+  return remote;
+}
+
+function writeOptimisticMealProgress(mealRun, {
+  ownerUserId,
+  currentStepId,
+  timerEndsAt = "",
+  now = new Date().toISOString(),
+} = {}) {
+  if (
+    !mealRun?.id
+    || mealRun.localOnly
+    || mealRun.status !== "cooking"
+    || !clean(ownerUserId)
+    || timelineStepIndex(mealRun.timeline, currentStepId) < 0
+  ) throw codedError("optimistic_progress_invalid");
+  const overlay = {
+    mealRunId: mealRun.id,
+    ownerUserId: clean(ownerUserId),
+    householdId: clean(mealRun.householdId),
+    dateKey: mealRun.dateKey,
+    timelineVersion: Number(mealRun.timelineVersion || mealRun.timeline?.version || 1),
+    currentStepId,
+    timerEndsAt: timerEndsAt || "",
+    updatedAt: new Date(now).toISOString(),
+  };
+  wx.setStorageSync(optimisticProgressKey(overlay.ownerUserId, overlay.householdId, overlay.dateKey), overlay);
+  return overlay;
+}
+
+function applyOptimisticMealProgress(mealRun, ownerUserId) {
+  if (!mealRun?.id || mealRun.localOnly || !clean(ownerUserId) || !mealRun.householdId || !mealRun.dateKey) return mealRun;
+  const key = optimisticProgressKey(ownerUserId, mealRun.householdId, mealRun.dateKey);
+  const overlay = wx.getStorageSync(key);
+  if (
+    !overlay
+    || overlay.ownerUserId !== clean(ownerUserId)
+    || overlay.householdId !== mealRun.householdId
+    || overlay.dateKey !== mealRun.dateKey
+    || overlay.mealRunId !== mealRun.id
+    || Number(overlay.timelineVersion) !== Number(mealRun.timelineVersion || mealRun.timeline?.version || 1)
+  ) {
+    if (overlay) wx.removeStorageSync(key);
+    return mealRun;
+  }
+  const remoteIndex = timelineStepIndex(mealRun.timeline, mealRun.currentStepId);
+  const optimisticIndex = timelineStepIndex(mealRun.timeline, overlay.currentStepId);
+  if (optimisticIndex < 0 || remoteIndex >= optimisticIndex || mealRun.status !== "cooking") {
+    wx.removeStorageSync(key);
+    return mealRun;
+  }
+  return {
+    ...mealRun,
+    currentStepId: overlay.currentStepId,
+    timerEndsAt: overlay.timerEndsAt,
+    pendingSync: true,
+  };
+}
+
+function clearOptimisticMealProgress(mealRun, ownerUserId) {
+  if (!mealRun?.householdId || !mealRun?.dateKey || !clean(ownerUserId)) return;
+  wx.removeStorageSync(optimisticProgressKey(ownerUserId, mealRun.householdId, mealRun.dateKey));
+}
+
+function optimisticProgressKey(ownerUserId, householdId, dateKey) {
+  return `${OPTIMISTIC_PROGRESS_PREFIX}${encodeKey(ownerUserId)}:${encodeKey(householdId)}:${dateKey}`;
 }
 
 async function startCookingMealRun(mealRun, { bootstrap = {}, idempotencyKey, now = new Date().toISOString() } = {}) {
@@ -655,9 +756,11 @@ function codedError(code) {
 }
 
 module.exports = {
+  applyOptimisticMealProgress,
   buildDinnerPlan,
   abandonCookingMealRun,
   canReplaceHouseholdPlan,
+  clearOptimisticMealProgress,
   completeCookingMealRun,
   createMealRun,
   currentHouseholdRole,
@@ -671,5 +774,6 @@ module.exports = {
   readActiveGuestMealRun,
   saveCookingFeedback,
   startCookingMealRun,
+  writeOptimisticMealProgress,
   writeGuestMealRun,
 };

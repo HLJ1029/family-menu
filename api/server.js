@@ -1151,7 +1151,9 @@ async function requireMealExecutionContext(request, requestedHouseholdId = "") {
 
 function mealExecutionCapabilities(household) {
   return {
-    mealExecution: Boolean(household && isMealExecutionEnabledFor(household.id)),
+    mealExecution: household
+      ? isMealExecutionEnabledFor(household.id)
+      : isGuestMealExecutionEnabled(),
   };
 }
 
@@ -1160,10 +1162,23 @@ function isMealExecutionEnabledFor(householdId) {
   return config.mealExecutionHouseholds.has("*") || config.mealExecutionHouseholds.has(householdId);
 }
 
+function isGuestMealExecutionEnabled() {
+  return config.mealExecutionEnabled
+    && (config.mealExecutionHouseholds.has("guest") || config.mealExecutionHouseholds.has("*"));
+}
+
 function isNativeShellEnabledFor(householdId) {
   if (!config.nativeShellEnabled) return false;
+  if (!householdId) {
+    const explicitGuestCohort = config.nativeShellHouseholds.has("guest")
+      && config.mealExecutionHouseholds.has("guest");
+    const testWildcardCohort = config.nativeShellWildcardAllowed
+      && config.nativeShellHouseholds.has("*")
+      && config.mealExecutionHouseholds.has("*");
+    return config.mealExecutionEnabled && (explicitGuestCohort || testWildcardCohort);
+  }
   return (config.nativeShellWildcardAllowed && config.nativeShellHouseholds.has("*"))
-    || Boolean(householdId && config.nativeShellHouseholds.has(householdId));
+    || config.nativeShellHouseholds.has(householdId);
 }
 
 function currentDinnerDateKey(now = new Date()) {

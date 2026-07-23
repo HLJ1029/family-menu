@@ -3,7 +3,9 @@ const { getSession } = require("./session");
 
 const QUEUE_KEY_PREFIX = "humi:offline-queue:v1:";
 const DEAD_LETTER_KEY_PREFIX = "humi:offline-dead-letter:v1:";
+const MEAL_REPLAY_RESULT_KEY_PREFIX = "humi:offline-meal-results:v1:";
 const MAX_ACTIONS = 100;
+const MAX_MEAL_REPLAY_RESULTS = 20;
 const MAX_QUEUE_BYTES = 256 * 1024;
 const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedback", "meal_abandon", "grocery_item_check", "product_event"]);
 const COMMON_ACTION_FIELDS = ["id", "type", "householdId", "createdAt", "ownerUserId"];
@@ -17,7 +19,8 @@ const ACTION_FIELD_SCHEMAS = Object.freeze({
 });
 const PRODUCT_EVENT_TYPES = new Set(["effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened"]);
 const PRODUCT_EVENT_FIELDS = ["mealRunId", "recommendationId", "effortTier"];
-const PRIVATE_DATA_FIELDS = new Set(["nickname", "token", "note", "notes", "comment", "text", "freeText"]);
+const FEEDBACK_VALUES = new Set(["want_again", "change_it", "too_hard"]);
+const ABANDON_REASONS = new Set(["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"]);
 let customReplayer = null;
 
 function getOwnerUserId() {
@@ -31,6 +34,10 @@ function queueKey(ownerUserId) {
 
 function deadLetterKey(ownerUserId) {
   return `${DEAD_LETTER_KEY_PREFIX}${ownerUserId}`;
+}
+
+function mealReplayResultKey(ownerUserId) {
+  return `${MEAL_REPLAY_RESULT_KEY_PREFIX}${ownerUserId}`;
 }
 
 function readQueueForOwner(ownerUserId) {
@@ -61,9 +68,7 @@ function validateAction(action) {
   if (!action.id || !action.householdId || !Number.isFinite(Number(action.createdAt))) {
     throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
   }
-  if (action.type.startsWith("meal_") && containsPrivateData(action.data)) {
-    throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
-  }
+  validateActionData(action);
   if (action.type === "product_event") {
     const { isSafeTelemetryEvent } = require("./telemetry");
     if (!PRODUCT_EVENT_TYPES.has(action.event) || !isSafeTelemetryEvent(action.event, action.fields || {})) {
@@ -72,12 +77,56 @@ function validateAction(action) {
   }
 }
 
-function containsPrivateData(value) {
-  if (!value || typeof value !== "object") return false;
-  if (Array.isArray(value)) return value.some(containsPrivateData);
-  return Object.entries(value).some(([key, child]) => (
-    PRIVATE_DATA_FIELDS.has(key) || containsPrivateData(child)
-  ));
+function validateActionData(action) {
+  if (action.type === "meal_complete") {
+    if (action.data !== undefined) throw invalidOfflineAction();
+    return;
+  }
+  if (action.type === "meal_progress") {
+    assertExactData(action.data, new Set(["currentStepId", "timerEndsAt"]), ["currentStepId"]);
+    if (!safeIdentifier(action.data.currentStepId, 160)) throw invalidOfflineAction();
+    if (action.data.timerEndsAt !== undefined && action.data.timerEndsAt !== "" && !validIsoDate(action.data.timerEndsAt)) {
+      throw invalidOfflineAction();
+    }
+    return;
+  }
+  if (action.type === "meal_feedback") {
+    assertExactData(action.data, new Set(["value"]), ["value"]);
+    if (!FEEDBACK_VALUES.has(action.data.value)) throw invalidOfflineAction();
+    return;
+  }
+  if (action.type === "meal_abandon") {
+    assertExactData(action.data, new Set(["reason"]), ["reason"]);
+    if (!ABANDON_REASONS.has(action.data.reason)) throw invalidOfflineAction();
+    return;
+  }
+  if (action.type === "grocery_item_check") {
+    assertExactData(action.data, new Set(["requestToken", "itemId", "checked"]), ["requestToken", "itemId", "checked"]);
+    if (!safeIdentifier(action.data.requestToken, 100) || !safeIdentifier(action.data.itemId, 100) || typeof action.data.checked !== "boolean") {
+      throw invalidOfflineAction();
+    }
+  }
+}
+
+function assertExactData(data, allowedFields, requiredFields) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw invalidOfflineAction();
+  if (Object.keys(data).some((key) => !allowedFields.has(key))) throw invalidOfflineAction();
+  if (requiredFields.some((key) => !Object.prototype.hasOwnProperty.call(data, key))) throw invalidOfflineAction();
+}
+
+function safeIdentifier(value, maxLength) {
+  return typeof value === "string"
+    && value.length > 0
+    && value.length <= maxLength
+    && /^[A-Za-z0-9:_-]+$/.test(value);
+}
+
+function validIsoDate(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function invalidOfflineAction() {
+  return new HumiRequestError(0, "offline_action_invalid", { retryable: false });
 }
 
 function projectAction(action, ownerUserId) {
@@ -149,6 +198,52 @@ function moveToDeadLetter(action, code, ownerUserId) {
   removeAction(action.id, ownerUserId);
 }
 
+function persistMealMutationResult(action, response, ownerUserId) {
+  const mealRun = response?.mealRun;
+  if (
+    !String(action?.type || "").startsWith("meal_")
+    || !action?.mealRunId
+    || !mealRun
+    || mealRun.id !== action.mealRunId
+  ) return true;
+  try {
+    const stored = wx.getStorageSync(mealReplayResultKey(ownerUserId));
+    const entries = Array.isArray(stored) ? stored : [];
+    const next = [
+      ...entries.filter((entry) => entry?.mealRunId !== mealRun.id),
+      {
+        mealRunId: mealRun.id,
+        mealRun: JSON.parse(JSON.stringify(mealRun)),
+        replayedAt: Date.now(),
+      },
+    ].slice(-MAX_MEAL_REPLAY_RESULTS);
+    wx.setStorageSync(mealReplayResultKey(ownerUserId), next);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function readMealMutationResult(mealRunId) {
+  const ownerUserId = getOwnerUserId();
+  if (!ownerUserId || !mealRunId) return null;
+  const stored = wx.getStorageSync(mealReplayResultKey(ownerUserId));
+  if (!Array.isArray(stored)) return null;
+  const result = [...stored].reverse().find((entry) => entry?.mealRunId === mealRunId);
+  return result?.mealRun ? JSON.parse(JSON.stringify(result.mealRun)) : null;
+}
+
+function clearMealMutationResult(mealRunId) {
+  const ownerUserId = getOwnerUserId();
+  if (!ownerUserId || !mealRunId) return;
+  const key = mealReplayResultKey(ownerUserId);
+  const stored = wx.getStorageSync(key);
+  if (!Array.isArray(stored)) return;
+  const next = stored.filter((entry) => entry?.mealRunId !== mealRunId);
+  if (next.length) wx.setStorageSync(key, next);
+  else wx.removeStorageSync(key);
+}
+
 function setMutationReplayer(replayer) {
   customReplayer = replayer;
 }
@@ -198,16 +293,26 @@ function buildMutationRequest(action) {
   throw new HumiRequestError(0, "offline_action_unconfigured", { retryable: false });
 }
 
-async function flushMutationQueue() {
+async function flushMutationQueue(options = {}) {
   const ownerUserId = getOwnerUserId();
   if (!ownerUserId) return { status: "skipped", reason: "no_session" };
   for (const action of sortQueue(readQueueForOwner(ownerUserId))) {
     if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
     if (action.ownerUserId !== ownerUserId) return { status: "skipped", reason: "ownership_mismatch" };
     try {
-      await replayAction(action);
+      const response = await replayAction(action);
       if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+      if (!persistMealMutationResult(action, response, ownerUserId)) {
+        return { status: "retry", action };
+      }
       removeAction(action.id, ownerUserId);
+      if (typeof options.onReplayed === "function") {
+        try {
+          options.onReplayed(action, response);
+        } catch (_) {
+          // A local observer cannot turn an already-accepted idempotent server mutation into a replay failure.
+        }
+      }
     } catch (error) {
       if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
       if (error.status === 409) return { status: "conflict", action, envelope: error.latestEnvelope };
@@ -228,8 +333,10 @@ module.exports = {
   MAX_ACTIONS,
   MAX_QUEUE_BYTES,
   enqueueMutation,
+  clearMealMutationResult,
   readQueue,
   readDeadLetters,
+  readMealMutationResult,
   flushMutationQueue,
   setMutationReplayer,
   sortQueue,

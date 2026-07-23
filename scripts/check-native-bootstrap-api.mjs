@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path, { join } from "node:path";
+import vm from "node:vm";
+import { fileURLToPath } from "node:url";
 import { HumiStore } from "../api/store.js";
 
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const { resolveStartupRoute } = loadCommonJs("miniprogram/utils/bootstrap.js");
 const directory = await mkdtemp(join(tmpdir(), "humi-native-bootstrap-"));
 let serverImportSequence = 0;
 
@@ -14,9 +19,191 @@ try {
   await verifyProductionWildcardIsBlocked();
   await verifyDevelopmentWildcardIsBlocked();
   await verifyTestOnlyWildcardAllowlist();
+  await verifyGuestCapabilityCrossMatrix();
   console.log("Native bootstrap API contract passed.");
 } finally {
   await rm(directory, { recursive: true, force: true });
+}
+
+async function verifyGuestCapabilityCrossMatrix() {
+  const cases = [
+    {
+      name: "guest-both-wildcards",
+      env: {
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: true,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/tonight/index", reason: "native_enabled" },
+    },
+    {
+      name: "guest-native-only",
+      env: {
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+        HUMI_MEAL_EXECUTION_ENABLED: "0",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: false,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-meal-only",
+      env: {
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-single-household-native",
+      env: {
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "some-household",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-single-household-meal",
+      env: {
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "some-household",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: false,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-production-wildcards-blocked",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-production-explicit-cohort",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "guest",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "guest",
+      },
+      nativeShellEnabled: true,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/tonight/index", reason: "native_enabled" },
+    },
+    {
+      name: "guest-production-native-only",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "guest",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: false,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-production-meal-only",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "guest",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-production-native-guest-meal-wildcard",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "guest",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+    {
+      name: "guest-production-native-wildcard-meal-guest",
+      env: {
+        NODE_ENV: "production",
+        HUMI_NATIVE_SHELL_ENABLED: "1",
+        HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+        HUMI_MEAL_EXECUTION_ENABLED: "1",
+        HUMI_MEAL_EXECUTION_HOUSEHOLDS: "guest",
+      },
+      nativeShellEnabled: false,
+      mealExecutionEnabled: true,
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
+    },
+  ];
+  for (const contract of cases) {
+    const server = await startServer(contract.name, contract.env);
+    try {
+      const session = await login(server.baseUrl, `bootstrap-${contract.name}`);
+      await request(`${server.baseUrl}/identity/profile`, {
+        method: "PUT",
+        token: session.accessToken,
+        body: { displayName: "Humi 游客", avatarKey: "humi-avatar-family-m-01" },
+      });
+      const bootstrap = await request(`${server.baseUrl}/bootstrap`, { token: session.accessToken });
+      assert.equal(bootstrap.activeHouseholdId, "");
+      assert.equal(bootstrap.capabilities.mealExecutionEnabled, contract.mealExecutionEnabled, `${contract.name}: meal capability`);
+      assert.equal(bootstrap.capabilities.nativeShellEnabled, contract.nativeShellEnabled, `${contract.name}: native capability`);
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(resolveStartupRoute({ candidate: true, envelope: bootstrap }))),
+        contract.route,
+        `${contract.name}: startup route`,
+      );
+      if (contract.name === "guest-production-explicit-cohort") {
+        const familyMutation = await rawRequest(`${server.baseUrl}/meal-runs`, {
+          method: "POST",
+          token: session.accessToken,
+          body: {
+            householdId: "guest",
+            dateKey: todayDateKey(),
+            mealSlot: "dinner",
+            effortTier: "quick_15",
+            recipeIds: ["tomato-egg"],
+            idempotencyKey: "guest-must-stay-local",
+          },
+        });
+        assert.equal(familyMutation.status, 404, "guest cohort capability never authorizes a family mutation");
+        assert.equal(familyMutation.data.error, "household_not_found");
+      }
+    } finally {
+      await stopServer(server);
+    }
+  }
 }
 
 async function verifyDefaultOffFirstUse() {
@@ -121,12 +308,14 @@ async function verifyTestOnlyWildcardAllowlist() {
   const server = await startServer("wildcard", {
     HUMI_NATIVE_SHELL_ENABLED: "1",
     HUMI_NATIVE_SHELL_HOUSEHOLDS: "*",
+    HUMI_MEAL_EXECUTION_ENABLED: "1",
+    HUMI_MEAL_EXECUTION_HOUSEHOLDS: "*",
   });
   try {
     const session = await login(server.baseUrl, "bootstrap-wildcard-first-use");
     const bootstrap = await request(`${server.baseUrl}/bootstrap`, { token: session.accessToken });
     assert.equal(bootstrap.activeHouseholdId, "");
-    assert.equal(bootstrap.capabilities.nativeShellEnabled, true, "test-only wildcard includes first-use users");
+    assert.equal(bootstrap.capabilities.nativeShellEnabled, true, "test-only native and meal wildcards include first-use users");
   } finally {
     await stopServer(server);
   }
@@ -238,4 +427,32 @@ async function rawRequest(url, { method = "GET", token = "", body } = {}) {
 
 function todayDateKey() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function loadCommonJs(relativePath, modules = new Map()) {
+  const absolutePath = resolveModule(path.join(root, relativePath));
+  if (modules.has(absolutePath)) return modules.get(absolutePath).exports;
+  if (absolutePath.endsWith(".json")) return JSON.parse(readFileSync(absolutePath, "utf8"));
+  const record = { exports: {} };
+  modules.set(absolutePath, record);
+  vm.runInNewContext(readFileSync(absolutePath, "utf8"), {
+    module: record,
+    exports: record.exports,
+    require: (specifier) => loadCommonJs(path.relative(root, resolveModule(path.resolve(path.dirname(absolutePath), specifier))), modules),
+    wx: {},
+    getApp: () => ({ globalData: {} }),
+    Date,
+    Map,
+    Set,
+    Promise,
+    console,
+  }, { filename: absolutePath });
+  return record.exports;
+}
+
+function resolveModule(candidate) {
+  for (const option of [candidate, `${candidate}.js`, `${candidate}.json`]) {
+    if (existsSync(option)) return option;
+  }
+  return candidate;
 }

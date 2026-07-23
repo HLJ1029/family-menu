@@ -1,6 +1,7 @@
 const { loadBootstrap } = require("../../../utils/bootstrap");
 const {
   abandonCookingMealRun,
+  clearOptimisticMealProgress,
   completeCookingMealRun,
   downgradeCookingMealRun,
   formatDinnerDateKey,
@@ -9,6 +10,7 @@ const {
   progressCookingMealRun,
   saveCookingFeedback,
   startCookingMealRun,
+  writeOptimisticMealProgress,
 } = require("../../../utils/meal-run");
 const {
   nextAvailableTimelineStep,
@@ -44,6 +46,10 @@ const pageDefinition = {
     currentStep: null,
     currentActiveStep: null,
     nextStep: null,
+    displayNextStep: null,
+    stepActionLabel: "",
+    stepActionFromId: "",
+    waitingForTimer: false,
     hasRemainingSteps: false,
     runningTimers: [],
     elapsedSeconds: 0,
@@ -63,6 +69,7 @@ const pageDefinition = {
     downgradeOptions: DOWNGRADES,
     abandonReasons: ABANDON_REASONS,
     feedbackValue: "",
+    replacementDetected: false,
   },
 
   async onLoad(options = {}) {
@@ -87,6 +94,7 @@ const pageDefinition = {
       this._entryAction = options.action === "start" ? "start" : options.action ? "invalid" : "";
       if (this._entryAction === "invalid") throw codedError("meal_run_route_invalid");
       await this.loadRun({ startIfPlanned: this._entryAction === "start" });
+      if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
       this.startClock();
     } catch (error) {
       this.setError(errorMessage(error, "这顿饭暂时没有加载成功，请返回今晚重试。"));
@@ -122,7 +130,13 @@ const pageDefinition = {
       return;
     }
     this.setData({ status: "loading", viewState: "loading", errorText: "" });
-    await this.loadRun({ startIfPlanned: this._entryAction === "start" });
+    try {
+      await this.loadRun({ startIfPlanned: this._entryAction === "start" });
+      if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
+      this.startClock();
+    } catch (error) {
+      this.setError(errorMessage(error, "这顿饭暂时没有加载成功，请返回今晚重试。"));
+    }
   },
 
   async loadRun({ startIfPlanned = false } = {}) {
@@ -164,6 +178,10 @@ const pageDefinition = {
     const payload = { currentStepId: next.id, timerEndsAt };
     if (!this.data.isOnline && !mealRun.localOnly) {
       this.queueMealMutation("meal_progress", payload, `progress:${next.id}`);
+      writeOptimisticMealProgress(mealRun, {
+        ownerUserId: appStore.getState().bootstrap?.user?.id,
+        ...payload,
+      });
       this.applyMealRun(chooseMonotonicMealRun(mealRun, {
         ...mealRun,
         ...payload,
@@ -181,6 +199,10 @@ const pageDefinition = {
     }, {
       onOffline: () => {
         this.queueMealMutation("meal_progress", payload, `progress:${next.id}`);
+        writeOptimisticMealProgress(mealRun, {
+          ownerUserId: appStore.getState().bootstrap?.user?.id,
+          ...payload,
+        });
         const optimistic = chooseMonotonicMealRun(mealRun, {
           ...mealRun,
           ...payload,
@@ -310,13 +332,25 @@ const pageDefinition = {
       return this._reconcilePromise;
     }
     this._reconcilePromise = (async () => {
-      const outcome = await flushMutationQueue();
+      let replayedMealRun = null;
+      const outcome = await flushMutationQueue({
+        onReplayed: (action, response) => {
+          if (action.mealRunId === this._mealRunId && response?.mealRun?.id === this._mealRunId) {
+            replayedMealRun = response.mealRun;
+            clearOptimisticMealProgress(response.mealRun, appStore.getState().bootstrap?.user?.id);
+          }
+        },
+      });
       if (outcome?.status === "conflict") {
         await this.handleConflict({ latestEnvelope: outcome.envelope });
         return;
       }
       this.updateUnsyncedState();
       if (outcome?.status === "retry") return;
+      if (replayedMealRun) {
+        this.applyMealRun(chooseMonotonicMealRun(this.data.mealRun, replayedMealRun));
+        if (replayedMealRun.status === "abandoned") return;
+      }
       const bootstrap = appStore.getState().bootstrap;
       const latest = await loadMealRunForCooking({
         bootstrap,
@@ -385,15 +419,39 @@ const pageDefinition = {
       }
     }
     if (envelope) appStore.replaceBootstrap(envelope);
-    const latest = envelope?.currentMealRun?.id === this._mealRunId
-      ? envelope.currentMealRun
+    const envelopeRun = envelope?.currentMealRun || null;
+    if (envelopeRun?.id && envelopeRun.id !== this._mealRunId) {
+      clearOptimisticMealProgress(this.data.mealRun, appStore.getState().bootstrap?.user?.id);
+      this.stopClock();
+      this.setData({
+        status: "ready",
+        viewState: "replaced",
+        mealRun: envelopeRun,
+        replacementDetected: true,
+        currentStep: null,
+        currentActiveStep: null,
+        nextStep: null,
+        displayNextStep: null,
+        stepActionLabel: "",
+        stepActionFromId: "",
+        waitingForTimer: false,
+        hasRemainingSteps: false,
+        runningTimers: [],
+      });
+      return;
+    }
+    const latest = envelopeRun?.id === this._mealRunId
+      ? envelopeRun
       : await loadMealRunForCooking({
         bootstrap: appStore.getState().bootstrap,
         mealRunId: this._mealRunId,
         dateKey: this._dateKey,
         allowCache: true,
       }).catch(() => null);
-    if (latest) this.applyMealRun(latest, { preserveConflict: true });
+    if (latest) {
+      clearOptimisticMealProgress(latest, appStore.getState().bootstrap?.user?.id);
+      this.applyMealRun(latest, { preserveConflict: true });
+    }
     this.updateUnsyncedState();
   },
 
@@ -423,9 +481,12 @@ const pageDefinition = {
       viewState: mealRun.status,
       mealRun,
       feedbackValue,
+      replacementDetected: false,
       errorText: preserveConflict ? this.data.errorText : "",
     });
     this.refreshDerivedState();
+    if (mealRun.status === "cooking") this.startClock();
+    else this.stopClock();
   },
 
   refreshDerivedState() {
@@ -435,6 +496,10 @@ const pageDefinition = {
         currentStep: null,
         currentActiveStep: null,
         nextStep: null,
+        displayNextStep: null,
+        stepActionLabel: "",
+        stepActionFromId: "",
+        waitingForTimer: false,
         hasRemainingSteps: false,
         runningTimers: [],
         elapsedSeconds: 0,
@@ -450,6 +515,11 @@ const pageDefinition = {
     const currentStep = mealRun.timeline.steps[currentIndex] || null;
     const nextCandidate = nextTimelineStep(mealRun.timeline, mealRun.currentStepId);
     const nextStep = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId, now);
+    const currentActiveStep = currentStep?.attention === "active"
+      ? currentStep
+      : nextStep?.attention === "active" ? nextStep : null;
+    const startsParallelActiveStep = currentStep?.attention === "passive"
+      && currentActiveStep?.id === nextStep?.id;
     const startedAtMs = Date.parse(mealRun.startedAt || mealRun.timeline.startedAt);
     const elapsedSeconds = Number.isFinite(startedAtMs)
       ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000))
@@ -457,10 +527,14 @@ const pageDefinition = {
     const total = Number(mealRun.timeline.totalSeconds) || 0;
     this.setData({
       currentStep,
-      currentActiveStep: currentStep?.attention === "active"
-        ? currentStep
-        : nextStep?.attention === "active" ? nextStep : null,
+      currentActiveStep,
       nextStep,
+      displayNextStep: currentStep?.attention === "active" ? nextStep : null,
+      stepActionLabel: startsParallelActiveStep
+        ? "开始这一步"
+        : currentStep?.attention === "active" && nextStep ? "这一步完成了" : "",
+      stepActionFromId: currentStep?.id || "",
+      waitingForTimer: currentStep?.attention === "passive" && !currentActiveStep,
       hasRemainingSteps: Boolean(nextCandidate),
       runningTimers: runningPassiveTimers(mealRun.timeline, mealRun.currentStepId, now),
       elapsedSeconds,
@@ -504,6 +578,10 @@ const pageDefinition = {
   stopClock() {
     if (this._clock) clearInterval(this._clock);
     this._clock = null;
+  },
+
+  goToLatestPlan() {
+    wx.reLaunch({ url: "/pages/tonight/index" });
   },
 
   idempotencyKey(action) {

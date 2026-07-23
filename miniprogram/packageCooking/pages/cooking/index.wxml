@@ -16,13 +16,19 @@
     <view wx:if="{{showBackWarning}}" class="back-warning">还有进度未同步，先保持 Humi 在后台，联网后会自动补上。</view>
     <view wx:if="{{syncFrozen}}" class="conflict-warning">家里的安排刚刚有更新，请确认最新进度</view>
 
-    <view wx:if="{{mealRun.status === 'planned'}}" class="completed-card">
+    <view wx:if="{{replacementDetected}}" class="completed-card">
+      <text class="completed-title">家人已经换了今晚的安排</text>
+      <text class="completed-detail">旧进度已停止同步，请回到今晚确认真正最新的一顿。</text>
+      <button class="serve-button" bindtap="goToLatestPlan">查看最新安排</button>
+    </view>
+
+    <view wx:if="{{!replacementDetected && mealRun.status === 'planned'}}" class="completed-card">
       <text class="completed-title">这顿饭已经准备好</text>
       <text class="completed-detail">开始后，Humi 会把多道菜合成一条做饭时间线。</text>
       <button class="serve-button" bindtap="startPlanned" loading="{{pendingAction === 'start'}}">联网后开始做饭</button>
     </view>
 
-    <view wx:if="{{mealRun.status === 'cooking'}} class="cooking-content">
+    <view wx:if="{{!replacementDetected && mealRun.status === 'cooking'}}" class="cooking-content">
       <view wx:if="{{runningTimers.length}}" class="timer-section">
         <text class="section-label">同时在等</text>
         <absolute-timer
@@ -37,13 +43,19 @@
       <view class="step-section">
         <text class="section-label">现在做</text>
         <cooking-step
-          wx:if="{{currentStep}}"
-          step="{{currentStep}}"
-          next-step="{{nextStep}}"
+          wx:if="{{currentActiveStep}}"
+          step="{{currentActiveStep}}"
+          next-step="{{displayNextStep}}"
+          action-label="{{stepActionLabel}}"
+          action-from-step-id="{{stepActionFromId}}"
           has-remaining-steps="{{hasRemainingSteps}}"
           pending="{{!!pendingAction || syncFrozen}}"
           bind:advance="advanceStep"
         />
+        <view wx:elif="{{waitingForTimer}}" class="waiting-card">
+          <text class="waiting-title">先等计时结束</text>
+          <text class="waiting-detail">现在没有需要动手的步骤。计时结束后，下一步会自动出现。</text>
+        </view>
       </view>
 
       <view class="secondary-actions">
