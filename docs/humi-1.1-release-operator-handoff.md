@@ -1,13 +1,42 @@
 # Humi 1.1 Release Operator Handoff
 
-更新日期：2026-07-18
+更新日期：2026-07-24
 执行设备：codex@mbp-m5pro
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
 
+## 0. 原生骨架候选交接（N4）
+
+本节只描述 2026-07-24 形成的“原生小程序骨架”本地候选。下文出现的 API/H5 已部署、小程序 `1.1.72` 已上传，都是此前兼容版基线的历史状态，不能据此推断本次原生骨架已经部署、上传、提审或发布。原生候选的版本化 commit、文件路径、字节数和 SHA256 由 AI-HQ `native-shell/HANDOFF.md` 在本候选提交产生后绑定。
+
+```yaml
+native_shell_candidate:
+  status: preview
+  ads: excluded
+  production_api_deployed: false
+  h5_deployed: false
+  miniprogram_uploaded: false
+  wechat_review_submitted: false
+  wechat_released: false
+  native_allowlist_enabled: false
+  true_device_evidence: 0/36
+```
+
+本地候选边界：
+
+- 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
+- `npm run release:native-shell:check` 检查默认开关、空白名单、H5 兼容页、无广告/Supabase runtime/候选凭据、合法源码域名、包体预算、所需脚本和本地回滚演练。该命令通过只表示本地合同通过，不代表外部平台验收完成。
+- 原生候选不包含广告接入；后续广告需要重新设计、风险评审、实施计划与单独授权。
+- 当前真实真机证据是 `0/36`。iOS/Android 的登录、三档各五次推荐轮换、做饭后台恢复/离线同步、成员权限、五类分享的发送与接收者打开、海报样式、提醒结果和立即回滚都尚未形成合规证据。
+- `api.humi-home.com` 是源码中的 request/download 目标，但微信后台 `downloadFile` 合法域名仍是已知未配置阻塞项；必须在 N5 上传前复核 request、downloadFile 和 web-view 三类平台配置。
+- 微信开发者工具登录/自动化和约定真机暂不可用时，400/1000/2500ms 三项启动预算保持“未真机验证”；不得用本地静态合同代替。
+- 生产旧 H5 产品烟测如仍超时，应作为旧基线外部阻塞继续记录；本任务不部署 H5，也不以重试绕过失败。
+
+外部动作必须逐项重新取得授权：生产 API/H5 兼容部署、体验版上传、36 项真机验收、微信提审、正式发布、原生家庭白名单扩大。任何历史授权都不自动沿用。
+
 ## 1. 当前结论
 
-- 1.1 主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备，但当前不直接进入微信审核。
+- 1.1 兼容版主体闭环、H5 发布材料、小程序审核材料和规格验收矩阵已具备；原生骨架目前仅为 `preview`，当前不直接进入微信审核。
 - 当前阶段是 1.1 生产候选完善与内测验证：`docs/humi-1.1-pre-review-hardening.md` 的 P0/P1 已完成，继续保持工程门禁、产品验收和用户确认项可重复通过；最终进入微信公众平台审核前必须再次由用户确认。
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。

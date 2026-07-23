@@ -59,6 +59,22 @@ npm run validate:native-bootstrap-api
 
 原生壳只有在 `HUMI_NATIVE_SHELL_ENABLED=1` 且 allowlist 匹配当前家庭时才启用；空 allowlist 永不匹配。未命中时响应仍成功，但 `capabilities.nativeShellEnabled=false`，客户端继续进入既有 H5。
 
+### 原生壳灰度与回滚合同
+
+仓库默认必须保持 `HUMI_NATIVE_SHELL_ENABLED=0` 和 `HUMI_NATIVE_SHELL_HOUSEHOLDS=`。原生包内候选开关不能单独放量；服务端总开关与显式家庭白名单必须同时命中。生产环境拒绝 `*`，首次用户也不会因为没有家庭而被自动放入原生流程。
+
+关闭 `HUMI_NATIVE_SHELL_ENABLED` 后，客户端下一次 `/bootstrap` 读取必须得到 `capabilities.nativeShellEnabled=false`。客户端只清除当前用户的 bootstrap 家庭指针和对应的一条家庭读取缓存，再次启动进入 `/pages/legacy/index`；不删除 MealRun、家庭状态、离线写队列、协作记录或其他产品数据，也不执行数据库 schema 回滚。兼容页继续保留 H5 登录票据交换和微信分享行为。
+
+登录/bootstrap、分享、MealRun 上桌完成出现实质回退，出现 P0/P1，或隐私/权限行为偏离已批准合同时，必须立即关闭服务端原生总开关、验证 H5 兼容页，并停止扩大白名单。部署 API/H5、上传体验版、真机验收、提审、发布和每次白名单扩大互不授权，必须逐项留证。
+
+源码域名合同固定为：
+
+- request/download 目标：`https://api.humi-home.com`；
+- web-view 业务域名：`https://www.humi-home.com`；
+- 小程序项目保持 `urlCheck: true`。
+
+源码配置正确不等于微信公众平台已经放行。`downloadFile` 后台配置和 iOS/Android 真机下载必须在外部发布检查点单独验证；缺失时只阻塞海报图片真实分享/保存，不得把其他本地原生路径伪报为失败或通过。
+
 ## 微信登录
 
 `POST /auth/wechat/login`

@@ -43,6 +43,7 @@
     "validate:native-session": "node scripts/check-native-session.mjs",
     "validate:native-offline": "node scripts/check-native-offline-queue.mjs",
     "validate:native-observability": "node scripts/check-native-observability.mjs",
+    "release:native-shell:check": "node scripts/check-native-rollout-readiness.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",
     "validate:meal-execution-ui": "node scripts/smoke-meal-execution-ui.mjs",
     "validate:miniprogram-meal-reminder": "node scripts/check-miniprogram-meal-reminder.mjs",
