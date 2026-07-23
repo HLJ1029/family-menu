@@ -116,6 +116,7 @@ import {
   uploadPosterShare,
 } from "./lib/humiApi";
 import { completedMealsInWeek, createLocalMealRun, downgradeLocalMealRun, mergeLocalMealRun, transitionLocalMealRun } from "./lib/mealRun";
+import { createActualPassiveTimer } from "./lib/mealExecution";
 import { explainRecommendationViaApi as explainRecommendation } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "./lib/runtime";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, isShareRecoveryActive, queueShareRecovery } from "./lib/shareRecovery";
@@ -530,10 +531,18 @@ function App() {
         let synced = created.mealRun;
         if (["cooking", "completed"].includes(guestRun.status)) {
           synced = (await startHumiMealRun(humiSession, synced.id)).mealRun;
-          if (guestRun.status === "cooking" && guestRun.currentStepId) {
+          const guestTimers = guestRun.timers || {};
+          for (const step of guestRun.timeline?.steps || []) {
+            const timer = guestTimers[step.id];
+            if (!timer || synced.timers?.[step.id]) continue;
+            synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
+              currentStepId: step.id,
+              timer,
+            })).mealRun;
+          }
+          if (guestRun.currentStepId) {
             synced = (await updateHumiMealRunProgress(humiSession, synced.id, {
               currentStepId: guestRun.currentStepId,
-              timerEndsAt: guestRun.timerEndsAt,
             })).mealRun;
           }
           if (guestRun.status === "completed") synced = (await completeHumiMealRun(humiSession, synced.id)).mealRun;
@@ -555,6 +564,22 @@ function App() {
     hydrateMealRun();
     return () => { active = false; };
   }, [canManageHousehold, family?.id, humiSession, mealExecutionEnabled, online, todayDateKey]);
+
+  useEffect(() => {
+    if (
+      activeMealRun?.status !== "cooking"
+      || mealExecutionPending
+      || activeMealRun.timers?.[activeMealRun.currentStepId]
+    ) return;
+    const currentStep = activeMealRun.timeline?.steps?.find((step) => step.id === activeMealRun.currentStepId);
+    if (currentStep?.attention === "passive") void progressMealExecutionRun(currentStep);
+  }, [
+    activeMealRun?.currentStepId,
+    activeMealRun?.id,
+    activeMealRun?.status,
+    activeMealRun?.timers,
+    mealExecutionPending,
+  ]);
 
   useEffect(() => {
     if (!mealExecutionEnabled || mealExecutionFallback || activeMealRun) return;
@@ -1363,9 +1388,14 @@ function App() {
   }
 
   async function progressMealExecutionRun(step) {
-    if (!activeMealRun || !step?.id) return;
-    const timerEndsAt = step.attention === "passive" ? step.endsAt : "";
-    await performMealRunTransition("progress", { currentStepId: step.id, timerEndsAt });
+    if (!activeMealRun || !step?.id || mealExecutionPending) return;
+    const timer = step.attention === "passive"
+      ? createActualPassiveTimer(step, new Date().toISOString())
+      : null;
+    await performMealRunTransition("progress", {
+      currentStepId: step.id,
+      ...(timer ? { timer } : {}),
+    });
   }
 
   async function completeMealExecutionRun() {

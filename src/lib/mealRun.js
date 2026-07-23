@@ -1,4 +1,12 @@
-import { buildMealTimeline, downgradeMealPlan, getCertifiedRecipe, remainingTimerSeconds } from "./mealExecution.js";
+import {
+  buildMealTimeline,
+  createActualPassiveTimer,
+  downgradeMealPlan,
+  getCertifiedRecipe,
+  nextAvailableMealTimelineStep,
+  remainingTimerSeconds,
+  runningMealTimelineTimers,
+} from "./mealExecution.js";
 
 const runStatusRank = { planned: 0, cooking: 1, abandoned: 2, completed: 3 };
 
@@ -28,6 +36,7 @@ export function createLocalMealRun({
     timelineVersion: 1,
     timeline: null,
     currentStepId: "",
+    timers: {},
     timerEndsAt: "",
     readyStaple,
     status: "planned",
@@ -71,7 +80,14 @@ export function downgradeLocalMealRun(run, action, { now = new Date().toISOStrin
   if (next.status === "cooking") {
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: changedAt });
     next.currentStepId = next.timeline.steps[0]?.id || "";
-    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+    next.timers = {};
+    if (next.timeline.steps[0]?.attention === "passive") {
+      const timer = createActualPassiveTimer(next.timeline.steps[0], changedAt);
+      next.timers[timer.stepId] = timer;
+      next.timerEndsAt = timer.endsAt;
+    } else {
+      next.timerEndsAt = "";
+    }
   }
   next.updatedAt = changedAt;
   return next;
@@ -88,7 +104,14 @@ export function transitionLocalMealRun(run, action, payload = {}) {
     next.status = "cooking";
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
     next.currentStepId = next.timeline.steps[0]?.id || "";
-    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+    next.timers = {};
+    if (next.timeline.steps[0]?.attention === "passive") {
+      const timer = createActualPassiveTimer(next.timeline.steps[0], now);
+      next.timers[timer.stepId] = timer;
+      next.timerEndsAt = timer.endsAt;
+    } else {
+      next.timerEndsAt = "";
+    }
     next.startedBy = payload.userId || "guest";
     next.startedAt = now;
     next.updatedAt = now;
@@ -99,8 +122,20 @@ export function transitionLocalMealRun(run, action, payload = {}) {
     if (next.status !== "cooking") throw mealRunError("meal_run_transition_invalid", "Progress requires an active dinner.");
     const step = next.timeline?.steps?.find((candidate) => candidate.id === payload.currentStepId);
     if (!step) throw mealRunError("meal_step_invalid", "The step does not belong to this dinner.");
-    next.currentStepId = step.id;
-    next.timerEndsAt = payload.timerEndsAt ? normalizeIsoDate(payload.timerEndsAt) : "";
+    const currentIndex = next.timeline.steps.findIndex((candidate) => candidate.id === next.currentStepId);
+    const incomingIndex = next.timeline.steps.findIndex((candidate) => candidate.id === step.id);
+    const timer = payload.timer ? normalizeActualTimer(payload.timer, next.timeline) : null;
+    if (timer && timer.stepId !== step.id) throw mealRunError("meal_timer_step_invalid", "Timer and step must match.");
+    if (incomingIndex > currentIndex) {
+      const available = nextAvailableMealTimelineStep(next.timeline, next.currentStepId, next.timers, now);
+      if (available?.id !== step.id) throw mealRunError("meal_step_blocked", "This step is still waiting for a dependency or cookware.");
+      if (step.attention === "passive" && !timer && !next.timers?.[step.id]) {
+        throw mealRunError("meal_timer_step_invalid", "A passive step requires its actual timer.");
+      }
+    }
+    next.timers = mergeTimerMaps(next.timers, timer ? { [timer.stepId]: timer } : {});
+    if (incomingIndex > currentIndex) next.currentStepId = step.id;
+    next.timerEndsAt = next.timers[timer?.stepId]?.endsAt || next.timerEndsAt || "";
     next.updatedAt = now;
     return next;
   }
@@ -148,20 +183,26 @@ export function transitionLocalMealRun(run, action, payload = {}) {
 export function mergeLocalMealRun(localRun, remoteRun) {
   if (!localRun) return remoteRun ?? null;
   if (!remoteRun) return localRun;
+  const timers = mergeTimerMaps(remoteRun.timers, localRun.timers);
   if (remoteRun.syncedFromLocalId === localRun.id || localRun.syncedToRemoteId === remoteRun.id) {
-    return { ...structuredClone(remoteRun), localOnly: false, syncStatus: "synced" };
+    return { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" };
   }
   const localRank = runStatusRank[localRun.status] ?? -1;
   const remoteRank = runStatusRank[remoteRun.status] ?? -1;
-  if (remoteRank > localRank) return { ...structuredClone(remoteRun), localOnly: false, syncStatus: "synced" };
-  if (localRank > remoteRank) return localRun;
+  if (remoteRank > localRank) return { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" };
+  if (localRank > remoteRank) return { ...localRun, timers };
   return Date.parse(remoteRun.updatedAt || 0) >= Date.parse(localRun.updatedAt || 0)
-    ? { ...structuredClone(remoteRun), localOnly: false, syncStatus: "synced" }
-    : localRun;
+    ? { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" }
+    : { ...localRun, timers };
 }
 
 export function remainingLocalTimerSeconds(run, now = new Date().toISOString()) {
-  return run?.timerEndsAt ? remainingTimerSeconds(run.timerEndsAt, now) : 0;
+  const timer = run?.timers?.[run.currentStepId];
+  return timer ? remainingTimerSeconds(timer.endsAt, now) : 0;
+}
+
+export function runningLocalMealTimers(run, now = new Date().toISOString()) {
+  return runningMealTimelineTimers(run?.timeline, run?.currentStepId, run?.timers, now);
 }
 
 export function completedMealsInWeek(runs, { householdId, weekStartDateKey } = {}) {
@@ -203,6 +244,37 @@ function normalizeIsoDate(value) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) throw mealRunError("date_invalid", "A valid date is required.");
   return date.toISOString();
+}
+
+function normalizeActualTimer(timer, timeline) {
+  if (!timer || typeof timer !== "object" || Array.isArray(timer)) {
+    throw mealRunError("meal_timer_step_invalid", "A passive timer is required.");
+  }
+  const step = timeline?.steps?.find((candidate) => candidate.id === timer.stepId);
+  if (!step || step.attention !== "passive") {
+    throw mealRunError("meal_timer_step_invalid", "Timer must belong to a passive step.");
+  }
+  const startedAt = normalizeCanonicalIsoDate(timer.startedAt);
+  const endsAt = normalizeCanonicalIsoDate(timer.endsAt);
+  if (Date.parse(endsAt) - Date.parse(startedAt) !== Number(step.durationSeconds) * 1000) {
+    throw mealRunError("meal_timer_duration_invalid", "Timer duration must match the certified step.");
+  }
+  return { stepId: step.id, startedAt, endsAt };
+}
+
+function normalizeCanonicalIsoDate(value) {
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) {
+    throw mealRunError("meal_timer_time_invalid", "Timer timestamp must use canonical ISO format.");
+  }
+  return value;
+}
+
+function mergeTimerMaps(primary, fallback) {
+  const merged = { ...(primary || {}) };
+  for (const [stepId, timer] of Object.entries(fallback || {})) {
+    if (!merged[stepId]) merged[stepId] = timer;
+  }
+  return merged;
 }
 
 function normalizeAbandonReason(value) {

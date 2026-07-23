@@ -50,14 +50,33 @@ try {
   assert(cookingFlow, "the quick tier flow must remain available for the cooking timeline checks");
   const { page } = cookingFlow;
 
+  await page.clock.install({ time: new Date() });
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "开始做" }).waitFor();
   await page.getByRole("button", { name: "开始做" }).click();
   await page.getByTestId("meal-cooking-timeline").waitFor();
   assert.equal(await page.getByRole("button", { name: "上桌了" }).count(), 1);
   assert.equal(await page.getByRole("button", { name: "太累了" }).count(), 1);
+  if (await page.getByRole("button", { name: "下一步" }).count() === 0) {
+    assert.equal(
+      await page.getByText("先等正在计时的步骤结束", { exact: false }).count(),
+      1,
+      "H5 rollback must lock a dependent/resource-conflicting step against the actual timer",
+    );
+    await page.clock.fastForward("31:00");
+  }
   await page.getByRole("button", { name: "下一步" }).click();
   const stepAfterAdvance = await page.getByTestId("meal-current-step").textContent();
+  const cookingRun = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:meal-execution-runs:v1") || "[]")[0]);
+  assert(cookingRun.timers && !Array.isArray(cookingRun.timers), "H5 rollback persists a per-step timer map");
+  for (const timer of Object.values(cookingRun.timers)) {
+    const step = cookingRun.timeline.steps.find((candidate) => candidate.id === timer.stepId);
+    assert.equal(
+      Date.parse(timer.endsAt) - Date.parse(timer.startedAt),
+      step.durationSeconds * 1000,
+      "H5 rollback timer retains the certified full duration",
+    );
+  }
 
   await page.reload({ waitUntil: "networkidle" });
   await page.getByTestId("meal-cooking-timeline").waitFor();
@@ -83,6 +102,8 @@ try {
     "same-tick rapid taps advance each tier cursor once",
     "each tier accepts the exact recipes currently shown on screen",
     "plan acceptance is not completion",
+    "actual per-step timers lock unsafe progress and keep certified duration",
+    "background time recovery unlocks the next step",
     "cooking progress survives reload",
     "downgrade remains available",
     "explicit serving counts one weekly completion",

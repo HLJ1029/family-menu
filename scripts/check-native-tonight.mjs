@@ -497,6 +497,7 @@ async function verifyGuestMergeNetworkRecovery() {
 
 async function verifyCookingGuestStateMigration() {
   await verifyCookingGuestMergeSuccess();
+  await verifyTwoTimerGuestMerge();
   await verifyRemoteAheadGuestWins();
   await verifySameStepRemoteTimerWins();
   await verifyProgressRaceRemoteWins();
@@ -504,6 +505,90 @@ async function verifyCookingGuestStateMigration() {
     await verifyCookingGuestMergeRetry(failureStage);
   }
   await verifySameGuestCompletedRemoteWins();
+}
+
+async function verifyTwoTimerGuestMerge() {
+  const storage = new Map();
+  const userId = "guest-two-timers";
+  const householdId = "home-two-timers";
+  const remoteId = "remote-two-timers";
+  const dateKey = "2026-07-23";
+  const guestRuntime = createRuntime({
+    storage,
+    session: sessionFor(userId),
+    bootstrap: bootstrapFor({ userId }),
+  });
+  const guestMealRuns = guestRuntime.load("miniprogram/utils/meal-run.js");
+  const planned = await guestMealRuns.createMealRun({
+    bootstrap: bootstrapFor({ userId }),
+    recommendation: recommendation("rec-two-timers", ["cola-wings", "shiitake-steamed-chicken"], "local"),
+    effortTier: "normal",
+    dateKey,
+  });
+  const { buildMealTimeline } = guestRuntime.load("miniprogram/utils/meal-timeline.js");
+  const timeline = buildMealTimeline(planned.recipeIds, { startedAt: "2026-07-23T10:00:00.000Z" });
+  const timerSteps = [
+    timeline.steps.find((step) => step.id === "cola-wings:step:4"),
+    timeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3"),
+  ];
+  const timers = Object.fromEntries(timerSteps.map((step, index) => {
+    const startedAt = `2026-07-23T10:${index ? "25" : "20"}:00.000Z`;
+    return [step.id, {
+      stepId: step.id,
+      startedAt,
+      endsAt: new Date(Date.parse(startedAt) + step.durationSeconds * 1000).toISOString(),
+    }];
+  }));
+  const localRun = {
+    ...planned,
+    status: "cooking",
+    timelineVersion: timeline.version,
+    timeline,
+    currentStepId: timerSteps[1].id,
+    timers,
+    timerEndsAt: timers[timerSteps[1].id].endsAt,
+    startedAt: timeline.startedAt,
+    updatedAt: "2026-07-23T10:25:00.000Z",
+  };
+  const guestKey = [...storage.keys()].find((key) => key.startsWith("humi:meal-run:guest:v1:"));
+  storage.set(guestKey, clone(localRun));
+  let remote = {
+    ...remoteRun({ id: remoteId, householdId, status: "cooking", syncedFromLocalId: localRun.id }),
+    timelineVersion: timeline.version,
+    timeline: clone(timeline),
+    currentStepId: timeline.steps[0].id,
+    timers: {},
+  };
+  const timerCalls = [];
+  const householdBootstrap = bootstrapFor({ userId, householdId, role: "owner" });
+  const runtime = createRuntime({
+    storage,
+    session: sessionFor(userId),
+    bootstrap: householdBootstrap,
+    requestHandler: ({ path: pathname, data, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: remote });
+      if (pathname.endsWith("/progress")) {
+        if (data.timer) timerCalls.push(clone(data.timer));
+        remote = {
+          ...remote,
+          currentStepId: timeline.steps.findIndex((step) => step.id === data.currentStepId)
+            > timeline.steps.findIndex((step) => step.id === remote.currentStepId)
+            ? data.currentStepId
+            : remote.currentStepId,
+          timers: data.timer
+            ? { ...remote.timers, [data.timer.stepId]: remote.timers[data.timer.stepId] || data.timer }
+            : remote.timers,
+        };
+        return succeed({ mealRun: remote });
+      }
+      throw new Error(`Unexpected two-timer guest merge request: ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({ bootstrap: householdBootstrap, dateKey });
+  assert.equal(merged.merged, true);
+  assert.deepEqual(plain(timerCalls.map((timer) => timer.stepId)), plain(timerSteps.map((step) => step.id)));
+  assert.deepEqual(Object.keys(plain(merged.mealRun.timers)).sort(), timerSteps.map((step) => step.id).sort());
 }
 
 async function verifyCookingGuestMergeSuccess() {
@@ -537,6 +622,7 @@ async function verifyCookingGuestMergeSuccess() {
           timelineVersion: fixture.localRun.timelineVersion,
           timeline: clone(fixture.localRun.timeline),
           currentStepId: fixture.localRun.timeline.steps[0].id,
+          timers: {},
           timerEndsAt: "",
         };
         succeed({ mealRun: remote });
@@ -545,8 +631,13 @@ async function verifyCookingGuestMergeSuccess() {
       if (pathname === `/meal-runs/${fixture.remoteId}/progress` && method === "PUT") {
         stageKeys.progress.push(header["X-Humi-Idempotency-Key"]);
         assert.equal(data.currentStepId, fixture.localRun.currentStepId);
-        assert.equal(data.timerEndsAt, fixture.localRun.timerEndsAt);
-        remote = { ...remote, currentStepId: data.currentStepId, timerEndsAt: data.timerEndsAt };
+        assert.deepEqual(plain(data.timer), plain(fixture.localRun.timers[data.currentStepId]));
+        remote = {
+          ...remote,
+          currentStepId: data.currentStepId,
+          timers: { ...(remote.timers || {}), [data.timer.stepId]: data.timer },
+          timerEndsAt: data.timer.endsAt,
+        };
         succeed({ mealRun: remote });
         return;
       }
@@ -561,7 +652,7 @@ async function verifyCookingGuestMergeSuccess() {
   assert.equal(merged.merged, true);
   assert.equal(merged.mealRun.status, "cooking", "cooking guest must not be downgraded to remote planned");
   assert.equal(merged.mealRun.currentStepId, fixture.localRun.currentStepId);
-  assert.equal(merged.mealRun.timerEndsAt, fixture.localRun.timerEndsAt);
+  assert.deepEqual(plain(merged.mealRun.timers), plain(fixture.localRun.timers));
   assert.deepEqual(
     plain(merged.mealRun.timeline.steps.map((step) => step.id)),
     plain(fixture.localRun.timeline.steps.map((step) => step.id)),
@@ -569,15 +660,15 @@ async function verifyCookingGuestMergeSuccess() {
   assert.deepEqual(stageKeys, {
     create: [`guest-merge:${fixture.localRun.id}`],
     start: [`guest-merge:${fixture.localRun.id}:start`],
-    progress: [`guest-merge:${fixture.localRun.id}:progress`],
+    progress: [`guest-merge:${fixture.localRun.id}:timer:${fixture.localRun.currentStepId}`],
   });
   assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
 }
 
 async function verifyRemoteAheadGuestWins() {
   const fixture = await createCookingGuestFixture("remote-ahead");
-  const remoteStep = fixture.localRun.timeline.steps[2];
-  const remoteTimerEndsAt = "2026-07-23T10:45:00.000Z";
+  const currentIndex = fixture.localRun.timeline.steps.findIndex((step) => step.id === fixture.localRun.currentStepId);
+  const remoteStep = fixture.localRun.timeline.steps[currentIndex + 1];
   const remote = {
     ...remoteRun({
       id: fixture.remoteId,
@@ -588,7 +679,8 @@ async function verifyRemoteAheadGuestWins() {
     timelineVersion: fixture.localRun.timelineVersion,
     timeline: clone(fixture.localRun.timeline),
     currentStepId: remoteStep.id,
-    timerEndsAt: remoteTimerEndsAt,
+    timers: clone(fixture.localRun.timers),
+    timerEndsAt: fixture.localRun.timerEndsAt,
   };
   let progressCalls = 0;
   const runtime = createRuntime({
@@ -611,14 +703,19 @@ async function verifyRemoteAheadGuestWins() {
   });
   assert.equal(merged.merged, true);
   assert.equal(merged.mealRun.currentStepId, remoteStep.id, "a later remote step must win over stale guest progress");
-  assert.equal(merged.mealRun.timerEndsAt, remoteTimerEndsAt);
+  assert.deepEqual(plain(merged.mealRun.timers), plain(fixture.localRun.timers));
   assert.equal(progressCalls, 0, "a later remote step must never receive a stale progress PUT");
   assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
 }
 
 async function verifySameStepRemoteTimerWins() {
   const fixture = await createCookingGuestFixture("same-step-remote-timer");
-  const remoteTimerEndsAt = "2026-07-23T10:50:00.000Z";
+  const localTimer = fixture.localRun.timers[fixture.localRun.currentStepId];
+  const remoteTimer = {
+    ...localTimer,
+    startedAt: new Date(Date.parse(localTimer.startedAt) + 60_000).toISOString(),
+    endsAt: new Date(Date.parse(localTimer.endsAt) + 60_000).toISOString(),
+  };
   const remote = {
     ...remoteRun({
       id: fixture.remoteId,
@@ -629,7 +726,8 @@ async function verifySameStepRemoteTimerWins() {
     timelineVersion: fixture.localRun.timelineVersion,
     timeline: clone(fixture.localRun.timeline),
     currentStepId: fixture.localRun.currentStepId,
-    timerEndsAt: remoteTimerEndsAt,
+    timers: { [remoteTimer.stepId]: remoteTimer },
+    timerEndsAt: remoteTimer.endsAt,
   };
   let progressCalls = 0;
   const runtime = createRuntime({
@@ -652,15 +750,16 @@ async function verifySameStepRemoteTimerWins() {
   });
   assert.equal(merged.merged, true);
   assert.equal(merged.mealRun.currentStepId, fixture.localRun.currentStepId);
-  assert.equal(merged.mealRun.timerEndsAt, remoteTimerEndsAt, "the remote timer wins when both runs are on the same step");
+  assert.deepEqual(plain(merged.mealRun.timers[remoteTimer.stepId]), plain(remoteTimer), "the remote first-written timer wins when both runs are on the same step");
   assert.equal(progressCalls, 0);
 }
 
 async function verifyProgressRaceRemoteWins() {
   const fixture = await createCookingGuestFixture("progress-race");
   const firstStep = fixture.localRun.timeline.steps[0];
-  const memberStep = fixture.localRun.timeline.steps[2];
-  const memberTimerEndsAt = "2026-07-23T10:55:00.000Z";
+  const guestIndex = fixture.localRun.timeline.steps.findIndex((step) => step.id === fixture.localRun.currentStepId);
+  const memberStep = fixture.localRun.timeline.steps[guestIndex + 1];
+  const localTimer = fixture.localRun.timers[fixture.localRun.currentStepId];
   let remote = {
     ...remoteRun({
       id: fixture.remoteId,
@@ -671,6 +770,7 @@ async function verifyProgressRaceRemoteWins() {
     timelineVersion: fixture.localRun.timelineVersion,
     timeline: clone(fixture.localRun.timeline),
     currentStepId: firstStep.id,
+    timers: {},
     timerEndsAt: "",
   };
   let progressCalls = 0;
@@ -686,7 +786,12 @@ async function verifyProgressRaceRemoteWins() {
       if (pathname.endsWith("/progress")) {
         progressCalls += 1;
         assert.equal(data.currentStepId, fixture.localRun.currentStepId, "client may PUT only because GET observed remote behind");
-        remote = { ...remote, currentStepId: memberStep.id, timerEndsAt: memberTimerEndsAt };
+        remote = {
+          ...remote,
+          currentStepId: memberStep.id,
+          timers: { [localTimer.stepId]: localTimer },
+          timerEndsAt: localTimer.endsAt,
+        };
         succeed({ mealRun: remote });
         return;
       }
@@ -701,7 +806,7 @@ async function verifyProgressRaceRemoteWins() {
   assert.equal(progressCalls, 1);
   assert.equal(merged.merged, true, "a server response advanced by another member must safely converge");
   assert.equal(merged.mealRun.currentStepId, memberStep.id);
-  assert.equal(merged.mealRun.timerEndsAt, memberTimerEndsAt);
+  assert.deepEqual(plain(merged.mealRun.timers[localTimer.stepId]), plain(localTimer));
   assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
 }
 
@@ -747,6 +852,7 @@ async function verifyCookingGuestMergeRetry(failureStage) {
           timelineVersion: fixture.localRun.timelineVersion,
           timeline: clone(fixture.localRun.timeline),
           currentStepId: fixture.localRun.timeline.steps[0].id,
+          timers: {},
           timerEndsAt: "",
         };
         succeed({ mealRun: remote });
@@ -759,7 +865,14 @@ async function verifyCookingGuestMergeRetry(failureStage) {
           fail();
           return;
         }
-        remote = { ...remote, currentStepId: data.currentStepId, timerEndsAt: data.timerEndsAt };
+        remote = {
+          ...remote,
+          currentStepId: data.currentStepId,
+          timers: data.timer
+            ? { ...(remote.timers || {}), [data.timer.stepId]: data.timer }
+            : remote.timers || {},
+          timerEndsAt: data.timer?.endsAt || remote.timerEndsAt || "",
+        };
         succeed({ mealRun: remote });
         return;
       }
@@ -788,7 +901,7 @@ async function verifyCookingGuestMergeRetry(failureStage) {
   assert.equal(second.merged, true);
   assert.equal(second.mealRun.status, "cooking");
   assert.equal(second.mealRun.currentStepId, fixture.localRun.currentStepId);
-  assert.equal(second.mealRun.timerEndsAt, fixture.localRun.timerEndsAt);
+  assert.deepEqual(plain(second.mealRun.timers), plain(fixture.localRun.timers));
   assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
   assert.equal(stageKeys[failureStage].length, 2, `${failureStage} must be retried`);
   assert.equal(stageKeys[failureStage][0], stageKeys[failureStage][1], `${failureStage} retry must reuse its idempotency key`);
@@ -898,20 +1011,26 @@ async function createCookingGuestFixture(label) {
   const mealRuns = guestRuntime.load("miniprogram/utils/meal-run.js");
   const planned = await mealRuns.createMealRun({
     bootstrap: bootstrapFor({ userId }),
-    recommendation: recommendation(`rec-${label}`, ["tomato-egg"], "local"),
-    effortTier: "quick_15",
+    recommendation: recommendation(`rec-${label}`, ["cola-wings"], "local"),
+    effortTier: "normal",
     dateKey,
   });
   const { buildMealTimeline } = guestRuntime.load("miniprogram/utils/meal-timeline.js");
   const timeline = buildMealTimeline(planned.recipeIds, { startedAt: "2026-07-23T10:00:00.000Z" });
-  const progressStep = timeline.steps[Math.min(1, timeline.steps.length - 1)];
+  const progressStep = timeline.steps.find((step) => step.attention === "passive");
+  const actualTimer = {
+    stepId: progressStep.id,
+    startedAt: "2026-07-23T10:05:00.000Z",
+    endsAt: new Date(Date.parse("2026-07-23T10:05:00.000Z") + progressStep.durationSeconds * 1000).toISOString(),
+  };
   const localRun = {
     ...planned,
     status: "cooking",
     timelineVersion: timeline.version,
     timeline,
     currentStepId: progressStep.id,
-    timerEndsAt: "2026-07-23T10:30:00.000Z",
+    timers: { [progressStep.id]: actualTimer },
+    timerEndsAt: actualTimer.endsAt,
     startedAt: timeline.startedAt,
     updatedAt: "2026-07-23T10:05:00.000Z",
   };

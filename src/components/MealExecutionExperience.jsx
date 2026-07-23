@@ -1,7 +1,6 @@
 import { Check, ChevronRight, Clock3, Flame, HandHeart, LoaderCircle, TimerReset, UtensilsCrossed } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { effortTiers } from "../lib/mealExecution";
-import { remainingLocalTimerSeconds } from "../lib/mealRun";
+import { effortTiers, nextAvailableMealTimelineStep, runningMealTimelineTimers } from "../lib/mealExecution";
 
 const tierDetails = {
   quick_15: "一锅或一盘，先把饭开起来",
@@ -43,8 +42,9 @@ export function MealExecutionExperience({
   const timeline = mealRun?.timeline?.steps ?? [];
   const currentStepIndex = Math.max(0, timeline.findIndex((step) => step.id === mealRun?.currentStepId));
   const currentStep = timeline[currentStepIndex] ?? null;
-  const nextStep = timeline[currentStepIndex + 1] ?? null;
-  const timerSeconds = remainingLocalTimerSeconds(mealRun, now);
+  const scheduledNextStep = timeline[currentStepIndex + 1] ?? null;
+  const nextStep = nextAvailableMealTimelineStep(mealRun?.timeline, mealRun?.currentStepId, mealRun?.timers, now);
+  const runningTimers = runningMealTimelineTimers(mealRun?.timeline, mealRun?.currentStepId, mealRun?.timers, now);
   const totalMinutes = useMemo(() => (
     mealRun?.timeline?.totalSeconds
       ? Math.ceil(mealRun.timeline.totalSeconds / 60)
@@ -56,10 +56,10 @@ export function MealExecutionExperience({
     || "";
 
   useEffect(() => {
-    if (mealRun?.status !== "cooking" || !mealRun?.timerEndsAt) return undefined;
+    if (mealRun?.status !== "cooking" || Object.keys(mealRun?.timers || {}).length === 0) return undefined;
     const timer = window.setInterval(() => setNow(new Date().toISOString()), 1000);
     return () => window.clearInterval(timer);
-  }, [mealRun?.status, mealRun?.timerEndsAt]);
+  }, [mealRun?.status, mealRun?.timers]);
 
   if (mealRun?.status === "cooking") {
     return (
@@ -89,23 +89,28 @@ export function MealExecutionExperience({
                   {currentStep.recipeName}
                 </div>
                 <h3 data-testid="meal-current-step" className="mt-4 text-3xl font-black leading-tight tracking-[-0.04em]">{currentStep.text}</h3>
-                {currentStep.attention === "passive" && (
-                  <div className="mt-6 rounded-[24px] bg-ink px-5 py-5 text-white">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/55">计时中</p>
-                    <p className="mt-2 text-4xl font-black tabular-nums">{formatSeconds(timerSeconds)}</p>
-                    <p className="mt-2 text-sm font-bold text-white/68">退到微信聊天也没关系，回来按结束时间继续。</p>
-                  </div>
-                )}
                 {currentStep.rescueTip && (
                   <p className="mt-5 rounded-[20px] border border-line bg-canvas px-4 py-3 text-sm font-bold leading-6 text-ink/60">没按预期也别慌：{currentStep.rescueTip}</p>
                 )}
               </div>
             )}
 
-            {nextStep && (
+            {runningTimers.length > 0 && (
+              <div className="mt-6 grid gap-3" data-testid="meal-running-timers">
+                {runningTimers.map((timer) => (
+                  <div key={timer.id} className="rounded-[24px] bg-ink px-5 py-5 text-white">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/55">{timer.recipeName} · 计时中</p>
+                    <p className="mt-2 text-4xl font-black tabular-nums">{formatSeconds(timer.remainingSeconds)}</p>
+                    <p className="mt-2 text-sm font-bold text-white/68">按实际开始时间计时，退到微信聊天也不会缩短。</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {scheduledNextStep && (
               <div className="mt-7 border-t border-line pt-5">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">下一步</p>
-                <p className="mt-2 text-sm font-bold leading-6 text-ink/58">{nextStep.recipeName} · {nextStep.text}</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-ink/35">{nextStep ? "下一步" : "等待解锁"}</p>
+                <p className="mt-2 text-sm font-bold leading-6 text-ink/58">{scheduledNextStep.recipeName} · {scheduledNextStep.text}</p>
               </div>
             )}
 
@@ -115,6 +120,8 @@ export function MealExecutionExperience({
                   {pending ? <LoaderCircle className="animate-spin" size={19} /> : <ChevronRight size={19} />}
                   下一步
                 </button>
+              ) : scheduledNextStep ? (
+                <p className="rounded-[20px] bg-canvas px-4 py-3 text-center text-sm font-black">先等正在计时的步骤结束，所需厨具会自动解锁。</p>
               ) : (
                 <p className="rounded-[20px] bg-canvas px-4 py-3 text-center text-sm font-black">步骤走完了，确认饭菜真的上桌后再记录。</p>
               )}

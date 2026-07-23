@@ -95,6 +95,28 @@ function remainingSeconds(endsAt, now = new Date().toISOString()) {
   return Math.max(0, Math.ceil(remainingMs / 1000));
 }
 
+function createActualPassiveTimer(step, startedAt = new Date().toISOString()) {
+  if (!step?.id || step.attention !== "passive" || !Number.isFinite(Number(step.durationSeconds)) || Number(step.durationSeconds) <= 0) {
+    throw timelineError("passive_timer_step_invalid");
+  }
+  const startedAtMs = Date.parse(startedAt);
+  if (!Number.isFinite(startedAtMs)) throw timelineError("passive_timer_start_invalid");
+  const canonicalStartedAt = new Date(startedAtMs).toISOString();
+  return {
+    stepId: step.id,
+    startedAt: canonicalStartedAt,
+    endsAt: new Date(startedAtMs + Number(step.durationSeconds) * 1000).toISOString(),
+  };
+}
+
+function actualTimerFor(timers, stepId) {
+  const timer = timers && typeof timers === "object" && !Array.isArray(timers) ? timers[stepId] : null;
+  if (!timer || timer.stepId !== stepId || !Number.isFinite(Date.parse(timer.startedAt)) || !Number.isFinite(Date.parse(timer.endsAt))) {
+    return null;
+  }
+  return timer;
+}
+
 function timelineStepIndex(timeline, stepId) {
   if (!Array.isArray(timeline?.steps)) return -1;
   return timeline.steps.findIndex((step) => step.id === stepId);
@@ -106,35 +128,47 @@ function nextTimelineStep(timeline, currentStepId) {
   return timeline.steps[currentIndex + 1] || null;
 }
 
-function nextAvailableTimelineStep(timeline, currentStepId, now = new Date().toISOString()) {
+function nextAvailableTimelineStep(timeline, currentStepId, timers = {}, now = new Date().toISOString()) {
   const candidate = nextTimelineStep(timeline, currentStepId);
   if (!candidate) return null;
   const currentIndex = timelineStepIndex(timeline, currentStepId);
   const progressedSteps = timeline.steps.slice(0, currentIndex + 1);
   const stepById = new Map(timeline.steps.map((step) => [step.id, step]));
+  if (progressedSteps.some((step) => step.attention === "passive" && !actualTimerFor(timers, step.id))) {
+    return null;
+  }
   const passiveDependencyRunning = candidate.dependsOn.some((dependencyId) => {
     const dependency = stepById.get(dependencyId);
     return dependency?.attention === "passive"
       && progressedSteps.some((step) => step.id === dependencyId)
-      && remainingSeconds(dependency.endsAt, now) > 0;
+      && remainingSeconds(actualTimerFor(timers, dependencyId)?.endsAt, now) > 0;
   });
   if (passiveDependencyRunning) return null;
   const candidateResources = new Set(candidate.resources || []);
   const resourceBusy = progressedSteps.some((step) => (
     step.attention === "passive"
-    && remainingSeconds(step.endsAt, now) > 0
+    && remainingSeconds(actualTimerFor(timers, step.id)?.endsAt, now) > 0
     && (step.resources || []).some((resource) => candidateResources.has(resource))
   ));
   return resourceBusy ? null : candidate;
 }
 
-function runningPassiveTimers(timeline, currentStepId, now = new Date().toISOString()) {
+function runningPassiveTimers(timeline, currentStepId, timers = {}, now = new Date().toISOString()) {
   const currentIndex = timelineStepIndex(timeline, currentStepId);
   if (currentIndex < 0) return [];
   return timeline.steps
     .slice(0, currentIndex + 1)
     .filter((step) => step.attention === "passive")
-    .map((step) => ({ ...step, remainingSeconds: remainingSeconds(step.endsAt, now) }))
+    .map((step) => {
+      const timer = actualTimerFor(timers, step.id);
+      return timer ? {
+        ...step,
+        startedAt: timer.startedAt,
+        endsAt: timer.endsAt,
+        remainingSeconds: remainingSeconds(timer.endsAt, now),
+      } : null;
+    })
+    .filter(Boolean)
     .filter((step) => step.remainingSeconds > 0);
 }
 
@@ -146,6 +180,7 @@ function timelineError(code) {
 
 module.exports = {
   buildMealTimeline,
+  createActualPassiveTimer,
   nextAvailableTimelineStep,
   nextTimelineStep,
   remainingSeconds,

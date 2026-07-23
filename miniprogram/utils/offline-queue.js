@@ -83,8 +83,20 @@ function validateActionData(action) {
     return;
   }
   if (action.type === "meal_progress") {
-    assertExactData(action.data, new Set(["currentStepId", "timerEndsAt"]), ["currentStepId"]);
+    assertExactData(action.data, new Set(["currentStepId", "timer", "timerEndsAt"]), ["currentStepId"]);
     if (!safeIdentifier(action.data.currentStepId, 160)) throw invalidOfflineAction();
+    if (action.data.timer !== undefined) {
+      assertExactData(action.data.timer, new Set(["stepId", "startedAt", "endsAt"]), ["stepId", "startedAt", "endsAt"]);
+      if (
+        !safeIdentifier(action.data.timer.stepId, 160)
+        || action.data.timer.stepId !== action.data.currentStepId
+        || !validIsoDate(action.data.timer.startedAt)
+        || !validIsoDate(action.data.timer.endsAt)
+        || Date.parse(action.data.timer.endsAt) <= Date.parse(action.data.timer.startedAt)
+      ) {
+        throw invalidOfflineAction();
+      }
+    }
     if (action.data.timerEndsAt !== undefined && action.data.timerEndsAt !== "" && !validIsoDate(action.data.timerEndsAt)) {
       throw invalidOfflineAction();
     }

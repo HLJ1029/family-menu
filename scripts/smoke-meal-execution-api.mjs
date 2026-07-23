@@ -107,6 +107,7 @@ try {
     body: { currentStepId: thirdStep.id, timerEndsAt: thirdStep.endsAt },
   });
   assert.equal(memberProgressed.mealRun.currentStepId, thirdStep.id);
+  assert.deepEqual(memberProgressed.mealRun.timers, {}, "legacy singular timer input cannot drive actual cooking timers");
   const memberProgressUpdatedAt = memberProgressed.mealRun.updatedAt;
 
   const staleGuestProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
@@ -115,7 +116,8 @@ try {
     body: { currentStepId: secondStep.id, timerEndsAt: secondStep.endsAt },
   });
   assert.equal(staleGuestProgress.mealRun.currentStepId, thirdStep.id, "a stale guest step must not roll back family progress");
-  assert.equal(staleGuestProgress.mealRun.timerEndsAt, thirdStep.endsAt, "a stale guest timer must not replace the current timer");
+  assert.equal(staleGuestProgress.mealRun.timerEndsAt, "", "legacy singular timer remains compatibility-only");
+  assert.deepEqual(staleGuestProgress.mealRun.timers, {});
   assert.equal(staleGuestProgress.mealRun.updatedAt, memberProgressUpdatedAt, "ignored stale progress must not mutate the run");
 
   const staleSameStepTimer = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
@@ -124,7 +126,8 @@ try {
     body: { currentStepId: thirdStep.id, timerEndsAt: secondStep.endsAt },
   });
   assert.equal(staleSameStepTimer.mealRun.currentStepId, thirdStep.id);
-  assert.equal(staleSameStepTimer.mealRun.timerEndsAt, thirdStep.endsAt, "equal-step stale timer must not overwrite the remote timer");
+  assert.equal(staleSameStepTimer.mealRun.timerEndsAt, "");
+  assert.deepEqual(staleSameStepTimer.mealRun.timers, {}, "equal-step legacy input cannot create or replace an actual timer");
   assert.equal(staleSameStepTimer.mealRun.updatedAt, memberProgressUpdatedAt);
 
   const repeatedProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
@@ -140,7 +143,8 @@ try {
     body: { currentStepId: fourthStep.id, timerEndsAt: fourthStep.endsAt },
   });
   assert.equal(advancedProgress.mealRun.currentStepId, fourthStep.id, "a later timeline step must advance");
-  assert.equal(advancedProgress.mealRun.timerEndsAt, fourthStep.endsAt);
+  assert.equal(advancedProgress.mealRun.timerEndsAt, "");
+  assert.deepEqual(advancedProgress.mealRun.timers, {});
 
   const downgradedRun = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/downgrade`, {
     method: "POST",
@@ -188,6 +192,161 @@ try {
   });
   assert.equal(feedbackUpdated.mealRun.feedback.length, 2, "feedback is one upserted value per member");
   assert.equal(feedbackUpdated.mealRun.feedback.find((entry) => entry.userId === member.user.id).value, "change_it");
+
+  const timerPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: {
+      ...mealPlan(householdId, "2026-07-28", "actual-timer-validation"),
+      recipeIds: ["cola-wings"],
+      effortTier: "normal",
+    },
+  });
+  const timerStarted = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: member,
+    body: {},
+  });
+  const timerPassive = timerStarted.mealRun.timeline.steps.find((step) => step.attention === "passive");
+  const timerActive = timerStarted.mealRun.timeline.steps.find((step) => step.attention === "active");
+  const actualTimerStartedAt = new Date().toISOString();
+  const validActualTimer = {
+    stepId: timerPassive.id,
+    startedAt: actualTimerStartedAt,
+    endsAt: new Date(Date.parse(actualTimerStartedAt) + timerPassive.durationSeconds * 1000).toISOString(),
+  };
+  const futureActualTimer = actualTimer(
+    timerPassive,
+    new Date(Date.now() + 10 * 60_000).toISOString(),
+  );
+  for (const [timer, code] of [
+    [{ ...validActualTimer, stepId: "unknown-step" }, "meal_timer_step_invalid"],
+    [{ ...validActualTimer, stepId: timerActive.id }, "meal_timer_step_invalid"],
+    [{ ...validActualTimer, endsAt: new Date(Date.parse(validActualTimer.endsAt) - 1000).toISOString() }, "meal_timer_duration_invalid"],
+    [{ ...validActualTimer, endsAt: new Date(Date.parse(validActualTimer.endsAt) + 1000).toISOString() }, "meal_timer_duration_invalid"],
+    [{ ...validActualTimer, startedAt: actualTimerStartedAt.replace(/\.\d{3}Z$/, "Z") }, "meal_timer_time_invalid"],
+    [futureActualTimer, "meal_timer_time_invalid"],
+    [{ ...validActualTimer, note: "must-not-persist" }, "meal_timer_step_invalid"],
+  ]) {
+    await assertRejected(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
+      method: "PUT",
+      session: member,
+      body: { currentStepId: timerPassive.id, timer },
+    }, 400, code);
+  }
+  const actualTimerProgress = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: timerPassive.id, timer: validActualTimer },
+  });
+  assert.deepEqual(actualTimerProgress.mealRun.timers[timerPassive.id], validActualTimer);
+  const conflictingButValidTimer = {
+    ...validActualTimer,
+    startedAt: new Date(Date.parse(validActualTimer.startedAt) + 60_000).toISOString(),
+    endsAt: new Date(Date.parse(validActualTimer.endsAt) + 60_000).toISOString(),
+  };
+  const repeatedActualTimer = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: { currentStepId: timerPassive.id, timer: conflictingButValidTimer },
+  });
+  assert.deepEqual(repeatedActualTimer.mealRun.timers[timerPassive.id], validActualTimer, "a second member cannot restart or extend an existing timer");
+  const downgradedTimerRun = await request(`${baseUrl}/meal-runs/${timerPlan.mealRun.id}/downgrade`, {
+    method: "POST",
+    session: member,
+    body: { action: "ready_staple" },
+  });
+  assert.deepEqual(downgradedTimerRun.mealRun.timers, {}, "downgrade resets timers for the replacement timeline");
+
+  const parallelTimerPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: {
+      ...mealPlan(householdId, "2026-07-29", "parallel-actual-timers"),
+      recipeIds: ["cola-wings", "shiitake-steamed-chicken"],
+      effortTier: "normal",
+    },
+  });
+  const parallelStarted = await request(`${baseUrl}/meal-runs/${parallelTimerPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: member,
+    body: {},
+  });
+  const colaTimerStep = parallelStarted.mealRun.timeline.steps.find((step) => step.id === "cola-wings:step:4");
+  const shiitakeTimerStep = parallelStarted.mealRun.timeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3");
+  const parallelStartedAt = new Date().toISOString();
+  const colaTimer = actualTimer(colaTimerStep, parallelStartedAt);
+  const shiitakeTimer = actualTimer(shiitakeTimerStep, parallelStartedAt);
+  await request(`${baseUrl}/meal-runs/${parallelTimerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: colaTimerStep.id, timer: colaTimer },
+  });
+  const twoTimers = await request(`${baseUrl}/meal-runs/${parallelTimerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: { currentStepId: shiitakeTimerStep.id, timer: shiitakeTimer },
+  });
+  assert.deepEqual(Object.keys(twoTimers.mealRun.timers).sort(), [colaTimerStep.id, shiitakeTimerStep.id].sort());
+
+  const resourceTimerPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: {
+      ...mealPlan(householdId, "2026-07-30", "resource-locked-actual-timers"),
+      recipeIds: ["steamed-sea-bass", "shiitake-steamed-chicken"],
+      effortTier: "normal",
+    },
+  });
+  const resourceStarted = await request(`${baseUrl}/meal-runs/${resourceTimerPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: member,
+    body: {},
+  });
+  const firstSteamerTimerStep = resourceStarted.mealRun.timeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3");
+  const nextSteamerTimerStep = resourceStarted.mealRun.timeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:4");
+  const firstSteamerTimer = actualTimer(firstSteamerTimerStep, new Date().toISOString());
+  await request(`${baseUrl}/meal-runs/${resourceTimerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: firstSteamerTimerStep.id, timer: firstSteamerTimer },
+  });
+  await assertRejected(`${baseUrl}/meal-runs/${resourceTimerPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: {
+      currentStepId: nextSteamerTimerStep.id,
+      timer: actualTimer(nextSteamerTimerStep, firstSteamerTimer.startedAt),
+    },
+  }, 409, "meal_timer_dependency_blocked");
+
+  const resourceOverlapPlan = await request(`${baseUrl}/meal-runs`, {
+    method: "POST",
+    session: owner,
+    body: {
+      ...mealPlan(householdId, "2026-07-31", "resource-overlap-actual-timers"),
+      recipeIds: ["steamed-sea-bass", "shiitake-steamed-chicken"],
+      effortTier: "normal",
+    },
+  });
+  const resourceOverlapStarted = await request(`${baseUrl}/meal-runs/${resourceOverlapPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: member,
+    body: {},
+  });
+  const fishTimerStep = resourceOverlapStarted.mealRun.timeline.steps.find((step) => step.id === "steamed-sea-bass:step:3");
+  const chickenTimerStep = resourceOverlapStarted.mealRun.timeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3");
+  const sharedSteamerStartedAt = new Date().toISOString();
+  await request(`${baseUrl}/meal-runs/${resourceOverlapPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: fishTimerStep.id, timer: actualTimer(fishTimerStep, sharedSteamerStartedAt) },
+  });
+  await assertRejected(`${baseUrl}/meal-runs/${resourceOverlapPlan.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: { currentStepId: chickenTimerStep.id, timer: actualTimer(chickenTimerStep, sharedSteamerStartedAt) },
+  }, 409, "meal_timer_resource_busy");
 
   const abandonedPlan = await request(`${baseUrl}/meal-runs`, {
     method: "POST",
@@ -336,6 +495,14 @@ function mealPlan(householdId, dateKey, idempotencyKey) {
     effortTier: "quick_15",
     recipeIds: ["tomato-egg", "seaweed-egg-soup"],
     idempotencyKey,
+  };
+}
+
+function actualTimer(step, startedAt) {
+  return {
+    stepId: step.id,
+    startedAt,
+    endsAt: new Date(Date.parse(startedAt) + step.durationSeconds * 1000).toISOString(),
   };
 }
 

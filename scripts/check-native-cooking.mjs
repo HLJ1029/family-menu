@@ -53,10 +53,13 @@ const timeline = {
 }
 
 await verifyAuthenticatedLifecycle();
+await verifyDelayedActualPassiveTimers();
+await verifyParallelActualPassiveTimers();
+await verifyConsecutiveActualPassiveTimers();
+verifyCertifiedActualTimerReachability();
 await verifyPassiveConcurrencyAndBackgroundRestore();
 await verifyConsecutivePassiveRecovery();
 await verifyCertifiedAutoPassiveCases();
-verifyCertifiedTimelineReachability();
 await verifyRapidTapAndMonotonicProgress();
 await verifyOfflineRecoveryAndAccountIsolation();
 await verifyCompletedReceiptFeedbackRefresh();
@@ -73,6 +76,185 @@ await verifyRetryRecovery();
 verifyPresentationContracts();
 
 console.log("Native whole-meal cooking checks passed.");
+
+async function verifyDelayedActualPassiveTimers() {
+  const recipeIds = [
+    "spinach-tofu-egg-drop-soup",
+    "cola-wings",
+    "steamed-sea-bass",
+    "shiitake-steamed-chicken",
+  ];
+  for (const [caseIndex, recipeId] of recipeIds.entries()) {
+    const catalogRuntime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+    const { buildMealTimeline } = catalogRuntime.load("miniprogram/utils/meal-timeline.js");
+    const candidateTimeline = buildMealTimeline([recipeId], { startedAt: "2026-07-23T10:00:00.000Z" });
+    const passiveIndex = candidateTimeline.steps.findIndex((step) => step.attention === "passive");
+    assert(passiveIndex > 0, `${recipeId} has a real passive step after an active action`);
+    const passiveStep = candidateTimeline.steps[passiveIndex];
+    const predecessor = candidateTimeline.steps[passiveIndex - 1];
+    const delayedStartedAt = new Date(Date.parse(passiveStep.startsAt) + 5 * 60 * 1000).toISOString();
+    const expectedEndsAt = new Date(Date.parse(delayedStartedAt) + passiveStep.durationSeconds * 1000).toISOString();
+    const cooking = remoteRun({
+      id: `run-delayed-timer-${caseIndex}`,
+      status: "cooking",
+      recipeIds: [recipeId],
+      timeline: candidateTimeline,
+      currentStepId: predecessor.id,
+      timerEndsAt: "",
+      timers: {},
+    });
+    const runtime = createRuntime({ initialRun: cooking, now: delayedStartedAt });
+    const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+    await page.onLoad({ mealRunId: cooking.id });
+    await page.advanceStep({ detail: { stepId: predecessor.id } });
+    const progressRequest = runtime.requests.find((request) => request.path.endsWith("/progress"));
+    assert.deepEqual(progressRequest?.data?.timer, {
+      stepId: passiveStep.id,
+      startedAt: delayedStartedAt,
+      endsAt: expectedEndsAt,
+    }, `${recipeId}: a passive timer starts from actual entry, not the estimated schedule`);
+    assert.notEqual(expectedEndsAt, passiveStep.endsAt, `${recipeId}: the five-minute delay must move the actual end`);
+    assert.equal(page.data.mealRun.timers[passiveStep.id].endsAt, expectedEndsAt);
+    assert.equal(page.data.runningTimers[0].remainingSeconds, passiveStep.durationSeconds, `${recipeId}: no cooking time is lost after a delay`);
+    if (candidateTimeline.steps[passiveIndex + 1]?.dependsOn?.includes(passiveStep.id)) {
+      assert.equal(page.data.currentActiveStep, null, `${recipeId}: a dependent action stays locked by the actual timer`);
+    }
+  }
+}
+
+async function verifyParallelActualPassiveTimers() {
+  const catalogRuntime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+  const { buildMealTimeline } = catalogRuntime.load("miniprogram/utils/meal-timeline.js");
+  const candidateTimeline = buildMealTimeline(["cola-wings", "shiitake-steamed-chicken"], {
+    startedAt: "2026-07-23T10:00:00.000Z",
+  });
+  const colaPassive = candidateTimeline.steps.find((step) => step.id === "cola-wings:step:4");
+  const shiitakePassive = candidateTimeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3");
+  const colaPredecessor = candidateTimeline.steps[candidateTimeline.steps.indexOf(colaPassive) - 1];
+  const delayedColaStart = new Date(Date.parse(colaPassive.startsAt) + 5 * 60 * 1000).toISOString();
+  const cooking = remoteRun({
+    id: "run-two-actual-timers",
+    status: "cooking",
+    recipeIds: ["cola-wings", "shiitake-steamed-chicken"],
+    timeline: candidateTimeline,
+    currentStepId: colaPredecessor.id,
+    timers: {},
+  });
+  const runtime = createRuntime({ initialRun: cooking, now: delayedColaStart });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: cooking.id });
+  await page.advanceStep({ detail: { stepId: colaPredecessor.id } });
+  await page.advanceStep({ detail: { stepId: colaPassive.id } });
+  await page.advanceStep({ detail: { stepId: "shiitake-steamed-chicken:step:1" } });
+  runtime.advanceClock(11 * 60 * 1000);
+  await page.advanceStep({ detail: { stepId: "shiitake-steamed-chicken:step:2" } });
+  assert.equal(page.data.mealRun.currentStepId, shiitakePassive.id);
+  assert.deepEqual(
+    page.data.runningTimers.map((timer) => timer.id).sort(),
+    [colaPassive.id, shiitakePassive.id].sort(),
+    "two passive steps on independent cookware retain separate actual timers",
+  );
+  assert.equal(Object.keys(page.data.mealRun.timers).length, 2);
+  assert(
+    Date.parse(page.data.mealRun.timers[colaPassive.id].endsAt) > Date.parse(colaPassive.endsAt),
+    "the delayed cola timer remains running after its estimated end",
+  );
+}
+
+async function verifyConsecutiveActualPassiveTimers() {
+  const catalogRuntime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+  const { buildMealTimeline } = catalogRuntime.load("miniprogram/utils/meal-timeline.js");
+  const candidateTimeline = buildMealTimeline(["shiitake-steamed-chicken"], {
+    startedAt: "2026-07-23T10:00:00.000Z",
+  });
+  const firstPassive = candidateTimeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:3");
+  const secondPassive = candidateTimeline.steps.find((step) => step.id === "shiitake-steamed-chicken:step:4");
+  const actualStart = new Date(Date.parse(firstPassive.startsAt) + 5 * 60 * 1000).toISOString();
+  const cooking = remoteRun({
+    id: "run-consecutive-actual-timers",
+    status: "cooking",
+    recipeIds: ["shiitake-steamed-chicken"],
+    timeline: candidateTimeline,
+    currentStepId: "shiitake-steamed-chicken:step:2",
+    timers: {},
+  });
+  const runtime = createRuntime({ initialRun: cooking, now: actualStart });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: cooking.id });
+  await page.advanceStep({ detail: { stepId: cooking.currentStepId } });
+  await page.advanceUnlockedPassiveSteps();
+  assert.equal(page.data.mealRun.currentStepId, firstPassive.id, "the estimated end cannot auto-skip a newly started passive step");
+  runtime.advanceClock(firstPassive.durationSeconds * 1000);
+  await page.advanceUnlockedPassiveSteps();
+  assert.equal(page.data.mealRun.currentStepId, secondPassive.id);
+  assert.equal(
+    page.data.mealRun.timers[secondPassive.id].startedAt,
+    page.data.mealRun.timers[firstPassive.id].endsAt,
+    "the second passive timer starts only when the first actual timer finishes",
+  );
+  assert.equal(
+    Date.parse(page.data.mealRun.timers[secondPassive.id].endsAt)
+      - Date.parse(page.data.mealRun.timers[secondPassive.id].startedAt),
+    secondPassive.durationSeconds * 1000,
+  );
+}
+
+function verifyCertifiedActualTimerReachability() {
+  const runtime = createRuntime({ initialRun: remoteRun({ status: "planned" }) });
+  const recipes = runtime.load("miniprogram/data/certified-recipes.js");
+  const {
+    buildMealTimeline,
+    createActualPassiveTimer,
+    nextAvailableTimelineStep,
+    runningPassiveTimers,
+  } = runtime.load("miniprogram/utils/meal-timeline.js");
+  assert.equal(typeof createActualPassiveTimer, "function");
+  const idsByTier = new Map();
+  for (const recipe of recipes) {
+    const ids = idsByTier.get(recipe.cookAssist.effortTier) || [];
+    ids.push(recipe.id);
+    idsByTier.set(recipe.cookAssist.effortTier, ids);
+  }
+  const cases = recipes.map((recipe) => [recipe.id]);
+  for (const ids of idsByTier.values()) {
+    for (let left = 0; left < ids.length; left += 1) {
+      for (let right = left + 1; right < ids.length; right += 1) cases.push([ids[left], ids[right]]);
+    }
+  }
+  assert.equal(cases.length, 165);
+  let maxParallelTimers = 0;
+  for (const recipeIds of cases) {
+    const candidateTimeline = buildMealTimeline(recipeIds, { startedAt: "2026-07-23T10:00:00.000Z" });
+    let now = "2026-07-23T10:05:00.000Z";
+    let currentStepId = candidateTimeline.steps[0].id;
+    let timers = {};
+    if (candidateTimeline.steps[0].attention === "passive") {
+      const timer = createActualPassiveTimer(candidateTimeline.steps[0], now);
+      timers[timer.stepId] = timer;
+    }
+    let guard = 0;
+    while (currentStepId !== candidateTimeline.steps.at(-1).id) {
+      assert(guard++ < candidateTimeline.steps.length * 4, `${recipeIds.join("+")}: actual timer presentation must terminate`);
+      const available = nextAvailableTimelineStep(candidateTimeline, currentStepId, timers, now);
+      if (!available) {
+        const running = runningPassiveTimers(candidateTimeline, currentStepId, timers, now);
+        assert(running.length, `${recipeIds.join("+")}: only an actual running timer may block the next step`);
+        now = running.map((timer) => timer.endsAt).sort()[0];
+        continue;
+      }
+      currentStepId = available.id;
+      if (available.attention === "passive") {
+        const timer = createActualPassiveTimer(available, now);
+        timers = { ...timers, [timer.stepId]: timer };
+      }
+      maxParallelTimers = Math.max(
+        maxParallelTimers,
+        runningPassiveTimers(candidateTimeline, currentStepId, timers, now).length,
+      );
+    }
+  }
+  assert(maxParallelTimers >= 2, "the certified catalog exercises at least two simultaneous actual passive timers");
+}
 
 async function verifyAuthenticatedLifecycle() {
   let active = remoteRun({ status: "planned" });
@@ -143,9 +325,15 @@ async function verifyAuthenticatedLifecycle() {
 }
 
 async function verifyPassiveConcurrencyAndBackgroundRestore() {
+  const actualTimer = {
+    stepId: timeline.steps[1].id,
+    startedAt: timeline.steps[1].startsAt,
+    endsAt: timeline.steps[1].endsAt,
+  };
   const cooking = remoteRun({
     status: "cooking",
     currentStepId: timeline.steps[1].id,
+    timers: { [actualTimer.stepId]: actualTimer },
     timerEndsAt: timeline.steps[1].endsAt,
   });
   const runtime = createRuntime({
@@ -154,17 +342,17 @@ async function verifyPassiveConcurrencyAndBackgroundRestore() {
   });
   const timelineHelpers = runtime.load("miniprogram/utils/meal-timeline.js");
   assert.equal(
-    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[1].id, "2026-07-23T10:01:30.000Z").id,
+    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[1].id, cooking.timers, "2026-07-23T10:01:30.000Z").id,
     timeline.steps[2].id,
     "an independent active step can start while a passive timer runs on another resource",
   );
   assert.equal(
-    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[2].id, "2026-07-23T10:02:00.000Z"),
+    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[2].id, cooking.timers, "2026-07-23T10:02:00.000Z"),
     null,
     "a step cannot bypass an unfinished passive dependency",
   );
   assert.equal(
-    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[2].id, "2026-07-23T10:03:00.000Z").id,
+    timelineHelpers.nextAvailableTimelineStep(timeline, timeline.steps[2].id, cooking.timers, "2026-07-23T10:03:00.000Z").id,
     timeline.steps[3].id,
     "the dependent step unlocks from the passive endsAt timestamp",
   );
@@ -187,6 +375,7 @@ async function verifyPassiveConcurrencyAndBackgroundRestore() {
     status: "cooking",
     timeline: blockedTimeline,
     currentStepId: blockedTimeline.steps[1].id,
+    timers: { [actualTimer.stepId]: actualTimer },
     timerEndsAt: blockedTimeline.steps[1].endsAt,
   });
   const blockedRuntime = createRuntime({
@@ -239,6 +428,13 @@ async function verifyConsecutivePassiveRecovery() {
     status: "cooking",
     timeline: chainedTimeline,
     currentStepId: chainedTimeline.steps[1].id,
+    timers: {
+      [chainedTimeline.steps[1].id]: {
+        stepId: chainedTimeline.steps[1].id,
+        startedAt: chainedTimeline.steps[1].startsAt,
+        endsAt: chainedTimeline.steps[1].endsAt,
+      },
+    },
     timerEndsAt: chainedTimeline.steps[1].endsAt,
   });
   const sharedStorage = new Map();
@@ -325,6 +521,7 @@ async function verifyCertifiedAutoPassiveCases() {
       recipeIds: contract.recipeIds,
       timeline: contract.candidateTimeline,
       currentStepId: current.id,
+      timers: actualTimersThrough(contract.candidateTimeline, current.id),
       timerEndsAt: current.endsAt,
     });
     const runtime = createRuntime({ initialRun: cooking, now: successor.startsAt });
@@ -339,9 +536,11 @@ async function verifyCertifiedAutoPassiveCases() {
       runtime.requests.some((request) => (
         request.path.endsWith("/progress")
         && request.data.currentStepId === successor.id
-        && request.data.timerEndsAt === successor.endsAt
+        && request.data.timer?.stepId === successor.id
+        && request.data.timer?.startedAt === successor.startsAt
+        && request.data.timer?.endsAt === successor.endsAt
       )),
-      `${contract.recipeIds.join("+")}: automatic progress uses the certified absolute endsAt`,
+      `${contract.recipeIds.join("+")}: automatic progress starts the successor's actual full-duration timer`,
     );
   }
 }
@@ -399,7 +598,8 @@ async function verifyRapidTapAndMonotonicProgress() {
           mealRun: {
             ...active,
             currentStepId: data.currentStepId,
-            timerEndsAt: data.timerEndsAt,
+            timers: data.timer ? { [data.timer.stepId]: data.timer } : {},
+            timerEndsAt: data.timer?.endsAt || "",
           },
         });
         return;
@@ -420,6 +620,25 @@ async function verifyRapidTapAndMonotonicProgress() {
   const later = { ...active, currentStepId: timeline.steps[2].id };
   const stale = { ...active, currentStepId: timeline.steps[1].id };
   assert.equal(chooseMonotonicMealRun(later, stale).currentStepId, timeline.steps[2].id);
+  const authoritativeTimer = {
+    stepId: timeline.steps[1].id,
+    startedAt: "2026-07-23T10:02:00.000Z",
+    endsAt: "2026-07-23T10:04:00.000Z",
+  };
+  const conflictingLocalTimer = {
+    stepId: timeline.steps[1].id,
+    startedAt: "2026-07-23T10:01:00.000Z",
+    endsAt: "2026-07-23T10:03:00.000Z",
+  };
+  const converged = chooseMonotonicMealRun(
+    { ...later, timers: { [conflictingLocalTimer.stepId]: conflictingLocalTimer } },
+    { ...stale, timers: { [authoritativeTimer.stepId]: authoritativeTimer } },
+  );
+  assert.deepEqual(
+    converged.timers[authoritativeTimer.stepId],
+    authoritativeTimer,
+    "an authoritative server timer wins even when its cursor snapshot is behind optimistic local progress",
+  );
 }
 
 async function verifyOfflineRecoveryAndAccountIsolation() {
@@ -883,9 +1102,16 @@ function requestRouter({ getRun, setRun, calls }) {
     let run = getRun();
     if (pathname.startsWith("/meal-runs/current")) return succeed({ mealRun: run });
     if (pathname.endsWith("/start")) {
-      run = { ...run, status: "cooking", timeline, currentStepId: timeline.steps[0].id, startedAt: timeline.startedAt };
+      run = { ...run, status: "cooking", timeline, currentStepId: timeline.steps[0].id, timers: {}, startedAt: timeline.startedAt };
     } else if (pathname.endsWith("/progress")) {
-      run = { ...run, currentStepId: data.currentStepId, timerEndsAt: data.timerEndsAt || "" };
+      run = {
+        ...run,
+        currentStepId: data.currentStepId,
+        timers: data.timer
+          ? { ...(run.timers || {}), [data.timer.stepId]: data.timer }
+          : run.timers || {},
+        timerEndsAt: data.timer?.endsAt || run.timerEndsAt || "",
+      };
     } else if (pathname.endsWith("/complete")) {
       run = { ...run, status: "completed", completedAt: "2026-07-23T10:04:00.000Z", timerEndsAt: "" };
     } else if (pathname.endsWith("/feedback")) {
@@ -965,7 +1191,10 @@ function createRuntime({
         currentRun = {
           ...currentRun,
           currentStepId: call.data.currentStepId,
-          timerEndsAt: call.data.timerEndsAt || "",
+          timers: call.data.timer
+            ? { ...(currentRun.timers || {}), [call.data.timer.stepId]: call.data.timer }
+            : currentRun.timers || {},
+          timerEndsAt: call.data.timer?.endsAt || currentRun.timerEndsAt || "",
         };
         return succeed({ mealRun: currentRun });
       }
@@ -1070,6 +1299,7 @@ function remoteRun(patch = {}) {
     timelineVersion: 1,
     timeline: patch.status === "planned" ? null : clone(timeline),
     currentStepId: patch.status === "planned" ? "" : timeline.steps[0].id,
+    timers: {},
     timerEndsAt: "",
     readyStaple: "",
     status: "cooking",
@@ -1112,6 +1342,18 @@ function step(id, attention, startOffsetSeconds, endOffsetSeconds, dependsOn, re
     startsAt: new Date(Date.parse("2026-07-23T10:00:00.000Z") + startOffsetSeconds * 1000).toISOString(),
     endsAt: new Date(Date.parse("2026-07-23T10:00:00.000Z") + endOffsetSeconds * 1000).toISOString(),
   };
+}
+
+function actualTimersThrough(candidateTimeline, currentStepId) {
+  const currentIndex = candidateTimeline.steps.findIndex((step) => step.id === currentStepId);
+  return Object.fromEntries(candidateTimeline.steps
+    .slice(0, currentIndex + 1)
+    .filter((step) => step.attention === "passive")
+    .map((step) => [step.id, {
+      stepId: step.id,
+      startedAt: step.startsAt,
+      endsAt: step.endsAt,
+    }]));
 }
 
 function resolveModule(candidate) {

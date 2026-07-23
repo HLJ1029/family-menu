@@ -1436,6 +1436,7 @@ export class HumiStore {
         timelineVersion: Number(input.timelineVersion || 1),
         timeline: null,
         currentStepId: "",
+        timers: {},
         timerEndsAt: "",
         readyStaple: sanitizeText(input.readyStaple, "", 40),
         syncedFromLocalId: sanitizeText(input.syncedFromLocalId, "", 100),
@@ -1585,7 +1586,15 @@ export class HumiStore {
       mealRun.status = "cooking";
       mealRun.timeline = structuredClone(timeline);
       mealRun.currentStepId = timeline?.steps?.[0]?.id || "";
-      mealRun.timerEndsAt = timeline?.steps?.[0]?.attention === "passive" ? timeline.steps[0].endsAt : "";
+      mealRun.timers = {};
+      const firstStep = timeline?.steps?.[0];
+      if (firstStep?.attention === "passive") {
+        const timer = createActualMealTimer(firstStep, now);
+        mealRun.timers[timer.stepId] = timer;
+        mealRun.timerEndsAt = timer.endsAt;
+      } else {
+        mealRun.timerEndsAt = "";
+      }
       mealRun.startedBy = userId;
       mealRun.startedAt = now;
       mealRun.updatedAt = now;
@@ -1602,12 +1611,30 @@ export class HumiStore {
       const steps = Array.isArray(mealRun.timeline?.steps) ? mealRun.timeline.steps : [];
       const incomingStepIndex = steps.findIndex((item) => item.id === currentStepId);
       if (incomingStepIndex < 0) throw codedError("meal_step_invalid", "The cooking step does not belong to this dinner.");
-      const timerEndsAt = sanitizeOptionalIsoDate(input.timerEndsAt);
+      mealRun.timers = normalizeStoredMealTimers(mealRun.timers, steps);
+      const incomingTimer = input.timer === undefined
+        ? null
+        : sanitizeActualMealTimer(input.timer, steps);
+      if (incomingTimer && incomingTimer.stepId !== currentStepId) {
+        throw codedError("meal_timer_step_invalid", "The timer must belong to the progressed step.");
+      }
+      const existingTimer = incomingTimer ? mealRun.timers[incomingTimer.stepId] : null;
+      if (incomingTimer && !existingTimer) {
+        assertActualMealTimerCanStart(incomingTimer, steps, mealRun.timers);
+        mealRun.timers[incomingTimer.stepId] = incomingTimer;
+      }
       const currentStepIndex = steps.findIndex((item) => item.id === mealRun.currentStepId);
-      if (currentStepIndex >= incomingStepIndex) return mealRun;
-      mealRun.currentStepId = currentStepId;
-      mealRun.timerEndsAt = timerEndsAt;
-      mealRun.updatedAt = new Date().toISOString();
+      if (currentStepIndex < incomingStepIndex) {
+        const incomingStep = steps[incomingStepIndex];
+        assertMealStepCanProgress(incomingStep, steps, mealRun.timers, new Date().toISOString());
+        mealRun.currentStepId = currentStepId;
+      }
+      mealRun.timerEndsAt = incomingTimer
+        ? (mealRun.timers[incomingTimer.stepId]?.endsAt || "")
+        : mealRun.timerEndsAt || "";
+      if (currentStepIndex < incomingStepIndex || (incomingTimer && !existingTimer)) {
+        mealRun.updatedAt = new Date().toISOString();
+      }
       return mealRun;
     });
   }
@@ -1652,7 +1679,15 @@ export class HumiStore {
       if (mealRun.status === "cooking") {
         mealRun.timeline = structuredClone(input.timeline);
         mealRun.currentStepId = input.timeline?.steps?.[0]?.id || "";
-        mealRun.timerEndsAt = input.timeline?.steps?.[0]?.attention === "passive" ? input.timeline.steps[0].endsAt : "";
+        mealRun.timers = {};
+        const firstStep = input.timeline?.steps?.[0];
+        if (firstStep?.attention === "passive") {
+          const timer = createActualMealTimer(firstStep, now);
+          mealRun.timers[timer.stepId] = timer;
+          mealRun.timerEndsAt = timer.endsAt;
+        } else {
+          mealRun.timerEndsAt = "";
+        }
       }
       mealRun.updatedAt = now;
       return mealRun;
@@ -2004,6 +2039,126 @@ function sanitizeIsoDate(value, code = "date_invalid") {
 function sanitizeOptionalIsoDate(value) {
   if (!value) return "";
   return sanitizeIsoDate(value, "timer_end_invalid");
+}
+
+function createActualMealTimer(step, startedAt) {
+  const canonicalStartedAt = sanitizeCanonicalTimerIso(startedAt);
+  return {
+    stepId: step.id,
+    startedAt: canonicalStartedAt,
+    endsAt: new Date(
+      Date.parse(canonicalStartedAt) + Number(step.durationSeconds) * 1000,
+    ).toISOString(),
+  };
+}
+
+function sanitizeActualMealTimer(value, steps) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw codedError("meal_timer_step_invalid", "A passive cooking timer is required.");
+  }
+  const keys = Object.keys(value).sort();
+  if (
+    keys.length !== 3
+    || keys[0] !== "endsAt"
+    || keys[1] !== "startedAt"
+    || keys[2] !== "stepId"
+  ) {
+    throw codedError("meal_timer_step_invalid", "Cooking timer fields are invalid.");
+  }
+  const stepId = typeof value.stepId === "string" ? value.stepId : "";
+  const step = steps.find((candidate) => candidate.id === stepId);
+  if (!step || step.attention !== "passive") {
+    throw codedError("meal_timer_step_invalid", "The timer must belong to a passive step in this dinner.");
+  }
+  const startedAt = sanitizeCanonicalTimerIso(value.startedAt);
+  const endsAt = sanitizeCanonicalTimerIso(value.endsAt);
+  if (Date.parse(startedAt) > Date.now() + 5 * 60 * 1000) {
+    throw codedError("meal_timer_time_invalid", "Timer start cannot be in the future.");
+  }
+  if (Date.parse(endsAt) - Date.parse(startedAt) !== Number(step.durationSeconds) * 1000) {
+    throw codedError("meal_timer_duration_invalid", "The timer duration must match the certified step.");
+  }
+  return { stepId, startedAt, endsAt };
+}
+
+function sanitizeCanonicalTimerIso(value) {
+  if (typeof value !== "string") {
+    throw codedError("meal_timer_time_invalid", "Timer timestamps must use canonical ISO format.");
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
+    throw codedError("meal_timer_time_invalid", "Timer timestamps must use canonical ISO format.");
+  }
+  return value;
+}
+
+function normalizeStoredMealTimers(value, steps) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const timers = {};
+  for (const timer of Object.values(value)) {
+    try {
+      const normalized = sanitizeActualMealTimer(timer, steps);
+      timers[normalized.stepId] = normalized;
+    } catch {
+      // Persisted pre-release data is untrusted and cannot drive cooking locks.
+    }
+  }
+  return timers;
+}
+
+function assertActualMealTimerCanStart(timer, steps, timers) {
+  const stepById = new Map(steps.map((step) => [step.id, step]));
+  const step = stepById.get(timer.stepId);
+  for (const dependencyId of step.dependsOn ?? []) {
+    const dependency = stepById.get(dependencyId);
+    if (dependency?.attention !== "passive") continue;
+    const dependencyTimer = timers[dependencyId];
+    if (!dependencyTimer || Date.parse(dependencyTimer.endsAt) > Date.parse(timer.startedAt)) {
+      throw codedError("meal_timer_dependency_blocked", "A required passive step has not actually finished.");
+    }
+  }
+  for (const existingTimer of Object.values(timers)) {
+    const existingStep = stepById.get(existingTimer.stepId);
+    if (
+      existingStep
+      && resourcesOverlap(step, existingStep)
+      && timerIntervalsOverlap(timer, existingTimer)
+    ) {
+      throw codedError("meal_timer_resource_busy", "Required cookware is still occupied by another step.");
+    }
+  }
+}
+
+function assertMealStepCanProgress(step, steps, timers, now) {
+  const stepById = new Map(steps.map((candidate) => [candidate.id, candidate]));
+  for (const dependencyId of step.dependsOn ?? []) {
+    const dependency = stepById.get(dependencyId);
+    if (dependency?.attention !== "passive") continue;
+    const dependencyTimer = timers[dependencyId];
+    if (!dependencyTimer || Date.parse(dependencyTimer.endsAt) > Date.parse(now)) {
+      throw codedError("meal_timer_dependency_blocked", "A required passive step has not actually finished.");
+    }
+  }
+  if (step.attention === "passive" && !timers[step.id]) {
+    throw codedError("meal_timer_step_invalid", "A passive step requires its actual timer.");
+  }
+  for (const timer of Object.values(timers)) {
+    if (timer.stepId === step.id || Date.parse(timer.endsAt) <= Date.parse(now)) continue;
+    const timerStep = stepById.get(timer.stepId);
+    if (timerStep && resourcesOverlap(step, timerStep)) {
+      throw codedError("meal_timer_resource_busy", "Required cookware is still occupied by another step.");
+    }
+  }
+}
+
+function resourcesOverlap(left, right) {
+  const leftResources = new Set(left.resources ?? []);
+  return (right.resources ?? []).some((resource) => leftResources.has(resource));
+}
+
+function timerIntervalsOverlap(left, right) {
+  return Date.parse(left.startedAt) < Date.parse(right.endsAt)
+    && Date.parse(right.startedAt) < Date.parse(left.endsAt);
 }
 
 function sanitizeEffortTier(value) {

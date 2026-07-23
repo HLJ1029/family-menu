@@ -347,13 +347,13 @@ Authorization: Bearer <accessToken>
 - `POST /meal-runs`：owner 为指定日期晚餐创建或替换 `planned` 记录；必须携带 `idempotencyKey`。当天现有 `planned` 可替换，`cooking` 或 `completed` 不可覆盖。
 - `GET /meal-runs/current?householdId=...&dateKey=YYYY-MM-DD&mealSlot=dinner`：正式成员读取当天当前晚餐。
 - `POST /meal-runs/:id/start`：正式成员开始做饭；重复调用返回同一 `startedAt`。
-- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤，等待计时只保存绝对时间 `timerEndsAt`。
+- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤。进入被动步骤时携带 `timer: { stepId, startedAt, endsAt }`；服务端校验该步骤属于当前时间线且为被动步骤、时间为规范 ISO、`endsAt - startedAt` 严格等于认证时长，并按步骤 first-write immutable 合并。依赖或厨具仍被实际计时占用时返回 `409`。旧 `timerEndsAt` 仅保留为响应兼容字段，不再驱动步骤解锁或倒计时。
 - `POST /meal-runs/:id/downgrade`：正式成员执行 `remove_optional_side | lower_effort_recipe | ready_staple`。
 - `POST /meal-runs/:id/complete`：只有该接口对应的明确“上桌了”动作把状态改为 `completed`；重复调用不重复计数。
 - `POST /meal-runs/:id/abandon`：原因仅允许 `too_much_effort | missing_ingredients | plans_changed | cooking_failed`，不破坏周节奏。
 - `PUT /meal-runs/:id/feedback`：完成后按成员幂等更新 `want_again | change_next_time | too_much_effort`。
 
-`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、绝对计时器、操作者、时间戳、降级历史和家庭反馈。运行时不调用 AI 生成烹饪步骤。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并重放状态，`syncedFromLocalId` 用于避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放幂等状态操作。
+`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、按步骤索引的实际绝对计时器 `timers`、操作者、时间戳、降级历史和家庭反馈。时间线中的 `startsAt/endsAt` 只表示预计排程；真正进入被动步骤时才以实际 `startedAt` 创建完整时长计时器。多个不冲突的被动步骤可同时运行，依赖、厨具锁和后台恢复只读取 `timers`。运行时不调用 AI 生成烹饪步骤。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并逐个重放计时器和进度，`syncedFromLocalId` 用于避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放幂等状态操作。
 
 权限边界：
 

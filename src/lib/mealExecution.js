@@ -110,6 +110,78 @@ export function remainingTimerSeconds(endsAt, now = new Date().toISOString()) {
   return Math.max(0, Math.ceil(remainingMs / 1000));
 }
 
+export function createActualPassiveTimer(step, startedAt = new Date().toISOString()) {
+  if (!step?.id || step.attention !== "passive" || !Number.isFinite(Number(step.durationSeconds)) || Number(step.durationSeconds) <= 0) {
+    throw executionError("passive_timer_step_invalid", "Only a certified passive step may start a timer.");
+  }
+  const startedAtMs = Date.parse(startedAt);
+  if (!Number.isFinite(startedAtMs)) throw executionError("passive_timer_start_invalid", "Timer start must be a valid date.");
+  const canonicalStartedAt = new Date(startedAtMs).toISOString();
+  return {
+    stepId: step.id,
+    startedAt: canonicalStartedAt,
+    endsAt: new Date(startedAtMs + Number(step.durationSeconds) * 1000).toISOString(),
+  };
+}
+
+export function nextAvailableMealTimelineStep(timeline, currentStepId, timers = {}, now = new Date().toISOString()) {
+  const currentIndex = timelineStepIndex(timeline, currentStepId);
+  if (currentIndex < 0) return null;
+  const candidate = timeline.steps[currentIndex + 1] || null;
+  if (!candidate) return null;
+  const progressed = timeline.steps.slice(0, currentIndex + 1);
+  const stepById = new Map(timeline.steps.map((step) => [step.id, step]));
+  if (progressed.some((step) => step.attention === "passive" && !actualTimerFor(timers, step.id))) return null;
+  const dependencyRunning = (candidate.dependsOn || []).some((dependencyId) => {
+    const dependency = stepById.get(dependencyId);
+    const timer = actualTimerFor(timers, dependencyId);
+    return dependency?.attention === "passive" && (!timer || remainingTimerSeconds(timer.endsAt, now) > 0);
+  });
+  if (dependencyRunning) return null;
+  const candidateResources = new Set(candidate.resources || []);
+  const resourceBusy = progressed.some((step) => {
+    const timer = actualTimerFor(timers, step.id);
+    return step.attention === "passive"
+      && timer
+      && remainingTimerSeconds(timer.endsAt, now) > 0
+      && (step.resources || []).some((resource) => candidateResources.has(resource));
+  });
+  return resourceBusy ? null : candidate;
+}
+
+export function runningMealTimelineTimers(timeline, currentStepId, timers = {}, now = new Date().toISOString()) {
+  const currentIndex = timelineStepIndex(timeline, currentStepId);
+  if (currentIndex < 0) return [];
+  return timeline.steps
+    .slice(0, currentIndex + 1)
+    .filter((step) => step.attention === "passive")
+    .map((step) => {
+      const timer = actualTimerFor(timers, step.id);
+      return timer ? {
+        ...step,
+        startedAt: timer.startedAt,
+        endsAt: timer.endsAt,
+        remainingSeconds: remainingTimerSeconds(timer.endsAt, now),
+      } : null;
+    })
+    .filter((step) => step?.remainingSeconds > 0);
+}
+
+function timelineStepIndex(timeline, stepId) {
+  return Array.isArray(timeline?.steps)
+    ? timeline.steps.findIndex((step) => step.id === stepId)
+    : -1;
+}
+
+function actualTimerFor(timers, stepId) {
+  const timer = timers && typeof timers === "object" && !Array.isArray(timers) ? timers[stepId] : null;
+  return timer?.stepId === stepId
+    && Number.isFinite(Date.parse(timer.startedAt))
+    && Number.isFinite(Date.parse(timer.endsAt))
+    ? timer
+    : null;
+}
+
 export function downgradeMealPlan(recipeIds, action) {
   const normalizedRecipeIds = [...new Set((Array.isArray(recipeIds) ? recipeIds : []).filter(Boolean))];
   if (normalizedRecipeIds.length === 0) throw executionError("meal_recipes_required", "Choose at least one certified recipe.");

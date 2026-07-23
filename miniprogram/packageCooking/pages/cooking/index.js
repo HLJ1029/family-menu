@@ -13,6 +13,7 @@ const {
   writeOptimisticMealProgress,
 } = require("../../../utils/meal-run");
 const {
+  createActualPassiveTimer,
   nextAvailableTimelineStep,
   nextTimelineStep,
   remainingSeconds,
@@ -95,6 +96,7 @@ const pageDefinition = {
       if (this._entryAction === "invalid") throw codedError("meal_run_route_invalid");
       await this.loadRun({ startIfPlanned: this._entryAction === "start" });
       if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
+      await this.ensureCurrentPassiveTimer();
       await this.advanceUnlockedPassiveSteps();
       this.startClock();
     } catch (error) {
@@ -110,6 +112,7 @@ const pageDefinition = {
       return;
     }
     if (!this.data.syncFrozen) await this.reconcile();
+    await this.ensureCurrentPassiveTimer();
     await this.advanceUnlockedPassiveSteps();
     this.startClock();
   },
@@ -135,6 +138,7 @@ const pageDefinition = {
     try {
       await this.loadRun({ startIfPlanned: this._entryAction === "start" });
       if (this.data.isOnline && !this.data.syncFrozen) await this.reconcile();
+      await this.ensureCurrentPassiveTimer();
       await this.advanceUnlockedPassiveSteps();
       this.startClock();
     } catch (error) {
@@ -175,10 +179,11 @@ const pageDefinition = {
       || mealRun?.status !== "cooking"
       || tappedStepId !== mealRun.currentStepId
     ) return;
-    const next = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId);
+    const now = new Date().toISOString();
+    const next = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId, mealRun.timers, now);
     if (!next) return;
-    const timerEndsAt = next.attention === "passive" ? next.endsAt : latestRunningTimerEnd(mealRun.timeline, next.id);
-    const payload = { currentStepId: next.id, timerEndsAt };
+    const timer = next.attention === "passive" ? createActualPassiveTimer(next, now) : null;
+    const payload = { currentStepId: next.id, ...(timer ? { timer } : {}) };
     if (!this.data.isOnline && !mealRun.localOnly) {
       this.queueMealMutation("meal_progress", payload, `progress:${next.id}`);
       writeOptimisticMealProgress(mealRun, {
@@ -186,8 +191,7 @@ const pageDefinition = {
         ...payload,
       });
       this.applyMealRun(chooseMonotonicMealRun(mealRun, {
-        ...mealRun,
-        ...payload,
+        ...applyProgressPayload(mealRun, payload),
         pendingSync: true,
       }));
       return;
@@ -207,10 +211,48 @@ const pageDefinition = {
           ...payload,
         });
         const optimistic = chooseMonotonicMealRun(mealRun, {
-          ...mealRun,
-          ...payload,
+          ...applyProgressPayload(mealRun, payload),
           pendingSync: true,
         });
+        this.applyMealRun(optimistic);
+        return optimistic;
+      },
+    });
+  },
+
+  async ensureCurrentPassiveTimer() {
+    const mealRun = this.data.mealRun;
+    if (
+      this.data.syncFrozen
+      || this.data.pendingAction
+      || mealRun?.status !== "cooking"
+    ) return mealRun;
+    const currentStep = mealRun.timeline?.steps?.find((step) => step.id === mealRun.currentStepId);
+    if (currentStep?.attention !== "passive" || mealRun.timers?.[currentStep.id]) return mealRun;
+    const timer = createActualPassiveTimer(currentStep, new Date().toISOString());
+    const payload = { currentStepId: currentStep.id, timer };
+    if (!this.data.isOnline && !mealRun.localOnly) {
+      this.queueMealMutation("meal_progress", payload, `timer:${currentStep.id}`);
+      writeOptimisticMealProgress(mealRun, {
+        ownerUserId: appStore.getState().bootstrap?.user?.id,
+        ...payload,
+      });
+      const optimistic = applyProgressPayload(mealRun, payload);
+      this.applyMealRun({ ...optimistic, pendingSync: true });
+      return optimistic;
+    }
+    return this.runMutation(`timer:${currentStep.id}`, () => progressCookingMealRun(mealRun, {
+      bootstrap: appStore.getState().bootstrap,
+      ...payload,
+      idempotencyKey: this.idempotencyKey(`timer:${currentStep.id}`),
+    }), {
+      onOffline: () => {
+        this.queueMealMutation("meal_progress", payload, `timer:${currentStep.id}`);
+        writeOptimisticMealProgress(mealRun, {
+          ownerUserId: appStore.getState().bootstrap?.user?.id,
+          ...payload,
+        });
+        const optimistic = { ...applyProgressPayload(mealRun, payload), pendingSync: true };
         this.applyMealRun(optimistic);
         return optimistic;
       },
@@ -230,6 +272,7 @@ const pageDefinition = {
         const nextStep = nextAvailableTimelineStep(
           mealRun?.timeline,
           mealRun?.currentStepId,
+          mealRun?.timers,
           new Date().toISOString(),
         );
         if (
@@ -547,7 +590,7 @@ const pageDefinition = {
     const currentIndex = timelineStepIndex(mealRun.timeline, mealRun.currentStepId);
     const currentStep = mealRun.timeline.steps[currentIndex] || null;
     const nextCandidate = nextTimelineStep(mealRun.timeline, mealRun.currentStepId);
-    const nextStep = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId, now);
+    const nextStep = nextAvailableTimelineStep(mealRun.timeline, mealRun.currentStepId, mealRun.timers, now);
     const currentActiveStep = currentStep?.attention === "active"
       ? currentStep
       : nextStep?.attention === "active" ? nextStep : null;
@@ -569,7 +612,7 @@ const pageDefinition = {
       stepActionFromId: currentStep?.id || "",
       waitingForTimer: currentStep?.attention === "passive" && !currentActiveStep,
       hasRemainingSteps: Boolean(nextCandidate),
-      runningTimers: runningPassiveTimers(mealRun.timeline, mealRun.currentStepId, now),
+      runningTimers: runningPassiveTimers(mealRun.timeline, mealRun.currentStepId, mealRun.timers, now),
       elapsedSeconds,
       elapsedMinutes: Math.floor(elapsedSeconds / 60),
       estimatedTotalSeconds: total,
@@ -636,29 +679,40 @@ Page(pageDefinition);
 
 function chooseMonotonicMealRun(current, incoming) {
   if (!current || !incoming || current.id !== incoming.id) return incoming || current;
+  const timers = mergeTimerMaps(incoming.timers, current.timers);
   const ranks = { planned: 0, cooking: 1, abandoned: 2, completed: 3 };
-  if ((ranks[incoming.status] ?? -1) < (ranks[current.status] ?? -1)) return current;
-  if (incoming.status !== "cooking" || current.status !== "cooking") return incoming;
+  if ((ranks[incoming.status] ?? -1) < (ranks[current.status] ?? -1)) return { ...current, timers };
+  if (incoming.status !== "cooking" || current.status !== "cooking") return { ...incoming, timers };
   const currentIndex = timelineStepIndex(current.timeline, current.currentStepId);
   const incomingIndex = timelineStepIndex(incoming.timeline, incoming.currentStepId);
-  if (sameTimeline(current.timeline, incoming.timeline) && incomingIndex < currentIndex) return current;
-  return incoming;
+  if (sameTimeline(current.timeline, incoming.timeline) && incomingIndex < currentIndex) return { ...current, timers };
+  return { ...incoming, timers };
+}
+
+function applyProgressPayload(mealRun, payload) {
+  return {
+    ...mealRun,
+    currentStepId: payload.currentStepId,
+    timers: mergeTimerMaps(
+      mealRun.timers,
+      payload.timer ? { [payload.timer.stepId]: payload.timer } : {},
+    ),
+    timerEndsAt: payload.timer?.endsAt || mealRun.timerEndsAt || "",
+  };
+}
+
+function mergeTimerMaps(primary, fallback) {
+  const merged = { ...(primary || {}) };
+  for (const [stepId, timer] of Object.entries(fallback || {})) {
+    if (!merged[stepId]) merged[stepId] = timer;
+  }
+  return merged;
 }
 
 function sameTimeline(left, right) {
   const leftIds = left?.steps?.map((step) => step.id) || [];
   const rightIds = right?.steps?.map((step) => step.id) || [];
   return leftIds.length === rightIds.length && leftIds.every((id, index) => id === rightIds[index]);
-}
-
-function latestRunningTimerEnd(timeline, throughStepId) {
-  const throughIndex = timelineStepIndex(timeline, throughStepId);
-  return (timeline?.steps || [])
-    .slice(0, throughIndex + 1)
-    .filter((step) => step.attention === "passive")
-    .map((step) => step.endsAt)
-    .sort()
-    .at(-1) || "";
 }
 
 function currentUserFeedback(mealRun) {

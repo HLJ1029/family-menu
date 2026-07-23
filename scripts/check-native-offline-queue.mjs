@@ -195,6 +195,37 @@ async function nextTask() {
 {
   const { queue } = createRuntime();
   assert.doesNotThrow(() => queue.enqueueMutation({
+    id: "actual-step-timer",
+    type: "meal_progress",
+    householdId: "h",
+    mealRunId: "r",
+    createdAt: 1,
+    data: {
+      currentStepId: "step-1",
+      timer: {
+        stepId: "step-1",
+        startedAt: "2026-07-23T10:03:00.000Z",
+        endsAt: "2026-07-23T10:08:00.000Z",
+      },
+    },
+  }));
+  assert.throws(() => queue.enqueueMutation({
+    id: "actual-step-timer-extra",
+    type: "meal_progress",
+    householdId: "h",
+    mealRunId: "r",
+    createdAt: 1,
+    data: {
+      currentStepId: "step-1",
+      timer: {
+        stepId: "step-1",
+        startedAt: "2026-07-23T10:03:00.000Z",
+        endsAt: "2026-07-23T10:08:00.000Z",
+        note: "must-not-persist",
+      },
+    },
+  }), /offline_action_invalid/);
+  assert.doesNotThrow(() => queue.enqueueMutation({
     id: "canonical-timer",
     type: "meal_progress",
     householdId: "h",

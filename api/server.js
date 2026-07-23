@@ -831,7 +831,7 @@ async function handleUpdateMealRunProgress(request, response, mealRunId) {
     assertMealExecutionEnabled(current.householdId);
     const mealRun = await store.updateMealRunProgress(user.id, mealRunId, {
       currentStepId: body.currentStepId,
-      timerEndsAt: body.timerEndsAt,
+      timer: body.timer,
     });
     sendJson(response, 200, { mealRun });
   } catch (error) {
@@ -1268,6 +1268,11 @@ function mapMealExecutionError(error) {
     meal_task_forbidden: 403,
     meal_task_unavailable: 409,
     meal_step_invalid: 400,
+    meal_timer_step_invalid: 400,
+    meal_timer_time_invalid: 400,
+    meal_timer_duration_invalid: 400,
+    meal_timer_dependency_blocked: 409,
+    meal_timer_resource_busy: 409,
     meal_task_invalid: 400,
     meal_feedback_invalid: 400,
     abandon_reason_invalid: 400,

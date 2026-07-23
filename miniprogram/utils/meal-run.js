@@ -1,6 +1,6 @@
 const certifiedRecipes = require("../data/certified-recipes");
 const { requestHumi } = require("./request");
-const { buildMealTimeline, summarizeMealTimeline } = require("./meal-timeline");
+const { buildMealTimeline, createActualPassiveTimer, summarizeMealTimeline } = require("./meal-timeline");
 const { clearMealMutationResult, readMealMutationResult } = require("./offline-queue");
 
 const GUEST_RUN_PREFIX = "humi:meal-run:guest:v1:";
@@ -186,6 +186,25 @@ async function migrateGuestRunState({
     writeRemoteMealRun(mealRun, ownerUserId);
   }
   if (guestRun.status === "cooking" && mealRun.status === "cooking") {
+    const guestTimers = normalizeActualTimers(guestRun.timers, guestRun.timeline);
+    const remoteTimers = normalizeActualTimers(mealRun.timers, mealRun.timeline);
+    const orderedGuestTimers = timelineStepIds(guestRun.timeline)
+      .map((stepId) => guestTimers[stepId])
+      .filter(Boolean);
+    for (const timer of orderedGuestTimers) {
+      if (remoteTimers[timer.stepId]) continue;
+      const timerResult = await requestHumi({
+        path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
+        method: "PUT",
+        data: { currentStepId: timer.stepId, timer },
+        idempotencyKey: `guest-merge:${guestRun.id}:timer:${timer.stepId}`,
+        expectedUserId: ownerUserId,
+      });
+      mealRun = normalizeMealRun(timerResult?.mealRun);
+      if (!mealRun) throw codedError("meal_run_response_invalid");
+      Object.assign(remoteTimers, mealRun.timers);
+      writeRemoteMealRun(mealRun, ownerUserId);
+    }
     let progressComparison = compareCookingProgress(guestRun, mealRun);
     if (progressComparison === null) {
       return { merged: false, reason: "timeline_conflict", mealRun: null, guestRun };
@@ -195,10 +214,7 @@ async function migrateGuestRunState({
       const result = await requestHumi({
         path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
         method: "PUT",
-        data: {
-          currentStepId: guestRun.currentStepId,
-          timerEndsAt: guestRun.timerEndsAt || "",
-        },
+        data: { currentStepId: guestRun.currentStepId },
         idempotencyKey,
         expectedUserId: ownerUserId,
       });
@@ -257,6 +273,7 @@ function createGuestMealRun(input) {
     timelineVersion: 1,
     timeline: null,
     currentStepId: "",
+    timers: {},
     timerEndsAt: "",
     readyStaple: input.recipeIds.map((recipeId) => recipesById.get(recipeId)?.cookAssist?.readyStaple).find(Boolean) || "即食米饭",
     status: "planned",
@@ -336,13 +353,14 @@ async function loadExactMealRun({
 
 function chooseLatestMealRunSnapshot(remote, replayed) {
   if (!remote || !replayed || remote.id !== replayed.id) return remote || replayed || null;
+  const mergedTimers = mergeActualTimers(remote.timers, replayed.timers);
   const ranks = { planned: 0, cooking: 1, abandoned: 2, completed: 2 };
-  if ((ranks[replayed.status] ?? -1) > (ranks[remote.status] ?? -1)) return replayed;
-  if ((ranks[replayed.status] ?? -1) < (ranks[remote.status] ?? -1)) return remote;
+  if ((ranks[replayed.status] ?? -1) > (ranks[remote.status] ?? -1)) return { ...replayed, timers: mergedTimers };
+  if ((ranks[replayed.status] ?? -1) < (ranks[remote.status] ?? -1)) return { ...remote, timers: mergedTimers };
   if (remote.status !== "cooking" || replayed.status !== "cooking") {
     const remoteTime = Date.parse(remote.updatedAt || "");
     const replayedTime = Date.parse(replayed.updatedAt || "");
-    return replayedTime >= remoteTime ? replayed : remote;
+    return { ...(replayedTime >= remoteTime ? replayed : remote), timers: mergedTimers };
   }
   const remoteIds = timelineStepIds(remote.timeline);
   const replayedIds = timelineStepIds(replayed.timeline);
@@ -351,17 +369,20 @@ function chooseLatestMealRunSnapshot(remote, replayed) {
     && remoteIds.length === replayedIds.length
     && remoteIds.every((id, index) => id === replayedIds[index])
   ) {
-    return replayedIds.indexOf(replayed.currentStepId) >= remoteIds.indexOf(remote.currentStepId)
-      ? replayed
-      : remote;
+    return {
+      ...(replayedIds.indexOf(replayed.currentStepId) >= remoteIds.indexOf(remote.currentStepId)
+        ? replayed
+        : remote),
+      timers: mergedTimers,
+    };
   }
-  return remote;
+  return { ...remote, timers: mergedTimers };
 }
 
 function writeOptimisticMealProgress(mealRun, {
   ownerUserId,
   currentStepId,
-  timerEndsAt = "",
+  timer = null,
   now = new Date().toISOString(),
 } = {}) {
   if (
@@ -378,7 +399,7 @@ function writeOptimisticMealProgress(mealRun, {
     dateKey: mealRun.dateKey,
     timelineVersion: Number(mealRun.timelineVersion || mealRun.timeline?.version || 1),
     currentStepId,
-    timerEndsAt: timerEndsAt || "",
+    timers: mergeActualTimers(mealRun.timers, timer ? { [timer.stepId]: timer } : {}),
     updatedAt: new Date(now).toISOString(),
   };
   wx.setStorageSync(optimisticProgressKey(overlay.ownerUserId, overlay.householdId, overlay.dateKey), overlay);
@@ -402,14 +423,19 @@ function applyOptimisticMealProgress(mealRun, ownerUserId) {
   }
   const remoteIndex = timelineStepIndex(mealRun.timeline, mealRun.currentStepId);
   const optimisticIndex = timelineStepIndex(mealRun.timeline, overlay.currentStepId);
-  if (optimisticIndex < 0 || remoteIndex >= optimisticIndex || mealRun.status !== "cooking") {
+  const remoteTimers = normalizeActualTimers(mealRun.timers, mealRun.timeline);
+  const optimisticTimers = normalizeActualTimers(overlay.timers, mealRun.timeline);
+  const hasPendingTimer = Object.entries(optimisticTimers).some(([stepId, timer]) => (
+    !sameActualTimer(remoteTimers[stepId], timer)
+  ));
+  if (optimisticIndex < 0 || (remoteIndex >= optimisticIndex && !hasPendingTimer) || mealRun.status !== "cooking") {
     wx.removeStorageSync(key);
     return mealRun;
   }
   return {
     ...mealRun,
-    currentStepId: overlay.currentStepId,
-    timerEndsAt: overlay.timerEndsAt,
+    currentStepId: remoteIndex >= optimisticIndex ? mealRun.currentStepId : overlay.currentStepId,
+    timers: mergeActualTimers(remoteTimers, optimisticTimers),
     pendingSync: true,
   };
 }
@@ -431,7 +457,14 @@ async function startCookingMealRun(mealRun, { bootstrap = {}, idempotencyKey, no
     next.status = "cooking";
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
     next.currentStepId = next.timeline.steps[0]?.id || "";
-    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+    next.timers = {};
+    if (next.timeline.steps[0]?.attention === "passive") {
+      const timer = createActualPassiveTimer(next.timeline.steps[0], now);
+      next.timers[timer.stepId] = timer;
+      next.timerEndsAt = timer.endsAt;
+    } else {
+      next.timerEndsAt = "";
+    }
     next.startedBy = bootstrapUserId(bootstrap) || "guest";
     next.startedAt = now;
     next.updatedAt = now;
@@ -447,7 +480,7 @@ async function startCookingMealRun(mealRun, { bootstrap = {}, idempotencyKey, no
 async function progressCookingMealRun(mealRun, {
   bootstrap = {},
   currentStepId,
-  timerEndsAt = "",
+  timer = null,
   idempotencyKey,
   now = new Date().toISOString(),
 } = {}) {
@@ -455,18 +488,22 @@ async function progressCookingMealRun(mealRun, {
   const stepIndex = timelineStepIndex(mealRun.timeline, currentStepId);
   if (stepIndex < 0) throw codedError("meal_step_invalid");
   const currentIndex = timelineStepIndex(mealRun.timeline, mealRun.currentStepId);
-  if (currentIndex >= stepIndex) return mealRun;
+  const normalizedTimer = timer ? normalizeActualTimer(timer, mealRun.timeline) : null;
+  if (normalizedTimer && normalizedTimer.stepId !== currentStepId) throw codedError("meal_timer_step_invalid");
+  const timerAlreadyPresent = normalizedTimer && Boolean(mealRun.timers?.[normalizedTimer.stepId]);
+  if (currentIndex >= stepIndex && (!normalizedTimer || timerAlreadyPresent)) return mealRun;
   if (mealRun.localOnly) {
     const next = clone(mealRun);
-    next.currentStepId = currentStepId;
-    next.timerEndsAt = timerEndsAt || "";
+    if (currentIndex < stepIndex) next.currentStepId = currentStepId;
+    next.timers = mergeActualTimers(next.timers, normalizedTimer ? { [normalizedTimer.stepId]: normalizedTimer } : {});
+    next.timerEndsAt = normalizedTimer?.endsAt || next.timerEndsAt || "";
     next.updatedAt = now;
     writeGuestMealRun(next);
     return next;
   }
   return requestMealRunMutation(mealRun, "progress", "PUT", {
     currentStepId,
-    timerEndsAt,
+    ...(normalizedTimer ? { timer: normalizedTimer } : {}),
   }, { bootstrap, idempotencyKey });
 }
 
@@ -510,7 +547,14 @@ async function downgradeCookingMealRun(mealRun, action, {
   if (next.status === "cooking") {
     next.timeline = buildMealTimeline(next.recipeIds, { startedAt: now });
     next.currentStepId = next.timeline.steps[0]?.id || "";
-    next.timerEndsAt = next.timeline.steps[0]?.attention === "passive" ? next.timeline.steps[0].endsAt : "";
+    next.timers = {};
+    if (next.timeline.steps[0]?.attention === "passive") {
+      const timer = createActualPassiveTimer(next.timeline.steps[0], now);
+      next.timers[timer.stepId] = timer;
+      next.timerEndsAt = timer.endsAt;
+    } else {
+      next.timerEndsAt = "";
+    }
   }
   next.updatedAt = now;
   writeGuestMealRun(next);
@@ -704,7 +748,58 @@ function currentHouseholdRole(bootstrap = {}) {
 function normalizeMealRun(value) {
   if (!value || typeof value !== "object" || !clean(value.id) || !RUN_STATUSES.has(value.status)) return null;
   if (!validDateKey(value.dateKey) || value.mealSlot !== "dinner") return null;
-  return clone(value);
+  const mealRun = clone(value);
+  mealRun.timers = normalizeActualTimers(mealRun.timers, mealRun.timeline);
+  return mealRun;
+}
+
+function normalizeActualTimers(timers, timeline) {
+  if (!timers || typeof timers !== "object" || Array.isArray(timers)) return {};
+  const result = {};
+  for (const timer of Object.values(timers)) {
+    try {
+      const normalized = normalizeActualTimer(timer, timeline);
+      result[normalized.stepId] = normalized;
+    } catch (_) {
+      // Cached or replayed timer data is untrusted; invalid entries never drive cooking.
+    }
+  }
+  return result;
+}
+
+function normalizeActualTimer(timer, timeline) {
+  if (!timer || typeof timer !== "object" || Array.isArray(timer)) throw codedError("meal_timer_invalid");
+  const stepId = clean(timer.stepId);
+  const step = timeline?.steps?.find((candidate) => candidate.id === stepId);
+  if (!step || step.attention !== "passive") throw codedError("meal_timer_step_invalid");
+  const startedAt = canonicalIso(timer.startedAt);
+  const endsAt = canonicalIso(timer.endsAt);
+  if (Date.parse(endsAt) - Date.parse(startedAt) !== Number(step.durationSeconds) * 1000) {
+    throw codedError("meal_timer_duration_invalid");
+  }
+  return { stepId, startedAt, endsAt };
+}
+
+function canonicalIso(value) {
+  const text = typeof value === "string" ? value : "";
+  const timestamp = Date.parse(text);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== text) throw codedError("meal_timer_time_invalid");
+  return text;
+}
+
+function mergeActualTimers(left, right) {
+  const merged = { ...(left || {}) };
+  for (const [stepId, timer] of Object.entries(right || {})) {
+    if (!merged[stepId]) merged[stepId] = timer;
+  }
+  return merged;
+}
+
+function sameActualTimer(left, right) {
+  return Boolean(left && right
+    && left.stepId === right.stepId
+    && left.startedAt === right.startedAt
+    && left.endsAt === right.endsAt);
 }
 
 function writeRemoteMealRun(mealRun, userId) {
