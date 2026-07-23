@@ -1,4 +1,5 @@
 const { loadBootstrap } = require("../../../utils/bootstrap");
+const { createMutationId, saveHouseholdStatePatch } = require("../../../utils/household-state");
 const { requestHumi } = require("../../../utils/request");
 const { appStore } = require("../../../utils/store");
 
@@ -91,27 +92,35 @@ Page({
 
   async savePreferences() {
     if (!this.data.canManage || this.data.pendingAction) return null;
-    return this.runMutation("preferences", async () => {
-      const current = await requestHumi({ path: "/state" });
-      const currentState = current?.state && typeof current.state === "object" ? current.state : {};
-      await requestHumi({
-        path: "/state",
-        method: "PUT",
-        data: {
-          householdId: this._householdId,
-          state: {
-            ...currentState,
-            familyProfile: {
-              ...(currentState.familyProfile || {}),
-              dislikes: splitPreferences(this.data.dislikesText),
-              allergies: splitPreferences(this.data.allergiesText),
-            },
-          },
-        },
-        idempotencyKey: mutationId("household-preferences"),
+    const bootstrap = appStore.getState().bootstrap;
+    this.setData({ pendingAction: "preferences", errorText: "" });
+    try {
+      const envelope = await saveHouseholdStatePatch({
+        familyProfile: buildFamilyProfilePatch(bootstrap?.householdState?.familyProfile, {
+          dislikes: splitPreferences(this.data.dislikesText),
+          allergies: splitPreferences(this.data.allergiesText),
+        }),
+      }, {
+        householdId: this._householdId,
+        stateVersion: bootstrap?.stateVersion,
+        idempotencyKey: createMutationId("household-preferences"),
       });
-      await this.reload();
-    }, "家庭忌口暂时没有保存成功，请重试。");
+      appStore.replaceBootstrap(envelope);
+      this.syncState();
+      return true;
+    } catch (error) {
+      if ((error?.status === 409 || error?.code === "state_version_conflict") && error?.latestEnvelope) {
+        appStore.replaceBootstrap(error.latestEnvelope);
+        this.setData({
+          errorText: "家庭信息刚刚有更新，已同步最新内容。你填写的忌口还在，请再保存一次。",
+        });
+        return null;
+      }
+      this.setData({ errorText: error?.message || "家庭忌口暂时没有保存成功，请重试。" });
+      return null;
+    } finally {
+      this.setData({ pendingAction: "" });
+    }
   },
 
   async transferOwnership(event = {}) {
@@ -238,6 +247,20 @@ function splitPreferences(value) {
   return normalizePreferenceList(String(value || "").split(/[、,，\n]/));
 }
 
+function buildFamilyProfilePatch(currentProfile, changes = {}) {
+  const profile = currentProfile && typeof currentProfile === "object" ? currentProfile : {};
+  return {
+    planningMode: String(profile.planningMode || ""),
+    familySize: Math.max(1, Number(profile.familySize) || 2),
+    hasChildren: Boolean(profile.hasChildren),
+    tastePreferences: normalizePreferenceList(profile.tastePreferences),
+    goals: normalizePreferenceList(profile.goals),
+    dislikes: normalizePreferenceList(changes.dislikes),
+    allergies: normalizePreferenceList(changes.allergies),
+    shoppingTolerance: String(profile.shoppingTolerance || "medium"),
+  };
+}
+
 function normalizePreferenceList(value) {
   return [...new Set((Array.isArray(value) ? value : [])
     .map((item) => String(item || "").trim().slice(0, 40))
@@ -258,4 +281,4 @@ function showModal(options) {
   return new Promise((resolve) => wx.showModal({ ...options, success: resolve, fail: () => resolve({ confirm: false }) }));
 }
 
-module.exports = { normalizeMembers, splitPreferences };
+module.exports = { buildFamilyProfilePatch, normalizeMembers, splitPreferences };

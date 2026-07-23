@@ -766,11 +766,14 @@ export class HumiStore {
       if (!member) throw codedError("forbidden", "Only formal household members can update state.");
       const user = this.data.users.find((item) => item.id === userId);
       const patchKeys = Object.keys(patch || {});
-      if (!patchKeys.length || patchKeys.some((key) => !["mealPlan", "groceryClaims", "checkedItems"].includes(key))) {
+      if (!patchKeys.length || patchKeys.some((key) => !["mealPlan", "groceryClaims", "checkedItems", "familyProfile"].includes(key))) {
         throw codedError("state_patch_invalid", "State patch contains unsupported fields.");
       }
       if (Object.prototype.hasOwnProperty.call(patch, "mealPlan") && household.ownerId !== userId) {
         throw codedError("forbidden", "Only the household owner can change the planned menu.");
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "familyProfile") && household.ownerId !== userId) {
+        throw codedError("forbidden", "Only the household owner can change the family profile.");
       }
       const trustedGroceryClaims = Object.fromEntries(
         Object.entries(patch.groceryClaims || {}).map(([itemKey, claim]) => [
@@ -863,6 +866,9 @@ export class HumiStore {
                 ...patch.checkedItems,
               }).slice(-400)),
             }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "familyProfile")
+          ? { familyProfile: patch.familyProfile }
           : {}),
         householdId: household.id,
         updatedAt: new Date().toISOString(),

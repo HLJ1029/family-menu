@@ -801,7 +801,7 @@ function sanitizeStatePatch(patch) {
     throw httpError(400, "state_patch_invalid", "State patch must be an object.");
   }
   const keys = Object.keys(patch);
-  const allowedKeys = new Set(["mealPlan", "groceryClaims", "checkedItems"]);
+  const allowedKeys = new Set(["mealPlan", "groceryClaims", "checkedItems", "familyProfile"]);
   if (!keys.length || keys.some((key) => !allowedKeys.has(key))) {
     throw httpError(400, "state_patch_invalid", "State patch contains unsupported fields.");
   }
@@ -825,13 +825,21 @@ function sanitizeStatePatch(patch) {
       }
     }
   }
+  if (
+    Object.prototype.hasOwnProperty.call(patch, "familyProfile")
+    && (!patch.familyProfile || typeof patch.familyProfile !== "object" || Array.isArray(patch.familyProfile))
+  ) {
+    throw httpError(400, "state_patch_invalid", "Family profile patch must be an object.");
+  }
   return Object.fromEntries(keys.map((key) => [
     key,
     key === "mealPlan"
       ? sanitizeMealPlan(patch[key])
       : key === "groceryClaims"
         ? sanitizeGroceryClaims(patch[key])
-        : sanitizeBooleanMap(patch[key], 400),
+        : key === "checkedItems"
+          ? sanitizeBooleanMap(patch[key], 400)
+          : sanitizeProfile(patch[key]),
   ]));
 }
 

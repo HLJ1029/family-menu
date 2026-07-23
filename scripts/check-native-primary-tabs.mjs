@@ -499,6 +499,7 @@ try {
     },
   });
   assert.equal(forbiddenSpoofedClaim.code, "forbidden");
+  const ownerPreferenceSnapshot = await apiRequest(origin, "/state", { token: ownerLogin.accessToken });
   const memberClaim = await apiRequest(origin, "/state", {
     method: "PUT",
     token: memberLogin.accessToken,
@@ -536,6 +537,90 @@ try {
     },
   });
   assert.equal(memberCheck.householdState.checkedItems["ingredient:egg"], true, "formal members may check grocery items");
+  const completeFamilyProfile = {
+    planningMode: "weekly",
+    familySize: 3,
+    hasChildren: false,
+    tastePreferences: [],
+    goals: ["省时"],
+    dislikes: ["香菜"],
+    allergies: ["花生"],
+    shoppingTolerance: "medium",
+  };
+  const staleOwnerPreferences = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: ownerPreferenceSnapshot.stateVersion,
+    idempotencyKey: "stale-owner-family-profile",
+    expectedStatus: 409,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { familyProfile: completeFamilyProfile },
+    },
+  });
+  assert.equal(staleOwnerPreferences.code, "state_version_conflict");
+  assert.equal(
+    staleOwnerPreferences.latestEnvelope.householdState.checkedItems["ingredient:egg"],
+    true,
+    "a stale owner preference save must return and preserve the member's newer grocery state",
+  );
+  assert.equal(
+    staleOwnerPreferences.latestEnvelope.householdState.groceryClaims["ingredient:egg"].memberId,
+    memberLogin.user.id,
+  );
+  const forbiddenMemberProfile = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: memberLogin.accessToken,
+    stateVersion: memberCheck.stateVersion,
+    idempotencyKey: "member-family-profile",
+    expectedStatus: 403,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { familyProfile: completeFamilyProfile },
+    },
+  });
+  assert.equal(forbiddenMemberProfile.code, "forbidden", "only the owner may patch the household family profile");
+  const refreshedOwnerPreferences = await apiRequest(origin, "/state", { token: ownerLogin.accessToken });
+  const savedOwnerPreferences = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: refreshedOwnerPreferences.stateVersion,
+    idempotencyKey: "fresh-owner-family-profile",
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: {
+        familyProfile: {
+          ...completeFamilyProfile,
+          activeCraveRequest: { token: "must-not-enter-family-profile" },
+        },
+      },
+    },
+  });
+  assert.deepEqual(savedOwnerPreferences.householdState.familyProfile.dislikes, ["香菜"]);
+  assert.deepEqual(savedOwnerPreferences.householdState.familyProfile.allergies, ["花生"]);
+  assert.equal(Object.hasOwn(savedOwnerPreferences.householdState.familyProfile, "activeCraveRequest"), false);
+  assert.equal(
+    savedOwnerPreferences.householdState.checkedItems["ingredient:egg"],
+    true,
+    "retrying the narrow profile patch must not replace the member's checked items",
+  );
+  assert.equal(
+    savedOwnerPreferences.householdState.groceryClaims["ingredient:egg"].memberId,
+    memberLogin.user.id,
+    "retrying the narrow profile patch must not replace the member's grocery claim",
+  );
+  const invalidFamilyProfilePatch = await apiRequest(origin, "/state", {
+    method: "PUT",
+    token: ownerLogin.accessToken,
+    stateVersion: savedOwnerPreferences.stateVersion,
+    idempotencyKey: "invalid-family-profile-shape",
+    expectedStatus: 400,
+    body: {
+      householdId: ownerHousehold.family.id,
+      patch: { familyProfile: "not-an-object" },
+    },
+  });
+  assert.equal(invalidFamilyProfilePatch.code, "state_patch_invalid");
   const memberShare = await apiRequest(origin, "/grocery-share-requests", {
     method: "POST",
     token: memberLogin.accessToken,
@@ -866,7 +951,20 @@ try {
   assert.equal(inviteRoutes.at(-1), "/pages/family/index");
 
   const settingsRequests = [];
-  const settingsBootstrap = buildNativeBootstrap({ role: "owner" });
+  const settingsPatches = [];
+  let settingsShouldConflict = false;
+  let settingsBootstrap = buildNativeBootstrap({ role: "owner" });
+  settingsBootstrap.householdState.familyProfile = {
+    planningMode: "weekly",
+    familySize: 2,
+    hasChildren: false,
+    tastePreferences: [],
+    goals: ["省时"],
+    dislikes: [],
+    allergies: [],
+    shoppingTolerance: "medium",
+  };
+  settingsBootstrap.householdState.activeCraveRequest = { token: "server-owned-token" };
   const settingsPage = await loadPage(
     "miniprogram/packageFamily/pages/settings/index.js",
     {
@@ -874,21 +972,33 @@ try {
       "../../../utils/request": {
         requestHumi: async (options) => {
           settingsRequests.push(options);
-          if (options.path === "/state" && !options.method) {
-            return {
-              state: {
-                activeCraveRequest: { token: "server-owned-token" },
-                familyProfile: { familySize: 2, dislikes: [], allergies: [] },
-              },
-            };
-          }
           return {};
+        },
+      },
+      "../../../utils/household-state": {
+        createMutationId: () => "settings-family-profile-patch",
+        saveHouseholdStatePatch: async (patch, context) => {
+          settingsPatches.push({ patch, context });
+          if (settingsShouldConflict) {
+            const latestEnvelope = structuredClone(settingsBootstrap);
+            latestEnvelope.stateVersion = "state-v3";
+            latestEnvelope.householdState.checkedItems = { "ingredient:egg": true };
+            const error = new Error("state version conflict");
+            error.status = 409;
+            error.code = "state_version_conflict";
+            error.latestEnvelope = latestEnvelope;
+            throw error;
+          }
+          const nextEnvelope = structuredClone(settingsBootstrap);
+          nextEnvelope.stateVersion = "state-v2";
+          nextEnvelope.householdState.familyProfile = structuredClone(patch.familyProfile);
+          return nextEnvelope;
         },
       },
       "../../../utils/store": {
         appStore: {
           getState: () => ({ bootstrap: settingsBootstrap }),
-          replaceBootstrap: () => {},
+          replaceBootstrap: (envelope) => { settingsBootstrap = envelope; },
         },
       },
     },
@@ -898,10 +1008,35 @@ try {
   settingsPage.updateDislikes({ detail: { value: "香菜、芹菜" } });
   settingsPage.updateAllergies({ detail: { value: "花生" } });
   await settingsPage.savePreferences();
-  const savedSettingsState = settingsRequests.find((request) => request.method === "PUT")?.data?.state;
-  assert.equal(savedSettingsState.activeCraveRequest.token, "server-owned-token", "preference saving must merge into a fresh full state");
-  assert.deepEqual(JSON.parse(JSON.stringify(savedSettingsState.familyProfile.dislikes)), ["香菜", "芹菜"]);
-  assert.deepEqual(JSON.parse(JSON.stringify(savedSettingsState.familyProfile.allergies)), ["花生"]);
+  assert.equal(settingsRequests.some((request) => request.path === "/state"), false, "settings must not use the legacy full-state endpoint");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(settingsPatches[0].patch.familyProfile.dislikes)),
+    ["香菜", "芹菜"],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(settingsPatches[0].patch.familyProfile.allergies)),
+    ["花生"],
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(settingsPatches[0].context)), {
+    householdId: "household-1",
+    stateVersion: "state-v1",
+    idempotencyKey: "settings-family-profile-patch",
+  });
+  assert.equal(
+    settingsBootstrap.householdState.activeCraveRequest.token,
+    "server-owned-token",
+    "a narrow preference patch must preserve unrelated server-owned state",
+  );
+
+  settingsShouldConflict = true;
+  settingsPage.updateDislikes({ detail: { value: "韭菜" } });
+  settingsPage.updateAllergies({ detail: { value: "虾" } });
+  await settingsPage.savePreferences();
+  assert.equal(settingsBootstrap.stateVersion, "state-v3", "a conflict must replace the app store with the latest envelope");
+  assert.equal(settingsBootstrap.householdState.checkedItems["ingredient:egg"], true);
+  assert.equal(settingsPage.data.dislikesText, "韭菜", "a conflict must preserve the owner's unsaved input");
+  assert.equal(settingsPage.data.allergiesText, "虾", "a conflict must preserve the owner's unsaved input");
+  assert.match(settingsPage.data.errorText, /更新|再保存/);
 
   console.log("Native primary tabs and household control center checks passed.");
 } finally {
