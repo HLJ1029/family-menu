@@ -1173,17 +1173,21 @@ async function handleCompleteMealTask(request, response, token) {
 
 async function handleMealReminderConfig(request, response, searchParams) {
   const { user, household } = await requireMealExecutionContext(request);
+  let existingReminder = null;
   try {
-    const source = await store.getEligibleReminderSource(user.id, stringValue(searchParams.get("mealRunId"), 100));
+    const sourceMealRunId = stringValue(searchParams.get("mealRunId"), 100);
+    const source = await store.getEligibleReminderSource(user.id, sourceMealRunId);
     if (source.householdId !== household.id) {
       throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
     }
+    existingReminder = await store.getMealReminderForSource(user.id, sourceMealRunId);
   } catch (error) {
     throw mapMealExecutionError(error);
   }
   sendJson(response, 200, {
     enabled: Boolean(config.mealReminderTemplateId && household),
     templateId: config.mealReminderTemplateId || "",
+    existingReminder: toPublicMealReminder(existingReminder),
   });
 }
 
@@ -1208,7 +1212,7 @@ async function handleCreateMealReminder(request, response) {
     if (source.householdId !== household.id) {
       throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
     }
-    const reminder = await store.createMealReminder(user.id, {
+    const result = await store.createMealReminder(user.id, {
       householdId: household.id,
       sourceMealRunId,
       scheduledAt: body.scheduledAt,
@@ -1217,7 +1221,10 @@ async function handleCreateMealReminder(request, response) {
       templateId: config.mealReminderTemplateId,
       idempotencyKey: stringValue(request.headers["x-humi-idempotency-key"], 180),
     });
-    sendJson(response, 201, { reminder });
+    sendJson(response, result.created ? 201 : 200, {
+      created: result.created,
+      reminder: toPublicMealReminder(result.reminder),
+    });
   } catch (error) {
     throw mapMealExecutionError(error);
   }
@@ -1506,6 +1513,7 @@ function toPublicMealTaskSummary(task = {}) {
     id: stringValue(task.id, 100),
     type: task.type === "buy" ? "buy" : "prep",
     label: stringValue(task.label, 64),
+    sourceId: stringValue(task.sourceId, 180),
     status: ["open", "claimed", "completed"].includes(task.status) ? task.status : "open",
     createdBy: stringValue(task.createdBy, 100),
     claimedBy: stringValue(task.claimedBy, 100),
@@ -1580,7 +1588,11 @@ export async function processDueMealReminders({
     if (!claimed) continue;
     try {
       const openid = await store.getWechatOpenIdForUser(claimed.userId);
-      if (!openid) throw new Error("wechat_openid_missing");
+      if (!openid) {
+        const error = new Error("wechat_openid_missing");
+        error.deliveryState = "not_submitted";
+        throw error;
+      }
       await sendMessage({
         openid,
         appId: config.wechatAppId,
@@ -1595,7 +1607,10 @@ export async function processDueMealReminders({
       });
       results.push(await store.markMealReminderSent(claimed.id, now));
     } catch (error) {
-      results.push(await store.markMealReminderFailure(claimed.id, error.code || error.message, now));
+      const message = error.code || error.message;
+      results.push(error.deliveryState === "not_submitted"
+        ? await store.markMealReminderFailure(claimed.id, message, now)
+        : await store.markMealReminderDeliveryUnknown(claimed.id, message, now));
     }
   }
   return results;
@@ -1622,6 +1637,18 @@ function formatWechatReminderTime(value) {
     minute: "2-digit",
     hour12: false,
   }).format(date).replaceAll("/", "-");
+}
+
+function toPublicMealReminder(reminder) {
+  if (!reminder) return null;
+  return {
+    id: stringValue(reminder.id, 100),
+    status: stringValue(reminder.status, 40),
+    scheduledAt: stringValue(reminder.scheduledAt, 80),
+    dateKey: stringValue(reminder.dateKey, 10),
+    effortTier: stringValue(reminder.effortTier, 24),
+    sourceMealRunId: stringValue(reminder.sourceMealRunId, 100),
+  };
 }
 
 async function handleCreateHouseholdInvite(request, response) {

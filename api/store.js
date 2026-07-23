@@ -2082,9 +2082,9 @@ export class HumiStore {
         180,
       );
       const existing = this.data.mealReminders.find((entry) => (
-        entry.userId === userId && entry.idempotencyKey === idempotencyKey
+        entry.userId === userId && entry.sourceMealRunId === sourceMealRunId
       ));
-      if (existing) return existing;
+      if (existing) return { reminder: existing, created: false };
       const now = new Date().toISOString();
       const reminder = {
         id: randomUUID(),
@@ -2109,7 +2109,7 @@ export class HumiStore {
       };
       this.data.mealReminders.unshift(reminder);
       this.data.mealReminders = this.data.mealReminders.slice(0, 5000);
-      return reminder;
+      return { reminder, created: true };
     });
   }
 
@@ -2118,13 +2118,22 @@ export class HumiStore {
     return structuredClone(this.requireEligibleReminderSource(userId, mealRunId));
   }
 
+  async getMealReminderForSource(userId, sourceMealRunId) {
+    await this.load();
+    this.requireEligibleReminderSource(userId, sourceMealRunId);
+    const reminder = this.data.mealReminders.find((entry) => (
+      entry.userId === userId && entry.sourceMealRunId === sourceMealRunId
+    ));
+    return reminder ? structuredClone(reminder) : null;
+  }
+
   async cancelMealReminder(userId, reminderId) {
     await this.load();
     return this.mutateAndSave(() => {
       const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
       if (!reminder) return null;
       if (reminder.userId !== userId) throw codedError("forbidden", "Only the reminder owner can cancel it.");
-      if (["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
+      if (["sent", "failed", "cancelled", "delivery_unknown"].includes(reminder.status)) return reminder;
       const now = new Date().toISOString();
       reminder.status = "cancelled";
       reminder.cancelledAt = now;
@@ -2177,7 +2186,7 @@ export class HumiStore {
     await this.load();
     return this.mutateAndSave(() => {
       const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
-      if (!reminder || ["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
+      if (!reminder || ["sent", "failed", "cancelled", "delivery_unknown"].includes(reminder.status)) return reminder;
       const now = new Date().toISOString();
       reminder.status = "cancelled";
       reminder.cancelledAt = now;
@@ -2214,6 +2223,19 @@ export class HumiStore {
         reminder.status = "retrying";
         reminder.nextAttemptAt = new Date(Date.parse(now) + 5 * 60 * 1000).toISOString();
       }
+      return reminder;
+    });
+  }
+
+  async markMealReminderDeliveryUnknown(reminderId, message, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || reminder.status !== "sending") return reminder;
+      reminder.status = "delivery_unknown";
+      reminder.deliveryUnknownAt = now;
+      reminder.lastError = sanitizeText(message, "delivery_unknown", 120);
+      reminder.updatedAt = now;
       return reminder;
     });
   }

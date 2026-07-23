@@ -27,7 +27,7 @@
   <view class="actions">
     <button wx:if="{{needsLogin}}" class="primary-button" bindtap="openLogin">微信登录后预约</button>
     <button wx:elif="{{!saved && !rejected}}" class="primary-button" bindtap="confirmReminder" loading="{{pending}}" disabled="{{loading || pending || !templateId || !scheduledAt}}">确认接收一次提醒</button>
-    <button wx:else class="primary-button" disabled>{{saved ? "已预约" : "不再提醒"}}</button>
+    <button wx:else class="primary-button" disabled>{{saved ? reminderButtonLabel : "不再提醒"}}</button>
     <button class="ghost-button" bindtap="goBack">返回 Humi</button>
   </view>
 </view>

@@ -9,6 +9,7 @@ const SESSION_KEY = "humi:native-session:v1";
 const future = Date.now() + 60 * 60 * 1000;
 
 await verifyGuestDecisionFlow();
+await verifyReminderDeepLinkEntry();
 await verifyAuthenticatedServerFlowAndPendingGuards();
 await verifyTimeoutFallbackAndStateConflictRefresh();
 await verifyLockedRecommendationLoadsCurrentRun();
@@ -24,6 +25,57 @@ verifyInteractiveComponents();
 verifyProductionTemplateContract();
 
 console.log("Native Tonight decision flow checks passed.");
+
+async function verifyReminderDeepLinkEntry() {
+  const runtime = createRuntime({
+    session: sessionFor("reminder-entry-user"),
+    bootstrap: bootstrapFor({ userId: "reminder-entry-user" }),
+  });
+  const today = runtime.load("miniprogram/utils/meal-run.js").formatDinnerDateKey();
+  const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
+  await page.onLoad({
+    dateKey: today,
+    effortTier: "easy_30",
+    mealReminder: "reminder-entry-1",
+    sourceMealRunId: "meal-source-1",
+  });
+  assert.equal(page.data.viewState, "choose_effort");
+  assert.equal(page.data.effortTier, "easy_30", "a current-day reminder preselects only its legal effort tier");
+  assert.equal(page.data.recommendation, null, "a reminder entry never starts recommendation automatically");
+  assert.equal(page.data.mealRun, null, "a reminder entry never starts cooking automatically");
+  assert.equal(runtime.routes.length, 0);
+
+  for (const options of [
+    {
+      dateKey: "2000-01-01",
+      effortTier: "normal",
+      mealReminder: "old-reminder",
+      sourceMealRunId: "old-meal",
+    },
+    {
+      dateKey: today,
+      effortTier: "not-a-tier",
+      mealReminder: "bad-tier",
+      sourceMealRunId: "meal-source",
+    },
+    {
+      dateKey: today,
+      effortTier: "normal",
+      mealReminder: "../unsafe",
+      sourceMealRunId: "meal-source",
+    },
+  ]) {
+    const invalidRuntime = createRuntime({
+      session: sessionFor(`invalid-reminder-${options.mealReminder}`),
+      bootstrap: bootstrapFor({ userId: `invalid-reminder-${options.mealReminder}` }),
+    });
+    const invalidPage = invalidRuntime.loadPage("miniprogram/pages/tonight/index.js");
+    await invalidPage.onLoad(options);
+    assert.equal(invalidPage.data.effortTier, "", "illegal reminder parameters safely fall back to today's neutral choice");
+    assert.equal(invalidPage.data.viewState, "choose_effort");
+    assert.equal(invalidPage.data.recommendation, null);
+  }
+}
 
 async function verifyGuestDecisionFlow() {
   const runtime = createRuntime({

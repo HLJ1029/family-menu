@@ -39,8 +39,9 @@ Page({
     cacheState: "",
   },
 
-  async onLoad() {
+  async onLoad(options = {}) {
     this._skipFirstShow = true;
+    this._reminderEntry = normalizeReminderEntry(options, formatDinnerDateKey());
     await this.initialize();
     return this.prepareMenuShare().catch(() => null);
   },
@@ -93,7 +94,11 @@ Page({
         mealRun = await loadCurrentMealRun({ bootstrap, dateKey });
       }
       if (mealRun) await this.applyMealRun(mealRun);
-      else this.setView("choose_effort", { mealRun: null, plan: null });
+      else this.setView("choose_effort", {
+        mealRun: null,
+        plan: null,
+        effortTier: this._reminderEntry?.effortTier || "",
+      });
     } catch (error) {
       this.setView("error", { errorText: errorMessage(error, "今晚的安排暂时没有加载成功。") });
     } finally {
@@ -384,6 +389,25 @@ Page({
 function safeTelemetryId(value) {
   const normalized = String(value || "").replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 64);
   return normalized || undefined;
+}
+
+function normalizeReminderEntry(options = {}, currentDateKey = "") {
+  const dateKey = String(options.dateKey || "").trim();
+  const effortTier = String(options.effortTier || "").trim();
+  const reminderId = normalizeRouteToken(options.mealReminder);
+  const sourceMealRunId = normalizeRouteToken(options.sourceMealRunId);
+  if (
+    dateKey !== currentDateKey
+    || !EFFORT_TIERS.has(effortTier)
+    || !reminderId
+    || !sourceMealRunId
+  ) return null;
+  return { dateKey, effortTier, reminderId, sourceMealRunId };
+}
+
+function normalizeRouteToken(value) {
+  const token = String(value || "").trim();
+  return /^[A-Za-z0-9_-]{1,100}$/.test(token) ? token : "";
 }
 
 function errorMessage(error, fallback) {

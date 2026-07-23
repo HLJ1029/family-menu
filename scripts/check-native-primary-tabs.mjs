@@ -362,7 +362,7 @@ try {
   assert.equal(householdMealTasks.tasks.length, 1);
   assert.deepEqual(
     Object.keys(householdMealTasks.tasks[0]).sort(),
-    ["completedAt", "completedBy", "createdAt", "createdBy", "id", "label", "status", "type", "updatedAt", "claimedAt", "claimedBy"].sort(),
+    ["completedAt", "completedBy", "createdAt", "createdBy", "id", "label", "sourceId", "status", "type", "updatedAt", "claimedAt", "claimedBy"].sort(),
     "household task summaries must omit share tokens and unrelated execution internals",
   );
   const outsiderLogin = await loginNativeUser(origin, "outsider");

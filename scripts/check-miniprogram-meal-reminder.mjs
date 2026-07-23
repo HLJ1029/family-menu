@@ -16,7 +16,7 @@ assert.doesNotMatch(pageSource, /onShow[\s\S]{0,500}requestSubscribeMessage/, "o
 assert.doesNotMatch(taskPageSource, /Date\\.now|Math\\.random/, "task claim and completion retries must use stable idempotency keys");
 
 const scheduledAt = "2026-07-25T10:30:00.000Z";
-const decisionKey = "humi:meal-reminder-consent:v2:meal-1";
+const decisionKey = "humi:meal-reminder-consent:v3:meal-1";
 
 {
   const runtime = createReminderPage({ subscriptionResult: "accept" });
@@ -61,7 +61,7 @@ const decisionKey = "humi:meal-reminder-consent:v2:meal-1";
   runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "easy_30", mealRunId: "meal-1" });
   runtime.page.confirmReminder();
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 0, "rejected permission must not create a reminder");
-  assert.equal(runtime.storage.get(decisionKey), "rejected");
+  assert.equal(runtime.storage.get(decisionKey)?.state, "rejected");
   runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, "rejection must not trigger another permission request");
 }
@@ -72,13 +72,14 @@ const decisionKey = "humi:meal-reminder-consent:v2:meal-1";
   runtime.page.confirmReminder();
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 0, "cancelled authorization must not create a reminder");
   assert.match(runtime.page.data.status, /没有设置|取消/);
-  assert.equal(runtime.storage.get(decisionKey), "cancelled");
+  assert.equal(runtime.storage.get(decisionKey)?.state, "cancelled");
   runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, "cancellation must not reopen authorization for the same first-completion flow");
 }
 
 {
-  const runtime = createReminderPage({ subscriptionResult: "accept", postStatusCode: 503 });
+  const sharedStorage = new Map();
+  const runtime = createReminderPage({ subscriptionResult: "accept", postStatusCode: 503, storage: sharedStorage });
   runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "normal", mealRunId: "meal-1" });
   runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1);
@@ -87,6 +88,59 @@ const decisionKey = "humi:meal-reminder-consent:v2:meal-1";
   runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, "an API save retry must reuse accepted permission without reopening WeChat authorization");
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(sharedStorage.get(decisionKey))), {
+    state: "accepted_pending",
+    scheduledAt,
+  });
+
+  const reopened = createReminderPage({ subscriptionResult: "accept", postStatusCode: 503, storage: sharedStorage });
+  reopened.page.onLoad({ effortTier: "normal", mealRunId: "meal-1" });
+  reopened.page.onDateChange({ detail: { value: "2026-07-27" } });
+  reopened.page.onTimeChange({ detail: { value: "19:00" } });
+  reopened.page.confirmReminder();
+  assert.equal(
+    reopened.subscribeCalls.length,
+    1,
+    "accepted permission from another schedule cannot be reused after reopening to create a new schedule",
+  );
+}
+
+{
+  const runtime = createReminderPage({
+    existingReminder: {
+      id: "existing-reminder",
+      status: "scheduled",
+      scheduledAt,
+      dateKey: "2026-07-25",
+      effortTier: "quick_15",
+    },
+  });
+  runtime.page.onLoad({ effortTier: "quick_15", mealRunId: "meal-1" });
+  assert.equal(runtime.page.data.saved, true, "server reminder truth makes a reopened page read-only");
+  assert.equal(runtime.page.data.scheduledAt, scheduledAt);
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 0);
+  assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 0);
+}
+
+for (const [status, label] of [
+  ["sent", "已发送"],
+  ["cancelled", "已取消"],
+  ["failed", "未能发送"],
+  ["delivery_unknown", "发送未确认"],
+]) {
+  const runtime = createReminderPage({
+    existingReminder: {
+      id: `existing-${status}`,
+      status,
+      scheduledAt,
+      dateKey: "2026-07-25",
+      effortTier: "quick_15",
+    },
+  });
+  runtime.page.onLoad({ mealRunId: "meal-1" });
+  assert.equal(runtime.page.data.saved, true);
+  assert.equal(runtime.page.data.reminderButtonLabel, label, `${status} remains read-only without claiming it is scheduled`);
 }
 
 {
@@ -109,12 +163,13 @@ function createReminderPage({
   subscriptionFailure = false,
   postStatusCode = 201,
   session = defaultSession(),
+  existingReminder = null,
+  storage = new Map(),
 } = {}) {
   let definition;
   const requests = [];
   const subscribeCalls = [];
   const navigations = [];
-  const storage = new Map();
   const wx = {
     getStorageSync(key) {
       return storage.get(key);
@@ -124,7 +179,12 @@ function createReminderPage({
     },
     request({ url, method = "GET", data, header = {}, success, complete = () => {} }) {
       requests.push({ url, method, data, header });
-      if (method === "GET") success?.({ statusCode: 200, data: { enabled: true, templateId: "template-1" } });
+      if (method === "GET") {
+        success?.({
+          statusCode: 200,
+          data: { enabled: true, templateId: "template-1", existingReminder },
+        });
+      }
       else success?.({
         statusCode: postStatusCode,
         data: postStatusCode < 300 ? { reminder: { id: "reminder-1", status: "scheduled" } } : { error: "temporary_failure" },

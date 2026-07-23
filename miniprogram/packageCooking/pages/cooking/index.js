@@ -23,6 +23,7 @@ const {
 const { enqueueMutation, flushMutationQueue, readQueue } = require("../../../utils/offline-queue");
 const { guardNativeTab } = require("../../../utils/native-shell-guard");
 const { requestHumi } = require("../../../utils/request");
+const { prepareShareSnapshot } = require("../../../utils/share-snapshot");
 const { appStore } = require("../../../utils/store");
 const { startSpan } = require("../../../utils/telemetry");
 
@@ -77,6 +78,10 @@ const pageDefinition = {
     createdTasks: [],
     taskPendingId: "",
     taskErrorText: "",
+    activeShareTaskId: "",
+    activeTaskSharePayload: null,
+    taskSharePreparingId: "",
+    taskShareErrorId: "",
     canScheduleReminder: false,
   },
 
@@ -169,6 +174,7 @@ const pageDefinition = {
         idempotencyKey: this.idempotencyKey("start"),
       }));
     }
+    if (canCreateMealTask(this.data.mealRun)) await this.loadMealTasks();
     this.updateUnsyncedState();
   },
 
@@ -437,17 +443,99 @@ const pageDefinition = {
       });
       const task = payload?.task;
       if (!task?.id) throw codedError("meal_task_response_invalid");
+      const createdTasks = [task, ...this.data.createdTasks.filter((item) => item.id !== task.id)];
       this.setData({
-        createdTasks: [...this.data.createdTasks, task],
-        taskSuggestions: this.data.taskSuggestions.filter((item) => item.id !== suggestion.id),
+        createdTasks,
+        taskSuggestions: suggestedTasks(mealRun, createdTasks),
       });
+      await this.prepareMealTaskShare({ currentTarget: { dataset: { taskId: task.id } } });
       return task;
     } catch (_) {
-      this.setData({ taskErrorText: "暂时没发出任务，不影响继续做饭。" });
+      this.setData({ taskErrorText: "任务暂时没准备好，不影响继续做饭。" });
       return null;
     } finally {
       this.setData({ taskPendingId: "" });
     }
+  },
+
+  async loadMealTasks() {
+    const mealRun = this.data.mealRun;
+    if (!canCreateMealTask(mealRun)) return [];
+    try {
+      const payload = await requestHumi({
+        path: `/meal-runs/${encodeURIComponent(mealRun.id)}/tasks`,
+        method: "GET",
+        expectedUserId: appStore.getState().bootstrap?.user?.id,
+      });
+      const tasks = Array.isArray(payload?.tasks)
+        ? payload.tasks.filter((task) => task?.id && task?.label)
+        : [];
+      this.setData({
+        createdTasks: tasks,
+        taskSuggestions: suggestedTasks(mealRun, tasks),
+      });
+      if (tasks[0]) {
+        this.prepareMealTaskShare({
+          currentTarget: { dataset: { taskId: tasks[0].id } },
+        }).catch(() => null);
+      }
+      return tasks;
+    } catch (_) {
+      return [];
+    }
+  },
+
+  async prepareMealTaskShare(event) {
+    const taskId = String(event?.currentTarget?.dataset?.taskId || "");
+    const task = this.data.createdTasks.find((item) => item.id === taskId);
+    const mealRun = this.data.mealRun;
+    if (!task || !mealRun?.id || this.data.taskSharePreparingId) return null;
+    this.setData({
+      activeShareTaskId: task.id,
+      activeTaskSharePayload: null,
+      taskSharePreparingId: task.id,
+      taskShareErrorId: "",
+    });
+    try {
+      const snapshot = await prepareShareSnapshot("meal_task", {
+        page: "cooking",
+        householdId: mealRun.householdId,
+        stateVersion: task.updatedAt || task.createdAt || task.status,
+        mealRunId: mealRun.id,
+        taskId: task.id,
+        label: task.label,
+      });
+      if (this.data.activeShareTaskId === task.id) {
+        this.setData({
+          activeTaskSharePayload: snapshot.payload,
+          taskShareErrorId: "",
+        });
+      }
+      return snapshot;
+    } catch (_) {
+      if (this.data.activeShareTaskId === task.id) {
+        this.setData({
+          activeTaskSharePayload: null,
+          taskShareErrorId: task.id,
+        });
+      }
+      return null;
+    } finally {
+      if (this.data.taskSharePreparingId === task.id) {
+        this.setData({ taskSharePreparingId: "" });
+      }
+    }
+  },
+
+  onShareAppMessage(event = {}) {
+    const taskId = String(event.target?.dataset?.taskId || event.currentTarget?.dataset?.taskId || "");
+    if (taskId && taskId === this.data.activeShareTaskId && this.data.activeTaskSharePayload) {
+      return this.data.activeTaskSharePayload;
+    }
+    return {
+      title: "Humi · 一起把饭做成",
+      path: "/pages/tonight/index",
+    };
   },
 
   openReminder() {

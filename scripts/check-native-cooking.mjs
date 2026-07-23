@@ -22,6 +22,10 @@ const requiredFiles = [
 for (const relativePath of requiredFiles) {
   assert(existsSync(path.join(root, relativePath)), `${relativePath} must exist`);
 }
+const cookingMarkup = readFileSync(path.join(root, "miniprogram/packageCooking/pages/cooking/index.wxml"), "utf8");
+assert.match(cookingMarkup, /open-type="share"/, "prepared meal tasks must expose a real native share button");
+assert.match(cookingMarkup, /准备分享/, "unprepared meal tasks must explain the explicit preparation action");
+assert.doesNotMatch(cookingMarkup, /已发出/, "creating a task snapshot must not claim it was already sent");
 
 const timeline = {
   version: 1,
@@ -99,16 +103,37 @@ async function verifyControlledMealTaskSuggestions() {
     initialRun: cookingRun,
     requestHandler({ path: requestPath, method, data, succeed }) {
       if (requestPath.startsWith("/meal-runs/current")) return succeed({ mealRun: cookingRun });
+      if (method === "GET" && requestPath.endsWith("/tasks")) {
+        return succeed({
+          tasks: [{
+            id: "task-existing",
+            type: "buy",
+            label: "请家人买鸡蛋",
+            sourceId: "ingredient:鸡蛋",
+            status: "open",
+            createdAt: "2026-07-23T09:58:00.000Z",
+            updatedAt: "2026-07-23T09:58:00.000Z",
+          }],
+        });
+      }
       if (method === "POST" && requestPath.endsWith("/tasks")) {
         return succeed({
           task: {
-            id: "task-1",
+            id: "task-new",
             type: data.type,
             label: data.type === "buy" ? `请家人买${data.ingredientName}` : "帮忙切好西红柿",
             sourceId: data.type === "buy" ? `ingredient:${data.ingredientName}` : `step:${data.stepId}`,
             status: "open",
+            createdAt: "2026-07-23T10:00:00.000Z",
+            updatedAt: "2026-07-23T10:00:00.000Z",
           },
         }, 201);
+      }
+      if (method === "POST" && requestPath === "/meal-tasks/task-existing/share") {
+        return succeed({ task: { token: "existing_task_token_123456", label: "请家人买鸡蛋" } });
+      }
+      if (method === "POST" && requestPath === "/meal-tasks/task-new/share") {
+        return succeed({ task: { token: "new_task_token_123456789", label: "请家人买西红柿" } });
       }
       throw new Error(`Unexpected request: ${method} ${requestPath}`);
     },
@@ -118,16 +143,31 @@ async function verifyControlledMealTaskSuggestions() {
   assert.equal(page.data.canCreateTask, true, "cooking runs may create optional collaboration tasks");
   assert.deepEqual(
     page.data.taskSuggestions.map((suggestion) => suggestion.label),
-    ["请家人买鸡蛋", "请家人买西红柿", "帮忙切好西红柿"],
-    "only the first two missing ingredients and declared timeline labels are suggested",
+    ["请家人买西红柿", "帮忙切好西红柿"],
+    "cold-start tasks remove the same controlled source from suggestions",
   );
-  await page.createMealTask({ currentTarget: { dataset: { suggestionId: "buy:鸡蛋" } } });
+  assert.equal(page.data.createdTasks[0].id, "task-existing", "cold start restores existing meal tasks");
+  assert.equal(page.data.activeShareTaskId, "task-existing", "the newest restored task is prepared by default");
+  const existingShare = page.onShareAppMessage({
+    target: { dataset: { taskId: "task-existing" } },
+  });
+  assert.match(existingShare.path, /packageFamily\/pages\/task\/index\?mealTask=existing_task_token_123456/);
+  const requestCountBeforeShareHook = runtime.requests.length;
+  page.onShareAppMessage({ target: { dataset: { taskId: "task-existing" } } });
+  assert.equal(runtime.requests.length, requestCountBeforeShareHook, "onShareAppMessage must stay synchronous and network-free");
+
+  await page.createMealTask({ currentTarget: { dataset: { suggestionId: "buy:西红柿" } } });
   const createRequest = runtime.requests.find((request) => request.method === "POST" && request.path.endsWith("/tasks"));
-  assert.deepEqual(createRequest.data, { type: "buy", ingredientName: "鸡蛋" });
+  assert.deepEqual(createRequest.data, { type: "buy", ingredientName: "西红柿" });
   assert.equal(page.data.mealRun.status, "cooking", "creating collaboration never changes the cooking state");
+  assert.equal(page.data.activeShareTaskId, "task-new", "new tasks are prepared without auto-sending them");
+  assert.match(
+    page.onShareAppMessage({ target: { dataset: { taskId: "task-new" } } }).path,
+    /mealTask=new_task_token_123456789/,
+  );
   page.applyMealRun(cookingRun);
   assert.equal(
-    page.data.taskSuggestions.some((suggestion) => suggestion.id === "buy:鸡蛋"),
+    page.data.taskSuggestions.some((suggestion) => suggestion.id === "buy:西红柿"),
     false,
     "a reconcile must not reintroduce an already-created source suggestion",
   );
@@ -148,6 +188,7 @@ async function verifyControlledMealTaskSuggestions() {
     initialRun: cookingRun,
     requestHandler({ path: requestPath, method, succeed, fail }) {
       if (requestPath.startsWith("/meal-runs/current")) return succeed({ mealRun: cookingRun });
+      if (method === "GET" && requestPath.endsWith("/tasks")) return succeed({ tasks: [] });
       if (method === "POST" && requestPath.endsWith("/tasks")) return fail();
       throw new Error(`Unexpected request: ${method} ${requestPath}`);
     },

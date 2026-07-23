@@ -1,6 +1,6 @@
 const { getHumiApiBaseUrl } = require("../../utils/config");
 
-const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v2:";
+const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v3:";
 
 Page({
   data: {
@@ -19,6 +19,7 @@ Page({
     saved: false,
     rejected: false,
     permissionAccepted: false,
+    reminderButtonLabel: "已预约",
     needsLogin: false,
     status: "正在准备这次提醒…"
   },
@@ -30,8 +31,9 @@ Page({
     const selected = scheduledAt ? shanghaiDateTimeParts(scheduledAt) : { date: "", time: "" };
     const mealRunId = normalizeText(options.mealRunId, 100);
     this._consentKey = `${REMINDER_CONSENT_PREFIX}${mealRunId}`;
-    const decision = mealRunId ? wx.getStorageSync(this._consentKey) : "";
-    const rejected = decision === "rejected" || decision === "cancelled";
+    const decision = normalizeConsentDecision(mealRunId ? wx.getStorageSync(this._consentKey) : null);
+    this._consentDecision = decision;
+    const rejected = decision.state === "rejected" || decision.state === "cancelled";
     this.setData({
       scheduledAt,
       dateKey,
@@ -43,7 +45,7 @@ Page({
       mealRunId,
       scheduledLabel: formatScheduledAt(scheduledAt),
       rejected,
-      permissionAccepted: decision === "accepted",
+      permissionAccepted: decision.state === "accepted_pending" && decision.scheduledAt === scheduledAt,
       needsLogin: !isValidSession(session),
       status: rejected
         ? "你已拒绝过做饭提醒，Humi 不会再次索取授权。"
@@ -73,6 +75,7 @@ Page({
         dateKey: "",
         scheduledLabel: "请选择日期和时间",
         status: "请先选择下一次做饭的日期和时间。",
+        permissionAccepted: false,
       });
       return;
     }
@@ -82,6 +85,10 @@ Page({
       dateKey: selectedDate,
       scheduledLabel: formatScheduledAt(scheduledAt),
       status: "确认后，微信只会发送这一条做饭提醒。",
+      permissionAccepted: (
+        this._consentDecision?.state === "accepted_pending"
+        && this._consentDecision.scheduledAt === scheduledAt
+      ),
     });
   },
 
@@ -94,7 +101,40 @@ Page({
       header: { Authorization: `Bearer ${session.accessToken}` },
       success: ({ statusCode, data }) => {
         if (statusCode >= 200 && statusCode < 300 && data?.enabled && data?.templateId) {
-          this.setData({ templateId: data.templateId, status: "确认后，微信只会发送这一条做饭提醒。" });
+          if (data.existingReminder?.id) {
+            const existing = data.existingReminder;
+            const scheduledAt = normalizeScheduledAt(existing.scheduledAt);
+            const selected = shanghaiDateTimeParts(scheduledAt);
+            const consumed = {
+              state: "consumed",
+              scheduledAt,
+              reminderId: normalizeText(existing.id, 100),
+            };
+            this._consentDecision = consumed;
+            wx.setStorageSync(this._consentKey, consumed);
+            this.setData({
+              templateId: data.templateId,
+              saved: true,
+              pending: false,
+              scheduledAt,
+              dateKey: normalizeDateKey(existing.dateKey, scheduledAt),
+              selectedDate: selected.date,
+              selectedTime: selected.time,
+              scheduledLabel: formatScheduledAt(scheduledAt),
+              effortTier: normalizeEffortTier(existing.effortTier),
+              permissionAccepted: false,
+              reminderButtonLabel: existingReminderButtonLabel(existing),
+              status: existingReminderStatus(existing),
+            });
+            return;
+          }
+          const patch = { templateId: data.templateId };
+          if (!this.data.rejected) {
+            patch.status = this.data.scheduledAt
+              ? "确认后，微信只会发送这一条做饭提醒。"
+              : "请先选择下一次做饭的日期和时间。";
+          }
+          this.setData(patch);
           return;
         }
         this.setData({ status: "做饭提醒暂时没有配置好，可以直接返回 Humi。" });
@@ -126,16 +166,22 @@ Page({
       success: (result) => {
         const decision = result?.[this.data.templateId];
         if (decision === "accept") {
-          wx.setStorageSync(this._consentKey, "accepted");
+          const consent = { state: "accepted_pending", scheduledAt: this.data.scheduledAt };
+          this._consentDecision = consent;
+          wx.setStorageSync(this._consentKey, consent);
           this.setData({ permissionAccepted: true });
           this.createReminder(session);
           return;
         }
-        wx.setStorageSync(this._consentKey, "rejected");
+        const consent = { state: "rejected" };
+        this._consentDecision = consent;
+        wx.setStorageSync(this._consentKey, consent);
         this.setData({ pending: false, rejected: true, status: "没有设置提醒。以后 Humi 不会重复索取授权。" });
       },
       fail: () => {
-        wx.setStorageSync(this._consentKey, "cancelled");
+        const consent = { state: "cancelled" };
+        this._consentDecision = consent;
+        wx.setStorageSync(this._consentKey, consent);
         this.setData({ pending: false, rejected: true, status: "已取消，没有设置提醒。" });
       }
     });
@@ -158,9 +204,21 @@ Page({
         templateId: this.data.templateId,
         accepted: true
       },
-      success: ({ statusCode }) => {
+      success: ({ statusCode, data }) => {
         if (statusCode >= 200 && statusCode < 300) {
-          this.setData({ pending: false, saved: true, status: "已预约。到时间只会收到这一条提醒。" });
+          const consumed = {
+            state: "consumed",
+            scheduledAt: normalizeScheduledAt(data?.reminder?.scheduledAt || this.data.scheduledAt),
+            reminderId: normalizeText(data?.reminder?.id, 100),
+          };
+          this._consentDecision = consumed;
+          wx.setStorageSync(this._consentKey, consumed);
+          this.setData({
+            pending: false,
+            saved: true,
+            reminderButtonLabel: "已预约",
+            status: "已预约。到时间只会收到这一条提醒。",
+          });
           return;
         }
         this.setData({ pending: false, status: "授权成功，但提醒暂时没有保存，请稍后重试。" });
@@ -189,6 +247,44 @@ Page({
 
 function isValidSession(session) {
   return Boolean(session?.accessToken && session.expiresAt > Date.now() && session.user?.profileStatus === "complete");
+}
+
+function normalizeConsentDecision(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { state: "" };
+  const state = ["accepted_pending", "consumed", "rejected", "cancelled"].includes(value.state)
+    ? value.state
+    : "";
+  return {
+    state,
+    scheduledAt: normalizeScheduledAt(value.scheduledAt),
+    reminderId: normalizeText(value.reminderId, 100),
+  };
+}
+
+function existingReminderStatus(reminder) {
+  const statuses = {
+    scheduled: "已预约。到时间只会收到这一条提醒。",
+    retrying: "提醒已预约，系统会再尝试发送一次。",
+    sending: "提醒正在发送。",
+    sent: "这条提醒已经发送。",
+    cancelled: "这条提醒已取消。",
+    failed: "这条提醒未能发送。",
+    delivery_unknown: "提醒已提交微信，不会重复发送。",
+  };
+  return statuses[reminder?.status] || "这次提醒已经保存。";
+}
+
+function existingReminderButtonLabel(reminder) {
+  const labels = {
+    scheduled: "已预约",
+    retrying: "已预约",
+    sending: "发送中",
+    sent: "已发送",
+    cancelled: "已取消",
+    failed: "未能发送",
+    delivery_unknown: "发送未确认",
+  };
+  return labels[reminder?.status] || "已保存";
 }
 
 function normalizeScheduledAt(value) {

@@ -75,7 +75,27 @@
           loading="{{taskPendingId === item.id}}"
           disabled="{{!!taskPendingId}}"
         >{{item.label}}</button>
-        <text wx:for="{{createdTasks}}" wx:key="id" class="task-created">已发出：{{item.label}}</text>
+        <view wx:for="{{createdTasks}}" wx:key="id" class="task-created">
+          <text>任务已准备好：{{item.label}}</text>
+          <button
+            wx:if="{{activeShareTaskId === item.id && activeTaskSharePayload}}"
+            class="task-share-button"
+            open-type="share"
+            data-task-id="{{item.id}}"
+          >分享给家人</button>
+          <button
+            wx:elif="{{taskSharePreparingId === item.id}}"
+            class="task-share-button"
+            disabled
+            loading
+          >正在准备</button>
+          <button
+            wx:else
+            class="task-share-button"
+            data-task-id="{{item.id}}"
+            bindtap="prepareMealTaskShare"
+          >{{taskShareErrorId === item.id ? '重试准备分享' : '准备分享'}}</button>
+        </view>
         <text wx:if="{{taskErrorText}}" class="task-error">{{taskErrorText}}</text>
       </view>
 

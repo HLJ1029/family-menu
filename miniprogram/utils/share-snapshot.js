@@ -152,7 +152,7 @@ function normalizedExpiry(value, now) {
 }
 
 function telemetryPage(value) {
-  return ["tonight", "grocery", "family", "share"].includes(value) ? value : "share";
+  return ["tonight", "grocery", "family", "cooking", "share"].includes(value) ? value : "share";
 }
 
 function safeTelemetryId(value) {

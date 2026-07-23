@@ -20,6 +20,8 @@ const {
   processDueMealReminders,
 } = await import("../api/server.js");
 const { HumiStore } = await import("../api/store.js");
+const { sendWechatSubscribeMessage } = await import("../api/wechat.js");
+await verifyWechatSubscribeDeliveryClassification();
 const server = createHumiApiServer();
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 
@@ -628,7 +630,7 @@ try {
     `${baseUrl}/meal-reminders/config?mealRunId=${completed.mealRun.id}`,
     { session: owner },
   );
-  assert.deepEqual(reminderConfig, { enabled: true, templateId: "mock-meal-template" });
+  assert.deepEqual(reminderConfig, { enabled: true, templateId: "mock-meal-template", existingReminder: null });
   await assertRejected(`${baseUrl}/meal-reminders`, {
     method: "POST",
     session: owner,
@@ -647,6 +649,34 @@ try {
     body: { accepted: true, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt, dateKey: reminderDateKey, effortTier: "quick_15" },
   });
   assert.equal(reminder.reminder.status, "scheduled");
+  assert.equal(reminder.created, true);
+  const conflictingScheduledAt = new Date(Date.now() + 2 * 24 * 60 * 60_000).toISOString();
+  const conflictingDateKey = new Date(Date.parse(conflictingScheduledAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
+  const existingReminder = await request(`${baseUrl}/meal-reminders`, {
+    method: "POST",
+    session: owner,
+    body: {
+      accepted: true,
+      templateId: "mock-meal-template",
+      sourceMealRunId: completed.mealRun.id,
+      scheduledAt: conflictingScheduledAt,
+      dateKey: conflictingDateKey,
+      effortTier: "normal",
+    },
+  });
+  assert.equal(existingReminder.created, false);
+  assert.equal(existingReminder.reminder.id, reminder.reminder.id);
+  assert.equal(existingReminder.reminder.scheduledAt, scheduledAt, "server truth wins over a conflicting second schedule");
+  const configWithExisting = await request(
+    `${baseUrl}/meal-reminders/config?mealRunId=${completed.mealRun.id}`,
+    { session: owner },
+  );
+  assert.equal(configWithExisting.existingReminder.id, reminder.reminder.id);
+  assert.equal(configWithExisting.existingReminder.scheduledAt, scheduledAt);
+  const oneReminderPerSource = JSON.parse(await readFile(dataFile, "utf8")).mealReminders.filter((entry) => (
+    entry.userId === owner.user.id && entry.sourceMealRunId === completed.mealRun.id
+  ));
+  assert.equal(oneReminderPerSource.length, 1, "one user and source meal can persist only one reminder");
   await processDueMealReminders({ now: new Date(Date.parse(scheduledAt) + 1000).toISOString() });
   const persistedAfterSend = JSON.parse(await readFile(dataFile, "utf8"));
   assert.equal(persistedAfterSend.mealReminders.find((entry) => entry.id === reminder.reminder.id).status, "sent");
@@ -656,7 +686,7 @@ try {
   const retryDateKey = new Date(Date.parse(retryScheduledAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
   const retryReminder = await request(`${baseUrl}/meal-reminders`, {
     method: "POST",
-    session: owner,
+    session: member,
     body: {
       accepted: true,
       templateId: "mock-meal-template",
@@ -671,7 +701,9 @@ try {
     now: new Date(Date.parse(retryScheduledAt) + 1000).toISOString(),
     sendMessage: async () => {
       deliveryAttempts += 1;
-      throw new Error("temporary_wechat_failure");
+      const error = new Error("safe_pre_send_failure");
+      error.deliveryState = "not_submitted";
+      throw error;
     },
   });
   let retryState = JSON.parse(await readFile(dataFile, "utf8")).mealReminders
@@ -696,14 +728,69 @@ try {
   });
   assert.equal(deliveryAttempts, 2, "a sent reminder can never be delivered twice");
 
+  const deliveryMember = await createUser(baseUrl, "meal-delivery-member", "家人小周");
+  const deliveryInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    session: owner,
+    body: { householdId },
+  });
+  await request(`${baseUrl}/household-invites/${deliveryInvite.invite.token}/join`, {
+    method: "POST",
+    session: deliveryMember,
+    body: {},
+  });
+  const unknownScheduledAt = new Date(Date.now() + 14 * 24 * 60 * 60_000).toISOString();
+  const unknownDateKey = new Date(Date.parse(unknownScheduledAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
+  const unknownReminder = await request(`${baseUrl}/meal-reminders`, {
+    method: "POST",
+    session: deliveryMember,
+    body: {
+      accepted: true,
+      templateId: "mock-meal-template",
+      sourceMealRunId: completed.mealRun.id,
+      scheduledAt: unknownScheduledAt,
+      dateKey: unknownDateKey,
+      effortTier: "normal",
+    },
+  });
+  let deliveredThenThrewCalls = 0;
+  await processDueMealReminders({
+    now: new Date(Date.parse(unknownScheduledAt) + 1000).toISOString(),
+    sendMessage: async () => {
+      deliveredThenThrewCalls += 1;
+      throw new Error("connection_lost_after_delivery");
+    },
+  });
+  let unknownState = JSON.parse(await readFile(dataFile, "utf8")).mealReminders
+    .find((entry) => entry.id === unknownReminder.reminder.id);
+  assert.equal(unknownState.status, "delivery_unknown");
+  await processDueMealReminders({
+    now: new Date(Date.parse(unknownScheduledAt) + 10 * 60_000).toISOString(),
+    sendMessage: async () => { deliveredThenThrewCalls += 1; },
+  });
+  unknownState = JSON.parse(await readFile(dataFile, "utf8")).mealReminders
+    .find((entry) => entry.id === unknownReminder.reminder.id);
+  assert.equal(unknownState.status, "delivery_unknown");
+  assert.equal(deliveredThenThrewCalls, 1, "unknown delivery outcome is terminal and never auto-retried");
+
+  const outsiderInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    session: owner,
+    body: { householdId },
+  });
+  await request(`${baseUrl}/household-invites/${outsiderInvite.invite.token}/join`, {
+    method: "POST",
+    session: outsider,
+    body: {},
+  });
   const cancellableAt = new Date(Date.now() + 13 * 24 * 60 * 60_000).toISOString();
   const cancellableDateKey = new Date(Date.parse(cancellableAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
   const cancellable = await request(`${baseUrl}/meal-reminders`, {
     method: "POST",
-    session: owner,
+    session: outsider,
     body: { accepted: true, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt: cancellableAt, dateKey: cancellableDateKey, effortTier: "easy_30" },
   });
-  const cancelled = await request(`${baseUrl}/meal-reminders/${cancellable.reminder.id}`, { method: "DELETE", session: owner });
+  const cancelled = await request(`${baseUrl}/meal-reminders/${cancellable.reminder.id}`, { method: "DELETE", session: outsider });
   assert.equal(cancelled.reminder.status, "cancelled");
 
   const event = await request(`${baseUrl}/product-events`, {
@@ -746,6 +833,62 @@ try {
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(smokeDirectory, { recursive: true, force: true });
+}
+
+async function verifyWechatSubscribeDeliveryClassification() {
+  const originalFetch = globalThis.fetch;
+  const input = {
+    openid: "openid-1",
+    templateId: "template-1",
+    page: "pages/tonight/index",
+    data: {},
+    appId: "appid-1",
+    appSecret: "secret-1",
+    mock: false,
+  };
+  try {
+    globalThis.fetch = async () => {
+      throw new Error("access_token_network_failure");
+    };
+    await assert.rejects(
+      () => sendWechatSubscribeMessage(input),
+      (error) => error.deliveryState === "not_submitted",
+      "access-token failures are known to happen before message submission",
+    );
+
+    let requestCount = 0;
+    globalThis.fetch = async () => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        return {
+          ok: true,
+          async json() {
+            return { access_token: "access-token-1", expires_in: 7200 };
+          },
+        };
+      }
+      throw new Error("message_post_connection_lost");
+    };
+    await assert.rejects(
+      () => sendWechatSubscribeMessage(input),
+      (error) => error.deliveryState === "delivery_unknown",
+      "a message POST network failure may already have delivered and must never retry",
+    );
+
+    globalThis.fetch = async () => ({
+      ok: true,
+      async json() {
+        throw new Error("message_response_parse_failed");
+      },
+    });
+    await assert.rejects(
+      () => sendWechatSubscribeMessage(input),
+      (error) => error.deliveryState === "delivery_unknown",
+      "a message response parse failure leaves delivery unknown",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 
 function mealPlan(householdId, dateKey, idempotencyKey) {
