@@ -36,6 +36,7 @@ Page({
       this.setData({ status: "empty", errorText: "", items: [], canCollaborate: false });
       return;
     }
+    if (bootstrap.cacheState === "cached") this.invalidateNativeShare("grocery");
     const household = getActiveHousehold(bootstrap);
     const householdState = bootstrap.householdState || {};
     const items = applyGroceryState(

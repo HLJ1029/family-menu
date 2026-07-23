@@ -59,6 +59,7 @@ Page({
         householdId: task.householdId || "",
         stateVersion: task.updatedAt || "",
         mealRunId: task.mealRunId || "",
+        taskId: this._token,
         token: this._token,
         label: task.label,
       });

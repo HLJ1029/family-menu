@@ -394,6 +394,22 @@ async function assertGroceryShareRetry() {
   assert.match(payload.path, /^\/packageShare\/pages\/grocery\/index\?groceryShare=/);
   assert.equal(createCalls, 2);
 
+  bootstrap = { ...bootstrap, cacheState: "cached" };
+  await page.onShow();
+  assert.equal(
+    page.data.preparedShares.grocery,
+    null,
+    "entering a cached background state must invalidate the previously prepared online grocery card",
+  );
+  assert.equal(
+    page.onShareAppMessage({ from: "menu" }).path,
+    "/pages/grocery/index",
+    "a cached Grocery onShow must fall back instead of sharing the stale online snapshot",
+  );
+  bootstrap = { ...bootstrap, cacheState: "" };
+  await page.onShow();
+  assert.equal(createCalls, 2, "returning online may reuse the still-current server snapshot");
+
   await page.checkItem({ detail: { itemId: "egg", checked: true } });
   assert.equal(createCalls, 3, "a successful grocery mutation must prepare a snapshot for the latest stateVersion");
   assert.match(page.onShareAppMessage({ from: "menu" }).path, /grocery_state_3_snapshot_123456/);
@@ -545,7 +561,15 @@ async function assertGuestShareLandings() {
       option: "mealTask",
       source: "meal_task",
       pathPrefix: "/meal-tasks/",
-      response: { task: { status: "open", type: "buy", label: "请家人买鸡蛋", householdName: "分享测试家" } },
+      response: {
+        task: {
+          status: "open",
+          type: "buy",
+          label: "请家人买鸡蛋",
+          householdName: "分享测试家",
+          updatedAt: "2026-07-24T08:00:00.000Z",
+        },
+      },
     },
   ]) {
     let getCalls = 0;
@@ -579,6 +603,22 @@ async function assertGuestShareLandings() {
     assert.equal(events.filter((event) => event.name === "native_share_page_visible").length, 1);
     assert.equal(events[0].fields.shareSource, fixture.source);
     assert.equal(JSON.stringify(events).includes("guest_landing_token"), false);
+    if (fixture.source === "meal_task") {
+      const secondToken = "meal_task_second_landing_token_123456";
+      const secondPage = runtime.loadPage(fixture.page);
+      await secondPage.onLoad({
+        [fixture.option]: secondToken,
+        shareSource: fixture.source,
+      });
+      secondPage.onShow();
+      assert.equal(getCalls, 2);
+      assert.match(
+        secondPage.onShareAppMessage({ from: "button" }).path,
+        new RegExp(`mealTask=${secondToken}`),
+        "different meal-task landing tokens with the same updatedAt must not collide in share cache",
+      );
+      assert.equal(JSON.stringify(events).includes(secondToken), false);
+    }
   }
 }
 
