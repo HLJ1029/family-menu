@@ -311,6 +311,64 @@ await check("two anonymous sessions behind one proxy each receive the default 12
   }
 });
 
+await check("untrusted forwarded IPs cannot bypass the anonymous network write limit", async () => {
+  const fixture = await createStoreFixture();
+  const priorEnvironment = {
+    dataFile: process.env.HUMI_API_DATA_FILE,
+    hashSalt: process.env.HUMI_TELEMETRY_HASH_SALT,
+    sessionSecret: process.env.HUMI_SESSION_SECRET,
+    telemetryRateLimit: process.env.HUMI_TELEMETRY_RATE_LIMIT,
+    telemetryNetworkRateLimit: process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT,
+    trustedProxyIps: process.env.HUMI_TRUSTED_PROXY_IPS,
+  };
+  let server;
+  try {
+    process.env.HUMI_API_DATA_FILE = fixture.store.filePath;
+    process.env.HUMI_TELEMETRY_HASH_SALT = HASH_SALT;
+    process.env.HUMI_SESSION_SECRET = "observability-forwarded-ip-session-secret";
+    process.env.HUMI_TELEMETRY_RATE_LIMIT = "1";
+    process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT = "10";
+    delete process.env.HUMI_TRUSTED_PROXY_IPS;
+    const { createHumiApiServer } = await import(`../api/server.js?observability-forwarded-ip=${Date.now()}`);
+    server = createHumiApiServer();
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    for (let index = 0; index < 10; index += 1) {
+      await postEvent(
+        origin,
+        clientEvent({
+          anonymousSessionId: `rotated-session-${index}`,
+          businessId: `rotated-session-event-${index}`,
+        }),
+        202,
+        "",
+        "",
+        { "x-forwarded-for": `203.0.113.${index + 1}` },
+      );
+    }
+    await postEvent(
+      origin,
+      clientEvent({
+        anonymousSessionId: "rotated-session-over-limit",
+        businessId: "rotated-session-event-over-limit",
+      }),
+      429,
+      "",
+      "telemetry_rate_limited",
+      { "x-forwarded-for": "198.51.100.250" },
+    );
+  } finally {
+    if (server) await new Promise((resolve) => server.close(resolve));
+    restoreEnvironment("HUMI_API_DATA_FILE", priorEnvironment.dataFile);
+    restoreEnvironment("HUMI_TELEMETRY_HASH_SALT", priorEnvironment.hashSalt);
+    restoreEnvironment("HUMI_SESSION_SECRET", priorEnvironment.sessionSecret);
+    restoreEnvironment("HUMI_TELEMETRY_RATE_LIMIT", priorEnvironment.telemetryRateLimit);
+    restoreEnvironment("HUMI_TELEMETRY_NETWORK_RATE_LIMIT", priorEnvironment.telemetryNetworkRateLimit);
+    restoreEnvironment("HUMI_TRUSTED_PROXY_IPS", priorEnvironment.trustedProxyIps);
+    await fixture.cleanup();
+  }
+});
+
 await check("anonymous ids are HMAC-SHA256 hashed and raw identity never persists", async () => {
   const fixture = await createStoreFixture();
   try {
@@ -421,6 +479,27 @@ await check("every successful store transaction prunes 180-day product events wh
       "a failed transaction must restore the pre-transaction in-memory snapshot",
     );
     assert.equal(fixture.store.data.states.transactionMarker, "success");
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+await check("the JSON telemetry store has a hard retained-record bound", async () => {
+  const fixture = await createStoreFixture();
+  try {
+    const now = "2026-07-24T10:00:00.000Z";
+    fixture.store.data.productEvents = Array.from(
+      { length: storeModule.PRODUCT_EVENT_MAX_RECORDS + 7 },
+      (_, index) => ({
+        id: `bounded-${index}`,
+        eventType: "native_boot_completed",
+        businessId: `bounded-business-${index}`,
+        occurredAt: now,
+      }),
+    );
+    fixture.store.pruneProductEvents(now);
+    assert.equal(fixture.store.data.productEvents.length, storeModule.PRODUCT_EVENT_MAX_RECORDS);
+    assert.equal(fixture.store.data.productEvents[0].id, "bounded-7");
   } finally {
     await fixture.cleanup();
   }
@@ -670,7 +749,7 @@ await check("network, 429, and 5xx failures remain queued and each flush attempt
   }
 });
 
-await check("trackEvent schedules an immediate non-blocking server flush", async () => {
+await check("trackEvent schedules a delayed non-blocking server flush", async () => {
   const storage = new Map();
   const requests = [];
   const wx = {
@@ -929,12 +1008,13 @@ function mealRunFixture({ id, householdId, status }) {
   };
 }
 
-async function postEvent(origin, body, expectedStatus, token = "", expectedCode = "") {
+async function postEvent(origin, body, expectedStatus, token = "", expectedCode = "", extraHeaders = {}) {
   const response = await fetch(`${origin}/product-events`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...extraHeaders,
     },
     body: JSON.stringify(body),
   });

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   lstat,
   mkdir,
   mkdtemp,
   readFile,
   realpath,
+  rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
@@ -81,6 +83,12 @@ const FIXTURE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const PII_PATTERN = /(?:\+?86[- ]?)?1[3-9]\d{9}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:openid|unionid|token|session|authorization)\b\s*[:=]\s*\S+|\bo[A-Za-z0-9_-]{27}\b|sk-[A-Za-z0-9_-]{12,}/i;
 const DESCRIPTOR_FIELDS = new Set(["schemaVersion", "scenarioId", "redacted", "checks", "mediaPaths"]);
 const MEDIA_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".mp4", ".mov"]);
+const MIN_IMAGE_BYTES = 10 * 1024;
+const MIN_VIDEO_BYTES = 50 * 1024;
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+const MIN_MEDIA_WIDTH = 300;
+const MIN_MEDIA_HEIGHT = 300;
+const MIN_VIDEO_DURATION_SECONDS = 1;
 const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 const SCENARIO_CHECKS = {
@@ -117,7 +125,11 @@ assert.deepEqual(
   "every true-device row must declare concrete checks",
 );
 
-export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
+export async function validateEvidence({
+  evidenceDir,
+  candidateTimestamp,
+  candidatePackageVersion = "",
+}) {
   const root = resolve(evidenceDir);
   const rootStat = await lstat(root).catch(() => null);
   if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) fail("evidence_root_invalid");
@@ -132,7 +144,7 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   if (manifest?.schemaVersion !== 2 || !isRecord(manifest.scenarios)) fail("manifest_schema_invalid");
   const candidateTime = Date.parse(candidateTimestamp);
   if (!Number.isFinite(candidateTime)) fail("candidate_timestamp_invalid");
-  const candidatePackageVersion = await readCandidatePackageVersion();
+  const expectedPackageVersion = candidatePackageVersion || await readCandidatePackageVersion();
 
   const rows = [];
   const issues = [];
@@ -151,7 +163,7 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
       issues.push(issue(scenario, "invalid", "field_set_invalid"));
       continue;
     }
-    const fieldIssue = validateFields(entry, candidateTime, candidatePackageVersion, scenario);
+    const fieldIssue = validateFields(entry, candidateTime, expectedPackageVersion, scenario);
     if (fieldIssue) {
       issues.push(issue(scenario, "invalid", fieldIssue));
       continue;
@@ -231,8 +243,14 @@ function fixtureMatchesScenario(fixture, scenario) {
   return true;
 }
 
-async function readCandidatePackageVersion() {
-  const source = await readFile(resolve("miniprogram/utils/config.js"), "utf8");
+export async function readCandidatePackageVersion(candidateCommit = "") {
+  const source = candidateCommit
+    ? execFileSync(
+      "git",
+      ["show", `${candidateCommit}:miniprogram/utils/config.js`],
+      { encoding: "utf8", maxBuffer: 1024 * 1024 },
+    )
+    : await readFile(resolve("miniprogram/utils/config.js"), "utf8");
   const match = source.match(/HUMI_PACKAGE_VERSION\s*=\s*["'](\d+\.\d+\.\d+)["']/);
   if (!match) fail("candidate_package_version_missing");
   return match[1];
@@ -338,7 +356,13 @@ async function validateMediaArtifact({
   const artifactPath = resolve(root, relativePath);
   if (!isInside(root, artifactPath)) return "evidence_media_path_invalid";
   const artifactStat = await lstat(artifactPath).catch(() => null);
-  if (!artifactStat?.isFile() || artifactStat.isSymbolicLink() || artifactStat.size < 1024) {
+  const minimumBytes = [".mp4", ".mov"].includes(extension) ? MIN_VIDEO_BYTES : MIN_IMAGE_BYTES;
+  if (
+    !artifactStat?.isFile()
+    || artifactStat.isSymbolicLink()
+    || artifactStat.size < minimumBytes
+    || artifactStat.size > MAX_MEDIA_BYTES
+  ) {
     return "evidence_media_missing";
   }
   if (
@@ -352,8 +376,13 @@ async function validateMediaArtifact({
   const artifactIdentity = `${artifactStat.dev}:${artifactStat.ino}`;
   if (seenArtifacts.has(artifactIdentity)) return "artifact_reused";
   seenArtifacts.add(artifactIdentity);
-  const header = (await readFile(artifactPath)).subarray(0, 12);
+  const artifactBytes = await readFile(artifactPath);
+  const contentIdentity = `sha256:${createHash("sha256").update(artifactBytes).digest("hex")}`;
+  if (seenArtifacts.has(contentIdentity)) return "artifact_reused";
+  seenArtifacts.add(contentIdentity);
+  const header = artifactBytes.subarray(0, 12);
   if (!hasValidMediaHeader(extension, header)) return "evidence_media_invalid";
+  if (!hasValidDecodedMedia(extension, artifactPath)) return "evidence_media_invalid";
   return "";
 }
 
@@ -365,6 +394,42 @@ function hasValidMediaHeader(extension, header) {
     return header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
   }
   return header.subarray(4, 8).toString("ascii") === "ftyp";
+}
+
+function hasValidDecodedMedia(extension, artifactPath) {
+  try {
+    if ([".png", ".jpg", ".jpeg"].includes(extension)) {
+      const output = execFileSync(
+        "/usr/bin/sips",
+        ["-g", "pixelWidth", "-g", "pixelHeight", artifactPath],
+        { encoding: "utf8", maxBuffer: 64 * 1024, stdio: ["ignore", "pipe", "ignore"] },
+      );
+      const width = Number(output.match(/pixelWidth:\s*(\d+)/)?.[1] || 0);
+      const height = Number(output.match(/pixelHeight:\s*(\d+)/)?.[1] || 0);
+      return width >= MIN_MEDIA_WIDTH && height >= MIN_MEDIA_HEIGHT;
+    }
+    const output = execFileSync(
+      "ffprobe",
+      [
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height:format=duration",
+        "-of", "json",
+        artifactPath,
+      ],
+      { encoding: "utf8", maxBuffer: 64 * 1024, stdio: ["ignore", "pipe", "ignore"] },
+    );
+    const metadata = JSON.parse(output);
+    const stream = metadata?.streams?.[0];
+    const duration = Number(metadata?.format?.duration || 0);
+    return (
+      Number(stream?.width) >= MIN_MEDIA_WIDTH
+      && Number(stream?.height) >= MIN_MEDIA_HEIGHT
+      && duration >= MIN_VIDEO_DURATION_SECONDS
+    );
+  } catch {
+    return false;
+  }
 }
 
 function issue(scenario, status, code) {
@@ -423,6 +488,8 @@ function evidenceEntry(scenario, overrides = {}) {
 }
 
 async function writeFixture(root, scenarios) {
+  const selftestMedia = await loadSelftestMedia();
+  let mediaIndex = 0;
   for (const [scenario, entry] of Object.entries(scenarios)) {
     if (entry.result === "pass") {
       const mediaCount = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
@@ -431,7 +498,8 @@ async function writeFixture(root, scenarios) {
         (_, index) => `${scenario}-${index + 1}.png`,
       );
       for (const mediaPath of mediaPaths) {
-        await writeFile(join(root, mediaPath), fakePng(), { mode: 0o600 });
+        await writeFile(join(root, mediaPath), selftestMedia[mediaIndex], { mode: 0o600 });
+        mediaIndex += 1;
       }
       const descriptor = {
         schemaVersion: 1,
@@ -454,8 +522,42 @@ async function writeFixture(root, scenarios) {
   );
 }
 
+let selftestMediaPromise;
+
+async function loadSelftestMedia() {
+  if (!selftestMediaPromise) selftestMediaPromise = createSelftestMedia();
+  return selftestMediaPromise;
+}
+
+async function createSelftestMedia() {
+  const required = REQUIRED_SCENARIOS.length + SHARE_SCENARIOS.length;
+  const mediaRoot = await mkdtemp(join(tmpdir(), "humi-true-device-media-"));
+  const source = resolve("public/icons/humi-icon-512.png");
+  const unique = [];
+  try {
+    for (let index = 0; index < required; index += 1) {
+      const target = join(mediaRoot, `${index}.png`);
+      const dimension = 480 - index;
+      execFileSync(
+        "/usr/bin/sips",
+        ["--cropToHeightWidth", `${dimension}`, `${dimension}`, source, "--out", target],
+        { stdio: "ignore" },
+      );
+      unique.push(await readFile(target));
+    }
+  } finally {
+    await rm(mediaRoot, { recursive: true, force: true });
+  }
+  assert.equal(
+    new Set(unique.map((bytes) => createHash("sha256").update(bytes).digest("hex"))).size,
+    required,
+    "selftest requires unique decodable image fixtures",
+  );
+  return unique;
+}
+
 function fakePng() {
-  const bytes = Buffer.alloc(1024, 0);
+  const bytes = Buffer.alloc(MIN_IMAGE_BYTES, 0);
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes);
   return bytes;
 }
@@ -463,6 +565,7 @@ function fakePng() {
 async function selftest() {
   const root = await mkdtemp(join(tmpdir(), "humi-true-device-evidence-"));
   const scenarios = Object.fromEntries(REQUIRED_SCENARIOS.map((scenario) => [scenario, evidenceEntry(scenario)]));
+  assert.equal(await readCandidatePackageVersion("HEAD"), "1.1.72");
   await writeFixture(root, scenarios);
   const accepted = await validateEvidence({
     evidenceDir: root,
@@ -470,6 +573,36 @@ async function selftest() {
   });
   assert.equal(accepted.ok, true, JSON.stringify(accepted.issues));
   assert.equal(accepted.passed, 36);
+
+  await writeFile(
+    join(root, `${scenarios.owner_cooking_flow.evidencePath.replace(".json", "")}-1.png`),
+    fakePng(),
+    { mode: 0o600 },
+  );
+  const fakeMediaReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    fakeMediaReport.issues.some((entry) => (
+      entry.scenario === "owner_cooking_flow" && entry.code === "evidence_media_invalid"
+    )),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  const reusedBytes = await readFile(join(root, "owner_cooking_flow-1.png"));
+  await writeFile(join(root, "member_cooking_flow-1.png"), reusedBytes, { mode: 0o600 });
+  const reusedMediaReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    reusedMediaReport.issues.some((entry) => (
+      entry.scenario === "member_cooking_flow" && entry.code === "artifact_reused"
+    )),
+    true,
+  );
 
   const incomplete = structuredClone(scenarios);
   delete incomplete.fresh_guest_start;
@@ -679,9 +812,11 @@ async function main() {
       ["show", "-s", "--format=%cI", options.candidatecommit],
       { encoding: "utf8" },
     ).trim();
+    const candidatePackageVersion = await readCandidatePackageVersion(options.candidatecommit);
     const report = await validateEvidence({
       evidenceDir: options.evidencedir,
       candidateTimestamp,
+      candidatePackageVersion,
     });
     printReport(report);
     if (!report.ok) process.exitCode = 1;

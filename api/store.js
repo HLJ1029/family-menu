@@ -15,6 +15,7 @@ const require = createRequire(import.meta.url);
 export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
 const DEFAULT_AVATAR_KEYS = APPROVED_AVATAR_KEYS;
 export const PRODUCT_EVENT_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+export const PRODUCT_EVENT_MAX_RECORDS = 50_000;
 export const PRODUCT_EVENT_FIELDS = new Set([
   "eventType",
   "anonymousSessionId",
@@ -2342,10 +2343,13 @@ export class HumiStore {
 
   pruneProductEvents(now = new Date().toISOString()) {
     const cutoff = Date.parse(now) - PRODUCT_EVENT_RETENTION_MS;
-    this.data.productEvents = this.data.productEvents.filter((event) => {
+    const retained = this.data.productEvents.filter((event) => {
       const timestamp = Date.parse(event.occurredAt || event.createdAt);
       return Number.isFinite(timestamp) && timestamp >= cutoff;
     });
+    this.data.productEvents = retained.length > PRODUCT_EVENT_MAX_RECORDS
+      ? retained.slice(-PRODUCT_EVENT_MAX_RECORDS)
+      : retained;
   }
 
   requireMealRunForMember(userId, mealRunId) {

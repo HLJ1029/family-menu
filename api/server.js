@@ -2,6 +2,7 @@ import http from "node:http";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
 import { APPROVED_AVATAR_KEYS, HumiStore, hashTelemetryAnonymousSessionId } from "./store.js";
@@ -54,6 +55,10 @@ const config = {
   telemetryRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_RATE_LIMIT || 120)),
   telemetryRateWindowMs: Math.max(1_000, Number(process.env.HUMI_TELEMETRY_RATE_WINDOW_MS || 60_000)),
   telemetryNetworkRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT || 2_400)),
+  trustedProxyIps: new Set((process.env.HUMI_TRUSTED_PROXY_IPS || "")
+    .split(",")
+    .map((value) => normalizeNetworkAddress(value))
+    .filter(Boolean)),
   mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
   mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
   mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",
@@ -1328,7 +1333,7 @@ function enforceTelemetryAccess(request, body) {
   const networkKey = createHmac("sha256", config.telemetryHashSalt)
     .update(getClientIp(request))
     .digest("hex");
-  if (!telemetryNetworkLimiter.consume(networkKey) || !telemetrySessionLimiter.consume(sessionKey)) {
+  if (!telemetrySessionLimiter.consume(sessionKey) || !telemetryNetworkLimiter.consume(networkKey)) {
     throw httpError(429, "telemetry_rate_limited", "数据上报有点快，请稍后再试。");
   }
 }
@@ -2338,11 +2343,29 @@ function enforceAiAccess(request) {
 }
 
 function getClientIp(request) {
+  const socketAddress = normalizeNetworkAddress(request.socket?.remoteAddress);
   const forwarded = request.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0].trim();
+  if (
+    socketAddress
+    && config.trustedProxyIps.has(socketAddress)
+    && typeof forwarded === "string"
+    && forwarded.length > 0
+  ) {
+    const chain = forwarded
+      .split(",")
+      .map((value) => normalizeNetworkAddress(value))
+      .filter(Boolean);
+    for (let index = chain.length - 1; index >= 0; index -= 1) {
+      if (!config.trustedProxyIps.has(chain[index])) return chain[index];
+    }
   }
-  return request.socket?.remoteAddress || "unknown";
+  return socketAddress || "unknown";
+}
+
+function normalizeNetworkAddress(value) {
+  const address = String(value || "").trim().replace(/^\[|\]$/g, "");
+  const unwrapped = address.startsWith("::ffff:") ? address.slice(7) : address;
+  return isIP(unwrapped) ? unwrapped : "";
 }
 
 function toPublicCraveRequest(request) {
