@@ -1,6 +1,5 @@
 const { appStore } = require("../../utils/store");
 const { guardNativeTab } = require("../../utils/native-shell-guard");
-const { requestHumi } = require("../../utils/request");
 const { enqueueMutation } = require("../../utils/offline-queue");
 const {
   applyGroceryState,
@@ -10,8 +9,11 @@ const {
   getHouseholdRole,
   saveHouseholdStatePatch,
 } = require("../../utils/household-state");
+const shareablePage = require("../../behaviors/shareable-page");
 
 Page({
+  behaviors: [shareablePage],
+
   data: {
     status: "loading",
     errorText: "",
@@ -22,9 +24,12 @@ Page({
     canCollaborate: false,
     pendingAction: "",
     conflictVisible: false,
-    shareToken: "",
   },
-  onShow() { if (guardNativeTab()) this.syncState(); },
+  async onShow() {
+    if (!guardNativeTab()) return;
+    this.syncState();
+    await this.prepareGroceryShare().catch(() => null);
+  },
   syncState() {
     const bootstrap = appStore.getState().bootstrap;
     if (!bootstrap) {
@@ -141,7 +146,7 @@ Page({
       this.setData({ pendingAction: "" });
     }
   },
-  async prepareShare() {
+  async prepareGroceryShare() {
     if (!this.data.canCollaborate || this.data.pendingAction) return null;
     if (this.data.cacheState === "cached") {
       const error = new Error("offline_share_unavailable");
@@ -149,44 +154,41 @@ Page({
       throw error;
     }
     const bootstrap = appStore.getState().bootstrap;
-    const idempotencyKey = createMutationId("grocery-share");
-    this.setData({ pendingAction: "share", errorText: "" });
-    try {
-      const payload = await requestHumi({
-        path: "/grocery-share-requests",
-        method: "POST",
-        data: {
-          mode: "read_only",
-          householdId: bootstrap.activeHouseholdId,
-          householdName: this.data.householdName,
-          initiatorName: this.data.currentMemberName,
-          title: "这周买菜清单",
-          idempotencyKey,
-          items: this.data.items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            amount: item.amount,
-            checked: item.checked,
-          })),
-        },
-        idempotencyKey,
-      });
-      const token = String(payload?.request?.token || "");
-      if (!token) throw new Error("grocery_share_token_missing");
-      this.setData({ shareToken: token });
-      return token;
-    } catch (error) {
-      this.setData({ errorText: "分享清单暂时没有准备好，请联网后重试。" });
-      throw error;
-    } finally {
-      this.setData({ pendingAction: "" });
-    }
+    return this.prepareNativeShare("grocery", {
+      page: "grocery",
+      householdId: bootstrap.activeHouseholdId,
+      stateVersion: bootstrap.stateVersion,
+      mealRunId: bootstrap.currentMealRun?.id || "",
+      householdName: this.data.householdName,
+      itemCount: this.data.items.length,
+      data: {
+        mode: "read_only",
+        householdId: bootstrap.activeHouseholdId,
+        householdName: this.data.householdName,
+        initiatorName: this.data.currentMemberName,
+        title: "这周买菜清单",
+        items: this.data.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          amount: item.amount,
+          category: item.category || "",
+          checked: item.checked,
+        })),
+      },
+    });
   },
-  async shareList() {
-    const token = this.data.shareToken || await this.prepareShare();
-    if (!token) return;
-    wx.navigateTo({ url: `/pages/share/index?type=grocery&token=${encodeURIComponent(token)}` });
+
+  prepareShare() {
+    return this.prepareGroceryShare();
   },
+
+  onShareAppMessage(event) {
+    return this.getNativeSharePayload(event, {
+      title: "Humi 买菜清单",
+      path: "/pages/grocery/index",
+    }, "grocery");
+  },
+
   regenerateList() {
     if (this.data.cacheState === "cached") {
       const error = new Error("offline_grocery_regeneration_unavailable");
@@ -194,12 +196,6 @@ Page({
       throw error;
     }
     this.syncState();
-  },
-  onShareAppMessage() {
-    const token = this.data.shareToken;
-    return token
-      ? { title: `${this.data.householdName || "我们家"}的买菜清单`, path: `/pages/share/index?type=grocery&token=${encodeURIComponent(token)}` }
-      : { title: "Humi 买菜清单", path: "/pages/grocery/index" };
   },
   retry() { this.setData({ status: "loading", errorText: "" }); this.syncState(); }
 });

@@ -9,6 +9,7 @@ import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const {
   buildHumiUrl,
+  buildNativeSharePayload,
   buildSharePayload,
   normalizeLaunchOptions,
   pathToQuery,
@@ -20,6 +21,21 @@ const miniProgramApp = JSON.parse(readFileSync("miniprogram/app.json", "utf8"));
 assert(miniProgramApp.pages.includes("pages/index/index"), "mini program app.json should include index page");
 assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.json should include native share page");
 assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
+assert.deepEqual(
+  miniProgramApp.subPackages.find((entry) => entry.root === "packageShare")?.pages?.sort(),
+  ["pages/grocery/index", "pages/menu/index"],
+  "menu and grocery recipients must land in the native share subpackage",
+);
+for (const [type, token, expectedPath] of [
+  ["menu", "menu_native_snapshot_token_1234", "/packageShare/pages/menu/index?menuShare=menu_native_snapshot_token_1234&shareSource=menu"],
+  ["grocery", "grocery_native_snapshot_123456", "/packageShare/pages/grocery/index?groceryShare=grocery_native_snapshot_123456&shareSource=grocery"],
+  ["invite", "invite_native_snapshot_1234567", "/packageFamily/pages/invite/index?token=invite_native_snapshot_1234567&shareSource=invite"],
+  ["meal_task", "meal_task_native_snapshot_12345", "/packageFamily/pages/task/index?mealTask=meal_task_native_snapshot_12345&shareSource=meal_task"],
+]) {
+  const payload = buildNativeSharePayload(type, { token });
+  assert.equal(payload.path, expectedPath);
+  assert.doesNotMatch(payload.path, /^\/pages\/boot\/index/, `${type} native sharing must not route recipients through WebView boot`);
+}
 
 assertMiniProgramSharePage("miniprogram/pages/legacy/index", { requiresOpenTypeButton: false, supportsTimeline: false });
 assertMiniProgramSharePage("miniprogram/pages/share/index", { requiresOpenTypeButton: true, supportsTimeline: true });

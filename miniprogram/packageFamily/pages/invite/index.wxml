@@ -13,7 +13,19 @@
       <text class="title">邀请家人加入 {{invite.householdName}}</text>
       <text class="copy">正式加入后，对方会成为家庭成员，能同步菜单、清单、做饭进度和家庭任务。</text>
       <button wx:if="{{!preparedInvite}}" class="primary-button" bindtap="prepareInvite" loading="{{pendingAction === 'prepare'}}" disabled="{{!!pendingAction}}">生成家庭邀请</button>
-      <button wx:else class="primary-button" open-type="share">选择微信好友发送</button>
+      <button
+        wx:else
+        class="primary-button"
+        open-type="share"
+        data-share-type="invite"
+        disabled="{{!preparedShares.invite || sharePreparing.invite}}"
+        loading="{{sharePreparing.invite}}"
+      >选择微信好友发送</button>
+      <text
+        wx:if="{{shareErrors.invite}}"
+        class="share-retry"
+        bindtap="retryInviteShare"
+      >分享内容没准备好，点这里重试</text>
       <text wx:if="{{preparedInvite}}" class="success-copy">邀请已准备好。微信只会分享这次邀请，不会附带你的登录凭据。</text>
     </view>
 

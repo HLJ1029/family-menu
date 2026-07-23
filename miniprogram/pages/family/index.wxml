@@ -48,6 +48,21 @@
         </view>
         <text wx:else class="quiet-empty">还没有分工也没关系，一个人也能继续把饭做完。</text>
 
+        <button
+          wx:if="{{shareableMealTask}}"
+          class="task-share-button"
+          open-type="share"
+          data-share-type="meal_task"
+          disabled="{{!preparedShares.meal_task || sharePreparing.meal_task}}"
+          loading="{{sharePreparing.meal_task}}"
+        >把“{{shareableMealTask.label}}”发给家人</button>
+        <text
+          wx:if="{{shareErrors.meal_task}}"
+          class="share-retry"
+          data-share-type="meal_task"
+          bindtap="retryNativeShare"
+        >分享内容没准备好，点这里重试</text>
+
         <view wx:if="{{groceryClaims.length}}" class="claim-list">
           <text class="subheading">清单领取</text>
           <view wx:for="{{groceryClaims}}" wx:key="id" class="claim-row">

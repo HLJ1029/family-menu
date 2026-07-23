@@ -1,0 +1,21 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="share-landing">
+    <text class="eyebrow">{{menu.householdName || '家人'}} · 今晚</text>
+    <text class="title">{{menu.title || '今晚菜单'}}</text>
+    <text class="copy">{{menu.initiatorName || '家人'}}把这顿饭发给你看看</text>
+    <view class="card">
+      <view wx:for="{{menu.dishes}}" wx:key="name" class="row">
+        <view>
+          <text class="dish-name">{{item.name}}</text>
+          <text wx:if="{{item.category}}" class="meta">{{item.category}}</text>
+        </view>
+        <text class="meta">{{item.timeMinutes ? item.timeMinutes + ' 分钟' : ''}}</text>
+      </view>
+      <view class="summary">
+        <text>共 {{menu.dishes.length}} 道菜</text>
+        <text>{{menu.groceryCount}} 项待买</text>
+      </view>
+    </view>
+    <text class="readonly">这是只读菜单。查看不会加入家庭，也不会修改家人的安排。</text>
+  </view>
+</page-state>

@@ -2,12 +2,16 @@ const { loadBootstrap } = require("../../../utils/bootstrap");
 const { rawRequest, requestHumi } = require("../../../utils/request");
 const session = require("../../../utils/session");
 const { appStore } = require("../../../utils/store");
+const { trackEvent } = require("../../../utils/telemetry");
+const shareablePage = require("../../../behaviors/shareable-page");
 
 const INVITE_TOKEN = /^[A-Za-z0-9_-]{24,64}$/;
 const PARTICIPANT_KEY = /^[A-Za-z0-9_-]{16,80}$/;
 const PARTICIPANT_KEY_PREFIX = "humi:household-invite-participant:v1:";
 
 Page({
+  behaviors: [shareablePage],
+
   data: {
     status: "loading",
     errorText: "",
@@ -21,6 +25,7 @@ Page({
     wantText: "",
     wantSaved: false,
     preparedInvite: null,
+    shareSource: "",
   },
 
   async onLoad(options = {}) {
@@ -28,7 +33,12 @@ Page({
     const mode = options.mode === "prepare" ? "prepare" : token ? "landing" : "entry";
     this._householdId = safeId(options.householdId);
     this._token = token;
-    this.setData({ mode, isLoggedIn: Boolean(session.getSession()), profileComplete: session.getSession()?.user?.profileStatus === "complete" });
+    this.setData({
+      mode,
+      shareSource: options.shareSource === "invite" ? "invite" : "",
+      isLoggedIn: Boolean(session.getSession()),
+      profileComplete: session.getSession()?.user?.profileStatus === "complete",
+    });
     if (mode === "landing") return this.loadInvite(token);
     if (mode === "prepare") {
       const bootstrap = appStore.getState().bootstrap;
@@ -49,6 +59,16 @@ Page({
       return;
     }
     this.setData({ status: "ready" });
+  },
+
+  onShow() {
+    if (this.data.shareSource && !this._visibleTracked) {
+      this._visibleTracked = true;
+      trackEvent("native_share_page_visible", {
+        page: "share",
+        shareSource: this.data.shareSource,
+      });
+    }
   },
 
   updateTokenInput(event = {}) {
@@ -103,16 +123,20 @@ Page({
     const bootstrap = appStore.getState().bootstrap;
     this.setData({ pendingAction: "prepare", errorText: "" });
     try {
-      const payload = await requestHumi({
-        path: "/household-invites",
-        method: "POST",
+      const household = this.data.invite;
+      const snapshot = await this.prepareNativeShare("invite", {
+        page: "family",
+        householdId: this._householdId,
+        stateVersion: bootstrap?.stateVersion || "",
+        mealRunId: bootstrap?.currentMealRun?.id || "",
+        householdName: household?.householdName || "这个家",
+        inviterName: bootstrap?.user?.displayName || "主厨",
         data: {
           householdId: this._householdId,
           inviterName: bootstrap?.user?.displayName || "主厨",
         },
-        idempotencyKey: mutationId("household-invite"),
       });
-      const invite = payload?.invite;
+      const invite = snapshot?.record;
       if (!invite?.token) throw new Error("household_invite_missing");
       this.setData({ preparedInvite: invite, invite });
       return invite;
@@ -216,12 +240,14 @@ Page({
   },
 
   onShareAppMessage() {
-    const invite = this.data.preparedInvite;
-    if (!invite?.token) return { title: "邀请家人加入 Humi", path: "/pages/family/index" };
-    return {
-      title: `${invite.inviterName || "家人"}邀请你加入 ${invite.householdName || "这个家"}`,
-      path: `/pages/boot/index?invite=${encodeURIComponent(invite.token)}&shareSource=invite`,
-    };
+    return this.getNativeSharePayload(
+      { target: { dataset: { shareType: "invite" } } },
+      { title: "邀请家人加入 Humi", path: "/pages/family/index" },
+    );
+  },
+
+  retryInviteShare() {
+    return this.prepareInvite();
   },
 
   retry() {

@@ -33,6 +33,22 @@
       bind:replace="replacePlannedMeal"
     />
 
+    <view wx:if="{{mealRun && householdRole !== 'guest'}}" class="share-panel">
+      <button
+        class="share-button"
+        open-type="share"
+        data-share-type="menu"
+        disabled="{{!preparedShares.menu || sharePreparing.menu}}"
+        loading="{{sharePreparing.menu}}"
+      >去微信分享菜单</button>
+      <text
+        wx:if="{{shareErrors.menu}}"
+        class="share-retry"
+        data-share-type="menu"
+        bindtap="retryNativeShare"
+      >分享内容没准备好，点这里重试</text>
+    </view>
+
     <view wx:if="{{errorText && viewState !== 'error'}}" class="inline-error" role="alert">{{errorText}}</view>
     <view wx:if="{{pendingAction === 'recommendation' || pendingAction === 'next'}}" class="pending-note">正在把下一套晚饭准备好…</view>
   </view>

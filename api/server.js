@@ -305,6 +305,12 @@ export function createHumiApiServer() {
         return;
       }
 
+      const mealTaskShareMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/share$/);
+      if (request.method === "POST" && mealTaskShareMatch) {
+        await handlePrepareMealTaskShare(request, response, mealTaskShareMatch[1]);
+        return;
+      }
+
       const mealTaskMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)$/);
       if (request.method === "GET" && mealTaskMatch) {
         await handleGetMealTask(request, response, mealTaskMatch[1]);
@@ -1108,13 +1114,29 @@ async function handleGetMealTasks(request, response, mealRunId) {
 }
 
 async function handleGetMealTask(request, response, token) {
-  const { user } = await requireMealExecutionUser(request);
+  const auth = await optionalAuth(request);
   try {
-    const task = await store.getMealTask(token);
+    const landing = await store.getMealTaskLanding(token, auth?.userId || "");
+    if (!landing) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    sendJson(response, 200, { task: landing }, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handlePrepareMealTaskShare(request, response, taskId) {
+  const { user } = await requireMealExecutionUser(request);
+  await readJson(request);
+  try {
+    const task = await store.prepareMealTaskShare(user.id, taskId);
     if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
-    await store.getMealRunForUser(user.id, task.mealRunId);
     assertMealExecutionEnabled(task.householdId);
-    sendJson(response, 200, { task });
+    sendJson(response, 201, {
+      snapshot: {
+        token: task.token,
+        cacheExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      },
+    }, { "Cache-Control": "private, no-store" });
   } catch (error) {
     throw mapMealExecutionError(error);
   }
@@ -1560,6 +1582,7 @@ async function handleCreateHouseholdInvite(request, response) {
     const invite = await store.createHouseholdInvite(user.id, {
       householdId: stringValue(body.householdId, 80),
       inviterName: stringValue(body.inviterName, 32) || user.displayName,
+      idempotencyKey: stringValue(body.idempotencyKey, 100),
     });
     sendJson(response, 201, { invite: toPublicHouseholdInvite(invite) });
   } catch (error) {
@@ -1868,10 +1891,10 @@ async function handleCreateMenuShareRequest(request, response) {
   const body = await readJson(request);
   try {
     const menuRequest = await store.createMenuShareRequest(body, user.id);
-    sendJson(response, 201, { request: toPublicMenuShareRequest(menuRequest) });
+    sendJson(response, 201, { request: toOwnerMenuShareRequest(menuRequest) });
   } catch (error) {
     if (error.code === "forbidden") {
-      throw httpError(403, "forbidden", "只有主厨能分享这个家的今晚菜单。");
+      throw httpError(403, "forbidden", "只有正式家庭成员能分享这个家的今晚菜单。");
     }
     throw error;
   }
@@ -2263,17 +2286,11 @@ function toOwnerGroceryShareRequest(request) {
 
 function toPublicMenuShareRequest(request) {
   return {
-    id: request.id,
-    token: request.token,
-    householdId: request.householdId || "",
-    ownerId: request.ownerId || "",
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     title: request.title,
     status: request.status,
     dishes: (request.dishes ?? []).map((dish) => ({
-      id: dish.id,
-      recipeId: dish.recipeId,
       name: dish.name,
       quantity: dish.quantity,
       category: dish.category,
@@ -2282,6 +2299,14 @@ function toPublicMenuShareRequest(request) {
     groceryCount: request.groceryCount,
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toOwnerMenuShareRequest(request) {
+  return {
+    ...toPublicMenuShareRequest(request),
+    id: request.id,
+    token: request.token,
   };
 }
 

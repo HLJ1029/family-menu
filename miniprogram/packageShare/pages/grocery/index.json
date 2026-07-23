@@ -1,6 +1,5 @@
 {
-  "navigationBarTitleText": "家庭任务",
-  "enableShareAppMessage": true,
+  "navigationBarTitleText": "买菜清单",
   "usingComponents": {
     "page-state": "/components/page-state/index"
   }

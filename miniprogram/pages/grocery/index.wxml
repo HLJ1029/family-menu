@@ -18,6 +18,19 @@
         bind:claim="claimItem"
       />
     </view>
-    <button wx:if="{{items.length && canCollaborate}}" class="share-button" loading="{{pendingAction === 'share'}}" bindtap="shareList">分享只读清单</button>
+    <button
+      wx:if="{{items.length && canCollaborate}}"
+      class="share-button"
+      open-type="share"
+      data-share-type="grocery"
+      disabled="{{!preparedShares.grocery || sharePreparing.grocery}}"
+      loading="{{sharePreparing.grocery}}"
+    >分享只读清单</button>
+    <text
+      wx:if="{{shareErrors.grocery}}"
+      class="share-retry"
+      data-share-type="grocery"
+      bindtap="retryNativeShare"
+    >分享内容没准备好，点这里重试</text>
   </view>
 </page-state>

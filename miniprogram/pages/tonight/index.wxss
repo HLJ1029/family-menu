@@ -76,3 +76,8 @@ page {
   font-weight: 700;
   text-align: center;
 }
+
+.share-panel { margin-top: 28rpx; text-align: center; }
+.share-button { min-height: 92rpx; border-radius: 999rpx; background: #111; color: #fff; font-size: 28rpx; font-weight: 700; }
+.share-button[disabled] { background: #d4d1cc; color: #777; }
+.share-retry { display: inline-block; margin-top: 18rpx; color: #7b2929; font-size: 25rpx; text-decoration: underline; }

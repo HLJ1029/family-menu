@@ -11,6 +11,7 @@ const {
   mergeActiveGuestMealRun,
 } = require("../../utils/meal-run");
 const { trackEvent } = require("../../utils/telemetry");
+const shareablePage = require("../../behaviors/shareable-page");
 
 const EFFORT_OPTIONS = [
   { id: "quick_15", title: "15 分钟·只求开饭", detail: "一锅或一盘，配现成主食" },
@@ -21,6 +22,8 @@ const EFFORT_TIERS = new Set(EFFORT_OPTIONS.map((option) => option.id));
 const LOCKED_STATUSES = new Set(["cooking", "completed"]);
 
 Page({
+  behaviors: [shareablePage],
+
   data: {
     status: "loading",
     viewState: "loading",
@@ -38,7 +41,8 @@ Page({
 
   async onLoad() {
     this._skipFirstShow = true;
-    return this.initialize();
+    await this.initialize();
+    return this.prepareMenuShare().catch(() => null);
   },
 
   async onShow() {
@@ -47,9 +51,13 @@ Page({
       this._skipFirstShow = false;
       return;
     }
-    if (!this._initialized) return this.initialize();
+    if (!this._initialized) {
+      await this.initialize();
+      return this.prepareMenuShare().catch(() => null);
+    }
     if (this.data.pendingAction) return;
-    return this.refreshVisibleMealRun();
+    await this.refreshVisibleMealRun();
+    return this.prepareMenuShare().catch(() => null);
   },
 
   async initialize() {
@@ -316,6 +324,49 @@ Page({
       errorText: "",
       cacheState: mealRun.cacheState || this.data.cacheState,
     });
+  },
+
+  prepareMenuShare() {
+    const bootstrap = appStore.getState().bootstrap;
+    const household = (bootstrap?.households || []).find((item) => item.id === bootstrap.activeHouseholdId);
+    const mealRun = this.data.mealRun;
+    if (!household || !["owner", "member"].includes(household.role) || !mealRun?.id) {
+      return Promise.resolve(null);
+    }
+    const recipes = Array.isArray(mealRun.recipeSnapshot) ? mealRun.recipeSnapshot : [];
+    const dishes = recipes.map((recipe, index) => ({
+      id: recipe.id || recipe.recipeId || `dish-${index}`,
+      recipeId: recipe.recipeId || recipe.id || "",
+      name: recipe.title || recipe.name || "一道菜",
+      quantity: 1,
+      category: recipe.category || "",
+      timeMinutes: recipe.activeMinutes || recipe.totalMinutes || 0,
+    }));
+    return this.prepareNativeShare("menu", {
+      page: "tonight",
+      householdId: household.id,
+      stateVersion: bootstrap.stateVersion,
+      mealRunId: mealRun.id,
+      householdName: household.name,
+      title: "今晚菜单",
+      data: {
+        householdId: household.id,
+        householdName: household.name,
+        initiatorName: bootstrap.user?.displayName || "家人",
+        title: "今晚菜单",
+        dishes,
+        groceryCount: Array.isArray(this.data.plan?.missingIngredients)
+          ? this.data.plan.missingIngredients.length
+          : 0,
+      },
+    });
+  },
+
+  onShareAppMessage(event) {
+    return this.getNativeSharePayload(event, {
+      title: "Humi 今晚菜单",
+      path: "/pages/tonight/index",
+    }, "menu");
   },
 
   setView(viewState, patch = {}) {

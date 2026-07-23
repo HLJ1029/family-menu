@@ -17,7 +17,8 @@
   "subPackages": [
     { "root": "packageCooking", "pages": ["pages/cooking/index"] },
     { "root": "packageFamily", "pages": ["pages/settings/index", "pages/invite/index", "pages/task/index"] },
-    { "root": "packageContent", "pages": ["pages/recipe/index", "pages/web-content/index"] }
+    { "root": "packageContent", "pages": ["pages/recipe/index", "pages/web-content/index"] },
+    { "root": "packageShare", "pages": ["pages/menu/index", "pages/grocery/index"] }
   ],
   "tabBar": {
     "color": "#7A7A7A",

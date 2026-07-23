@@ -1078,6 +1078,17 @@ async function evaluateCommonJs(relativePath, stubs, globals = {}) {
     exports: module.exports,
     require: (request) => {
       if (Object.hasOwn(stubs, request)) return stubs[request];
+      if (request === "../../behaviors/shareable-page" || request === "../../../behaviors/shareable-page") {
+        return {
+          data: { preparedShares: {}, sharePreparing: {}, shareErrors: {} },
+          methods: {
+            prepareNativeShare: async () => null,
+            retryNativeShare: async () => null,
+            getNativeSharePayload: (_event, fallback) => fallback,
+          },
+        };
+      }
+      if (request.endsWith("/utils/telemetry")) return { trackEvent: () => null };
       throw new Error(`Unexpected require ${request} from ${relativePath}`);
     },
     setTimeout,
@@ -1090,10 +1101,13 @@ async function evaluateCommonJs(relativePath, stubs, globals = {}) {
 }
 
 function instantiate(definition) {
+  const behaviorMethods = Object.assign({}, ...(definition.behaviors || []).map((behavior) => behavior.methods || {}));
+  const behaviorData = Object.assign({}, ...(definition.behaviors || []).map((behavior) => behavior.data || {}));
   const instance = {
+    ...behaviorMethods,
     ...definition.methods,
     ...Object.fromEntries(Object.entries(definition).filter(([key]) => !["data", "methods", "properties"].includes(key))),
-    data: structuredClone(definition.data || {}),
+    data: structuredClone({ ...behaviorData, ...(definition.data || {}) }),
     properties: Object.fromEntries(Object.entries(definition.properties || {}).map(([key, value]) => [key, value?.value])),
     setData(patch) { Object.assign(this.data, patch); },
     triggerEvent() {},

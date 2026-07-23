@@ -310,6 +310,7 @@ function createGuestTonightRuntime() {
       wx,
       getApp: () => app,
       Page: (definition) => { pageDefinition = definition; },
+      Behavior: (definition) => definition,
       Component: () => {},
       console,
       Date,
@@ -334,9 +335,18 @@ function createGuestTonightRuntime() {
     routes,
     loadPage(relativePath) {
       load(relativePath);
+      const behaviorMethods = Object.assign(
+        {},
+        ...(pageDefinition.behaviors || []).map((behavior) => behavior.methods || {}),
+      );
+      const behaviorData = Object.assign(
+        {},
+        ...(pageDefinition.behaviors || []).map((behavior) => behavior.data || {}),
+      );
       return {
+        ...behaviorMethods,
         ...pageDefinition,
-        data: plain(pageDefinition.data),
+        data: plain({ ...behaviorData, ...pageDefinition.data }),
         setData(patch) { this.data = { ...this.data, ...plain(patch) }; },
       };
     },

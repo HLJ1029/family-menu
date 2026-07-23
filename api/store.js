@@ -481,23 +481,34 @@ export class HumiStore {
 
     const owner = this.data.users.find((item) => item.id === ownerUserId);
     const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
-    const now = new Date().toISOString();
-    const invite = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      householdId: household.id,
-      householdName: household.name,
-      inviterId: ownerUserId,
-      inviterName: sanitizeText(payload.inviterName, "", 32) || ownerMember?.nickname || owner?.displayName || "主厨",
-      status: "open",
-      acceptedMemberIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.householdInvites.unshift(invite);
-    this.data.householdInvites = this.data.householdInvites.slice(0, 2000);
-    await this.save();
-    return invite;
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    return this.mutateAndSave(() => {
+      if (idempotencyKey) {
+        const existing = this.data.householdInvites.find((item) => (
+          item.inviterId === ownerUserId
+          && item.householdId === household.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const invite = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        householdId: household.id,
+        householdName: household.name,
+        inviterId: ownerUserId,
+        inviterName: ownerMember?.nickname || owner?.displayName || "主厨",
+        idempotencyKey,
+        status: "open",
+        acceptedMemberIds: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.householdInvites.unshift(invite);
+      this.data.householdInvites = this.data.householdInvites.slice(0, 2000);
+      return invite;
+    });
   }
 
   async getHouseholdInvite(token) {
@@ -1261,6 +1272,8 @@ export class HumiStore {
       ? await this.requireActiveHouseholdForUser(ownerUserId)
       : null;
     const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    const creator = ownerUserId ? this.data.users.find((item) => item.id === ownerUserId) : null;
+    const creatorMember = household?.members?.find((item) => item.memberId === ownerUserId);
     const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
       id: sanitizeText(item.id, `item-${index}`, 80),
       name: sanitizeText(item.name, "食材", 40),
@@ -1286,8 +1299,8 @@ export class HumiStore {
         householdId: household?.id || sanitizeText(payload.householdId, "", 80),
         ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
         idempotencyKey,
-        householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-        initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+        householdName: household?.name || sanitizeText(payload.householdName, "我家", 32),
+        initiatorName: creatorMember?.nickname || creator?.displayName || "家人",
         title: sanitizeText(payload.title, "Humi 买菜清单", 48),
         mode: payload.mode === "read_only" ? "read_only" : "collaboration",
         status: "open",
@@ -1392,9 +1405,11 @@ export class HumiStore {
   async createMenuShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.requireOwnedHouseholdForUser(ownerUserId)
+      ? await this.requireActiveHouseholdForUser(ownerUserId)
       : null;
     const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    const creator = ownerUserId ? this.data.users.find((item) => item.id === ownerUserId) : null;
+    const creatorMember = household?.members?.find((item) => item.memberId === ownerUserId);
     const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
       id: sanitizeText(dish.id, `dish-${index}`, 80),
       recipeId: sanitizeText(dish.recipeId || dish.id, "", 80),
@@ -1420,8 +1435,8 @@ export class HumiStore {
         householdId: household?.id || sanitizeText(payload.householdId, "", 80),
         ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
         idempotencyKey,
-        householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-        initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
+        householdName: household?.name || sanitizeText(payload.householdName, "我家", 32),
+        initiatorName: creatorMember?.nickname || creator?.displayName || "家人",
         title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
         status: "open",
         dishes,
@@ -1932,6 +1947,38 @@ export class HumiStore {
   async getMealTask(token) {
     await this.load();
     return this.data.mealTasks.find((task) => task.token === token) ?? null;
+  }
+
+  async prepareMealTaskShare(userId, taskId) {
+    await this.load();
+    const task = this.data.mealTasks.find((entry) => entry.id === taskId);
+    if (!task) return null;
+    this.requireFormalMemberHousehold(userId, task.householdId);
+    return structuredClone(task);
+  }
+
+  async getMealTaskLanding(token, viewerUserId = "") {
+    await this.load();
+    const task = this.data.mealTasks.find((entry) => entry.token === token);
+    if (!task) return null;
+    const household = this.data.households.find((entry) => entry.id === task.householdId);
+    const viewerIsMember = Boolean(
+      viewerUserId
+      && household?.members?.some((member) => member.memberId === viewerUserId && member.status === "formal"),
+    );
+    return {
+      householdName: household?.name || "这个家",
+      label: task.label,
+      type: task.type,
+      status: task.status,
+      viewerClaimed: viewerIsMember && task.claimedBy === viewerUserId,
+      viewerCanComplete: viewerIsMember && (
+        task.claimedBy === viewerUserId
+        || household?.ownerId === viewerUserId
+      ),
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
   }
 
   async getMealTasksForRun(userId, mealRunId) {

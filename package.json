@@ -26,6 +26,7 @@
     "validate:native-cooking": "node scripts/check-native-cooking.mjs",
     "smoke:native-shell-ui": "node scripts/smoke-native-shell-ui.mjs",
     "validate:share-bridge": "node scripts/validate-mini-share-runtime.mjs",
+    "validate:native-sharing": "node scripts/check-native-sharing.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
     "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",

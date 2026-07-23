@@ -1,4 +1,5 @@
 {
+  "enableShareAppMessage": true,
   "usingComponents": {
     "page-state": "/components/page-state/index",
     "effort-picker": "/components/effort-picker/index",

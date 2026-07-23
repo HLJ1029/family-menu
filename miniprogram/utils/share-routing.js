@@ -103,6 +103,40 @@ function buildSharePayload(payload = {}) {
   };
 }
 
+function buildNativeSharePayload(type, payload = {}) {
+  const normalizedType = sanitizeOption(type);
+  const token = sanitizeShareToken(payload.token);
+  if (!token) throw new Error("share_token_invalid");
+  if (normalizedType === "menu") {
+    return {
+      title: sanitizeOption(payload.title) || "Humi 今晚菜单",
+      path: `/packageShare/pages/menu/index?menuShare=${encodeURIComponent(token)}&shareSource=menu`,
+    };
+  }
+  if (normalizedType === "grocery") {
+    const itemCount = Number.parseInt(payload.itemCount, 10) || 0;
+    return {
+      title: itemCount > 0 ? `Humi 买菜清单：${itemCount} 项` : "Humi 买菜清单",
+      path: `/packageShare/pages/grocery/index?groceryShare=${encodeURIComponent(token)}&shareSource=grocery`,
+    };
+  }
+  if (normalizedType === "invite") {
+    const householdName = sanitizeOption(payload.householdName) || "这个家";
+    const inviterName = sanitizeOption(payload.inviterName) || "家人";
+    return {
+      title: `${inviterName}邀请你加入 ${householdName}`,
+      path: `/packageFamily/pages/invite/index?token=${encodeURIComponent(token)}&shareSource=invite`,
+    };
+  }
+  if (normalizedType === "meal_task") {
+    return {
+      title: sanitizeOption(payload.label) || "一起把今晚这顿端上桌",
+      path: `/packageFamily/pages/task/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`,
+    };
+  }
+  throw new Error("share_type_invalid");
+}
+
 function pathToQuery(path = "") {
   const queryIndex = path.indexOf("?");
   return queryIndex >= 0 ? path.slice(queryIndex + 1) : "";
@@ -112,8 +146,14 @@ function sanitizeOption(value = "") {
   return String(value || "").slice(0, 120);
 }
 
+function sanitizeShareToken(value = "") {
+  const token = String(value || "");
+  return /^[A-Za-z0-9_-]{24,64}$/.test(token) ? token : "";
+}
+
 module.exports = {
   buildHumiUrl,
+  buildNativeSharePayload,
   buildSharePayload,
   encodeShareParams,
   normalizeLaunchOptions,

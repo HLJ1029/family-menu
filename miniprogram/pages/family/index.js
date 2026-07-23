@@ -2,8 +2,11 @@ const { loadBootstrap } = require("../../utils/bootstrap");
 const { guardNativeTab } = require("../../utils/native-shell-guard");
 const { requestHumi } = require("../../utils/request");
 const { appStore } = require("../../utils/store");
+const shareablePage = require("../../behaviors/shareable-page");
 
 Page({
+  behaviors: [shareablePage],
+
   data: {
     status: "loading",
     errorText: "",
@@ -23,6 +26,7 @@ Page({
     canLeaveHousehold: false,
     dinner: emptyDinner(),
     mealTasks: [],
+    shareableMealTask: null,
     groceryClaims: [],
     recentCollaborations: [],
     pendingAction: "",
@@ -35,6 +39,7 @@ Page({
     if (this.data.activeHousehold && this.data.cacheState !== "cached") {
       await this.loadCollaborationData();
     }
+    await this.prepareFirstMealTaskShare().catch(() => null);
   },
 
   syncState() {
@@ -55,6 +60,7 @@ Page({
         canLeaveHousehold: false,
         dinner: emptyDinner(),
         mealTasks: [],
+        shareableMealTask: null,
         groceryClaims: [],
         recentCollaborations: [],
       });
@@ -81,6 +87,7 @@ Page({
         canLeaveHousehold: false,
         dinner: emptyDinner(),
         mealTasks: [],
+        shareableMealTask: null,
         groceryClaims: [],
         recentCollaborations: [],
       });
@@ -89,6 +96,7 @@ Page({
 
     const members = normalizeMembers(activeHousehold.members);
     const isOwner = activeHousehold.role === "owner";
+    const mealTasks = normalizeMealTasks(bootstrap.currentMealRun?.tasks, members);
     this.setData({
       status: bootstrap.cacheState === "cached" ? "cached" : "ready",
       errorText: "",
@@ -105,7 +113,8 @@ Page({
       canStartCooking: ["owner", "member"].includes(activeHousehold.role),
       canLeaveHousehold: !isOwner || members.length === 1,
       dinner: buildDinner(bootstrap.currentMealRun, members),
-      mealTasks: normalizeMealTasks(bootstrap.currentMealRun?.tasks, members),
+      mealTasks,
+      shareableMealTask: firstShareableTask(mealTasks),
       groceryClaims: normalizeGroceryClaims(bootstrap.householdState?.groceryClaims, members),
     });
   },
@@ -130,6 +139,7 @@ Page({
     }
     if (taskState?.status === "fulfilled") {
       patch.mealTasks = normalizeMealTasks(taskState.value?.tasks, this.data.members);
+      patch.shareableMealTask = firstShareableTask(patch.mealTasks);
     } else if (taskState?.status === "rejected") {
       patch.sectionError ||= "今晚任务暂时没有同步成功，下拉可以重试。";
     }
@@ -221,6 +231,35 @@ Page({
     wx.navigateTo({
       url: `/packageFamily/pages/invite/index?mode=prepare&householdId=${encodeURIComponent(householdId)}`,
     });
+  },
+
+  prepareFirstMealTaskShare() {
+    const task = this.data.shareableMealTask;
+    if (!task?.id) return Promise.resolve(null);
+    const bootstrap = appStore.getState().bootstrap;
+    return this.prepareNativeShare("meal_task", {
+      page: "family",
+      householdId: bootstrap?.activeHouseholdId || "",
+      stateVersion: bootstrap?.stateVersion || "",
+      mealRunId: bootstrap?.currentMealRun?.id || "",
+      taskId: task.id,
+      label: task.label,
+    });
+  },
+
+  prepareMealTaskShare(event = {}) {
+    const taskId = String(event.currentTarget?.dataset?.taskId || "");
+    const task = this.data.mealTasks.find((item) => item.id === taskId);
+    if (!task || this.data.sharePreparing?.meal_task) return null;
+    this.setData({ shareableMealTask: task });
+    return this.prepareFirstMealTaskShare().catch(() => null);
+  },
+
+  onShareAppMessage(event) {
+    return this.getNativeSharePayload(event, {
+      title: this.data.shareableMealTask?.label || "一起把今晚这顿端上桌",
+      path: "/pages/family/index",
+    }, "meal_task");
   },
 
   startOrResumeDinner() {
@@ -367,6 +406,10 @@ function normalizeMealTasks(tasks, members) {
       claimedByName: String(task.claimedByName || claimedBy?.displayName || ""),
     };
   }).filter((task) => task.id);
+}
+
+function firstShareableTask(tasks) {
+  return (Array.isArray(tasks) ? tasks : []).find((task) => task.id && task.status !== "completed") || null;
 }
 
 function normalizeGroceryClaims(claims, members) {

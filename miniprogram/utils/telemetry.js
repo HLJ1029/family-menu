@@ -1,4 +1,4 @@
-const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId"]);
+const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId", "shareSource"]);
 const EVENT_NAMES = new Set([
   "native_boot_started", "native_boot_completed", "native_boot_failed",
   "native_login_started", "native_login_completed", "native_login_failed",
@@ -13,6 +13,7 @@ const ENUM_FIELDS = {
   stage: new Set(["started", "completed", "failed", "retry", "offline", "queue_flush"]),
   result: new Set(["completed", "failed", "cancelled", "offline", "conflict", "retry"]),
   effortTier: new Set(["quick_15", "easy_30", "normal"]),
+  shareSource: new Set(["menu", "grocery", "invite", "meal_task", "poster"]),
   errorCode: new Set([
     "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized",
     "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",

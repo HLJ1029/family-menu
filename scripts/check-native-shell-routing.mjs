@@ -234,6 +234,7 @@ for (const tabPath of tabPaths) {
       if (specifier === "../../utils/recommendation") return {};
       if (specifier === "../../utils/meal-run") return {};
       if (specifier === "../../utils/telemetry") return {};
+      if (specifier === "../../behaviors/shareable-page") return {};
       if (specifier === "../../utils/request") return {
         rawRequest: async () => ({ recipes: [], nextCursor: null }),
         requestHumi: async () => ({}),

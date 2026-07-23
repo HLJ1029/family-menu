@@ -1368,6 +1368,41 @@ try {
   );
   const publicMenuShare = await request(`${baseUrl}/menu-share-requests/${menuShare.request.token}`);
   assert(publicMenuShare.request?.dishes?.[0]?.name === "西红柿炒鸡蛋", "menu share should open without login");
+  assert(!("token" in publicMenuShare.request), "public menu GET must not echo the opaque token");
+  assert(!("ownerId" in publicMenuShare.request) && !("householdId" in publicMenuShare.request), "public menu GET must omit internal ownership ids");
+  assert(!("recipeId" in publicMenuShare.request.dishes[0]), "public menu GET must omit internal recipe ids");
+  const memberMenuShare = await request(`${baseUrl}/menu-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      idempotencyKey: `member-menu-share:${runId}`,
+      householdName: "伪造家庭名",
+      initiatorName: "伪造发起人",
+      title: "家人分享的今晚菜单",
+      dishes: [{ id: "tomato-egg", name: "西红柿炒鸡蛋", quantity: 1, timeMinutes: 15 }],
+    },
+  });
+  assert(memberMenuShare.request?.token, "a formal member should receive 201 with a menu snapshot token");
+  const publicMemberMenu = await request(`${baseUrl}/menu-share-requests/${memberMenuShare.request.token}`);
+  assert.equal(publicMemberMenu.request.householdName, loadedStateEnvelope.family.name);
+  assert.notEqual(publicMemberMenu.request.initiatorName, "伪造发起人");
+  const memberGrocerySnapshot = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      mode: "read_only",
+      idempotencyKey: `member-native-grocery-share:${runId}`,
+      householdName: "伪造清单家庭",
+      initiatorName: "伪造清单发起人",
+      title: "家人分享的只读清单",
+      items: [{ id: "egg", name: "鸡蛋", amount: "3 个" }],
+    },
+  });
+  assert(memberGrocerySnapshot.request?.token, "a formal member should receive 201 with a grocery snapshot token");
+  const publicMemberGrocery = await request(`${baseUrl}/grocery-share-requests/${memberGrocerySnapshot.request.token}`);
+  assert.equal(publicMemberGrocery.request.householdName, loadedStateEnvelope.family.name);
+  assert.notEqual(publicMemberGrocery.request.initiatorName, "伪造清单发起人");
+  assert(!("token" in publicMemberGrocery.request), "public grocery GET must not echo the opaque token");
 
   const wishShare = await request(`${baseUrl}/wish-share-requests`, {
     method: "POST",
