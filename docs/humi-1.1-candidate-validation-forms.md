@@ -239,12 +239,37 @@ npm run release:candidate:review
 字段规则：
 
 - `platform` 只能是 `iOS` 或 `Android`。
-- `packageVersion` 必须对应实际上传或预览的候选包，不能填写 H5 版本代替。
-- `householdFixture` 使用不含个人信息的稳定测试夹具名，例如 `guest`、`owner-household`、`member-household`。
-- `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit。
+- `packageVersion` 必须与候选仓库 `HUMI_PACKAGE_VERSION` 完全一致，不能只满足版本格式，也不能填写 H5 版本代替。
+- `householdFixture` 使用不含个人信息的稳定测试夹具名。游客场景必须是 `guest`；owner/member 做饭分别使用 `owner-*`、`member-*`；五类双方分享使用 `owner-member-*`。
+- `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit；不得填写未来时间。证据描述文件和媒体文件本身的修改时间也必须晚于候选 commit。
 - `result` 只能是 `pass`、`fail`、`pending` 或 `blocked`。只有 `pass` 计入通过数。
-- `evidencePath` 必须指向证据目录内经过脱敏且不复用的文件；不得使用绝对路径、软链接、`..` 或 manifest 自身。
+- `evidencePath` 必须使用 ASCII 安全相对路径，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用绝对路径、软链接、`..`、昵称式文件名或 manifest 自身。
 - 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
+
+每个 `evidencePath` 指向的 JSON 必须严格包含以下五个字段：
+
+```json
+{
+  "schemaVersion": 1,
+  "scenarioId": "menu_share_send_and_recipient_open",
+  "redacted": true,
+  "checks": {
+    "contact_panel": true,
+    "sent": true,
+    "recipient_open": true
+  },
+  "mediaPaths": [
+    "menu-share-sender.png",
+    "menu-share-recipient.png"
+  ]
+}
+```
+
+- `scenarioId` 必须与 manifest 行一致。
+- `checks` 必须与该场景的固定检查项完全一致，不能缺项、增项或写成自由文本。
+- `mediaPaths` 只接受证据目录内的 PNG/JPEG/MP4/MOV；文件必须具有真实媒体头、不得为空、不得跨场景复用。
+- 五类分享至少提供发送端和接收端两个媒体证据；其他场景至少一个。
+- `redacted: true` 是执行人对媒体已移除头像、昵称、聊天内容、手机号和其他家庭隐私的明确确认。自动门禁只能验证路径、格式、媒体头和复用，不能代替人工脱敏检查。
 
 固定 36 行如下：
 

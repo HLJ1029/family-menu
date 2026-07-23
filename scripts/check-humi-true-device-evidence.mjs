@@ -79,8 +79,43 @@ const WECHAT_VERSION = /^\d+\.\d+\.\d+(?:\.\d+)?$/;
 const UTC_ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const FIXTURE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const PII_PATTERN = /(?:\+?86[- ]?)?1[3-9]\d{9}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:openid|unionid|token|session|authorization)\b\s*[:=]\s*\S+|\bo[A-Za-z0-9_-]{27}\b|sk-[A-Za-z0-9_-]{12,}/i;
+const DESCRIPTOR_FIELDS = new Set(["schemaVersion", "scenarioId", "redacted", "checks", "mediaPaths"]);
+const MEDIA_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".mp4", ".mov"]);
+const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+const SCENARIO_CHECKS = {
+  fresh_guest_start: ["fresh_install", "guest_visible", "no_false_login"],
+  explicit_wechat_login: ["wechat_consent", "login_completed", "identity_visible"],
+  new_identity_profile: ["profile_required", "nickname_saved", "avatar_saved"],
+  legacy_identity_recovery: ["legacy_detected", "profile_recovered", "session_restored"],
+  session_revocation_relogin: ["session_revoked", "login_prompted", "relogin_completed"],
+  logout_to_guest: ["logout_completed", "guest_visible", "private_state_cleared"],
+  cooking_background_restore: ["timer_started", "backgrounded", "remaining_time_restored"],
+  offline_sync_recovery: ["offline_mutation", "reconnected", "server_reconciled"],
+  owner_cooking_flow: ["owner_started", "progressed", "completed"],
+  member_cooking_flow: ["member_started", "progressed", "completed", "menu_edit_denied"],
+  poster_style_change_primary: ["style_changed", "visual_changed", "poster_rendered"],
+  poster_style_change_secondary: ["style_changed", "visual_changed", "poster_rendered"],
+  reminder_accept: ["consent_prompt", "accepted", "single_reminder_scheduled"],
+  reminder_reject: ["consent_prompt", "rejected", "not_reprompted"],
+  reminder_cancel: ["reminder_scheduled", "cancelled", "not_sent"],
+  immediate_h5_rollback: ["native_enabled", "flag_disabled", "legacy_opened"],
+};
+
+for (const scenario of RECOMMENDATION_SCENARIOS) {
+  SCENARIO_CHECKS[scenario] = ["tier_selected", "rotation_changed", "plan_visible"];
+}
+for (const scenario of SHARE_SCENARIOS) {
+  SCENARIO_CHECKS[scenario] = ["contact_panel", "sent", "recipient_open"];
+}
+Object.freeze(SCENARIO_CHECKS);
 
 assert.equal(REQUIRED_SCENARIOS.length, 36, "the native true-device matrix must retain all 36 required rows");
+assert.deepEqual(
+  Object.keys(SCENARIO_CHECKS).sort(),
+  [...REQUIRED_SCENARIOS].sort(),
+  "every true-device row must declare concrete checks",
+);
 
 export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   const root = resolve(evidenceDir);
@@ -97,6 +132,7 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   if (manifest?.schemaVersion !== 2 || !isRecord(manifest.scenarios)) fail("manifest_schema_invalid");
   const candidateTime = Date.parse(candidateTimestamp);
   if (!Number.isFinite(candidateTime)) fail("candidate_timestamp_invalid");
+  const candidatePackageVersion = await readCandidatePackageVersion();
 
   const rows = [];
   const issues = [];
@@ -115,7 +151,7 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
       issues.push(issue(scenario, "invalid", "field_set_invalid"));
       continue;
     }
-    const fieldIssue = validateFields(entry, candidateTime);
+    const fieldIssue = validateFields(entry, candidateTime, candidatePackageVersion, scenario);
     if (fieldIssue) {
       issues.push(issue(scenario, "invalid", fieldIssue));
       continue;
@@ -125,13 +161,14 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
       rows.push({ scenario, status: entry.result, path: entry.evidencePath });
       continue;
     }
-    const artifactIssue = await validateArtifact({
+    const artifactIssue = await validateEvidenceDescriptor({
       root,
       realRoot,
       realManifestPath,
       relativePath: entry.evidencePath,
       scenario,
       seenArtifacts,
+      candidateTime,
     });
     if (artifactIssue) {
       issues.push(issue(scenario, "invalid", artifactIssue));
@@ -149,13 +186,15 @@ export async function validateEvidence({ evidenceDir, candidateTimestamp }) {
   };
 }
 
-function validateFields(entry, candidateTime) {
+function validateFields(entry, candidateTime, candidatePackageVersion, scenario) {
   if (!REQUIRED_FIELDS.every((field) => typeof entry[field] === "string")) return "field_type_invalid";
   if (!entry.device.trim() || entry.device.length > 80) return "device_invalid";
   if (!ALLOWED_PLATFORMS.has(entry.platform)) return "platform_invalid";
   if (!WECHAT_VERSION.test(entry.wechatVersion)) return "wechat_version_invalid";
   if (!PACKAGE_VERSION.test(entry.packageVersion)) return "package_version_invalid";
+  if (entry.packageVersion !== candidatePackageVersion) return "package_version_mismatch";
   if (!FIXTURE_ID.test(entry.householdFixture)) return "household_fixture_invalid";
+  if (!fixtureMatchesScenario(entry.householdFixture, scenario)) return "household_fixture_mismatch";
   if (!ALLOWED_RESULTS.has(entry.result)) return "result_invalid";
   if (!UTC_ISO_TIMESTAMP.test(entry.startedAt) || !UTC_ISO_TIMESTAMP.test(entry.finishedAt)) {
     return "timestamp_format_invalid";
@@ -167,6 +206,7 @@ function validateFields(entry, candidateTime) {
     || !Number.isFinite(finishedAt)
     || startedAt <= candidateTime
     || finishedAt < startedAt
+    || finishedAt > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
   ) {
     return "timestamp_range_invalid";
   }
@@ -176,26 +216,50 @@ function validateFields(entry, candidateTime) {
     !entry.evidencePath.trim()
     || isAbsolute(entry.evidencePath)
     || entry.evidencePath.split(/[\\/]/).includes("..")
+    || !/^[A-Za-z0-9_./-]+$/.test(entry.evidencePath)
   ) {
     return "evidence_path_invalid";
   }
   return "";
 }
 
-async function validateArtifact({
+function fixtureMatchesScenario(fixture, scenario) {
+  if (["fresh_guest_start", "logout_to_guest"].includes(scenario)) return fixture === "guest";
+  if (scenario === "owner_cooking_flow") return fixture.startsWith("owner-");
+  if (scenario === "member_cooking_flow") return fixture.startsWith("member-");
+  if (SHARE_SCENARIOS.includes(scenario)) return fixture.startsWith("owner-member-");
+  return true;
+}
+
+async function readCandidatePackageVersion() {
+  const source = await readFile(resolve("miniprogram/utils/config.js"), "utf8");
+  const match = source.match(/HUMI_PACKAGE_VERSION\s*=\s*["'](\d+\.\d+\.\d+)["']/);
+  if (!match) fail("candidate_package_version_missing");
+  return match[1];
+}
+
+async function validateEvidenceDescriptor({
   root,
   realRoot,
   realManifestPath,
   relativePath,
   scenario,
   seenArtifacts,
+  candidateTime,
 }) {
+  if (!relativePath.endsWith(".json")) return "evidence_descriptor_required";
   await rejectSymlinkAncestors(root, relativePath, scenario);
   const artifactPath = resolve(root, relativePath);
   if (!isInside(root, artifactPath)) return "evidence_path_invalid";
   const artifactStat = await lstat(artifactPath).catch(() => null);
   if (!artifactStat?.isFile() || artifactStat.isSymbolicLink() || artifactStat.size < 1) {
     return "artifact_missing";
+  }
+  if (
+    artifactStat.mtimeMs <= candidateTime
+    || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
+  ) {
+    return "artifact_timestamp_invalid";
   }
   const realArtifactPath = await realpath(artifactPath).catch(() => "");
   if (!realArtifactPath || !isInside(realRoot, realArtifactPath) || realArtifactPath === realManifestPath) {
@@ -204,11 +268,103 @@ async function validateArtifact({
   const artifactIdentity = `${artifactStat.dev}:${artifactStat.ino}`;
   if (seenArtifacts.has(artifactIdentity)) return "artifact_reused";
   seenArtifacts.add(artifactIdentity);
-  if (/\.(?:json|md|txt)$/i.test(relativePath) && artifactStat.size <= 64 * 1024) {
-    const text = await readFile(artifactPath, "utf8");
-    if (PII_PATTERN.test(text)) return "privacy_check_failed";
+  if (artifactStat.size > 64 * 1024) return "evidence_descriptor_too_large";
+
+  let descriptor;
+  const descriptorSource = await readFile(artifactPath, "utf8");
+  try {
+    descriptor = JSON.parse(descriptorSource);
+  } catch {
+    return "evidence_descriptor_invalid";
+  }
+  if (
+    !isRecord(descriptor)
+    || Object.keys(descriptor).length !== DESCRIPTOR_FIELDS.size
+    || Object.keys(descriptor).some((field) => !DESCRIPTOR_FIELDS.has(field))
+    || descriptor.schemaVersion !== 1
+    || descriptor.scenarioId !== scenario
+    || descriptor.redacted !== true
+    || !isRecord(descriptor.checks)
+    || !Array.isArray(descriptor.mediaPaths)
+  ) {
+    return "evidence_descriptor_invalid";
+  }
+  const expectedChecks = SCENARIO_CHECKS[scenario];
+  if (
+    Object.keys(descriptor.checks).sort().join(",") !== [...expectedChecks].sort().join(",")
+    || expectedChecks.some((checkName) => descriptor.checks[checkName] !== true)
+  ) {
+    return "evidence_checks_incomplete";
+  }
+  const minimumMedia = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
+  if (descriptor.mediaPaths.length < minimumMedia) return "evidence_media_incomplete";
+  if (
+    descriptor.mediaPaths.some((mediaPath) => (
+      typeof mediaPath !== "string"
+      || !mediaPath.trim()
+      || isAbsolute(mediaPath)
+      || mediaPath.split(/[\\/]/).includes("..")
+      || !/^[A-Za-z0-9_./-]+$/.test(mediaPath)
+      || PII_PATTERN.test(mediaPath)
+    ))
+  ) {
+    return "evidence_media_path_invalid";
+  }
+  for (const mediaPath of descriptor.mediaPaths) {
+    const mediaIssue = await validateMediaArtifact({
+      root,
+      realRoot,
+      relativePath: mediaPath,
+      scenario,
+      seenArtifacts,
+      candidateTime,
+    });
+    if (mediaIssue) return mediaIssue;
   }
   return "";
+}
+
+async function validateMediaArtifact({
+  root,
+  realRoot,
+  relativePath,
+  scenario,
+  seenArtifacts,
+  candidateTime,
+}) {
+  const extension = `.${relativePath.split(".").at(-1)?.toLowerCase() || ""}`;
+  if (!MEDIA_EXTENSIONS.has(extension)) return "evidence_media_type_invalid";
+  await rejectSymlinkAncestors(root, relativePath, scenario);
+  const artifactPath = resolve(root, relativePath);
+  if (!isInside(root, artifactPath)) return "evidence_media_path_invalid";
+  const artifactStat = await lstat(artifactPath).catch(() => null);
+  if (!artifactStat?.isFile() || artifactStat.isSymbolicLink() || artifactStat.size < 1024) {
+    return "evidence_media_missing";
+  }
+  if (
+    artifactStat.mtimeMs <= candidateTime
+    || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
+  ) {
+    return "artifact_timestamp_invalid";
+  }
+  const realArtifactPath = await realpath(artifactPath).catch(() => "");
+  if (!realArtifactPath || !isInside(realRoot, realArtifactPath)) return "evidence_media_path_invalid";
+  const artifactIdentity = `${artifactStat.dev}:${artifactStat.ino}`;
+  if (seenArtifacts.has(artifactIdentity)) return "artifact_reused";
+  seenArtifacts.add(artifactIdentity);
+  const header = (await readFile(artifactPath)).subarray(0, 12);
+  if (!hasValidMediaHeader(extension, header)) return "evidence_media_invalid";
+  return "";
+}
+
+function hasValidMediaHeader(extension, header) {
+  if (extension === ".png") {
+    return header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if ([".jpg", ".jpeg"].includes(extension)) {
+    return header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+  }
+  return header.subarray(4, 8).toString("ascii") === "ftyp";
 }
 
 function issue(scenario, status, code) {
@@ -245,7 +401,9 @@ async function rejectSymlinkAncestors(root, artifactPath, scenario) {
 }
 
 function evidenceEntry(scenario, overrides = {}) {
-  const fixture = scenario.includes("guest")
+  const fixture = SHARE_SCENARIOS.includes(scenario)
+    ? "owner-member-household"
+    : scenario.includes("guest")
     ? "guest"
     : scenario.startsWith("member_")
       ? "member-household"
@@ -259,7 +417,7 @@ function evidenceEntry(scenario, overrides = {}) {
     startedAt: "2026-07-23T08:00:00.000Z",
     finishedAt: "2026-07-23T08:02:00.000Z",
     result: "pass",
-    evidencePath: `${scenario}.txt`,
+    evidencePath: `${scenario}.json`,
     ...overrides,
   };
 }
@@ -267,7 +425,26 @@ function evidenceEntry(scenario, overrides = {}) {
 async function writeFixture(root, scenarios) {
   for (const [scenario, entry] of Object.entries(scenarios)) {
     if (entry.result === "pass") {
-      await writeFile(join(root, entry.evidencePath), `redacted evidence for ${scenario}\n`, { mode: 0o600 });
+      const mediaCount = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
+      const mediaPaths = Array.from(
+        { length: mediaCount },
+        (_, index) => `${scenario}-${index + 1}.png`,
+      );
+      for (const mediaPath of mediaPaths) {
+        await writeFile(join(root, mediaPath), fakePng(), { mode: 0o600 });
+      }
+      const descriptor = {
+        schemaVersion: 1,
+        scenarioId: scenario,
+        redacted: true,
+        checks: Object.fromEntries(SCENARIO_CHECKS[scenario].map((checkName) => [checkName, true])),
+        mediaPaths,
+      };
+      await writeFile(
+        join(root, entry.evidencePath),
+        `${JSON.stringify(descriptor, null, 2)}\n`,
+        { mode: 0o600 },
+      );
     }
   }
   await writeFile(
@@ -275,6 +452,12 @@ async function writeFixture(root, scenarios) {
     `${JSON.stringify({ schemaVersion: 2, scenarios }, null, 2)}\n`,
     { mode: 0o600 },
   );
+}
+
+function fakePng() {
+  const bytes = Buffer.alloc(1024, 0);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes);
+  return bytes;
 }
 
 async function selftest() {
@@ -335,13 +518,98 @@ async function selftest() {
     true,
   );
 
+  const wrongPackage = structuredClone(scenarios);
+  wrongPackage.owner_cooking_flow.packageVersion = "9.9.9";
+  await writeFixture(root, wrongPackage);
+  const wrongPackageReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    wrongPackageReport.issues.some((entry) => (
+      entry.scenario === "owner_cooking_flow" && entry.code === "package_version_mismatch"
+    )),
+    true,
+  );
+
+  const future = structuredClone(scenarios);
+  future.owner_cooking_flow.finishedAt = "2099-07-23T08:02:00.000Z";
+  await writeFixture(root, future);
+  const futureReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    futureReport.issues.some((entry) => (
+      entry.scenario === "owner_cooking_flow" && entry.code === "timestamp_range_invalid"
+    )),
+    true,
+  );
+
+  const wrongFixture = structuredClone(scenarios);
+  wrongFixture.member_cooking_flow.householdFixture = "owner-household";
+  await writeFixture(root, wrongFixture);
+  const wrongFixtureReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    wrongFixtureReport.issues.some((entry) => (
+      entry.scenario === "member_cooking_flow" && entry.code === "household_fixture_mismatch"
+    )),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  await writeFile(
+    join(root, scenarios.explicit_wechat_login.evidencePath),
+    "{\"schemaVersion\":1}\n",
+    { mode: 0o600 },
+  );
+  const placeholderReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    placeholderReport.issues.some((entry) => (
+      entry.scenario === "explicit_wechat_login" && entry.code === "evidence_descriptor_invalid"
+    )),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  const shareScenario = SHARE_SCENARIOS[0];
+  const incompleteShareDescriptor = {
+    schemaVersion: 1,
+    scenarioId: shareScenario,
+    redacted: true,
+    checks: { contact_panel: true, sent: true },
+    mediaPaths: [`${shareScenario}-1.png`],
+  };
+  await writeFile(
+    join(root, scenarios[shareScenario].evidencePath),
+    `${JSON.stringify(incompleteShareDescriptor, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  const incompleteShareReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    incompleteShareReport.issues.some((entry) => (
+      entry.scenario === shareScenario && entry.code === "evidence_checks_incomplete"
+    )),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
   const externalRoot = await mkdtemp(join(tmpdir(), "humi-true-device-external-"));
-  const externalArtifact = join(externalRoot, "outside.txt");
-  await writeFile(externalArtifact, "outside evidence\n");
-  const linkedPath = join(root, "linked-evidence.txt");
+  const externalArtifact = join(externalRoot, "outside.json");
+  await writeFile(externalArtifact, "{\"redacted\":true}\n");
+  const linkedPath = join(root, "linked-evidence.json");
   await symlink(externalArtifact, linkedPath);
   const linked = structuredClone(scenarios);
-  linked.member_cooking_flow.evidencePath = "linked-evidence.txt";
+  linked.member_cooking_flow.evidencePath = "linked-evidence.json";
   await writeFile(
     join(root, "manifest.json"),
     `${JSON.stringify({ schemaVersion: 2, scenarios: linked }, null, 2)}\n`,
