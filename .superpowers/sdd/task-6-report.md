@@ -22,6 +22,14 @@ Before implementation, the required contracts failed as intended:
 - Runtime tests execute remote and local avatar submit paths: allowed WeChat CDN URL → `downloadFile` → `compressImage` → file read → avatar POST → profile PUT → session/cache/boot; local `wxfile://` skips download. HTTPS host parsing is anchored and rejects HTTP, subdomain, userinfo, and arbitrary-host bypasses.
 - Identity and phone-bind map request codes to fixed recoverable Chinese text; raw `invalid_session` and `network_error` are not rendered to the user.
 
+## Second review deployment remediation
+
+- RED: `npm run validate:api-deploy-set` failed with `ENOENT` for `api/data/approved-avatar-keys.json`; API store imported the miniprogram projection, but production rsync copies only the API deployment set.
+- GREEN: `api/data/approved-avatar-keys.json` is now canonical. The miniprogram JSON is an explicitly tested value projection. `validate:api-deploy-set` deep-compares both contracts, stages only the documented deployment set in a temporary directory, and successfully imports both `api/store.js` and `api/server.js` there.
+- The API deployment runbook now synchronizes and backs up/restores all runtime imports (`api/`, `src/lib/mealExecution.js`, recipe/cook-assist JSON, package manifests), and its production pre-start command resolves real imports after `npm ci`; it is not limited to `node --check`.
+- The temporary staging test explicitly creates every copied parent directory before `cp`; the runbook conditions `src`/`data` backup and rollback so an older production layout lacking either directory does not abort the procedure or delete an unrecoverable directory.
+- `docs/humi-api-contract.md` records the explicit-avatar completion rule and stable `400 avatar_required` / `400 invalid_avatar_key` responses.
+
 ## No automatic household creation
 
 The identity runtime contract asserts both startup and submit issue zero `/households` requests. It asserts the post-save route is `/pages/boot/index?reason=identity_complete`; boot/bootstrap remains the sole source for deciding whether a household exists. The household and API smoke suites also passed, including the new-user/no-household lifecycle contract.

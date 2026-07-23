@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HumiStore } from "../api/store.js";
+import { APPROVED_AVATAR_KEYS, HumiStore } from "../api/store.js";
+
+const canonicalAvatarKeys = JSON.parse(await readFile(new URL("../api/data/approved-avatar-keys.json", import.meta.url), "utf8"));
+const miniProgramAvatarKeys = JSON.parse(await readFile(new URL("../miniprogram/data/approved-avatar-keys.json", import.meta.url), "utf8"));
+assert.deepEqual(miniProgramAvatarKeys, canonicalAvatarKeys, "the miniprogram avatar list must exactly project the API canonical contract");
+assert.deepEqual(APPROVED_AVATAR_KEYS, canonicalAvatarKeys, "store validation must consume the API canonical avatar contract");
 
 const directory = await mkdtemp(join(tmpdir(), "humi-identity-store-"));
 const dataFile = join(directory, "data.json");

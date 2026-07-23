@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-export const APPROVED_AVATAR_KEYS = Object.freeze([...require("../miniprogram/data/approved-avatar-keys.json")]);
+export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
 const DEFAULT_AVATAR_KEYS = APPROVED_AVATAR_KEYS;
 
 const DEFAULT_DATA = {

@@ -108,7 +108,7 @@ npm run validate:native-bootstrap-api
 
 ## 身份资料、头像与 H5 交接
 
-- `PUT /identity/profile`：保存必填昵称，并把 `profileStatus` 更新为 `complete`。
+- `PUT /identity/profile`：保存必填昵称。首次未完成身份必须在本次提交中提供 API canonical approved `avatarKey`，或此前已通过 `POST /identity/avatar` 成功保存头像；满足其一才把 `profileStatus` 更新为 `complete`。昵称-only 或伪造 `avatarUrl` 返回 `400 avatar_required`；任意非 approved `avatarKey` 返回 `400 invalid_avatar_key`。只上传头像仍保持 `incomplete`。
 - `POST /identity/avatar`：上传 JPEG/PNG 头像；Base64 解码后最大 512 KiB。JPEG 必须包含可解析的 segment、有效尺寸、SOF/SOS/EOI；PNG 必须通过逐 chunk 边界与 CRC、IHDR 尺寸/编码、IDAT 和 IEND 校验。只上传头像不会提前完成身份资料。
 - `GET /avatars/:token.jpg|png`：公开读取头像。URL 仅包含不透明随机 token，不包含 OpenID、手机号、昵称或用户 ID。
 - `POST /auth/h5-ticket`：资料完成的原生会话可申请 60 秒有效、只能消费一次的 H5 票据；数据文件只保存 SHA-256 哈希。

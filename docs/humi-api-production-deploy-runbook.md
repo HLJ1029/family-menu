@@ -42,6 +42,7 @@ git checkout main
 git pull --ff-only
 npm ci
 npm run validate:api
+npm run validate:api-deploy-set
 npm run release:check:online
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
@@ -94,6 +95,8 @@ ps aux | grep '[a]pi/server.js' || true
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 sudo mkdir -p "/opt/humi/backups/$STAMP"
 sudo cp -a /opt/humi/api "/opt/humi/backups/$STAMP/api"
+sudo test ! -d /opt/humi/src || sudo cp -a /opt/humi/src "/opt/humi/backups/$STAMP/src"
+sudo test ! -d /opt/humi/data || sudo cp -a /opt/humi/data "/opt/humi/backups/$STAMP/data"
 sudo cp -a /opt/humi/package.json "/opt/humi/backups/$STAMP/package.json"
 sudo cp -a /opt/humi/package-lock.json "/opt/humi/backups/$STAMP/package-lock.json"
 sudo cp -a /var/lib/humi-api/data.json "/opt/humi/backups/$STAMP/data.json"
@@ -109,19 +112,21 @@ sudo sh -lc 'test -f /opt/humi/.humi-api-data.json && cp -a /opt/humi/.humi-api-
 只同步 API 服务所需文件，避免把本地构建产物或无关缓存推到生产机：
 
 ```bash
-rsync -az --delete \
+rsync -az --delete --relative \
   -e "ssh -i $HOME/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes" \
   --exclude node_modules \
   --exclude .git \
-  api package.json package-lock.json \
+  api src/lib/mealExecution.js data/recipes.json data/cook-assist.json package.json package-lock.json \
   ubuntu@api.humi-home.com:/opt/humi/
 ```
 
-生产机安装依赖并做语法检查：
+生产机安装依赖并做语法与运行时依赖预启动检查：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js && node --input-type=module --eval "await import(\"./api/store.js\"); await import(\"./api/server.js\");"'
 ```
+
+最后一段命令不是语法检查：它会真实解析 `api/store.js`、`api/server.js` 及其运行时 JSON/模块依赖。若此处失败，不得重启服务。`api/data/approved-avatar-keys.json` 是 API 的 canonical 身份头像合同；`miniprogram/data/approved-avatar-keys.json` 只是随小程序打包的 projection，服务端不得依赖它。
 
 ## 7. 重启服务
 
@@ -166,7 +171,7 @@ npm run release:check:online
 如果部署后健康检查失败或 P0 链路不可用，立即恢复最近一次备份：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && if sudo test -d /opt/humi/backups/<STAMP>/src; then sudo rm -rf /opt/humi/src && sudo cp -a /opt/humi/backups/<STAMP>/src /opt/humi/src; fi && if sudo test -d /opt/humi/backups/<STAMP>/data; then sudo rm -rf /opt/humi/data && sudo cp -a /opt/humi/backups/<STAMP>/data /opt/humi/data; fi && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo cp -a /opt/humi/backups/<STAMP>/data.json /var/lib/humi-api/data.json && if sudo test -d /opt/humi/backups/<STAMP>/avatars; then sudo rm -rf /var/lib/humi-api/avatars && sudo cp -a /opt/humi/backups/<STAMP>/avatars /var/lib/humi-api/avatars; fi'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
 curl -fsS https://api.humi-home.com/health

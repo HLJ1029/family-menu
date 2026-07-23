@@ -40,6 +40,7 @@
     "validate:true-device-evidence": "node scripts/check-humi-true-device-evidence.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
+    "validate:api-deploy-set": "node scripts/check-api-deploy-set.mjs",
     "monitor:prod": "node scripts/check-production-health.mjs",
     "release:check": "node scripts/check-launch-readiness.mjs",
     "release:check:online": "node scripts/check-launch-readiness.mjs --online",
