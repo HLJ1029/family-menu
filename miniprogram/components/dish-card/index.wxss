@@ -1,0 +1,41 @@
+.dish-card {
+  overflow: hidden;
+  border: 1rpx solid #e7e4df;
+  border-radius: 28rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 28rpx rgba(17, 17, 17, 0.05);
+}
+
+.dish-image {
+  width: 100%;
+  height: 300rpx;
+  background: #eceae6;
+}
+
+.dish-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding: 22rpx;
+}
+
+.dish-category {
+  align-self: flex-start;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  color: #55514c;
+  background: #f3f1ed;
+  font-size: 20rpx;
+}
+
+.dish-title {
+  color: #111111;
+  font-size: 29rpx;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.dish-time {
+  color: #77736d;
+  font-size: 23rpx;
+}

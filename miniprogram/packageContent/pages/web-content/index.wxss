@@ -1,1 +1,40 @@
-.placeholder { padding: 48rpx 36rpx; color: #666666; font-size: 28rpx; }
+page {
+  background: #f7f6f3;
+}
+
+.content-state {
+  display: flex;
+  min-height: 72vh;
+  padding: 48rpx 36rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  box-sizing: border-box;
+  color: #55514c;
+  font-size: 27rpx;
+  text-align: center;
+}
+
+.loading-mark {
+  width: 64rpx;
+  height: 64rpx;
+  border: 7rpx solid #d9d6d0;
+  border-top-color: #111111;
+  border-radius: 999rpx;
+}
+
+button {
+  min-width: 240rpx;
+  height: 76rpx;
+  margin-top: 12rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #111111;
+  font-size: 26rpx;
+  line-height: 76rpx;
+}
+
+button::after {
+  border: 0;
+}

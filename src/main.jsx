@@ -8,6 +8,7 @@ import { GroceryClaimLanding } from "./components/GroceryClaimLanding";
 import { GroceryList } from "./components/GroceryList";
 import { HumiIdentitySetup } from "./components/HumiIdentitySetup";
 import { InviteLanding } from "./components/InviteLanding";
+import { parseH5ContentEntry } from "./lib/contentEntry";
 import { Library } from "./components/Library";
 import { MenuShareLanding } from "./components/MenuShareLanding";
 import { MealTaskLanding } from "./components/MealTaskLanding";
@@ -208,7 +209,7 @@ function App() {
     [],
   );
   const [draggedRecipeId, setDraggedRecipeId] = useState(null);
-  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(() => getInitialContentRecipeId());
   const [cookingStep, setCookingStep] = useState(0);
   const [notice, setNotice] = useState(null);
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
@@ -4770,9 +4771,17 @@ function candidateMealRecipeIds(effortTier, todayMenu = [], recommendationContex
 
 function getInitialView() {
   if (typeof window === "undefined") return "dashboard";
-  const view = new URLSearchParams(window.location.search).get("view");
+  const params = new URLSearchParams(window.location.search);
+  const contentEntry = parseH5ContentEntry(window.location.search);
+  if (contentEntry) return contentEntry.initialView;
+  const view = params.get("view");
   const allowedViews = new Set(["dashboard", "today", "grocery", "user", "library", "recommendations", "planner", "calendar", "stats"]);
   return allowedViews.has(view) ? view : "dashboard";
+}
+
+function getInitialContentRecipeId() {
+  if (typeof window === "undefined") return null;
+  return parseH5ContentEntry(window.location.search)?.recipeId || null;
 }
 
 function isSharedGuestLanding() {

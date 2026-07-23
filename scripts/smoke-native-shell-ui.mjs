@@ -78,7 +78,27 @@ try {
   await page.getByRole("button", { name: "下次还想吃" }).click();
   assert.equal(cooking.data.feedbackValue, "want_again");
 
-  console.log("Native shell 390x844 Tonight-to-serve interaction smoke passed.");
+  const discoverRecipes = [
+    { id: "tomato-egg", title: "西红柿炒鸡蛋", category: "家常菜", minutes: 15, thumbnailUrl: "/pending/tomato.webp" },
+    { id: "potato-shreds", title: "青椒土豆丝", category: "家常菜", minutes: 20, thumbnailUrl: "/pending/potato.webp" },
+    { id: "seaweed-egg-soup", title: "紫菜蛋花汤", category: "汤", minutes: 10, thumbnailUrl: "/pending/soup.webp" },
+    { id: "broccoli-garlic", title: "蒜蓉西兰花", category: "素菜", minutes: 15, thumbnailUrl: "/pending/broccoli.webp" },
+  ];
+  await page.evaluate((recipes) => window.renderDiscover(recipes), discoverRecipes);
+  await page.waitForSelector("[data-testid=discover-shell]");
+  await assertFitsViewport(page, "[data-testid=discover-shell]");
+  assert.equal(await page.locator("[data-testid=dish-card]").count(), 4);
+  assert.equal(await page.locator("[data-testid=dish-placeholder]").count(), 4, "every thumbnail reserves a local placeholder before image load");
+  const firstCard = await page.locator("[data-testid=dish-card]").nth(0).boundingBox();
+  const secondCard = await page.locator("[data-testid=dish-card]").nth(1).boundingBox();
+  assert(firstCard && secondCard && firstCard.y === secondCard.y && firstCard.x < secondCard.x, "Discover must render a two-column feed");
+  const placeholderBackground = await page.locator("[data-testid=dish-placeholder]").first().evaluate(
+    (node) => getComputedStyle(node).backgroundColor,
+  );
+  assert.notEqual(placeholderBackground, "rgba(0, 0, 0, 0)", "local placeholder must be visibly painted");
+  assert.equal(await page.locator(".remote-image.is-loaded").count(), 0, "remote images stay hidden until bindload");
+
+  console.log("Native shell 390x844 Tonight-to-serve and Discover placeholder smoke passed.");
 } finally {
   await browser.close();
 }
@@ -196,6 +216,19 @@ function shellDocument(styles) {
           + (data.mealRun.status === "completed" ? "今晚，做成了。" : "一步一步，把饭端上桌。")
           + '</span><span class="network-pill">网络正常</span></header>' + content + '</section>';
       };
+      window.renderDiscover = (recipes) => {
+        const cards = recipes.map((recipe) => (
+          '<article class="dish-card" data-testid="dish-card"><div class="dish-image"><div class="image-frame">'
+          + '<div class="humi-dish-placeholder" data-testid="dish-placeholder"><div class="placeholder-plate"></div></div>'
+          + '<img class="remote-image" alt="' + escapeHtml(recipe.title) + '"></div></div>'
+          + '<div class="dish-copy"><span class="dish-category">' + escapeHtml(recipe.category) + '</span>'
+          + '<span class="dish-title">' + escapeHtml(recipe.title) + '</span>'
+          + '<span class="dish-time">' + recipe.minutes + ' 分钟</span></div></article>'
+        )).join("");
+        app.innerHTML = '<section class="discover-page" data-testid="discover-shell"><header class="discover-header">'
+          + '<span class="eyebrow">HUMI · 发现</span><span class="title">找到今晚真想做的菜</span>'
+          + '<div class="search-box">搜索菜名或食材</div></header><div class="dish-grid">' + cards + '</div></section>';
+      };
     </script>
   </body>
 </html>`;
@@ -211,6 +244,9 @@ function nativeStyles() {
     "miniprogram/components/cooking-step/index.wxss",
     "miniprogram/components/absolute-timer/index.wxss",
     "miniprogram/components/meal-feedback/index.wxss",
+    "miniprogram/pages/discover/index.wxss",
+    "miniprogram/components/dish-card/index.wxss",
+    "miniprogram/components/image-with-fallback/index.wxss",
   ].map((relativePath) => readFileSync(path.join(root, relativePath), "utf8"))
     .join("\n")
     .replace(/(\d+(?:\.\d+)?)rpx/g, (_, value) => `${Number(value) * 390 / 750}px`);

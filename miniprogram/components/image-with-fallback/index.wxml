@@ -1,0 +1,16 @@
+<view class="image-frame">
+  <view class="humi-dish-placeholder {{state === 'fallback' ? 'is-fallback' : ''}}" aria-label="{{state === 'fallback' ? '图片暂时未加载' : '菜品图片加载中'}}">
+    <view class="placeholder-plate"></view>
+    <text wx:if="{{state === 'fallback'}}" class="placeholder-copy">图片暂时未加载</text>
+  </view>
+  <image
+    wx:if="{{imageSource}}"
+    class="remote-image {{state === 'loaded' ? 'is-loaded' : ''}}"
+    src="{{imageSource}}"
+    mode="aspectFill"
+    aria-label="{{alt}}"
+    bindload="onLoad"
+    binderror="onError"
+  />
+  <button wx:if="{{state === 'fallback' && !retryUsed}}" class="retry-button" catchtap="retry">重试</button>
+</view>

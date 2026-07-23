@@ -60,6 +60,8 @@ if (!config.sessionSecret) {
 }
 
 const store = new HumiStore(config.dataFile);
+const recipeCatalogPromise = readFile(new URL("../data/recipes.json", import.meta.url), "utf8")
+  .then((source) => JSON.parse(source));
 
 const householdStatus = {
   household_not_found: 404,
@@ -94,6 +96,11 @@ export function createHumiApiServer() {
       const staticAssetMatch = url.pathname.match(/^\/assets\/(dishes\/(?:thumbs|webp)\/[A-Za-z0-9_-]+\.webp|brand\/lovart-v2\/[A-Za-z0-9_-]+\.webp)$/);
       if ((request.method === "GET" || request.method === "HEAD") && staticAssetMatch) {
         await handleGetStaticAsset(request, response, staticAssetMatch[1]);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/recipes") {
+        await handleGetRecipeSummaries(response, url);
         return;
       }
 
@@ -550,6 +557,45 @@ async function handleGetStaticAsset(request, response, relativePath) {
     "Access-Control-Allow-Origin": "*",
   });
   response.end(request.method === "HEAD" ? undefined : file);
+}
+
+async function handleGetRecipeSummaries(response, url) {
+  const catalog = await recipeCatalogPromise;
+  const category = stringValue(url.searchParams.get("category"), 40).trim();
+  const query = stringValue(url.searchParams.get("query"), 40).trim().toLocaleLowerCase("zh-CN");
+  const limitParam = url.searchParams.get("limit") || "";
+  const cursorParam = url.searchParams.get("cursor") || "";
+  const requestedLimit = /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
+  const requestedCursor = /^\d+$/.test(cursorParam) ? Number(cursorParam) : NaN;
+  const limit = requestedLimit > 0 ? Math.min(40, requestedLimit) : 20;
+  const cursor = Number.isSafeInteger(requestedCursor) && requestedCursor >= 0 ? requestedCursor : 0;
+  const filtered = catalog.filter((recipe) => {
+    const categories = Array.isArray(recipe.categories) ? recipe.categories : [];
+    if (category && !categories.includes(category)) return false;
+    if (!query) return true;
+    const searchText = [
+      recipe.name,
+      recipe.description,
+      ...categories,
+      ...(Array.isArray(recipe.tags) ? recipe.tags : []),
+      ...(Array.isArray(recipe.ingredients) ? recipe.ingredients.map((item) => item?.name) : []),
+    ].filter(Boolean).join(" ").toLocaleLowerCase("zh-CN");
+    return searchText.includes(query);
+  });
+  const recipes = filtered.slice(cursor, cursor + limit).map((recipe) => ({
+    id: stringValue(recipe.id, 80),
+    title: stringValue(recipe.name, 80),
+    category: category || stringValue(recipe.categories?.[0] || "家常菜", 40),
+    minutes: Math.max(1, Number.parseInt(recipe.timeMinutes, 10) || 1),
+    thumbnailUrl: `/assets/dishes/thumbs/${encodeURIComponent(stringValue(recipe.id, 80))}.webp`,
+  }));
+  const nextOffset = cursor + recipes.length;
+  sendJson(response, 200, {
+    recipes,
+    nextCursor: nextOffset < filtered.length ? String(nextOffset) : null,
+  }, {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+  });
 }
 
 async function handleCreateH5Ticket(request, response) {
