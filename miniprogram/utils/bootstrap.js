@@ -11,6 +11,7 @@ const SHARE_TOKEN_TYPES = [
   ["invite", "invite"],
   ["mealTask", "meal_task"]
 ];
+const SHARE_LANDING_TYPES = new Set(SHARE_TOKEN_TYPES.map(([, type]) => type));
 const SAFE_LEGACY_VIEWS = new Set(["today", "user", "grocery"]);
 const SAFE_LEGACY_SOURCES = new Set(["crave", "grocery", "today_menu", "wish", "invite", "meal_task"]);
 const SAFE_LEGACY_FLAGS = ["humiLogout", "humiExpired", "humiResume"];
@@ -28,20 +29,37 @@ function resolveKnownShareRoute(options = {}) {
   if (matches.length !== 1) return null;
   const match = matches[0];
   const [key, type] = match;
-  const token = normalizeShareToken(options[key]);
-  if (!token) return null;
-  const query = [`type=${encodeURIComponent(type)}`, `token=${encodeURIComponent(token)}`, `shareSource=${encodeURIComponent(type)}`];
+  const landing = validateShareLandingOptions({ type, token: options[key] });
+  if (!landing) return null;
+  const query = [`type=${encodeURIComponent(landing.type)}`, `token=${encodeURIComponent(landing.token)}`, `shareSource=${encodeURIComponent(landing.type)}`];
   return `/pages/share/index?${query.join("&")}`;
 }
 
+function validateShareLandingOptions(options = {}) {
+  const type = normalizeShareType(options.type);
+  const token = normalizeShareToken(options.token);
+  return type && token ? { type, token } : null;
+}
+
 function buildLegacyRoute(options = {}) {
+  const safeOptions = extractLegacyOptions(options);
   const query = [];
-  if (SAFE_LEGACY_VIEWS.has(options.view)) query.push(`view=${encodeURIComponent(options.view)}`);
-  if (SAFE_LEGACY_SOURCES.has(options.shareSource)) query.push(`shareSource=${encodeURIComponent(options.shareSource)}`);
+  if (safeOptions.view) query.push(`view=${encodeURIComponent(safeOptions.view)}`);
+  if (safeOptions.shareSource) query.push(`shareSource=${encodeURIComponent(safeOptions.shareSource)}`);
   SAFE_LEGACY_FLAGS.forEach((key) => {
-    if (options[key] === true || options[key] === "1") query.push(`${key}=1`);
+    if (safeOptions[key]) query.push(`${key}=1`);
   });
   return query.length ? `/pages/legacy/index?${query.join("&")}` : "/pages/legacy/index";
+}
+
+function extractLegacyOptions(options = {}) {
+  const safe = {};
+  if (SAFE_LEGACY_VIEWS.has(options.view)) safe.view = options.view;
+  if (SAFE_LEGACY_SOURCES.has(options.shareSource)) safe.shareSource = options.shareSource;
+  SAFE_LEGACY_FLAGS.forEach((key) => {
+    if (options[key] === true || options[key] === "1") safe[key] = true;
+  });
+  return safe;
 }
 
 async function loadBootstrap({ allowCache = false } = {}) {
@@ -50,7 +68,7 @@ async function loadBootstrap({ allowCache = false } = {}) {
     const householdId = getHouseholdId(envelope);
     const userId = getUserId(envelope);
     if (householdId && userId) {
-      writeHouseholdCache(householdId, envelope);
+      writeHouseholdCache(householdId, envelope, userId);
       wx.setStorageSync(lastHouseholdKey(userId), householdId);
     }
     return envelope;
@@ -59,8 +77,8 @@ async function loadBootstrap({ allowCache = false } = {}) {
     if (!isCacheableNetworkError(error)) throw error;
     const activeUserId = getActiveUserId();
     const householdId = activeUserId ? wx.getStorageSync(lastHouseholdKey(activeUserId)) : "";
-    const cached = householdId ? readHouseholdCache(householdId) : null;
-    if (!cached?.envelope) throw error;
+    const cached = householdId ? readHouseholdCache(householdId, activeUserId) : null;
+    if (!cached?.envelope || getUserId(cached.envelope) !== activeUserId) throw error;
     return { ...cached.envelope, cacheState: "cached" };
   }
 }
@@ -95,4 +113,10 @@ function normalizeShareToken(value) {
   return SHARE_TOKEN.test(token) ? token : "";
 }
 
-module.exports = { buildLegacyRoute, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute };
+function normalizeShareType(value) {
+  if (typeof value !== "string") return "";
+  const type = value.trim();
+  return SHARE_LANDING_TYPES.has(type) ? type : "";
+}
+
+module.exports = { buildLegacyRoute, extractLegacyOptions, getHouseholdId, getUserId, isCacheableNetworkError, lastHouseholdKey, loadBootstrap, normalizeShareToken, validateShareLandingOptions, resolveKnownShareRoute, resolveStartupRoute };

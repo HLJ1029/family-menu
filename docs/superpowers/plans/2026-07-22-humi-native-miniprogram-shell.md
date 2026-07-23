@@ -628,7 +628,7 @@ Expected: FAIL because `pages/boot/index` and the five native tabs are not regis
 
 Keep this N1 tab bar text-only exactly as shown above. Icon assets are not required for routing acceptance and no unapproved visual asset is generated or registered in this implementation plan.
 
-Compatibility clarification: retain `pages/index/index` immediately after `pages/legacy/index` as a non-tab historical share-entry shim. It contains no WebView. Recognized public token queries (`crave`, `grocery`/`groceryShare`, `menuShare`, `wishShare`, `invite`, `mealTask`) reLaunch the existing `/pages/share/index` with the mapped type, token, and `shareSource` before the core-shell flag check; unknown historical queries preserve their parameters and reLaunch `/pages/legacy/index`.
+Compatibility clarification: retain `pages/index/index` immediately after `pages/legacy/index` as a non-tab historical share-entry shim. It contains no WebView. Recognized public token queries (`crave`, `grocery`/`groceryShare`, `menuShare`, `wishShare`, `invite`, `mealTask`) reLaunch the existing `/pages/share/index` with the mapped type, token, and `shareSource` before the core-shell flag check; unknown historical queries reLaunch `/pages/legacy/index` with only reviewed compatibility parameters (`view`, fixed-enum `shareSource`, and `humiLogout`/`humiExpired`/`humiResume` boolean flags).
 
 Every `pages` and `subPackages` registration must ship a legal four-file page. The six deferred subpackage pages above are N1 `page-state` placeholders with only `功能将在后续阶段启用`; they make no API request and expose no N2/N3 interaction.
 

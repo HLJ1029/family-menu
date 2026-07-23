@@ -1,3 +1,5 @@
+const { validateShareLandingOptions } = require("../../utils/bootstrap");
+
 Page({
   data: {
     ...buildShareData({}),
@@ -5,14 +7,21 @@ Page({
   },
 
   onLoad(options = {}) {
-    const data = buildShareData(options);
-    const canShare = Boolean(data.token);
+    const landing = validateShareLandingOptions(options);
+    if (!landing) {
+      this.setData({
+        ...buildShareData({}),
+        canShare: false,
+        helper: "这份内容没有准备完整，请返回 Humi 重新打开。"
+      });
+      this.enableShare();
+      return;
+    }
+    const data = buildShareData({ ...options, ...landing });
     this.setData({
       ...data,
-      canShare,
-      helper: canShare
-        ? data.helper
-        : "这份内容没有准备完整，请返回 Humi 重新打开。"
+      canShare: true,
+      helper: data.helper
     });
     this.enableShare();
   },
@@ -30,6 +39,7 @@ Page({
   },
 
   onShareAppMessage() {
+    if (!this.data.canShare) return null;
     return {
       title: this.data.title,
       path: this.data.path,
@@ -38,6 +48,7 @@ Page({
   },
 
   onShareTimeline() {
+    if (!this.data.canShare) return null;
     return {
       title: this.data.title,
       query: String(this.data.path || "").split("?")[1] || ""

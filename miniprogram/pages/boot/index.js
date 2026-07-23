@@ -1,4 +1,4 @@
-const { buildLegacyRoute, getHouseholdId, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
+const { buildLegacyRoute, extractLegacyOptions, getHouseholdId, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
 const { appStore } = require("../../utils/store");
 const { startSpan } = require("../../utils/telemetry");
 
@@ -17,6 +17,7 @@ Page({
   },
 
   onLoad(options = {}) {
+    this._legacyOptions = extractLegacyOptions(options);
     return this.start(options);
   },
 
@@ -46,11 +47,11 @@ Page({
   },
 
   retry() {
-    return this.start({});
+    return this.start(this._legacyOptions || {});
   },
 
   enterLegacy() {
-    this.route(buildLegacyRoute({}));
+    this.route(buildLegacyRoute(this._legacyOptions || {}));
   },
 
   route(url) {

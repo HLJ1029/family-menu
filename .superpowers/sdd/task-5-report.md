@@ -158,3 +158,58 @@ Secret scan passed.
 ### Revised scope note
 
 tab 的 retry/error 仍只是 shared state-display shell 的占位，不代表 N1 已具备真实数据重试或 N2/N3 业务动作。
+
+## Second review correction — retry continuity, cache scope, and share landing validation
+
+### RED
+
+1. Boot error fixture with `view=today`、`shareSource=today_menu` and all three Humi boolean flags failed after `retry()`:
+
+   ```text
+   actual: ['/pages/legacy/index']
+   expected: ['/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1']
+   ```
+
+2. Same-household two-user cache fixture failed because user-b overwrote user-a:
+
+   ```text
+   actual: { stateVersion: 'state-b', user: { id: 'user-b' } }
+   expected: { stateVersion: 'state-a', user: { id: 'user-a' } }
+   ```
+
+3. Invalid direct `/pages/share/index` fixture failed with:
+
+   ```text
+   AssertionError: invalid direct share entries must never enable the native share menu
+   true !== false
+   ```
+
+### Corrective changes
+
+- Boot stores only `extractLegacyOptions(options)` on its first load. Retry and `进入兼容版` reuse that audited snapshot, retaining only safe `view`/enum `shareSource`/boolean Humi flags.
+- Household cache utilities accept optional `userId` scope while one-argument callers retain their existing key format. Bootstrap writes and reads `userId + householdId` cache keys and rejects cached envelopes whose `user.id` does not equal the active session user.
+- `validateShareLandingOptions` is shared by the boot resolver and share page. It accepts only one fixed landing type and a trimmed opaque 24–64 character token; invalid type/token/object/compound input hides the menu, leaves `canShare=false`, and returns no share payload.
+- Plan compatibility wording now says unknown input retains only audited compatibility parameters, never arbitrary query values.
+
+### GREEN
+
+Fresh final command:
+
+```sh
+npm run validate:native-shell-routing && npm run validate:miniprogram-entry && npm run validate:share-bridge && npm run validate:native-offline && npm run validate:native-session && npm run validate:native-bootstrap-api && npm run build && /Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+All commands exited `0`. Key output:
+
+```text
+Native shell routing checks passed.
+Mini-program entrypoint resilience checks passed.
+Mini-program share runtime validation passed.
+Native offline, cache, telemetry, and store foundation contract passed.
+Native session foundation contract passed.
+Native bootstrap API contract passed.
+✓ built in 1.25s
+Secret scan passed.
+```
+
+`git diff --check` produced no output. The existing Vite large-H5-chunk warning remains informational and unchanged.

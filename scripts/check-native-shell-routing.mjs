@@ -83,15 +83,38 @@ assert.equal(
 );
 assert.equal(buildLegacyRoute({ view: "admin", shareSource: "unknown", invite: validToken, arbitrary: "value" }), "/pages/legacy/index", "legacy routes must not forward token or free-text query values");
 
-function loadBootstrapWith({ error, pointer, activeUserId, cached = { envelope: enabled } }) {
+const cacheValues = new Map();
+const cacheUtilsModule = { exports: {} };
+vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/cache.js", import.meta.url), "utf8"), {
+  module: cacheUtilsModule,
+  exports: cacheUtilsModule.exports,
+  Date,
+  wx: {
+    getStorageSync: (key) => cacheValues.get(key),
+    setStorageSync: (key, value) => cacheValues.set(key, value),
+    removeStorageSync: (key) => cacheValues.delete(key)
+  }
+});
+const cacheUtils = cacheUtilsModule.exports;
+const userAEnvelope = { stateVersion: "state-a", user: { id: "user-a" } };
+const userBEnvelope = { stateVersion: "state-b", user: { id: "user-b" } };
+cacheUtils.writeHouseholdCache("household-1", userAEnvelope, "user-a");
+cacheUtils.writeHouseholdCache("household-1", userBEnvelope, "user-b");
+assert.deepEqual(JSON.parse(JSON.stringify(cacheUtils.readHouseholdCache("household-1", "user-a")?.envelope)), userAEnvelope, "the same household cache must remain isolated for user-a");
+assert.deepEqual(JSON.parse(JSON.stringify(cacheUtils.readHouseholdCache("household-1", "user-b")?.envelope)), userBEnvelope, "the same household cache must remain isolated for user-b");
+cacheUtils.writeHouseholdCache("household-1", { stateVersion: "legacy", user: { id: "user-a" } });
+assert.equal(cacheUtils.readHouseholdCache("household-1", "user-c"), null, "an unscoped legacy cache must not authorize another user");
+
+function loadBootstrapWith({ error, pointer, activeUserId, cached }) {
   const cacheModule = { exports: {} };
+  const scopedCache = cached || { envelope: { ...enabled, user: { id: activeUserId, profileStatus: "complete" } } };
   vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/bootstrap.js", import.meta.url), "utf8"), {
     module: cacheModule,
     exports: cacheModule.exports,
     getApp: () => ({ globalData: { humiSession: { user: { id: activeUserId } } } }),
     wx: { getStorageSync: (key) => key === `humi:bootstrap:last-household:v1:${activeUserId}` && pointer?.userId === activeUserId ? pointer.householdId : null, setStorageSync: () => {} },
     require: (specifier) => {
-      if (specifier === "./cache") return { readHouseholdCache: () => cached, writeHouseholdCache: () => {} };
+      if (specifier === "./cache") return { readHouseholdCache: () => scopedCache, writeHouseholdCache: () => {} };
       if (specifier === "./request") return { requestHumi: async () => { throw error; } };
       throw new Error(`Unexpected bootstrap cache dependency: ${specifier}`);
     }
@@ -105,7 +128,7 @@ const cacheModule = loadBootstrapWith({
 });
 assert.deepEqual(
   JSON.parse(JSON.stringify(await cacheModule.loadBootstrap({ allowCache: true }))),
-  { ...enabled, cacheState: "cached" },
+  { ...enabled, user: { id: "user-1", profileStatus: "complete" }, cacheState: "cached" },
   "an offline bootstrap request must use only the versioned household read cache",
 );
 const authError = { status: 401, retryable: false, code: "invalid_session" };
@@ -118,6 +141,16 @@ await assert.rejects(
   loadBootstrapWith({ error: { status: 0, retryable: true, code: "network_error" }, pointer: { householdId: "household-1", userId: "user-a" }, activeUserId: "user-b" }).loadBootstrap({ allowCache: true }),
   (error) => error.code === "network_error",
   "a new session user must not read another user's household cache",
+);
+await assert.rejects(
+  loadBootstrapWith({
+    error: { status: 0, retryable: true, code: "network_error" },
+    pointer: { householdId: "household-1", userId: "user-a" },
+    activeUserId: "user-a",
+    cached: { envelope: userBEnvelope }
+  }).loadBootstrap({ allowCache: true }),
+  (error) => error.code === "network_error",
+  "a scoped cache with a mismatched envelope user must not be treated as authoritative",
 );
 const writeModule = { exports: {} };
 const cacheWrites = [];
@@ -184,7 +217,7 @@ vm.runInNewContext(bootSource, {
   getApp: () => ({ globalData: { nativeShellCandidate: true } }),
   wx: { switchTab: () => assert.fail("server-disabled boot must not switch to a tab"), reLaunch: ({ url }) => legacyBootRoutes.push(url) },
   require: (specifier) => {
-    if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, getHouseholdId: () => "", loadBootstrap: async () => disabled, resolveKnownShareRoute, resolveStartupRoute };
+    if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, extractLegacyOptions: (options) => options, getHouseholdId: () => "", loadBootstrap: async () => disabled, resolveKnownShareRoute, resolveStartupRoute };
     if (specifier === "../../utils/store") return { appStore: { setState: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected legacy boot dependency: ${specifier}`);
@@ -193,6 +226,40 @@ vm.runInNewContext(bootSource, {
 const legacyBootPage = { ...legacyBootDefinition, data: structuredClone(legacyBootDefinition.data), setData(patch) { this.data = { ...this.data, ...patch }; } };
 await legacyBootPage.onLoad({ view: "grocery", shareSource: "grocery", humiResume: "1", token: validToken, freeText: "nope" });
 assert.deepEqual(legacyBootRoutes, ["/pages/legacy/index?view=grocery&shareSource=grocery&humiResume=1"], "boot must preserve only safe tokenless compatibility parameters when it rolls back");
+let retryBootDefinition;
+const retryBootRoutes = [];
+let retryBootstrapCalls = 0;
+vm.runInNewContext(bootSource, {
+  Page: (definition) => { retryBootDefinition = definition; },
+  getApp: () => ({ globalData: { nativeShellCandidate: true } }),
+  wx: { switchTab: () => assert.fail("retry fixture must roll back to legacy"), reLaunch: ({ url }) => retryBootRoutes.push(url) },
+  require: (specifier) => {
+    if (specifier === "../../utils/bootstrap") return {
+      buildLegacyRoute,
+      extractLegacyOptions: (options) => options,
+      getHouseholdId: () => "",
+      loadBootstrap: async () => {
+        retryBootstrapCalls += 1;
+        if (retryBootstrapCalls === 1) throw { code: "network_error" };
+        return disabled;
+      },
+      resolveKnownShareRoute,
+      resolveStartupRoute
+    };
+    if (specifier === "../../utils/store") return { appStore: { setState: () => {} } };
+    if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
+    throw new Error(`Unexpected retry boot dependency: ${specifier}`);
+  }
+});
+const retryBootPage = { ...retryBootDefinition, data: structuredClone(retryBootDefinition.data), setData(patch) { this.data = { ...this.data, ...patch }; } };
+const retryOptions = { view: "today", shareSource: "today_menu", humiLogout: "1", humiExpired: "1", humiResume: "1", token: validToken, arbitrary: "drop" };
+await retryBootPage.onLoad(retryOptions);
+assert.equal(retryBootPage.data.state, "error", "a bootstrap failure must render the boot error state");
+await retryBootPage.retry();
+assert.deepEqual(retryBootRoutes, ["/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1"], "retry must retain only the launch compatibility parameters when it resolves to legacy");
+retryBootRoutes.length = 0;
+retryBootPage.enterLegacy();
+assert.deepEqual(retryBootRoutes, ["/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1"], "enterLegacy must retain the first launch compatibility parameters");
 let bootDefinition;
 const routes = [];
 const spanEvents = [];
@@ -207,6 +274,7 @@ vm.runInNewContext(bootSource, {
   require: (specifier) => {
     if (specifier === "../../utils/bootstrap") return {
       buildLegacyRoute,
+      extractLegacyOptions: (options) => options,
       getHouseholdId: () => "",
       loadBootstrap: async () => enabled,
       resolveKnownShareRoute,
@@ -253,5 +321,49 @@ assert.deepEqual(shimRoutes, [
   "/pages/legacy/index?view=today&shareSource=today_menu"
 ], "the historical index shim must preserve token compatibility and send unknown deep links to legacy");
 assert.doesNotMatch(shimSource, /web-view/, "the historical index shim must never mount a WebView");
+
+const sharePageSource = readFileSync(new URL("../miniprogram/pages/share/index.js", import.meta.url), "utf8");
+let sharePageDefinition;
+const shareMenuCalls = [];
+const sharePageModule = { exports: {} };
+vm.runInNewContext(sharePageSource, {
+  Page: (definition) => { sharePageDefinition = definition; },
+  module: sharePageModule,
+  exports: sharePageModule.exports,
+  wx: {
+    hideShareMenu: () => shareMenuCalls.push("hide"),
+    showShareMenu: () => shareMenuCalls.push("show")
+  },
+  require: (specifier) => {
+    assert.equal(specifier, "../../utils/bootstrap");
+    return { validateShareLandingOptions: bootstrapModule.exports.validateShareLandingOptions };
+  }
+});
+function createSharePage() {
+  return {
+    ...sharePageDefinition,
+    data: structuredClone(sharePageDefinition.data),
+    setData(patch) { this.data = { ...this.data, ...patch }; }
+  };
+}
+for (const options of [
+  { type: "admin", token: validToken },
+  { type: "crave", token: "short" },
+  { type: { value: "crave" }, token: validToken },
+  { type: "crave,invite", token: validToken },
+  { type: "invite", token: { value: validToken } }
+]) {
+  const page = createSharePage();
+  page.onLoad(options);
+  assert.equal(page.data.canShare, false, "invalid direct share entries must never enable the native share menu");
+  assert.equal(page.onShareAppMessage(), null, "invalid direct share entries must not emit a share payload");
+}
+const validSharePage = createSharePage();
+validSharePage.onLoad({ type: " invite ", token: ` ${validToken} ` });
+assert.equal(validSharePage.data.canShare, true, "a valid direct share landing must remain available");
+assert.equal(validSharePage.data.token, validToken);
+assert.equal(validSharePage.data.type, "invite");
+assert.equal(validSharePage.onShareAppMessage().path, `/pages/boot/index?invite=${validToken}`);
+assert(shareMenuCalls.includes("hide") && shareMenuCalls.includes("show"), "invalid share landings must hide and valid landings may show the share menu");
 
 console.log("Native shell routing checks passed.");
