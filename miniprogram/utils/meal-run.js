@@ -181,10 +181,11 @@ async function migrateGuestRunState({
     writeRemoteMealRun(mealRun, ownerUserId);
   }
   if (guestRun.status === "cooking" && mealRun.status === "cooking") {
-    if (!compatibleProgressTimeline(guestRun, mealRun)) {
+    let progressComparison = compareCookingProgress(guestRun, mealRun);
+    if (progressComparison === null) {
       return { merged: false, reason: "timeline_conflict", mealRun: null, guestRun };
     }
-    if (!sameCookingProgress(guestRun, mealRun)) {
+    if (progressComparison < 0) {
       const idempotencyKey = `guest-merge:${guestRun.id}:progress`;
       const result = await requestHumi({
         path: `/meal-runs/${encodeURIComponent(mealRun.id)}/progress`,
@@ -199,8 +200,9 @@ async function migrateGuestRunState({
       mealRun = normalizeMealRun(result?.mealRun);
       if (!mealRun) throw codedError("meal_run_response_invalid");
       writeRemoteMealRun(mealRun, ownerUserId);
+      progressComparison = compareCookingProgress(guestRun, mealRun);
     }
-    if (!compatibleProgressTimeline(guestRun, mealRun) || !sameCookingProgress(guestRun, mealRun)) {
+    if (progressComparison === null || progressComparison < 0) {
       return { merged: false, reason: "progress_conflict", mealRun: null, guestRun };
     }
   }
@@ -220,27 +222,19 @@ function isSyncedGuestRun(remote, guestRun) {
   return Boolean(remote && guestRun && clean(remote.syncedFromLocalId) === clean(guestRun.id));
 }
 
-function compatibleProgressTimeline(guestRun, remote) {
+function compareCookingProgress(guestRun, remote) {
   const guestStepIds = timelineStepIds(guestRun.timeline);
   const remoteStepIds = timelineStepIds(remote.timeline);
-  if (!guestStepIds.length || guestStepIds.length !== remoteStepIds.length) return false;
-  if (guestStepIds.some((stepId, index) => stepId !== remoteStepIds[index])) return false;
-  return guestStepIds.includes(clean(guestRun.currentStepId));
+  if (!guestStepIds.length || guestStepIds.length !== remoteStepIds.length) return null;
+  if (guestStepIds.some((stepId, index) => stepId !== remoteStepIds[index])) return null;
+  const guestIndex = guestStepIds.indexOf(clean(guestRun.currentStepId));
+  const remoteIndex = remoteStepIds.indexOf(clean(remote.currentStepId));
+  return guestIndex >= 0 && remoteIndex >= 0 ? remoteIndex - guestIndex : null;
 }
 
 function timelineStepIds(timeline) {
   if (!Array.isArray(timeline?.steps)) return [];
   return timeline.steps.map((step) => clean(step?.id)).filter(Boolean);
-}
-
-function sameCookingProgress(guestRun, remote) {
-  return clean(remote.currentStepId) === clean(guestRun.currentStepId)
-    && normalizeTimer(remote.timerEndsAt) === normalizeTimer(guestRun.timerEndsAt);
-}
-
-function normalizeTimer(value) {
-  const time = Date.parse(clean(value));
-  return Number.isFinite(time) ? new Date(time).toISOString() : "";
 }
 
 function createGuestMealRun(input) {

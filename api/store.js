@@ -1599,9 +1599,12 @@ export class HumiStore {
       const mealRun = this.requireMealRunForMember(userId, mealRunId);
       if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Cooking progress can only update an active dinner.");
       const currentStepId = sanitizeText(input.currentStepId, "", 160);
-      const step = mealRun.timeline?.steps?.find((item) => item.id === currentStepId);
-      if (!step) throw codedError("meal_step_invalid", "The cooking step does not belong to this dinner.");
+      const steps = Array.isArray(mealRun.timeline?.steps) ? mealRun.timeline.steps : [];
+      const incomingStepIndex = steps.findIndex((item) => item.id === currentStepId);
+      if (incomingStepIndex < 0) throw codedError("meal_step_invalid", "The cooking step does not belong to this dinner.");
       const timerEndsAt = sanitizeOptionalIsoDate(input.timerEndsAt);
+      const currentStepIndex = steps.findIndex((item) => item.id === mealRun.currentStepId);
+      if (currentStepIndex >= incomingStepIndex) return mealRun;
       mealRun.currentStepId = currentStepId;
       mealRun.timerEndsAt = timerEndsAt;
       mealRun.updatedAt = new Date().toISOString();

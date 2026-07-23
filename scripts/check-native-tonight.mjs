@@ -497,6 +497,9 @@ async function verifyGuestMergeNetworkRecovery() {
 
 async function verifyCookingGuestStateMigration() {
   await verifyCookingGuestMergeSuccess();
+  await verifyRemoteAheadGuestWins();
+  await verifySameStepRemoteTimerWins();
+  await verifyProgressRaceRemoteWins();
   for (const failureStage of ["create", "start", "progress"]) {
     await verifyCookingGuestMergeRetry(failureStage);
   }
@@ -568,6 +571,137 @@ async function verifyCookingGuestMergeSuccess() {
     start: [`guest-merge:${fixture.localRun.id}:start`],
     progress: [`guest-merge:${fixture.localRun.id}:progress`],
   });
+  assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
+}
+
+async function verifyRemoteAheadGuestWins() {
+  const fixture = await createCookingGuestFixture("remote-ahead");
+  const remoteStep = fixture.localRun.timeline.steps[2];
+  const remoteTimerEndsAt = "2026-07-23T10:45:00.000Z";
+  const remote = {
+    ...remoteRun({
+      id: fixture.remoteId,
+      householdId: fixture.householdId,
+      status: "cooking",
+      syncedFromLocalId: fixture.localRun.id,
+    }),
+    timelineVersion: fixture.localRun.timelineVersion,
+    timeline: clone(fixture.localRun.timeline),
+    currentStepId: remoteStep.id,
+    timerEndsAt: remoteTimerEndsAt,
+  };
+  let progressCalls = 0;
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) succeed({ mealRun: remote });
+      else if (pathname.endsWith("/progress")) {
+        progressCalls += 1;
+        assert.fail("a later remote step must not receive a stale progress PUT");
+      }
+      else throw new Error(`Unexpected remote-ahead request: ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(merged.merged, true);
+  assert.equal(merged.mealRun.currentStepId, remoteStep.id, "a later remote step must win over stale guest progress");
+  assert.equal(merged.mealRun.timerEndsAt, remoteTimerEndsAt);
+  assert.equal(progressCalls, 0, "a later remote step must never receive a stale progress PUT");
+  assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
+}
+
+async function verifySameStepRemoteTimerWins() {
+  const fixture = await createCookingGuestFixture("same-step-remote-timer");
+  const remoteTimerEndsAt = "2026-07-23T10:50:00.000Z";
+  const remote = {
+    ...remoteRun({
+      id: fixture.remoteId,
+      householdId: fixture.householdId,
+      status: "cooking",
+      syncedFromLocalId: fixture.localRun.id,
+    }),
+    timelineVersion: fixture.localRun.timelineVersion,
+    timeline: clone(fixture.localRun.timeline),
+    currentStepId: fixture.localRun.currentStepId,
+    timerEndsAt: remoteTimerEndsAt,
+  };
+  let progressCalls = 0;
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) succeed({ mealRun: remote });
+      else if (pathname.endsWith("/progress")) {
+        progressCalls += 1;
+        assert.fail("the same remote step must keep its current timer without a progress PUT");
+      }
+      else throw new Error(`Unexpected same-step request: ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(merged.merged, true);
+  assert.equal(merged.mealRun.currentStepId, fixture.localRun.currentStepId);
+  assert.equal(merged.mealRun.timerEndsAt, remoteTimerEndsAt, "the remote timer wins when both runs are on the same step");
+  assert.equal(progressCalls, 0);
+}
+
+async function verifyProgressRaceRemoteWins() {
+  const fixture = await createCookingGuestFixture("progress-race");
+  const firstStep = fixture.localRun.timeline.steps[0];
+  const memberStep = fixture.localRun.timeline.steps[2];
+  const memberTimerEndsAt = "2026-07-23T10:55:00.000Z";
+  let remote = {
+    ...remoteRun({
+      id: fixture.remoteId,
+      householdId: fixture.householdId,
+      status: "cooking",
+      syncedFromLocalId: fixture.localRun.id,
+    }),
+    timelineVersion: fixture.localRun.timelineVersion,
+    timeline: clone(fixture.localRun.timeline),
+    currentStepId: firstStep.id,
+    timerEndsAt: "",
+  };
+  let progressCalls = 0;
+  const runtime = createRuntime({
+    storage: fixture.storage,
+    session: sessionFor(fixture.userId),
+    bootstrap: fixture.householdBootstrap,
+    requestHandler: ({ path: pathname, data, succeed }) => {
+      if (pathname.startsWith("/meal-runs/current")) {
+        succeed({ mealRun: remote });
+        return;
+      }
+      if (pathname.endsWith("/progress")) {
+        progressCalls += 1;
+        assert.equal(data.currentStepId, fixture.localRun.currentStepId, "client may PUT only because GET observed remote behind");
+        remote = { ...remote, currentStepId: memberStep.id, timerEndsAt: memberTimerEndsAt };
+        succeed({ mealRun: remote });
+        return;
+      }
+      throw new Error(`Unexpected progress-race request: ${pathname}`);
+    },
+  });
+  const mealRuns = runtime.load("miniprogram/utils/meal-run.js");
+  const merged = await mealRuns.mergeActiveGuestMealRun({
+    bootstrap: fixture.householdBootstrap,
+    dateKey: fixture.dateKey,
+  });
+  assert.equal(progressCalls, 1);
+  assert.equal(merged.merged, true, "a server response advanced by another member must safely converge");
+  assert.equal(merged.mealRun.currentStepId, memberStep.id);
+  assert.equal(merged.mealRun.timerEndsAt, memberTimerEndsAt);
   assert.equal(mealRuns.readActiveGuestMealRun({ ownerUserId: fixture.userId, dateKey: fixture.dateKey }), null);
 }
 

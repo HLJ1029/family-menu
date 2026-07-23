@@ -99,13 +99,48 @@ try {
     session: member,
     body: { currentStepId: "unknown-step" },
   }, 400, "meal_step_invalid");
-  const firstStep = started.mealRun.timeline.steps[0];
-  const progressed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+  const [, secondStep, thirdStep, fourthStep] = started.mealRun.timeline.steps;
+  assert(fourthStep, "monotonic progress smoke requires at least four certified timeline steps");
+  const memberProgressed = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
     method: "PUT",
     session: member,
-    body: { currentStepId: firstStep.id, timerEndsAt: firstStep.endsAt },
+    body: { currentStepId: thirdStep.id, timerEndsAt: thirdStep.endsAt },
   });
-  assert.equal(progressed.mealRun.currentStepId, firstStep.id);
+  assert.equal(memberProgressed.mealRun.currentStepId, thirdStep.id);
+  const memberProgressUpdatedAt = memberProgressed.mealRun.updatedAt;
+
+  const staleGuestProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: { currentStepId: secondStep.id, timerEndsAt: secondStep.endsAt },
+  });
+  assert.equal(staleGuestProgress.mealRun.currentStepId, thirdStep.id, "a stale guest step must not roll back family progress");
+  assert.equal(staleGuestProgress.mealRun.timerEndsAt, thirdStep.endsAt, "a stale guest timer must not replace the current timer");
+  assert.equal(staleGuestProgress.mealRun.updatedAt, memberProgressUpdatedAt, "ignored stale progress must not mutate the run");
+
+  const staleSameStepTimer = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+    method: "PUT",
+    session: owner,
+    body: { currentStepId: thirdStep.id, timerEndsAt: secondStep.endsAt },
+  });
+  assert.equal(staleSameStepTimer.mealRun.currentStepId, thirdStep.id);
+  assert.equal(staleSameStepTimer.mealRun.timerEndsAt, thirdStep.endsAt, "equal-step stale timer must not overwrite the remote timer");
+  assert.equal(staleSameStepTimer.mealRun.updatedAt, memberProgressUpdatedAt);
+
+  const repeatedProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: thirdStep.id, timerEndsAt: thirdStep.endsAt },
+  });
+  assert.equal(repeatedProgress.mealRun.updatedAt, memberProgressUpdatedAt, "identical progress must be idempotent");
+
+  const advancedProgress = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/progress`, {
+    method: "PUT",
+    session: member,
+    body: { currentStepId: fourthStep.id, timerEndsAt: fourthStep.endsAt },
+  });
+  assert.equal(advancedProgress.mealRun.currentStepId, fourthStep.id, "a later timeline step must advance");
+  assert.equal(advancedProgress.mealRun.timerEndsAt, fourthStep.endsAt);
 
   const downgradedRun = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/downgrade`, {
     method: "POST",
