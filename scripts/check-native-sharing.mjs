@@ -878,6 +878,11 @@ async function assertNativeShareApiContracts() {
         idempotencyKey: "native-share-meal-run",
       },
     });
+    await api(origin, `/meal-runs/${mealRun.mealRun.id}/start`, {
+      method: "POST",
+      token: owner.accessToken,
+      body: {},
+    });
     const task = await api(origin, `/meal-runs/${mealRun.mealRun.id}/tasks`, {
       method: "POST",
       token: owner.accessToken,

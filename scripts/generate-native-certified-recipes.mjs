@@ -16,11 +16,15 @@ const catalog = cookAssist
     }
     const steps = recipe.steps.map((text, index) => {
       const id = `${recipe.id}:step:${index + 1}`;
+      const phase = index === 0 ? "prep" : index === recipe.steps.length - 1 ? "finish" : "cook";
+      const delegatable = phase === "prep" && !assist.passiveStepIndexes?.includes(index);
       return {
         id,
         index,
         text,
-        phase: index === 0 ? "prep" : index === recipe.steps.length - 1 ? "finish" : "cook",
+        phase,
+        delegatable,
+        taskLabel: delegatable ? controlledPrepTaskLabel(text) : "",
         durationSeconds: assist.stepDurationsSeconds[index],
         attention: assist.passiveStepIndexes?.includes(index) ? "passive" : "active",
         resources: [...(assist.stepResources?.[index] ?? [])],
@@ -69,6 +73,11 @@ const catalog = cookAssist
     };
   })
   .sort((left, right) => left.id.localeCompare(right.id));
+
+function controlledPrepTaskLabel(text) {
+  const action = String(text || "").trim().replace(/[。！!]+$/, "").slice(0, 56);
+  return action ? `帮忙${action}`.slice(0, 64) : "";
+}
 
 if (catalog.length !== 30 || new Set(catalog.map((recipe) => recipe.id)).size !== 30) {
   throw new Error(`Expected exactly 30 unique certified recipes, received ${catalog.length}.`);

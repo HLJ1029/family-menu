@@ -345,6 +345,11 @@ try {
     token: memberLogin.accessToken,
   });
   assert.deepEqual(emptyMealTasks.tasks, [], "a formal member sees an explicit empty task list");
+  await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/start`, {
+    method: "POST",
+    token: ownerLogin.accessToken,
+    body: {},
+  });
   await apiRequest(origin, `/meal-runs/${householdMealRun.mealRun.id}/tasks`, {
     method: "POST",
     token: ownerLogin.accessToken,

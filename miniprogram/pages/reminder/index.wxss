@@ -13,6 +13,37 @@ page {
   justify-content: space-between;
 }
 
+.picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+
+.picker-card {
+  padding: 24rpx;
+  border: 1rpx solid rgba(17, 17, 17, 0.1);
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
+.picker-label,
+.picker-value {
+  display: block;
+}
+
+.picker-label {
+  color: rgba(17, 17, 17, 0.48);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
+.picker-value {
+  margin-top: 8rpx;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
 .brand,
 .eyebrow {
   font-size: 22rpx;

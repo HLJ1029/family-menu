@@ -198,6 +198,39 @@ page {
   display: block;
 }
 
+.task-section {
+  margin-top: 28rpx;
+  padding: 26rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+}
+
+.task-hint,
+.task-created,
+.task-error {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(17, 17, 17, 0.54);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.task-button {
+  min-height: 78rpx;
+  margin-top: 14rpx;
+  border: 1rpx solid rgba(17, 17, 17, 0.1);
+  border-radius: 22rpx;
+  background: #f2f0eb;
+  color: #111111;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.task-error {
+  color: #7b2929;
+  font-weight: 800;
+}
+
 .waiting-title {
   font-size: 30rpx;
   font-weight: 900;
@@ -245,6 +278,16 @@ page {
   color: #4b473e;
   font-size: 23rpx;
   font-weight: 750;
+}
+
+.reminder-button {
+  min-height: 86rpx;
+  margin-top: 28rpx;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
 }
 
 .sheet-mask {

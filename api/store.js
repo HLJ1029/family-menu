@@ -1587,6 +1587,10 @@ export class HumiStore {
       }
 
       const now = new Date().toISOString();
+      const missingIngredients = deriveMissingIngredients(
+        input.recipeSnapshot,
+        this.data.householdStates[householdId]?.pantryItems,
+      );
       const mealRun = {
         id: randomUUID(),
         householdId,
@@ -1595,6 +1599,7 @@ export class HumiStore {
         effortTier,
         recipeIds,
         recipeSnapshot: structuredClone(input.recipeSnapshot ?? []),
+        missingIngredients,
         timelineVersion: Number(input.timelineVersion || 1),
         timeline: null,
         currentStepId: "",
@@ -1827,9 +1832,16 @@ export class HumiStore {
         throw codedError("meal_timeline_version_conflict", "The cooking timeline changed; refresh before serving.");
       }
       const now = new Date().toISOString();
+      const isFirstHouseholdCompletion = !this.data.mealRuns.some((candidate) => (
+        candidate.id !== mealRun.id
+        && candidate.householdId === mealRun.householdId
+        && candidate.mealSlot === "dinner"
+        && candidate.status === "completed"
+      ));
       mealRun.status = "completed";
       mealRun.completedBy = userId;
       mealRun.completedAt = now;
+      mealRun.firstHouseholdCompletion = isFirstHouseholdCompletion;
       mealRun.timerEndsAt = "";
       mealRun.updatedAt = now;
       return mealRun;
@@ -1850,6 +1862,10 @@ export class HumiStore {
       const recipeChanged = !sameStringArray(previousRecipeIds, recipeIds);
       mealRun.recipeIds = recipeIds;
       mealRun.recipeSnapshot = structuredClone(input.recipeSnapshot ?? []);
+      mealRun.missingIngredients = deriveMissingIngredients(
+        mealRun.recipeSnapshot,
+        this.data.householdStates[mealRun.householdId]?.pantryItems,
+      );
       mealRun.readyStaple = sanitizeText(input.readyStaple, mealRun.readyStaple || "", 40);
       mealRun.downgrades = [...(mealRun.downgrades ?? []), {
         action,
@@ -1917,10 +1933,27 @@ export class HumiStore {
     await this.load();
     return this.mutateAndSave(() => {
       const mealRun = this.requireMealRunForMember(userId, mealRunId);
-      if (!["planned", "cooking"].includes(mealRun.status)) throw codedError("meal_task_unavailable", "Tasks can only be created before dinner is served.");
+      if (mealRun.status !== "cooking") throw codedError("meal_task_unavailable", "Tasks can only be created after cooking begins.");
       const type = input.type === "buy" || input.type === "prep" ? input.type : "";
       const label = sanitizeText(input.label, "", 64);
-      if (!type || !label) throw codedError("meal_task_invalid", "Meal task type and label are required.");
+      const sourceId = sanitizeText(input.sourceId, "", 160);
+      const idempotencyKey = sanitizeText(input.idempotencyKey, "", 180);
+      if (!type || !label || !sourceId) throw codedError("meal_task_invalid", "Meal task type, label, and source are required.");
+      const repeatedKey = idempotencyKey && this.data.mealTasks.find((task) => (
+        task.mealRunId === mealRun.id
+        && task.createdBy === userId
+        && task.idempotencyKey === idempotencyKey
+      ));
+      if (repeatedKey) {
+        if (repeatedKey.sourceId !== sourceId) {
+          throw codedError("idempotency_key_reused", "The idempotency key was already used for another meal task.");
+        }
+        return repeatedKey;
+      }
+      const existingSource = this.data.mealTasks.find((task) => (
+        task.mealRunId === mealRun.id && task.sourceId === sourceId
+      ));
+      if (existingSource) return existingSource;
       const now = new Date().toISOString();
       const task = {
         id: randomUUID(),
@@ -1929,6 +1962,8 @@ export class HumiStore {
         householdId: mealRun.householdId,
         type,
         label,
+        sourceId,
+        idempotencyKey,
         status: "open",
         createdBy: userId,
         claimedBy: "",
@@ -2018,7 +2053,7 @@ export class HumiStore {
       const task = this.data.mealTasks.find((entry) => entry.token === token);
       if (!task) return null;
       const household = this.requireFormalMemberHousehold(userId, task.householdId);
-      if (task.status === "completed" && task.completedBy === userId) return task;
+      if (task.status === "completed") return task;
       if (task.status !== "claimed" || (task.claimedBy !== userId && household.ownerId !== userId)) {
         throw codedError("meal_task_forbidden", "Only the assignee or household owner can complete this task.");
       }
@@ -2036,9 +2071,20 @@ export class HumiStore {
     return this.mutateAndSave(() => {
       const householdId = sanitizeText(input.householdId, "", 100);
       this.requireFormalMemberHousehold(userId, householdId);
+      const sourceMealRunId = sanitizeText(input.sourceMealRunId, "", 100);
+      this.requireEligibleReminderSource(userId, sourceMealRunId);
       const scheduledAt = sanitizeIsoDate(input.scheduledAt, "reminder_time_invalid");
       const dateKey = sanitizeDateKey(input.dateKey);
       const effortTier = sanitizeEffortTier(input.effortTier);
+      const idempotencyKey = sanitizeText(
+        input.idempotencyKey,
+        `meal-reminder:${sourceMealRunId}:${scheduledAt}`,
+        180,
+      );
+      const existing = this.data.mealReminders.find((entry) => (
+        entry.userId === userId && entry.idempotencyKey === idempotencyKey
+      ));
+      if (existing) return existing;
       const now = new Date().toISOString();
       const reminder = {
         id: randomUUID(),
@@ -2047,11 +2093,13 @@ export class HumiStore {
         dateKey,
         mealSlot: "dinner",
         effortTier,
+        sourceMealRunId,
         scheduledAt,
         nextAttemptAt: scheduledAt,
         status: "scheduled",
         attempts: 0,
         templateId: sanitizeText(input.templateId, "", 120),
+        idempotencyKey,
         createdAt: now,
         updatedAt: now,
         sentAt: "",
@@ -2063,6 +2111,11 @@ export class HumiStore {
       this.data.mealReminders = this.data.mealReminders.slice(0, 5000);
       return reminder;
     });
+  }
+
+  async getEligibleReminderSource(userId, mealRunId) {
+    await this.load();
+    return structuredClone(this.requireEligibleReminderSource(userId, mealRunId));
   }
 
   async cancelMealReminder(userId, reminderId) {
@@ -2085,8 +2138,29 @@ export class HumiStore {
     const nowMs = Date.parse(now);
     return this.data.mealReminders.filter((reminder) => (
       ["scheduled", "retrying"].includes(reminder.status)
+      && Number(reminder.attempts || 0) < 2
       && Date.parse(reminder.nextAttemptAt || reminder.scheduledAt) <= nowMs
     ));
+  }
+
+  async claimMealReminderAttempt(reminderId, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || !["scheduled", "retrying"].includes(reminder.status)) return null;
+      if (Date.parse(reminder.nextAttemptAt || reminder.scheduledAt) > Date.parse(now)) return null;
+      if (Number(reminder.attempts || 0) >= 2) {
+        reminder.status = "failed";
+        reminder.failedAt = now;
+        reminder.updatedAt = now;
+        return null;
+      }
+      reminder.status = "sending";
+      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      reminder.lastAttemptAt = now;
+      reminder.updatedAt = now;
+      return structuredClone(reminder);
+    });
   }
 
   async shouldCancelMealReminder(reminder) {
@@ -2117,7 +2191,7 @@ export class HumiStore {
     return this.mutateAndSave(() => {
       const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
       if (!reminder || reminder.status === "sent") return reminder;
-      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      if (reminder.status !== "sending") return reminder;
       reminder.status = "sent";
       reminder.sentAt = sentAt;
       reminder.updatedAt = sentAt;
@@ -2130,8 +2204,7 @@ export class HumiStore {
     await this.load();
     return this.mutateAndSave(() => {
       const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
-      if (!reminder || ["sent", "failed", "cancelled"].includes(reminder.status)) return reminder;
-      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      if (!reminder || reminder.status !== "sending") return reminder;
       reminder.lastError = sanitizeText(message, "send_failed", 120);
       reminder.updatedAt = now;
       if (reminder.attempts >= 2) {
@@ -2185,6 +2258,29 @@ export class HumiStore {
     const mealRun = this.data.mealRuns.find((run) => run.id === mealRunId);
     if (!mealRun) throw codedError("meal_run_not_found", "Meal run not found.");
     this.requireFormalMemberHousehold(userId, mealRun.householdId);
+    return mealRun;
+  }
+
+  requireEligibleReminderSource(userId, mealRunId) {
+    const normalizedId = sanitizeText(mealRunId, "", 100);
+    if (!normalizedId) throw codedError("reminder_source_required", "A completed dinner is required before scheduling a reminder.");
+    const mealRun = this.requireMealRunForMember(userId, normalizedId);
+    if (mealRun.status !== "completed") {
+      throw codedError("reminder_source_incomplete", "The reminder source dinner has not been completed.");
+    }
+    const firstCompleted = this.data.mealRuns
+      .filter((candidate) => (
+        candidate.householdId === mealRun.householdId
+        && candidate.mealSlot === "dinner"
+        && candidate.status === "completed"
+      ))
+      .sort((left, right) => (
+        Date.parse(left.completedAt || left.updatedAt || left.createdAt)
+        - Date.parse(right.completedAt || right.updatedAt || right.createdAt)
+      ))[0];
+    if (!firstCompleted || firstCompleted.id !== mealRun.id) {
+      throw codedError("reminder_source_not_first", "A reminder can be requested only after the household's first completed dinner.");
+    }
     return mealRun;
   }
 
@@ -2249,6 +2345,21 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function deriveMissingIngredients(recipeSnapshot, pantryItems) {
+  const pantryNames = new Set((Array.isArray(pantryItems) ? pantryItems : [])
+    .map((item) => sanitizeText(item?.name || item, "", 40).toLowerCase())
+    .filter(Boolean));
+  const missing = [];
+  for (const recipe of Array.isArray(recipeSnapshot) ? recipeSnapshot : []) {
+    for (const ingredient of Array.isArray(recipe?.ingredients) ? recipe.ingredients : []) {
+      const name = sanitizeText(ingredient?.name, "", 40);
+      if (!name || ingredient?.required === false || pantryNames.has(name.toLowerCase()) || missing.includes(name)) continue;
+      missing.push(name);
+    }
+  }
+  return missing;
 }
 
 function sanitizeDateKey(value) {

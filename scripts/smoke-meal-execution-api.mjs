@@ -14,7 +14,11 @@ process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID = "mock-meal-template";
 process.env.HUMI_MEAL_REMINDER_THING_KEY = "thing1";
 process.env.HUMI_MEAL_REMINDER_TIME_KEY = "time2";
 
-const { createHumiApiServer, processDueMealReminders } = await import("../api/server.js");
+const {
+  buildMealReminderDeepLink,
+  createHumiApiServer,
+  processDueMealReminders,
+} = await import("../api/server.js");
 const { HumiStore } = await import("../api/store.js");
 const server = createHumiApiServer();
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -43,7 +47,7 @@ try {
   });
 
   const stateEnvelope = await request(`${baseUrl}/state`, { session: owner });
-  assert.equal(stateEnvelope.capabilities.mealExecution, true, "allowlisted household should receive meal execution capability");
+  assert.equal(stateEnvelope.capabilities.mealExecutionEnabled, true, "allowlisted household should receive meal execution capability");
 
   await assertRejected(`${baseUrl}/meal-runs`, {
     method: "POST",
@@ -240,6 +244,7 @@ try {
   });
   assert.equal(completed.mealRun.status, "completed");
   assert.equal(completed.mealRun.completedBy, member.user.id);
+  assert.equal(completed.mealRun.firstHouseholdCompletion, true);
   const completedAgain = await request(`${baseUrl}/meal-runs/${replacement.mealRun.id}/complete`, {
     method: "POST",
     session: member,
@@ -545,15 +550,54 @@ try {
     session: owner,
     body: mealPlan(householdId, "2026-07-23", "task-plan"),
   });
-  const task = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+  await assertRejected(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
     method: "POST",
     session: owner,
     body: { type: "buy", ingredientName: "鸡蛋" },
+  }, 409, "meal_task_unavailable");
+  const taskStarted = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/start`, {
+    method: "POST",
+    session: owner,
+    body: {},
+  });
+  assert(taskStarted.mealRun.missingIngredients.includes("鸡蛋"), "server returns controlled missing ingredients");
+  const delegatableStep = taskStarted.mealRun.timeline.steps.find((step) => step.delegatable);
+  assert(delegatableStep?.taskLabel, "server timeline declares controlled delegatable task labels");
+  assert.equal(delegatableStep.phase, "prep");
+  const nonDelegatableStep = taskStarted.mealRun.timeline.steps.find((step) => !step.delegatable);
+  await assertRejected(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+    method: "POST",
+    session: owner,
+    body: { type: "prep", stepId: nonDelegatableStep.id },
+  }, 400, "meal_task_invalid");
+  await assertRejected(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+    method: "POST",
+    session: owner,
+    body: { type: "buy", ingredientName: "小葱", label: "任意危险文本" },
+  }, 400, "meal_task_invalid");
+  const task = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+    method: "POST",
+    session: owner,
+    body: { type: "buy", ingredientName: "鸡蛋", label: "任意危险文本" },
+    idempotencyKey: "task-buy-egg",
   });
   assert.equal(task.task.label, "请家人买鸡蛋");
+  assert.equal(Object.hasOwn(task.task, "freeText"), false);
+  const repeatedTask = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+    method: "POST",
+    session: owner,
+    body: { type: "buy", ingredientName: "鸡蛋" },
+    idempotencyKey: "task-buy-egg-replayed-with-another-transport-key",
+  });
+  assert.equal(repeatedTask.task.id, task.task.id, "one declared task source can create at most one task per dinner");
+  const taskListAfterReplay = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, { session: owner });
+  assert.equal(taskListAfterReplay.tasks.length, 1);
   assert.match(task.task.token, /^[A-Za-z0-9_-]{24,}$/);
-  await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET" }, 401, "missing_token");
-  await assertRejected(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET", session: outsider }, 404, "household_not_found");
+  const visitorTaskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`);
+  assert.equal(visitorTaskLanding.task.label, "请家人买鸡蛋", "a signed-out visitor can read controlled task context");
+  assert.equal(visitorTaskLanding.task.viewerCanComplete, false);
+  const outsiderTaskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { session: outsider });
+  assert.equal(outsiderTaskLanding.task.viewerCanComplete, false, "a logged-in visitor still cannot mutate another household task");
   const taskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET", session: member });
   assert.equal(taskLanding.task.label, "请家人买鸡蛋");
   assert.equal(taskLanding.task.status, "open");
@@ -562,32 +606,102 @@ try {
   const claimed = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });
   assert.equal(claimed.task.status, "claimed");
   assert.equal(claimed.task.claimedBy, member.user.id);
+  const claimedAgain = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });
+  assert.equal(claimedAgain.task.claimedAt, claimed.task.claimedAt, "repeated claims by the same member are idempotent");
   const taskDone = await request(`${baseUrl}/meal-tasks/${task.task.token}/complete`, { method: "POST", session: member, body: {} });
   assert.equal(taskDone.task.status, "completed");
+  const taskDoneAgain = await request(`${baseUrl}/meal-tasks/${task.task.token}/complete`, { method: "POST", session: owner, body: {} });
+  assert.equal(taskDoneAgain.task.completedAt, taskDone.task.completedAt, "owner completion replay returns the existing completed task");
+  assert.equal(
+    buildMealReminderDeepLink({
+      id: "reminder-1",
+      dateKey: "2026-07-24",
+      effortTier: "quick_15",
+      sourceMealRunId: completed.mealRun.id,
+    }),
+    `pages/tonight/index?dateKey=2026-07-24&effortTier=quick_15&mealReminder=reminder-1&sourceMealRunId=${completed.mealRun.id}`,
+    "one-time reminders must deep-link into the native Tonight page",
+  );
 
-  const reminderConfig = await request(`${baseUrl}/meal-reminders/config`, { session: owner });
+  await assertRejected(`${baseUrl}/meal-reminders/config`, { session: owner }, 400, "reminder_source_required");
+  const reminderConfig = await request(
+    `${baseUrl}/meal-reminders/config?mealRunId=${completed.mealRun.id}`,
+    { session: owner },
+  );
   assert.deepEqual(reminderConfig, { enabled: true, templateId: "mock-meal-template" });
   await assertRejected(`${baseUrl}/meal-reminders`, {
     method: "POST",
     session: owner,
-    body: { accepted: false, templateId: "mock-meal-template", scheduledAt: new Date(Date.now() + 60_000).toISOString(), dateKey: "2026-07-24", effortTier: "quick_15" },
+    body: { accepted: false, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt: new Date(Date.now() + 60_000).toISOString(), dateKey: "2026-07-24", effortTier: "quick_15" },
   }, 400, "reminder_consent_required");
-  const scheduledAt = new Date(Date.now() + 1000).toISOString();
+  const scheduledAt = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+  const reminderDateKey = new Date(Date.parse(scheduledAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
+  await assertRejected(`${baseUrl}/meal-reminders`, {
+    method: "POST",
+    session: owner,
+    body: { accepted: true, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt, dateKey: "2026-01-01", effortTier: "quick_15" },
+  }, 400, "reminder_date_mismatch");
   const reminder = await request(`${baseUrl}/meal-reminders`, {
     method: "POST",
     session: owner,
-    body: { accepted: true, templateId: "mock-meal-template", scheduledAt, dateKey: "2026-07-24", effortTier: "quick_15" },
+    body: { accepted: true, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt, dateKey: reminderDateKey, effortTier: "quick_15" },
   });
   assert.equal(reminder.reminder.status, "scheduled");
-  await processDueMealReminders({ now: new Date(Date.now() + 2000).toISOString() });
+  await processDueMealReminders({ now: new Date(Date.parse(scheduledAt) + 1000).toISOString() });
   const persistedAfterSend = JSON.parse(await readFile(dataFile, "utf8"));
   assert.equal(persistedAfterSend.mealReminders.find((entry) => entry.id === reminder.reminder.id).status, "sent");
   assert.equal(persistedAfterSend.mealReminders.find((entry) => entry.id === reminder.reminder.id).attempts, 1);
 
+  const retryScheduledAt = new Date(Date.now() + 12 * 24 * 60 * 60_000).toISOString();
+  const retryDateKey = new Date(Date.parse(retryScheduledAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
+  const retryReminder = await request(`${baseUrl}/meal-reminders`, {
+    method: "POST",
+    session: owner,
+    body: {
+      accepted: true,
+      templateId: "mock-meal-template",
+      sourceMealRunId: completed.mealRun.id,
+      scheduledAt: retryScheduledAt,
+      dateKey: retryDateKey,
+      effortTier: "easy_30",
+    },
+  });
+  let deliveryAttempts = 0;
+  await processDueMealReminders({
+    now: new Date(Date.parse(retryScheduledAt) + 1000).toISOString(),
+    sendMessage: async () => {
+      deliveryAttempts += 1;
+      throw new Error("temporary_wechat_failure");
+    },
+  });
+  let retryState = JSON.parse(await readFile(dataFile, "utf8")).mealReminders
+    .find((entry) => entry.id === retryReminder.reminder.id);
+  assert.equal(retryState.status, "retrying");
+  assert.equal(retryState.attempts, 1);
+  await processDueMealReminders({
+    now: new Date(Date.parse(retryState.nextAttemptAt) + 1000).toISOString(),
+    sendMessage: async ({ page }) => {
+      deliveryAttempts += 1;
+      assert.match(page, /^pages\/tonight\/index\?/);
+      return { errcode: 0 };
+    },
+  });
+  retryState = JSON.parse(await readFile(dataFile, "utf8")).mealReminders
+    .find((entry) => entry.id === retryReminder.reminder.id);
+  assert.equal(retryState.status, "sent");
+  assert.equal(retryState.attempts, 2, "technical send failure retries at most once");
+  await processDueMealReminders({
+    now: new Date(Date.parse(retryState.nextAttemptAt || retryScheduledAt) + 10_000).toISOString(),
+    sendMessage: async () => { deliveryAttempts += 1; },
+  });
+  assert.equal(deliveryAttempts, 2, "a sent reminder can never be delivered twice");
+
+  const cancellableAt = new Date(Date.now() + 13 * 24 * 60 * 60_000).toISOString();
+  const cancellableDateKey = new Date(Date.parse(cancellableAt) + 8 * 60 * 60_000).toISOString().slice(0, 10);
   const cancellable = await request(`${baseUrl}/meal-reminders`, {
     method: "POST",
     session: owner,
-    body: { accepted: true, templateId: "mock-meal-template", scheduledAt: new Date(Date.now() + 120_000).toISOString(), dateKey: "2026-07-25", effortTier: "easy_30" },
+    body: { accepted: true, templateId: "mock-meal-template", sourceMealRunId: completed.mealRun.id, scheduledAt: cancellableAt, dateKey: cancellableDateKey, effortTier: "easy_30" },
   });
   const cancelled = await request(`${baseUrl}/meal-reminders/${cancellable.reminder.id}`, { method: "DELETE", session: owner });
   assert.equal(cancelled.reminder.status, "cancelled");
@@ -663,12 +777,13 @@ async function createUser(baseUrl, code, displayName) {
   return { ...session, user: profile.user };
 }
 
-async function request(url, { method = "GET", session, body } = {}) {
+async function request(url, { method = "GET", session, body, idempotencyKey = "" } = {}) {
   const response = await fetch(url, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
       ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+      ...(idempotencyKey ? { "X-Humi-Idempotency-Key": idempotencyKey } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });

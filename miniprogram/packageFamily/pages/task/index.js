@@ -19,6 +19,7 @@ Page({
 
   onLoad(options = {}) {
     this._token = normalizeToken(options.mealTask || options.token);
+    this._actionKeys = new Map();
     this.setData({
       shareSource: options.shareSource === "meal_task" ? "meal_task" : "",
       currentUserId: session.getSession()?.user?.id || "",
@@ -85,7 +86,7 @@ Page({
         path: `/meal-tasks/${encodeURIComponent(this._token)}/claim`,
         method: "POST",
         data: {},
-        idempotencyKey: actionKey("claim"),
+        idempotencyKey: this.actionKey("claim", activeSession.user.id),
       });
       this.setData({
         task: {
@@ -113,7 +114,7 @@ Page({
         path: `/meal-tasks/${encodeURIComponent(this._token)}/complete`,
         method: "POST",
         data: {},
-        idempotencyKey: actionKey("complete"),
+        idempotencyKey: this.actionKey("complete", session.getSession()?.user?.id),
       });
       this.setData({ task: payload?.task || this.data.task });
       return payload?.task || null;
@@ -153,15 +154,19 @@ Page({
   retry() {
     return this.loadTask();
   },
+
+  actionKey(action, userId) {
+    const key = `${String(action || "")}:${String(userId || "")}`;
+    if (!this._actionKeys.has(key)) {
+      this._actionKeys.set(key, `meal-task:${this._token}:${key}`);
+    }
+    return this._actionKeys.get(key);
+  },
 });
 
 function normalizeToken(value) {
   const token = String(value || "");
   return TASK_TOKEN.test(token) ? token : "";
-}
-
-function actionKey(action) {
-  return `meal-task-${action}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function taskError(error, fallback) {

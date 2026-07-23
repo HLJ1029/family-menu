@@ -324,7 +324,7 @@ export function createHumiApiServer() {
       }
 
       if (request.method === "GET" && url.pathname === "/meal-reminders/config") {
-        await handleMealReminderConfig(request, response);
+        await handleMealReminderConfig(request, response, url.searchParams);
         return;
       }
 
@@ -1089,7 +1089,10 @@ async function handleCreateMealTask(request, response, mealRunId) {
     const mealRun = await store.getMealRunForUser(user.id, mealRunId);
     assertMealExecutionEnabled(mealRun.householdId);
     const taskInput = deriveMealTask(mealRun, body);
-    const task = await store.createMealTask(user.id, mealRunId, taskInput);
+    const task = await store.createMealTask(user.id, mealRunId, {
+      ...taskInput,
+      idempotencyKey: stringValue(request.headers["x-humi-idempotency-key"], 180),
+    });
     sendJson(response, 201, { task });
   } catch (error) {
     throw mapMealExecutionError(error);
@@ -1168,8 +1171,16 @@ async function handleCompleteMealTask(request, response, token) {
   }
 }
 
-async function handleMealReminderConfig(request, response) {
-  const { household } = await requireMealExecutionContext(request);
+async function handleMealReminderConfig(request, response, searchParams) {
+  const { user, household } = await requireMealExecutionContext(request);
+  try {
+    const source = await store.getEligibleReminderSource(user.id, stringValue(searchParams.get("mealRunId"), 100));
+    if (source.householdId !== household.id) {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
   sendJson(response, 200, {
     enabled: Boolean(config.mealReminderTemplateId && household),
     templateId: config.mealReminderTemplateId || "",
@@ -1187,13 +1198,24 @@ async function handleCreateMealReminder(request, response) {
   if (!Number.isFinite(scheduledAtMs) || scheduledAtMs <= Date.now() || scheduledAtMs > Date.now() + 30 * 24 * 60 * 60 * 1000) {
     throw httpError(400, "reminder_time_invalid", "请选择未来 30 天内的做饭时间。");
   }
+  const scheduledDateKey = formatBusinessDateKey(new Date(scheduledAtMs), "Asia/Shanghai");
+  if (stringValue(body.dateKey, 10) !== scheduledDateKey) {
+    throw httpError(400, "reminder_date_mismatch", "提醒日期必须与所选时间一致。");
+  }
   try {
+    const sourceMealRunId = stringValue(body.sourceMealRunId || body.mealRunId, 100);
+    const source = await store.getEligibleReminderSource(user.id, sourceMealRunId);
+    if (source.householdId !== household.id) {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
     const reminder = await store.createMealReminder(user.id, {
       householdId: household.id,
+      sourceMealRunId,
       scheduledAt: body.scheduledAt,
       dateKey: body.dateKey,
       effortTier: body.effortTier,
       templateId: config.mealReminderTemplateId,
+      idempotencyKey: stringValue(request.headers["x-humi-idempotency-key"], 180),
     });
     sendJson(response, 201, { reminder });
   } catch (error) {
@@ -1452,19 +1474,29 @@ function toMealRecipeSnapshot(recipe) {
 function deriveMealTask(mealRun, body = {}) {
   if (body.type === "buy") {
     const ingredientName = stringValue(body.ingredientName, 40);
-    const ingredients = mealRun.recipeSnapshot.flatMap((recipe) => recipe.ingredients ?? []);
-    if (!ingredientName || !ingredients.some((ingredient) => ingredient.name === ingredientName)) {
+    if (!ingredientName || !(mealRun.missingIngredients ?? []).includes(ingredientName)) {
       throw httpError(400, "meal_task_invalid", "请选择这顿饭真实缺少的食材。");
     }
-    return { type: "buy", label: `请家人买${ingredientName}` };
+    return {
+      type: "buy",
+      label: `请家人买${ingredientName}`,
+      sourceId: `ingredient:${ingredientName}`,
+    };
   }
   if (body.type === "prep") {
     const stepId = stringValue(body.stepId, 160);
-    const step = mealRun.recipeSnapshot
-      .flatMap((recipe) => recipe.cookAssist?.steps ?? [])
-      .find((candidate) => candidate.id === stepId && candidate.phase === "prep");
-    if (!step) throw httpError(400, "meal_task_invalid", "请选择这顿饭里的备菜步骤。");
-    return { type: "prep", label: `帮忙${String(step.text).replace(/[。！!]$/, "")}`.slice(0, 64) };
+    const step = mealRun.timeline?.steps?.find((candidate) => (
+      candidate.id === stepId
+      && candidate.phase === "prep"
+      && candidate.delegatable === true
+      && candidate.taskLabel
+    ));
+    if (!step) throw httpError(400, "meal_task_invalid", "请选择这顿饭里明确可协作的备菜步骤。");
+    return {
+      type: "prep",
+      label: stringValue(step.taskLabel, 64),
+      sourceId: `step:${step.id}`,
+    };
   }
   throw httpError(400, "meal_task_invalid", "只支持买食材或帮忙备菜任务。");
 }
@@ -1492,6 +1524,7 @@ function mapMealExecutionError(error) {
     household_not_found: 404,
     meal_run_not_found: 404,
     meal_task_not_found: 404,
+    meal_task_unavailable: 409,
     meal_run_locked: 409,
     meal_run_transition_invalid: 409,
     meal_task_claimed: 409,
@@ -1522,12 +1555,18 @@ function mapMealExecutionError(error) {
     meal_recipes_required: 400,
     timer_end_invalid: 400,
     reminder_time_invalid: 400,
+    reminder_source_required: 400,
+    reminder_source_incomplete: 409,
+    reminder_source_not_first: 409,
   };
   const status = statusByCode[error?.code];
   return status ? httpError(status, error.code, error.message) : error;
 }
 
-export async function processDueMealReminders({ now = new Date().toISOString() } = {}) {
+export async function processDueMealReminders({
+  now = new Date().toISOString(),
+  sendMessage = sendWechatSubscribeMessage,
+} = {}) {
   if (!config.mealExecutionEnabled || !config.mealReminderTemplateId) return [];
   const reminders = await store.getDueMealReminders(now);
   const results = [];
@@ -1537,27 +1576,39 @@ export async function processDueMealReminders({ now = new Date().toISOString() }
       results.push(cancelled);
       continue;
     }
+    const claimed = await store.claimMealReminderAttempt(reminder.id, now);
+    if (!claimed) continue;
     try {
-      const openid = await store.getWechatOpenIdForUser(reminder.userId);
+      const openid = await store.getWechatOpenIdForUser(claimed.userId);
       if (!openid) throw new Error("wechat_openid_missing");
-      await sendWechatSubscribeMessage({
+      await sendMessage({
         openid,
         appId: config.wechatAppId,
         appSecret: config.wechatAppSecret,
         mock: config.wechatMock,
         templateId: config.mealReminderTemplateId,
-        page: `pages/index/index?view=dashboard&mealReminder=${encodeURIComponent(reminder.id)}&effortTier=${encodeURIComponent(reminder.effortTier)}`,
+        page: buildMealReminderDeepLink(claimed),
         data: {
-          [config.mealReminderThingKey]: { value: reminder.effortTier === "quick_15" ? "今晚 15 分钟方案已准备好" : "今晚的省力方案已准备好" },
-          [config.mealReminderTimeKey]: { value: formatWechatReminderTime(reminder.scheduledAt) },
+          [config.mealReminderThingKey]: { value: claimed.effortTier === "quick_15" ? "今晚 15 分钟方案已准备好" : "今晚的省力方案已准备好" },
+          [config.mealReminderTimeKey]: { value: formatWechatReminderTime(claimed.scheduledAt) },
         },
       });
-      results.push(await store.markMealReminderSent(reminder.id, now));
+      results.push(await store.markMealReminderSent(claimed.id, now));
     } catch (error) {
-      results.push(await store.markMealReminderFailure(reminder.id, error.code || error.message, now));
+      results.push(await store.markMealReminderFailure(claimed.id, error.code || error.message, now));
     }
   }
   return results;
+}
+
+export function buildMealReminderDeepLink(reminder = {}) {
+  const params = new URLSearchParams({
+    dateKey: stringValue(reminder.dateKey, 10),
+    effortTier: stringValue(reminder.effortTier, 24),
+    mealReminder: stringValue(reminder.id, 100),
+    sourceMealRunId: stringValue(reminder.sourceMealRunId, 100),
+  });
+  return `pages/tonight/index?${params.toString()}`;
 }
 
 function formatWechatReminderTime(value) {

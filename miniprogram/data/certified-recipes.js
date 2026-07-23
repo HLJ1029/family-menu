@@ -54,6 +54,8 @@ module.exports = [
           "index": 0,
           "text": "茄子切条，蒜切末。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙茄子切条，蒜切末",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -68,6 +70,8 @@ module.exports = [
           "index": 1,
           "text": "调一碗料汁：生抽、老抽、白糖、淀粉和少量水。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 420,
           "attention": "active",
           "resources": [
@@ -84,6 +88,8 @@ module.exports = [
           "index": 2,
           "text": "锅中加油，将茄子炒软。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -100,6 +106,8 @@ module.exports = [
           "index": 3,
           "text": "加入蒜末和青椒翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "passive",
           "resources": [
@@ -116,6 +124,8 @@ module.exports = [
           "index": 4,
           "text": "倒入料汁，翻炒至浓稠即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -206,6 +216,8 @@ module.exports = [
           "index": 0,
           "text": "韭菜洗净切段，鸡蛋加少量盐打散。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙韭菜洗净切段，鸡蛋加少量盐打散",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -220,6 +232,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，倒入鸡蛋炒至蓬松后盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -236,6 +250,8 @@ module.exports = [
           "index": 2,
           "text": "锅中补少量油，放韭菜快速翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -252,6 +268,8 @@ module.exports = [
           "index": 3,
           "text": "倒回鸡蛋，加盐和白胡椒粉调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -268,6 +286,8 @@ module.exports = [
           "index": 4,
           "text": "翻匀后立刻出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -362,6 +382,8 @@ module.exports = [
           "index": 0,
           "text": "鸡翅两面划口，冷水下锅焯水后捞出。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鸡翅两面划口，冷水下锅焯水后捞出",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -376,6 +398,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，放姜片和鸡翅煎至两面微黄。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -392,6 +416,8 @@ module.exports = [
           "index": 2,
           "text": "加入生抽、老抽和可乐。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -408,6 +434,8 @@ module.exports = [
           "index": 3,
           "text": "中小火炖煮 20 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 900,
           "attention": "passive",
           "resources": [
@@ -424,6 +452,8 @@ module.exports = [
           "index": 4,
           "text": "转大火收汁，裹匀鸡翅即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -520,6 +550,8 @@ module.exports = [
           "index": 0,
           "text": "黄瓜切片，鸡蛋打散。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙黄瓜切片，鸡蛋打散",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -534,6 +566,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，先炒鸡蛋后盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -550,6 +584,8 @@ module.exports = [
           "index": 2,
           "text": "锅中放蒜片和黄瓜翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -566,6 +602,8 @@ module.exports = [
           "index": 3,
           "text": "倒回鸡蛋，加盐调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -582,6 +620,8 @@ module.exports = [
           "index": 4,
           "text": "快速炒匀后出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -682,6 +722,8 @@ module.exports = [
           "index": 0,
           "text": "四季豆去筋掰段，洗净后充分沥干。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙四季豆去筋掰段，洗净后充分沥干",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -696,6 +738,8 @@ module.exports = [
           "index": 1,
           "text": "锅中加油，放入四季豆中火煸到表皮起皱。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 480,
           "attention": "active",
           "resources": [
@@ -712,6 +756,8 @@ module.exports = [
           "index": 2,
           "text": "另起少量油炒香蒜末、干辣椒和肉末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -728,6 +774,8 @@ module.exports = [
           "index": 3,
           "text": "倒回四季豆，加生抽、盐和白糖调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -744,6 +792,8 @@ module.exports = [
           "index": 4,
           "text": "大火翻炒至香味融合即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -841,6 +891,8 @@ module.exports = [
           "index": 0,
           "text": "鸡蛋打散，小葱切碎。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鸡蛋打散，小葱切碎",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -855,6 +907,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，炒散鸡蛋。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -871,6 +925,8 @@ module.exports = [
           "index": 2,
           "text": "加入米饭压散翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -887,6 +943,8 @@ module.exports = [
           "index": 3,
           "text": "加盐和少量生抽调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -903,6 +961,8 @@ module.exports = [
           "index": 4,
           "text": "撒葱花炒匀出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -992,6 +1052,8 @@ module.exports = [
           "index": 0,
           "text": "西兰花切小朵，洗净备用。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙西兰花切小朵，洗净备用",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1006,6 +1068,8 @@ module.exports = [
           "index": 1,
           "text": "锅中烧水，加少量盐，焯水 1 分钟后捞出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "passive",
           "resources": [
@@ -1022,6 +1086,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，放入蒜末炒香。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1038,6 +1104,8 @@ module.exports = [
           "index": 3,
           "text": "加入西兰花翻炒，放盐和生抽调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 210,
           "attention": "active",
           "resources": [
@@ -1054,6 +1122,8 @@ module.exports = [
           "index": 4,
           "text": "炒匀后出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -1150,6 +1220,8 @@ module.exports = [
           "index": 0,
           "text": "蒜苔切段，猪肉切片。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙蒜苔切段，猪肉切片",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -1164,6 +1236,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，放肉片炒至变色。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1180,6 +1254,8 @@ module.exports = [
           "index": 2,
           "text": "加入姜片和生抽炒香。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1196,6 +1272,8 @@ module.exports = [
           "index": 3,
           "text": "放蒜苔大火翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -1212,6 +1290,8 @@ module.exports = [
           "index": 4,
           "text": "加盐调味，炒至蒜苔断生。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1314,6 +1394,8 @@ module.exports = [
           "index": 0,
           "text": "猪肉切丝，用料酒、生抽和淀粉抓匀。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙猪肉切丝，用料酒、生抽和淀粉抓匀",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -1328,6 +1410,8 @@ module.exports = [
           "index": 1,
           "text": "青椒切丝，姜蒜切末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1344,6 +1428,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，放肉丝快速滑散后盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1360,6 +1446,8 @@ module.exports = [
           "index": 3,
           "text": "锅中炒香姜蒜，放青椒炒至断生。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -1376,6 +1464,8 @@ module.exports = [
           "index": 4,
           "text": "倒回肉丝，加盐调味后翻匀。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1472,6 +1562,8 @@ module.exports = [
           "index": 0,
           "text": "青菜洗净，香菇切片。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙青菜洗净，香菇切片",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1486,6 +1578,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，炒香蒜末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1502,6 +1596,8 @@ module.exports = [
           "index": 2,
           "text": "放香菇炒软。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1518,6 +1614,8 @@ module.exports = [
           "index": 3,
           "text": "加入青菜大火翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -1534,6 +1632,8 @@ module.exports = [
           "index": 4,
           "text": "加盐和蚝油调味，炒匀出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1634,6 +1734,8 @@ module.exports = [
           "index": 0,
           "text": "豆腐切片，煎至两面微黄。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙豆腐切片，煎至两面微黄",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -1648,6 +1750,8 @@ module.exports = [
           "index": 1,
           "text": "青椒切块，蒜切末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -1664,6 +1768,8 @@ module.exports = [
           "index": 2,
           "text": "锅中炒香蒜末和豆瓣酱。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1680,6 +1786,8 @@ module.exports = [
           "index": 3,
           "text": "加入青椒、木耳和豆腐翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 420,
           "attention": "passive",
           "resources": [
@@ -1696,6 +1804,8 @@ module.exports = [
           "index": 4,
           "text": "加生抽和少量水，焖 3 分钟后收汁。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -1792,6 +1902,8 @@ module.exports = [
           "index": 0,
           "text": "土豆切丝，用清水冲洗后沥干。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙土豆切丝，用清水冲洗后沥干",
           "durationSeconds": 210,
           "attention": "active",
           "resources": [
@@ -1806,6 +1918,8 @@ module.exports = [
           "index": 1,
           "text": "蒜切末，干辣椒剪段。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1822,6 +1936,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，放蒜末和辣椒炒香。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -1838,6 +1954,8 @@ module.exports = [
           "index": 3,
           "text": "倒入土豆丝大火快炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -1854,6 +1972,8 @@ module.exports = [
           "index": 4,
           "text": "加盐和白醋，炒至断生出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -1954,6 +2074,8 @@ module.exports = [
           "index": 0,
           "text": "鸡腿肉切丁，用生抽和淀粉腌 10 分钟。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鸡腿肉切丁，用生抽和淀粉腌 10 分钟",
           "durationSeconds": 360,
           "attention": "active",
           "resources": [
@@ -1968,6 +2090,8 @@ module.exports = [
           "index": 1,
           "text": "黄瓜切丁，花生米备好。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -1984,6 +2108,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，炒香干辣椒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2000,6 +2126,8 @@ module.exports = [
           "index": 3,
           "text": "放入鸡丁炒至变色，再加黄瓜丁。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 480,
           "attention": "active",
           "resources": [
@@ -2016,6 +2144,8 @@ module.exports = [
           "index": 4,
           "text": "倒入料汁翻炒，最后放花生米拌匀。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2112,6 +2242,8 @@ module.exports = [
           "index": 0,
           "text": "豆腐切块，蒜切末。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙豆腐切块，蒜切末",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2126,6 +2258,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，放肉末炒散。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2142,6 +2276,8 @@ module.exports = [
           "index": 2,
           "text": "加入豆瓣酱和蒜末炒出红油。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2158,6 +2294,8 @@ module.exports = [
           "index": 3,
           "text": "加少量水，放入豆腐小火煮 5 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 420,
           "attention": "passive",
           "resources": [
@@ -2174,6 +2312,8 @@ module.exports = [
           "index": 4,
           "text": "淋入水淀粉勾芡，撒花椒粉出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2271,6 +2411,8 @@ module.exports = [
           "index": 0,
           "text": "鸡蛋加约 1.5 倍温水和盐打散，过滤到蒸碗中。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鸡蛋加约 1.5 倍温水和盐打散，过滤到蒸碗中",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2285,6 +2427,8 @@ module.exports = [
           "index": 1,
           "text": "盖上盘子或保鲜膜，水开后中小火蒸 10 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2301,6 +2445,8 @@ module.exports = [
           "index": 2,
           "text": "肉末用少量油炒散，加生抽调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "passive",
           "resources": [
@@ -2317,6 +2463,8 @@ module.exports = [
           "index": 3,
           "text": "把肉末铺在蛋羹表面，再蒸 2 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -2333,6 +2481,8 @@ module.exports = [
           "index": 4,
           "text": "出锅后淋香油，撒葱花。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -2429,6 +2579,8 @@ module.exports = [
           "index": 0,
           "text": "土豆切细丝，用清水冲洗去淀粉。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙土豆切细丝，用清水冲洗去淀粉",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2443,6 +2595,8 @@ module.exports = [
           "index": 1,
           "text": "青椒切丝，蒜切末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2459,6 +2613,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油爆香蒜末。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -2475,6 +2631,8 @@ module.exports = [
           "index": 3,
           "text": "放入土豆丝快速翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2491,6 +2649,8 @@ module.exports = [
           "index": 4,
           "text": "加入青椒、盐和白醋，炒至断生出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2593,6 +2753,8 @@ module.exports = [
           "index": 0,
           "text": "鲜虾剪须开背，沥干后用料酒抓匀。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鲜虾剪须开背，沥干后用料酒抓匀",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2607,6 +2769,8 @@ module.exports = [
           "index": 1,
           "text": "虾表面薄薄拍一层淀粉。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2623,6 +2787,8 @@ module.exports = [
           "index": 2,
           "text": "锅中加油，把虾煎至两面金黄。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -2639,6 +2805,8 @@ module.exports = [
           "index": 3,
           "text": "加入蒜末、红椒和葱花炒香。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2655,6 +2823,8 @@ module.exports = [
           "index": 4,
           "text": "撒椒盐粉翻匀即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -2752,6 +2922,8 @@ module.exports = [
           "index": 0,
           "text": "锅中加水烧开，放入紫菜。",
           "phase": "prep",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "passive",
           "resources": [
@@ -2766,6 +2938,8 @@ module.exports = [
           "index": 1,
           "text": "鸡蛋打散，沿锅边慢慢淋入。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -2782,6 +2956,8 @@ module.exports = [
           "index": 2,
           "text": "加盐和白胡椒粉调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 60,
           "attention": "active",
           "resources": [
@@ -2798,6 +2974,8 @@ module.exports = [
           "index": 3,
           "text": "关火后滴香油，撒小葱即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 60,
           "attention": "active",
           "resources": [
@@ -2888,6 +3066,8 @@ module.exports = [
           "index": 0,
           "text": "鸡腿肉切块，香菇切片。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鸡腿肉切块，香菇切片",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2902,6 +3082,8 @@ module.exports = [
           "index": 1,
           "text": "加入生抽、蚝油、淀粉和少量油抓匀。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -2918,6 +3100,8 @@ module.exports = [
           "index": 2,
           "text": "腌制 15 分钟后装盘。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "passive",
           "resources": [
@@ -2934,6 +3118,8 @@ module.exports = [
           "index": 3,
           "text": "水开后上锅蒸 15 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 720,
           "attention": "passive",
           "resources": [
@@ -2950,6 +3136,8 @@ module.exports = [
           "index": 4,
           "text": "出锅后撒葱花即可。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3052,6 +3240,8 @@ module.exports = [
           "index": 0,
           "text": "准备菠菜豆腐蛋花和虾皮：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙准备菠菜豆腐蛋花和虾皮：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3066,6 +3256,8 @@ module.exports = [
           "index": 1,
           "text": "用少量盐、胡椒或配方里的基础调味先处理菠菜豆腐蛋花，静置 5-10 分钟，让底味进入但不过度腌制。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "passive",
           "resources": [
@@ -3082,6 +3274,8 @@ module.exports = [
           "index": 2,
           "text": "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -3098,6 +3292,8 @@ module.exports = [
           "index": 3,
           "text": "再放入菠菜豆腐蛋花，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -3114,6 +3310,8 @@ module.exports = [
           "index": 4,
           "text": "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 60,
           "attention": "active",
           "resources": [
@@ -3208,6 +3406,8 @@ module.exports = [
           "index": 0,
           "text": "鲈鱼处理干净，鱼身划几刀。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙鲈鱼处理干净，鱼身划几刀",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -3222,6 +3422,8 @@ module.exports = [
           "index": 1,
           "text": "鱼身抹少量料酒，铺姜片。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -3238,6 +3440,8 @@ module.exports = [
           "index": 2,
           "text": "水开后上锅蒸 8 到 10 分钟。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "passive",
           "resources": [
@@ -3254,6 +3458,8 @@ module.exports = [
           "index": 3,
           "text": "倒掉盘中汤汁，淋蒸鱼豉油。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3270,6 +3476,8 @@ module.exports = [
           "index": 4,
           "text": "撒葱丝，淋热油激香。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3360,6 +3568,8 @@ module.exports = [
           "index": 0,
           "text": "莲藕去皮切丁，焯水 1 分钟。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙莲藕去皮切丁，焯水 1 分钟",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -3374,6 +3584,8 @@ module.exports = [
           "index": 1,
           "text": "调糖醋汁：白醋、白糖、生抽、淀粉和少量水。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3390,6 +3602,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，放藕丁翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -3406,6 +3620,8 @@ module.exports = [
           "index": 3,
           "text": "倒入糖醋汁快速炒匀。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 360,
           "attention": "active",
           "resources": [
@@ -3422,6 +3638,8 @@ module.exports = [
           "index": 4,
           "text": "汤汁变亮后撒葱花出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3518,6 +3736,8 @@ module.exports = [
           "index": 0,
           "text": "里脊切条，加盐、鸡蛋和淀粉抓匀。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙里脊切条，加盐、鸡蛋和淀粉抓匀",
           "durationSeconds": 420,
           "attention": "active",
           "resources": [
@@ -3532,6 +3752,8 @@ module.exports = [
           "index": 1,
           "text": "锅中加油，将肉条炸至定型后捞出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 420,
           "attention": "active",
           "resources": [
@@ -3548,6 +3770,8 @@ module.exports = [
           "index": 2,
           "text": "升高油温复炸至酥脆。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -3564,6 +3788,8 @@ module.exports = [
           "index": 3,
           "text": "锅中放番茄酱、白糖和白醋炒成酱汁。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "active",
           "resources": [
@@ -3580,6 +3806,8 @@ module.exports = [
           "index": 4,
           "text": "倒入里脊条快速裹匀。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 360,
           "attention": "active",
           "resources": [
@@ -3676,6 +3904,8 @@ module.exports = [
           "index": 0,
           "text": "西红柿洗净切块，鸡蛋打散备用。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙西红柿洗净切块，鸡蛋打散备用",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -3690,6 +3920,8 @@ module.exports = [
           "index": 1,
           "text": "热锅加油，倒入鸡蛋炒至凝固后盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -3706,6 +3938,8 @@ module.exports = [
           "index": 2,
           "text": "锅中补少量油，放入西红柿翻炒出汁。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 210,
           "attention": "active",
           "resources": [
@@ -3722,6 +3956,8 @@ module.exports = [
           "index": 3,
           "text": "倒回鸡蛋，加盐和少量白糖调味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -3738,6 +3974,8 @@ module.exports = [
           "index": 4,
           "text": "翻炒均匀，撒小葱后出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -3838,6 +4076,8 @@ module.exports = [
           "index": 0,
           "text": "准备番茄豆腐虾仁和金针菇：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙准备番茄豆腐虾仁和金针菇：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -3852,6 +4092,8 @@ module.exports = [
           "index": 1,
           "text": "用少量盐、胡椒或配方里的基础调味先处理番茄豆腐虾仁，静置 5-10 分钟，让底味进入但不过度腌制。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -3868,6 +4110,8 @@ module.exports = [
           "index": 2,
           "text": "锅中加入 600-700 毫升清水或清汤，先放耐煮食材煮出甜味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 480,
           "attention": "passive",
           "resources": [
@@ -3884,6 +4128,8 @@ module.exports = [
           "index": 3,
           "text": "再放入番茄豆腐虾仁，转中小火煮到刚熟，撇去浮沫保持汤色清亮。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -3900,6 +4146,8 @@ module.exports = [
           "index": 4,
           "text": "最后放入易熟蔬菜和调味料，滚 30 秒后关火，撒葱花或香菜。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -3997,6 +4245,8 @@ module.exports = [
           "index": 0,
           "text": "五花肉冷水下锅，加姜片煮至能扎透。",
           "phase": "prep",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "passive",
           "resources": [
@@ -4011,6 +4261,8 @@ module.exports = [
           "index": 1,
           "text": "肉放凉后切薄片，蒜苗切段。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -4027,6 +4279,8 @@ module.exports = [
           "index": 2,
           "text": "锅中少油，煸炒肉片至微卷。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -4043,6 +4297,8 @@ module.exports = [
           "index": 3,
           "text": "加入豆瓣酱炒出香味。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 600,
           "attention": "active",
           "resources": [
@@ -4059,6 +4315,8 @@ module.exports = [
           "index": 4,
           "text": "放蒜苗、生抽和白糖，炒匀出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 360,
           "attention": "active",
           "resources": [
@@ -4155,6 +4413,8 @@ module.exports = [
           "index": 0,
           "text": "白菜帮和叶分开切片。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙白菜帮和叶分开切片",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -4169,6 +4429,8 @@ module.exports = [
           "index": 1,
           "text": "蒜切末，干辣椒剪段。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [
@@ -4185,6 +4447,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，炒香蒜末和辣椒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -4201,6 +4465,8 @@ module.exports = [
           "index": 3,
           "text": "先放白菜帮炒软，再放白菜叶。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -4217,6 +4483,8 @@ module.exports = [
           "index": 4,
           "text": "加醋、生抽、盐和白糖，快速炒匀。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -4318,6 +4586,8 @@ module.exports = [
           "index": 0,
           "text": "木耳泡发撕小朵，山药去皮切片。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙木耳泡发撕小朵，山药去皮切片",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -4332,6 +4602,8 @@ module.exports = [
           "index": 1,
           "text": "山药和木耳分别焯水 30 秒后沥干。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "passive",
           "resources": [
@@ -4348,6 +4620,8 @@ module.exports = [
           "index": 2,
           "text": "锅中加油炒香蒜片。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -4364,6 +4638,8 @@ module.exports = [
           "index": 3,
           "text": "放入山药、木耳和胡萝卜片翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -4380,6 +4656,8 @@ module.exports = [
           "index": 4,
           "text": "加盐和少量鸡精调味后出锅。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -4482,6 +4760,8 @@ module.exports = [
           "index": 0,
           "text": "猪肉切丝，用少量生抽和淀粉抓匀。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙猪肉切丝，用少量生抽和淀粉抓匀",
           "durationSeconds": 360,
           "attention": "active",
           "resources": [
@@ -4496,6 +4776,8 @@ module.exports = [
           "index": 1,
           "text": "配菜切丝，调好糖醋生抽料汁。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -4512,6 +4794,8 @@ module.exports = [
           "index": 2,
           "text": "热锅加油，滑炒肉丝至变色后盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -4528,6 +4812,8 @@ module.exports = [
           "index": 3,
           "text": "锅中炒香豆瓣酱，加入配菜翻炒。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 480,
           "attention": "active",
           "resources": [
@@ -4544,6 +4830,8 @@ module.exports = [
           "index": 4,
           "text": "倒回肉丝和料汁，快速炒匀收汁。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 300,
           "attention": "active",
           "resources": [
@@ -4646,6 +4934,8 @@ module.exports = [
           "index": 0,
           "text": "准备鸡蛋和西葫芦和木耳：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边。",
           "phase": "prep",
+          "delegatable": true,
+          "taskLabel": "帮忙准备鸡蛋和西葫芦和木耳：主料擦干或切成适口大小，蔬菜洗净后沥干，调味料提前放在手边",
           "durationSeconds": 180,
           "attention": "active",
           "resources": [
@@ -4660,6 +4950,8 @@ module.exports = [
           "index": 1,
           "text": "用少量盐、胡椒或配方里的基础调味先处理鸡蛋，静置 5-10 分钟，让底味进入但不过度腌制。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 120,
           "attention": "active",
           "resources": [
@@ -4676,6 +4968,8 @@ module.exports = [
           "index": 2,
           "text": "热锅少油，先把鸡蛋炒到变色或定型，必要时先盛出。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 150,
           "attention": "active",
           "resources": [
@@ -4692,6 +4986,8 @@ module.exports = [
           "index": 3,
           "text": "放入西葫芦和木耳快速翻炒，保持蔬菜脆度，再把主料倒回锅中。",
           "phase": "cook",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 240,
           "attention": "active",
           "resources": [
@@ -4708,6 +5004,8 @@ module.exports = [
           "index": 4,
           "text": "加入剩余调味料，大火翻匀 30 秒，尝味后立即出锅，避免出水过多。",
           "phase": "finish",
+          "delegatable": false,
+          "taskLabel": "",
           "durationSeconds": 90,
           "attention": "active",
           "resources": [

@@ -219,11 +219,15 @@ function buildCookAssist(entry, recipe) {
     readyStaple: entry.readyStaple || "即食米饭",
     steps: recipe.steps.map((text, index) => {
       const id = `${recipe.id}:step:${index + 1}`;
+      const phase = index === 0 ? "prep" : index === recipe.steps.length - 1 ? "finish" : "cook";
+      const delegatable = phase === "prep" && !passiveSteps.has(index);
       return {
         id,
         index,
         text,
-        phase: index === 0 ? "prep" : index === recipe.steps.length - 1 ? "finish" : "cook",
+        phase,
+        delegatable,
+        taskLabel: delegatable ? controlledPrepTaskLabel(text) : "",
         durationSeconds: entry.stepDurationsSeconds[index],
         attention: passiveSteps.has(index) ? "passive" : "active",
         resources: [...(entry.stepResources[index] ?? [])],
@@ -233,6 +237,11 @@ function buildCookAssist(entry, recipe) {
       };
     }),
   };
+}
+
+function controlledPrepTaskLabel(text) {
+  const action = String(text || "").trim().replace(/[。！!]+$/, "").slice(0, 56);
+  return action ? `帮忙${action}`.slice(0, 64) : "";
 }
 
 function executionError(code, message) {

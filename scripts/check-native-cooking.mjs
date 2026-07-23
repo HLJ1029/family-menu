@@ -74,10 +74,120 @@ await verifyConflictReplacementGuidance();
 await verifyCrossDeviceAbandonConflict();
 await verifyGuestLifecycle();
 await verifyMemberPermissionsAndCompletedReadOnly();
+await verifyControlledMealTaskSuggestions();
+await verifyFirstCompletionReminderEntry();
 await verifyRetryRecovery();
 verifyPresentationContracts();
 
 console.log("Native whole-meal cooking checks passed.");
+
+async function verifyControlledMealTaskSuggestions() {
+  const taskTimeline = clone(timeline);
+  taskTimeline.steps[0] = {
+    ...taskTimeline.steps[0],
+    phase: "prep",
+    delegatable: true,
+    taskLabel: "帮忙切好西红柿",
+  };
+  const cookingRun = remoteRun({
+    status: "cooking",
+    timeline: taskTimeline,
+    currentStepId: taskTimeline.steps[0].id,
+    missingIngredients: ["鸡蛋", "西红柿", "紫菜"],
+  });
+  const runtime = createRuntime({
+    initialRun: cookingRun,
+    requestHandler({ path: requestPath, method, data, succeed }) {
+      if (requestPath.startsWith("/meal-runs/current")) return succeed({ mealRun: cookingRun });
+      if (method === "POST" && requestPath.endsWith("/tasks")) {
+        return succeed({
+          task: {
+            id: "task-1",
+            type: data.type,
+            label: data.type === "buy" ? `请家人买${data.ingredientName}` : "帮忙切好西红柿",
+            sourceId: data.type === "buy" ? `ingredient:${data.ingredientName}` : `step:${data.stepId}`,
+            status: "open",
+          },
+        }, 201);
+      }
+      throw new Error(`Unexpected request: ${method} ${requestPath}`);
+    },
+  });
+  const page = runtime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await page.onLoad({ mealRunId: cookingRun.id });
+  assert.equal(page.data.canCreateTask, true, "cooking runs may create optional collaboration tasks");
+  assert.deepEqual(
+    page.data.taskSuggestions.map((suggestion) => suggestion.label),
+    ["请家人买鸡蛋", "请家人买西红柿", "帮忙切好西红柿"],
+    "only the first two missing ingredients and declared timeline labels are suggested",
+  );
+  await page.createMealTask({ currentTarget: { dataset: { suggestionId: "buy:鸡蛋" } } });
+  const createRequest = runtime.requests.find((request) => request.method === "POST" && request.path.endsWith("/tasks"));
+  assert.deepEqual(createRequest.data, { type: "buy", ingredientName: "鸡蛋" });
+  assert.equal(page.data.mealRun.status, "cooking", "creating collaboration never changes the cooking state");
+  page.applyMealRun(cookingRun);
+  assert.equal(
+    page.data.taskSuggestions.some((suggestion) => suggestion.id === "buy:鸡蛋"),
+    false,
+    "a reconcile must not reintroduce an already-created source suggestion",
+  );
+
+  const plannedRun = remoteRun({
+    status: "planned",
+    timeline: null,
+    currentStepId: "",
+    missingIngredients: ["鸡蛋"],
+  });
+  const plannedRuntime = createRuntime({ initialRun: plannedRun });
+  const plannedPage = plannedRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await plannedPage.onLoad({ mealRunId: plannedRun.id });
+  assert.equal(plannedPage.data.canCreateTask, false, "planned runs cannot create collaboration tasks");
+  assert.deepEqual(plannedPage.data.taskSuggestions, []);
+
+  const failingRuntime = createRuntime({
+    initialRun: cookingRun,
+    requestHandler({ path: requestPath, method, succeed, fail }) {
+      if (requestPath.startsWith("/meal-runs/current")) return succeed({ mealRun: cookingRun });
+      if (method === "POST" && requestPath.endsWith("/tasks")) return fail();
+      throw new Error(`Unexpected request: ${method} ${requestPath}`);
+    },
+  });
+  const failingPage = failingRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await failingPage.onLoad({ mealRunId: cookingRun.id });
+  await failingPage.createMealTask({ currentTarget: { dataset: { suggestionId: "prep:tomato-egg:step:1" } } });
+  assert.equal(failingPage.data.mealRun.status, "cooking");
+  assert.equal(failingPage.data.mealRun.currentStepId, cookingRun.currentStepId);
+  assert.match(failingPage.data.taskErrorText, /不影响继续做饭/, "task failure remains visibly non-blocking");
+}
+
+async function verifyFirstCompletionReminderEntry() {
+  const firstCompletion = remoteRun({
+    status: "completed",
+    completedAt: "2026-07-23T11:00:00.000Z",
+    firstHouseholdCompletion: true,
+  });
+  const firstRuntime = createRuntime({ initialRun: firstCompletion });
+  const firstPage = firstRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await firstPage.onLoad({ mealRunId: firstCompletion.id });
+  assert.equal(firstPage.data.canScheduleReminder, true, "only the first household completion exposes the reminder entry");
+  firstPage.openReminder();
+  assert.deepEqual(firstRuntime.routes.at(-1), {
+    kind: "navigateTo",
+    url: `/pages/reminder/index?mealRunId=${firstCompletion.id}&effortTier=quick_15`,
+  });
+
+  const laterCompletion = remoteRun({
+    status: "completed",
+    completedAt: "2026-07-24T11:00:00.000Z",
+    firstHouseholdCompletion: false,
+  });
+  const laterRuntime = createRuntime({ initialRun: laterCompletion });
+  const laterPage = laterRuntime.loadPage("miniprogram/packageCooking/pages/cooking/index.js");
+  await laterPage.onLoad({ mealRunId: laterCompletion.id });
+  assert.equal(laterPage.data.canScheduleReminder, false);
+  laterPage.openReminder();
+  assert.equal(laterRuntime.routes.length, 0);
+}
 
 async function verifyDelayedActualPassiveTimers() {
   const recipeIds = [
@@ -1295,6 +1405,7 @@ function createRuntime({
     },
     showModal: ({ success }) => success?.({ confirm: true, cancel: false }),
     navigateBack: () => routes.push({ kind: "navigateBack" }),
+    navigateTo: ({ url }) => routes.push({ kind: "navigateTo", url }),
     reLaunch: ({ url }) => routes.push({ kind: "reLaunch", url }),
     request: (options) => {
       const url = new URL(options.url);

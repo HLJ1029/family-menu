@@ -3,6 +3,20 @@
     <view class="brand">HUMI</view>
     <view class="eyebrow">下一次做饭</view>
     <view class="title">{{scheduledLabel}}</view>
+    <view class="picker-row">
+      <picker mode="date" value="{{selectedDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="onDateChange">
+        <view class="picker-card">
+          <text class="picker-label">日期</text>
+          <text class="picker-value">{{selectedDate || '选择日期'}}</text>
+        </view>
+      </picker>
+      <picker mode="time" value="{{selectedTime}}" bindchange="onTimeChange">
+        <view class="picker-card">
+          <text class="picker-label">时间</text>
+          <text class="picker-value">{{selectedTime || '选择时间'}}</text>
+        </view>
+      </picker>
+    </view>
     <view class="promise-card">
       <view class="promise-title">只提醒这一次</view>
       <view class="promise-copy">只有你点击确认后，微信才会询问授权。拒绝或取消都不会影响做饭记录。</view>
@@ -12,7 +26,7 @@
 
   <view class="actions">
     <button wx:if="{{needsLogin}}" class="primary-button" bindtap="openLogin">微信登录后预约</button>
-    <button wx:elif="{{!saved && !rejected}}" class="primary-button" bindtap="requestReminder" loading="{{pending}}" disabled="{{loading || pending || !templateId}}">确认接收一次提醒</button>
+    <button wx:elif="{{!saved && !rejected}}" class="primary-button" bindtap="confirmReminder" loading="{{pending}}" disabled="{{loading || pending || !templateId || !scheduledAt}}">确认接收一次提醒</button>
     <button wx:else class="primary-button" disabled>{{saved ? "已预约" : "不再提醒"}}</button>
     <button class="ghost-button" bindtap="goBack">返回 Humi</button>
   </view>

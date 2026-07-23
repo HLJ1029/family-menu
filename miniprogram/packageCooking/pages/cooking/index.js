@@ -22,6 +22,7 @@ const {
 } = require("../../../utils/meal-timeline");
 const { enqueueMutation, flushMutationQueue, readQueue } = require("../../../utils/offline-queue");
 const { guardNativeTab } = require("../../../utils/native-shell-guard");
+const { requestHumi } = require("../../../utils/request");
 const { appStore } = require("../../../utils/store");
 const { startSpan } = require("../../../utils/telemetry");
 
@@ -71,6 +72,12 @@ const pageDefinition = {
     abandonReasons: ABANDON_REASONS,
     feedbackValue: "",
     replacementDetected: false,
+    canCreateTask: false,
+    taskSuggestions: [],
+    createdTasks: [],
+    taskPendingId: "",
+    taskErrorText: "",
+    canScheduleReminder: false,
   },
 
   async onLoad(options = {}) {
@@ -412,6 +419,45 @@ const pageDefinition = {
     });
   },
 
+  async createMealTask(event) {
+    const suggestionId = String(event?.currentTarget?.dataset?.suggestionId || "");
+    const suggestion = this.data.taskSuggestions.find((item) => item.id === suggestionId);
+    const mealRun = this.data.mealRun;
+    if (!suggestion || !this.data.canCreateTask || this.data.taskPendingId || mealRun?.status !== "cooking") return null;
+    this.setData({ taskPendingId: suggestion.id, taskErrorText: "" });
+    try {
+      const payload = await requestHumi({
+        path: `/meal-runs/${encodeURIComponent(mealRun.id)}/tasks`,
+        method: "POST",
+        data: suggestion.kind === "buy"
+          ? { type: "buy", ingredientName: suggestion.ingredientName }
+          : { type: "prep", stepId: suggestion.stepId },
+        idempotencyKey: `meal-task-create:${mealRun.id}:${suggestion.id}`,
+        expectedUserId: appStore.getState().bootstrap?.user?.id,
+      });
+      const task = payload?.task;
+      if (!task?.id) throw codedError("meal_task_response_invalid");
+      this.setData({
+        createdTasks: [...this.data.createdTasks, task],
+        taskSuggestions: this.data.taskSuggestions.filter((item) => item.id !== suggestion.id),
+      });
+      return task;
+    } catch (_) {
+      this.setData({ taskErrorText: "暂时没发出任务，不影响继续做饭。" });
+      return null;
+    } finally {
+      this.setData({ taskPendingId: "" });
+    }
+  },
+
+  openReminder() {
+    const mealRun = this.data.mealRun;
+    if (!this.data.canScheduleReminder || !mealRun?.id) return;
+    wx.navigateTo({
+      url: `/pages/reminder/index?mealRunId=${encodeURIComponent(mealRun.id)}&effortTier=${encodeURIComponent(mealRun.effortTier || "quick_15")}`,
+    });
+  },
+
   async reconcile() {
     if (this._reconcilePromise || this.data.syncFrozen || !this.data.isOnline || !this._mealRunId) {
       return this._reconcilePromise;
@@ -589,6 +635,10 @@ const pageDefinition = {
       feedbackValue,
       replacementDetected: false,
       errorText: preserveConflict ? this.data.errorText : "",
+      canCreateTask: canCreateMealTask(mealRun),
+      taskSuggestions: canCreateMealTask(mealRun) ? suggestedTasks(mealRun, this.data.createdTasks) : [],
+      taskErrorText: "",
+      canScheduleReminder: canScheduleMealReminder(mealRun),
     });
     this.refreshDerivedState();
     if (mealRun.status === "cooking") this.startClock();
@@ -754,6 +804,56 @@ function currentUserFeedback(mealRun) {
   return (mealRun?.feedback || []).find((entry) => entry.userId === userId)?.value || "";
 }
 
+function canCreateMealTask(mealRun) {
+  const bootstrap = appStore.getState().bootstrap;
+  return Boolean(
+    mealRun?.status === "cooking"
+    && !mealRun.localOnly
+    && mealRun.householdId
+    && bootstrap?.user?.id
+    && (bootstrap.households || []).some((household) => household.id === mealRun.householdId),
+  );
+}
+
+function canScheduleMealReminder(mealRun) {
+  const bootstrap = appStore.getState().bootstrap;
+  return Boolean(
+    mealRun?.status === "completed"
+    && mealRun.firstHouseholdCompletion === true
+    && !mealRun.localOnly
+    && bootstrap?.user?.id
+    && (bootstrap.households || []).some((household) => household.id === mealRun.householdId),
+  );
+}
+
+function suggestedTasks(mealRun, createdTasks = []) {
+  const createdSourceIds = new Set((Array.isArray(createdTasks) ? createdTasks : [])
+    .map((task) => String(task?.sourceId || ""))
+    .filter(Boolean));
+  const ingredients = (Array.isArray(mealRun?.missingIngredients) ? mealRun.missingIngredients : [])
+    .map((item) => String(item?.name || item || "").trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .filter((ingredientName) => !createdSourceIds.has(`ingredient:${ingredientName}`))
+    .map((ingredientName) => ({
+      id: `buy:${ingredientName}`,
+      kind: "buy",
+      label: `请家人买${ingredientName}`,
+      ingredientName,
+    }));
+  const prepSteps = (Array.isArray(mealRun?.timeline?.steps) ? mealRun.timeline.steps : [])
+    .filter((step) => step?.delegatable === true && step.taskLabel)
+    .slice(0, 2)
+    .filter((step) => !createdSourceIds.has(`step:${step.id}`))
+    .map((step) => ({
+      id: `prep:${step.id}`,
+      kind: "prep",
+      label: String(step.taskLabel).slice(0, 64),
+      stepId: step.id,
+    }));
+  return [...ingredients, ...prepSteps];
+}
+
 function networkLabel(networkType) {
   if (networkType === "wifi") return "网络正常 · Wi-Fi";
   if (networkType === "none") return "网络已断开，进度会稍后同步";
@@ -791,4 +891,5 @@ function codedError(code) {
 module.exports = {
   chooseMonotonicMealRun,
   remainingSeconds,
+  suggestedTasks,
 };

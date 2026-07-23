@@ -63,6 +63,22 @@
         <button class="text-button" bindtap="showAbandonSheet">今晚不做了</button>
       </view>
 
+      <view wx:if="{{canCreateTask && (taskSuggestions.length || createdTasks.length)}}" class="task-section">
+        <text class="section-label">找家人搭把手（可选）</text>
+        <text class="task-hint">没人领取也不影响你继续做饭。</text>
+        <button
+          wx:for="{{taskSuggestions}}"
+          wx:key="id"
+          class="task-button"
+          data-suggestion-id="{{item.id}}"
+          bindtap="createMealTask"
+          loading="{{taskPendingId === item.id}}"
+          disabled="{{!!taskPendingId}}"
+        >{{item.label}}</button>
+        <text wx:for="{{createdTasks}}" wx:key="id" class="task-created">已发出：{{item.label}}</text>
+        <text wx:if="{{taskErrorText}}" class="task-error">{{taskErrorText}}</text>
+      </view>
+
       <button
         class="serve-button"
         bindtap="completeMeal"
@@ -82,6 +98,8 @@
         bind:select="saveFeedback"
       />
       <view wx:else class="feedback-saved">反馈已记下，下次推荐会更贴合你家。</view>
+      <button wx:if="{{canScheduleReminder}}" class="reminder-button" bindtap="openReminder">选择下一次做饭时间</button>
+      <text wx:if="{{canScheduleReminder}}" class="serve-hint">只有你确认时间后，微信才会询问一次提醒授权。</text>
     </view>
 
     <view wx:if="{{mealRun.status === 'abandoned'}}" class="completed-card">

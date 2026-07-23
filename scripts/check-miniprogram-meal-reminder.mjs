@@ -7,17 +7,37 @@ assert(appConfig.pages.includes("pages/reminder/index"), "app.json must register
 
 const pageSource = readFileSync("miniprogram/pages/reminder/index.js", "utf8");
 const markup = readFileSync("miniprogram/pages/reminder/index.wxml", "utf8");
-assert.match(markup, /bindtap="requestReminder"/, "subscription authorization must be attached to an explicit user-tap button");
+const taskPageSource = readFileSync("miniprogram/packageFamily/pages/task/index.js", "utf8");
+assert.match(markup, /bindtap="confirmReminder"/, "subscription authorization must be attached to the explicit scheduling confirmation");
+assert.match(markup, /mode="date"/, "the user must actively choose a reminder date");
+assert.match(markup, /mode="time"/, "the user must actively choose a reminder time");
 assert.doesNotMatch(pageSource, /onLoad[\s\S]{0,500}requestSubscribeMessage/, "onLoad must never open WeChat subscription authorization");
+assert.doesNotMatch(pageSource, /onShow[\s\S]{0,500}requestSubscribeMessage/, "onShow must never open WeChat subscription authorization");
+assert.doesNotMatch(taskPageSource, /Date\\.now|Math\\.random/, "task claim and completion retries must use stable idempotency keys");
 
 const scheduledAt = "2026-07-25T10:30:00.000Z";
+const decisionKey = "humi:meal-reminder-consent:v2:meal-1";
+
+{
+  const runtime = createReminderPage({ subscriptionResult: "accept" });
+  runtime.page.onLoad({ effortTier: "quick_15", mealRunId: "meal-1" });
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 0, "authorization cannot open before the user chooses date and time");
+  runtime.page.onDateChange({ detail: { value: "2026-07-26" } });
+  runtime.page.onTimeChange({ detail: { value: "18:30" } });
+  assert.equal(runtime.page.data.scheduledAt, "2026-07-26T10:30:00.000Z");
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 1);
+}
 
 {
   const runtime = createReminderPage({ subscriptionResult: "accept" });
   runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "quick_15", mealRunId: "meal-1" });
+  runtime.page.onShow?.();
   assert.equal(runtime.subscribeCalls.length, 0, "opening the page must not request subscription permission");
   assert.equal(runtime.requests.filter((item) => item.method === "GET").length, 1, "the page should fetch the server-owned template ID");
-  runtime.page.requestReminder();
+  assert.match(runtime.requests[0].url, /mealRunId=meal-1/, "reminder eligibility must be scoped to the completed source meal");
+  runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, `one user tap should request permission once: ${JSON.stringify(runtime.page.data)}`);
   assert.equal(Array.from(runtime.subscribeCalls[0]).join(","), "template-1");
   const creates = runtime.requests.filter((item) => item.method === "POST");
@@ -26,31 +46,47 @@ const scheduledAt = "2026-07-25T10:30:00.000Z";
     scheduledAt,
     dateKey: "2026-07-25",
     effortTier: "quick_15",
-    mealRunId: "meal-1",
+    sourceMealRunId: "meal-1",
     templateId: "template-1",
     accepted: true,
   });
-  runtime.page.requestReminder();
+  runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, "a saved reminder must not request permission twice");
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 1);
+  assert.match(runtime.requests.find((item) => item.method === "POST").header["X-Humi-Idempotency-Key"], /meal-1/, "reminder save retries use one stable key");
 }
 
 {
   const runtime = createReminderPage({ subscriptionResult: "reject" });
-  runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "easy_30" });
-  runtime.page.requestReminder();
+  runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "easy_30", mealRunId: "meal-1" });
+  runtime.page.confirmReminder();
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 0, "rejected permission must not create a reminder");
-  assert.equal(runtime.storage.get("humi:meal-reminder-consent:v1"), "rejected");
-  runtime.page.requestReminder();
+  assert.equal(runtime.storage.get(decisionKey), "rejected");
+  runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, "rejection must not trigger another permission request");
 }
 
 {
   const runtime = createReminderPage({ subscriptionFailure: true });
-  runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "normal" });
-  runtime.page.requestReminder();
+  runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "normal", mealRunId: "meal-1" });
+  runtime.page.confirmReminder();
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 0, "cancelled authorization must not create a reminder");
   assert.match(runtime.page.data.status, /没有设置|取消/);
+  assert.equal(runtime.storage.get(decisionKey), "cancelled");
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 1, "cancellation must not reopen authorization for the same first-completion flow");
+}
+
+{
+  const runtime = createReminderPage({ subscriptionResult: "accept", postStatusCode: 503 });
+  runtime.page.onLoad({ scheduledAt, dateKey: "2026-07-25", effortTier: "normal", mealRunId: "meal-1" });
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 1);
+  assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 1);
+  assert.match(runtime.page.data.status, /没有保存|重试/);
+  runtime.page.confirmReminder();
+  assert.equal(runtime.subscribeCalls.length, 1, "an API save retry must reuse accepted permission without reopening WeChat authorization");
+  assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 2);
 }
 
 {
@@ -68,7 +104,12 @@ const scheduledAt = "2026-07-25T10:30:00.000Z";
 
 console.log("Mini-program meal reminder checks passed.");
 
-function createReminderPage({ subscriptionResult = "accept", subscriptionFailure = false, session = defaultSession() } = {}) {
+function createReminderPage({
+  subscriptionResult = "accept",
+  subscriptionFailure = false,
+  postStatusCode = 201,
+  session = defaultSession(),
+} = {}) {
   let definition;
   const requests = [];
   const subscribeCalls = [];
@@ -81,10 +122,13 @@ function createReminderPage({ subscriptionResult = "accept", subscriptionFailure
     setStorageSync(key, value) {
       storage.set(key, value);
     },
-    request({ url, method = "GET", data, success, complete = () => {} }) {
-      requests.push({ url, method, data });
+    request({ url, method = "GET", data, header = {}, success, complete = () => {} }) {
+      requests.push({ url, method, data, header });
       if (method === "GET") success?.({ statusCode: 200, data: { enabled: true, templateId: "template-1" } });
-      else success?.({ statusCode: 201, data: { reminder: { id: "reminder-1", status: "scheduled" } } });
+      else success?.({
+        statusCode: postStatusCode,
+        data: postStatusCode < 300 ? { reminder: { id: "reminder-1", status: "scheduled" } } : { error: "temporary_failure" },
+      });
       complete();
     },
     requestSubscribeMessage({ tmplIds, success, fail }) {
