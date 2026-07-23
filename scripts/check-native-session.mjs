@@ -53,7 +53,7 @@ assert.match(
   assert.equal(storage.get("humi:bootstrap:last-household:v1:user-b"), "household-b", "identity completion must retain another user's cache");
 }
 
-function createRuntime({ responses = [], loginCode = "wechat-code", asyncResponses = false } = {}) {
+function createRuntime({ responses = [], loginCode = "wechat-code", asyncResponses = false, app } = {}) {
   const storage = new Map();
   const calls = { login: 0, request: [] };
   const wx = {
@@ -92,6 +92,7 @@ function createRuntime({ responses = [], loginCode = "wechat-code", asyncRespons
       module: record,
       exports: record.exports,
       require: (specifier) => load(path.resolve(path.dirname(resolved), `${specifier}.js`)),
+      getApp: () => app,
       wx,
       console,
       Date,
@@ -205,6 +206,55 @@ function createRuntime({ responses = [], loginCode = "wechat-code", asyncRespons
     "X-Humi-Idempotency-Key": "stable-key",
     "If-Match": "version-1"
   });
+}
+
+{
+  const appSessionCalls = [];
+  const app = {
+    setHumiSession(session) {
+      appSessionCalls.push(["set", session.user?.id || ""]);
+    },
+    clearHumiSession() {
+      appSessionCalls.push(["clear"]);
+    }
+  };
+  const runtime = createRuntime({
+    app,
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      {
+        statusCode: 200,
+        data: {
+          accessToken: "token-user-b",
+          expiresAt: Date.now() + 60_000,
+          user: { id: "user-b" }
+        }
+      },
+      { statusCode: 200, data: { ok: true } }
+    ]
+  });
+  runtime.session.saveSession({
+    accessToken: "token-user-a",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "user-a" }
+  });
+  await assert.rejects(
+    () => runtime.requestHumi({
+      path: "/meal-runs/r1/progress",
+      method: "POST",
+      idempotencyKey: "action-a",
+      expectedUserId: "user-a"
+    }),
+    (error) => error.code === "session_owner_changed",
+    "an idempotent offline request must not replay after silent login changes the account owner",
+  );
+  assert.equal(
+    runtime.calls.request.filter((call) => call.url.endsWith("/meal-runs/r1/progress")).length,
+    1,
+    "the account switch must stop before the authenticated mutation replay",
+  );
+  assert.equal(runtime.session.getSession().user.id, "user-b", "the newly authenticated account remains active");
+  assert.deepEqual(appSessionCalls, [["set", "user-b"]], "silent session refresh must synchronize the active app session owner");
 }
 
 console.log("Native session foundation contract passed.");

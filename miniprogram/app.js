@@ -2,6 +2,7 @@ const { restoreSession, saveSession, clearSession } = require("./utils/session")
 const { flushMutationQueue } = require("./utils/offline-queue");
 const { HUMI_NATIVE_SHELL_CANDIDATE } = require("./utils/config");
 const { trackEvent } = require("./utils/telemetry");
+const { appStore } = require("./utils/store");
 
 App({
   globalData: {
@@ -12,7 +13,9 @@ App({
   },
 
   onLaunch() {
-    this.globalData.humiSession = restoreSession();
+    const restoredSession = restoreSession();
+    appStore.replaceSession(restoredSession);
+    this.globalData.humiSession = restoredSession;
     this.globalData.nativeShellCandidate = HUMI_NATIVE_SHELL_CANDIDATE;
   },
 
@@ -41,12 +44,14 @@ App({
   },
 
   setHumiSession(session) {
-    this.globalData.humiSession = session;
     saveSession(session);
+    appStore.replaceSession(session);
+    this.globalData.humiSession = session;
   },
 
   clearHumiSession() {
-    this.globalData.humiSession = null;
     clearSession();
+    appStore.replaceSession(null);
+    this.globalData.humiSession = null;
   }
 });

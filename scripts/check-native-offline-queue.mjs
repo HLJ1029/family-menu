@@ -12,8 +12,15 @@ for (const name of ["errors.js", "cache.js", "telemetry.js", "offline-queue.js",
   if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
 }
 
-function createRuntime() {
+function createRuntime({ userId = "user-a" } = {}) {
   const storage = new Map();
+  if (userId) {
+    storage.set("humi:native-session:v1", {
+      accessToken: `token-${userId}`,
+      expiresAt: Date.now() + 60_000,
+      user: { id: userId }
+    });
+  }
   const wx = {
     getStorageSync: (key) => storage.get(key),
     setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
@@ -48,28 +55,49 @@ function createRuntime() {
     cache: load(path.join(utilDirectory, "cache.js")),
     telemetry: load(path.join(utilDirectory, "telemetry.js")),
     store: load(path.join(utilDirectory, "store.js")),
+    session: load(path.join(utilDirectory, "session.js")),
     storage
   };
 }
 
-function createAppRuntime(flush) {
+function createAppRuntime(flush, restoredSession = null) {
   let definition;
   const events = [];
+  const storeState = {
+    session: { user: { id: "stale-user" } },
+    bootstrap: { user: { id: "stale-user" } },
+    currentHouseholdId: "stale-household",
+    offlineStatus: "retry"
+  };
+  const appStore = {
+    replaceSession(session) {
+      const previousUserId = storeState.session?.user?.id || "";
+      const nextUserId = session?.user?.id || "";
+      storeState.session = session || null;
+      if (previousUserId !== nextUserId) {
+        storeState.bootstrap = null;
+        storeState.currentHouseholdId = "";
+        storeState.offlineStatus = "idle";
+      }
+      return { ...storeState };
+    }
+  };
   vm.runInNewContext(appSource, {
     App: (value) => {
       definition = value;
     },
     require: (specifier) => {
-      if (specifier === "./utils/session") return { restoreSession: () => null, saveSession: () => {}, clearSession: () => {} };
+      if (specifier === "./utils/session") return { restoreSession: () => restoredSession, saveSession: () => {}, clearSession: () => {} };
       if (specifier === "./utils/offline-queue") return { flushMutationQueue: flush };
       if (specifier === "./utils/config") return { HUMI_NATIVE_SHELL_CANDIDATE: true };
       if (specifier === "./utils/telemetry") return { trackEvent: (name, fields) => events.push({ name, fields }) };
+      if (specifier === "./utils/store") return { appStore };
       throw new Error(`Unexpected app dependency: ${specifier}`);
     },
     Date,
     Promise
   });
-  return { app: { ...definition, globalData: { ...definition.globalData } }, events };
+  return { app: { ...definition, globalData: { ...definition.globalData } }, events, storeState };
 }
 
 async function nextTask() {
@@ -95,12 +123,61 @@ async function nextTask() {
 }
 
 {
+  const { queue } = createRuntime({ userId: "" });
+  assert.throws(
+    () => queue.enqueueMutation({ id: "anonymous", type: "meal_progress", householdId: "h1", mealRunId: "r1", createdAt: 1 }),
+    /offline_session_required/,
+    "offline mutations require a trusted authenticated native session",
+  );
+}
+
+{
+  const { queue } = createRuntime();
+  const stored = queue.enqueueMutation({
+    id: "owned",
+    type: "meal_progress",
+    householdId: "h1",
+    mealRunId: "r1",
+    createdAt: 1,
+    data: { stepIndex: 2 },
+    ownerUserId: "caller-spoof"
+  });
+  assert.equal(stored.ownerUserId, "user-a", "the queue owner must come from the trusted native session");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(stored)),
+    {
+      id: "owned",
+      type: "meal_progress",
+      householdId: "h1",
+      mealRunId: "r1",
+      createdAt: 1,
+      data: { stepIndex: 2 },
+      ownerUserId: "user-a"
+    },
+    "persisted actions must use an explicit top-level projection",
+  );
+  assert.throws(
+    () => queue.enqueueMutation({
+      id: "extra",
+      type: "meal_progress",
+      householdId: "h1",
+      mealRunId: "r1",
+      createdAt: 2,
+      data: { stepIndex: 3 },
+      privateTopLevel: "must-not-persist"
+    }),
+    /offline_action_invalid/,
+    "arbitrary top-level fields must be rejected rather than persisted",
+  );
+}
+
+{
   const { queue } = createRuntime();
   for (let index = 0; index < 100; index += 1) {
     queue.enqueueMutation({ id: `a-${index}`, type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: index });
   }
   assert.throws(() => queue.enqueueMutation({ id: "one-too-many", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 101 }), /offline_queue_full/);
-  assert.throws(() => queue.enqueueMutation({ id: "too-large", type: "meal_progress", householdId: "h2", mealRunId: "r2", createdAt: 1, payload: "x".repeat(256 * 1024) }), /offline_queue_too_large/);
+  assert.throws(() => queue.enqueueMutation({ id: "too-large", type: "meal_progress", householdId: "h2", mealRunId: "r2", createdAt: 1, data: { value: "x".repeat(256 * 1024) } }), /offline_queue_too_large/);
 }
 
 {
@@ -111,7 +188,7 @@ async function nextTask() {
     householdId: "h1",
     mealRunId: "r1",
     createdAt: 1,
-    payload: "😀".repeat(65_550)
+    data: { value: "😀".repeat(65_550) }
   }), /offline_queue_too_large/, "queue capacity is measured in UTF-8 bytes, not JavaScript string length");
 }
 
@@ -123,12 +200,61 @@ async function nextTask() {
     householdId: "h1",
     mealRunId: "r1",
     createdAt: 1,
-    payload: "汉".repeat(87_400)
+    data: { value: "汉".repeat(87_400) }
   }), /offline_queue_too_large/, "Chinese payloads use their UTF-8 byte size at the queue boundary");
 }
 
 {
-  const { queue } = createRuntime();
+  const runtime = createRuntime();
+  const { queue, session } = runtime;
+  queue.enqueueMutation({ id: "account-a", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 1 });
+  const replayed = [];
+  queue.setMutationReplayer(async (action) => replayed.push(action.id));
+  session.saveSession({ accessToken: "token-user-b", expiresAt: Date.now() + 60_000, user: { id: "user-b" } });
+  const { app } = createAppRuntime(() => queue.flushMutationQueue(), session.getSession());
+  app.onShow();
+  await nextTask();
+  assert.deepEqual(replayed, [], "account B foreground recovery must not replay account A's queue");
+  assert.deepEqual(Array.from(queue.readQueue()), [], "account B must see only its own empty queue");
+  session.saveSession({ accessToken: "token-user-a", expiresAt: Date.now() + 60_000, user: { id: "user-a" } });
+  assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["account-a"], "account A's queue must remain recoverable");
+  assert.equal((await queue.flushMutationQueue()).status, "flushed");
+  assert.deepEqual(replayed, ["account-a"], "account A may replay its own queue after returning");
+}
+
+{
+  const { queue, session } = createRuntime();
+  queue.enqueueMutation({ id: "switch-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1 });
+  queue.setMutationReplayer(async () => {
+    session.saveSession({ accessToken: "token-user-b", expiresAt: Date.now() + 60_000, user: { id: "user-b" } });
+  });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await queue.flushMutationQueue())),
+    { status: "skipped", reason: "ownership_changed" },
+    "a session switch during replay must return a stable ownership outcome",
+  );
+  session.saveSession({ accessToken: "token-user-a", expiresAt: Date.now() + 60_000, user: { id: "user-a" } });
+  assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["switch-owner"], "an ownership switch must not delete account A's action");
+}
+
+{
+  const { queue, storage } = createRuntime();
+  queue.enqueueMutation({ id: "tampered-owner", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1 });
+  const queueStorageKey = Array.from(storage.keys()).find((key) => key.startsWith("humi:offline-queue:v1:"));
+  storage.set(queueStorageKey, [{ ...storage.get(queueStorageKey)[0], ownerUserId: "user-b" }]);
+  let replayCount = 0;
+  queue.setMutationReplayer(async () => { replayCount += 1; });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await queue.flushMutationQueue())),
+    { status: "skipped", reason: "ownership_mismatch" },
+    "a persisted action with a mismatched owner must never replay",
+  );
+  assert.equal(replayCount, 0);
+  assert.deepEqual(Array.from(queue.readQueue(), (item) => item.id), ["tampered-owner"], "owner mismatch must not delete the queued action");
+}
+
+{
+  const { queue, session } = createRuntime();
   queue.enqueueMutation({ id: "a", type: "meal_progress", householdId: "h", mealRunId: "r", createdAt: 1 });
   queue.enqueueMutation({ id: "b", type: "meal_complete", householdId: "h", mealRunId: "r", createdAt: 2 });
   const replayed = [];
@@ -149,7 +275,7 @@ async function nextTask() {
 }
 
 {
-  const { queue } = createRuntime();
+  const { queue, session } = createRuntime();
   queue.enqueueMutation({ id: "dead", type: "meal_abandon", householdId: "h", mealRunId: "r", createdAt: 1 });
   queue.setMutationReplayer(async () => {
     const error = new Error("not allowed");
@@ -160,6 +286,10 @@ async function nextTask() {
   assert.deepEqual(JSON.parse(JSON.stringify(await queue.flushMutationQueue())), { status: "flushed" });
   assert.deepEqual(Array.from(queue.readQueue()), []);
   assert.deepEqual(JSON.parse(JSON.stringify(queue.readDeadLetters())), [{ id: "dead", code: "forbidden" }]);
+  session.saveSession({ accessToken: "token-user-b", expiresAt: Date.now() + 60_000, user: { id: "user-b" } });
+  assert.deepEqual(Array.from(queue.readDeadLetters()), [], "dead letters are namespaced to the authenticated account");
+  session.saveSession({ accessToken: "token-user-a", expiresAt: Date.now() + 60_000, user: { id: "user-a" } });
+  assert.deepEqual(JSON.parse(JSON.stringify(queue.readDeadLetters())), [{ id: "dead", code: "forbidden" }], "account A's dead letters remain available when A returns");
 }
 
 {
@@ -226,9 +356,63 @@ async function nextTask() {
   const { store } = createRuntime();
   const snapshots = [];
   const unsubscribe = store.appStore.subscribe((state) => snapshots.push(state.currentHouseholdId));
-  store.appStore.setState({ currentHouseholdId: "h1" });
+  store.appStore.replaceSession({ accessToken: "a1", user: { id: "user-a" } });
+  store.appStore.replaceBootstrap({
+    schemaVersion: 1,
+    stateVersion: "state-a",
+    activeHouseholdId: "h1",
+    user: { id: "user-a" }
+  });
+  store.appStore.setState({ offlineStatus: "retry" });
+  store.appStore.replaceSession({ accessToken: "a2", user: { id: "user-a" } });
+  assert.equal(store.appStore.getState().bootstrap.stateVersion, "state-a", "same-user session refresh may retain a valid bootstrap");
+  store.appStore.replaceBootstrap({
+    schemaVersion: 1,
+    activeHouseholdId: "h1",
+    user: { id: "user-a" }
+  });
+  store.appStore.replaceSession({ accessToken: "a3", user: { id: "user-a" } });
+  assert.equal(store.appStore.getState().bootstrap, null, "same-user refresh must clear a bootstrap without a valid state version");
+  store.appStore.replaceBootstrap({
+    schemaVersion: 1,
+    stateVersion: "state-a2",
+    activeHouseholdId: "h1",
+    user: { id: "user-a" }
+  });
+  store.appStore.replaceSession({ accessToken: "b1", user: { id: "user-b" } });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(store.appStore.getState())),
+    { session: { accessToken: "b1", user: { id: "user-b" } }, currentHouseholdId: "", bootstrap: null, offlineStatus: "idle" },
+    "a user change must atomically replace the session and clear user-owned state",
+  );
+  store.appStore.replaceSession(null);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(store.appStore.getState())),
+    { session: null, currentHouseholdId: "", bootstrap: null, offlineStatus: "idle" },
+    "logout must atomically clear session-owned state",
+  );
   unsubscribe();
-  assert.deepEqual(snapshots, ["h1"]);
+  assert(snapshots.includes("h1"));
+}
+
+{
+  const restored = { accessToken: "restored", expiresAt: Date.now() + 60_000, user: { id: "user-a" } };
+  const { app, storeState } = createAppRuntime(() => Promise.resolve({ status: "flushed" }), restored);
+  app.onLaunch();
+  assert.equal(app.globalData.humiSession.user.id, "user-a");
+  assert.equal(storeState.session.user.id, "user-a");
+  assert.equal(storeState.bootstrap, null, "launching as a different user clears stale bootstrap state");
+  app.setHumiSession({ ...restored, accessToken: "refreshed" });
+  storeState.bootstrap = { schemaVersion: 1, user: { id: "user-a" }, stateVersion: "still-valid" };
+  app.setHumiSession({ ...restored, accessToken: "refreshed-again" });
+  assert.equal(storeState.bootstrap.stateVersion, "still-valid", "same-user app session refresh retains reusable state");
+  app.clearHumiSession();
+  assert.equal(app.globalData.humiSession, null);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(storeState)),
+    { session: null, bootstrap: null, currentHouseholdId: "", offlineStatus: "idle" },
+    "app logout clears all user-owned appStore state",
+  );
 }
 
 for (const [outcome, expectedName, expectedResult, expectedCode] of [

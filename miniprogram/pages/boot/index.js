@@ -1,4 +1,4 @@
-const { buildLegacyRoute, extractLegacyOptions, getHouseholdId, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
+const { buildLegacyRoute, extractLegacyOptions, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
 const { appStore } = require("../../utils/store");
 const { startSpan } = require("../../utils/telemetry");
 
@@ -37,7 +37,7 @@ Page({
         candidate: getApp().globalData.nativeShellCandidate,
         envelope
       });
-      appStore.setState({ bootstrap: envelope, currentHouseholdId: getHouseholdId(envelope) });
+      appStore.replaceBootstrap(envelope);
       span.end("completed", { page: "boot" });
       this.route(target.route === "/pages/legacy/index" ? buildLegacyRoute(options) : target.route);
     } catch (error) {

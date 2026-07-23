@@ -3,6 +3,12 @@ const { appStore } = require("./store");
 
 function guardNativeTab() {
   const envelope = appStore.getState().bootstrap;
+  const sessionUserId = String(getApp().globalData?.humiSession?.user?.id || "");
+  const bootstrapUserId = String(envelope?.user?.id || "");
+  if (!sessionUserId || !bootstrapUserId || sessionUserId !== bootstrapUserId) {
+    wx.reLaunch({ url: "/pages/boot/index" });
+    return false;
+  }
   if (!envelope) {
     wx.reLaunch({ url: "/pages/boot/index" });
     return false;

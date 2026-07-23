@@ -84,6 +84,9 @@ async function loadBootstrap({ allowCache = false } = {}) {
 }
 
 function getHouseholdId(envelope = {}) {
+  if (Object.prototype.hasOwnProperty.call(envelope, "activeHouseholdId")) {
+    return String(envelope.activeHouseholdId || "");
+  }
   return String(envelope.activeHousehold?.id || envelope.currentHouseholdId || "");
 }
 

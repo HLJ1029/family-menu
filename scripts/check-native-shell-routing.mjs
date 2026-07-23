@@ -53,9 +53,9 @@ vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/bootstrap.js", imp
   }
 });
 const { buildLegacyRoute, resolveKnownShareRoute, resolveStartupRoute } = bootstrapModule.exports;
-const enabled = { capabilities: { nativeShellEnabled: true }, user: { profileStatus: "complete" } };
-const disabled = { capabilities: { nativeShellEnabled: false }, user: { profileStatus: "complete" } };
-const incomplete = { capabilities: { nativeShellEnabled: true }, user: { profileStatus: "incomplete" } };
+const enabled = { schemaVersion: 1, stateVersion: "state-enabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: true }, user: { id: "user-1", profileStatus: "complete" } };
+const disabled = { schemaVersion: 1, stateVersion: "state-disabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: false }, user: { id: "user-1", profileStatus: "complete" } };
+const incomplete = { schemaVersion: 1, stateVersion: "state-incomplete", activeHouseholdId: "", capabilities: { nativeShellEnabled: true }, user: { id: "user-1", profileStatus: "incomplete" } };
 const validToken = "abcdefghijklmnopqrstuvwx";
 const assertRoute = (actual, expected) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 
@@ -64,6 +64,8 @@ assertRoute(resolveStartupRoute({ candidate: true, envelope: disabled }), { rout
 assertRoute(resolveStartupRoute({ candidate: true, envelope: incomplete }), { route: "/pages/identity/index", reason: "identity_incomplete" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: enabled }), { route: "/pages/tonight/index", reason: "native_enabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: { ...enabled, cacheState: "cached" } }), { route: "/pages/tonight/index", reason: "native_enabled" });
+assert.equal(bootstrapModule.exports.getHouseholdId({ activeHouseholdId: "api-household", activeHousehold: { id: "legacy-household" } }), "api-household", "the exact API field must take precedence");
+assert.equal(bootstrapModule.exports.getHouseholdId({ activeHouseholdId: "", activeHousehold: { id: "legacy-household" } }), "", "an explicit empty API field must not revive stale legacy household data");
 
 assert.equal(resolveKnownShareRoute({ crave: ` ${validToken} `, shareSource: "ignored" }), `/pages/share/index?type=crave&token=${validToken}&shareSource=crave`);
 assert.equal(resolveKnownShareRoute({ grocery: validToken, shareSource: "ignored" }), `/pages/share/index?type=grocery&token=${validToken}&shareSource=grocery`);
@@ -119,7 +121,7 @@ assert.equal(cacheUtils.readHouseholdCache("household-1", "user-c"), null, "an u
 
 function loadBootstrapWith({ error, pointer, activeUserId, cached }) {
   const cacheModule = { exports: {} };
-  const scopedCache = cached || { envelope: { ...enabled, user: { id: activeUserId, profileStatus: "complete" } } };
+  const scopedCache = cached || { envelope: { ...enabled, activeHouseholdId: pointer?.householdId || "", user: { id: activeUserId, profileStatus: "complete" } } };
   vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/bootstrap.js", import.meta.url), "utf8"), {
     module: cacheModule,
     exports: cacheModule.exports,
@@ -140,7 +142,7 @@ const cacheModule = loadBootstrapWith({
 });
 assert.deepEqual(
   JSON.parse(JSON.stringify(await cacheModule.loadBootstrap({ allowCache: true }))),
-  { ...enabled, user: { id: "user-1", profileStatus: "complete" }, cacheState: "cached" },
+  { ...enabled, activeHouseholdId: "household-1", user: { id: "user-1", profileStatus: "complete" }, cacheState: "cached" },
   "an offline bootstrap request must use only the versioned household read cache",
 );
 const authError = { status: 401, retryable: false, code: "invalid_session" };
@@ -166,13 +168,14 @@ await assert.rejects(
 );
 const writeModule = { exports: {} };
 const cacheWrites = [];
+const householdCacheWrites = [];
 vm.runInNewContext(readFileSync(new URL("../miniprogram/utils/bootstrap.js", import.meta.url), "utf8"), {
   module: writeModule,
   exports: writeModule.exports,
   wx: { setStorageSync: (key, value) => cacheWrites.push([key, value]) },
   require: (specifier) => {
-    if (specifier === "./cache") return { readHouseholdCache: () => null, writeHouseholdCache: () => {} };
-    if (specifier === "./request") return { requestHumi: async () => ({ ...enabled, user: { id: "user-1", profileStatus: "complete" }, activeHousehold: { id: "household-1" } }) };
+    if (specifier === "./cache") return { readHouseholdCache: () => null, writeHouseholdCache: (...args) => householdCacheWrites.push(args) };
+    if (specifier === "./request") return { requestHumi: async () => ({ ...enabled, activeHouseholdId: "household-1", user: { id: "user-1", profileStatus: "complete" } }) };
     throw new Error(`Unexpected bootstrap write dependency: ${specifier}`);
   }
 });
@@ -182,15 +185,20 @@ assert.deepEqual(
   [["humi:bootstrap:last-household:v1:user-1", "household-1"]],
   "the last-household cache pointer must be namespaced to the current bootstrap user",
 );
+assert.deepEqual(
+  JSON.parse(JSON.stringify(householdCacheWrites)),
+  [["household-1", { ...enabled, activeHouseholdId: "household-1", user: { id: "user-1", profileStatus: "complete" } }, "user-1"]],
+  "an online bootstrap with the exact API envelope must write a user-and-household scoped cache",
+);
 
 const guardSource = readFileSync(new URL("../miniprogram/utils/native-shell-guard.js", import.meta.url), "utf8");
-function runGuard({ bootstrap, candidate }) {
+function runGuard({ bootstrap, candidate, sessionUserId = "user-1" }) {
   const module = { exports: {} };
   const guardRoutes = [];
   vm.runInNewContext(guardSource, {
     module,
     exports: module.exports,
-    getApp: () => ({ globalData: { nativeShellCandidate: candidate } }),
+    getApp: () => ({ globalData: { nativeShellCandidate: candidate, humiSession: sessionUserId ? { user: { id: sessionUserId } } : null } }),
     wx: { reLaunch: ({ url }) => guardRoutes.push(url) },
     require: (specifier) => {
       if (specifier === "./bootstrap") return { resolveStartupRoute };
@@ -204,6 +212,8 @@ assert.deepEqual(runGuard({ bootstrap: null, candidate: true }), { allowed: fals
 assert.deepEqual(runGuard({ bootstrap: disabled, candidate: true }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a server-disabled direct tab entry must return to legacy");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: false }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a package-disabled direct tab entry must return to legacy");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true }), { allowed: true, guardRoutes: [] }, "an enabled envelope may enter any core tab");
+assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true, sessionUserId: "" }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "a native tab requires an authenticated app session user");
+assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true, sessionUserId: "user-2" }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "a bootstrap owned by another session user must return to boot");
 for (const tabPath of tabPaths) {
   const pageSource = readFileSync(new URL(`../miniprogram/${tabPath}.js`, import.meta.url), "utf8");
   let definition;
@@ -230,7 +240,7 @@ vm.runInNewContext(bootSource, {
   wx: { switchTab: () => assert.fail("server-disabled boot must not switch to a tab"), reLaunch: ({ url }) => legacyBootRoutes.push(url) },
   require: (specifier) => {
     if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, extractLegacyOptions: (options) => options, getHouseholdId: () => "", loadBootstrap: async () => disabled, resolveKnownShareRoute, resolveStartupRoute };
-    if (specifier === "../../utils/store") return { appStore: { setState: () => {} } };
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected legacy boot dependency: ${specifier}`);
   }
@@ -258,7 +268,7 @@ vm.runInNewContext(bootSource, {
       resolveKnownShareRoute,
       resolveStartupRoute
     };
-    if (specifier === "../../utils/store") return { appStore: { setState: () => {} } };
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected retry boot dependency: ${specifier}`);
   }
@@ -292,7 +302,7 @@ vm.runInNewContext(bootSource, {
       resolveKnownShareRoute,
       resolveStartupRoute
     };
-    if (specifier === "../../utils/store") return { appStore: { setState: (patch) => storeUpdates.push(patch) } };
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: (envelope) => storeUpdates.push({ bootstrap: envelope, currentHouseholdId: envelope.activeHouseholdId }) } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: (result, fields) => spanEvents.push({ result, fields }) }) };
     throw new Error(`Unexpected boot dependency: ${specifier}`);
   }
@@ -305,7 +315,7 @@ const bootPage = {
 };
 await bootPage.onLoad({});
 assert.deepEqual(routes, [["switchTab", "/pages/tonight/index"]], "native core entry must use switchTab");
-assert.deepEqual(JSON.parse(JSON.stringify(storeUpdates)), [{ bootstrap: enabled, currentHouseholdId: "" }]);
+assert.deepEqual(JSON.parse(JSON.stringify(storeUpdates)), [{ bootstrap: enabled, currentHouseholdId: "household-1" }], "boot must store the exact API activeHouseholdId");
 assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [{ result: "completed", fields: { page: "boot" } }]);
 
 routes.length = 0;

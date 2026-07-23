@@ -1,19 +1,53 @@
 const { HumiRequestError } = require("./errors");
+const { getSession } = require("./session");
 
-const QUEUE_KEY = "humi:offline-queue:v1";
-const DEAD_LETTER_KEY = "humi:offline-dead-letter:v1";
+const QUEUE_KEY_PREFIX = "humi:offline-queue:v1:";
+const DEAD_LETTER_KEY_PREFIX = "humi:offline-dead-letter:v1:";
 const MAX_ACTIONS = 100;
 const MAX_QUEUE_BYTES = 256 * 1024;
 const ALLOWED_ACTIONS = new Set(["meal_progress", "meal_complete", "meal_feedback", "meal_abandon", "grocery_item_check", "product_event"]);
+const ALLOWED_ACTION_FIELDS = new Set([
+  "id",
+  "type",
+  "householdId",
+  "mealRunId",
+  "createdAt",
+  "path",
+  "method",
+  "data",
+  "idempotencyKey",
+  "stateVersion",
+  "event",
+  "fields",
+  "ownerUserId"
+]);
 let customReplayer = null;
 
-function readQueue() {
-  const queue = wx.getStorageSync(QUEUE_KEY);
+function getOwnerUserId() {
+  const userId = getSession()?.user?.id;
+  return typeof userId === "string" ? userId : "";
+}
+
+function queueKey(ownerUserId) {
+  return `${QUEUE_KEY_PREFIX}${ownerUserId}`;
+}
+
+function deadLetterKey(ownerUserId) {
+  return `${DEAD_LETTER_KEY_PREFIX}${ownerUserId}`;
+}
+
+function readQueueForOwner(ownerUserId) {
+  if (!ownerUserId) return [];
+  const queue = wx.getStorageSync(queueKey(ownerUserId));
   return Array.isArray(queue) ? sortQueue(queue) : [];
 }
 
-function writeQueue(queue) {
-  wx.setStorageSync(QUEUE_KEY, sortQueue(queue));
+function readQueue() {
+  return readQueueForOwner(getOwnerUserId());
+}
+
+function writeQueue(queue, ownerUserId) {
+  wx.setStorageSync(queueKey(ownerUserId), sortQueue(queue));
 }
 
 function sortQueue(queue) {
@@ -38,6 +72,25 @@ function validateAction(action) {
   }
 }
 
+function projectAction(action, ownerUserId) {
+  if (!action || typeof action !== "object" || Array.isArray(action)) {
+    throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
+  }
+  for (const key of Object.keys(action)) {
+    if (!ALLOWED_ACTION_FIELDS.has(key)) {
+      throw new HumiRequestError(0, "offline_action_invalid", { retryable: false });
+    }
+  }
+  const projected = {};
+  for (const key of ALLOWED_ACTION_FIELDS) {
+    if (key !== "ownerUserId" && Object.prototype.hasOwnProperty.call(action, key) && action[key] !== undefined) {
+      projected[key] = action[key];
+    }
+  }
+  projected.ownerUserId = ownerUserId;
+  return projected;
+}
+
 function utf8ByteLength(value) {
   let bytes = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -53,28 +106,36 @@ function utf8ByteLength(value) {
 }
 
 function enqueueMutation(action) {
-  validateAction(action);
-  const queue = readQueue().filter((item) => item.id !== action.id);
-  const next = [...queue, action];
+  const ownerUserId = getOwnerUserId();
+  if (!ownerUserId) throw new HumiRequestError(0, "offline_session_required", { retryable: false });
+  const ownedAction = projectAction(action, ownerUserId);
+  validateAction(ownedAction);
+  const queue = readQueueForOwner(ownerUserId).filter((item) => item.id !== ownedAction.id);
+  const next = [...queue, ownedAction];
   if (utf8ByteLength(JSON.stringify(next)) > MAX_QUEUE_BYTES) throw new HumiRequestError(0, "offline_queue_too_large", { retryable: false });
   if (next.length > MAX_ACTIONS) throw new HumiRequestError(0, "offline_queue_full", { retryable: false });
-  writeQueue(next);
-  return action;
+  writeQueue(next, ownerUserId);
+  return ownedAction;
 }
 
-function removeAction(actionId) {
-  writeQueue(readQueue().filter((action) => action.id !== actionId));
+function removeAction(actionId, ownerUserId) {
+  writeQueue(readQueueForOwner(ownerUserId).filter((action) => action.id !== actionId), ownerUserId);
 }
 
-function readDeadLetters() {
-  const items = wx.getStorageSync(DEAD_LETTER_KEY);
+function readDeadLettersForOwner(ownerUserId) {
+  if (!ownerUserId) return [];
+  const items = wx.getStorageSync(deadLetterKey(ownerUserId));
   return Array.isArray(items) ? items : [];
 }
 
-function moveToDeadLetter(action, code) {
-  const next = [...readDeadLetters(), { id: action.id, code: code || "request_failed" }];
-  wx.setStorageSync(DEAD_LETTER_KEY, next.slice(-MAX_ACTIONS));
-  removeAction(action.id);
+function readDeadLetters() {
+  return readDeadLettersForOwner(getOwnerUserId());
+}
+
+function moveToDeadLetter(action, code, ownerUserId) {
+  const next = [...readDeadLettersForOwner(ownerUserId), { id: action.id, code: code || "request_failed" }];
+  wx.setStorageSync(deadLetterKey(ownerUserId), next.slice(-MAX_ACTIONS));
+  removeAction(action.id, ownerUserId);
 }
 
 function setMutationReplayer(replayer) {
@@ -90,19 +151,26 @@ async function replayAction(action) {
     method: action.method || "POST",
     data: action.data,
     idempotencyKey: action.idempotencyKey || action.id,
-    stateVersion: action.stateVersion
+    stateVersion: action.stateVersion,
+    expectedUserId: action.ownerUserId
   });
 }
 
 async function flushMutationQueue() {
-  for (const action of sortQueue(readQueue())) {
+  const ownerUserId = getOwnerUserId();
+  if (!ownerUserId) return { status: "skipped", reason: "no_session" };
+  for (const action of sortQueue(readQueueForOwner(ownerUserId))) {
+    if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+    if (action.ownerUserId !== ownerUserId) return { status: "skipped", reason: "ownership_mismatch" };
     try {
       await replayAction(action);
-      removeAction(action.id);
+      if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
+      removeAction(action.id, ownerUserId);
     } catch (error) {
+      if (getOwnerUserId() !== ownerUserId) return { status: "skipped", reason: "ownership_changed" };
       if (error.status === 409) return { status: "conflict", action, envelope: error.latestEnvelope };
       if (!error.retryable) {
-        moveToDeadLetter(action, error.code);
+        moveToDeadLetter(action, error.code, ownerUserId);
         continue;
       }
       return { status: "retry", action };
@@ -113,6 +181,7 @@ async function flushMutationQueue() {
 
 module.exports = {
   ALLOWED_ACTIONS,
+  ALLOWED_ACTION_FIELDS,
   MAX_ACTIONS,
   MAX_QUEUE_BYTES,
   enqueueMutation,

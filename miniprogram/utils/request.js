@@ -41,8 +41,30 @@ function authenticatedRequest(options) {
   return rawRequest({ ...options, accessToken: activeSession.accessToken });
 }
 
+function getActiveApp() {
+  try {
+    return typeof getApp === "function" ? getApp() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function syncAppSession(activeSession) {
+  const app = getActiveApp();
+  if (typeof app?.setHumiSession === "function") app.setHumiSession(activeSession);
+}
+
+function clearActiveSession() {
+  const app = getActiveApp();
+  if (typeof app?.clearHumiSession === "function") app.clearHumiSession();
+  else session.clearSession();
+}
+
 async function requestHumi(options = {}) {
   const requestOptions = { ...options, method: String(options.method || "GET").toUpperCase() };
+  if (requestOptions.expectedUserId && session.getSession()?.user?.id !== requestOptions.expectedUserId) {
+    throw new HumiRequestError(401, "session_owner_changed", { retryable: false });
+  }
   const canReplay = requestOptions.method === "GET" || Boolean(requestOptions.idempotencyKey);
   try {
     return await authenticatedRequest(requestOptions);
@@ -51,17 +73,21 @@ async function requestHumi(options = {}) {
   }
 
   try {
-    await session.refreshSessionOnce();
+    const refreshedSession = await session.refreshSessionOnce();
+    syncAppSession(refreshedSession);
   } catch (error) {
     if (error.status !== 401) throw error;
-    session.clearSession();
+    clearActiveSession();
     throw new HumiRequestError(401, "invalid_session", { retryable: false });
+  }
+  if (requestOptions.expectedUserId && session.getSession()?.user?.id !== requestOptions.expectedUserId) {
+    throw new HumiRequestError(401, "session_owner_changed", { retryable: false });
   }
   try {
     return await authenticatedRequest({ ...requestOptions, retry401: false });
   } catch (error) {
     if (error.status !== 401) throw error;
-    session.clearSession();
+    clearActiveSession();
     throw new HumiRequestError(401, "invalid_session", { retryable: false });
   }
 }
