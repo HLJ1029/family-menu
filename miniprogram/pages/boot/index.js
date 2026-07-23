@@ -1,4 +1,4 @@
-const { getHouseholdId, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
+const { buildLegacyRoute, getHouseholdId, loadBootstrap, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
 const { appStore } = require("../../utils/store");
 const { startSpan } = require("../../utils/telemetry");
 
@@ -38,7 +38,7 @@ Page({
       });
       appStore.setState({ bootstrap: envelope, currentHouseholdId: getHouseholdId(envelope) });
       span.end("completed", { page: "boot" });
-      this.route(target.route);
+      this.route(target.route === "/pages/legacy/index" ? buildLegacyRoute(options) : target.route);
     } catch (error) {
       span.end("failed", { page: "boot", errorCode: error?.code || "request_failed" });
       this.setData({ state: "error", errorText: "暂时连不上 Humi，可以重试或进入兼容版。" });
@@ -50,7 +50,7 @@ Page({
   },
 
   enterLegacy() {
-    this.route("/pages/legacy/index");
+    this.route(buildLegacyRoute({}));
   },
 
   route(url) {

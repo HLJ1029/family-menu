@@ -543,6 +543,12 @@ git commit -m "feat: add native mini program platform foundation"
 - Create: `miniprogram/pages/family/index.*`
 - Create: `miniprogram/components/page-state/index.*`
 - Create: `miniprogram/utils/bootstrap.js`
+- Create: `miniprogram/packageCooking/pages/cooking/index.*` (legal page-state placeholder only)
+- Create: `miniprogram/packageFamily/pages/settings/index.*` (legal page-state placeholder only)
+- Create: `miniprogram/packageFamily/pages/invite/index.*` (legal page-state placeholder only)
+- Create: `miniprogram/packageFamily/pages/task/index.*` (legal page-state placeholder only)
+- Create: `miniprogram/packageContent/pages/recipe/index.*` (legal page-state placeholder only)
+- Create: `miniprogram/packageContent/pages/web-content/index.*` (legal page-state placeholder only)
 - Modify: `miniprogram/app.json`
 - Modify: `miniprogram/app.wxss`
 - Modify: `miniprogram/project.config.json`
@@ -624,6 +630,8 @@ Keep this N1 tab bar text-only exactly as shown above. Icon assets are not requi
 
 Compatibility clarification: retain `pages/index/index` immediately after `pages/legacy/index` as a non-tab historical share-entry shim. It contains no WebView. Recognized public token queries (`crave`, `grocery`/`groceryShare`, `menuShare`, `wishShare`, `invite`, `mealTask`) reLaunch the existing `/pages/share/index` with the mapped type, token, and `shareSource` before the core-shell flag check; unknown historical queries preserve their parameters and reLaunch `/pages/legacy/index`.
 
+Every `pages` and `subPackages` registration must ship a legal four-file page. The six deferred subpackage pages above are N1 `page-state` placeholders with only `功能将在后续阶段启用`; they make no API request and expose no N2/N3 interaction.
+
 - [ ] **Step 4: Implement the boot state machine**
 
 ```js
@@ -672,7 +680,7 @@ Expected: all commands exit `0`; when the server flag is false, boot always rela
 - [ ] **Step 8: Commit the dual-shell routing layer**
 
 ```bash
-git add miniprogram/pages/boot miniprogram/pages/legacy miniprogram/pages/tonight miniprogram/pages/discover miniprogram/pages/plan miniprogram/pages/grocery miniprogram/pages/family miniprogram/components/page-state miniprogram/utils/bootstrap.js miniprogram/app.json miniprogram/app.wxss miniprogram/project.config.json scripts/check-native-shell-routing.mjs scripts/check-miniprogram-entrypoint-resilience.mjs package.json
+git add miniprogram/pages/boot miniprogram/pages/legacy miniprogram/pages/tonight miniprogram/pages/discover miniprogram/pages/plan miniprogram/pages/grocery miniprogram/pages/family miniprogram/components/page-state miniprogram/packageCooking miniprogram/packageFamily miniprogram/packageContent miniprogram/utils/bootstrap.js miniprogram/utils/native-shell-guard.js miniprogram/app.json miniprogram/app.wxss miniprogram/project.config.json scripts/check-native-shell-routing.mjs scripts/check-miniprogram-entrypoint-resilience.mjs package.json
 git commit -m "feat: add feature-gated native shell routing"
 ```
 
@@ -986,10 +994,7 @@ git commit -m "feat: add native Tonight decision flow"
 ### Task 9: Implement Native Cooking, Timers, Downgrade, Serve, and Feedback
 
 **Files:**
-- Create: `miniprogram/packageCooking/pages/cooking/index.js`
-- Create: `miniprogram/packageCooking/pages/cooking/index.json`
-- Create: `miniprogram/packageCooking/pages/cooking/index.wxml`
-- Create: `miniprogram/packageCooking/pages/cooking/index.wxss`
+- Modify/replace the Task 5 placeholder: `miniprogram/packageCooking/pages/cooking/index.*`
 - Create: `miniprogram/components/cooking-step/index.*`
 - Create: `miniprogram/components/absolute-timer/index.*`
 - Create: `miniprogram/components/meal-feedback/index.*`
@@ -1089,8 +1094,8 @@ git commit -m "feat: add native whole-meal cooking flow"
 - Modify: `miniprogram/pages/discover/index.*`
 - Create: `miniprogram/components/dish-card/index.*`
 - Create: `miniprogram/components/image-with-fallback/index.*`
-- Create: `miniprogram/packageContent/pages/recipe/index.*`
-- Create: `miniprogram/packageContent/pages/web-content/index.*`
+- Modify/replace the Task 5 placeholders: `miniprogram/packageContent/pages/recipe/index.*`
+- Modify/replace the Task 5 placeholders: `miniprogram/packageContent/pages/web-content/index.*`
 - Create: `miniprogram/utils/content-routes.js`
 - Modify: `api/server.js`
 - Create: `scripts/check-native-primary-tabs.mjs`
@@ -1240,8 +1245,8 @@ git commit -m "feat: add versioned native plan and grocery tabs"
 - Create: `miniprogram/components/household-summary/index.*`
 - Create: `miniprogram/components/member-row/index.*`
 - Create: `miniprogram/components/collaboration-row/index.*`
-- Create: `miniprogram/packageFamily/pages/settings/index.*`
-- Create: `miniprogram/packageFamily/pages/invite/index.*`
+- Modify/replace the Task 5 placeholders: `miniprogram/packageFamily/pages/settings/index.*`
+- Modify/replace the Task 5 placeholders: `miniprogram/packageFamily/pages/invite/index.*`
 - Modify: `scripts/check-native-primary-tabs.mjs`
 - Modify: `scripts/check-collaboration-identity.mjs`
 
@@ -1504,8 +1509,8 @@ git commit -m "feat: complete deterministic native poster sharing"
 ### Task 15: Add Meal Tasks and One-Time Reminder Permission at the Correct Moment
 
 **Files:**
-- Modify: `miniprogram/packageCooking/pages/cooking/index.*`
-- Modify: `miniprogram/packageFamily/pages/task/index.*`
+- Modify the Task 5 placeholder: `miniprogram/packageCooking/pages/cooking/index.*`
+- Modify the Task 5 placeholder: `miniprogram/packageFamily/pages/task/index.*`
 - Modify: `miniprogram/pages/reminder/index.*`
 - Modify: `scripts/check-miniprogram-meal-reminder.mjs`
 - Modify: `scripts/check-native-cooking.mjs`

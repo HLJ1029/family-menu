@@ -78,3 +78,83 @@ Mini-program share runtime validation passed.
 
 - 额外运行 `npm run validate:identity` 时，`scripts/check-identity-runtime.mjs:8` 仍静态期待 Task 4 前的 `getStorageSync(NATIVE_SESSION_KEY)`；当前 app 已正确使用 Task 4 的 `restoreSession()`。该预存基础设施断言不在 Task 5 指定回归内，未越界修改。
 - `npm run build` 成功但仍给出现有 H5 单 chunk 大于 500 kB 的 Vite warning；本任务未改 H5 chunking。
+
+## Review correction — routing hardening and package legality
+
+### RED
+
+以下合同均在对应最小修正前实际失败：
+
+1. 递归 `app.json` registration 合同报出：
+
+   ```text
+   AssertionError [ERR_ASSERTION]: registered subpackage page packageCooking/pages/cooking/index must include index.js
+   ```
+
+   这锁定了六个 registered subpackage path 缺失合法页面文件。
+
+2. 将一个 trim 后合法 token 与伪造 `shareSource` 写入合同后，实际输出：
+
+   ```text
+   actual: '/pages/share/index?type=crave&token=%20abcdefghijklmnopqrstuvwx%20&shareSource=ignored'
+   expected: '/pages/share/index?type=crave&token=abcdefghijklmnopqrstuvwx&shareSource=crave'
+   ```
+
+   这证明旧 resolver 信任外部 source、未 trim token；同一合同还覆盖对象、空白、短/超长/非法 token 及多 token key。
+
+3. 用户命名 last-household pointer 合同实际失败：
+
+   ```text
+   actual: ['humi:bootstrap:last-household:v1', { householdId: 'household-1', userId: 'user-1' }]
+   expected: ['humi:bootstrap:last-household:v1:user-1', 'household-1']
+   ```
+
+   随后 user-a/user-b cache fixture 在旧 mock 行为下产生 `Missing expected rejection`，确认必须按当前 session user 的 key 隔离读取。
+
+4. shared guard 合同在实现前因 `miniprogram/utils/native-shell-guard.js` 不存在而 `ENOENT`；合同覆盖五个 tab 的未知 store → boot、server/package disabled → legacy、enabled → 允许。
+
+### GREEN
+
+修正后 fresh validation：
+
+```sh
+npm run validate:native-shell-routing && npm run validate:miniprogram-entry && npm run validate:share-bridge && npm run validate:native-session && npm run validate:native-offline && npm run validate:native-bootstrap-api && npm run build
+```
+
+全部 exit `0`，输出包括：
+
+```text
+Native shell routing checks passed.
+Mini-program entrypoint resilience checks passed.
+Mini-program share runtime validation passed.
+Native session foundation contract passed.
+Native offline, cache, telemetry, and store foundation contract passed.
+Native bootstrap API contract passed.
+✓ built in 1.23s
+```
+
+随后运行精确 secret scan 与 diff gate：
+
+```sh
+/Users/honglijie/AI-HQ/scripts/secret-scan.sh && git diff --check
+```
+
+输出：
+
+```text
+Secret scan passed.
+```
+
+`git diff --check` 无输出、exit `0`。
+
+### Corrective changes
+
+- 每个 app root/subpackage registration 由 routing contract 递归验证四件套；六个 deferred subpackage path 现在仅为 shared page-state 的“功能将在后续阶段启用”合法占位。Task 9/10/12/15 的 plan 口径同步为 replace/implement placeholders。
+- `native-shell-guard` 是五个 core tabs 的唯一直达守卫：无 bootstrap 回 boot；package/server disabled 回 legacy；identity 未完成仍遵循 startup route；完整且 enabled 的 envelope 才允许 tab 绘制。
+- 公开 token 必须是 trim 后 `[A-Za-z0-9_-]{24,64}` 的单一字符串。type/shareSource 从 key 固定映射，忽略输入的 `shareSource`；多 token 或无效 token 均进入 safe legacy 路径。
+- boot 与历史 shim 共享 `buildLegacyRoute`，仅保留允许的 `view`、固定 `shareSource` 与布尔 Humi compatibility flags；不转发 token、任意 query 或自由文本。
+- cache fallback 只接受 `status: 0`、`retryable: true` 的 `network_error`/`request_timeout`；401/403/协议/服务端错误直接抛。last-household pointer 使用当前 user-id 命名 key，避免跨账号缓存读取。
+
+### Revised scope note
+
+tab 的 retry/error 仍只是 shared state-display shell 的占位，不代表 N1 已具备真实数据重试或 N2/N3 业务动作。

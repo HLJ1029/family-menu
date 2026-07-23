@@ -1,0 +1,1 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry"><view class="placeholder"><text>功能将在后续阶段启用</text></view></page-state>

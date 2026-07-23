@@ -1,8 +1,9 @@
 const { appStore } = require("../../utils/store");
+const { guardNativeTab } = require("../../utils/native-shell-guard");
 
 Page({
   data: { status: "loading", errorText: "" },
-  onShow() { this.syncState(); },
+  onShow() { if (guardNativeTab()) this.syncState(); },
   syncState() {
     const bootstrap = appStore.getState().bootstrap;
     this.setData({ status: bootstrap?.cacheState === "cached" ? "cached" : bootstrap ? "ready" : "empty", errorText: "" });
