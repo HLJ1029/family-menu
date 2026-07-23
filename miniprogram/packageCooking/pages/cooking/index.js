@@ -25,7 +25,7 @@ const { guardNativeTab } = require("../../../utils/native-shell-guard");
 const { requestHumi } = require("../../../utils/request");
 const { prepareShareSnapshot } = require("../../../utils/share-snapshot");
 const { appStore } = require("../../../utils/store");
-const { startSpan } = require("../../../utils/telemetry");
+const { startSpan, trackEvent } = require("../../../utils/telemetry");
 
 const DOWNGRADES = [
   { id: "drop_side", apiAction: "remove_optional_side", label: "去掉非必要配菜" },
@@ -40,6 +40,7 @@ const ABANDON_REASONS = [
 ];
 const FEEDBACK_VALUES = new Set(["want_again", "change_it", "too_hard"]);
 const MUTATING_STATUSES = new Set(["planned", "cooking"]);
+const COOKING_TELEMETRY_ACTIONS = new Set(["progress", "timer", "downgrade", "feedback"]);
 
 const pageDefinition = {
   data: {
@@ -210,6 +211,7 @@ const pageDefinition = {
       ...(timer ? { timer } : {}),
     };
     if (!this.data.isOnline && !mealRun.localOnly) {
+      trackOfflineCookingMutation(`progress:${next.id}`, mealRun);
       this.queueMealMutation("meal_progress", payload, `progress:${next.id}`);
       writeOptimisticMealProgress(mealRun, {
         ownerUserId: appStore.getState().bootstrap?.user?.id,
@@ -261,6 +263,7 @@ const pageDefinition = {
       timer,
     };
     if (!this.data.isOnline && !mealRun.localOnly) {
+      trackOfflineCookingMutation(`timer:${currentStep.id}`, mealRun);
       this.queueMealMutation("meal_progress", payload, `timer:${currentStep.id}`);
       writeOptimisticMealProgress(mealRun, {
         ownerUserId: appStore.getState().bootstrap?.user?.id,
@@ -334,6 +337,7 @@ const pageDefinition = {
     const mealRun = this.data.mealRun;
     if (!option || this.data.pendingAction || this.data.syncFrozen || !MUTATING_STATUSES.has(mealRun?.status)) return;
     if (!this.data.isOnline && !mealRun.localOnly) {
+      trackOfflineCookingMutation(`downgrade:${option.apiAction}`, mealRun);
       this.setData({
         downgradeSheetVisible: false,
         errorText: "简化方案需要联网确认，当前进度不会丢失。",
@@ -417,6 +421,7 @@ const pageDefinition = {
       || currentUserFeedback(mealRun) === value
     ) return;
     if (!this.data.isOnline && !mealRun.localOnly) {
+      trackOfflineCookingMutation(`feedback:${value}`, mealRun);
       this.queueMealMutation("meal_feedback", { value }, `feedback:${value}`);
       this.setData({ feedbackValue: value, errorText: "反馈已保存在本机，联网后会同步。" });
       return;
@@ -618,21 +623,27 @@ const pageDefinition = {
 
   async runMutation(key, mutate, { onOffline } = {}) {
     if (this._pendingMutations?.has(key)) return this._pendingMutations.get(key);
+    trackCookingMutation(key, "started", this.data.mealRun);
     this.setData({ pendingAction: key, errorText: "" });
     const pending = Promise.resolve()
       .then(mutate)
       .then((mealRun) => {
         if (mealRun) this.applyMealRun(mealRun);
+        trackCookingMutation(key, "completed", mealRun || this.data.mealRun);
         return mealRun;
       })
       .catch(async (error) => {
         if (Number(error?.status) === 409) {
+          trackCookingMutation(key, "failed", this.data.mealRun, error);
           await this.handleConflict(error);
           return this.data.mealRun;
         }
         if (isNetworkError(error)) {
+          trackCookingMutation(key, "failed", this.data.mealRun, error);
           this.setData({ isOnline: false, networkText: "网络已断开，进度会稍后同步" });
           if (typeof onOffline === "function") return onOffline();
+        } else {
+          trackCookingMutation(key, "failed", this.data.mealRun, error);
         }
         this.setData({ errorText: errorMessage(error, "这一步暂时没有保存成功，请重试。") });
         return this.data.mealRun;
@@ -947,6 +958,34 @@ function networkLabel(networkType) {
   if (networkType === "wifi") return "网络正常 · Wi-Fi";
   if (networkType === "none") return "网络已断开，进度会稍后同步";
   return "网络正常";
+}
+
+function trackOfflineCookingMutation(key, mealRun) {
+  trackCookingMutation(key, "started", mealRun);
+  trackCookingMutation(key, "failed", mealRun, { status: 0, code: "network_error" });
+}
+
+function trackCookingMutation(key, outcome, mealRun, error = {}) {
+  const action = String(key || "").split(":")[0];
+  if (!COOKING_TELEMETRY_ACTIONS.has(action)) return null;
+  const mealRunId = String(mealRun?.id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
+  const isOffline = isNetworkError(error);
+  const isConflict = Number(error?.status) === 409 || error?.code === "conflict";
+  const stage = outcome === "started"
+    ? "started"
+    : outcome === "completed"
+      ? "completed"
+      : isOffline
+        ? "offline"
+        : "failed";
+  return trackEvent(`cooking_mutation_${outcome}`, {
+    page: "cooking",
+    stage,
+    result: outcome === "completed" ? "completed" : isOffline ? "offline" : isConflict ? "conflict" : "failed",
+    errorCode: outcome !== "failed" ? "none" : isOffline ? "network_error" : isConflict ? "conflict" : "request_failed",
+    mealRunId,
+    businessId: `cooking:${action}:${mealRunId || "unknown"}`.slice(0, 100),
+  });
 }
 
 function errorMessage(error, fallback) {

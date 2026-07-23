@@ -107,6 +107,7 @@ function createAppRuntime(flush, restoredSession = null) {
         return {
           trackEvent: (name, fields) => events.push({ name, fields }),
           scheduleTelemetryFlush: () => {},
+          setTelemetryOwner: () => {},
         };
       }
       if (specifier === "./utils/store") return { appStore };
@@ -712,7 +713,10 @@ async function nextTask() {
   const batches = [];
   await telemetry.flushTelemetry(async (batch) => batches.push(batch));
   assert.equal(batches[0].length, 20, "telemetry deliveries must contain at most 20 events");
-  assert.deepEqual(batches.map((batch) => batch.length), [20, 6], "flush must drain remaining events in bounded batches");
+  assert.deepEqual(batches.map((batch) => batch.length), [20], "one flush must not monopolize startup bandwidth");
+  assert.equal(telemetry.readPendingTelemetry().length, 6, "remaining telemetry waits for a later schedule");
+  await telemetry.flushTelemetry(async (batch) => batches.push(batch));
+  assert.deepEqual(batches.map((batch) => batch.length), [20, 6], "a later flush drains the remaining bounded batch");
   const span = telemetry.startSpan("bootstrap", { householdId: "h1" });
   span.end("completed", { durationMs: 4, errorMessage: "ignored" });
   assert.deepEqual(JSON.parse(JSON.stringify(telemetry.readPendingTelemetry().at(-1).fields)), {

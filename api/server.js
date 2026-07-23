@@ -4,7 +4,7 @@ import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promi
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
-import { APPROVED_AVATAR_KEYS, HumiStore } from "./store.js";
+import { APPROVED_AVATAR_KEYS, HumiStore, hashTelemetryAnonymousSessionId } from "./store.js";
 import { buildBootstrapEnvelope } from "./bootstrap.js";
 import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
@@ -53,16 +53,21 @@ const config = {
   telemetryHashSalt: process.env.HUMI_TELEMETRY_HASH_SALT || (process.env.NODE_ENV === "production" ? "" : "humi-dev-telemetry-salt"),
   telemetryRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_RATE_LIMIT || 120)),
   telemetryRateWindowMs: Math.max(1_000, Number(process.env.HUMI_TELEMETRY_RATE_WINDOW_MS || 60_000)),
+  telemetryNetworkRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT || 2_400)),
   mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
   mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
   mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",
 };
+config.telemetryNetworkRateLimit = Math.max(
+  config.telemetryNetworkRateLimit,
+  config.telemetryRateLimit * 10,
+);
 
 if (!config.sessionSecret) {
   throw new Error("HUMI_SESSION_SECRET is required in production.");
 }
-if (!config.telemetryHashSalt) {
-  throw new Error("HUMI_TELEMETRY_HASH_SALT is required in production.");
+if (!config.telemetryHashSalt || (process.env.NODE_ENV === "production" && config.telemetryHashSalt.length < 32)) {
+  throw new Error("HUMI_TELEMETRY_HASH_SALT must be at least 32 characters in production.");
 }
 
 const store = new HumiStore(config.dataFile);
@@ -1249,12 +1254,12 @@ async function handleCancelMealReminder(request, response, reminderId) {
 }
 
 async function handleProductEvent(request, response) {
-  enforceTelemetryAccess(request);
   const auth = await optionalAuth(request);
   const user = auth ? await store.getUser(auth.userId) : null;
   if (auth && !user) throw httpError(401, "invalid_session", "Session user not found.");
-  const body = await readJson(request);
+  const body = await readJson(request, 4 * 1024);
   try {
+    enforceTelemetryAccess(request, body);
     await store.recordClientProductEvent({
       userId: user?.id || "",
       telemetryHashSalt: config.telemetryHashSalt,
@@ -1275,30 +1280,57 @@ async function handleProductEvent(request, response) {
   }
 }
 
-const telemetryRateBuckets = new Map();
-let telemetryRateBucketsPrunedAt = 0;
+export function createBoundedFixedWindowLimiter({ limit, windowMs, maxEntries }) {
+  const buckets = new Map();
+  let lastSweepAt = null;
+  return {
+    consume(key, now = Date.now()) {
+      if (lastSweepAt === null || now - lastSweepAt >= windowMs) {
+        for (const [bucketKey, bucket] of buckets) {
+          if (now >= bucket.resetAt) buckets.delete(bucketKey);
+        }
+        lastSweepAt = now;
+      }
+      const bucket = buckets.get(key);
+      if (bucket && now < bucket.resetAt) {
+        if (bucket.count >= limit) return false;
+        bucket.count += 1;
+        return true;
+      }
+      if (bucket) buckets.delete(key);
+      while (buckets.size >= maxEntries) {
+        const oldestKey = buckets.keys().next().value;
+        if (oldestKey === undefined) break;
+        buckets.delete(oldestKey);
+      }
+      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      return true;
+    },
+    get size() {
+      return buckets.size;
+    },
+  };
+}
 
-function enforceTelemetryAccess(request) {
-  const now = Date.now();
-  if (
-    now - telemetryRateBucketsPrunedAt >= config.telemetryRateWindowMs
-    || telemetryRateBuckets.size > 1000
-  ) {
-    for (const [key, bucket] of telemetryRateBuckets) {
-      if (now >= bucket.resetAt) telemetryRateBuckets.delete(key);
-    }
-    telemetryRateBucketsPrunedAt = now;
-  }
-  const key = request.socket?.remoteAddress || "unknown";
-  const bucket = telemetryRateBuckets.get(key);
-  if (!bucket || now >= bucket.resetAt) {
-    telemetryRateBuckets.set(key, { count: 1, resetAt: now + config.telemetryRateWindowMs });
-    return;
-  }
-  if (bucket.count >= config.telemetryRateLimit) {
+const telemetrySessionLimiter = createBoundedFixedWindowLimiter({
+  limit: config.telemetryRateLimit,
+  windowMs: config.telemetryRateWindowMs,
+  maxEntries: 4_096,
+});
+const telemetryNetworkLimiter = createBoundedFixedWindowLimiter({
+  limit: config.telemetryNetworkRateLimit,
+  windowMs: config.telemetryRateWindowMs,
+  maxEntries: 1_024,
+});
+
+function enforceTelemetryAccess(request, body) {
+  const sessionKey = hashTelemetryAnonymousSessionId(body?.anonymousSessionId, config.telemetryHashSalt);
+  const networkKey = createHmac("sha256", config.telemetryHashSalt)
+    .update(getClientIp(request))
+    .digest("hex");
+  if (!telemetryNetworkLimiter.consume(networkKey) || !telemetrySessionLimiter.consume(sessionKey)) {
     throw httpError(429, "telemetry_rate_limited", "数据上报有点快，请稍后再试。");
   }
-  bucket.count += 1;
 }
 
 async function handleGetHouseholds(request, response) {

@@ -1,8 +1,10 @@
 const { HUMI_PACKAGE_VERSION } = require("./config");
 
 const TELEMETRY_QUEUE_KEY = "humi:telemetry-queue:v1";
-const ANONYMOUS_SESSION_KEY = "humi:telemetry-anonymous-session:v1";
+const TELEMETRY_DEAD_LETTER_KEY = "humi:telemetry-dead-letter:v1";
 const MAX_PENDING_EVENTS = 200;
+const MAX_FLUSH_EVENTS = 20;
+const MAX_DEAD_LETTERS = 20;
 const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "businessId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId", "shareSource", "packageVersion"]);
 const EVENT_NAMES = new Set([
   "native_boot_started", "native_boot_completed", "native_boot_failed",
@@ -14,6 +16,7 @@ const EVENT_NAMES = new Set([
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
   "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
   "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+  "cooking_mutation_started", "cooking_mutation_completed", "cooking_mutation_failed",
 ]);
 const ENUM_FIELDS = {
   page: new Set(["boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder"]),
@@ -28,12 +31,15 @@ const ENUM_FIELDS = {
     "queue_conflict", "queue_retry", "queue_flush_failed"
   ])
 };
+const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "businessId", "stateVersion", "styleId"]);
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,99}$/;
+const SAFE_VERSION = /^\d+\.\d+\.\d+$/;
+let activeAnonymousSessionId = createTelemetryId("anonymous");
+let activeOwnerId = "";
 const pending = readStoredQueue();
+const deadLetters = readStoredDeadLetters();
 let flushPromise = null;
 let flushScheduled = false;
-const ID_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "businessId", "stateVersion", "styleId"]);
-const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
-const SAFE_VERSION = /^\d+\.\d+\.\d+$/;
 
 function sanitizeFields(fields = {}) {
   const clean = {};
@@ -60,6 +66,8 @@ function trackEvent(name, fields) {
     fields: sanitizeFields({ ...fields, packageVersion: HUMI_PACKAGE_VERSION }),
     at: Date.now(),
     businessId: createTelemetryId("event"),
+    anonymousSessionId: activeAnonymousSessionId,
+    ownerId: activeOwnerId,
   };
   pending.push(event);
   if (pending.length > MAX_PENDING_EVENTS) pending.splice(0, pending.length - MAX_PENDING_EVENTS);
@@ -78,22 +86,18 @@ function readPendingTelemetry() {
 
 async function flushTelemetry(send) {
   if (typeof send !== "function" || !pending.length) return { status: "empty" };
-  let count = 0;
-  while (pending.length) {
-    const batch = pending.slice(0, 20);
-    await send(batch);
-    pending.splice(0, batch.length);
-    persistPending();
-    count += batch.length;
-  }
-  return { status: "flushed", count };
+  const batch = pending.slice(0, MAX_FLUSH_EVENTS);
+  await send(batch);
+  pending.splice(0, batch.length);
+  persistPending();
+  return { status: "flushed", count: batch.length, remaining: pending.length };
 }
 
-function toWireEvent(event, { anonymousSessionId = getAnonymousSessionId(), authenticated = false } = {}) {
+function toWireEvent(event, { authenticated = false } = {}) {
   const fields = event?.fields || {};
   return {
     eventType: EVENT_NAMES.has(event?.name) ? event.name : "",
-    anonymousSessionId,
+    anonymousSessionId: safeBusinessId(event?.anonymousSessionId) || activeAnonymousSessionId,
     householdId: authenticated ? (fields.householdId || "") : "",
     page: fields.page || "",
     stage: fields.stage || "",
@@ -108,36 +112,52 @@ function flushTelemetryToServer() {
   if (flushPromise) return flushPromise;
   const { getSession } = require("./session");
   const { rawRequest, requestHumi } = require("./request");
-  const activeSession = getSession();
-  const authenticated = Boolean(activeSession?.accessToken);
-  const sendRequest = authenticated ? requestHumi : rawRequest;
-  const anonymousSessionId = getAnonymousSessionId();
-  flushPromise = flushTelemetry(async (batch) => {
-    for (const event of batch) {
-      const data = toWireEvent(event, { anonymousSessionId, authenticated });
-      await sendRequest({
-        path: "/product-events",
-        method: "POST",
-        data,
-        idempotencyKey: data.businessId,
-        ...(authenticated ? { expectedUserId: activeSession?.user?.id || "" } : {}),
-      });
+  flushPromise = (async () => {
+    let count = 0;
+    while (pending.length && count < MAX_FLUSH_EVENTS) {
+      const event = pending[0];
+      const activeSession = getSession();
+      const activeSessionOwner = safeBusinessId(activeSession?.user?.id);
+      const authenticated = Boolean(
+        activeSession?.accessToken
+        && event.ownerId
+        && event.ownerId === activeSessionOwner
+      );
+      const data = toWireEvent(event, { authenticated });
+      try {
+        await (authenticated ? requestHumi : rawRequest)({
+          path: "/product-events",
+          method: "POST",
+          data,
+          idempotencyKey: data.businessId,
+          ...(authenticated ? { expectedUserId: activeSessionOwner } : {}),
+        });
+      } catch (error) {
+        if (!isPermanentTelemetryError(error)) throw error;
+        moveToDeadLetter(event, error);
+      }
+      pending.shift();
+      persistPending();
+      count += 1;
     }
-  }).finally(() => {
+    return { status: count ? "flushed" : "empty", count, remaining: pending.length };
+  })().finally(() => {
     flushPromise = null;
   });
   return flushPromise;
 }
 
-function scheduleTelemetryFlush() {
+function scheduleTelemetryFlush({ delayMs = 0 } = {}) {
   if (flushScheduled) return;
   flushScheduled = true;
-  Promise.resolve()
+  const run = () => Promise.resolve()
     .then(() => flushTelemetryToServer())
     .catch(() => {})
     .finally(() => {
       flushScheduled = false;
     });
+  if (delayMs > 0 && typeof setTimeout === "function") setTimeout(run, delayMs);
+  else run();
 }
 
 function startSpan(name, fields = {}) {
@@ -178,6 +198,14 @@ function readStoredQueue() {
         && typeof event.fields === "object"
         && JSON.stringify(sanitizeFields(event.fields)) === JSON.stringify(event.fields)
       ))
+      .map((event) => ({
+        name: event.name,
+        fields: event.fields,
+        at: event.at,
+        businessId: safeBusinessId(event.businessId),
+        anonymousSessionId: safeBusinessId(event.anonymousSessionId) || activeAnonymousSessionId,
+        ownerId: safeBusinessId(event.ownerId),
+      }))
       .slice(-MAX_PENDING_EVENTS);
   } catch (_) {
     return [];
@@ -193,15 +221,60 @@ function persistPending() {
 }
 
 function getAnonymousSessionId() {
+  return activeAnonymousSessionId;
+}
+
+function setTelemetryOwner(ownerId, { rotate = true } = {}) {
+  const nextOwnerId = safeBusinessId(ownerId);
+  if (nextOwnerId === activeOwnerId) return activeAnonymousSessionId;
+  activeOwnerId = nextOwnerId;
+  if (rotate) activeAnonymousSessionId = createTelemetryId("anonymous");
+  return activeAnonymousSessionId;
+}
+
+function readStoredDeadLetters() {
   try {
-    const stored = typeof wx !== "undefined" ? wx.getStorageSync(ANONYMOUS_SESSION_KEY) : "";
-    if (safeBusinessId(stored)) return stored;
-    const created = createTelemetryId("anonymous");
-    if (typeof wx !== "undefined") wx.setStorageSync(ANONYMOUS_SESSION_KEY, created);
-    return created;
+    const stored = typeof wx !== "undefined" ? wx.getStorageSync(TELEMETRY_DEAD_LETTER_KEY) : null;
+    if (!Array.isArray(stored)) return [];
+    return stored.filter((entry) => (
+      EVENT_NAMES.has(entry?.name)
+      && safeBusinessId(entry?.businessId)
+      && safeBusinessId(entry?.errorCode)
+      && Number.isFinite(entry?.droppedAt)
+    )).slice(-MAX_DEAD_LETTERS);
   } catch (_) {
-    return createTelemetryId("anonymous");
+    return [];
   }
+}
+
+function moveToDeadLetter(event, error) {
+  deadLetters.push({
+    name: event.name,
+    businessId: safeBusinessId(event.businessId) || "invalid-event",
+    errorCode: permanentTelemetryErrorCode(error),
+    droppedAt: Date.now(),
+  });
+  if (deadLetters.length > MAX_DEAD_LETTERS) {
+    deadLetters.splice(0, deadLetters.length - MAX_DEAD_LETTERS);
+  }
+  try {
+    if (typeof wx !== "undefined") wx.setStorageSync(TELEMETRY_DEAD_LETTER_KEY, deadLetters);
+  } catch (_) {}
+}
+
+function isPermanentTelemetryError(error) {
+  const status = Number(error?.status || 0);
+  if (error?.retryable === false) return true;
+  return status >= 400 && status < 500 && ![408, 409, 425, 429].includes(status);
+}
+
+function permanentTelemetryErrorCode(error) {
+  const status = Number(error?.status || 0);
+  if (status === 400) return "invalid_event";
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "not_found";
+  return "non_retryable";
 }
 
 function createTelemetryId(prefix) {
@@ -230,9 +303,15 @@ function correlatedBusinessId(event) {
     fields.styleId,
     fields.stateVersion,
   ].map(safeBusinessId).find(Boolean);
-  if (!reference) return uniqueId;
-  const maxReferenceLength = Math.max(1, 100 - uniqueId.length - 1);
-  return `${reference.slice(0, maxReferenceLength)}:${uniqueId}`;
+  const dimensions = [
+    ENUM_FIELDS.effortTier.has(fields.effortTier) ? `effort-${fields.effortTier}` : "",
+    ENUM_FIELDS.shareSource.has(fields.shareSource) ? `share-${fields.shareSource}` : "",
+  ].filter(Boolean);
+  const reservedLength = uniqueId.length + dimensions.reduce((sum, value) => sum + value.length + 1, 0);
+  const safeReference = reference
+    ? reference.slice(0, Math.max(0, 100 - reservedLength - 1))
+    : "";
+  return [...dimensions, safeReference, uniqueId].filter(Boolean).join(":").slice(0, 100);
 }
 
 module.exports = {
@@ -245,5 +324,7 @@ module.exports = {
   toWireEvent,
   flushTelemetryToServer,
   scheduleTelemetryFlush,
+  getAnonymousSessionId,
+  setTelemetryOwner,
   startSpan,
 };

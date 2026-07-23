@@ -36,6 +36,7 @@ export const NATIVE_CLIENT_EVENT_TYPES = new Set([
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
   "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
   "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+  "cooking_mutation_started", "cooking_mutation_completed", "cooking_mutation_failed",
 ]);
 export const MEAL_RUN_SERVER_EVENT_TYPES = new Set([
   "meal_run_started",
@@ -73,33 +74,45 @@ export class HumiStore {
     this.filePath = resolve(filePath);
     this.data = structuredClone(DEFAULT_DATA);
     this.loaded = false;
+    this.loadPromise = null;
   }
 
   async load({ waitForTransaction = true } = {}) {
     if (waitForTransaction && this.transactionQueue) await this.transactionQueue;
     if (this.loaded) return;
-    try {
-      const raw = await readFile(this.filePath, "utf8");
-      this.data = { ...structuredClone(DEFAULT_DATA), ...JSON.parse(raw) };
-    } catch {
-      this.data = structuredClone(DEFAULT_DATA);
-    }
-    this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
-      ? this.data.collaborationEvents
-      : [];
-    this.data.mealRuns = Array.isArray(this.data.mealRuns) ? this.data.mealRuns : [];
-    this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
-    this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
-    this.data.productEvents = Array.isArray(this.data.productEvents)
-      ? this.data.productEvents.map(normalizeStoredProductEvent).filter(Boolean)
-      : [];
-    this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
-      ? this.data.recommendationRotations
-      : [];
-    this.data.stateMutationReceipts = Array.isArray(this.data.stateMutationReceipts)
-      ? this.data.stateMutationReceipts
-      : [];
-    this.loaded = true;
+    if (this.loadPromise) return this.loadPromise;
+    const performLoad = async () => {
+      try {
+        const raw = await readFile(this.filePath, "utf8");
+        this.data = { ...structuredClone(DEFAULT_DATA), ...JSON.parse(raw) };
+      } catch {
+        this.data = structuredClone(DEFAULT_DATA);
+      }
+      this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
+        ? this.data.collaborationEvents
+        : [];
+      this.data.mealRuns = Array.isArray(this.data.mealRuns) ? this.data.mealRuns : [];
+      this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
+      this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
+      const storedProductEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
+      const storedProductEventsJson = JSON.stringify(storedProductEvents);
+      this.data.productEvents = storedProductEvents.map(normalizeStoredProductEvent).filter(Boolean);
+      this.pruneProductEvents();
+      this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
+        ? this.data.recommendationRotations
+        : [];
+      this.data.stateMutationReceipts = Array.isArray(this.data.stateMutationReceipts)
+        ? this.data.stateMutationReceipts
+        : [];
+      if (JSON.stringify(this.data.productEvents) !== storedProductEventsJson) {
+        await this.flushToDisk();
+      }
+      this.loaded = true;
+    };
+    this.loadPromise = performLoad().finally(() => {
+      this.loadPromise = null;
+    });
+    return this.loadPromise;
   }
 
   async save() {
@@ -124,6 +137,7 @@ export class HumiStore {
       const snapshot = structuredClone(this.data);
       try {
         const result = await mutation();
+        this.pruneProductEvents();
         await this.save();
         return result;
       } catch (error) {
@@ -2292,7 +2306,6 @@ export class HumiStore {
       this.pruneProductEvents(now);
       const duplicate = this.data.productEvents.find((candidate) => (
         candidate.eventType === event.eventType
-        && candidate.anonymousSessionHash === event.anonymousSessionHash
         && candidate.businessId === event.businessId
       ));
       if (duplicate) return duplicate;
@@ -2678,9 +2691,7 @@ function sanitizeClientProductEvent(input, telemetryHashSalt) {
   if (!NATIVE_CLIENT_EVENT_TYPES.has(eventType)) {
     throw codedError("product_event_not_allowed", "Unsupported client product event.");
   }
-  const salt = String(telemetryHashSalt || "");
-  if (!salt) throw codedError("telemetry_hash_salt_required", "Telemetry hash salt is required.");
-  const anonymousSessionId = sanitizeTelemetryIdentifier(input.anonymousSessionId, "anonymousSessionId", 100);
+  const anonymousSessionHash = hashTelemetryAnonymousSessionId(input.anonymousSessionId, telemetryHashSalt);
   const businessId = sanitizeTelemetryIdentifier(input.businessId, "businessId", 100);
   const householdId = input.householdId
     ? sanitizeTelemetryIdentifier(input.householdId, "householdId", 100)
@@ -2709,7 +2720,7 @@ function sanitizeClientProductEvent(input, telemetryHashSalt) {
   }
   return {
     eventType,
-    anonymousSessionHash: createHmac("sha256", salt).update(anonymousSessionId).digest("hex"),
+    anonymousSessionHash,
     householdId,
     page,
     stage,
@@ -2718,6 +2729,13 @@ function sanitizeClientProductEvent(input, telemetryHashSalt) {
     packageVersion,
     businessId,
   };
+}
+
+export function hashTelemetryAnonymousSessionId(value, telemetryHashSalt) {
+  const salt = String(telemetryHashSalt || "");
+  if (!salt) throw codedError("telemetry_hash_salt_required", "Telemetry hash salt is required.");
+  const anonymousSessionId = sanitizeTelemetryIdentifier(value, "anonymousSessionId", 100);
+  return createHmac("sha256", salt).update(anonymousSessionId).digest("hex");
 }
 
 function normalizeStoredProductEvent(input) {

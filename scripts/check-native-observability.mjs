@@ -19,6 +19,7 @@ const EXPECTED_CLIENT_EVENTS = [
   "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
   "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
   "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+  "cooking_mutation_started", "cooking_mutation_completed", "cooking_mutation_failed",
 ].sort();
 const EXPECTED_SERVER_EVENTS = [
   "meal_run_started",
@@ -36,11 +37,11 @@ const EXPECTED_HTTP_FIELDS = [
   "packageVersion",
   "businessId",
 ].sort();
-const HASH_SALT = "observability-test-salt";
+const HASH_SALT = "observability-test-salt-at-least-32-bytes";
 const failures = [];
 const checks = [];
 
-await check("client telemetry retains exactly the 27 reviewed native event names", () => {
+await check("client telemetry retains exactly the 30 reviewed native event names", () => {
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
     "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
   });
@@ -49,7 +50,9 @@ await check("client telemetry retains exactly the 27 reviewed native event names
 
 await check("MealRun state facts are not duplicated by client cooking mutation events", () => {
   const source = readFileSync("miniprogram/packageCooking/pages/cooking/index.js", "utf8");
-  assert.doesNotMatch(source, /trackEvent\("cooking_mutation_(?:started|completed|failed)"/);
+  assert.match(source, /COOKING_TELEMETRY_ACTIONS\s*=\s*new Set\(\["progress",\s*"timer",\s*"downgrade",\s*"feedback"\]\)/);
+  assert.doesNotMatch(source, /COOKING_TELEMETRY_ACTIONS[^;]*\b(?:start|complete|abandon)\b/);
+  assert.match(source, /trackEvent\(`cooking_mutation_\$\{outcome\}`/);
 });
 
 await check("server exposes the same client allowlist plus only three server facts", () => {
@@ -131,7 +134,7 @@ await check("client business ids make accepted telemetry idempotent", async () =
     const second = await fixture.store.recordClientProductEvent({
       userId: fixture.userId,
       telemetryHashSalt: HASH_SALT,
-      input,
+      input: { ...input, anonymousSessionId: "rotated-anonymous-session" },
     });
     assert.equal(second.id, first.id);
     assert.equal(fixture.store.data.productEvents.length, 1);
@@ -170,6 +173,13 @@ await check("HTTP accepts anonymous client events but rejects household spoofing
     const memberToken = createSessionToken({ userId: fixture.userId, secret: sessionSecret }).token;
     const outsiderToken = createSessionToken({ userId: "observability-outsider", secret: sessionSecret }).token;
 
+    await postEvent(
+      origin,
+      { ...clientEvent({ businessId: "http-too-large" }), padding: "x".repeat(5_000) },
+      413,
+      "",
+      "request_too_large",
+    );
     await postEvent(origin, clientEvent({ householdId: "", businessId: "http-anonymous" }), 202);
     await postEvent(
       origin,
@@ -218,6 +228,14 @@ await check("HTTP accepts anonymous client events but rejects household spoofing
       "",
       "telemetry_rate_limited",
     );
+    await postEvent(
+      origin,
+      clientEvent({
+        anonymousSessionId: "anonymous-session-observability-2",
+        businessId: "http-independent-session",
+      }),
+      202,
+    );
 
     const persisted = JSON.parse(await readFile(fixture.store.filePath, "utf8"));
     assert.equal(persisted.productEvents.filter((event) => event.businessId === "http-member").length, 1);
@@ -230,6 +248,65 @@ await check("HTTP accepts anonymous client events but rejects household spoofing
     restoreEnvironment("HUMI_MEAL_EXECUTION_HOUSEHOLDS", priorEnvironment.mealHouseholds);
     restoreEnvironment("HUMI_TELEMETRY_RATE_LIMIT", priorEnvironment.telemetryRateLimit);
     restoreEnvironment("HUMI_TELEMETRY_RATE_WINDOW_MS", priorEnvironment.telemetryRateWindowMs);
+    await fixture.cleanup();
+  }
+});
+
+await check("two anonymous sessions behind one proxy each receive the default 120-request window", async () => {
+  const fixture = await createStoreFixture();
+  const priorEnvironment = {
+    dataFile: process.env.HUMI_API_DATA_FILE,
+    hashSalt: process.env.HUMI_TELEMETRY_HASH_SALT,
+    sessionSecret: process.env.HUMI_SESSION_SECRET,
+    telemetryRateLimit: process.env.HUMI_TELEMETRY_RATE_LIMIT,
+    telemetryNetworkRateLimit: process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT,
+  };
+  let server;
+  try {
+    process.env.HUMI_API_DATA_FILE = fixture.store.filePath;
+    process.env.HUMI_TELEMETRY_HASH_SALT = HASH_SALT;
+    process.env.HUMI_SESSION_SECRET = "observability-default-rate-session-secret";
+    delete process.env.HUMI_TELEMETRY_RATE_LIMIT;
+    delete process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT;
+    const serverModule = await import(`../api/server.js?observability-default-rate=${Date.now()}`);
+    const bounded = serverModule.createBoundedFixedWindowLimiter({
+      limit: 2,
+      windowMs: 60_000,
+      maxEntries: 3,
+    });
+    for (let index = 0; index < 20; index += 1) {
+      bounded.consume(`unique-${index}`, index);
+      assert.ok(bounded.size <= 3, "unique limiter keys must never grow beyond maxEntries");
+    }
+    bounded.consume("expired", 0);
+    bounded.consume("fresh", 60_001);
+    assert.ok(bounded.size <= 3, "expired cleanup must retain the hard map bound");
+
+    server = serverModule.createHumiApiServer();
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    for (const session of ["proxy-session-a", "proxy-session-b"]) {
+      for (let index = 0; index < 120; index += 1) {
+        await postEvent(origin, clientEvent({
+          anonymousSessionId: session,
+          businessId: `${session}-${index}`,
+        }), 202);
+      }
+    }
+    await postEvent(
+      origin,
+      clientEvent({ anonymousSessionId: "proxy-session-a", businessId: "proxy-session-a-over-limit" }),
+      429,
+      "",
+      "telemetry_rate_limited",
+    );
+  } finally {
+    if (server) await new Promise((resolve) => server.close(resolve));
+    restoreEnvironment("HUMI_API_DATA_FILE", priorEnvironment.dataFile);
+    restoreEnvironment("HUMI_TELEMETRY_HASH_SALT", priorEnvironment.hashSalt);
+    restoreEnvironment("HUMI_SESSION_SECRET", priorEnvironment.sessionSecret);
+    restoreEnvironment("HUMI_TELEMETRY_RATE_LIMIT", priorEnvironment.telemetryRateLimit);
+    restoreEnvironment("HUMI_TELEMETRY_NETWORK_RATE_LIMIT", priorEnvironment.telemetryNetworkRateLimit);
     await fixture.cleanup();
   }
 });
@@ -272,10 +349,17 @@ await check("legacy product events are sanitized when a store is loaded", async 
       householdId: fixture.householdId,
       mealRunId: "legacy-meal-run",
       occurredAt: new Date().toISOString(),
+    }, {
+      id: "expired-event",
+      eventType: "native_boot_completed",
+      userId: fixture.userId,
+      anonymousSessionId: "expired-raw-session",
+      businessId: "expired-business",
+      occurredAt: "2025-01-01T00:00:00.000Z",
     }];
     await fixture.store.save();
     const reloaded = new storeModule.HumiStore(fixture.store.filePath);
-    await reloaded.load();
+    await Promise.all([reloaded.load(), reloaded.load()]);
     const dump = JSON.stringify(reloaded.data.productEvents);
     assert.equal(dump.includes(fixture.userId), false);
     assert.equal(dump.includes("raw-session-id"), false);
@@ -288,6 +372,55 @@ await check("legacy product events are sanitized when a store is loaded", async 
       "id",
       "occurredAt",
     ]);
+    assert.equal(reloaded.data.productEvents.some((event) => event.id === "expired-event"), false);
+    const persistedDump = JSON.stringify(JSON.parse(await readFile(fixture.store.filePath, "utf8")).productEvents);
+    for (const forbidden of [
+      fixture.userId,
+      "raw-session-id",
+      "raw-anonymous-session",
+      "Legacy Nickname",
+      "expired-raw-session",
+      "expired-event",
+    ]) {
+      assert.equal(persistedDump.includes(forbidden), false, `${forbidden} must be removed from disk atomically`);
+    }
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+await check("every successful store transaction prunes 180-day product events while failed transactions roll back", async () => {
+  const fixture = await createStoreFixture();
+  try {
+    const expired = {
+      id: "expired-on-success",
+      eventType: "native_boot_completed",
+      businessId: "expired-on-success",
+      occurredAt: "2025-01-01T00:00:00.000Z",
+    };
+    fixture.store.data.productEvents.push(expired);
+    await fixture.store.mutateAndSave(() => {
+      fixture.store.data.states.transactionMarker = "success";
+      return "ok";
+    });
+    assert.equal(fixture.store.data.productEvents.some((event) => event.id === expired.id), false);
+    assert.equal((await readFile(fixture.store.filePath, "utf8")).includes(expired.id), false);
+
+    const rollbackEvent = { ...expired, id: "expired-rollback", businessId: "expired-rollback" };
+    fixture.store.data.productEvents.push(rollbackEvent);
+    await assert.rejects(
+      fixture.store.mutateAndSave(() => {
+        fixture.store.data.states.transactionMarker = "must-rollback";
+        throw new Error("transaction failed");
+      }),
+      /transaction failed/,
+    );
+    assert.equal(
+      fixture.store.data.productEvents.some((event) => event.id === rollbackEvent.id),
+      true,
+      "a failed transaction must restore the pre-transaction in-memory snapshot",
+    );
+    assert.equal(fixture.store.data.states.transactionMarker, "success");
   } finally {
     await fixture.cleanup();
   }
@@ -303,13 +436,15 @@ await check("client telemetry is durable across failure and retry with an unchan
   const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
     "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
   }, { wx });
-  telemetry.trackEvent("native_boot_completed", {
+  const tracked = telemetry.trackEvent("native_boot_completed", {
     page: "boot",
     stage: "completed",
     durationMs: 12,
     householdId: "",
     nickname: "must-not-leave-device",
   });
+  assert.match(tracked.anonymousSessionId, /^anonymous-/);
+  assert.equal(storage.get("humi:telemetry-anonymous-session:v1"), undefined);
   assert.equal(storage.get("humi:telemetry-queue:v1").length, 1);
   const attemptedBusinessIds = [];
   await assert.rejects(telemetry.flushTelemetry(async (batch) => {
@@ -324,6 +459,215 @@ await check("client telemetry is durable across failure and retry with an unchan
   assert.deepEqual(attemptedBusinessIds[1], attemptedBusinessIds[0]);
   assert.equal(telemetry.readPendingTelemetry().length, 0);
   assert.equal(storage.has("humi:telemetry-queue:v1"), false);
+});
+
+await check("cold starts and account transitions rotate telemetry sessions without rewriting queued events", () => {
+  const storage = new Map();
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  const firstRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+  }, { wx });
+  firstRuntime.setTelemetryOwner("account-a", { rotate: false });
+  const accountAEvent = firstRuntime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
+
+  const secondRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+  }, { wx });
+  secondRuntime.setTelemetryOwner("account-a", { rotate: false });
+  const coldStartEvent = secondRuntime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
+  assert.notEqual(coldStartEvent.anonymousSessionId, accountAEvent.anonymousSessionId);
+  assert.equal(secondRuntime.readPendingTelemetry()[0].anonymousSessionId, accountAEvent.anonymousSessionId);
+
+  secondRuntime.setTelemetryOwner("account-b");
+  const accountBEvent = secondRuntime.trackEvent("native_login_completed", { page: "identity", stage: "completed" });
+  secondRuntime.setTelemetryOwner("");
+  const guestEvent = secondRuntime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
+  assert.notEqual(accountBEvent.anonymousSessionId, coldStartEvent.anonymousSessionId);
+  assert.notEqual(guestEvent.anonymousSessionId, accountBEvent.anonymousSessionId);
+  assert.equal(storage.get("humi:telemetry-anonymous-session:v1"), undefined);
+});
+
+await check("the app rotates telemetry ownership only when login identity changes or exits", () => {
+  let definition;
+  const rotations = [];
+  const scheduledDelays = [];
+  const restored = { accessToken: "token-a", user: { id: "account-a" } };
+  loadCommonJs("miniprogram/app.js", {
+    "./utils/session": {
+      restoreSession: () => restored,
+      saveSession: () => {},
+      clearSession: () => {},
+    },
+    "./utils/offline-queue": { flushMutationQueue: async () => ({ status: "empty" }) },
+    "./utils/telemetry": {
+      scheduleTelemetryFlush: (options) => scheduledDelays.push(options?.delayMs || 0),
+      setTelemetryOwner: (owner, options) => rotations.push([owner, options?.rotate]),
+    },
+    "./utils/config": { HUMI_NATIVE_SHELL_CANDIDATE: true },
+    "./utils/store": {
+      appStore: {
+        replaceSession: () => {},
+        replaceBootstrap: () => {},
+        setState: () => {},
+      },
+    },
+  }, {
+    App: (candidate) => {
+      definition = candidate;
+    },
+  });
+  definition.onLaunch.call(definition);
+  definition.setHumiSession.call(definition, restored);
+  definition.setHumiSession.call(definition, { accessToken: "token-b", user: { id: "account-b" } });
+  definition.clearHumiSession.call(definition);
+  assert.deepEqual(rotations, [
+    ["account-a", false],
+    ["account-b", undefined],
+    ["", undefined],
+  ]);
+  assert.deepEqual(scheduledDelays, [1_200], "onLaunch must yield startup bandwidth before telemetry flushes");
+});
+
+await check("permanent poison events do not block a switched account or later guest telemetry", async () => {
+  const storage = new Map();
+  const requests = [];
+  let activeSession = { accessToken: "token-a", user: { id: "account-a" } };
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./session": { getSession: () => activeSession },
+    "./request": {
+      rawRequest: async (options) => {
+        requests.push(["anonymous", structuredClone(options)]);
+        if (options.data.businessId.includes("poison")) {
+          const error = new Error("former household is forbidden");
+          error.status = 403;
+          throw error;
+        }
+        return { ok: true };
+      },
+      requestHumi: async (options) => {
+        requests.push(["authenticated", structuredClone(options)]);
+        return { ok: true };
+      },
+    },
+  }, { wx });
+  telemetry.setTelemetryOwner("account-a", { rotate: false });
+  telemetry.trackEvent("plan_presented", {
+    householdId: "former-household",
+    page: "tonight",
+    stage: "completed",
+    businessId: "poison-former-household",
+  });
+  activeSession = { accessToken: "token-b", user: { id: "account-b" } };
+  telemetry.setTelemetryOwner("account-b");
+  const accountB = telemetry.trackEvent("plan_presented", {
+    householdId: "current-household",
+    page: "tonight",
+    stage: "completed",
+    businessId: "account-b-plan",
+  });
+  await telemetry.flushTelemetryToServer();
+  assert.equal(requests.some(([transport, request]) => (
+    transport === "authenticated" && request.data.businessId.includes("account-b-plan")
+  )), true);
+  assert.equal(telemetry.readPendingTelemetry().length, 0);
+
+  activeSession = null;
+  telemetry.setTelemetryOwner("");
+  const guest = telemetry.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
+  await telemetry.flushTelemetryToServer();
+  assert.equal(requests.at(-1)[0], "anonymous");
+  assert.equal(requests.at(-1)[1].data.anonymousSessionId, guest.anonymousSessionId);
+  assert.notEqual(guest.anonymousSessionId, accountB.anonymousSessionId);
+  const deadLetters = storage.get("humi:telemetry-dead-letter:v1");
+  assert.equal(deadLetters.length, 1);
+  assert.deepEqual(Object.keys(deadLetters[0]).sort(), ["businessId", "droppedAt", "errorCode", "name"]);
+  assert.equal(JSON.stringify(deadLetters).includes("token-a"), false);
+  assert.equal(JSON.stringify(deadLetters).includes("former-household"), false);
+});
+
+await check("network, 429, and 5xx failures remain queued and each flush attempts at most 20 events", async () => {
+  const storage = new Map();
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+  }, { wx });
+  for (let index = 0; index < 25; index += 1) {
+    telemetry.trackEvent("native_boot_completed", { page: "boot", stage: "completed", businessId: `batch-${index}` });
+  }
+  const attempted = [];
+  const outcome = await telemetry.flushTelemetry(async (batch) => attempted.push(...batch));
+  assert.equal(outcome.count, 20);
+  assert.equal(attempted.length, 20);
+  assert.equal(telemetry.readPendingTelemetry().length, 5);
+
+  const actualStorage = new Map();
+  const actualRequests = [];
+  const actualRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+    "./session": { getSession: () => null },
+    "./request": {
+      rawRequest: async (options) => {
+        actualRequests.push(options);
+        return { ok: true };
+      },
+      requestHumi: async () => ({ ok: true }),
+    },
+  }, {
+    wx: {
+      getStorageSync: (key) => actualStorage.get(key),
+      setStorageSync: (key, value) => actualStorage.set(key, structuredClone(value)),
+      removeStorageSync: (key) => actualStorage.delete(key),
+    },
+  });
+  for (let index = 0; index < 25; index += 1) {
+    actualRuntime.trackEvent("native_boot_completed", {
+      page: "boot",
+      stage: "completed",
+      businessId: `actual-batch-${index}`,
+    });
+  }
+  await actualRuntime.flushTelemetryToServer();
+  assert.equal(actualRequests.length, 20);
+  assert.equal(actualRuntime.readPendingTelemetry().length, 5);
+
+  for (const status of [0, 429, 503]) {
+    const runtimeStorage = new Map();
+    const runtime = loadCommonJs("miniprogram/utils/telemetry.js", {
+      "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+      "./session": { getSession: () => null },
+      "./request": {
+        rawRequest: async () => {
+          const error = new Error(`retry ${status}`);
+          error.status = status;
+          throw error;
+        },
+        requestHumi: async () => ({ ok: true }),
+      },
+    }, {
+      wx: {
+        getStorageSync: (key) => runtimeStorage.get(key),
+        setStorageSync: (key, value) => runtimeStorage.set(key, structuredClone(value)),
+        removeStorageSync: (key) => runtimeStorage.delete(key),
+      },
+    });
+    runtime.trackEvent("native_boot_completed", { page: "boot", stage: "completed" });
+    await assert.rejects(runtime.flushTelemetryToServer(), new RegExp(`retry ${status}`));
+    assert.equal(runtime.readPendingTelemetry().length, 1);
+  }
 });
 
 await check("trackEvent schedules an immediate non-blocking server flush", async () => {
@@ -354,7 +698,8 @@ await check("trackEvent schedules an immediate non-blocking server flush", async
     errorCode: "none",
   });
   assert.equal(requests.length, 0, "trackEvent must return before the network request starts");
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await Promise.resolve();
+  await telemetry.flushTelemetryToServer();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].path, "/product-events");
   assert.equal(requests[0].data.businessId, tracked.businessId);
@@ -374,21 +719,38 @@ await check("wire projection uses only the exact reviewed HTTP fields", () => {
     mealRunId: "run-business-id",
     nickname: "must-not-project",
   });
-  const projected = telemetry.toWireEvent(event, {
-    anonymousSessionId: "anonymous-session-observability-1",
-    authenticated: true,
-  });
+  const projected = telemetry.toWireEvent(event, { authenticated: true });
   assert.deepEqual(Object.keys(projected).sort(), EXPECTED_HTTP_FIELDS);
+  assert.equal(projected.anonymousSessionId, event.anonymousSessionId);
   assert.match(projected.businessId, /^run-business-id:/, "wire businessId must retain the safe business object reference");
   assert.equal(
-    telemetry.toWireEvent(event, {
-      anonymousSessionId: "anonymous-session-observability-1",
-      authenticated: true,
-    }).businessId,
+    telemetry.toWireEvent(event, { authenticated: true }).businessId,
     projected.businessId,
     "the correlated wire businessId must remain stable across retries",
   );
   assert.equal(JSON.stringify(projected).includes("nickname"), false);
+});
+
+await check("all effort tiers and share sources remain analytically distinct inside strict wire business ids", () => {
+  const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.72" },
+  });
+  for (const effortTier of ["quick_15", "easy_30", "normal"]) {
+    const event = telemetry.trackEvent("effort_tier_selected", {
+      page: "tonight",
+      stage: "completed",
+      effortTier,
+    });
+    assert.match(telemetry.toWireEvent(event).businessId, new RegExp(`effort-${effortTier}`));
+  }
+  for (const shareSource of ["menu", "grocery", "invite", "meal_task", "poster"]) {
+    const event = telemetry.trackEvent("native_share_page_visible", {
+      page: "share",
+      stage: "completed",
+      shareSource,
+    });
+    assert.match(telemetry.toWireEvent(event).businessId, new RegExp(`share-${shareSource}`));
+  }
 });
 
 await check("the app schedules a real non-blocking telemetry flush", () => {
@@ -411,6 +773,19 @@ await check("production startup fails closed without HUMI_TELEMETRY_HASH_SALT", 
   });
   assert.notEqual(result.status, 0);
   assert.match(`${result.stdout}\n${result.stderr}`, /HUMI_TELEMETRY_HASH_SALT/);
+
+  const shortSalt = spawnSync(process.execPath, ["-e", "import('./api/server.js')"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: {
+      ...env,
+      NODE_ENV: "production",
+      HUMI_SESSION_SECRET: "production-session-secret-for-test",
+      HUMI_TELEMETRY_HASH_SALT: "too-short",
+    },
+  });
+  assert.notEqual(shortSalt.status, 0);
+  assert.match(`${shortSalt.stdout}\n${shortSalt.stderr}`, /at least 32/);
 });
 
 await check("client writes prune raw product events older than 180 days", async () => {

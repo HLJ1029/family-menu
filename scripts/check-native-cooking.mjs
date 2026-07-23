@@ -1316,6 +1316,20 @@ async function verifyGuestLifecycle() {
     false,
     "guest telemetry must not upload identity, token, or free-text fields",
   );
+  const cookingTelemetry = telemetryRequests.filter((request) => request.data.eventType.startsWith("cooking_mutation_"));
+  assert.deepEqual(
+    cookingTelemetry.map((request) => request.data.eventType).sort(),
+    [
+      "cooking_mutation_completed",
+      "cooking_mutation_completed",
+      "cooking_mutation_started",
+      "cooking_mutation_started",
+    ],
+    "downgrade and feedback emit client diagnostics while start/complete remain server-only facts",
+  );
+  assert(cookingTelemetry.some((request) => request.data.businessId.includes("cooking:downgrade")));
+  assert(cookingTelemetry.some((request) => request.data.businessId.includes("cooking:feedback")));
+  assert(cookingTelemetry.every((request) => !/cooking:(?:start|complete|abandon)/.test(request.data.businessId)));
 }
 
 async function verifyMemberPermissionsAndCompletedReadOnly() {
