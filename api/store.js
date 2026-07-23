@@ -339,25 +339,27 @@ export class HumiStore {
 
   async removeHouseholdMember(ownerUserId, householdId, memberId) {
     await this.load();
-    const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
-    if (household.ownerId !== ownerUserId) {
-      throw codedError("forbidden", "Only the household owner can remove members.");
-    }
-    if (memberId === household.ownerId) {
-      throw codedError("owner_cannot_be_removed", "The household owner cannot be removed.");
-    }
-    const memberIndex = household.members.findIndex(
-      (member) => member.memberId === memberId && member.status === "formal",
-    );
-    if (memberIndex < 0) {
-      throw codedError("household_member_not_found", "Household member not found.");
-    }
-    household.members.splice(memberIndex, 1);
-    delete this.data.states[memberId];
-    household.updatedAt = new Date().toISOString();
-    this.repairActiveHouseholds();
-    await this.save();
-    return household;
+    return this.mutateAndSave(() => {
+      const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
+      if (household.ownerId !== ownerUserId) {
+        throw codedError("forbidden", "Only the household owner can remove members.");
+      }
+      if (memberId === household.ownerId) {
+        throw codedError("owner_cannot_be_removed", "The household owner cannot be removed.");
+      }
+      const memberIndex = household.members.findIndex(
+        (member) => member.memberId === memberId && member.status === "formal",
+      );
+      if (memberIndex < 0) {
+        throw codedError("household_member_not_found", "Household member not found.");
+      }
+      household.members.splice(memberIndex, 1);
+      this.syncFormalMemberPreferences(household);
+      delete this.data.states[memberId];
+      household.updatedAt = new Date().toISOString();
+      this.repairActiveHouseholds();
+      return household;
+    });
   }
 
   async transferHouseholdOwnership(ownerUserId, householdId, nextOwnerId) {
@@ -386,30 +388,61 @@ export class HumiStore {
 
   async leaveHousehold(userId, householdId) {
     await this.load();
-    const household = this.requireFormalMemberHousehold(userId, householdId);
-    const formalMembers = household.members.filter((member) => member.status === "formal");
-    const isOwner = household.ownerId === userId;
-    const otherFormalMembers = formalMembers.filter((member) => member.memberId !== userId);
-    if (isOwner && otherFormalMembers.length > 0) {
-      throw codedError("owner_must_transfer_or_disband", "The owner must transfer ownership or disband the household.");
-    }
+    return this.mutateAndSave(() => {
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      const formalMembers = household.members.filter((member) => member.status === "formal");
+      const isOwner = household.ownerId === userId;
+      const otherFormalMembers = formalMembers.filter((member) => member.memberId !== userId);
+      if (isOwner && otherFormalMembers.length > 0) {
+        throw codedError("owner_must_transfer_or_disband", "The owner must transfer ownership or disband the household.");
+      }
 
-    const now = new Date().toISOString();
-    if (isOwner) {
-      this.data.households = this.data.households.filter((item) => item.id !== household.id);
-      delete this.data.householdStates[household.id];
+      const now = new Date().toISOString();
+      if (isOwner) {
+        this.data.households = this.data.households.filter((item) => item.id !== household.id);
+        this.retireHouseholdState(household.id);
+        delete this.data.states[userId];
+        this.repairActiveHouseholds();
+        return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
+      }
+
+      household.members = household.members.filter((member) => member.memberId !== userId);
+      this.syncFormalMemberPreferences(household);
       delete this.data.states[userId];
+      household.updatedAt = now;
       this.repairActiveHouseholds();
-      await this.save();
-      return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
-    }
+      return { household, activeHousehold: this.findActiveHouseholdByMember(userId) };
+    });
+  }
 
-    household.members = household.members.filter((member) => member.memberId !== userId);
-    delete this.data.states[userId];
-    household.updatedAt = now;
-    this.repairActiveHouseholds();
-    await this.save();
-    return { household, activeHousehold: this.findActiveHouseholdByMember(userId) };
+  syncFormalMemberPreferences(household) {
+    const householdId = household?.id;
+    if (!householdId) return;
+    const formalMemberIds = new Set((Array.isArray(household.members) ? household.members : [])
+      .filter((member) => member?.status === "formal" && member.memberId)
+      .map((member) => member.memberId));
+    const currentState = this.data.householdStates[householdId];
+    const filterPreferences = (state = {}) => ({
+      ...state,
+      familyMembers: normalizeMemberPreferenceEntries(state.familyMembers)
+        .filter((member) => formalMemberIds.has(member.memberId)),
+    });
+    const nextState = currentState ? filterPreferences(currentState) : null;
+    if (nextState) this.data.householdStates[householdId] = nextState;
+    for (const [stateUserId, state] of Object.entries(this.data.states ?? {})) {
+      if (state !== currentState && state?.householdId !== householdId) continue;
+      this.data.states[stateUserId] = nextState ?? filterPreferences(state);
+    }
+  }
+
+  retireHouseholdState(householdId) {
+    const currentState = this.data.householdStates[householdId];
+    delete this.data.householdStates[householdId];
+    for (const [stateUserId, state] of Object.entries(this.data.states ?? {})) {
+      if (state === currentState || state?.householdId === householdId) {
+        delete this.data.states[stateUserId];
+      }
+    }
   }
 
   syncIdentityToHouseholdMembers(user, { updateNickname = false } = {}) {

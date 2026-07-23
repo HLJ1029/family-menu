@@ -1828,6 +1828,25 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   }, 409, "owner_cannot_be_removed");
 
+  const removalPreferenceSeed = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...removalPreferenceSeed.state,
+        familyMembers: [
+          { memberId: login.user.id, preference: { allergies: [], dislikes: ["香菜"] } },
+          { memberId: memberLogin.user.id, preference: { allergies: ["花生"], dislikes: [] } },
+          { memberId: collaborationGuest.user.id, preference: { allergies: ["鸡蛋"], dislikes: [] } },
+        ],
+      },
+    },
+  });
+
   const removedMember = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/members/${collaborationGuest.user.id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -1837,6 +1856,86 @@ try {
     !removedMember.family?.members?.some((member) => member.memberId === collaborationGuest.user.id),
     "owner should remove another household member",
   );
+  const ownerStateAfterRemoval = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    ownerStateAfterRemoval.state,
+    collaborationGuest.user.id,
+    "owner GET state after member removal",
+  );
+  assertMemberPreferenceEquals(
+    ownerStateAfterRemoval.state,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "owner GET state after member removal",
+  );
+  const ownerBootstrapAfterRemoval = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    ownerBootstrapAfterRemoval.householdState,
+    collaborationGuest.user.id,
+    "owner bootstrap after member removal",
+  );
+  assertMemberPreferenceEquals(
+    ownerBootstrapAfterRemoval.householdState,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "owner bootstrap after member removal",
+  );
+  const restartedAfterRemoval = new HumiStore(dataFile);
+  const restartedStateAfterRemoval = await restartedAfterRemoval.getState(login.user.id);
+  assertDepartedPreferenceAbsent(
+    restartedStateAfterRemoval,
+    collaborationGuest.user.id,
+    "restarted store after member removal",
+  );
+  assertMemberPreferenceEquals(
+    restartedStateAfterRemoval,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "restarted store after member removal",
+  );
+  const persistedAfterRemoval = JSON.parse(await readFile(dataFile, "utf8"));
+  for (const state of Object.values(persistedAfterRemoval.states ?? {})) {
+    if (state?.householdId !== loadedStateEnvelope.family.id) continue;
+    assertDepartedPreferenceAbsent(
+      state,
+      collaborationGuest.user.id,
+      "legacy state copy after member removal",
+    );
+  }
+  await assertRecommendationsEventuallyIncludeOneOf({
+    baseUrl,
+    accessToken: login.accessToken,
+    householdId: loadedStateEnvelope.family.id,
+    dateKey: "2099-02-01",
+    contextFingerprint: "removed-member-preference-retired",
+    expectedRecipeIds: eggRecipeIds,
+    label: "removing the only egg-allergic member must stop excluding egg recipes",
+  });
+  const removedMemberState = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(removedMemberState.state, null, "removed member must not read the former household state");
+  const removedMemberBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(removedMemberBootstrap.activeHouseholdId, "", "removed member bootstrap must not expose the former household");
+  assert.equal(removedMemberBootstrap.householdState ?? null, null, "removed member bootstrap must not expose the former household state");
+  await assertRejectedRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      dateKey: "2099-02-01",
+      mode: "legacy",
+      effortTier: "legacy",
+      action: "initial",
+      contextFingerprint: "removed-member-cannot-read-former-household",
+    },
+  }, 404, "household_not_found");
 
   await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
     method: "POST",
@@ -1844,6 +1943,20 @@ try {
     body: null,
   }, 404, "member_not_found");
 
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...ownerStateAfterRemoval.state,
+        familyMembers: [
+          { memberId: login.user.id, preference: { allergies: ["鸡蛋"], dislikes: [] } },
+          { memberId: memberLogin.user.id, preference: { allergies: ["花生"], dislikes: ["葱"] } },
+        ],
+      },
+    },
+  });
   const transferredHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -1859,6 +1972,92 @@ try {
   assertHouseholdEnvelope(leftHousehold, "former owner household leave");
   assert("state" in leftHousehold, "leaving should return the new active household state");
   assert.equal(leftHousehold.family?.id, secondHousehold.family.id, "former owner should switch to another active household");
+  const remainingOwnerStateAfterLeave = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    remainingOwnerStateAfterLeave.state,
+    login.user.id,
+    "remaining owner GET state after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    remainingOwnerStateAfterLeave.state,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "remaining owner GET state after member leaves",
+  );
+  const remainingOwnerBootstrapAfterLeave = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    remainingOwnerBootstrapAfterLeave.householdState,
+    login.user.id,
+    "remaining owner bootstrap after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    remainingOwnerBootstrapAfterLeave.householdState,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "remaining owner bootstrap after member leaves",
+  );
+  const restartedAfterLeave = new HumiStore(dataFile);
+  const restartedStateAfterLeave = await restartedAfterLeave.getState(memberLogin.user.id);
+  assertDepartedPreferenceAbsent(
+    restartedStateAfterLeave,
+    login.user.id,
+    "restarted store after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    restartedStateAfterLeave,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "restarted store after member leaves",
+  );
+  const persistedAfterLeave = JSON.parse(await readFile(dataFile, "utf8"));
+  for (const state of Object.values(persistedAfterLeave.states ?? {})) {
+    if (state?.householdId !== loadedStateEnvelope.family.id) continue;
+    assertDepartedPreferenceAbsent(state, login.user.id, "legacy state copy after member leaves");
+  }
+  await assertRecommendationsEventuallyIncludeOneOf({
+    baseUrl,
+    accessToken: memberLogin.accessToken,
+    householdId: loadedStateEnvelope.family.id,
+    dateKey: "2099-02-02",
+    contextFingerprint: "left-member-preference-retired",
+    expectedRecipeIds: eggRecipeIds,
+    label: "a voluntarily departed egg-allergic member must stop excluding egg recipes",
+  });
+  const formerOwnerHouseholds = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    !formerOwnerHouseholds.households.some((household) => household.id === loadedStateEnvelope.family.id),
+    "a departed member must not list the former household",
+  );
+  const formerOwnerBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(
+    formerOwnerBootstrap.activeHouseholdId,
+    secondHousehold.family.id,
+    "a departed member bootstrap must switch to another authorized household",
+  );
+  assert(
+    !formerOwnerBootstrap.households.some((household) => household.id === loadedStateEnvelope.family.id),
+    "a departed member bootstrap must not expose the former household",
+  );
+  await assertRejectedRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      dateKey: "2099-02-02",
+      mode: "legacy",
+      effortTier: "legacy",
+      action: "initial",
+      contextFingerprint: "departed-member-cannot-read-former-household",
+    },
+  }, 404, "household_not_found");
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
@@ -1945,6 +2144,52 @@ async function assertRejectedRequest(url, options, expectedStatus, expectedCode)
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
+}
+
+function assertDepartedPreferenceAbsent(state, departedMemberId, label) {
+  assert(
+    !(state?.familyMembers ?? []).some((member) => member.memberId === departedMemberId),
+    `${label} must not retain the departed member preference`,
+  );
+}
+
+function assertMemberPreferenceEquals(state, memberId, expectedPreference, label) {
+  assert.deepEqual(
+    (state?.familyMembers ?? []).find((member) => member.memberId === memberId)?.preference,
+    expectedPreference,
+    `${label} must preserve the remaining formal member preference`,
+  );
+}
+
+async function assertRecommendationsEventuallyIncludeOneOf({
+  baseUrl,
+  accessToken,
+  householdId,
+  dateKey,
+  contextFingerprint,
+  expectedRecipeIds,
+  label,
+}) {
+  let stateVersion = "";
+  for (let index = 0; index < 40; index += 1) {
+    const recommendation = await request(`${baseUrl}/recommendations/dinner`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: {
+        householdId,
+        dateKey,
+        mode: "legacy",
+        effortTier: "legacy",
+        targetDishCount: 4,
+        action: index === 0 ? "initial" : "next",
+        contextFingerprint,
+        ...(stateVersion ? { stateVersion } : {}),
+      },
+    });
+    stateVersion = recommendation.stateVersion;
+    if (recommendation.recipeIds.some((recipeId) => expectedRecipeIds.has(recipeId))) return;
+  }
+  assert.fail(label);
 }
 
 async function readCollaborationEvents() {
