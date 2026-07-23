@@ -695,8 +695,15 @@ export class HumiStore {
     const writableState = household.ownerId === userId
       ? state
       : mergeMemberWritableState(currentState, state, userId);
+    const familyMembers = mergeFormalMemberPreferences({
+      current: currentState.familyMembers,
+      incoming: state.familyMembers,
+      household,
+      userId,
+    });
     const nextState = {
       ...writableState,
+      familyMembers,
       recommendationAccess: mergeClientRecommendationAccess(
         currentState.recommendationAccess,
         writableState.recommendationAccess,
@@ -2196,6 +2203,56 @@ function mergeMemberWritableState(currentState = {}, incomingState = {}, userId)
       ...Object.fromEntries(completedOwnKeys.map((key) => [key, true])),
     },
   };
+}
+
+function mergeFormalMemberPreferences({
+  current = [],
+  incoming = [],
+  household = {},
+  userId = "",
+} = {}) {
+  const formalMemberIds = (Array.isArray(household.members) ? household.members : [])
+    .filter((member) => member?.status === "formal" && member.memberId)
+    .map((member) => member.memberId);
+  const formalMemberIdSet = new Set(formalMemberIds);
+  const currentByMemberId = new Map(
+    normalizeMemberPreferenceEntries(current)
+      .filter((entry) => formalMemberIdSet.has(entry.memberId))
+      .map((entry) => [entry.memberId, entry]),
+  );
+  const canEditAll = household.ownerId === userId;
+  for (const entry of normalizeMemberPreferenceEntries(incoming)) {
+    if (!formalMemberIdSet.has(entry.memberId)) continue;
+    if (!canEditAll && entry.memberId !== userId) continue;
+    currentByMemberId.set(entry.memberId, entry);
+  }
+  return formalMemberIds
+    .map((memberId) => currentByMemberId.get(memberId))
+    .filter(Boolean);
+}
+
+function normalizeMemberPreferenceEntries(value) {
+  if (!Array.isArray(value)) return [];
+  const entries = new Map();
+  for (const member of value.slice(0, 50)) {
+    const memberId = sanitizeText(member?.memberId, "", 100);
+    if (!memberId) continue;
+    entries.set(memberId, {
+      memberId,
+      preference: {
+        allergies: normalizePreferenceList(member?.preference?.allergies),
+        dislikes: normalizePreferenceList(member?.preference?.dislikes),
+      },
+    });
+  }
+  return [...entries.values()];
+}
+
+function normalizePreferenceList(value) {
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map((item) => sanitizeText(item, "", 40))
+    .filter(Boolean))]
+    .slice(0, 24);
 }
 
 function resolveCraveDeadline(value, createdAt) {

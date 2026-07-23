@@ -4,11 +4,12 @@ const legacyRecipes = require("../data/legacy-recipes");
 const storagePrefix = "humi:recommendation:v1:";
 
 function buildRecommendationScope(input = {}) {
-  const householdId = clean(input.householdId || "guest") || "guest";
-  const dateKey = clean(input.dateKey);
-  const mode = input.mode === "legacy" ? "legacy" : "meal_execution";
-  const effortTier = mode === "meal_execution" ? clean(input.effortTier) : clean(input.effortTier || "legacy");
-  const contextFingerprint = clean(input.contextFingerprint);
+  const context = recommendationContext(input);
+  const householdId = clean(context.householdId || "guest") || "guest";
+  const dateKey = clean(context.dateKey);
+  const mode = context.mode === "legacy" ? "legacy" : "meal_execution";
+  const effortTier = mode === "meal_execution" ? clean(context.effortTier) : clean(context.effortTier || "legacy");
+  const contextFingerprint = clean(context.contextFingerprint);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) throw codedError("date_key_invalid");
   if (mode === "meal_execution" && !["quick_15", "easy_30", "normal"].includes(effortTier)) {
     throw codedError("effort_tier_invalid");
@@ -18,14 +19,15 @@ function buildRecommendationScope(input = {}) {
 }
 
 function rotateGuestDinner(input = {}) {
-  const scopeKey = buildRecommendationScope(input);
-  const storage = input.storage || wx;
+  const context = recommendationContext(input);
+  const scopeKey = buildRecommendationScope(context);
+  const storage = context.storage || wx;
   const storageKey = `${storagePrefix}${scopeKey}`;
-  const stored = normalizeRotation(storage.getStorageSync(storageKey), scopeKey, input.householdId || "guest");
-  const targetDishCount = Number(input.targetDishCount) || (input.effortTier === "quick_15" ? 1 : 2);
-  const safe = catalogFor(input).filter((recipe) => matches(recipe, input));
+  const stored = normalizeRotation(storage.getStorageSync(storageKey), scopeKey, context.householdId || "guest");
+  const targetDishCount = Number(context.targetDishCount) || defaultDishCount(context);
+  const safe = catalogFor(context).filter((recipe) => matches(recipe, context));
   if (safe.length < targetDishCount) throw codedError("recommendation_candidates_exhausted");
-  if ((input.action || "initial") === "initial" && stored.seenRecipeIds.length >= targetDishCount) {
+  if ((context.action || "initial") === "initial" && stored.seenRecipeIds.length >= targetDishCount) {
     return toGroup(stored.seenRecipeIds.slice(-targetDishCount), stored, targetDishCount, false, "current_group");
   }
 
@@ -41,7 +43,7 @@ function rotateGuestDinner(input = {}) {
     choices = safe.filter((recipe) => !protectedIds.has(recipe.id));
   }
   const scored = choices
-    .map((recipe) => ({ recipe, score: score(recipe, input) }))
+    .map((recipe) => ({ recipe, score: score(recipe, context) }))
     .sort((left, right) => (
       right.score - left.score
       || hash(`${scopeKey}:${cycle}:${left.recipe.id}`) - hash(`${scopeKey}:${cycle}:${right.recipe.id}`)
@@ -56,7 +58,7 @@ function rotateGuestDinner(input = {}) {
   const recipeIds = selected.map((item) => item.recipe.id);
   const next = {
     scopeKey,
-    householdId: clean(input.householdId || "guest") || "guest",
+    householdId: clean(context.householdId || "guest") || "guest",
     seenRecipeIds: [...seen, ...recipeIds],
     recentGroupIds: [...stored.recentGroupIds, [...recipeIds].sort().join("+")].slice(-10),
     cycle,
@@ -67,14 +69,35 @@ function rotateGuestDinner(input = {}) {
 }
 
 function validateRecommendationGroup(group, input = {}) {
+  const context = recommendationContext(input);
   if (!Array.isArray(group?.recipeIds) || new Set(group.recipeIds).size !== group.recipeIds.length) return false;
-  const targetDishCount = Number(input.targetDishCount) || group.recipeIds.length;
+  const targetDishCount = Number(context.targetDishCount) || defaultDishCount(context);
   if (group.recipeIds.length !== targetDishCount) return false;
-  const catalog = catalogFor(input);
+  const catalog = catalogFor(context);
   return group.recipeIds.every((id) => {
     const recipe = catalog.find((candidate) => candidate.id === id);
-    return Boolean(recipe && matches(recipe, input));
+    return Boolean(recipe && matches(recipe, context));
   });
+}
+
+function recommendationContext(input = {}) {
+  const householdState = input.bootstrap?.householdState ?? input.householdState ?? {};
+  return {
+    ...householdState,
+    ...input,
+    householdId: input.householdId || input.bootstrap?.activeHouseholdId || householdState.householdId || "guest",
+    familyProfile: { ...(householdState.familyProfile ?? {}), ...(input.familyProfile ?? {}) },
+    familyMembers: [
+      ...(Array.isArray(householdState.familyMembers) ? householdState.familyMembers : []),
+      ...(Array.isArray(input.familyMembers) ? input.familyMembers : []),
+    ],
+  };
+}
+
+function defaultDishCount(input = {}) {
+  if (input.mode !== "legacy") return input.effortTier === "quick_15" ? 1 : 2;
+  const familySize = Math.max(1, Number.parseInt(input.familyProfile?.familySize, 10) || 2);
+  return familySize <= 1 ? 1 : familySize >= 5 ? 3 : 2;
 }
 
 function catalogFor(input) {
@@ -115,9 +138,11 @@ function expandHardSignal(signal) {
     ["坚果", ["坚果", "花生", "核桃", "杏仁", "腰果"]],
     ["乳糖", ["乳糖", "牛奶", "奶酪", "奶"]],
   ];
+  const expanded = [];
   for (const [canonical, aliases] of groups) {
-    if (normalized.includes(canonical) || aliases.some((alias) => normalized.includes(alias))) return aliases;
+    if (normalized.includes(canonical) || aliases.some((alias) => normalized.includes(alias))) expanded.push(...aliases);
   }
+  if (expanded.length > 0) return [...new Set(expanded)];
   const stripped = normalized
     .replace(/^(?:我|本人|孩子|小孩|宝宝)?对/, "")
     .replace(/(?:严重)?(?:过敏|不耐受|不能吃|吃不了|忌口|不吃)$/g, "");

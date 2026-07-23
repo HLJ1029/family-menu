@@ -2246,6 +2246,7 @@ function sanitizeAppState(state = {}) {
     excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
     pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
     familyProfile: sanitizeProfile(state.familyProfile),
+    familyMembers: sanitizeList(state.familyMembers, sanitizeFamilyMemberPreference, 50),
     wantToEatItems: sanitizeList(state.wantToEatItems, sanitizeWantToEatItem, 200),
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
     recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
@@ -2256,6 +2257,22 @@ function sanitizeAppState(state = {}) {
     activeWishShareRequest: sanitizeCollaborationState(state.activeWishShareRequest),
     householdMembers: sanitizeList(state.householdMembers, sanitizeHouseholdMemberState, 50),
   };
+}
+
+function sanitizeFamilyMemberPreference(member = {}) {
+  const memberId = stringValue(member.memberId, 100);
+  if (!memberId) return null;
+  return {
+    memberId,
+    preference: {
+      allergies: normalizedPreferenceList(member.preference?.allergies),
+      dislikes: normalizedPreferenceList(member.preference?.dislikes),
+    },
+  };
+}
+
+function normalizedPreferenceList(value) {
+  return [...new Set(stringList(value).map((item) => item.slice(0, 40)))];
 }
 
 function sanitizeHouseholdMemberState(member = {}) {

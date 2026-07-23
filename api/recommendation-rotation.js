@@ -217,11 +217,13 @@ function expandHardSignal(signal) {
     .toLowerCase()
     .replace(/[，。,.；;、\s]/g, "");
   if (!normalized) return [];
+  const expanded = [];
   for (const [canonical, aliases] of signalAliases) {
     if (normalized.includes(canonical) || aliases.some((alias) => normalized.includes(alias))) {
-      return aliases;
+      expanded.push(...aliases);
     }
   }
+  if (expanded.length > 0) return [...new Set(expanded)];
   const stripped = normalized
     .replace(/^(?:我|本人|孩子|小孩|宝宝)?对/, "")
     .replace(/(?:严重)?(?:过敏|不耐受|不能吃|吃不了|忌口|不吃)$/g, "");

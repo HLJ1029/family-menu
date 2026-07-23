@@ -43,6 +43,14 @@ const {
 } = nativeRecommendation;
 const mainSource = await readFile(new URL("../src/main.jsx", import.meta.url), "utf8");
 const nativeLegacyCatalogPath = path.resolve("miniprogram/data/legacy-recipes.js");
+const h5StateSnapshotSource = mainSource.slice(
+  mainSource.indexOf("const humiStateSnapshot = useMemo"),
+  mainSource.indexOf("useEffect(() =>", mainSource.indexOf("const humiStateSnapshot = useMemo")),
+);
+const h5ApplyStateSource = mainSource.slice(
+  mainSource.indexOf("function applyHumiStateEnvelope"),
+  mainSource.indexOf("function trackProductEvent"),
+);
 
 const contextFingerprint = createHash("sha256").update("safe-family-context").digest("base64url");
 const baseInput = {
@@ -107,6 +115,21 @@ assert.equal(
   true,
   "H5 Today must use the same Asia/Shanghai business date as the server",
 );
+assert.equal(
+  h5StateSnapshotSource.includes("familyMembers: familyMembers.map"),
+  true,
+  "H5 state saves must write formal memberId and preference records",
+);
+assert.equal(
+  h5ApplyStateSource.includes("state.familyMembers"),
+  true,
+  "H5 state hydration must read shared formal-member preferences",
+);
+assert.equal(
+  h5ApplyStateSource.includes("setFamilyMembers"),
+  true,
+  "H5 state hydration must merge canonical household members with shared preferences",
+);
 assert.equal(certifiedRecipes.length, 30, "native projection must contain exactly 30 certified recipes");
 assert.equal(
   fs.existsSync(nativeLegacyCatalogPath),
@@ -116,6 +139,48 @@ assert.equal(
 const nativeLegacyRecipes = nativeRuntime.load(nativeLegacyCatalogPath);
 assert.equal(nativeLegacyRecipes.length, 138, "native legacy guest rotation must use all 138 recipes");
 assert.equal(legacyRecommendationCatalog.length, 138, "legacy mode must retain the complete 138-recipe catalog");
+for (const [familySize, expectedDishCount] of [[1, 1], [2, 2], [5, 3]]) {
+  const householdId = `dish-count-household-${familySize}`;
+  const countInput = {
+    ...baseInput,
+    householdId,
+    dateKey: `2026-07-${String(10 + familySize).padStart(2, "0")}`,
+    mode: "legacy",
+    effortTier: "legacy",
+    targetDishCount: undefined,
+    contextFingerprint: createHash("sha256").update(`dish-count-${familySize}`).digest("base64url"),
+    familyProfile: { familySize, allergies: [], dislikes: [] },
+    catalog: nativeLegacyRecipes,
+  };
+  const countStore = new HumiStore(join(smokeDirectory, `dish-count-${familySize}.json`));
+  await countStore.load();
+  countStore.data.users = [{ id: `dish-count-owner-${familySize}` }];
+  countStore.data.households = [{
+    id: householdId,
+    ownerId: `dish-count-owner-${familySize}`,
+    members: [{ memberId: `dish-count-owner-${familySize}`, role: "owner", status: "formal" }],
+  }];
+  countStore.data.householdStates = {
+    [householdId]: { familyProfile: countInput.familyProfile, familyMembers: [] },
+  };
+  const serverCountGroup = await countStore.rotateDinnerRecommendation(
+    `dish-count-owner-${familySize}`,
+    countInput,
+  );
+  const h5CountGroup = buildLocalBalancedDinner({ ...countInput, catalog: h5Recipes });
+  const nativeCountGroup = rotateGuestDinner(countInput);
+  for (const [runtimeLabel, group] of [
+    ["server", serverCountGroup],
+    ["H5", h5CountGroup],
+    ["native guest", nativeCountGroup],
+  ]) {
+    assert.equal(
+      group.recipeIds.length,
+      expectedDishCount,
+      `${runtimeLabel} legacy default must recommend ${expectedDishCount} dishes for familySize ${familySize}`,
+    );
+  }
+}
 assert.deepEqual(
   Array.from(certifiedRecipes, (recipe) => recipe.id),
   Array.from(certifiedRecipes, (recipe) => recipe.id).sort(),
@@ -252,6 +317,18 @@ const hardAvoidProbes = [
     familyProfile: { allergies: ["对鸡蛋过敏"], dislikes: [] },
     familyMembers: [],
   },
+  {
+    label: "combined seafood and peanut allergy excludes shrimp",
+    recipeId: "salt-pepper-shrimp",
+    familyProfile: { allergies: ["海鲜和花生过敏"], dislikes: [] },
+    familyMembers: [],
+  },
+  {
+    label: "combined seafood and peanut allergy excludes peanuts",
+    recipeId: "kung-pao-chicken",
+    familyProfile: { allergies: ["海鲜和花生过敏"], dislikes: [] },
+    familyMembers: [],
+  },
 ];
 for (const probe of hardAvoidProbes) {
   const serverInput = {
@@ -288,6 +365,31 @@ for (const probe of hardAvoidProbes) {
     `native guest must reject ${probe.label}`,
   );
 }
+
+const nativeBootstrapPreferenceInput = {
+  ...baseInput,
+  mode: "legacy",
+  effortTier: "legacy",
+  targetDishCount: 1,
+  bootstrap: {
+    activeHouseholdId: "native-bootstrap-family",
+    householdState: {
+      familyProfile: { familySize: 2, allergies: [], dislikes: [] },
+      familyMembers: [{
+        memberId: "formal-native-member",
+        preference: { allergies: ["鸡蛋"], dislikes: [] },
+      }],
+    },
+  },
+};
+assert.equal(
+  nativeRecommendation.validateRecommendationGroup(
+    { recipeIds: ["tomato-egg"] },
+    nativeBootstrapPreferenceInput,
+  ),
+  false,
+  "native guest recommendation must read formal-member preferences from bootstrap household state",
+);
 
 const portableRecipe = (id, category, ingredient) => ({
   id,

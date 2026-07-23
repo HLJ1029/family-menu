@@ -136,6 +136,17 @@ const defaultFamilyProfile = {
   shoppingTolerance: "medium",
 };
 
+function normalizeFamilyMemberPreference(preference = {}) {
+  const normalizedList = (value) => [...new Set((Array.isArray(value) ? value : [])
+    .map((item) => String(item ?? "").trim().slice(0, 40))
+    .filter(Boolean))]
+    .slice(0, 24);
+  return {
+    allergies: normalizedList(preference.allergies),
+    dislikes: normalizedList(preference.dislikes),
+  };
+}
+
 registerServiceWorker();
 
 function App() {
@@ -350,6 +361,10 @@ function App() {
     activeGroceryShareRequest,
     activeWishShareRequest,
     pendingJoinContext,
+    familyMembers: familyMembers.map((member) => ({
+      memberId: member.memberId,
+      preference: normalizeFamilyMemberPreference(member.preference),
+    })),
     householdMembers,
   }), [
     activeCraveRequest,
@@ -359,6 +374,7 @@ function App() {
     customItems,
     excludedGroceryKeys,
     family?.id,
+    familyMembers,
     familyProfile,
     householdMembers,
     mealPlan,
@@ -1036,6 +1052,12 @@ function App() {
     setFamily(data.family ?? null);
     setHumiHouseholds(Array.isArray(data.households) ? data.households : []);
     setMealExecutionCapabilities(data.capabilities ?? { mealExecution: false });
+    const state = data.state;
+    const preferenceByMemberId = new Map(
+      (Array.isArray(state?.familyMembers) ? state.familyMembers : [])
+        .filter((member) => member?.memberId)
+        .map((member) => [member.memberId, normalizeFamilyMemberPreference(member.preference)]),
+    );
     const formalMembers = (data.family?.members ?? []).map((member) => ({
       id: `member:${member.memberId}`,
       memberId: member.memberId,
@@ -1044,8 +1066,8 @@ function App() {
       status: "正式成员",
       joinedAt: member.joinedAt,
       avatarUrl: member.avatarUrl || "",
+      preference: preferenceByMemberId.get(member.memberId) ?? normalizeFamilyMemberPreference(),
     }));
-    const state = data.state;
     if (!state && !status.preserveStateWhenMissing) {
       setTodayMenu([]);
       setWeekPlan(createDefaultWeekPlan());
@@ -1067,6 +1089,7 @@ function App() {
       setActiveWishShareRequest(null);
       setPendingJoinContext(status.preservePendingJoin ?? null);
       setHouseholdMembers(formalMembers);
+      setFamilyMembers(formalMembers);
       const noFamilyStatus = "创建或加入一个家后，可以和家人同步菜单与清单。";
       setCloudSyncStatus(status.emptyMenu || (data.family ? "这个家还没有保存菜单，可以从今晚开始。" : noFamilyStatus));
       setCloudGroceryStatus(status.emptyGrocery || (data.family ? "这个家还没有保存清单。安排一顿后会自动生成。" : noFamilyStatus));
@@ -1124,6 +1147,7 @@ function App() {
       ...formalMembers,
       ...stateMembers.filter((member) => !formalMembers.some((formal) => formal.memberId && formal.memberId === member.memberId)),
     ]);
+    setFamilyMembers(formalMembers);
     setCloudSyncStatus(status.loadedMenu || "已读取当前家的今晚菜单和一周计划。");
     setCloudGroceryStatus(status.loadedGrocery || "已读取当前家的食材清单。");
   }

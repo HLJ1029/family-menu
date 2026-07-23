@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { HumiStore } from "../api/store.js";
 
 const port = 18787;
 const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-api-smoke-"));
@@ -9,6 +10,7 @@ const dataFile = join(smokeDirectory, "data.json");
 const smokeSessionSecret = "humi-api-smoke-secret";
 const explicitWechatOpenIds = new Set();
 let explicitHouseholdCreateCount = 0;
+const recipeCatalog = JSON.parse(await readFile(new URL("../data/recipes.json", import.meta.url), "utf8"));
 process.env.HUMI_API_DATA_FILE = dataFile;
 process.env.HUMI_AVATAR_DIR = join(smokeDirectory, "avatars");
 process.env.HUMI_POSTER_DIR = join(smokeDirectory, "posters");
@@ -771,6 +773,57 @@ try {
   assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
   assert(joinedCrave.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined crave user should immediately receive shared household state");
 
+  const ownerPreferenceMutation = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...joinedCrave.state,
+        familyMembers: [
+          {
+            memberId: login.user.id,
+            nickname: "客户端伪造主厨",
+            avatarUrl: "https://attacker.example/owner.png",
+            preference: {
+              allergies: [" 花生 ", "花生"],
+              dislikes: ["香菜"],
+              privateNote: "must-not-persist",
+            },
+          },
+          {
+            memberId: memberLogin.user.id,
+            nickname: "客户端伪造家人",
+            preference: { allergies: ["鸡蛋"], dislikes: [] },
+          },
+          {
+            memberId: "not-a-formal-household-member",
+            preference: { allergies: ["牛奶"], dislikes: [] },
+          },
+        ],
+      },
+    },
+  });
+  assert.deepEqual(
+    ownerPreferenceMutation.state?.familyMembers,
+    [
+      {
+        memberId: login.user.id,
+        preference: { allergies: ["花生"], dislikes: ["香菜"] },
+      },
+      {
+        memberId: memberLogin.user.id,
+        preference: { allergies: ["鸡蛋"], dislikes: [] },
+      },
+    ],
+    "owner may save normalized hard-diet preferences only for formal members",
+  );
+  assert.deepEqual(
+    Object.keys(ownerPreferenceMutation.state?.familyMembers?.[0] ?? {}).sort(),
+    ["memberId", "preference"],
+    "shared preference state must not persist client-supplied identity fields",
+  );
+
   const memberMutation = await request(`${baseUrl}/state`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
@@ -812,6 +865,21 @@ try {
             claimedAt: new Date().toISOString(),
           },
         },
+        familyMembers: [
+          {
+            memberId: login.user.id,
+            preference: { allergies: ["鸡蛋"], dislikes: ["辣"] },
+          },
+          {
+            memberId: memberLogin.user.id,
+            nickname: "篡改自己的显示身份",
+            preference: { allergies: [" 对鸡蛋过敏 "], dislikes: ["葱"] },
+          },
+          {
+            memberId: "not-a-formal-household-member",
+            preference: { allergies: ["牛奶"], dislikes: [] },
+          },
+        ],
       },
     },
   });
@@ -823,6 +891,76 @@ try {
   assert(memberMutation.state?.groceryClaims?.["custom:member-milk"]?.status === "done", "member should update their own grocery claim");
   assert(memberMutation.state?.checkedItems?.["custom:member-milk"] === true, "completed member grocery claim should mark the item checked");
   assert(memberMutation.state?.craveSignals?.[0]?.token === "crave-state-smoke-token", "member state save must not replace active crave signal");
+  assert.deepEqual(
+    memberMutation.state?.familyMembers,
+    [
+      {
+        memberId: login.user.id,
+        preference: { allergies: ["花生"], dislikes: ["香菜"] },
+      },
+      {
+        memberId: memberLogin.user.id,
+        preference: { allergies: ["对鸡蛋过敏"], dislikes: ["葱"] },
+      },
+    ],
+    "a member may update only their own preference while other formal preferences are preserved",
+  );
+
+  const preferenceStateGet = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.deepEqual(
+    preferenceStateGet.state?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "GET state must return the shared formal-member preferences",
+  );
+  const preferenceBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.deepEqual(
+    preferenceBootstrap.householdState?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "native bootstrap must return the same formal-member preferences",
+  );
+  const restartedPreferenceStore = new HumiStore(dataFile);
+  const restartedPreferenceState = await restartedPreferenceStore.getState(memberLogin.user.id);
+  assert.deepEqual(
+    restartedPreferenceState?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "formal-member preferences must survive a store restart",
+  );
+
+  const eggRecipeIds = new Set(recipeCatalog
+    .filter((recipe) => [
+      recipe.name,
+      recipe.description,
+      ...(recipe.categories ?? []),
+      ...(recipe.tags ?? []),
+      ...(recipe.ingredients ?? []).map((item) => item.name),
+      ...(recipe.seasonings ?? []).map((item) => item.name),
+    ].filter(Boolean).join(" ").includes("蛋"))
+    .map((recipe) => recipe.id));
+  let preferenceRecommendationStateVersion = "";
+  for (let index = 0; index < 5; index += 1) {
+    const recommendation = await request(`${baseUrl}/recommendations/dinner`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: {
+        householdId: loadedStateEnvelope.family.id,
+        dateKey: "2099-01-01",
+        mode: "legacy",
+        effortTier: "legacy",
+        action: index === 0 ? "initial" : "next",
+        contextFingerprint: "formal-member-preference-contract",
+        ...(preferenceRecommendationStateVersion ? { stateVersion: preferenceRecommendationStateVersion } : {}),
+      },
+    });
+    preferenceRecommendationStateVersion = recommendation.stateVersion;
+    assert(
+      recommendation.recipeIds.every((recipeId) => !eggRecipeIds.has(recipeId)),
+      "shared member egg allergy must exclude egg recipes from every real API recommendation",
+    );
+  }
 
   const targetedCrave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
