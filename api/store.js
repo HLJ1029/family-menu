@@ -1292,6 +1292,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) {
       const error = new Error("participantKey is required.");
@@ -1310,6 +1311,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.craveRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const vote = request.votes.find((item) => item.participantKey === participantKey);
       if (!vote) throw codedError("vote_not_found", "Temporary vote not found.");
       this.assertCollaborationActionClaimable(vote, userId);
@@ -1457,6 +1459,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
     if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
@@ -1466,6 +1469,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.groceryShareRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
       if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
       this.assertCollaborationActionClaimable(participantClaim, userId);
@@ -1608,6 +1612,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const wish = request.wishes.find((item) => item.participantKey === participantKey);
@@ -1616,6 +1621,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.wishShareRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const wish = request.wishes.find((item) => item.participantKey === participantKey);
       if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
       this.assertCollaborationActionClaimable(wish, userId);
@@ -2423,6 +2429,14 @@ export class HumiStore {
     const claimedByUserId = sanitizeText(action?.claimedByUserId || action?.memberId, "", 100);
     if (claimedByUserId && claimedByUserId !== userId) {
       throw codedError("collaboration_already_claimed", "Guest collaboration participant has already been claimed.");
+    }
+  }
+
+  assertCollaborationRequestHouseholdActive(request) {
+    const householdId = sanitizeText(request?.householdId, "", 100);
+    const householdExists = !householdId || this.data.households.some((household) => household.id === householdId);
+    if (request?.closedReason === "household_disbanded" || !householdExists) {
+      throw codedError("household_disbanded", "The household for this collaboration request no longer exists.");
     }
   }
 

@@ -62,6 +62,21 @@ const retiredGrocery = await store.createGroceryShareRequest({
   items: [{ id: "retired-milk", name: "牛奶" }],
 }, soloOwner.id);
 const retiredWish = await store.createWishShareRequest({}, soloOwner.id);
+await store.addCraveVote(
+  retiredCrave.token,
+  { feelingTag: "随便都行" },
+  { type: "guest", id: "retired-crave-guest" },
+);
+await store.addGroceryShareClaim(
+  retiredGrocery.token,
+  { itemIds: ["retired-milk"] },
+  { type: "guest", id: "retired-grocery-guest" },
+);
+await store.addWishShareEntry(
+  retiredWish.token,
+  { dishName: "旧家晚饭" },
+  { type: "guest", id: "retired-wish-guest" },
+);
 await saveFormerFamilyState(soloOwner, soloHousehold, "solo");
 await store.leaveHousehold(soloOwner.id, soloHousehold.id);
 assert.equal(await store.getHouseholdInvite(retiredInvite.token), null, "a disbanded household invite must no longer resolve");
@@ -90,6 +105,29 @@ for (const resource of [retiredCrave, retiredGrocery, retiredWish]) {
   assert.equal(storedResource?.status, "closed", "disbanding must close household-scoped public collaboration writes");
   assert.equal(storedResource?.closedReason, "household_disbanded");
 }
+await assert.rejects(
+  store.claimCraveVote(retiredCrave.token, retiredInviteRecipient.id, { participantKey: "retired-crave-guest" }),
+  (error) => error.code === "household_disbanded",
+  "a disbanded household must reject a later authenticated crave identity claim",
+);
+await assert.rejects(
+  store.claimGroceryShareParticipant(
+    retiredGrocery.token,
+    retiredInviteRecipient.id,
+    { participantKey: "retired-grocery-guest" },
+  ),
+  (error) => error.code === "household_disbanded",
+  "a disbanded household must reject a later authenticated grocery identity claim",
+);
+await assert.rejects(
+  store.claimWishShareParticipant(
+    retiredWish.token,
+    retiredInviteRecipient.id,
+    { participantKey: "retired-wish-guest" },
+  ),
+  (error) => error.code === "household_disbanded",
+  "a disbanded household must reject a later authenticated wish identity claim",
+);
 await assertFreshHouseholdHasNoFormerState(soloOwner, "独居后的新家", "last owner");
 
 // Collaboration claims bind the authenticated action identity only. They never grant
