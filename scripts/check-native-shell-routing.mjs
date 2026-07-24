@@ -74,7 +74,7 @@ assert.equal(resolveKnownShareRoute({ grocery: validToken, shareSource: "ignored
 assert.equal(resolveKnownShareRoute({ groceryShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=grocery&token=${validToken}&shareSource=grocery`);
 assert.equal(resolveKnownShareRoute({ menuShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=today_menu&token=${validToken}&shareSource=today_menu`);
 assert.equal(resolveKnownShareRoute({ wishShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=wish&token=${validToken}&shareSource=wish`);
-assert.equal(resolveKnownShareRoute({ invite: validToken, shareSource: "ignored" }), `/packageFamily/pages/invite/index?token=${validToken}`);
+assert.equal(resolveKnownShareRoute({ invite: validToken, shareSource: "ignored" }), `/packageFamily/pages/invite/index?token=${validToken}&shareSource=invite`);
 assert.equal(resolveKnownShareRoute({ mealTask: validToken, shareSource: "ignored" }), `/pages/share/index?type=meal_task&token=${validToken}&shareSource=meal_task`);
 for (const invalidToken of [{ value: validToken }, "", "   ", "short", "x".repeat(65), "abcdefghijklmnopqrstuv!" ]) {
   assert.equal(resolveKnownShareRoute({ crave: invalidToken }), null, "only opaque 24–64 character token strings may use the native landing");
@@ -399,7 +399,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [
 
 routes.length = 0;
 await bootPage.onLoad({ invite: validToken, shareSource: "ignored" });
-assert.deepEqual(routes, [["reLaunch", `/packageFamily/pages/invite/index?token=${validToken}`]], "a recognized household invite must open the controlled native join landing");
+assert.deepEqual(routes, [["reLaunch", `/packageFamily/pages/invite/index?token=${validToken}&shareSource=invite`]], "a recognized household invite must preserve its reviewed visibility source");
 
 const shimSource = readFileSync(new URL("../miniprogram/pages/index/index.js", import.meta.url), "utf8");
 let shimDefinition;

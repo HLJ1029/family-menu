@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { buildMiniProgramPosterUrl, buildMiniProgramReminderUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "../src/lib/runtime.js";
-import { createMenuShareRequest, subscribeHumiSessionInvalid } from "../src/lib/humiApi.js";
+import {
+  createHouseholdInvite,
+  createMenuShareRequest,
+  subscribeHumiSessionInvalid,
+  uploadPosterShare,
+} from "../src/lib/humiApi.js";
 import { buildShareSnapshotKey, createAsyncSnapshotCache } from "../src/lib/shareSnapshot.js";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
 import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
@@ -100,6 +105,12 @@ assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_200), false, "a
 assert.equal(getShareRecovery(recoveryStorage, 1_200)?.state, "replaying");
 clearShareRecovery(recoveryStorage);
 assert.equal(beginShareRecoveryReplay(recoveryStorage, 1_300), null);
+for (const action of ["invite", "poster_share", "poster_save"]) {
+  const actionStorage = createMemoryStorage();
+  assert.equal(queueShareRecovery(action, actionStorage, 2_000), true, `${action} should permit one silent recovery`);
+  assert.deepEqual(beginShareRecoveryReplay(actionStorage, 2_100), { action, attempts: 1 });
+  assert.equal(queueShareRecovery(action, actionStorage, 2_200), false, `${action} must not schedule a third request`);
+}
 
 let recoveryInvalidations = 0;
 let recoveryRequestBody = null;
@@ -134,6 +145,46 @@ try {
   assert.equal(recoveryInvalidations, 1, "normal authenticated 401s must keep the global invalidation behavior");
 } finally {
   unsubscribeRecoveryInvalidation();
+  globalThis.fetch = originalFetch;
+}
+
+let inviteRequestBody = null;
+let posterRequestHeaders = null;
+globalThis.fetch = async (url, options = {}) => {
+  if (String(url).endsWith("/household-invites")) {
+    inviteRequestBody = JSON.parse(options.body || "{}");
+  } else if (String(url).endsWith("/poster-shares")) {
+    posterRequestHeaders = new Headers(options.headers);
+  }
+  return new Response(JSON.stringify({ error: "invalid_session", message: "expired" }), {
+    status: 401,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  await assert.rejects(
+    createHouseholdInvite(
+      expiredSession,
+      { householdId: "family-1" },
+      { notifySessionInvalid: false, idempotencyKey: "invite:family-1" },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(inviteRequestBody.idempotencyKey, "invite:family-1", "an invite retry must reuse its stable household key");
+  await assert.rejects(
+    uploadPosterShare(
+      expiredSession,
+      new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" }),
+      { styleId: "theme", idempotencyKey: "poster:family-1:theme:state-v1" },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(
+    posterRequestHeaders.get("X-Humi-Idempotency-Key"),
+    "poster:family-1:theme:state-v1",
+    "a poster retry must reuse its stable household/style/state key",
+  );
+} finally {
   globalThis.fetch = originalFetch;
 }
 

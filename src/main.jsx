@@ -646,7 +646,18 @@ function App() {
       const recovery = beginShareRecoveryReplay();
       if (!recovery || shareRecoveryReplayRef.current) return;
       shareRecoveryReplayRef.current = recovery.action;
-      const replay = recovery.action === "today_menu" ? shareTodayMenu : shareGroceryList;
+      const replay = {
+        today_menu: shareTodayMenu,
+        grocery: shareGroceryList,
+        invite: createFamilyInviteCard,
+        poster_share: () => handoffPosterToMiniProgram("share"),
+        poster_save: () => handoffPosterToMiniProgram("save"),
+      }[recovery.action];
+      if (!replay) {
+        clearShareRecovery();
+        shareRecoveryReplayRef.current = "";
+        return;
+      }
       void replay().finally(() => {
         shareRecoveryReplayRef.current = "";
       });
@@ -1496,6 +1507,7 @@ function App() {
       confirmation: "all",
       confirmedBy: recordedBy,
       consumedEntries: entries,
+      pantryConsumedRecipeIds: consumePantryForMealEntries(entries),
       mealRunId: completed.id,
     });
     trackValidationEvent(validationEvents.mealConfirmed, {
@@ -3106,6 +3118,9 @@ function App() {
 
   async function createGroceryListPoster() {
     const text = formatShareText(visibleGroceryGroups, customItems);
+    const stateVersion = buildShareSnapshotKey("grocery_poster_state", family?.id, {
+      items: buildGroceryShareItems(visibleGroceryItems, customItems, checkedItems),
+    });
     await openPosterPreview({
       type: "grocery_list",
       title: "Humi 购物清单",
@@ -3116,6 +3131,7 @@ function App() {
       refreshLabel: "换一种样式",
       styleId: SHOPPING_POSTER_STYLES[0],
       availableStyleIds: SHOPPING_POSTER_STYLES,
+      stateVersion,
     });
   }
 
@@ -3208,6 +3224,10 @@ function App() {
       "",
       `待买食材：${visibleGroceryItems.length} 项`,
     ].join("\n");
+    const stateVersion = buildShareSnapshotKey("today_menu_poster_state", family?.id, {
+      recipes: todayRecipes.map((recipe) => ({ id: recipe.id, quantity: recipe.menuQuantity ?? 1 })),
+      groceryCount: visibleGroceryItems.length,
+    });
     await openPosterPreview({
       type: "today_menu",
       title: "Humi 今晚菜单",
@@ -3216,6 +3236,7 @@ function App() {
       createBlob: () => createTodayMenuPoster({ recipes: todayRecipes, groceryCount: visibleGroceryItems.length }),
       fallbackSuccess: "今晚菜单已复制",
       refreshLabel: "重新生成海报",
+      stateVersion,
     });
   }
 
@@ -3228,6 +3249,7 @@ function App() {
         return `${day}：${names.length > 0 ? names.join("、") : "未安排"}`;
       }),
     ].join("\n");
+    const stateVersion = buildShareSnapshotKey("week_plan_poster_state", family?.id, weekPlan);
     await openPosterPreview({
       type: "week_plan",
       title: "Humi 本周菜单",
@@ -3236,6 +3258,7 @@ function App() {
       createBlob: () => createWeekMenuPoster({ weekPlan, getRecipe }),
       fallbackSuccess: "一周计划已复制",
       refreshLabel: "重新生成海报",
+      stateVersion,
     });
   }
 
@@ -3265,10 +3288,11 @@ function App() {
     refreshLabel,
     styleId = "",
     availableStyleIds = [],
+    stateVersion = "",
   }) {
     setPosterPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
-      return { blob: null, url: "", type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds };
+      return { blob: null, url: "", type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds, stateVersion };
     });
     setPosterLoading(true);
     try {
@@ -3276,7 +3300,7 @@ function App() {
       const url = URL.createObjectURL(blob);
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds };
+        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds, stateVersion };
       });
       trackProductEvent(productEvents.share, { type, method: "poster_preview" });
       trackValidationEvent(validationEvents.posterGenerated, { type, title });
@@ -3357,7 +3381,11 @@ function App() {
           ? posterPreview.blob
           : await posterPreview.createBlob(styleId);
         const uploadBlob = await preparePosterUploadBlob(styleBlob);
-        const data = await uploadPosterShare(humiSession, uploadBlob, { styleId });
+        const snapshotKey = `poster:${family?.id || "guest"}:${styleId}:${posterPreview.stateVersion || "local"}`;
+        const data = await shareSnapshotCacheRef.current.getOrCreate(
+          snapshotKey,
+          () => uploadPosterShare(humiSession, uploadBlob, { styleId, idempotencyKey: snapshotKey }),
+        );
         if (data.poster?.styleId !== styleId) {
           throw new Error("海报风格没有正确传到微信，请重新生成。");
         }
@@ -3386,6 +3414,7 @@ function App() {
         title: posterPreview.title,
         action,
       }, getNativeHandoffOptions(`poster_${action}`, { timeoutMs: 2400 }));
+      if (shareRecoveryReplayRef.current === `poster_${action}`) clearShareRecovery();
       if (status === "handoff") {
         trackProductEvent(productEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
         trackValidationEvent(
@@ -3396,6 +3425,7 @@ function App() {
         showNotice("没能打开微信海报页，请再试一次");
       }
     } catch (error) {
+      if (handleShareSessionRecovery(error, `poster_${action}`)) return true;
       showNotice(error.message || "海报暂时没传到微信，请稍后再试");
     } finally {
       setPosterLoading(false);
@@ -3914,13 +3944,22 @@ function App() {
       const activeHouseholdId = humiHouseholds.some((household) => household.id === family?.id)
         ? family.id
         : "";
-      const data = await createHouseholdInvite(humiSession, {
-        householdId: activeHouseholdId,
-        inviterName: getDisplayName(displaySession) || "主厨",
-      });
+      const snapshotKey = `invite:${activeHouseholdId}`;
+      const data = await shareSnapshotCacheRef.current.getOrCreate(
+        snapshotKey,
+        () => createHouseholdInvite(humiSession, {
+          householdId: activeHouseholdId,
+          inviterName: getDisplayName(displaySession) || "主厨",
+        }, {
+          notifySessionInvalid: false,
+          idempotencyKey: snapshotKey,
+        }),
+      );
+      if (shareRecoveryReplayRef.current === "invite") clearShareRecovery();
       setActiveHouseholdInvite(data.invite);
       showNotice("邀请已准备好，请点“选择家人发送”");
     } catch (error) {
+      if (handleShareSessionRecovery(error, "invite")) return;
       showNotice(error.message || "家庭邀请暂时没生成成功");
     } finally {
       setHouseholdInvitePending(false);
@@ -4576,11 +4615,6 @@ function App() {
                 onShare={shareTodayMenu}
                 onCreatePoster={createTodayMenuPosterPreview}
                 shareMode={isWechatMiniProgramWebView() ? "mini" : "poster"}
-                mealLog={todayMealLog}
-                mealLogs={mealLogs}
-                onSetDinnerSource={setDinnerSource}
-                onSetDinnerConfirmation={setDinnerConfirmation}
-                onToggleConsumedRecipe={toggleConsumedRecipe}
                 onOpenRecipeLibrary={openRecipeLibrary}
                 canManageHousehold={canManageHousehold}
                 cloudSync={{

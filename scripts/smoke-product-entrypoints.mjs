@@ -659,8 +659,8 @@ try {
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "grocery-check-adds-hidden-pantry-clue", ok: pantryPipeline.addedAfterCheck, actual: pantryPipeline.pantryAfterCheck },
     { key: "dinner-confirmation-is-hidden-before-cooking", ok: pantryPipeline.dashboardLightConfirmationCount === 0 && pantryPipeline.confirmationBeforeStartCount === 0, actual: pantryPipeline },
-    { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
-    { key: "dinner-confirmation-writes-meal-log", ok: pantryPipeline.mealLogged, actual: pantryPipeline.mealLog },
+    { key: "opening-a-legacy-recipe-does-not-complete-dinner", ok: pantryPipeline.confirmationAfterRecipeOpenCount === 0 && !pantryPipeline.mealLogged, actual: pantryPipeline },
+    { key: "legacy-recipe-open-keeps-pantry-for-canonical-cooking", ok: pantryPipeline.pantryPreserved, actual: pantryPipeline.pantryAfterRecipeOpen },
     { key: "implicit-pantry-pipeline-page-errors", ok: pantryPipeline.pageErrors.length === 0, errors: pantryPipeline.pageErrors },
     { key: "signed-in-onboarding-only-asks-hard-constraints", ok: hardConstraintOnboarding.onlyHardConstraints },
     { key: "signed-in-onboarding-can-skip-without-diet-tags", ok: hardConstraintOnboarding.canSkip },
@@ -1681,8 +1681,9 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   await openTodayMenu(page);
   await page.getByRole("button", { name: "开始做饭", exact: true }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
-  await page.getByRole("button", { name: "出去吃", exact: true }).click();
-  await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByRole("button", { name: /^账号设置/ }).click();
+  await page.getByRole("button", { name: "查看吃饭习惯", exact: true }).click();
   await page.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
   const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
   await page.getByTestId("mobile-nav-user").click();
@@ -2329,29 +2330,28 @@ async function verifyImplicitPantryPipeline(browser, base) {
   const confirmationBeforeStartCount = await page.getByRole("button", { name: "上桌了", exact: true }).count();
   await page.getByRole("button", { name: "开始做饭", exact: true }).click();
   await page.getByRole("button", { name: "关闭", exact: true }).click();
-  const doneButton = page.getByRole("button", { name: "上桌了", exact: true });
-  if (await doneButton.count() !== 1) throw new Error("开始做饭后没有找到唯一的“上桌了”按钮。");
-  await doneButton.click();
+  const confirmationAfterRecipeOpenCount = await page.getByRole("button", { name: "上桌了", exact: true }).count();
   const result = await page.evaluate(() => ({
     pantry: JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"),
     mealLogs: JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}"),
   }));
   const today = getLocalDateKey();
   const mealLog = result.mealLogs[today] ?? {};
-  const removedAfterDinner = !result.pantry.some((item) => item.name === "西红柿");
+  const pantryPreserved = result.pantry.some((item) => item.name === "西红柿");
   const mealLogged = mealLog.confirmation === "all"
     && mealLog.consumedEntries?.some((entry) => entry.recipeId === "tomato-egg");
   await context.close();
   return {
     addedAfterCheck,
-    removedAfterDinner,
+    pantryPreserved,
     mealLogged,
     pantryAfterCheck,
-    pantryAfterDinner: result.pantry,
+    pantryAfterRecipeOpen: result.pantry,
     mealLog,
     pageErrors,
     dashboardLightConfirmationCount,
     confirmationBeforeStartCount,
+    confirmationAfterRecipeOpenCount,
   };
 }
 

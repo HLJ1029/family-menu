@@ -6,7 +6,13 @@ import { createServer } from "vite";
 
 const recipes = JSON.parse(await readFile(new URL("../data/recipes.json", import.meta.url), "utf8"));
 const cookAssist = JSON.parse(await readFile(new URL("../data/cook-assist.json", import.meta.url), "utf8"));
+const todayMenuSource = await readFile(new URL("../src/components/TodayMenu.jsx", import.meta.url), "utf8");
+assert.doesNotMatch(todayMenuSource, /\bDinnerLogPanel\b/, "TodayMenu must not retain the legacy dinner completion panel");
+assert.doesNotMatch(todayMenuSource, /\bcookingStarted\b/, "opening a recipe must not fabricate a cooking state");
 const recipeById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
+const pantryFixtureNames = [...new Set(recipes.flatMap((recipe) => (
+  (recipe.ingredients || []).map((ingredient) => ingredient.name).filter(Boolean)
+)))];
 const certifiedByTier = new Map(["quick_15", "easy_30", "normal"].map((effortTier) => [
   effortTier,
   new Map(cookAssist
@@ -92,6 +98,26 @@ try {
 
   await page.getByRole("button", { name: "上桌了" }).click();
   await page.getByTestId("meal-completion-sheet").waitFor();
+  const completedProductState = await page.evaluate(() => ({
+    mealLogs: JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}"),
+    pantryItems: JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"),
+  }));
+  const completedMealLog = completedProductState.mealLogs[plannedDateKey] || {};
+  assert.equal(completedMealLog.confirmation, "all", "canonical completion must update the product dinner record");
+  assert.equal(completedMealLog.mealRunId, cookingRun.id, "the product dinner record must point to the canonical MealRun");
+  assert.deepEqual(
+    [...(completedMealLog.pantryConsumedRecipeIds || [])].sort(),
+    [...cookingRun.recipeIds].sort(),
+    "canonical completion must consume pantry clues for the recipes that actually reached the table",
+  );
+  const completedPantryNames = new Set(completedProductState.pantryItems.map((item) => item.name));
+  const consumedIngredientNames = cookingRun.recipeIds.flatMap((recipeId) => (
+    (recipeById.get(recipeId)?.ingredients || []).map((ingredient) => ingredient.name)
+  ));
+  assert(
+    consumedIngredientNames.every((name) => !completedPantryNames.has(name)),
+    "canonical completion must remove consumed ingredients from the hidden pantry clue set",
+  );
   await page.getByRole("button", { name: "下次还想吃" }).click();
   await page.getByText("本周做成 1 顿", { exact: false }).waitFor();
   assert.equal(await page.getByTestId("meal-reminder-guest-gate").count(), 1, "guest reminder must require login");
@@ -131,16 +157,24 @@ async function verifyTierRotation(browser, targetUrl, tierCase) {
   page.on("console", (message) => {
     if (message.type() === "error") pageErrors.push(message.text());
   });
-  await page.addInitScript(() => {
+  await page.addInitScript((pantryNames) => {
     localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
     localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
     localStorage.removeItem("humi:identity-session:v1");
+    localStorage.setItem("family-menu:pantry-items", JSON.stringify(
+      pantryNames.map((name, index) => ({
+        key: `meal-execution-pantry-${index}`,
+        name,
+        amount: "",
+        source: "测试食材线索",
+      })),
+    ));
     if (!sessionStorage.getItem("humi:meal-execution-test-initialized")) {
       localStorage.removeItem("humi:meal-execution-runs:v1");
       localStorage.removeItem("humi:meal-effort-tier:v1");
       sessionStorage.setItem("humi:meal-execution-test-initialized", "1");
     }
-  });
+  }, pantryFixtureNames);
 
   await page.goto(targetUrl, { waitUntil: "networkidle" });
   const experience = page.getByTestId("meal-execution-experience");

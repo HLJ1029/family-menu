@@ -1036,12 +1036,8 @@ async function verifyH5ServerToOfflineRotation(effortTier) {
     localInput: { ...input, action: "next", stateVersion: authoritative.group.stateVersion },
     validateServerGroup: (group) => validateDinnerRecommendationIds(group, input),
   });
-  assert.equal(restored.source, "server");
-  assert.equal(
-    restoredRequest.stateVersion,
-    authoritative.group.stateVersion,
-    `H5 ${effortTier} recovery must send the authoritative server stateVersion, not a local cursor hash`,
-  );
+  assert.equal(restored.source, "local_fallback", `H5 ${effortTier} must keep one local cursor after an authenticated fallback`);
+  assert.equal(restoredRequest, null, `H5 ${effortTier} must not resume a stale server cursor inside the same scope`);
 }
 
 async function verifyNativeServerToOfflineRotation(effortTier) {
@@ -1145,12 +1141,8 @@ async function verifyNativeServerToOfflineRotation(effortTier) {
     action: "next",
     stateVersion: groups.at(-1).stateVersion,
   });
-  assert.equal(restored.source, "server");
-  assert.equal(
-    restoredRequest.stateVersion,
-    authoritative.group.stateVersion,
-    `native ${effortTier} recovery must send the authoritative server stateVersion, not a local cursor hash`,
-  );
+  assert.equal(restored.source, "local_fallback", `native ${effortTier} must keep one local cursor after an authenticated fallback`);
+  assert.equal(restoredRequest, null, `native ${effortTier} must not resume a stale server cursor inside the same scope`);
 }
 
 function verifyFallbackScopeIsolation() {

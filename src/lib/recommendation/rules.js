@@ -319,6 +319,15 @@ export async function requestBalancedDinnerWithFallback({
   localInput,
   validateServerGroup = (group) => validateDinnerRecommendationIds(group, localInput),
 }) {
+  const authenticatedScope = Boolean(localInput?.householdId && localInput.householdId !== "guest");
+  if (authenticatedScope && isLocalDinnerFallbackLocked(localInput)) {
+    return {
+      source: "local_fallback",
+      group: localInput?.storage
+        ? rotateLocalDinner({ ...localInput, fallbackLocked: true })
+        : buildLocalBalancedDinner(localInput),
+    };
+  }
   try {
     const group = await requestServer(serverPayload);
     if (
@@ -340,7 +349,9 @@ export async function requestBalancedDinnerWithFallback({
   }
   return {
     source: "local_fallback",
-    group: localInput?.storage ? rotateLocalDinner(localInput) : buildLocalBalancedDinner(localInput),
+    group: localInput?.storage
+      ? rotateLocalDinner({ ...localInput, fallbackLocked: authenticatedScope })
+      : buildLocalBalancedDinner(localInput),
   };
 }
 
@@ -372,6 +383,7 @@ export function seedLocalDinnerRotation(input = {}, group = {}) {
     cycle: stored.cycle,
     updatedAt: new Date().toISOString(),
     upstreamStateVersion: String(group.stateVersion || stored.upstreamStateVersion || ""),
+    fallbackLocked: false,
   };
   storage.setItem(storageKey, JSON.stringify(nextRotation));
   return nextRotation;
@@ -486,6 +498,7 @@ export function rotateLocalDinner(input = {}) {
     cycle: rotation.cycle,
     updatedAt: new Date().toISOString(),
     upstreamStateVersion: stored.upstreamStateVersion,
+    fallbackLocked: Boolean(input.fallbackLocked || stored.fallbackLocked),
   };
   storage.setItem(storageKey, JSON.stringify(nextRotation));
   return localDinnerGroup(
@@ -616,6 +629,7 @@ function readLocalDinnerRotation(storage, storageKey, scopeKey, householdId) {
         cycle: Math.max(0, Number.parseInt(parsed.cycle, 10) || 0),
         updatedAt: String(parsed.updatedAt || ""),
         upstreamStateVersion: String(parsed.upstreamStateVersion || ""),
+        fallbackLocked: parsed.fallbackLocked === true,
       };
     }
   } catch {
@@ -629,7 +643,21 @@ function readLocalDinnerRotation(storage, storageKey, scopeKey, householdId) {
     cycle: 0,
     updatedAt: "",
     upstreamStateVersion: "",
+    fallbackLocked: false,
   };
+}
+
+function isLocalDinnerFallbackLocked(input = {}) {
+  const storage = input.storage;
+  if (!storage?.getItem) return false;
+  const scopeKey = localDinnerScopeKey(input);
+  const stored = readLocalDinnerRotation(
+    storage,
+    localDinnerStorageKey(scopeKey),
+    scopeKey,
+    input.householdId || "guest",
+  );
+  return stored.fallbackLocked === true;
 }
 
 function localDinnerGroup(recipeIds, rotation, targetDishCount, exhausted, reasonCode) {

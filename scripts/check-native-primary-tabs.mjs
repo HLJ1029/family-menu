@@ -201,6 +201,49 @@ try {
     [["鸡蛋", "pending"], ["西红柿", "maybe_home"]],
     "the grocery list must derive deterministic pending and maybe-at-home groups from the meal plan",
   );
+  const offlineGroceryQueue = [];
+  const offlineGroceryBootstrap = buildNativeBootstrap({ role: "member" });
+  const offlineGrocery = await loadPage("miniprogram/pages/grocery/index.js", {
+    "../../utils/store": {
+      appStore: {
+        getState: () => ({ bootstrap: offlineGroceryBootstrap }),
+        replaceBootstrap() {},
+      },
+    },
+    "../../utils/native-shell-guard": { guardNativeTab: () => true },
+    "../../utils/offline-queue": { enqueueMutation: (mutation) => offlineGroceryQueue.push(mutation) },
+    "../../utils/household-state": {
+      applyGroceryState: (items) => items,
+      createMutationId: () => `offline-grocery-${offlineGroceryQueue.length + 1}`,
+      deriveGroceryItems: () => [{
+        id: "ingredient:tomato",
+        name: "西红柿",
+        amount: "2 个",
+        status: "maybe_home",
+        checked: false,
+      }],
+      getActiveHousehold: () => ({ id: "household-1", name: "测试家" }),
+      getHouseholdRole: () => "member",
+      saveHouseholdStatePatch: async () => {
+        const error = new TypeError("Failed to fetch");
+        error.code = "network_error";
+        error.status = 0;
+        throw error;
+      },
+    },
+  });
+  offlineGrocery.invalidateNativeShare = () => {};
+  offlineGrocery.prepareNativeShare = async () => null;
+  offlineGrocery.syncState();
+  await offlineGrocery.checkItem({ detail: { itemId: "ingredient:tomato", checked: true } });
+  assert.equal(offlineGrocery.data.items[0].status, "bought");
+  await offlineGrocery.checkItem({ detail: { itemId: "ingredient:tomato", checked: false } });
+  assert.equal(
+    offlineGrocery.data.items[0].status,
+    "maybe_home",
+    "offline unchecking must restore the derived maybe-at-home classification",
+  );
+  assert.equal(offlineGroceryQueue.length, 2, "both optimistic changes must stay queued for replay");
   const mealDays = householdState.buildMealDays({
     "2026-07-24": {
       dinner: [{

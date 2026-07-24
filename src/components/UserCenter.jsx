@@ -36,6 +36,7 @@ export function UserCenter({
   onLeaveHousehold,
   onSaveFamilyProfile,
   mealLogs = {},
+  onViewChange,
 }) {
   const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
   const [familyRoute, setFamilyRoute] = useState(() => ({ familyId: family?.id || "", pageId: "home" }));
@@ -103,7 +104,7 @@ export function UserCenter({
     );
   }
   if (pageId === "account") {
-    return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} />;
+    return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} onOpenEatingHabits={() => onViewChange?.("stats")} />;
   }
 
   return (

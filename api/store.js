@@ -449,6 +449,7 @@ export class HumiStore {
 
       const now = new Date().toISOString();
       if (isOwner) {
+        this.retireHouseholdPublicResources(household.id, now);
         this.data.households = this.data.households.filter((item) => item.id !== household.id);
         this.retireHouseholdState(household.id);
         delete this.data.states[userId];
@@ -492,6 +493,38 @@ export class HumiStore {
       if (state === currentState || state?.householdId === householdId) {
         delete this.data.states[stateUserId];
       }
+    }
+  }
+
+  retireHouseholdPublicResources(householdId, now = new Date().toISOString()) {
+    const closeOpenResources = (collection = []) => {
+      for (const resource of collection) {
+        if (resource?.householdId !== householdId || resource.status !== "open") continue;
+        resource.status = "closed";
+        resource.closedReason = "household_disbanded";
+        resource.closedAt = now;
+        resource.updatedAt = now;
+      }
+    };
+    closeOpenResources(this.data.householdInvites);
+    closeOpenResources(this.data.craveRequests);
+    closeOpenResources(this.data.groceryShares);
+    closeOpenResources(this.data.groceryShareRequests);
+    closeOpenResources(this.data.menuShareRequests);
+    closeOpenResources(this.data.wishShareRequests);
+    for (const task of this.data.mealTasks ?? []) {
+      if (task?.householdId !== householdId || !["open", "claimed"].includes(task.status)) continue;
+      task.status = "cancelled";
+      task.cancelledReason = "household_disbanded";
+      task.cancelledAt = now;
+      task.updatedAt = now;
+    }
+    for (const reminder of this.data.mealReminders ?? []) {
+      if (reminder?.householdId !== householdId || reminder.status !== "scheduled") continue;
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.lastError = "household_disbanded";
+      reminder.updatedAt = now;
     }
   }
 
@@ -558,13 +591,16 @@ export class HumiStore {
 
   async getHouseholdInvite(token) {
     await this.load();
-    return this.data.householdInvites.find((item) => item.token === token) ?? null;
+    const invite = this.data.householdInvites.find((item) => item.token === token) ?? null;
+    return invite && this.data.households.some((household) => household.id === invite.householdId)
+      ? invite
+      : null;
   }
 
   async addHouseholdInviteWant(token, payload = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
-    if (!invite) return null;
+    if (!invite || !this.data.households.some((household) => household.id === invite.householdId)) return null;
     if (invite.status !== "open") {
       const error = new Error("Invite is closed.");
       error.code = "invite_closed";
@@ -616,13 +652,14 @@ export class HumiStore {
   async acceptHouseholdInvite(token, userId, options = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
-    if (!invite) return null;
+    if (!invite || !this.data.households.some((household) => household.id === invite.householdId)) return null;
     if (invite.status !== "open") {
       const error = new Error("Invite is closed.");
       error.code = "invite_closed";
       throw error;
     }
     const household = await this.addHouseholdMember(invite.householdId, userId, options);
+    if (!household) return null;
     const now = new Date().toISOString();
     const participantKey = sanitizeText(options.participantKey, "", 80);
     if (participantKey) {

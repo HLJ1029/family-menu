@@ -1,6 +1,6 @@
 const SHARE_RECOVERY_KEY = "humi:share-session-recovery:v1";
 const SHARE_RECOVERY_TTL_MS = 5 * 60 * 1000;
-const RECOVERABLE_ACTIONS = new Set(["today_menu", "grocery"]);
+const RECOVERABLE_ACTIONS = new Set(["today_menu", "grocery", "invite", "poster_share", "poster_save"]);
 
 export function queueShareRecovery(action, storage = getStorage(), now = Date.now()) {
   if (!storage || !RECOVERABLE_ACTIONS.has(action)) return false;

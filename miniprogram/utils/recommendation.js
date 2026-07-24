@@ -65,6 +65,7 @@ function rotateGuestDinner(input = {}) {
     cycle,
     updatedAt: new Date().toISOString(),
     upstreamStateVersion: stored.upstreamStateVersion,
+    fallbackLocked: Boolean(context.fallbackLocked || stored.fallbackLocked),
   };
   storage.setStorageSync(storageKey, next);
   return toGroup(recipeIds, next, targetDishCount, exhausted, exhausted ? "cycle_reset_recent_protected" : "balanced_unseen");
@@ -78,6 +79,7 @@ async function recommendDinner(input = {}) {
   });
   const canUseServer = Boolean(clean(context.householdId) && context.householdId !== "guest");
   if (!canUseServer) return localRecommendation(context);
+  if (isFallbackLocked(context)) return localRecommendation(context, "fallback_scope_locked", true);
   try {
     const group = await requestHumi({
       path: "/recommendations/dinner",
@@ -117,12 +119,12 @@ async function recommendDinner(input = {}) {
       throw error;
     }
     if (!isFallbackError(error)) throw error;
-    return localRecommendation(context, error?.code || "request_failed");
+    return localRecommendation(context, error?.code || "request_failed", true);
   }
 }
 
-function localRecommendation(context, fallbackReason = "") {
-  const group = rotateGuestDinner({ ...context, storage: context.storage || wx });
+function localRecommendation(context, fallbackReason = "", fallbackLocked = false) {
+  const group = rotateGuestDinner({ ...context, storage: context.storage || wx, fallbackLocked });
   const isAuthenticatedScope = Boolean(clean(context.householdId) && context.householdId !== "guest");
   return {
     ...group,
@@ -164,6 +166,7 @@ function seedLocalDinnerRotation(input = {}, group = {}) {
     cycle: stored.cycle,
     updatedAt: new Date().toISOString(),
     upstreamStateVersion: clean(group.stateVersion || stored.upstreamStateVersion),
+    fallbackLocked: false,
   };
   storage.setStorageSync(storageKey, next);
   return next;
@@ -357,6 +360,7 @@ function normalizeRotation(value, scopeKey, householdId) {
       cycle: 0,
       updatedAt: "",
       upstreamStateVersion: "",
+      fallbackLocked: false,
     };
   }
   return {
@@ -367,7 +371,20 @@ function normalizeRotation(value, scopeKey, householdId) {
     cycle: Math.max(0, Number(value.cycle) || 0),
     updatedAt: clean(value.updatedAt),
     upstreamStateVersion: clean(value.upstreamStateVersion),
+    fallbackLocked: value.fallbackLocked === true,
   };
+}
+
+function isFallbackLocked(input = {}) {
+  const context = recommendationContext(input);
+  const storage = context.storage || wx;
+  const scopeKey = buildRecommendationScope(context);
+  const rotation = normalizeRotation(
+    storage.getStorageSync(`${storagePrefix}${scopeKey}`),
+    scopeKey,
+    context.householdId || "guest",
+  );
+  return rotation.fallbackLocked === true;
 }
 
 function clean(value) {

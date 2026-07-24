@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { ImageIcon, Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor } from "../lib/recipes";
-import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
@@ -18,14 +16,8 @@ export function TodayMenu({
   onShare,
   onCreatePoster,
   shareMode = "poster",
-  mealLog,
-  mealLogs,
-  onSetDinnerSource,
-  onSetDinnerConfirmation,
-  onToggleConsumedRecipe,
   canManageHousehold = true,
 }) {
-  const [cookingStarted, setCookingStarted] = useState(false);
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
   const nutrition = todayRecipes.reduce(
     (summary, recipe) => {
@@ -110,10 +102,7 @@ export function TodayMenu({
               </button>}
               <button
                 type="button"
-                onClick={() => {
-                  setCookingStarted(true);
-                  onOpenRecipe(todayRecipes[0]?.id);
-                }}
+                onClick={() => onOpenRecipe(todayRecipes[0]?.id)}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-5 text-sm font-black text-ink transition hover:-translate-y-0.5"
               >
                 <Utensils size={18} />
@@ -227,22 +216,6 @@ export function TodayMenu({
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
         />}
-
-        {cookingStarted && (
-          <DinnerLogPanel
-            mealLog={mealLog}
-            mealLogs={mealLogs}
-            onSetDinnerSource={onSetDinnerSource}
-            onSetDinnerConfirmation={onSetDinnerConfirmation}
-            onToggleConsumedRecipe={onToggleConsumedRecipe}
-            todayRecipes={todayRecipes}
-            showConfirmation
-            dinnerReady
-            onViewChange={onViewChange}
-            canManageHousehold={canManageHousehold}
-            compact
-          />
-        )}
 
       </div>
 

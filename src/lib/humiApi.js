@@ -197,11 +197,15 @@ export function leaveHumiHousehold(session, householdId) {
   });
 }
 
-export async function createHouseholdInvite(session, payload) {
+export async function createHouseholdInvite(session, payload, options = {}) {
   return humiApiRequest("/household-invites", {
     method: "POST",
     session,
-    body: payload,
+    body: {
+      ...payload,
+      ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+    },
+    notifySessionInvalid: options.notifySessionInvalid,
   });
 }
 
@@ -390,6 +394,7 @@ export async function uploadPosterShare(session, blob, options = {}) {
     throw new Error("海报图片没有准备完整，请重新生成。");
   }
   const styleId = options.styleId === "theme" ? "theme" : "default";
+  const idempotencyKey = String(options.idempotencyKey || "").trim().slice(0, 100);
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
   try {
@@ -399,13 +404,17 @@ export async function uploadPosterShare(session, blob, options = {}) {
         "Content-Type": blob.type,
         Authorization: `Bearer ${session.accessToken}`,
         "X-Humi-Poster-Style": styleId,
+        ...(idempotencyKey ? { "X-Humi-Idempotency-Key": idempotencyKey } : {}),
       },
       body: blob,
       signal: controller.signal,
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.message || "海报暂时没传到微信，请稍后再试。");
+      const error = new Error(data.message || "海报暂时没传到微信，请稍后再试。");
+      error.status = response.status;
+      error.code = data.error || "";
+      throw error;
     }
     return data;
   } catch (error) {

@@ -189,7 +189,15 @@ const REQUIRED_CHECKS = [
     required: ["这次不用买", "ShoppingChecklist", "onGroceryItemChecked"],
     forbidden: ["库存管理"],
     evidence: "scripts/smoke-product-entrypoints.mjs",
-    evidenceRequired: ["inventory-maintenance-is-not-exposed", "grocery-check-adds-hidden-pantry-clue", "dinner-confirmation-consumes-hidden-pantry-clue", "nutrition-entry-is-not-on-grocery-tab"],
+    evidenceRequired: ["inventory-maintenance-is-not-exposed", "grocery-check-adds-hidden-pantry-clue", "opening-a-legacy-recipe-does-not-complete-dinner", "legacy-recipe-open-keeps-pantry-for-canonical-cooking", "nutrition-entry-is-not-on-grocery-tab"],
+  },
+  {
+    key: "canonical-completion-consumes-pantry-clues",
+    title: "只有真实 MealRun 上桌才消耗食材线索",
+    path: "src/main.jsx",
+    required: ["pantryConsumedRecipeIds: consumePantryForMealEntries(entries)", "mealRunId: completed.id"],
+    evidence: "scripts/smoke-meal-execution-ui.mjs",
+    evidenceRequired: ["canonical completion must consume pantry clues", "canonical completion must remove consumed ingredients"],
   },
   {
     key: "family-living-room-focus",

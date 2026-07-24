@@ -1,6 +1,6 @@
 import { PageHeader } from "./HouseholdMembersPage";
 
-export function HumiAccountPage({ humiSession, onBack, onSignOut }) {
+export function HumiAccountPage({ humiSession, onBack, onSignOut, onOpenEatingHabits }) {
   const user = humiSession?.user || {};
   const displayName = user.displayName || "Humi 用户";
   const phoneState = user.phoneVerified && user.phoneMasked ? user.phoneMasked : "未绑定";
@@ -19,6 +19,7 @@ export function HumiAccountPage({ humiSession, onBack, onSignOut }) {
       </section>
       <section className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-6">
         <div className="grid gap-2 text-sm font-black">
+          <button type="button" onClick={onOpenEatingHabits} className="min-h-11 rounded-[18px] bg-canvas px-4 py-3 text-left">查看吃饭习惯</button>
           <a href="/privacy.html" className="min-h-11 rounded-[18px] bg-canvas px-4 py-3">隐私政策</a>
           <a href="/terms.html" className="min-h-11 rounded-[18px] bg-canvas px-4 py-3">用户协议</a>
         </div>

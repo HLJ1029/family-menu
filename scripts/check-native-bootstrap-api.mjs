@@ -111,9 +111,9 @@ async function verifyGuestCapabilityCrossMatrix() {
         HUMI_MEAL_EXECUTION_ENABLED: "1",
         HUMI_MEAL_EXECUTION_HOUSEHOLDS: "guest",
       },
-      nativeShellEnabled: true,
+      nativeShellEnabled: false,
       mealExecutionEnabled: true,
-      route: { route: "/pages/tonight/index", reason: "native_enabled" },
+      route: { route: "/pages/legacy/index", reason: "server_disabled" },
     },
     {
       name: "guest-production-native-only",
@@ -186,22 +186,6 @@ async function verifyGuestCapabilityCrossMatrix() {
         contract.route,
         `${contract.name}: startup route`,
       );
-      if (contract.name === "guest-production-explicit-cohort") {
-        const familyMutation = await rawRequest(`${server.baseUrl}/meal-runs`, {
-          method: "POST",
-          token: session.accessToken,
-          body: {
-            householdId: "guest",
-            dateKey: todayDateKey(),
-            mealSlot: "dinner",
-            effortTier: "quick_15",
-            recipeIds: ["tomato-egg"],
-            idempotencyKey: "guest-must-stay-local",
-          },
-        });
-        assert.equal(familyMutation.status, 404, "guest cohort capability never authorizes a family mutation");
-        assert.equal(familyMutation.data.error, "household_not_found");
-      }
     } finally {
       await stopServer(server);
     }

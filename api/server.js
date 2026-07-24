@@ -1514,12 +1514,10 @@ function isGuestMealExecutionEnabled() {
 function isNativeShellEnabledFor(householdId) {
   if (!config.nativeShellEnabled) return false;
   if (!householdId) {
-    const explicitGuestCohort = config.nativeShellHouseholds.has("guest")
-      && config.mealExecutionHouseholds.has("guest");
     const testWildcardCohort = config.nativeShellWildcardAllowed
       && config.nativeShellHouseholds.has("*")
       && config.mealExecutionHouseholds.has("*");
-    return config.mealExecutionEnabled && (explicitGuestCohort || testWildcardCohort);
+    return config.mealExecutionEnabled && testWildcardCohort;
   }
   return (config.nativeShellWildcardAllowed && config.nativeShellHouseholds.has("*"))
     || config.nativeShellHouseholds.has(householdId);
@@ -2220,6 +2218,7 @@ async function handleCreatePosterShare(request, response) {
   const auth = await requireAuth(request);
   enforcePosterUploadAccess(request, auth.userId);
   const styleId = normalizePosterStyleId(request.headers["x-humi-poster-style"]);
+  const idempotencyKey = stringValue(request.headers["x-humi-idempotency-key"], 100);
   const declaredLength = Number(request.headers["content-length"] || 0);
   if (declaredLength > config.posterMaxBytes) {
     throw httpError(413, "poster_too_large", "海报图片太大，请重新生成后再试。");
@@ -2233,20 +2232,14 @@ async function handleCreatePosterShare(request, response) {
 
   await mkdir(config.posterDir, { recursive: true, mode: 0o700 });
   await cleanupExpiredPosters();
-  const token = randomBytes(24).toString("base64url");
-  const filename = `${token}.${format}`;
-  await writeFile(join(config.posterDir, filename), body, { mode: 0o600, flag: "wx" });
-  const expiresAt = new Date(Date.now() + config.posterTtlMs).toISOString();
-  sendJson(response, 201, {
-    poster: {
-      token,
-      format,
-      url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
-      expiresAt,
-      bytes: body.length,
-      styleId,
-    },
+  const poster = await createPosterShareSnapshot({
+    userId: auth.userId,
+    idempotencyKey,
+    body,
+    format,
+    styleId,
   });
+  sendJson(response, 201, { poster });
 }
 
 function normalizePosterStyleId(value) {
@@ -2283,6 +2276,104 @@ async function handleGetPosterShare(request, response, token, format) {
 }
 
 const posterRateBuckets = new Map();
+const posterUploadInflight = new Map();
+
+async function createPosterShareSnapshot({ userId, idempotencyKey, body, format, styleId }) {
+  if (!idempotencyKey) return persistPosterShare({ body, format, styleId });
+  const operationKey = createHmac("sha256", config.sessionSecret)
+    .update(`poster:${userId}:${idempotencyKey}`)
+    .digest("hex");
+  const bodyDigest = createHmac("sha256", config.sessionSecret).update(body).digest("hex");
+  if (posterUploadInflight.has(operationKey)) {
+    const existing = await posterUploadInflight.get(operationKey);
+    assertMatchingPosterSnapshot(existing, { bodyDigest, format, styleId });
+    return existing.poster;
+  }
+  const pending = readOrCreatePosterSnapshot(operationKey, {
+    body,
+    bodyDigest,
+    format,
+    styleId,
+  });
+  posterUploadInflight.set(operationKey, pending);
+  try {
+    const snapshot = await pending;
+    assertMatchingPosterSnapshot(snapshot, { bodyDigest, format, styleId });
+    return snapshot.poster;
+  } finally {
+    if (posterUploadInflight.get(operationKey) === pending) posterUploadInflight.delete(operationKey);
+  }
+}
+
+async function readOrCreatePosterSnapshot(operationKey, input) {
+  const metadataPath = posterIdempotencyPath(operationKey);
+  const existing = await readPosterSnapshotMetadata(metadataPath);
+  if (existing) return existing;
+  const poster = await persistPosterShare(input);
+  const snapshot = {
+    bodyDigest: input.bodyDigest,
+    format: input.format,
+    styleId: input.styleId,
+    poster,
+  };
+  await writeFile(metadataPath, JSON.stringify(snapshot), { mode: 0o600, flag: "w" });
+  return snapshot;
+}
+
+async function persistPosterShare({ body, format, styleId }) {
+  const token = randomBytes(24).toString("base64url");
+  const filename = `${token}.${format}`;
+  await writeFile(join(config.posterDir, filename), body, { mode: 0o600, flag: "wx" });
+  const expiresAt = new Date(Date.now() + config.posterTtlMs).toISOString();
+  return {
+    token,
+    format,
+    url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
+    expiresAt,
+    bytes: body.length,
+    styleId,
+  };
+}
+
+async function readPosterSnapshotMetadata(path) {
+  let snapshot;
+  try {
+    snapshot = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    await unlink(path).catch(() => {});
+    return null;
+  }
+  const poster = snapshot?.poster;
+  const expiresAt = Date.parse(poster?.expiresAt || "");
+  const posterPath = poster?.token && poster?.format
+    ? join(config.posterDir, `${poster.token}.${poster.format}`)
+    : "";
+  const posterInfo = posterPath ? await stat(posterPath).catch(() => null) : null;
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || !posterInfo?.isFile()) {
+    await unlink(path).catch(() => {});
+    return null;
+  }
+  return snapshot;
+}
+
+function assertMatchingPosterSnapshot(snapshot, { bodyDigest, format, styleId }) {
+  if (
+    snapshot?.bodyDigest !== bodyDigest
+    || snapshot?.format !== format
+    || snapshot?.styleId !== styleId
+  ) {
+    throw httpError(
+      409,
+      "poster_idempotency_conflict",
+      "这张海报的内容已经变化，请重新生成后再分享。",
+    );
+  }
+}
+
+function posterIdempotencyPath(operationKey) {
+  return join(config.posterDir, `.poster-idempotency-${operationKey}.json`);
+}
 
 function enforcePosterUploadAccess(request, userId) {
   const key = `${userId}:${getClientIp(request)}`;
@@ -2307,8 +2398,12 @@ async function cleanupExpiredPosters() {
   const entries = await readdir(config.posterDir, { withFileTypes: true }).catch(() => []);
   const now = Date.now();
   await Promise.all(entries.map(async (entry) => {
-    if (!entry.isFile() || !/^[A-Za-z0-9_-]{24,64}\.(jpg|png)$/.test(entry.name)) return;
     const path = join(config.posterDir, entry.name);
+    if (entry.isFile() && /^\.poster-idempotency-[a-f0-9]{64}\.json$/.test(entry.name)) {
+      await readPosterSnapshotMetadata(path);
+      return;
+    }
+    if (!entry.isFile() || !/^[A-Za-z0-9_-]{24,64}\.(jpg|png)$/.test(entry.name)) return;
     const fileInfo = await stat(path).catch(() => null);
     if (fileInfo && now - fileInfo.mtimeMs > config.posterTtlMs) {
       await unlink(path).catch(() => {});

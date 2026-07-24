@@ -81,6 +81,7 @@ try {
       "Content-Type": "image/jpeg",
       Authorization: `Bearer ${login.accessToken}`,
       "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
     },
     body: posterJpeg,
   });
@@ -89,6 +90,46 @@ try {
   assert.equal(uploadedPoster.data.poster?.styleId, "theme", "poster upload should preserve an allowlisted style ID");
   assert(uploadedPoster.data.poster?.bytes === posterJpeg.length, "poster upload should report exact bytes");
   assert(/^[A-Za-z0-9_-]{24,64}$/.test(uploadedPoster.data.poster?.token || ""), "poster upload should return an opaque token");
+  const repeatedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
+    },
+    body: posterJpeg,
+  });
+  assert.equal(repeatedPoster.status, 201);
+  assert.equal(repeatedPoster.data.poster?.token, uploadedPoster.data.poster.token, "a lost poster response must replay the original token");
+  const concurrentPosterKey = `poster-concurrent:${runId}`;
+  const concurrentPosters = await Promise.all([0, 1].map(() => rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "default",
+      "X-Humi-Idempotency-Key": concurrentPosterKey,
+    },
+    body: posterJpeg,
+  })));
+  assert.equal(
+    new Set(concurrentPosters.map((result) => result.data.poster?.token)).size,
+    1,
+    "concurrent poster retries must converge on one token",
+  );
+  const conflictingPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
+    },
+    body: Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xd9]),
+  });
+  assert.equal(conflictingPoster.status, 409, "one poster idempotency key must not accept different image bytes");
+  assert.equal(conflictingPoster.data.error, "poster_idempotency_conflict");
   const posterPath = `/poster-shares/${uploadedPoster.data.poster.token}.jpg`;
   const downloadedPoster = await rawRequest(`${baseUrl}${posterPath}`);
   assert(downloadedPoster.status === 200, "uploaded poster should be publicly downloadable by opaque token");

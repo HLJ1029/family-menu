@@ -39,10 +39,18 @@ Page({
     if (bootstrap.cacheState === "cached") this.invalidateNativeShare("grocery");
     const household = getActiveHousehold(bootstrap);
     const householdState = bootstrap.householdState || {};
-    const items = applyGroceryState(
-      deriveGroceryItems(householdState.mealPlan || {}, householdState.pantryItems || []),
-      householdState,
+    const derivedItems = deriveGroceryItems(
+      householdState.mealPlan || {},
+      householdState.pantryItems || [],
     );
+    const baseStatusById = new Map(derivedItems.map((item) => [item.id, item.status]));
+    const items = applyGroceryState(
+      derivedItems,
+      householdState,
+    ).map((item) => ({
+      ...item,
+      baseStatus: baseStatusById.get(item.id) || item.baseStatus || "pending",
+    }));
     this.setData({
       status: bootstrap.cacheState === "cached" ? "cached" : "ready",
       cacheState: bootstrap.cacheState || "",
@@ -91,7 +99,11 @@ Page({
         });
         this.setData({
           items: this.data.items.map((item) => item.id === itemId
-            ? { ...item, checked, status: checked ? "bought" : item.status === "bought" ? "pending" : item.status }
+            ? {
+                ...item,
+                checked,
+                status: checked ? "bought" : item.baseStatus || (item.status === "bought" ? "pending" : item.status),
+              }
             : item),
           cacheState: "cached",
           errorText: "已离线保存，联网后会同步这项勾选。",
