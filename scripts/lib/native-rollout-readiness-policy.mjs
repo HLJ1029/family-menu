@@ -74,6 +74,16 @@ export function extractNativeCandidateCommit(markdown) {
   return matches[0][1].toLowerCase();
 }
 
+export function extractNativeCandidateArtifactPath(markdown) {
+  const matches = [...String(markdown || "").matchAll(
+    /^\|[^|\r\n]*\|[^|\r\n]*\|\s*([^|\r\n]+\.tar\.gz)\s*\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|[ \t]*$/gmi,
+  )].map((match) => match[1].trim().replace(/^`|`$/g, ""));
+  if (matches.length !== 1) {
+    throw new Error("expected exactly one native source archive in the handoff Files table");
+  }
+  return matches[0];
+}
+
 export function resolveExternalHandoffPath({
   handoffPath = "",
   localContractOnly = false,

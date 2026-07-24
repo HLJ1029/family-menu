@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { extname, relative, resolve } from "node:path";
+import { dirname, extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkSupabaseRetirement } from "./check-supabase-retirement.mjs";
+import { assertNativeArtifactMatchesCommit } from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
 import {
   assertCandidateVersionIsUnused,
   EXTERNAL_ACTION_KEYS,
+  extractNativeCandidateArtifactPath,
   extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
@@ -259,6 +261,15 @@ if (externalHandoffPath) {
       currentCommit,
       "AI-HQ candidate commit must equal the current reviewed HEAD",
     );
+    const artifactPath = resolve(
+      dirname(resolve(externalHandoffPath)),
+      extractNativeCandidateArtifactPath(externalHandoff),
+    );
+    await assertNativeArtifactMatchesCommit({
+      artifactPath,
+      repoRoot: ROOT,
+      commit: currentCommit,
+    });
     assert.deepEqual(
       externalCandidateState,
       repositoryCandidateState,

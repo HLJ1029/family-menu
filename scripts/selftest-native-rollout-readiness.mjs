@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertNativeArtifactMatchesCommit } from "./lib/native-candidate-artifact.mjs";
 import {
   assertCandidateVersionIsUnused,
+  extractNativeCandidateArtifactPath,
   extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
@@ -80,6 +85,14 @@ assert.throws(
     "- 提交：`612dac2c6e6d90de737deac314d6cc6e6a841bc9`",
   ].join("\n")),
   /exactly one candidate commit/,
+);
+assert.equal(
+  extractNativeCandidateArtifactPath([
+    "| Version | Role | Path | Size | SHA256 | Status |",
+    "| --- | --- | --- | ---: | --- | --- |",
+    "| native-shell-preview-1.1.74 | 小程序原生源码归档 | /tmp/humi-native-shell-1.1.74-abcd123.tar.gz | 123 | deadbeef | preview |",
+  ].join("\n")),
+  "/tmp/humi-native-shell-1.1.74-abcd123.tar.gz",
 );
 assert.equal(
   resolveExternalHandoffPath({
@@ -205,6 +218,58 @@ for (const maliciousYaml of [
     /noncanonical YAML syntax/,
     `noncanonical YAML must fail closed: ${maliciousYaml}`,
   );
+}
+
+const artifactFixture = await mkdtemp(join(tmpdir(), "humi-native-artifact-selftest-"));
+try {
+  execFileSync("git", ["init", "-q"], { cwd: artifactFixture });
+  execFileSync("git", ["config", "user.name", "Humi Selftest"], { cwd: artifactFixture });
+  execFileSync("git", ["config", "user.email", "humi-selftest@example.invalid"], { cwd: artifactFixture });
+  await mkdir(join(artifactFixture, "miniprogram"), { recursive: true });
+  await writeFile(join(artifactFixture, "miniprogram", "app.js"), "module.exports = 'old';\n");
+  execFileSync("git", ["add", "miniprogram"], { cwd: artifactFixture });
+  execFileSync("git", ["commit", "-q", "-m", "old candidate"], { cwd: artifactFixture });
+  const oldCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: artifactFixture, encoding: "utf8" }).trim();
+  const oldArchive = join(artifactFixture, "old.tar.gz");
+  execFileSync("git", [
+    "archive",
+    "--format=tar.gz",
+    "--prefix=humi-native-shell-1.1.74/",
+    `--output=${oldArchive}`,
+    oldCommit,
+    "miniprogram",
+  ], { cwd: artifactFixture });
+
+  await writeFile(join(artifactFixture, "miniprogram", "app.js"), "module.exports = 'new';\n");
+  execFileSync("git", ["add", "miniprogram"], { cwd: artifactFixture });
+  execFileSync("git", ["commit", "-q", "-m", "new candidate"], { cwd: artifactFixture });
+  const currentCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: artifactFixture, encoding: "utf8" }).trim();
+  const currentArchive = join(artifactFixture, "current.tar.gz");
+  execFileSync("git", [
+    "archive",
+    "--format=tar.gz",
+    "--prefix=humi-native-shell-1.1.74/",
+    `--output=${currentArchive}`,
+    currentCommit,
+    "miniprogram",
+  ], { cwd: artifactFixture });
+
+  await assertNativeArtifactMatchesCommit({
+    artifactPath: currentArchive,
+    repoRoot: artifactFixture,
+    commit: currentCommit,
+  });
+  await assert.rejects(
+    assertNativeArtifactMatchesCommit({
+      artifactPath: oldArchive,
+      repoRoot: artifactFixture,
+      commit: currentCommit,
+    }),
+    /does not match candidate commit/,
+    "a handoff with the new commit line and an old archive must fail closed",
+  );
+} finally {
+  await rm(artifactFixture, { recursive: true, force: true });
 }
 
 const rollback = await runNativeRollbackDrill({
