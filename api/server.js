@@ -2036,6 +2036,9 @@ async function handleJoinGroceryShare(request, response, token) {
     if (error.code === "grocery_share_read_only") {
       throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能绑定参与记录。");
     }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的买菜参与记录。");
+    }
     throw error;
   }
 }
@@ -2130,6 +2133,9 @@ async function handleJoinWishShare(request, response, token) {
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的想吃记录。");
+    }
     throw error;
   }
 }
@@ -2194,6 +2200,9 @@ async function handleJoinCraveRequest(request, response, token) {
     }
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
+    }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的征集参与记录。");
     }
     throw error;
   }

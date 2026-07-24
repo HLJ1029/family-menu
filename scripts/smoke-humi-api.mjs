@@ -2162,6 +2162,101 @@ try {
     },
   }, 404, "household_not_found");
 
+  explicitWechatOpenIds.add(`disband-owner-${runId}`);
+  const disbandOwner = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `disband-owner-${runId}` },
+  });
+  await request(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { displayName: "解散主厨", avatarKey: "humi-avatar-parent-f-01" },
+  });
+  const disbandHousehold = await request(`${baseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", memberName: "解散主厨" },
+  });
+  explicitHouseholdCreateCount += 1;
+  const disbandCrave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", initiatorName: "解散主厨" },
+  });
+  const disbandCraveVote = await request(`${baseUrl}/crave-requests/${disbandCrave.request.token}/votes`, {
+    method: "POST",
+    body: { feelingTag: "随便都行" },
+  });
+  const disbandGrocery = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: {
+      idempotencyKey: `disband-grocery:${runId}`,
+      householdName: "待解散的家",
+      initiatorName: "解散主厨",
+      items: [{ id: "disband-milk", name: "牛奶", amount: "1盒", category: "蛋奶" }],
+    },
+  });
+  const disbandGroceryClaim = await request(
+    `${baseUrl}/grocery-share-requests/${disbandGrocery.request.token}/claims`,
+    {
+      method: "POST",
+      body: { itemIds: ["disband-milk"], status: "claimed" },
+    },
+  );
+  const disbandWish = await request(`${baseUrl}/wish-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", initiatorName: "解散主厨", title: "最近想吃什么" },
+  });
+  const disbandWishEntry = await request(`${baseUrl}/wish-share-requests/${disbandWish.request.token}/wishes`, {
+    method: "POST",
+    body: { dishName: "旧家晚饭" },
+  });
+
+  explicitWechatOpenIds.add(`disband-claimant-${runId}`);
+  const disbandClaimant = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `disband-claimant-${runId}` },
+  });
+  await request(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${disbandClaimant.accessToken}` },
+    body: { displayName: "旧家参与者", avatarKey: "humi-avatar-parent-f-01" },
+  });
+  await request(`${baseUrl}/households/${disbandHousehold.family.id}/leave`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+  });
+  explicitHouseholdCreateCount -= 1;
+  const collaborationBeforeDisbandClaims = {
+    crave: await readCollaborationRequestCollection("crave"),
+    grocery: await readCollaborationRequestCollection("grocery"),
+    wish: await readCollaborationRequestCollection("wish"),
+    events: await readCollaborationEvents(),
+  };
+  for (const [path, guestParticipantId] of [
+    [`/crave-requests/${disbandCrave.request.token}/join`, disbandCraveVote.participant.id],
+    [`/grocery-share-requests/${disbandGrocery.request.token}/join`, disbandGroceryClaim.participant.id],
+    [`/wish-share-requests/${disbandWish.request.token}/join`, disbandWishEntry.participant.id],
+  ]) {
+    await assertRejectedRequest(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${disbandClaimant.accessToken}` },
+      body: { guestParticipantId },
+    }, 410, "household_disbanded");
+  }
+  assert.deepEqual(
+    {
+      crave: await readCollaborationRequestCollection("crave"),
+      grocery: await readCollaborationRequestCollection("grocery"),
+      wish: await readCollaborationRequestCollection("wish"),
+      events: await readCollaborationEvents(),
+    },
+    collaborationBeforeDisbandClaims,
+    "joining collaboration from a disbanded household must not mutate requests or identity events",
+  );
+
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
