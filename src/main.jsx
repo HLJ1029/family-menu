@@ -127,7 +127,11 @@ import { createActualPassiveTimer } from "./lib/mealExecution";
 import { explainRecommendationViaApi as explainRecommendation } from "./lib/aiViaHumiApi";
 import { getLaunchChannel, isWechatMiniProgramWebView, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "./lib/runtime";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, isShareRecoveryActive, queueShareRecovery } from "./lib/shareRecovery";
-import { buildShareSnapshotKey, createAsyncSnapshotCache } from "./lib/shareSnapshot";
+import {
+  buildPosterUploadIdempotencyKey,
+  buildShareSnapshotKey,
+  createAsyncSnapshotCache,
+} from "./lib/shareSnapshot";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
 import { lazyRoutes } from "./routes/lazyRoutes";
@@ -650,8 +654,8 @@ function App() {
         today_menu: shareTodayMenu,
         grocery: shareGroceryList,
         invite: createFamilyInviteCard,
-        poster_share: () => handoffPosterToMiniProgram("share"),
-        poster_save: () => handoffPosterToMiniProgram("save"),
+        poster_share: () => replayPosterRecovery("share", recovery.context),
+        poster_save: () => replayPosterRecovery("save", recovery.context),
       }[recovery.action];
       if (!replay) {
         clearShareRecovery();
@@ -1621,7 +1625,7 @@ function App() {
     };
   }
 
-  function handleShareSessionRecovery(error, action) {
+  function handleShareSessionRecovery(error, action, context = null) {
     const invalidSession = error?.status === 401 || error?.code === "invalid_session";
     if (!invalidSession || !isWechatMiniProgramWebView()) return false;
     const currentRecovery = getShareRecovery();
@@ -1636,7 +1640,7 @@ function App() {
       showNotice("微信登录仍未恢复，请重新进入 Humi");
       return true;
     }
-    if (!queueShareRecovery(action)) {
+    if (!queueShareRecovery(action, undefined, undefined, context)) {
       clearShareRecovery();
       shareRecoveryReplayRef.current = "";
       expireHumiIdentity();
@@ -3116,12 +3120,13 @@ function App() {
     await createGroceryListPoster();
   }
 
-  async function createGroceryListPoster() {
+  async function createGroceryListPoster(options = {}) {
     const text = formatShareText(visibleGroceryGroups, customItems);
     const stateVersion = buildShareSnapshotKey("grocery_poster_state", family?.id, {
       items: buildGroceryShareItems(visibleGroceryItems, customItems, checkedItems),
     });
-    await openPosterPreview({
+    const styleId = options.styleId === "theme" ? "theme" : SHOPPING_POSTER_STYLES[0];
+    return openPosterPreview({
       type: "grocery_list",
       title: "Humi 购物清单",
       filename: "humi-shopping-list.png",
@@ -3129,7 +3134,7 @@ function App() {
       createBlob: (styleId) => createGroceryPoster({ items: visibleGroceryItems, customItems, styleId }),
       fallbackSuccess: "食材清单已复制",
       refreshLabel: "换一种样式",
-      styleId: SHOPPING_POSTER_STYLES[0],
+      styleId,
       availableStyleIds: SHOPPING_POSTER_STYLES,
       stateVersion,
     });
@@ -3228,7 +3233,7 @@ function App() {
       recipes: todayRecipes.map((recipe) => ({ id: recipe.id, quantity: recipe.menuQuantity ?? 1 })),
       groceryCount: visibleGroceryItems.length,
     });
-    await openPosterPreview({
+    return openPosterPreview({
       type: "today_menu",
       title: "Humi 今晚菜单",
       filename: "humi-tonight-menu.png",
@@ -3250,7 +3255,7 @@ function App() {
       }),
     ].join("\n");
     const stateVersion = buildShareSnapshotKey("week_plan_poster_state", family?.id, weekPlan);
-    await openPosterPreview({
+    return openPosterPreview({
       type: "week_plan",
       title: "Humi 本周菜单",
       filename: "humi-week-menu.png",
@@ -3298,19 +3303,35 @@ function App() {
     try {
       const blob = await createBlob(styleId);
       const url = URL.createObjectURL(blob);
+      const nextPreview = {
+        blob,
+        url,
+        type,
+        title,
+        filename,
+        text,
+        createBlob,
+        fallbackSuccess,
+        refreshLabel,
+        styleId,
+        availableStyleIds,
+        stateVersion,
+      };
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return { blob, url, type, title, filename, text, createBlob, fallbackSuccess, refreshLabel, styleId, availableStyleIds, stateVersion };
+        return nextPreview;
       });
       trackProductEvent(productEvents.share, { type, method: "poster_preview" });
       trackValidationEvent(validationEvents.posterGenerated, { type, title });
       showNotice("海报已生成");
+      return nextPreview;
     } catch {
       setPosterPreview((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
         return null;
       });
       await shareText({ type, title, text, success: fallbackSuccess });
+      return null;
     } finally {
       setPosterLoading(false);
     }
@@ -3347,9 +3368,38 @@ function App() {
     }
   }
 
-  async function handoffPosterToMiniProgram(action) {
+  async function rebuildPosterPreviewForRecovery(context) {
+    if (!context?.posterType || !context?.stateVersion) return null;
+    let rebuiltPreview = null;
+    if (context.posterType === "grocery_list") {
+      rebuiltPreview = await createGroceryListPoster({ styleId: context.styleId });
+    } else if (context.posterType === "today_menu") {
+      rebuiltPreview = await createTodayMenuPosterPreview();
+    } else if (context.posterType === "week_plan") {
+      rebuiltPreview = await shareWeekPlan();
+    }
+    if (!rebuiltPreview || rebuiltPreview.stateVersion !== context.stateVersion) {
+      if (rebuiltPreview?.url) URL.revokeObjectURL(rebuiltPreview.url);
+      setPosterPreview(null);
+      return null;
+    }
+    return rebuiltPreview;
+  }
+
+  async function replayPosterRecovery(action, context) {
+    const rebuiltPreview = await rebuildPosterPreviewForRecovery(context);
+    if (!rebuiltPreview?.blob) {
+      clearShareRecovery();
+      showNotice("海报内容已经变化，请重新生成后再分享");
+      return true;
+    }
+    return handoffPosterToMiniProgram(action, rebuiltPreview);
+  }
+
+  async function handoffPosterToMiniProgram(action, previewOverride = null) {
     if (!isWechatMiniProgramWebView()) return false;
-    if (!posterPreview?.blob) {
+    const activePreview = previewOverride?.blob ? previewOverride : posterPreview;
+    if (!activePreview?.blob) {
       showNotice("海报还没准备好");
       return true;
     }
@@ -3364,9 +3414,9 @@ function App() {
 
     setPosterLoading(true);
     try {
-      const previewStyleId = posterPreview.styleId === "theme" ? "theme" : "default";
+      const previewStyleId = activePreview.styleId === "theme" ? "theme" : "default";
       const availableStyleIds = [...new Set(
-        (posterPreview.availableStyleIds?.length ? posterPreview.availableStyleIds : [previewStyleId])
+        (activePreview.availableStyleIds?.length ? activePreview.availableStyleIds : [previewStyleId])
           .filter((styleId) => styleId === "default" || styleId === "theme"),
       )];
       if (!availableStyleIds.includes(previewStyleId)) availableStyleIds.unshift(previewStyleId);
@@ -3374,14 +3424,18 @@ function App() {
         previewStyleId,
         ...availableStyleIds.filter((styleId) => styleId !== previewStyleId),
       ];
-      const remotePosters = { ...(posterPreview.remotePosters || {}) };
+      const remotePosters = { ...(activePreview.remotePosters || {}) };
       for (const styleId of orderedStyleIds) {
         if (remotePosters[styleId]?.token) continue;
         const styleBlob = styleId === previewStyleId
-          ? posterPreview.blob
-          : await posterPreview.createBlob(styleId);
+          ? activePreview.blob
+          : await activePreview.createBlob(styleId);
         const uploadBlob = await preparePosterUploadBlob(styleBlob);
-        const snapshotKey = `poster:${family?.id || "guest"}:${styleId}:${posterPreview.stateVersion || "local"}`;
+        const snapshotKey = buildPosterUploadIdempotencyKey(
+          family?.id,
+          styleId,
+          activePreview.stateVersion,
+        );
         const data = await shareSnapshotCacheRef.current.getOrCreate(
           snapshotKey,
           () => uploadPosterShare(humiSession, uploadBlob, { styleId, idempotencyKey: snapshotKey }),
@@ -3391,14 +3445,14 @@ function App() {
         }
         remotePosters[styleId] = data.poster;
         setPosterPreview((current) => (
-          current?.blob === posterPreview.blob
+          current?.blob === activePreview.blob
             ? { ...current, remotePosters: { ...remotePosters } }
             : current
         ));
       }
       const remotePoster = remotePosters[previewStyleId];
       setPosterPreview((current) => (
-        current?.blob === posterPreview.blob ? { ...current, remotePoster, remotePosters } : current
+        current?.blob === activePreview.blob ? { ...current, remotePoster, remotePosters } : current
       ));
       const defaultPoster = remotePosters.default;
       const themePoster = remotePosters.theme;
@@ -3406,26 +3460,30 @@ function App() {
         token: remotePoster.token,
         format: remotePoster.format,
         styleId: previewStyleId,
-        posterType: posterPreview.type,
+        posterType: activePreview.type,
         defaultToken: defaultPoster?.token || "",
         defaultFormat: defaultPoster?.format || "",
         themeToken: themePoster?.token || "",
         themeFormat: themePoster?.format || "",
-        title: posterPreview.title,
+        title: activePreview.title,
         action,
       }, getNativeHandoffOptions(`poster_${action}`, { timeoutMs: 2400 }));
       if (shareRecoveryReplayRef.current === `poster_${action}`) clearShareRecovery();
       if (status === "handoff") {
-        trackProductEvent(productEvents.share, { type: posterPreview.type, method: `poster_mini_${action}` });
+        trackProductEvent(productEvents.share, { type: activePreview.type, method: `poster_mini_${action}` });
         trackValidationEvent(
           action === "save" ? validationEvents.posterSavedAttempted : validationEvents.posterSharedIntent,
-          { type: posterPreview.type, method: "mini_program" },
+          { type: activePreview.type, method: "mini_program" },
         );
       } else {
         showNotice("没能打开微信海报页，请再试一次");
       }
     } catch (error) {
-      if (handleShareSessionRecovery(error, `poster_${action}`)) return true;
+      if (handleShareSessionRecovery(error, `poster_${action}`, {
+        posterType: activePreview.type,
+        styleId: activePreview.styleId,
+        stateVersion: activePreview.stateVersion,
+      })) return true;
       showNotice(error.message || "海报暂时没传到微信，请稍后再试");
     } finally {
       setPosterLoading(false);

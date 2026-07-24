@@ -8,7 +8,11 @@ import {
   subscribeHumiSessionInvalid,
   uploadPosterShare,
 } from "../src/lib/humiApi.js";
-import { buildShareSnapshotKey, createAsyncSnapshotCache } from "../src/lib/shareSnapshot.js";
+import {
+  buildPosterUploadIdempotencyKey,
+  buildShareSnapshotKey,
+  createAsyncSnapshotCache,
+} from "../src/lib/shareSnapshot.js";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
 import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
@@ -55,6 +59,21 @@ const snapshotKey = buildShareSnapshotKey("menu", "family-1", {
   dishes: [{ id: "tomato-egg", quantity: 1 }],
   groceryCount: 3,
 });
+
+const posterHouseholdId = "123e4567-e89b-42d3-a456-426614174000";
+const posterStateV1 = buildShareSnapshotKey("today_menu_poster_state", posterHouseholdId, {
+  recipes: [{ id: "tomato-egg", quantity: 1 }],
+  groceryCount: 2,
+});
+const posterStateV2 = buildShareSnapshotKey("today_menu_poster_state", posterHouseholdId, {
+  recipes: [{ id: "tomato-egg", quantity: 2 }],
+  groceryCount: 4,
+});
+const posterUploadKeyV1 = buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV1);
+const posterUploadKeyV2 = buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV2);
+assert(posterUploadKeyV1.length <= 100, "a poster upload key must fit the server contract without truncation");
+assert(posterUploadKeyV2.length <= 100, "every poster content version must fit the server contract");
+assert.notEqual(posterUploadKeyV1, posterUploadKeyV2, "poster content changes must produce a new upload key");
 const createSnapshot = async () => {
   snapshotCreateCalls += 1;
   return { request: { token: "menu-snapshot-token" } };
@@ -93,12 +112,12 @@ assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_000), true, "th
 assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_050), false, "a concurrent caller must join the pending recovery");
 assert.deepEqual(
   getShareRecovery(recoveryStorage, 1_050),
-  { action: "today_menu", attempts: 1, state: "pending" },
+  { action: "today_menu", attempts: 1, state: "pending", context: null },
   "a duplicate original 401 must not cancel the pending recovery",
 );
 assert.deepEqual(
   beginShareRecoveryReplay(recoveryStorage, 1_100),
-  { action: "today_menu", attempts: 1 },
+  { action: "today_menu", attempts: 1, context: null },
   "the refreshed H5 session should replay the queued share once",
 );
 assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_200), false, "a replayed 401 must not schedule a third request");
@@ -107,10 +126,37 @@ clearShareRecovery(recoveryStorage);
 assert.equal(beginShareRecoveryReplay(recoveryStorage, 1_300), null);
 for (const action of ["invite", "poster_share", "poster_save"]) {
   const actionStorage = createMemoryStorage();
-  assert.equal(queueShareRecovery(action, actionStorage, 2_000), true, `${action} should permit one silent recovery`);
-  assert.deepEqual(beginShareRecoveryReplay(actionStorage, 2_100), { action, attempts: 1 });
+  const context = action.startsWith("poster_")
+    ? {
+        posterType: "grocery_list",
+        styleId: "theme",
+        stateVersion: "grocery_poster_state:family-1:content-v1",
+      }
+    : null;
+  assert.equal(
+    queueShareRecovery(action, actionStorage, 2_000, context),
+    true,
+    `${action} should permit one silent recovery`,
+  );
+  assert.deepEqual(
+    beginShareRecoveryReplay(actionStorage, 2_100),
+    { action, attempts: 1, context },
+    `${action} recovery must survive a new WebView through storage`,
+  );
   assert.equal(queueShareRecovery(action, actionStorage, 2_200), false, `${action} must not schedule a third request`);
 }
+
+const mainSource = readFileSync("src/main.jsx", "utf8");
+assert.match(
+  mainSource,
+  /rebuildPosterPreviewForRecovery/,
+  "a fresh H5 WebView must rebuild the lost poster Blob before replaying share or save",
+);
+assert.match(
+  mainSource,
+  /handoffPosterToMiniProgram\((?:action|["'](?:share|save)["']),\s*rebuiltPreview\)/,
+  "poster recovery must hand off the rebuilt preview instead of the destroyed React state",
+);
 
 let recoveryInvalidations = 0;
 let recoveryRequestBody = null;
@@ -118,6 +164,43 @@ const unsubscribeRecoveryInvalidation = subscribeHumiSessionInvalid(() => {
   recoveryInvalidations += 1;
 });
 const originalFetch = globalThis.fetch;
+const uploadedPosterTokens = new Map();
+globalThis.fetch = async (_url, options = {}) => {
+  const idempotencyKey = new Headers(options.headers).get("X-Humi-Idempotency-Key");
+  const token = uploadedPosterTokens.get(idempotencyKey) || `poster-token-${uploadedPosterTokens.size + 1}`;
+  uploadedPosterTokens.set(idempotencyKey, token);
+  return new Response(JSON.stringify({
+    poster: {
+      token,
+      format: "png",
+      styleId: "default",
+    },
+  }), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const posterSession = { accessToken: "poster-session", user: { provider: "wechat" } };
+  const firstVersion = await uploadPosterShare(
+    posterSession,
+    new Blob(["poster-version-one"], { type: "image/png" }),
+    { styleId: "default", idempotencyKey: posterUploadKeyV1 },
+  );
+  const secondVersion = await uploadPosterShare(
+    posterSession,
+    new Blob(["poster-version-two"], { type: "image/png" }),
+    { styleId: "default", idempotencyKey: posterUploadKeyV2 },
+  );
+  assert.notEqual(
+    firstVersion.poster.token,
+    secondVersion.poster.token,
+    "two poster content versions must upload without a 409 key collision and receive different tokens",
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 globalThis.fetch = async (_url, options = {}) => {
   recoveryRequestBody = JSON.parse(options.body || "{}");
   return new Response(JSON.stringify({ error: "invalid_session", message: "expired" }), {

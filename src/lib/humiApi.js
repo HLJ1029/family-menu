@@ -394,7 +394,10 @@ export async function uploadPosterShare(session, blob, options = {}) {
     throw new Error("海报图片没有准备完整，请重新生成。");
   }
   const styleId = options.styleId === "theme" ? "theme" : "default";
-  const idempotencyKey = String(options.idempotencyKey || "").trim().slice(0, 100);
+  const idempotencyKey = String(options.idempotencyKey || "").trim();
+  if (idempotencyKey.length > 100) {
+    throw new Error("海报版本标识无效，请重新生成海报。");
+  }
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
   try {

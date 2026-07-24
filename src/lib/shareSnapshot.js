@@ -24,6 +24,15 @@ export function buildShareSnapshotKey(type, householdId, snapshot) {
   return `${surface}:${household}:${fingerprint(stableSerialize(snapshot))}`;
 }
 
+export function buildPosterUploadIdempotencyKey(householdId, styleId, stateVersion) {
+  const operation = {
+    householdId: String(householdId || "guest").trim() || "guest",
+    styleId: styleId === "theme" ? "theme" : "default",
+    stateVersion: String(stateVersion || "local").trim() || "local",
+  };
+  return `poster:${fingerprint(stableSerialize(operation))}`;
+}
+
 function stableSerialize(value) {
   if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
   if (value && typeof value === "object") {
