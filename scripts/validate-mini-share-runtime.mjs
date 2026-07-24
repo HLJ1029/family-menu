@@ -13,6 +13,7 @@ import {
   buildShareSnapshotKey,
   createAsyncSnapshotCache,
 } from "../src/lib/shareSnapshot.js";
+import { replayStoredPosterRecovery } from "../src/lib/posterRecovery.js";
 import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
 import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
@@ -154,9 +155,112 @@ assert.match(
 );
 assert.match(
   mainSource,
-  /handoffPosterToMiniProgram\((?:action|["'](?:share|save)["']),\s*rebuiltPreview\)/,
+  /handoffPosterToMiniProgram\((?:action|replayAction|["'](?:share|save)["']),\s*rebuiltPreview\)/,
   "poster recovery must hand off the rebuilt preview instead of the destroyed React state",
 );
+
+const recreatedWebViewStorage = createMemoryStorage();
+const recreatedContext = {
+  posterType: "today_menu",
+  styleId: "default",
+  stateVersion: posterStateV1,
+};
+assert.equal(
+  queueShareRecovery("poster_share", recreatedWebViewStorage, 3_000, recreatedContext),
+  true,
+);
+const recreatedRecovery = beginShareRecoveryReplay(recreatedWebViewStorage, 3_100);
+let recreatedBlobBuilds = 0;
+let recreatedPosterUploads = 0;
+const recoveryFlowFetch = globalThis.fetch;
+globalThis.fetch = async (_url, options = {}) => {
+  recreatedPosterUploads += 1;
+  assert.equal(
+    new Headers(options.headers).get("X-Humi-Idempotency-Key"),
+    buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV1),
+  );
+  return new Response(JSON.stringify({
+    poster: { token: "recreated-poster-token", format: "png", styleId: "default" },
+  }), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
+};
+const recreatedNavigation = createRuntimeWindow({
+  navigateTo({ url, success, leavePage }) {
+    assert.equal(
+      url,
+      "/pages/poster/index?token=recreated-poster-token&format=png&styleId=default&posterType=today_menu&action=share",
+    );
+    success?.();
+    leavePage();
+  },
+});
+globalThis.window = recreatedNavigation.window;
+try {
+  const replayResult = await replayStoredPosterRecovery({
+    recovery: recreatedRecovery,
+    rebuildPreview: async (context) => {
+      recreatedBlobBuilds += 1;
+      assert.deepEqual(context, recreatedContext, "the new H5 must receive the descriptor persisted before identity relaunch");
+      return {
+        blob: new Blob(["rebuilt-after-hydration"], { type: "image/png" }),
+        type: context.posterType,
+        styleId: context.styleId,
+        stateVersion: context.stateVersion,
+      };
+    },
+    handoffPreview: async (action, preview) => {
+      const uploadKey = buildPosterUploadIdempotencyKey(
+        posterHouseholdId,
+        preview.styleId,
+        preview.stateVersion,
+      );
+      const uploaded = await uploadPosterShare(
+        { accessToken: "recreated-session", user: { provider: "wechat" } },
+        preview.blob,
+        { styleId: preview.styleId, idempotencyKey: uploadKey },
+      );
+      const status = await requestMiniProgramPoster({
+        token: uploaded.poster.token,
+        format: uploaded.poster.format,
+        styleId: preview.styleId,
+        posterType: preview.type,
+        action,
+      }, { timeoutMs: 100 });
+      if (status === "handoff") clearShareRecovery(recreatedWebViewStorage);
+      return status;
+    },
+    clearRecovery: () => clearShareRecovery(recreatedWebViewStorage),
+  });
+  assert.equal(replayResult.status, "handoff");
+  assert.equal(recreatedBlobBuilds, 1, "the recreated H5 must build one fresh poster Blob");
+  assert.equal(recreatedPosterUploads, 1, "the recreated H5 must upload the rebuilt poster once");
+  assert.deepEqual(recreatedNavigation.calls, ["navigateTo"]);
+  assert.equal(getShareRecovery(recreatedWebViewStorage, 3_200), null, "a confirmed replay must clear recovery");
+} finally {
+  globalThis.fetch = recoveryFlowFetch;
+  delete globalThis.window;
+}
+
+const changedPosterStorage = createMemoryStorage();
+assert.equal(queueShareRecovery("poster_save", changedPosterStorage, 4_000, recreatedContext), true);
+const changedRecovery = beginShareRecoveryReplay(changedPosterStorage, 4_100);
+let changedPosterHandoffs = 0;
+const changedResult = await replayStoredPosterRecovery({
+  recovery: changedRecovery,
+  rebuildPreview: async () => ({
+    blob: new Blob(["changed-content"], { type: "image/png" }),
+    stateVersion: posterStateV2,
+  }),
+  handoffPreview: async () => {
+    changedPosterHandoffs += 1;
+  },
+  clearRecovery: () => clearShareRecovery(changedPosterStorage),
+});
+assert.equal(changedResult.status, "stale");
+assert.equal(changedPosterHandoffs, 0, "a changed poster snapshot must not upload or enter the native bridge");
+assert.equal(getShareRecovery(changedPosterStorage, 4_200), null, "a stale poster recovery must be cleared");
 
 let recoveryInvalidations = 0;
 let recoveryRequestBody = null;

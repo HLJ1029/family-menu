@@ -132,6 +132,7 @@ import {
   buildShareSnapshotKey,
   createAsyncSnapshotCache,
 } from "./lib/shareSnapshot";
+import { replayStoredPosterRecovery } from "./lib/posterRecovery";
 import { exportValidationData, productEvents, trackValidationEvent, validationEvents } from "./lib/validationEvents";
 import { registerServiceWorker } from "./registerServiceWorker";
 import { lazyRoutes } from "./routes/lazyRoutes";
@@ -3378,22 +3379,30 @@ function App() {
     } else if (context.posterType === "week_plan") {
       rebuiltPreview = await shareWeekPlan();
     }
-    if (!rebuiltPreview || rebuiltPreview.stateVersion !== context.stateVersion) {
-      if (rebuiltPreview?.url) URL.revokeObjectURL(rebuiltPreview.url);
-      setPosterPreview(null);
-      return null;
-    }
     return rebuiltPreview;
   }
 
   async function replayPosterRecovery(action, context) {
-    const rebuiltPreview = await rebuildPosterPreviewForRecovery(context);
-    if (!rebuiltPreview?.blob) {
-      clearShareRecovery();
-      showNotice("海报内容已经变化，请重新生成后再分享");
-      return true;
+    const result = await replayStoredPosterRecovery({
+      recovery: { action: `poster_${action}`, context },
+      rebuildPreview: rebuildPosterPreviewForRecovery,
+      handoffPreview: (replayAction, rebuiltPreview) => (
+        handoffPosterToMiniProgram(replayAction, rebuiltPreview)
+      ),
+      clearRecovery: clearShareRecovery,
+      discardPreview(rebuiltPreview) {
+        if (rebuiltPreview?.url) URL.revokeObjectURL(rebuiltPreview.url);
+        setPosterPreview(null);
+      },
+    });
+    if (["stale", "invalid", "failed"].includes(result.status)) {
+      showNotice(
+        result.status === "stale"
+          ? "海报内容已经变化，请重新生成后再分享"
+          : "海报恢复失败，请重新生成后再分享",
+      );
     }
-    return handoffPosterToMiniProgram(action, rebuiltPreview);
+    return true;
   }
 
   async function handoffPosterToMiniProgram(action, previewOverride = null) {
