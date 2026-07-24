@@ -66,6 +66,14 @@ export function assertCandidateVersionIsUnused(candidateVersion, uploadedVersion
   return true;
 }
 
+export function extractNativeCandidateCommit(markdown) {
+  const matches = [...String(markdown || "").matchAll(/^- 提交：`([a-f0-9]{40})`[ \t]*$/gmi)];
+  if (matches.length !== 1) {
+    throw new Error("expected exactly one candidate commit in the native handoff");
+  }
+  return matches[0][1].toLowerCase();
+}
+
 export function validateNativeCandidateState(markdown, {
   expectedPackageVersion = "1.1.74",
 } = {}) {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +8,7 @@ import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
 import {
   assertCandidateVersionIsUnused,
   EXTERNAL_ACTION_KEYS,
+  extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
@@ -241,6 +243,15 @@ if (externalHandoffPath) {
     const externalCandidateState = validateNativeCandidateState(externalHandoff, {
       expectedPackageVersion: packageVersion,
     });
+    const currentCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).trim().toLowerCase();
+    assert.equal(
+      extractNativeCandidateCommit(externalHandoff),
+      currentCommit,
+      "AI-HQ candidate commit must equal the current reviewed HEAD",
+    );
     assert.deepEqual(
       externalCandidateState,
       repositoryCandidateState,

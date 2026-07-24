@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assertCandidateVersionIsUnused,
+  extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
@@ -67,6 +68,17 @@ assert.throws(
 assert.throws(
   () => assertCandidateVersionIsUnused("1.1.72", "1.1.73"),
   /must be newer than uploaded production history/,
+);
+assert.equal(
+  extractNativeCandidateCommit("- 提交：`d05816c00f6d490a7dcb780a9461880ff44d9cd4`"),
+  "d05816c00f6d490a7dcb780a9461880ff44d9cd4",
+);
+assert.throws(
+  () => extractNativeCandidateCommit([
+    "- 提交：`d05816c00f6d490a7dcb780a9461880ff44d9cd4`",
+    "- 提交：`612dac2c6e6d90de737deac314d6cc6e6a841bc9`",
+  ].join("\n")),
+  /exactly one candidate commit/,
 );
 
 const candidateYaml = [
