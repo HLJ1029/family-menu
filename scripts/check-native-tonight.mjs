@@ -251,35 +251,60 @@ async function verifyAuthenticatedServerFlowAndPendingGuards() {
 }
 
 async function verifyTimeoutFallbackAndStateConflictRefresh() {
-  let calls = 0;
-  const runtime = createRuntime({
+  let fallbackCalls = 0;
+  const fallbackRuntime = createRuntime({
     session: sessionFor("owner-timeout"),
     bootstrap: bootstrapFor({ userId: "owner-timeout", householdId: "home-timeout", role: "owner" }),
-    requestHandler: ({ path: pathname, data, succeed, fail }) => {
+    requestHandler: ({ path: pathname, fail }) => {
       if (pathname !== "/recommendations/dinner") throw new Error(`Unexpected request: ${pathname}`);
-      calls += 1;
-      if (calls === 1) {
-        fail();
+      fallbackCalls += 1;
+      fail();
+    },
+  });
+  const fallbackPage = fallbackRuntime.loadPage("miniprogram/pages/tonight/index.js");
+  await fallbackPage.onLoad();
+  await fallbackPage.selectEffort({ currentTarget: { dataset: { tier: "quick_15" } } });
+  assert.equal(fallbackPage.data.viewState, "recommendation");
+  assert.equal(fallbackPage.data.recommendation.source, "local_fallback");
+  assert.equal(fallbackPage.data.errorText, "");
+
+  const firstFallbackId = fallbackPage.data.recommendation.recommendationId;
+  await fallbackPage.nextRecommendation();
+  assert.equal(fallbackCalls, 1, "an authenticated fallback must keep one local cursor for the current scope");
+  assert.equal(fallbackPage.data.recommendation.source, "local_fallback");
+  assert.notEqual(
+    fallbackPage.data.recommendation.recommendationId,
+    firstFallbackId,
+    "the locked local cursor must still advance without repeating the visible group",
+  );
+
+  let conflictCalls = 0;
+  const conflictRuntime = createRuntime({
+    session: sessionFor("owner-conflict"),
+    bootstrap: bootstrapFor({ userId: "owner-conflict", householdId: "home-conflict", role: "owner" }),
+    requestHandler: ({ path: pathname, data, succeed }) => {
+      if (pathname !== "/recommendations/dinner") throw new Error(`Unexpected request: ${pathname}`);
+      conflictCalls += 1;
+      if (conflictCalls === 1 && data.action === "initial") {
+        succeed(recommendation("server-current", ["tomato-egg"], "remote-old"));
         return;
       }
-      if (calls === 2 && data.action === "next") {
+      if (conflictCalls === 2 && data.action === "next") {
         succeed({ error: "recommendation_state_conflict", latestStateVersion: "remote-new" }, 409);
         return;
       }
       succeed(recommendation("refreshed-current", ["chive-egg"], "remote-new"));
     },
   });
-  const page = runtime.loadPage("miniprogram/pages/tonight/index.js");
-  await page.onLoad();
-  await page.selectEffort({ currentTarget: { dataset: { tier: "quick_15" } } });
-  assert.equal(page.data.viewState, "recommendation");
-  assert.equal(page.data.recommendation.source, "local_fallback");
-  assert.equal(page.data.errorText, "");
+  const conflictPage = conflictRuntime.loadPage("miniprogram/pages/tonight/index.js");
+  await conflictPage.onLoad();
+  await conflictPage.selectEffort({ currentTarget: { dataset: { tier: "quick_15" } } });
+  assert.equal(conflictPage.data.recommendation.recommendationId, "server-current");
 
-  await page.nextRecommendation();
-  assert.equal(calls, 3, "a recommendation cursor conflict must refresh the server current group");
-  assert.equal(page.data.recommendation.recommendationId, "refreshed-current");
-  assert.equal(page.data.recommendation.stateVersion, "remote-new");
+  await conflictPage.nextRecommendation();
+  assert.equal(conflictCalls, 3, "an online recommendation cursor conflict must refresh the server current group");
+  assert.equal(conflictPage.data.recommendation.recommendationId, "refreshed-current");
+  assert.equal(conflictPage.data.recommendation.stateVersion, "remote-new");
 }
 
 async function verifyLockedRecommendationLoadsCurrentRun() {
