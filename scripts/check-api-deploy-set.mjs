@@ -17,6 +17,26 @@ const deploymentSet = [
   "package.json",
   "package-lock.json"
 ];
+const nativeDeploymentMarkers = [
+  "HUMI_NATIVE_SHELL_ENABLED=0",
+  "HUMI_NATIVE_SHELL_HOUSEHOLDS=",
+  "HUMI_TELEMETRY_HASH_SALT",
+  "npm run validate:native-bootstrap-api",
+  "npm run validate:meal-execution-api",
+  "npm run validate:native-observability",
+  "npm run release:native-shell:check",
+  "GET /bootstrap",
+  "POST /recommendations/dinner",
+  "POST /meal-runs",
+  "POST /product-events",
+  "1.1.74",
+];
+const nativePreflightMarkers = [
+  "1.1.74 bootstrap and rollout flags",
+  "1.1.74 dinner recommendation rotation",
+  "1.1.74 MealRun, task, and reminder APIs",
+  "1.1.74 privacy-safe telemetry",
+];
 
 const canonicalKeys = JSON.parse(await readFile(apiCanonicalPath, "utf8"));
 const miniProgramKeys = JSON.parse(await readFile(miniProgramProjectionPath, "utf8"));
@@ -26,6 +46,21 @@ assert.equal(new Set(canonicalKeys).size, canonicalKeys.length, "approved avatar
 const storeSource = await readFile("api/store.js", "utf8");
 assert.match(storeSource, /\.\/data\/approved-avatar-keys\.json/, "API store must load the canonical API-local avatar contract");
 assert.doesNotMatch(storeSource, /miniprogram\/data/, "API runtime must not import from the miniprogram package");
+
+const deployRunbook = await readFile("docs/humi-api-production-deploy-runbook.md", "utf8");
+for (const marker of nativeDeploymentMarkers) {
+  assert(
+    deployRunbook.includes(marker),
+    `native API deployment runbook must include ${marker}`,
+  );
+}
+const deployPreflight = await readFile("scripts/check-api-deploy-readiness.mjs", "utf8");
+for (const marker of nativePreflightMarkers) {
+  assert(
+    deployPreflight.includes(marker),
+    `API deployment preflight must report ${marker}`,
+  );
+}
 
 const stagingDirectory = await mkdtemp(join(tmpdir(), "humi-api-deploy-set-"));
 for (const entry of deploymentSet) {
