@@ -10,7 +10,7 @@
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前兼容生产基线：`e66c5f0`；原生骨架候选 `d05816c` 尚未部署。
+- 当前兼容生产基线：`e66c5f0`；原生骨架候选以当前受审分支 HEAD 与 AI-HQ `native-shell/HANDOFF.md` 为准，尚未部署。
 - 最新确认的兼容 H5：GitHub Pages run `29890670549` / success；原生候选 H5 改动尚未部署。
 - 最新小程序候选：`1.1.73` / `修复身份完善入口`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
 - 未上传原生骨架 preview：`1.1.74`。其 API/H5 兼容改动部署后也不得自动上传小程序或开启原生白名单。

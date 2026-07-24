@@ -70,8 +70,17 @@ for (const entry of deploymentSet) {
 }
 const result = await run(process.execPath, ["--input-type=module", "--eval", "await import('./api/store.js'); await import('./api/server.js');"], {
   cwd: stagingDirectory,
-  env: { ...process.env, NODE_ENV: "test", HUMI_WECHAT_MOCK: "1" }
+  env: {
+    ...process.env,
+    NODE_ENV: "production",
+    HUMI_SESSION_SECRET: "deploy-set-session-secret-000000000000",
+    HUMI_TELEMETRY_HASH_SALT: "deploy-set-telemetry-salt-00000000000",
+    HUMI_NATIVE_SHELL_ENABLED: "0",
+    HUMI_NATIVE_SHELL_HOUSEHOLDS: "",
+    HUMI_MEAL_EXECUTION_ENABLED: "0",
+    HUMI_MEAL_EXECUTION_HOUSEHOLDS: "",
+  }
 });
-assert.equal(result.stderr, "", "the deployment-set runtime import must not emit module resolution failures");
+assert.equal(result.stderr, "", "the production deployment-set runtime import must not emit module resolution failures");
 
 console.log("API deployment-set import contract passed.");
