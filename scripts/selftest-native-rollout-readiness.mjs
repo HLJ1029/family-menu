@@ -5,6 +5,7 @@ import {
   assertCandidateVersionIsUnused,
   extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
+  resolveExternalHandoffPath,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
@@ -79,6 +80,21 @@ assert.throws(
     "- 提交：`612dac2c6e6d90de737deac314d6cc6e6a841bc9`",
   ].join("\n")),
   /exactly one candidate commit/,
+);
+assert.equal(
+  resolveExternalHandoffPath({
+    handoffPath: "  /tmp/humi-native-handoff.md  ",
+    localContractOnly: false,
+  }),
+  "/tmp/humi-native-handoff.md",
+);
+assert.equal(
+  resolveExternalHandoffPath({ handoffPath: "", localContractOnly: true }),
+  "",
+);
+assert.throws(
+  () => resolveExternalHandoffPath({ handoffPath: "", localContractOnly: false }),
+  /HUMI_NATIVE_HANDOFF_PATH is required/,
 );
 
 const candidateYaml = [

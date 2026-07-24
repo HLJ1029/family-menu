@@ -67,12 +67,12 @@ npm run validate:native-bootstrap-api
 npm run validate:meal-execution-api
 npm run validate:native-observability
 npm run validate:api-deploy-set
-npm run release:native-shell:check
+HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check
 npm run release:check:online
 HUMI_REPO="$PWD" /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-预检失败时不要部署。先修复并重新走完整验证。`release:native-shell:check` 必须继续报告 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false` 和原生白名单关闭；这一步只证明候选完整，不会改变外部状态。
+预检失败时不要部署。先修复并重新走完整验证。`HUMI_NATIVE_HANDOFF_PATH` 必须指向本次候选的 AI‑HQ 交付文件，且其中唯一候选提交必须等于当前 `HEAD`；不得用 `release:native-shell:check:local` 代替部署预检。`release:native-shell:check` 必须继续报告 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false` 和原生白名单关闭；这一步只证明候选完整，不会改变外部状态。
 
 ## 4. 恢复 SSH 后的连接检查
 

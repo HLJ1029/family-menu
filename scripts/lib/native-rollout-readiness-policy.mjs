@@ -74,6 +74,18 @@ export function extractNativeCandidateCommit(markdown) {
   return matches[0][1].toLowerCase();
 }
 
+export function resolveExternalHandoffPath({
+  handoffPath = "",
+  localContractOnly = false,
+} = {}) {
+  const normalized = String(handoffPath || "").trim();
+  if (normalized) return normalized;
+  if (localContractOnly) return "";
+  throw new Error(
+    "HUMI_NATIVE_HANDOFF_PATH is required; use --local-contract-only only for an explicit non-release local check",
+  );
+}
+
 export function validateNativeCandidateState(markdown, {
   expectedPackageVersion = "1.1.74",
 } = {}) {

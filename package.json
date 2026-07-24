@@ -44,6 +44,7 @@
     "validate:native-offline": "node scripts/check-native-offline-queue.mjs",
     "validate:native-observability": "node scripts/check-native-observability.mjs",
     "release:native-shell:check": "node scripts/check-native-rollout-readiness.mjs",
+    "release:native-shell:check:local": "node scripts/check-native-rollout-readiness.mjs --local-contract-only",
     "release:native-shell:check:selftest": "node scripts/selftest-native-rollout-readiness.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",
     "validate:meal-execution-ui": "node scripts/smoke-meal-execution-ui.mjs",

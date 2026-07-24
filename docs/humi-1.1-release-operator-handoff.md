@@ -26,7 +26,7 @@ native_shell_candidate:
 本地候选边界：
 
 - 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
-- `npm run release:native-shell:check` 检查默认开关、空白名单、H5 兼容页、无广告/Supabase runtime/候选凭据、合法源码域名、包体预算、所需脚本和本地回滚演练。该命令通过只表示本地合同通过，不代表外部平台验收完成。
+- `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 检查默认开关、空白名单、H5 兼容页、无广告/Supabase runtime/候选凭据、合法源码域名、包体预算、所需脚本、本地回滚演练，并强制 AI‑HQ 交付文件中的唯一候选提交等于当前 `HEAD`。未传交付文件时发布门禁必须失败；仅做非发布的本地合同检查时显式运行 `npm run release:native-shell:check:local`。命令通过仍不代表外部平台验收完成。
 - 原生候选不包含广告接入；后续广告需要重新设计、风险评审、实施计划与单独授权。
 - 当前真实真机证据是 `0/36`。iOS/Android 的登录、三档各五次推荐轮换、做饭后台恢复/离线同步、成员权限、五类分享的发送与接收者打开、海报样式、提醒结果和立即回滚都尚未形成合规证据。
 - `api.humi-home.com` 是源码中的 request/download 目标，但微信后台 `downloadFile` 合法域名仍是已知未配置阻塞项；必须在 N5 上传前复核 request、downloadFile 和 web-view 三类平台配置。

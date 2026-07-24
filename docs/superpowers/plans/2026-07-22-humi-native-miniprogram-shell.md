@@ -1818,7 +1818,7 @@ npm run release:product:smoke
 npm run release:collaboration:smoke
 npm run validate:supabase-retirement
 npm run build
-npm run release:native-shell:check
+HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check
 git diff --check
 /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```

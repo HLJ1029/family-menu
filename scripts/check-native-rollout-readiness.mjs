@@ -10,6 +10,7 @@ import {
   EXTERNAL_ACTION_KEYS,
   extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
+  resolveExternalHandoffPath,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
 import {
@@ -236,7 +237,13 @@ await check("repository handoff records preview-only external state", async () =
   assert.match(apiContract, /不删除 MealRun/);
 });
 
-const externalHandoffPath = String(process.env.HUMI_NATIVE_HANDOFF_PATH || "").trim();
+let externalHandoffPath = "";
+await check("release check requires the external AI-HQ handoff", async () => {
+  externalHandoffPath = resolveExternalHandoffPath({
+    handoffPath: process.env.HUMI_NATIVE_HANDOFF_PATH,
+    localContractOnly: process.argv.includes("--local-contract-only"),
+  });
+});
 if (externalHandoffPath) {
   await check("AI-HQ native handoff matches the immutable preview state", async () => {
     const externalHandoff = await readFile(resolve(externalHandoffPath), "utf8");
