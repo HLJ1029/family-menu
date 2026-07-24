@@ -14,6 +14,7 @@ const deploymentSet = [
   "src/lib/mealExecution.js",
   "data/recipes.json",
   "data/cook-assist.json",
+  "scripts/check-native-production-env.mjs",
   "package.json",
   "package-lock.json"
 ];
@@ -21,6 +22,7 @@ const nativeDeploymentMarkers = [
   "HUMI_NATIVE_SHELL_ENABLED=0",
   "HUMI_NATIVE_SHELL_HOUSEHOLDS=",
   "HUMI_TELEMETRY_HASH_SALT",
+  "scripts/check-native-production-env.mjs",
   "npm run validate:native-bootstrap-api",
   "npm run validate:meal-execution-api",
   "npm run validate:native-observability",
@@ -82,5 +84,44 @@ const result = await run(process.execPath, ["--input-type=module", "--eval", "aw
   }
 });
 assert.equal(result.stderr, "", "the production deployment-set runtime import must not emit module resolution failures");
+
+const previewEnv = {
+  ...process.env,
+  NODE_ENV: "production",
+  HUMI_SESSION_SECRET: "deploy-set-session-secret-000000000000",
+  HUMI_TELEMETRY_HASH_SALT: "deploy-set-telemetry-salt-00000000000",
+  HUMI_NATIVE_SHELL_ENABLED: "0",
+  HUMI_NATIVE_SHELL_HOUSEHOLDS: "",
+  HUMI_MEAL_EXECUTION_ENABLED: "0",
+  HUMI_MEAL_EXECUTION_HOUSEHOLDS: "",
+};
+const productionPreviewCheck = await run(process.execPath, ["scripts/check-native-production-env.mjs"], {
+  cwd: stagingDirectory,
+  env: previewEnv,
+});
+assert.match(productionPreviewCheck.stdout, /Native preview production environment gate passed/);
+assert.equal(productionPreviewCheck.stderr, "");
+
+for (const [name, override, expectedMessage] of [
+  ["native shell flag", { HUMI_NATIVE_SHELL_ENABLED: "1" }, "HUMI_NATIVE_SHELL_ENABLED must be 0"],
+  ["native allowlist", { HUMI_NATIVE_SHELL_HOUSEHOLDS: "home-live" }, "HUMI_NATIVE_SHELL_HOUSEHOLDS must be empty"],
+  ["meal execution flag", { HUMI_MEAL_EXECUTION_ENABLED: "1" }, "HUMI_MEAL_EXECUTION_ENABLED must be 0"],
+  ["meal allowlist", { HUMI_MEAL_EXECUTION_HOUSEHOLDS: "home-live" }, "HUMI_MEAL_EXECUTION_HOUSEHOLDS must be empty"],
+  ["telemetry salt", { HUMI_TELEMETRY_HASH_SALT: "short-secret-value" }, "HUMI_TELEMETRY_HASH_SALT must contain at least 32 characters"],
+]) {
+  let failure = null;
+  try {
+    await run(process.execPath, ["scripts/check-native-production-env.mjs"], {
+      cwd: stagingDirectory,
+      env: { ...previewEnv, ...override },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert(failure, `${name} must fail the production preview environment gate`);
+  const output = `${failure.stdout || ""}\n${failure.stderr || ""}`;
+  assert.match(output, new RegExp(expectedMessage));
+  assert.doesNotMatch(output, /deploy-set-telemetry-salt|short-secret-value/, `${name} failure must not print secret values`);
+}
 
 console.log("API deployment-set import contract passed.");

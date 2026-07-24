@@ -141,23 +141,23 @@ rsync -az --delete --relative \
   -e "ssh -i $HOME/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes" \
   --exclude node_modules \
   --exclude .git \
-  api src/lib/date.js src/lib/mealExecution.js data/recipes.json data/cook-assist.json package.json package-lock.json \
+  api src/lib/date.js src/lib/mealExecution.js data/recipes.json data/cook-assist.json scripts/check-native-production-env.mjs package.json package-lock.json \
   ubuntu@api.humi-home.com:/opt/humi/
 ```
 
 在重启前先确认生产服务的受控环境文件 `/etc/humi/api.env` 已经提供 `HUMI_TELEMETRY_HASH_SALT`，并保持原生与 MealRun 开关关闭。该文件必须继续为 root-only；检查时只能输出变量是否存在和长度是否合格，不能打印值。生产机先安装依赖并做语法检查：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js && node --check scripts/check-native-production-env.mjs'
 ```
 
 随后通过一次性 transient systemd unit 复用正式服务的同一个 EnvironmentFile，验证 production import。该命令不打印任何环境值，也不启动监听端口：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemd-run --quiet --wait --pipe --collect --uid=ubuntu --gid=ubuntu --property=WorkingDirectory=/opt/humi --property=EnvironmentFile=/etc/humi/api.env /usr/bin/env NODE_ENV=production /usr/bin/node --input-type=module --eval "await import(\"./api/store.js\"); await import(\"./api/server.js\");"'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemd-run --quiet --wait --pipe --collect --uid=ubuntu --gid=ubuntu --property=WorkingDirectory=/opt/humi --property=EnvironmentFile=/etc/humi/api.env /usr/bin/env NODE_ENV=production /usr/bin/node scripts/check-native-production-env.mjs'
 ```
 
-最后一段命令不是语法检查：它会真实解析 `api/store.js`、`api/server.js` 及其运行时 JSON/模块依赖。若此处失败，不得重启服务。`api/data/approved-avatar-keys.json` 是 API 的 canonical 身份头像合同；`miniprogram/data/approved-avatar-keys.json` 只是随小程序打包的 projection，服务端不得依赖它。
+最后一段命令不是语法检查：它会先以 fail-closed 方式断言 `HUMI_NATIVE_SHELL_ENABLED=0`、原生白名单为空、`HUMI_MEAL_EXECUTION_ENABLED=0`、MealRun 白名单为空以及 telemetry salt 长度合格，再真实解析 `api/store.js`、`api/server.js` 及其运行时 JSON/模块依赖。它只输出通过或不合格的变量名，绝不输出变量值。若此处失败，不得重启服务。`api/data/approved-avatar-keys.json` 是 API 的 canonical 身份头像合同；`miniprogram/data/approved-avatar-keys.json` 只是随小程序打包的 projection，服务端不得依赖它。
 
 ## 7. 重启服务
 
