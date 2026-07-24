@@ -1,18 +1,19 @@
 # Humi API 1.1 Production Deploy Runbook
 
-更新日期：2026-07-18
+更新日期：2026-07-24
 执行设备：codex@mbp-m5pro
 
-本文档记录 Humi API 1.1 服务端增量的生产部署与复验方法。
+本文档记录 Humi API 1.1 服务端增量以及原生骨架 `1.1.74` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
 
 ## 1. 当前事实
 
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前生产部署提交：`129da03`；部署前备份 `/opt/humi/backups/20260718T114140Z`。
-- 最新 GitHub Pages：run `29642978938` / success / `npm run release:check:online` 已通过。
-- 最新小程序候选：`1.1.72` / `海报原生分享与保存到相册`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
+- 当前兼容生产基线：`e66c5f0`；原生骨架候选以当前受审分支 HEAD 与 AI-HQ `native-shell/HANDOFF.md` 为准，尚未部署。
+- 最新确认的兼容 H5：GitHub Pages run `29890670549` / success；原生候选 H5 改动尚未部署。
+- 最新小程序候选：`1.1.73` / `修复身份完善入口`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
+- 未上传原生骨架 preview：`1.1.74`。其 API/H5 兼容改动部署后也不得自动上传小程序或开启原生白名单。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -29,7 +30,27 @@
 - 1.1.52：买菜认领防覆盖，第二人覆盖别人认领/完成状态时返回 409。
 - 1.1.53：普通成员不能代替主厨发起家庭征集或生成买菜分享卡片，返回 403。
 - 1.1.54：`/crave-requests/:token/join` 返回家庭列表与共享 `state`。
-- 1.1.72：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
+- 1.1.73：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
+
+以下属于 `1.1.74` 原生骨架候选，尚未部署：
+
+- `GET /bootstrap`：返回经过脱敏的用户、家庭、状态版本、当前 MealRun 与能力开关。
+- `POST /recommendations/dinner`：三档行动力和服务端轮换游标，硬约束不可放宽。
+- `POST /meal-runs` 及 start/progress/downgrade/complete/abandon/feedback/task/reminder 路由：幂等晚餐执行闭环。
+- `POST /product-events`：仅接收白名单原生事件；匿名标识在服务端使用 HMAC-SHA256，不保存原值。
+- `/recipes`、H5 ticket、原生分享快照与家庭状态版本冲突合同。
+
+原生候选的生产运行环境必须显式满足：
+
+```dotenv
+HUMI_NATIVE_SHELL_ENABLED=0
+HUMI_NATIVE_SHELL_HOUSEHOLDS=
+HUMI_MEAL_EXECUTION_ENABLED=0
+HUMI_MEAL_EXECUTION_HOUSEHOLDS=
+HUMI_TELEMETRY_HASH_SALT=<通过受控生产配置注入的至少32字符随机值>
+```
+
+`HUMI_TELEMETRY_HASH_SALT` 只能存在于生产服务环境或受控 secret 文件，不能进入仓库、任务、日志或部署证据。缺失或短于 32 字符时，生产 API 必须拒绝启动。部署阶段不得把任何原生或 MealRun 开关改成 `1`。
 
 ## 3. 本地预检
 
@@ -42,11 +63,16 @@ git checkout main
 git pull --ff-only
 npm ci
 npm run validate:api
+npm run validate:native-bootstrap-api
+npm run validate:meal-execution-api
+npm run validate:native-observability
+npm run validate:api-deploy-set
+HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check
 npm run release:check:online
-/Users/honglijie/AI-HQ/scripts/secret-scan.sh
+HUMI_REPO="$PWD" /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-预检失败时不要部署。先修复并重新走完整验证。
+预检失败时不要部署。先修复并重新走完整验证。`HUMI_NATIVE_HANDOFF_PATH` 必须指向本次候选的 AI‑HQ 交付文件，且其中唯一候选提交必须等于当前 `HEAD`；不得用 `release:native-shell:check:local` 代替部署预检。`release:native-shell:check` 必须继续报告 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false` 和原生白名单关闭；这一步只证明候选完整，不会改变外部状态。
 
 ## 4. 恢复 SSH 后的连接检查
 
@@ -94,6 +120,8 @@ ps aux | grep '[a]pi/server.js' || true
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 sudo mkdir -p "/opt/humi/backups/$STAMP"
 sudo cp -a /opt/humi/api "/opt/humi/backups/$STAMP/api"
+sudo test ! -d /opt/humi/src || sudo cp -a /opt/humi/src "/opt/humi/backups/$STAMP/src"
+sudo test ! -d /opt/humi/data || sudo cp -a /opt/humi/data "/opt/humi/backups/$STAMP/data"
 sudo cp -a /opt/humi/package.json "/opt/humi/backups/$STAMP/package.json"
 sudo cp -a /opt/humi/package-lock.json "/opt/humi/backups/$STAMP/package-lock.json"
 sudo cp -a /var/lib/humi-api/data.json "/opt/humi/backups/$STAMP/data.json"
@@ -109,19 +137,27 @@ sudo sh -lc 'test -f /opt/humi/.humi-api-data.json && cp -a /opt/humi/.humi-api-
 只同步 API 服务所需文件，避免把本地构建产物或无关缓存推到生产机：
 
 ```bash
-rsync -az --delete \
+rsync -az --delete --relative \
   -e "ssh -i $HOME/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes" \
   --exclude node_modules \
   --exclude .git \
-  api package.json package-lock.json \
+  api src/lib/date.js src/lib/mealExecution.js data/recipes.json data/cook-assist.json scripts/check-native-production-env.mjs package.json package-lock.json \
   ubuntu@api.humi-home.com:/opt/humi/
 ```
 
-生产机安装依赖并做语法检查：
+在重启前先确认生产服务的受控环境文件 `/etc/humi/api.env` 已经提供 `HUMI_TELEMETRY_HASH_SALT`，并保持原生与 MealRun 开关关闭。该文件必须继续为 root-only；检查时只能输出变量是否存在和长度是否合格，不能打印值。生产机先安装依赖并做语法检查：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'cd /opt/humi && npm ci --omit=dev && node --check api/server.js && node --check scripts/check-native-production-env.mjs'
 ```
+
+随后通过一次性 transient systemd unit 复用正式服务的同一个 EnvironmentFile，验证 production import。该命令不打印任何环境值，也不启动监听端口：
+
+```bash
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemd-run --quiet --wait --pipe --collect --uid=ubuntu --gid=ubuntu --property=WorkingDirectory=/opt/humi --property=EnvironmentFile=/etc/humi/api.env /usr/bin/env NODE_ENV=production /usr/bin/node scripts/check-native-production-env.mjs'
+```
+
+最后一段命令不是语法检查：它会先以 fail-closed 方式断言 `HUMI_NATIVE_SHELL_ENABLED=0`、原生白名单为空、`HUMI_MEAL_EXECUTION_ENABLED=0`、MealRun 白名单为空以及 telemetry salt 长度合格，再真实解析 `api/store.js`、`api/server.js` 及其运行时 JSON/模块依赖。它只输出通过或不合格的变量名，绝不输出变量值。若此处失败，不得重启服务。`api/data/approved-avatar-keys.json` 是 API 的 canonical 身份头像合同；`miniprogram/data/approved-avatar-keys.json` 只是随小程序打包的 projection，服务端不得依赖它。
 
 ## 7. 重启服务
 
@@ -154,6 +190,10 @@ npm run release:check:online
 
 再做重点人工 smoke：
 
+- 未登录 `GET /bootstrap` 返回 `401`，不会创建用户、家庭或成员。
+- 登录态 `GET /bootstrap` 返回稳定 `stateVersion`，并且 `nativeShellEnabled=false`、`mealExecutionEnabled=false`。
+- `POST /recommendations/dinner`、`POST /meal-runs`、MealRun 状态转换、家庭任务和提醒合同继续通过 `npm run validate:native-bootstrap-api` 与 `npm run validate:meal-execution-api`。
+- `POST /product-events` 拒绝未知事件、自由文本和伪造服务端事件；生产启动没有泄露 telemetry salt。
 - 小程序普通打开后进入【今晚】，不被登录/API 慢挡住。
 - `crave` 分享卡片可免登录投感觉，登录加入后立即看到该家庭共享菜单/清单/想吃池子。
 - `invite` 分享卡片登录加入后立即同步该家庭共享 state。
@@ -161,12 +201,14 @@ npm run release:check:online
 - 普通成员在【我的家】不能代替主厨发起征集或分享买菜卡片。
 - 精准推荐/解释额度用完时服务端返回 402，前端可降级。
 
+API 部署后仍不打开原生能力。先验证当前 `1.1.73` 兼容壳和生产 H5，再由后续独立 checkpoint 决定是否上传 `1.1.74`。
+
 ## 9. 回滚
 
 如果部署后健康检查失败或 P0 链路不可用，立即恢复最近一次备份：
 
 ```bash
-ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
+ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo rm -rf /opt/humi/api && sudo cp -a /opt/humi/backups/<STAMP>/api /opt/humi/api && if sudo test -d /opt/humi/backups/<STAMP>/src; then sudo rm -rf /opt/humi/src && sudo cp -a /opt/humi/backups/<STAMP>/src /opt/humi/src; fi && if sudo test -d /opt/humi/backups/<STAMP>/data; then sudo rm -rf /opt/humi/data && sudo cp -a /opt/humi/backups/<STAMP>/data /opt/humi/data; fi && sudo cp -a /opt/humi/backups/<STAMP>/package.json /opt/humi/package.json && sudo cp -a /opt/humi/backups/<STAMP>/package-lock.json /opt/humi/package-lock.json'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo cp -a /opt/humi/backups/<STAMP>/data.json /var/lib/humi-api/data.json && if sudo test -d /opt/humi/backups/<STAMP>/avatars; then sudo rm -rf /var/lib/humi-api/avatars && sudo cp -a /opt/humi/backups/<STAMP>/avatars /var/lib/humi-api/avatars; fi'
 ssh -i ~/.ssh/humi_tencent_lighthouse -o IdentitiesOnly=yes ubuntu@api.humi-home.com 'sudo systemctl restart humi-api || pm2 restart humi-api --update-env'
 curl -fsS https://api.humi-home.com/health

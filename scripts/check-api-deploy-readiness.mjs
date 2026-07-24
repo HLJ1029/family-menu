@@ -26,6 +26,10 @@ const requiredApiIncrements = [
   "1.1.52 grocery claim conflict protection",
   "1.1.53 owner action boundary",
   "1.1.54 crave join shared state",
+  "1.1.74 bootstrap and rollout flags",
+  "1.1.74 dinner recommendation rotation",
+  "1.1.74 MealRun, task, and reminder APIs",
+  "1.1.74 privacy-safe telemetry",
 ];
 const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
 

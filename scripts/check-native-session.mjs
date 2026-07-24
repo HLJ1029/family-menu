@@ -1,0 +1,260 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import vm from "node:vm";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const utilDirectory = path.join(root, "miniprogram/utils");
+for (const name of ["errors.js", "session.js", "request.js", "cache.js", "bootstrap.js", "telemetry.js", "store.js"]) {
+  const file = path.join(utilDirectory, name);
+  if (!fs.existsSync(file)) throw new Error(`Cannot find module '${file}'`);
+}
+
+const bootstrapSource = fs.readFileSync(path.join(utilDirectory, "bootstrap.js"), "utf8");
+assert.match(
+  bootstrapSource,
+  /function clearBootstrapCacheForUser\(/,
+  "identity completion needs a user-scoped bootstrap cache reset before boot decides whether a household exists",
+);
+
+{
+  const storage = new Map();
+  const removed = [];
+  const bootstrapModule = { exports: {} };
+  vm.runInNewContext(bootstrapSource, {
+    module: bootstrapModule,
+    exports: bootstrapModule.exports,
+    wx: {
+      getStorageSync: (key) => storage.get(key),
+      removeStorageSync: (key) => {
+        removed.push(key);
+        storage.delete(key);
+      }
+    },
+    require: (specifier) => {
+      if (specifier === "./cache") return {
+        householdCacheKey: (householdId, userId) => `cache:${userId}:${householdId}`,
+        readHouseholdCache: () => null,
+        writeHouseholdCache: () => null
+      };
+      if (specifier === "./request") return { requestHumi: async () => ({}) };
+      throw new Error(`Unexpected bootstrap dependency: ${specifier}`);
+    },
+    Set,
+    String,
+    Object,
+    encodeURIComponent
+  });
+  storage.set("humi:bootstrap:last-household:v1:user-a", "household-a");
+  storage.set("humi:bootstrap:last-household:v1:user-b", "household-b");
+  bootstrapModule.exports.clearBootstrapCacheForUser("user-a");
+  assert.deepEqual(removed, ["humi:bootstrap:last-household:v1:user-a", "cache:user-a:household-a"], "identity completion clears only the completing user's bootstrap pointer and household cache");
+  assert.equal(storage.get("humi:bootstrap:last-household:v1:user-b"), "household-b", "identity completion must retain another user's cache");
+}
+
+function createRuntime({ responses = [], loginCode = "wechat-code", asyncResponses = false, app } = {}) {
+  const storage = new Map();
+  const calls = { login: 0, request: [] };
+  const wx = {
+    getDeviceInfo: () => ({ platform: "ios" }),
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+    login: ({ success, fail }) => {
+      calls.login += 1;
+      if (loginCode === null) fail?.(new Error("login unavailable"));
+      else success?.({ code: loginCode });
+    },
+    request: (options) => {
+      calls.request.push({ ...options, header: { ...(options.header || {}) } });
+      const response = responses.shift() || { statusCode: 200, data: {} };
+      const respond = () => {
+        if (response.fail) {
+          options.fail?.(response.fail);
+        } else {
+          options.success?.({ statusCode: response.statusCode, data: response.data, header: response.header || {} });
+        }
+        options.complete?.();
+      };
+      if (asyncResponses) queueMicrotask(respond);
+      else respond();
+    }
+  };
+  const modules = new Map();
+  function load(file) {
+    const resolved = path.resolve(file);
+    if (modules.has(resolved)) return modules.get(resolved).exports;
+    const record = { exports: {} };
+    modules.set(resolved, record);
+    const source = fs.readFileSync(resolved, "utf8");
+    const context = vm.createContext({
+      module: record,
+      exports: record.exports,
+      require: (specifier) => load(path.resolve(path.dirname(resolved), `${specifier}.js`)),
+      getApp: () => app,
+      wx,
+      console,
+      Date,
+      Promise,
+      JSON,
+      Math,
+      setTimeout,
+      clearTimeout,
+      structuredClone
+    });
+    new vm.Script(source, { filename: resolved }).runInContext(context);
+    return record.exports;
+  }
+  return { ...load(path.join(utilDirectory, "request.js")), session: load(path.join(utilDirectory, "session.js")), storage, calls };
+}
+
+{
+  const runtime = createRuntime({
+    asyncResponses: true,
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 200, data: { accessToken: "fresh-token", expiresAt: Date.now() + 60_000 } },
+      { statusCode: 200, data: { stateVersion: "v2-a" } },
+      { statusCode: 200, data: { stateVersion: "v2-b" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  const [first, second] = await Promise.all([runtime.requestHumi({ path: "/bootstrap" }), runtime.requestHumi({ path: "/bootstrap" })]);
+  assert.deepEqual([first.stateVersion, second.stateVersion].sort(), ["v2-a", "v2-b"]);
+  assert.equal(runtime.calls.login, 1, "concurrent 401 recoveries share one wx.login");
+  assert.equal(runtime.calls.request.filter((call) => call.url.endsWith("/bootstrap")).length, 4, "each concurrent request receives one replay only");
+}
+
+{
+  const runtime = createRuntime();
+  const now = Date.now();
+  assert.equal(runtime.session.restoreSession({ accessToken: "x", expiresAt: now + 60_000 }).accessToken, "x");
+  assert.equal(runtime.session.restoreSession({ accessToken: "x", expiresAt: now - 1 }), null);
+}
+
+{
+  const runtime = createRuntime({
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 200, data: { accessToken: "fresh-token", expiresAt: Date.now() + 60_000 } },
+      { statusCode: 200, data: { schemaVersion: 1, stateVersion: "v2" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  const envelope = await runtime.requestHumi({ path: "/bootstrap" });
+  assert.equal(envelope.stateVersion, "v2");
+  assert.equal(runtime.calls.login, 1, "a first 401 should make exactly one silent wx.login attempt");
+  assert.equal(runtime.calls.request.filter((call) => call.url.endsWith("/bootstrap")).length, 2, "a GET should replay once");
+  assert.equal(runtime.calls.request[0].header.Authorization, "Bearer old-token");
+  assert.equal(runtime.calls.request[2].header.Authorization, "Bearer fresh-token");
+}
+
+{
+  const runtime = createRuntime({
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 200, data: { accessToken: "fresh-token", expiresAt: Date.now() + 60_000 } },
+      { statusCode: 401, data: { error: "unauthorized" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  await assert.rejects(() => runtime.requestHumi({ path: "/bootstrap" }), (error) => {
+    assert.equal(error.code, "invalid_session");
+    return true;
+  });
+  assert.equal(runtime.session.getSession(), null, "a second 401 must clear the local session");
+  assert.equal(runtime.calls.login, 1);
+}
+
+{
+  const runtime = createRuntime({
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      { statusCode: 401, data: { error: "unauthorized" } }
+    ]
+  });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  await assert.rejects(() => runtime.requestHumi({ path: "/bootstrap" }), (error) => {
+    assert.equal(error.code, "invalid_session", "a rejected refresh must normalize to invalid_session");
+    assert.equal(error.retryable, false);
+    return true;
+  });
+  assert.equal(runtime.session.getSession(), null, "a rejected refresh must clear the stale session");
+  assert.equal(runtime.calls.login, 1);
+}
+
+{
+  const runtime = createRuntime({ responses: [{ statusCode: 401, data: { error: "unauthorized" } }] });
+  runtime.session.saveSession({ accessToken: "old-token", expiresAt: Date.now() + 60_000 });
+  await assert.rejects(() => runtime.requestHumi({ path: "/meal-runs", method: "POST", data: { recipeId: "r1" } }), (error) => {
+    assert.equal(error.status, 401);
+    return true;
+  });
+  assert.equal(runtime.calls.login, 0, "a POST without an idempotency key must not be replayed");
+  assert.equal(runtime.calls.request.length, 1);
+}
+
+{
+  const runtime = createRuntime({ responses: [{ statusCode: 200, data: { ok: true } }] });
+  runtime.session.saveSession({ accessToken: "token", expiresAt: Date.now() + 60_000 });
+  await runtime.requestHumi({ path: "/meal-runs", method: "POST", idempotencyKey: "stable-key", stateVersion: "version-1" });
+  assert.deepEqual(runtime.calls.request[0].header, {
+    "content-type": "application/json",
+    Authorization: "Bearer token",
+    "X-Humi-Idempotency-Key": "stable-key",
+    "If-Match": "version-1"
+  });
+}
+
+{
+  const appSessionCalls = [];
+  const app = {
+    setHumiSession(session) {
+      appSessionCalls.push(["set", session.user?.id || ""]);
+    },
+    clearHumiSession() {
+      appSessionCalls.push(["clear"]);
+    }
+  };
+  const runtime = createRuntime({
+    app,
+    responses: [
+      { statusCode: 401, data: { error: "unauthorized" } },
+      {
+        statusCode: 200,
+        data: {
+          accessToken: "token-user-b",
+          expiresAt: Date.now() + 60_000,
+          user: { id: "user-b" }
+        }
+      },
+      { statusCode: 200, data: { ok: true } }
+    ]
+  });
+  runtime.session.saveSession({
+    accessToken: "token-user-a",
+    expiresAt: Date.now() + 60_000,
+    user: { id: "user-a" }
+  });
+  await assert.rejects(
+    () => runtime.requestHumi({
+      path: "/meal-runs/r1/progress",
+      method: "POST",
+      idempotencyKey: "action-a",
+      expectedUserId: "user-a"
+    }),
+    (error) => error.code === "session_owner_changed",
+    "an idempotent offline request must not replay after silent login changes the account owner",
+  );
+  assert.equal(
+    runtime.calls.request.filter((call) => call.url.endsWith("/meal-runs/r1/progress")).length,
+    1,
+    "the account switch must stop before the authenticated mutation replay",
+  );
+  assert.equal(runtime.session.getSession().user.id, "user-b", "the newly authenticated account remains active");
+  assert.deepEqual(appSessionCalls, [["set", "user-b"]], "silent session refresh must synchronize the active app session owner");
+}
+
+console.log("Native session foundation contract passed.");

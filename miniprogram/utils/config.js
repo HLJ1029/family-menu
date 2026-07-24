@@ -1,8 +1,11 @@
-const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.72";
+const HUMI_WEB_URL = "https://www.humi-home.com/?channel=wechat-miniprogram&h5v=1.1.74";
 const HUMI_DEVTOOLS_URL = HUMI_WEB_URL;
 const HUMI_API_BASE_URL = "https://api.humi-home.com";
 const HUMI_DEVTOOLS_API_BASE_URL = HUMI_API_BASE_URL;
 const HUMI_WECHAT_LOGIN_ENABLED = true;
+const HUMI_NATIVE_SESSION_KEY = "humi:native-session:v1";
+const HUMI_NATIVE_SHELL_CANDIDATE = true;
+const HUMI_PACKAGE_VERSION = "1.1.74";
 
 function isDevtools() {
   try {
@@ -26,6 +29,9 @@ module.exports = {
   HUMI_API_BASE_URL,
   HUMI_DEVTOOLS_API_BASE_URL,
   HUMI_WECHAT_LOGIN_ENABLED,
+  HUMI_NATIVE_SESSION_KEY,
+  HUMI_NATIVE_SHELL_CANDIDATE,
+  HUMI_PACKAGE_VERSION,
   HUMI_WEB_URL,
   HUMI_DEVTOOLS_URL,
   getHumiApiBaseUrl,

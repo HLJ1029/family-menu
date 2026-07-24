@@ -1,0 +1,32 @@
+<view class="summary-card">
+  <view class="summary-heading">
+    <view>
+      <text class="eyebrow">这个家</text>
+      <text class="household-name">{{household.name}}</text>
+      <text class="meta">{{roleLabel}} · {{memberCount}} 位正式成员</text>
+    </view>
+    <button wx:if="{{canInvite}}" class="compact-button dark" bindtap="invite" loading="{{pendingAction === 'invite'}}" disabled="{{!!pendingAction}}">邀请家人</button>
+  </view>
+
+  <scroll-view wx:if="{{householdOptions.length > 1}}" class="switcher" scroll-x enhanced show-scrollbar="{{false}}">
+    <button
+      wx:for="{{householdOptions}}"
+      wx:key="id"
+      class="household-pill {{item.isActive ? 'active' : ''}}"
+      data-household-id="{{item.id}}"
+      bindtap="switchHousehold"
+      disabled="{{item.isActive || !!pendingAction}}"
+    >{{item.name}}{{item.isActive ? ' · 当前' : ''}}</button>
+  </scroll-view>
+
+  <view class="dinner-panel">
+    <text class="eyebrow">今晚一起做</text>
+    <text class="dinner-title">{{dinner.title}}</text>
+    <text class="meta">{{dinner.detail}}</text>
+    <button class="compact-button" bindtap="cook" disabled="{{!!pendingAction}}">{{dinner.actionLabel}}</button>
+  </view>
+
+  <button wx:if="{{canOpenSettings}}" class="settings-link" bindtap="settings" disabled="{{!!pendingAction}}">
+    <text>家庭设置</text><text>名称、成员、忌口 ›</text>
+  </button>
+</view>

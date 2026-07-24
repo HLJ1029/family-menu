@@ -1,0 +1,12 @@
+<view class="grocery-item {{item.checked ? 'is-checked' : ''}}">
+  <button class="check" disabled="{{busy}}" bindtap="toggleChecked" aria-label="{{item.checked ? '标记为未买' : '标记为已买'}}">
+    {{item.checked ? "✓" : ""}}
+  </button>
+  <view class="copy">
+    <text class="name">{{item.name}}</text>
+    <text wx:if="{{item.amount}}" class="amount">{{item.amount}}</text>
+    <text class="status">{{item.status === "bought" ? "已买" : item.status === "maybe_home" ? "家里可能有" : "待买"}}</text>
+    <text wx:if="{{item.claimantName}}" class="claimant">{{item.claimantName}}负责</text>
+  </view>
+  <button wx:if="{{!item.checked && !item.claimantId}}" class="claim" disabled="{{busy}}" bindtap="claimItem">我来买</button>
+</view>

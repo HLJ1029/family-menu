@@ -39,6 +39,7 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               <img
                 src={poster.url}
                 alt={`${poster.title}海报预览`}
+                data-style-id={poster.styleId || undefined}
                 className="block aspect-[3/4] w-full object-cover"
               />
             ) : (
@@ -102,15 +103,17 @@ export function PosterPreview({ poster, loading, onClose, onSave, onShare, onReg
               <Download size={18} className="text-white" />
               保存图片
             </button>
-            <button
-              type="button"
-              onClick={onRegenerate}
-              disabled={loading || !ready}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-              {poster.refreshLabel ?? "重新生成海报"}
-            </button>
+            {(poster.availableStyleIds?.length ?? 0) > 1 && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                disabled={loading || !ready}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-black text-ink/62 transition hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+                {poster.refreshLabel ?? "换一种样式"}
+              </button>
+            )}
           </div>
 
           <div className="mt-auto hidden items-center gap-4 rounded-[22px] bg-white p-4 md:flex">

@@ -1,18 +1,49 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+import {
+  buildRecommendationScope,
+  normalizeRecommendationFeedbackValue,
+  recommendationStateVersion,
+  selectBalancedDinner,
+} from "./recommendation-rotation.js";
+import { buildBootstrapEnvelope, computeStateVersion } from "./bootstrap.js";
 
-const DEFAULT_AVATAR_KEYS = [
-  "humi-avatar-dev-front-m-01",
-  "humi-avatar-dev-side-m-01",
-  "humi-avatar-dev-thinking-m-01",
-  "humi-avatar-dev-laptop-m-01",
-  "humi-avatar-family-f-01",
-  "humi-avatar-family-m-01",
-  "humi-avatar-parent-f-01",
-  "humi-avatar-parent-m-01",
-];
+const require = createRequire(import.meta.url);
+export const APPROVED_AVATAR_KEYS = Object.freeze([...require("./data/approved-avatar-keys.json")]);
+const DEFAULT_AVATAR_KEYS = APPROVED_AVATAR_KEYS;
+export const PRODUCT_EVENT_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+export const PRODUCT_EVENT_MAX_RECORDS = 50_000;
+export const PRODUCT_EVENT_FIELDS = new Set([
+  "eventType",
+  "anonymousSessionId",
+  "householdId",
+  "page",
+  "stage",
+  "durationMs",
+  "errorCode",
+  "packageVersion",
+  "businessId",
+]);
+export const NATIVE_CLIENT_EVENT_TYPES = new Set([
+  "native_boot_started", "native_boot_completed", "native_boot_failed",
+  "native_login_started", "native_login_completed", "native_login_failed",
+  "bootstrap_completed", "bootstrap_failed",
+  "recommendation_completed", "recommendation_failed",
+  "meal_run_restore_completed", "meal_run_restore_failed",
+  "thumbnail_first_visible_completed", "thumbnail_first_visible_failed",
+  "share_snapshot_created", "native_share_page_visible", "native_share_cancelled", "native_share_failed",
+  "poster_style_changed", "poster_saved", "poster_shared", "poster_failed",
+  "effort_tier_viewed", "effort_tier_selected", "plan_presented", "plan_accepted", "reminder_opened",
+  "cooking_mutation_started", "cooking_mutation_completed", "cooking_mutation_failed",
+]);
+export const MEAL_RUN_SERVER_EVENT_TYPES = new Set([
+  "meal_run_started",
+  "meal_run_completed",
+  "meal_run_abandoned",
+]);
 
 const DEFAULT_DATA = {
   users: [],
@@ -29,6 +60,12 @@ const DEFAULT_DATA = {
   menuShareRequests: [],
   wishShareRequests: [],
   collaborationEvents: [],
+  mealRuns: [],
+  mealTasks: [],
+  mealReminders: [],
+  productEvents: [],
+  recommendationRotations: [],
+  stateMutationReceipts: [],
   revokedTokens: [],
   h5Tickets: [],
 };
@@ -38,21 +75,45 @@ export class HumiStore {
     this.filePath = resolve(filePath);
     this.data = structuredClone(DEFAULT_DATA);
     this.loaded = false;
+    this.loadPromise = null;
   }
 
   async load({ waitForTransaction = true } = {}) {
     if (waitForTransaction && this.transactionQueue) await this.transactionQueue;
     if (this.loaded) return;
-    try {
-      const raw = await readFile(this.filePath, "utf8");
-      this.data = { ...structuredClone(DEFAULT_DATA), ...JSON.parse(raw) };
-    } catch {
-      this.data = structuredClone(DEFAULT_DATA);
-    }
-    this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
-      ? this.data.collaborationEvents
-      : [];
-    this.loaded = true;
+    if (this.loadPromise) return this.loadPromise;
+    const performLoad = async () => {
+      try {
+        const raw = await readFile(this.filePath, "utf8");
+        this.data = { ...structuredClone(DEFAULT_DATA), ...JSON.parse(raw) };
+      } catch {
+        this.data = structuredClone(DEFAULT_DATA);
+      }
+      this.data.collaborationEvents = Array.isArray(this.data.collaborationEvents)
+        ? this.data.collaborationEvents
+        : [];
+      this.data.mealRuns = Array.isArray(this.data.mealRuns) ? this.data.mealRuns : [];
+      this.data.mealTasks = Array.isArray(this.data.mealTasks) ? this.data.mealTasks : [];
+      this.data.mealReminders = Array.isArray(this.data.mealReminders) ? this.data.mealReminders : [];
+      const storedProductEvents = Array.isArray(this.data.productEvents) ? this.data.productEvents : [];
+      const storedProductEventsJson = JSON.stringify(storedProductEvents);
+      this.data.productEvents = storedProductEvents.map(normalizeStoredProductEvent).filter(Boolean);
+      this.pruneProductEvents();
+      this.data.recommendationRotations = Array.isArray(this.data.recommendationRotations)
+        ? this.data.recommendationRotations
+        : [];
+      this.data.stateMutationReceipts = Array.isArray(this.data.stateMutationReceipts)
+        ? this.data.stateMutationReceipts
+        : [];
+      if (JSON.stringify(this.data.productEvents) !== storedProductEventsJson) {
+        await this.flushToDisk();
+      }
+      this.loaded = true;
+    };
+    this.loadPromise = performLoad().finally(() => {
+      this.loadPromise = null;
+    });
+    return this.loadPromise;
   }
 
   async save() {
@@ -77,6 +138,7 @@ export class HumiStore {
       const snapshot = structuredClone(this.data);
       try {
         const result = await mutation();
+        this.pruneProductEvents();
         await this.save();
         return result;
       } catch (error) {
@@ -145,9 +207,15 @@ export class HumiStore {
     if (!user) return null;
     const displayName = sanitizeText(profile.displayName, "", 32);
     if (!displayName) throw codedError("display_name_required", "displayName is required.");
+    const avatarKey = sanitizeText(profile.avatarKey, "", 80);
+    if (avatarKey && !APPROVED_AVATAR_KEYS.includes(avatarKey)) {
+      throw codedError("invalid_avatar_key", "avatarKey must be approved.");
+    }
+    if (user.profileStatus !== "complete" && !avatarKey && !user.avatarUrl) {
+      throw codedError("avatar_required", "An explicit approved avatar or uploaded avatar is required.");
+    }
     user.displayName = displayName;
-    user.avatarKey = sanitizeText(profile.avatarKey, user.avatarKey || defaultAvatarKey(user.id), 80);
-    user.avatarUrl = sanitizeText(profile.avatarUrl, user.avatarUrl || "", 240);
+    if (avatarKey) user.avatarKey = avatarKey;
     user.profileStatus = "complete";
     user.updatedAt = new Date().toISOString();
     this.syncIdentityToHouseholdMembers(user, { updateNickname: true });
@@ -197,6 +265,22 @@ export class HumiStore {
   async getHouseholdsForUser(userId) {
     await this.load();
     return this.findHouseholdsByMember(userId);
+  }
+
+  async getBootstrapSnapshot(userId, { dateKey } = {}) {
+    await this.load();
+    const households = this.findHouseholdsByMember(userId);
+    const activeHousehold = this.findActiveHouseholdByMember(userId);
+    const state = activeHousehold ? this.data.householdStates[activeHousehold.id] ?? null : null;
+    const mealRun = activeHousehold && dateKey
+      ? this.data.mealRuns.find((run) => (
+        run.householdId === activeHousehold.id
+        && run.dateKey === sanitizeDateKey(dateKey)
+        && run.mealSlot === "dinner"
+        && run.status !== "abandoned"
+      )) ?? null
+      : null;
+    return structuredClone({ households, activeHousehold, state, mealRun });
   }
 
   async createHouseholdForUser(userId, options = {}) {
@@ -305,25 +389,27 @@ export class HumiStore {
 
   async removeHouseholdMember(ownerUserId, householdId, memberId) {
     await this.load();
-    const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
-    if (household.ownerId !== ownerUserId) {
-      throw codedError("forbidden", "Only the household owner can remove members.");
-    }
-    if (memberId === household.ownerId) {
-      throw codedError("owner_cannot_be_removed", "The household owner cannot be removed.");
-    }
-    const memberIndex = household.members.findIndex(
-      (member) => member.memberId === memberId && member.status === "formal",
-    );
-    if (memberIndex < 0) {
-      throw codedError("household_member_not_found", "Household member not found.");
-    }
-    household.members.splice(memberIndex, 1);
-    delete this.data.states[memberId];
-    household.updatedAt = new Date().toISOString();
-    this.repairActiveHouseholds();
-    await this.save();
-    return household;
+    return this.mutateAndSave(() => {
+      const household = this.requireFormalMemberHousehold(ownerUserId, householdId);
+      if (household.ownerId !== ownerUserId) {
+        throw codedError("forbidden", "Only the household owner can remove members.");
+      }
+      if (memberId === household.ownerId) {
+        throw codedError("owner_cannot_be_removed", "The household owner cannot be removed.");
+      }
+      const memberIndex = household.members.findIndex(
+        (member) => member.memberId === memberId && member.status === "formal",
+      );
+      if (memberIndex < 0) {
+        throw codedError("household_member_not_found", "Household member not found.");
+      }
+      household.members.splice(memberIndex, 1);
+      this.syncFormalMemberPreferences(household);
+      delete this.data.states[memberId];
+      household.updatedAt = new Date().toISOString();
+      this.repairActiveHouseholds();
+      return household;
+    });
   }
 
   async transferHouseholdOwnership(ownerUserId, householdId, nextOwnerId) {
@@ -352,30 +438,94 @@ export class HumiStore {
 
   async leaveHousehold(userId, householdId) {
     await this.load();
-    const household = this.requireFormalMemberHousehold(userId, householdId);
-    const formalMembers = household.members.filter((member) => member.status === "formal");
-    const isOwner = household.ownerId === userId;
-    const otherFormalMembers = formalMembers.filter((member) => member.memberId !== userId);
-    if (isOwner && otherFormalMembers.length > 0) {
-      throw codedError("owner_must_transfer_or_disband", "The owner must transfer ownership or disband the household.");
-    }
+    return this.mutateAndSave(() => {
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      const formalMembers = household.members.filter((member) => member.status === "formal");
+      const isOwner = household.ownerId === userId;
+      const otherFormalMembers = formalMembers.filter((member) => member.memberId !== userId);
+      if (isOwner && otherFormalMembers.length > 0) {
+        throw codedError("owner_must_transfer_or_disband", "The owner must transfer ownership or disband the household.");
+      }
 
-    const now = new Date().toISOString();
-    if (isOwner) {
-      this.data.households = this.data.households.filter((item) => item.id !== household.id);
-      delete this.data.householdStates[household.id];
+      const now = new Date().toISOString();
+      if (isOwner) {
+        this.retireHouseholdPublicResources(household.id, now);
+        this.data.households = this.data.households.filter((item) => item.id !== household.id);
+        this.retireHouseholdState(household.id);
+        delete this.data.states[userId];
+        this.repairActiveHouseholds();
+        return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
+      }
+
+      household.members = household.members.filter((member) => member.memberId !== userId);
+      this.syncFormalMemberPreferences(household);
       delete this.data.states[userId];
+      household.updatedAt = now;
       this.repairActiveHouseholds();
-      await this.save();
-      return { household: null, activeHousehold: this.findActiveHouseholdByMember(userId) };
-    }
+      return { household, activeHousehold: this.findActiveHouseholdByMember(userId) };
+    });
+  }
 
-    household.members = household.members.filter((member) => member.memberId !== userId);
-    delete this.data.states[userId];
-    household.updatedAt = now;
-    this.repairActiveHouseholds();
-    await this.save();
-    return { household, activeHousehold: this.findActiveHouseholdByMember(userId) };
+  syncFormalMemberPreferences(household) {
+    const householdId = household?.id;
+    if (!householdId) return;
+    const formalMemberIds = new Set((Array.isArray(household.members) ? household.members : [])
+      .filter((member) => member?.status === "formal" && member.memberId)
+      .map((member) => member.memberId));
+    const currentState = this.data.householdStates[householdId];
+    const filterPreferences = (state = {}) => ({
+      ...state,
+      familyMembers: normalizeMemberPreferenceEntries(state.familyMembers)
+        .filter((member) => formalMemberIds.has(member.memberId)),
+    });
+    const nextState = currentState ? filterPreferences(currentState) : null;
+    if (nextState) this.data.householdStates[householdId] = nextState;
+    for (const [stateUserId, state] of Object.entries(this.data.states ?? {})) {
+      if (state !== currentState && state?.householdId !== householdId) continue;
+      this.data.states[stateUserId] = nextState ?? filterPreferences(state);
+    }
+  }
+
+  retireHouseholdState(householdId) {
+    const currentState = this.data.householdStates[householdId];
+    delete this.data.householdStates[householdId];
+    for (const [stateUserId, state] of Object.entries(this.data.states ?? {})) {
+      if (state === currentState || state?.householdId === householdId) {
+        delete this.data.states[stateUserId];
+      }
+    }
+  }
+
+  retireHouseholdPublicResources(householdId, now = new Date().toISOString()) {
+    const closeOpenResources = (collection = []) => {
+      for (const resource of collection) {
+        if (resource?.householdId !== householdId || resource.status !== "open") continue;
+        resource.status = "closed";
+        resource.closedReason = "household_disbanded";
+        resource.closedAt = now;
+        resource.updatedAt = now;
+      }
+    };
+    closeOpenResources(this.data.householdInvites);
+    closeOpenResources(this.data.craveRequests);
+    closeOpenResources(this.data.groceryShares);
+    closeOpenResources(this.data.groceryShareRequests);
+    closeOpenResources(this.data.menuShareRequests);
+    closeOpenResources(this.data.wishShareRequests);
+    for (const task of this.data.mealTasks ?? []) {
+      if (task?.householdId !== householdId || !["open", "claimed"].includes(task.status)) continue;
+      task.status = "cancelled";
+      task.cancelledReason = "household_disbanded";
+      task.cancelledAt = now;
+      task.updatedAt = now;
+    }
+    for (const reminder of this.data.mealReminders ?? []) {
+      if (reminder?.householdId !== householdId || reminder.status !== "scheduled") continue;
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.lastError = "household_disbanded";
+      reminder.updatedAt = now;
+    }
   }
 
   syncIdentityToHouseholdMembers(user, { updateNickname = false } = {}) {
@@ -409,34 +559,48 @@ export class HumiStore {
 
     const owner = this.data.users.find((item) => item.id === ownerUserId);
     const ownerMember = household.members.find((item) => item.memberId === ownerUserId);
-    const now = new Date().toISOString();
-    const invite = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      householdId: household.id,
-      householdName: household.name,
-      inviterId: ownerUserId,
-      inviterName: sanitizeText(payload.inviterName, "", 32) || ownerMember?.nickname || owner?.displayName || "主厨",
-      status: "open",
-      acceptedMemberIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.householdInvites.unshift(invite);
-    this.data.householdInvites = this.data.householdInvites.slice(0, 2000);
-    await this.save();
-    return invite;
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    return this.mutateAndSave(() => {
+      if (idempotencyKey) {
+        const existing = this.data.householdInvites.find((item) => (
+          item.inviterId === ownerUserId
+          && item.householdId === household.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const invite = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        householdId: household.id,
+        householdName: household.name,
+        inviterId: ownerUserId,
+        inviterName: ownerMember?.nickname || owner?.displayName || "主厨",
+        idempotencyKey,
+        status: "open",
+        acceptedMemberIds: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.householdInvites.unshift(invite);
+      this.data.householdInvites = this.data.householdInvites.slice(0, 2000);
+      return invite;
+    });
   }
 
   async getHouseholdInvite(token) {
     await this.load();
-    return this.data.householdInvites.find((item) => item.token === token) ?? null;
+    const invite = this.data.householdInvites.find((item) => item.token === token) ?? null;
+    return invite && this.data.households.some((household) => household.id === invite.householdId)
+      ? invite
+      : null;
   }
 
   async addHouseholdInviteWant(token, payload = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
-    if (!invite) return null;
+    if (!invite || !this.data.households.some((household) => household.id === invite.householdId)) return null;
     if (invite.status !== "open") {
       const error = new Error("Invite is closed.");
       error.code = "invite_closed";
@@ -466,7 +630,7 @@ export class HumiStore {
       recipeId: "",
       note: "",
       memberId: temporaryMemberId,
-      memberName: sanitizeText(payload.memberName, "家人", 32),
+      memberName: "游客",
       status: "open",
       temporary: true,
       source: "household_invite",
@@ -488,13 +652,14 @@ export class HumiStore {
   async acceptHouseholdInvite(token, userId, options = {}) {
     await this.load();
     const invite = this.data.householdInvites.find((item) => item.token === token);
-    if (!invite) return null;
+    if (!invite || !this.data.households.some((household) => household.id === invite.householdId)) return null;
     if (invite.status !== "open") {
       const error = new Error("Invite is closed.");
       error.code = "invite_closed";
       throw error;
     }
     const household = await this.addHouseholdMember(invite.householdId, userId, options);
+    if (!household) return null;
     const now = new Date().toISOString();
     const participantKey = sanitizeText(options.participantKey, "", 80);
     if (participantKey) {
@@ -661,8 +826,15 @@ export class HumiStore {
     const writableState = household.ownerId === userId
       ? state
       : mergeMemberWritableState(currentState, state, userId);
+    const familyMembers = mergeFormalMemberPreferences({
+      current: currentState.familyMembers,
+      incoming: state.familyMembers,
+      household,
+      userId,
+    });
     const nextState = {
       ...writableState,
+      familyMembers,
       recommendationAccess: mergeClientRecommendationAccess(
         currentState.recommendationAccess,
         writableState.recommendationAccess,
@@ -674,6 +846,138 @@ export class HumiStore {
     this.data.states[userId] = nextState;
     await this.save();
     return this.data.householdStates[household.id];
+  }
+
+  async saveStatePatch(userId, patch, options = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const household = this.findActiveHouseholdByMember(userId);
+      if (!household || (options.householdId && household.id !== options.householdId)) {
+        throw codedError("household_not_found", "Household not found for user.");
+      }
+      const member = household.members.find((item) => item.memberId === userId && item.status === "formal");
+      if (!member) throw codedError("forbidden", "Only formal household members can update state.");
+      const user = this.data.users.find((item) => item.id === userId);
+      const patchKeys = Object.keys(patch || {});
+      if (!patchKeys.length || patchKeys.some((key) => !["mealPlan", "groceryClaims", "checkedItems", "familyProfile"].includes(key))) {
+        throw codedError("state_patch_invalid", "State patch contains unsupported fields.");
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "mealPlan") && household.ownerId !== userId) {
+        throw codedError("forbidden", "Only the household owner can change the planned menu.");
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "familyProfile") && household.ownerId !== userId) {
+        throw codedError("forbidden", "Only the household owner can change the family profile.");
+      }
+      const trustedGroceryClaims = Object.fromEntries(
+        Object.entries(patch.groceryClaims || {}).map(([itemKey, claim]) => [
+          itemKey,
+          {
+            ...claim,
+            memberId: userId,
+            memberName: sanitizeText(user?.displayName, "家人", 32),
+          },
+        ]),
+      );
+
+      const idempotencyKey = sanitizeText(options.idempotencyKey, "", 100);
+      if (!idempotencyKey) throw codedError("idempotency_key_required", "An idempotency key is required.");
+      const patchFingerprint = computeStateVersion(patch);
+      const receipt = this.data.stateMutationReceipts.find((item) => (
+        item.userId === userId
+        && item.householdId === household.id
+        && item.idempotencyKey === idempotencyKey
+      ));
+      if (receipt) {
+        if (receipt.patchFingerprint !== patchFingerprint) {
+          throw codedError("idempotency_key_reused", "The idempotency key was already used for another mutation.");
+        }
+        return structuredClone({
+          state: this.data.householdStates[household.id] ?? null,
+          replayed: true,
+        });
+      }
+
+      const currentState = this.data.householdStates[household.id] ?? null;
+      const households = this.findHouseholdsByMember(userId);
+      const dateKey = sanitizeDateKey(options.dateKey);
+      const currentMealRun = this.data.mealRuns.find((run) => (
+        run.householdId === household.id
+        && run.dateKey === dateKey
+        && run.mealSlot === "dinner"
+        && run.status !== "abandoned"
+      )) ?? null;
+      const latestEnvelope = buildBootstrapEnvelope({
+        user,
+        households,
+        activeHousehold: household,
+        state: currentState,
+        mealRun: currentMealRun,
+        flags: options.flags,
+      });
+      const expectedStateVersion = sanitizeText(options.expectedStateVersion, "", 180);
+      if (!expectedStateVersion) {
+        throw codedError("state_precondition_required", "If-Match state version is required.");
+      }
+      if (expectedStateVersion !== latestEnvelope.stateVersion) {
+        const error = codedError("state_version_conflict", "Household state changed; reload before saving.");
+        error.latestEnvelope = latestEnvelope;
+        throw error;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
+        const claims = Object.values(patch.groceryClaims || {});
+        if (claims.some((claim) => !claim?.memberId || claim.memberId !== userId)) {
+          const error = codedError("forbidden", "Grocery claim identity must match the authenticated member.");
+          error.latestEnvelope = latestEnvelope;
+          throw error;
+        }
+        const conflictingClaim = Object.entries(patch.groceryClaims).find(([itemKey]) => {
+          const existingClaim = currentState?.groceryClaims?.[itemKey];
+          return existingClaim?.memberId && existingClaim.memberId !== userId;
+        });
+        if (conflictingClaim) {
+          const error = codedError("grocery_item_claim_conflict", "This grocery item is already claimed by another member.");
+          error.latestEnvelope = latestEnvelope;
+          throw error;
+        }
+      }
+
+      const nextState = {
+        ...(currentState || {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "mealPlan") ? { mealPlan: patch.mealPlan } : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "groceryClaims")
+          ? {
+              groceryClaims: Object.fromEntries(Object.entries({
+                ...(currentState?.groceryClaims || {}),
+                ...trustedGroceryClaims,
+              }).slice(-400)),
+            }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "checkedItems")
+          ? {
+              checkedItems: Object.fromEntries(Object.entries({
+                ...(currentState?.checkedItems || {}),
+                ...patch.checkedItems,
+              }).slice(-400)),
+            }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch, "familyProfile")
+          ? { familyProfile: patch.familyProfile }
+          : {}),
+        householdId: household.id,
+        updatedAt: new Date().toISOString(),
+      };
+      this.data.householdStates[household.id] = nextState;
+      this.data.states[userId] = nextState;
+      this.data.stateMutationReceipts.unshift({
+        userId,
+        householdId: household.id,
+        idempotencyKey,
+        patchFingerprint,
+        createdAt: nextState.updatedAt,
+      });
+      this.data.stateMutationReceipts = this.data.stateMutationReceipts.slice(0, 1000);
+      return structuredClone({ state: nextState, replayed: false });
+    });
   }
 
   async getPreciseRecommendationAccess(userId) {
@@ -988,6 +1292,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.craveRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) {
       const error = new Error("participantKey is required.");
@@ -1006,6 +1311,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.craveRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const vote = request.votes.find((item) => item.participantKey === participantKey);
       if (!vote) throw codedError("vote_not_found", "Temporary vote not found.");
       this.assertCollaborationActionClaimable(vote, userId);
@@ -1047,9 +1353,11 @@ export class HumiStore {
   async createGroceryShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.requireOwnedHouseholdForUser(ownerUserId)
+      ? await this.requireActiveHouseholdForUser(ownerUserId)
       : null;
-    const now = new Date().toISOString();
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    const creator = ownerUserId ? this.data.users.find((item) => item.id === ownerUserId) : null;
+    const creatorMember = household?.members?.find((item) => item.memberId === ownerUserId);
     const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 80).map((item, index) => ({
       id: sanitizeText(item.id, `item-${index}`, 80),
       name: sanitizeText(item.name, "食材", 40),
@@ -1057,26 +1365,38 @@ export class HumiStore {
       category: sanitizeText(item.category, "", 40),
       checked: Boolean(item.checked),
     }));
-    const request = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      ownerSecret: randomUUID().replaceAll("-", ""),
-      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
-      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
-      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
-      title: sanitizeText(payload.title, "Humi 买菜清单", 48),
-      status: "open",
-      items,
-      claims: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.groceryShareRequests ??= [];
-    this.data.groceryShareRequests.unshift(request);
-    this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
-    await this.save();
-    return request;
+    return this.mutateAndSave(() => {
+      this.data.groceryShareRequests ??= [];
+      if (ownerUserId && idempotencyKey) {
+        const existing = this.data.groceryShareRequests.find((item) => (
+          item.ownerId === ownerUserId
+          && item.householdId === household?.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const request = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        ownerSecret: randomUUID().replaceAll("-", ""),
+        householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+        ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+        idempotencyKey,
+        householdName: household?.name || sanitizeText(payload.householdName, "我家", 32),
+        initiatorName: creatorMember?.nickname || creator?.displayName || "家人",
+        title: sanitizeText(payload.title, "Humi 买菜清单", 48),
+        mode: payload.mode === "read_only" ? "read_only" : "collaboration",
+        status: "open",
+        items,
+        claims: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.groceryShareRequests.unshift(request);
+      this.data.groceryShareRequests = this.data.groceryShareRequests.slice(0, 2000);
+      return request;
+    });
   }
 
   async getGroceryShareRequest(token) {
@@ -1089,9 +1409,11 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     return this.mutateAndSave(async () => {
       const request = this.data.groceryShareRequests.find((item) => item.token === token);
       if (!request || request.status !== "open") return request;
+      if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
       const trustedParticipant = sanitizeTrustedCollaborationParticipant(participant);
       const claimStatus = claim.status === "declined" ? "declined" : "claimed";
       const itemIds = sanitizeClaimItemIds(claim.itemIds, request.items, claimStatus !== "declined");
@@ -1124,6 +1446,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request || request.status !== "open") return request;
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     const item = request.items.find((entry) => entry.id === itemId);
     if (!item) return request;
     item.checked = Boolean(checked);
@@ -1136,6 +1459,8 @@ export class HumiStore {
     await this.load();
     const request = this.data.groceryShareRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
+    if (request.mode === "read_only") throw codedError("grocery_share_read_only", "This grocery share is read-only.");
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
@@ -1144,6 +1469,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.groceryShareRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const participantClaim = request.claims.find((item) => item.participantKey === participantKey);
       if (!participantClaim) throw codedError("claim_not_found", "Temporary grocery claim not found.");
       this.assertCollaborationActionClaimable(participantClaim, userId);
@@ -1165,9 +1491,11 @@ export class HumiStore {
   async createMenuShareRequest(payload = {}, ownerUserId = null) {
     await this.load();
     const household = ownerUserId
-      ? await this.requireOwnedHouseholdForUser(ownerUserId)
+      ? await this.requireActiveHouseholdForUser(ownerUserId)
       : null;
-    const now = new Date().toISOString();
+    const idempotencyKey = sanitizeText(payload.idempotencyKey, "", 100);
+    const creator = ownerUserId ? this.data.users.find((item) => item.id === ownerUserId) : null;
+    const creatorMember = household?.members?.find((item) => item.memberId === ownerUserId);
     const dishes = (Array.isArray(payload.dishes) ? payload.dishes : []).slice(0, 20).map((dish, index) => ({
       id: sanitizeText(dish.id, `dish-${index}`, 80),
       recipeId: sanitizeText(dish.recipeId || dish.id, "", 80),
@@ -1176,25 +1504,36 @@ export class HumiStore {
       category: sanitizeText(dish.category, "", 40),
       timeMinutes: Math.max(0, Math.min(240, Number.parseInt(dish.timeMinutes, 10) || 0)),
     })).filter((dish) => dish.name);
-    const request = {
-      id: randomUUID(),
-      token: randomUUID().replaceAll("-", ""),
-      householdId: household?.id || sanitizeText(payload.householdId, "", 80),
-      ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
-      householdName: sanitizeText(payload.householdName, household?.name || "我家", 32),
-      initiatorName: sanitizeText(payload.initiatorName, "主厨", 32),
-      title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
-      status: "open",
-      dishes,
-      groceryCount: Math.max(0, Math.min(200, Number.parseInt(payload.groceryCount, 10) || 0)),
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.data.menuShareRequests ??= [];
-    this.data.menuShareRequests.unshift(request);
-    this.data.menuShareRequests = this.data.menuShareRequests.slice(0, 2000);
-    await this.save();
-    return request;
+    return this.mutateAndSave(() => {
+      this.data.menuShareRequests ??= [];
+      if (ownerUserId && idempotencyKey) {
+        const existing = this.data.menuShareRequests.find((item) => (
+          item.ownerId === ownerUserId
+          && item.householdId === household?.id
+          && item.idempotencyKey === idempotencyKey
+        ));
+        if (existing) return existing;
+      }
+      const now = new Date().toISOString();
+      const request = {
+        id: randomUUID(),
+        token: randomUUID().replaceAll("-", ""),
+        householdId: household?.id || sanitizeText(payload.householdId, "", 80),
+        ownerId: ownerUserId || sanitizeText(payload.ownerId, "", 80),
+        idempotencyKey,
+        householdName: household?.name || sanitizeText(payload.householdName, "我家", 32),
+        initiatorName: creatorMember?.nickname || creator?.displayName || "家人",
+        title: sanitizeText(payload.title, "Humi 今晚菜单", 80),
+        status: "open",
+        dishes,
+        groceryCount: Math.max(0, Math.min(200, Number.parseInt(payload.groceryCount, 10) || 0)),
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.data.menuShareRequests.unshift(request);
+      this.data.menuShareRequests = this.data.menuShareRequests.slice(0, 2000);
+      return request;
+    });
   }
 
   async getMenuShareRequest(token) {
@@ -1273,6 +1612,7 @@ export class HumiStore {
     await this.load();
     const request = this.data.wishShareRequests.find((item) => item.token === token);
     if (!request) return null;
+    this.assertCollaborationRequestHouseholdActive(request);
     const participantKey = collaborationGuestParticipantId(claim);
     if (!participantKey) throw codedError("missing_participant_key", "participantKey is required.");
     const wish = request.wishes.find((item) => item.participantKey === participantKey);
@@ -1281,6 +1621,7 @@ export class HumiStore {
     return this.mutateAndSave(async () => {
       const request = this.data.wishShareRequests.find((item) => item.token === token);
       if (!request) return null;
+      this.assertCollaborationRequestHouseholdActive(request);
       const wish = request.wishes.find((item) => item.participantKey === participantKey);
       if (!wish) throw codedError("wish_not_found", "Temporary wish not found.");
       this.assertCollaborationActionClaimable(wish, userId);
@@ -1299,10 +1640,803 @@ export class HumiStore {
     });
   }
 
+  async createMealRun(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      if (household.ownerId !== userId) throw codedError("forbidden", "Only the household owner can choose or replace dinner.");
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const mealSlot = input.mealSlot === "dinner" ? "dinner" : "";
+      if (!mealSlot) throw codedError("meal_slot_invalid", "Cook assist currently supports dinner only.");
+      const effortTier = sanitizeEffortTier(input.effortTier);
+      const recipeIds = sanitizeRecipeIds(input.recipeIds);
+      const idempotencyKey = sanitizeText(input.idempotencyKey, "", 100);
+      if (!idempotencyKey) throw codedError("idempotency_key_required", "idempotencyKey is required.");
+      const syncedFromLocalId = sanitizeText(input.syncedFromLocalId, "", 100);
+      const syncedStartedAt = sanitizeSyncedMealStartedAt(input.syncedStartedAt, {
+        syncedFromLocalId,
+        dateKey,
+      });
+
+      const idempotent = this.data.mealRuns.find((run) => (
+        run.householdId === householdId && run.idempotencyKey === idempotencyKey
+      ));
+      if (idempotent) return { mealRun: idempotent, replacedMealRunId: idempotent.replacedMealRunId || "" };
+
+      const current = this.data.mealRuns.find((run) => (
+        run.householdId === householdId
+        && run.dateKey === dateKey
+        && run.mealSlot === mealSlot
+        && run.status !== "abandoned"
+      ));
+      if (current && current.status !== "planned") {
+        throw codedError("meal_run_locked", "Cooking or completed dinner cannot be replaced.");
+      }
+
+      const now = new Date().toISOString();
+      const missingIngredients = deriveMissingIngredients(
+        input.recipeSnapshot,
+        this.data.householdStates[householdId]?.pantryItems,
+      );
+      const mealRun = {
+        id: randomUUID(),
+        householdId,
+        dateKey,
+        mealSlot,
+        effortTier,
+        recipeIds,
+        recipeSnapshot: structuredClone(input.recipeSnapshot ?? []),
+        missingIngredients,
+        timelineVersion: Number(input.timelineVersion || 1),
+        timeline: null,
+        currentStepId: "",
+        timers: {},
+        timerEndsAt: "",
+        readyStaple: sanitizeText(input.readyStaple, "", 40),
+        syncedFromLocalId,
+        syncedStartedAt,
+        status: "planned",
+        abandonReason: "",
+        feedback: [],
+        downgrades: [],
+        idempotencyKey,
+        createdBy: userId,
+        startedBy: "",
+        completedBy: "",
+        replacedMealRunId: current?.id || "",
+        createdAt: now,
+        updatedAt: now,
+        startedAt: "",
+        completedAt: "",
+        abandonedAt: "",
+      };
+      if (current) {
+        current.status = "abandoned";
+        current.abandonReason = "plans_changed";
+        current.abandonedAt = now;
+        current.updatedAt = now;
+        current.replacedByMealRunId = mealRun.id;
+      }
+      this.data.mealRuns.unshift(mealRun);
+      this.data.mealRuns = this.data.mealRuns.slice(0, 5000);
+      return { mealRun, replacedMealRunId: current?.id || "" };
+    });
+  }
+
+  async rotateDinnerRecommendation(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      const household = this.requireFormalMemberHousehold(userId, householdId);
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const mode = input.mode === "legacy" ? "legacy" : input.mode === "meal_execution" ? "meal_execution" : "";
+      if (!mode) throw codedError("recommendation_mode_invalid", "Unsupported recommendation mode.");
+      const effortTier = mode === "meal_execution"
+        ? sanitizeEffortTier(input.effortTier)
+        : sanitizeText(input.effortTier, "legacy", 24);
+      const action = ["initial", "next", "reject"].includes(input.action) ? input.action : "initial";
+      const contextFingerprint = sanitizeText(input.contextFingerprint, "", 128);
+      const scopeKey = buildRecommendationScope({
+        householdId,
+        dateKey,
+        mode,
+        effortTier,
+        contextFingerprint,
+      });
+      const currentMealRun = this.data.mealRuns.find((run) => (
+        run.householdId === household.id
+        && run.dateKey === dateKey
+        && run.mealSlot === "dinner"
+        && ["cooking", "completed"].includes(run.status)
+      ));
+      if (currentMealRun && action !== "initial") {
+        throw codedError("meal_run_locked", "Cooking or completed dinner cannot be replaced.");
+      }
+
+      this.pruneRecommendationRotations();
+      const rotationIndex = this.data.recommendationRotations.findIndex((entry) => entry.scopeKey === scopeKey);
+      const currentRotation = rotationIndex >= 0 ? this.data.recommendationRotations[rotationIndex] : null;
+      const currentStateVersion = currentRotation ? recommendationStateVersion(currentRotation) : "";
+      const expectedStateVersion = sanitizeText(input.stateVersion, "", 128);
+      if (action !== "initial" && currentRotation && expectedStateVersion !== currentStateVersion) {
+        throw codedError("recommendation_state_conflict", "Recommendation cursor changed; refresh before choosing another group.");
+      }
+
+      const state = this.data.householdStates[household.id] ?? {};
+      const recommendationFeedback = collectRecommendationFeedback(
+        state.recommendationFeedback,
+        this.data.mealRuns,
+        household.id,
+      );
+      const targetDishCount = normalizeRecommendationDishCount(input.targetDishCount, mode, effortTier, state.familyProfile);
+      const result = selectBalancedDinner({
+        householdId,
+        dateKey,
+        mode,
+        effortTier,
+        action,
+        contextFingerprint,
+        targetDishCount,
+        rotation: currentRotation,
+        familyProfile: state.familyProfile ?? {},
+        familyMembers: state.familyMembers ?? [],
+        recommendationFeedback,
+        pantryItems: state.pantryItems ?? [],
+        wantToEatItems: state.wantToEatItems ?? state.wishPool ?? [],
+        dislikedRecipeIds: state.dislikedRecipeIds ?? [],
+      });
+      const persisted = {
+        scopeKey: result.rotation.scopeKey,
+        householdId: result.rotation.householdId,
+        seenRecipeIds: [...result.rotation.seenRecipeIds],
+        recentGroupIds: [...result.rotation.recentGroupIds],
+        cycle: result.rotation.cycle,
+        updatedAt: result.rotation.updatedAt,
+      };
+      if (rotationIndex >= 0) this.data.recommendationRotations[rotationIndex] = persisted;
+      else this.data.recommendationRotations.push(persisted);
+      this.pruneRecommendationRotations();
+      return structuredClone(result.group);
+    });
+  }
+
+  pruneRecommendationRotations(now = Date.now()) {
+    const cutoff = now - 14 * 24 * 60 * 60 * 1000;
+    const recent = (this.data.recommendationRotations ?? []).filter((entry) => {
+      const updatedAt = Date.parse(entry?.updatedAt || "");
+      return Number.isFinite(updatedAt) && updatedAt >= cutoff;
+    });
+    const perHousehold = new Map();
+    for (const entry of recent.sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))) {
+      const entries = perHousehold.get(entry.householdId) ?? [];
+      if (entries.length < 20) entries.push(entry);
+      perHousehold.set(entry.householdId, entries);
+    }
+    this.data.recommendationRotations = [...perHousehold.values()].flat();
+  }
+
+  async getCurrentMealRun(userId, { householdId, dateKey, mealSlot = "dinner" } = {}) {
+    await this.load();
+    this.requireFormalMemberHousehold(userId, householdId);
+    return this.data.mealRuns.find((run) => (
+      run.householdId === householdId
+      && run.dateKey === sanitizeDateKey(dateKey)
+      && run.mealSlot === mealSlot
+      && run.status !== "abandoned"
+    )) ?? null;
+  }
+
+  async getMealRunForUser(userId, mealRunId) {
+    await this.load();
+    return this.requireMealRunForMember(userId, mealRunId);
+  }
+
+  async startMealRun(userId, mealRunId, timeline) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status === "cooking") return mealRun;
+      if (mealRun.status !== "planned") throw codedError("meal_run_transition_invalid", "Only a planned dinner can start cooking.");
+      const now = new Date().toISOString();
+      const startedAt = mealRun.syncedStartedAt || now;
+      mealRun.status = "cooking";
+      mealRun.timeline = structuredClone(timeline);
+      mealRun.currentStepId = timeline?.steps?.[0]?.id || "";
+      mealRun.timers = {};
+      const firstStep = timeline?.steps?.[0];
+      if (firstStep?.attention === "passive" && !mealRun.syncedStartedAt) {
+        const timer = createActualMealTimer(firstStep, startedAt);
+        mealRun.timers[timer.stepId] = timer;
+        mealRun.timerEndsAt = timer.endsAt;
+      } else {
+        mealRun.timerEndsAt = "";
+      }
+      mealRun.startedBy = userId;
+      mealRun.startedAt = startedAt;
+      mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_started", mealRun, now);
+      return mealRun;
+    });
+  }
+
+  async updateMealRunProgress(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Cooking progress can only update an active dinner.");
+      const expectedTimelineVersion = Number(input.timelineVersion);
+      if (
+        !Number.isInteger(expectedTimelineVersion)
+        || expectedTimelineVersion <= 0
+        || expectedTimelineVersion !== Number(mealRun.timelineVersion || 1)
+      ) {
+        throw codedError("meal_timeline_version_conflict", "The cooking timeline changed; refresh before saving progress.");
+      }
+      const currentStepId = sanitizeText(input.currentStepId, "", 160);
+      const steps = Array.isArray(mealRun.timeline?.steps) ? mealRun.timeline.steps : [];
+      const incomingStepIndex = steps.findIndex((item) => item.id === currentStepId);
+      if (incomingStepIndex < 0) throw codedError("meal_step_invalid", "The cooking step does not belong to this dinner.");
+      mealRun.timers = normalizeStoredMealTimers(mealRun.timers, steps);
+      const incomingTimer = input.timer === undefined
+        ? null
+        : sanitizeActualMealTimer(input.timer, steps);
+      if (incomingTimer && incomingTimer.stepId !== currentStepId) {
+        throw codedError("meal_timer_step_invalid", "The timer must belong to the progressed step.");
+      }
+      if (incomingTimer) assertActualMealTimerBounds(incomingTimer, mealRun);
+      const existingTimer = incomingTimer ? mealRun.timers[incomingTimer.stepId] : null;
+      if (incomingTimer && !existingTimer) {
+        assertActualMealTimerCanStart(incomingTimer, steps, mealRun.timers);
+        mealRun.timers[incomingTimer.stepId] = incomingTimer;
+      }
+      const currentStepIndex = steps.findIndex((item) => item.id === mealRun.currentStepId);
+      if (currentStepIndex < incomingStepIndex) {
+        const incomingStep = steps[incomingStepIndex];
+        assertMealStepCanProgress(incomingStep, steps, mealRun.timers, new Date().toISOString());
+        mealRun.currentStepId = currentStepId;
+      }
+      mealRun.timerEndsAt = incomingTimer
+        ? (mealRun.timers[incomingTimer.stepId]?.endsAt || "")
+        : mealRun.timerEndsAt || "";
+      if (currentStepIndex < incomingStepIndex || (incomingTimer && !existingTimer)) {
+        mealRun.updatedAt = new Date().toISOString();
+      }
+      return mealRun;
+    });
+  }
+
+  async completeMealRun(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status === "completed") return mealRun;
+      if (mealRun.status !== "cooking") throw codedError("meal_run_transition_invalid", "Only an active dinner can be served.");
+      const expectedTimelineVersion = Number(input.timelineVersion);
+      if (
+        !Number.isInteger(expectedTimelineVersion)
+        || expectedTimelineVersion <= 0
+        || expectedTimelineVersion !== Number(mealRun.timelineVersion || 1)
+      ) {
+        throw codedError("meal_timeline_version_conflict", "The cooking timeline changed; refresh before serving.");
+      }
+      const now = new Date().toISOString();
+      const isFirstHouseholdCompletion = !this.data.mealRuns.some((candidate) => (
+        candidate.id !== mealRun.id
+        && candidate.householdId === mealRun.householdId
+        && candidate.mealSlot === "dinner"
+        && candidate.status === "completed"
+      ));
+      mealRun.status = "completed";
+      mealRun.completedBy = userId;
+      mealRun.completedAt = now;
+      mealRun.firstHouseholdCompletion = isFirstHouseholdCompletion;
+      mealRun.timerEndsAt = "";
+      mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_completed", mealRun, now);
+      return mealRun;
+    });
+  }
+
+  async downgradeMealRun(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (!["planned", "cooking"].includes(mealRun.status)) {
+        throw codedError("meal_run_transition_invalid", "Only a planned or active dinner can be simplified.");
+      }
+      const action = sanitizeDowngradeAction(input.action);
+      const recipeIds = sanitizeRecipeIds(input.recipeIds);
+      const now = new Date().toISOString();
+      const previousRecipeIds = [...mealRun.recipeIds];
+      const recipeChanged = !sameStringArray(previousRecipeIds, recipeIds);
+      mealRun.recipeIds = recipeIds;
+      mealRun.recipeSnapshot = structuredClone(input.recipeSnapshot ?? []);
+      mealRun.missingIngredients = deriveMissingIngredients(
+        mealRun.recipeSnapshot,
+        this.data.householdStates[mealRun.householdId]?.pantryItems,
+      );
+      mealRun.readyStaple = sanitizeText(input.readyStaple, mealRun.readyStaple || "", 40);
+      mealRun.downgrades = [...(mealRun.downgrades ?? []), {
+        action,
+        previousRecipeIds,
+        recipeIds: [...recipeIds],
+        changedBy: userId,
+        changedAt: now,
+      }];
+      mealRun.timelineVersion = Number(mealRun.timelineVersion || 1) + 1;
+      if (mealRun.status === "cooking" && recipeChanged) {
+        mealRun.timeline = structuredClone(input.timeline);
+        mealRun.currentStepId = input.timeline?.steps?.[0]?.id || "";
+        mealRun.timers = {};
+        const firstStep = input.timeline?.steps?.[0];
+        if (firstStep?.attention === "passive") {
+          const timer = createActualMealTimer(firstStep, now);
+          mealRun.timers[timer.stepId] = timer;
+          mealRun.timerEndsAt = timer.endsAt;
+        } else {
+          mealRun.timerEndsAt = "";
+        }
+      }
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async abandonMealRun(userId, mealRunId, reason) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      const abandonReason = sanitizeAbandonReason(reason);
+      if (mealRun.status === "abandoned") return mealRun;
+      if (!["planned", "cooking"].includes(mealRun.status)) throw codedError("meal_run_transition_invalid", "A completed dinner cannot be abandoned.");
+      const now = new Date().toISOString();
+      mealRun.status = "abandoned";
+      mealRun.abandonReason = abandonReason;
+      mealRun.abandonedAt = now;
+      mealRun.timerEndsAt = "";
+      mealRun.updatedAt = now;
+      this.appendMealRunServerEvent("meal_run_abandoned", mealRun, now);
+      return mealRun;
+    });
+  }
+
+  async updateMealRunFeedback(userId, mealRunId, value) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status !== "completed") throw codedError("meal_run_transition_invalid", "Feedback is available after the dinner is served.");
+      const feedbackValue = sanitizeMealFeedback(value);
+      const now = new Date().toISOString();
+      const existing = mealRun.feedback.find((entry) => entry.userId === userId);
+      if (existing) {
+        existing.value = feedbackValue;
+        existing.updatedAt = now;
+      } else {
+        mealRun.feedback.push({ userId, value: feedbackValue, createdAt: now, updatedAt: now });
+      }
+      mealRun.updatedAt = now;
+      return mealRun;
+    });
+  }
+
+  async createMealTask(userId, mealRunId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const mealRun = this.requireMealRunForMember(userId, mealRunId);
+      if (mealRun.status !== "cooking") throw codedError("meal_task_unavailable", "Tasks can only be created after cooking begins.");
+      const type = input.type === "buy" || input.type === "prep" ? input.type : "";
+      const label = sanitizeText(input.label, "", 64);
+      const sourceId = sanitizeText(input.sourceId, "", 160);
+      const idempotencyKey = sanitizeText(input.idempotencyKey, "", 180);
+      if (!type || !label || !sourceId) throw codedError("meal_task_invalid", "Meal task type, label, and source are required.");
+      const repeatedKey = idempotencyKey && this.data.mealTasks.find((task) => (
+        task.mealRunId === mealRun.id
+        && task.createdBy === userId
+        && task.idempotencyKey === idempotencyKey
+      ));
+      if (repeatedKey) {
+        if (repeatedKey.sourceId !== sourceId) {
+          throw codedError("idempotency_key_reused", "The idempotency key was already used for another meal task.");
+        }
+        return repeatedKey;
+      }
+      const existingSource = this.data.mealTasks.find((task) => (
+        task.mealRunId === mealRun.id && task.sourceId === sourceId
+      ));
+      if (existingSource) return existingSource;
+      const now = new Date().toISOString();
+      const task = {
+        id: randomUUID(),
+        token: randomBytes(24).toString("base64url"),
+        mealRunId: mealRun.id,
+        householdId: mealRun.householdId,
+        type,
+        label,
+        sourceId,
+        idempotencyKey,
+        status: "open",
+        createdBy: userId,
+        claimedBy: "",
+        completedBy: "",
+        createdAt: now,
+        updatedAt: now,
+        claimedAt: "",
+        completedAt: "",
+      };
+      this.data.mealTasks.unshift(task);
+      this.data.mealTasks = this.data.mealTasks.slice(0, 5000);
+      return task;
+    });
+  }
+
+  async getMealTask(token) {
+    await this.load();
+    return this.data.mealTasks.find((task) => task.token === token) ?? null;
+  }
+
+  async prepareMealTaskShare(userId, taskId) {
+    await this.load();
+    const task = this.data.mealTasks.find((entry) => entry.id === taskId);
+    if (!task) return null;
+    this.requireFormalMemberHousehold(userId, task.householdId);
+    return structuredClone(task);
+  }
+
+  async getMealTaskLanding(token, viewerUserId = "") {
+    await this.load();
+    const task = this.data.mealTasks.find((entry) => entry.token === token);
+    if (!task) return null;
+    const household = this.data.households.find((entry) => entry.id === task.householdId);
+    const viewerIsMember = Boolean(
+      viewerUserId
+      && household?.members?.some((member) => member.memberId === viewerUserId && member.status === "formal"),
+    );
+    return {
+      householdName: household?.name || "这个家",
+      label: task.label,
+      type: task.type,
+      status: task.status,
+      viewerClaimed: viewerIsMember && task.claimedBy === viewerUserId,
+      viewerCanComplete: viewerIsMember && (
+        task.claimedBy === viewerUserId
+        || household?.ownerId === viewerUserId
+      ),
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
+  }
+
+  async getMealTasksForRun(userId, mealRunId) {
+    await this.load();
+    this.requireMealRunForMember(userId, mealRunId);
+    return this.data.mealTasks
+      .map((task, index) => ({ task, index }))
+      .filter(({ task }) => task.mealRunId === mealRunId)
+      .sort((left, right) => (
+        Date.parse(right.task.createdAt) - Date.parse(left.task.createdAt)
+        || left.index - right.index
+      ))
+      .slice(0, 100)
+      .map(({ task }) => structuredClone(task));
+  }
+
+  async claimMealTask(userId, token) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const task = this.data.mealTasks.find((entry) => entry.token === token);
+      if (!task) return null;
+      this.requireFormalMemberHousehold(userId, task.householdId);
+      if (task.status === "claimed" && task.claimedBy === userId) return task;
+      if (task.status !== "open") throw codedError("meal_task_claimed", "This task is already claimed or completed.");
+      const now = new Date().toISOString();
+      task.status = "claimed";
+      task.claimedBy = userId;
+      task.claimedAt = now;
+      task.updatedAt = now;
+      return task;
+    });
+  }
+
+  async completeMealTask(userId, token) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const task = this.data.mealTasks.find((entry) => entry.token === token);
+      if (!task) return null;
+      const household = this.requireFormalMemberHousehold(userId, task.householdId);
+      if (task.status === "completed") return task;
+      if (task.status !== "claimed" || (task.claimedBy !== userId && household.ownerId !== userId)) {
+        throw codedError("meal_task_forbidden", "Only the assignee or household owner can complete this task.");
+      }
+      const now = new Date().toISOString();
+      task.status = "completed";
+      task.completedBy = userId;
+      task.completedAt = now;
+      task.updatedAt = now;
+      return task;
+    });
+  }
+
+  async createMealReminder(userId, input = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const householdId = sanitizeText(input.householdId, "", 100);
+      this.requireFormalMemberHousehold(userId, householdId);
+      const sourceMealRunId = sanitizeText(input.sourceMealRunId, "", 100);
+      this.requireEligibleReminderSource(userId, sourceMealRunId);
+      const scheduledAt = sanitizeIsoDate(input.scheduledAt, "reminder_time_invalid");
+      const dateKey = sanitizeDateKey(input.dateKey);
+      const effortTier = sanitizeEffortTier(input.effortTier);
+      const idempotencyKey = sanitizeText(
+        input.idempotencyKey,
+        `meal-reminder:${sourceMealRunId}:${scheduledAt}`,
+        180,
+      );
+      const existing = this.data.mealReminders.find((entry) => (
+        entry.userId === userId && entry.sourceMealRunId === sourceMealRunId
+      ));
+      if (existing) return { reminder: existing, created: false };
+      const now = new Date().toISOString();
+      const reminder = {
+        id: randomUUID(),
+        userId,
+        householdId,
+        dateKey,
+        mealSlot: "dinner",
+        effortTier,
+        sourceMealRunId,
+        scheduledAt,
+        nextAttemptAt: scheduledAt,
+        status: "scheduled",
+        attempts: 0,
+        templateId: sanitizeText(input.templateId, "", 120),
+        idempotencyKey,
+        createdAt: now,
+        updatedAt: now,
+        sentAt: "",
+        cancelledAt: "",
+        failedAt: "",
+        lastError: "",
+      };
+      this.data.mealReminders.unshift(reminder);
+      this.data.mealReminders = this.data.mealReminders.slice(0, 5000);
+      return { reminder, created: true };
+    });
+  }
+
+  async getEligibleReminderSource(userId, mealRunId) {
+    await this.load();
+    return structuredClone(this.requireEligibleReminderSource(userId, mealRunId));
+  }
+
+  async getMealReminderForSource(userId, sourceMealRunId) {
+    await this.load();
+    this.requireEligibleReminderSource(userId, sourceMealRunId);
+    const reminder = this.data.mealReminders.find((entry) => (
+      entry.userId === userId && entry.sourceMealRunId === sourceMealRunId
+    ));
+    return reminder ? structuredClone(reminder) : null;
+  }
+
+  async cancelMealReminder(userId, reminderId) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder) return null;
+      if (reminder.userId !== userId) throw codedError("forbidden", "Only the reminder owner can cancel it.");
+      if (["sent", "failed", "cancelled", "delivery_unknown"].includes(reminder.status)) return reminder;
+      const now = new Date().toISOString();
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.updatedAt = now;
+      return reminder;
+    });
+  }
+
+  async getDueMealReminders(now = new Date().toISOString()) {
+    await this.load();
+    const nowMs = Date.parse(now);
+    return this.data.mealReminders.filter((reminder) => (
+      ["scheduled", "retrying"].includes(reminder.status)
+      && Number(reminder.attempts || 0) < 2
+      && Date.parse(reminder.nextAttemptAt || reminder.scheduledAt) <= nowMs
+    ));
+  }
+
+  async claimMealReminderAttempt(reminderId, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || !["scheduled", "retrying"].includes(reminder.status)) return null;
+      if (Date.parse(reminder.nextAttemptAt || reminder.scheduledAt) > Date.parse(now)) return null;
+      if (Number(reminder.attempts || 0) >= 2) {
+        reminder.status = "failed";
+        reminder.failedAt = now;
+        reminder.updatedAt = now;
+        return null;
+      }
+      reminder.status = "sending";
+      reminder.attempts = Number(reminder.attempts || 0) + 1;
+      reminder.lastAttemptAt = now;
+      reminder.updatedAt = now;
+      return structuredClone(reminder);
+    });
+  }
+
+  async shouldCancelMealReminder(reminder) {
+    await this.load();
+    return this.data.mealRuns.some((run) => (
+      run.householdId === reminder.householdId
+      && run.dateKey === reminder.dateKey
+      && run.mealSlot === reminder.mealSlot
+      && ["completed", "abandoned"].includes(run.status)
+    ));
+  }
+
+  async markMealReminderCancelled(reminderId) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || ["sent", "failed", "cancelled", "delivery_unknown"].includes(reminder.status)) return reminder;
+      const now = new Date().toISOString();
+      reminder.status = "cancelled";
+      reminder.cancelledAt = now;
+      reminder.updatedAt = now;
+      return reminder;
+    });
+  }
+
+  async markMealReminderSent(reminderId, sentAt = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || reminder.status === "sent") return reminder;
+      if (reminder.status !== "sending") return reminder;
+      reminder.status = "sent";
+      reminder.sentAt = sentAt;
+      reminder.updatedAt = sentAt;
+      reminder.lastError = "";
+      return reminder;
+    });
+  }
+
+  async markMealReminderFailure(reminderId, message, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || reminder.status !== "sending") return reminder;
+      reminder.lastError = sanitizeText(message, "send_failed", 120);
+      reminder.updatedAt = now;
+      if (reminder.attempts >= 2) {
+        reminder.status = "failed";
+        reminder.failedAt = now;
+      } else {
+        reminder.status = "retrying";
+        reminder.nextAttemptAt = new Date(Date.parse(now) + 5 * 60 * 1000).toISOString();
+      }
+      return reminder;
+    });
+  }
+
+  async markMealReminderDeliveryUnknown(reminderId, message, now = new Date().toISOString()) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const reminder = this.data.mealReminders.find((entry) => entry.id === reminderId);
+      if (!reminder || reminder.status !== "sending") return reminder;
+      reminder.status = "delivery_unknown";
+      reminder.deliveryUnknownAt = now;
+      reminder.lastError = sanitizeText(message, "delivery_unknown", 120);
+      reminder.updatedAt = now;
+      return reminder;
+    });
+  }
+
+  async getWechatOpenIdForUser(userId) {
+    await this.load();
+    return this.data.identities.find((identity) => (
+      identity.userId === userId && identity.provider === "wechat_miniprogram"
+    ))?.providerUserId || "";
+  }
+
+  async recordClientProductEvent({ userId = "", telemetryHashSalt = "", input = {} } = {}) {
+    await this.load();
+    return this.mutateAndSave(() => {
+      const event = sanitizeClientProductEvent(input, telemetryHashSalt);
+      if (event.householdId && !userId) {
+        throw codedError("product_event_household_forbidden", "Anonymous events cannot claim a household.");
+      }
+      if (event.householdId) this.requireFormalMemberHousehold(userId, event.householdId);
+      const now = new Date().toISOString();
+      this.pruneProductEvents(now);
+      const duplicate = this.data.productEvents.find((candidate) => (
+        candidate.eventType === event.eventType
+        && candidate.businessId === event.businessId
+      ));
+      if (duplicate) return duplicate;
+      const persistedEvent = {
+        id: randomUUID(),
+        ...event,
+        occurredAt: now,
+      };
+      this.data.productEvents.push(persistedEvent);
+      return persistedEvent;
+    });
+  }
+
+  appendMealRunServerEvent(eventType, mealRun, occurredAt = new Date().toISOString()) {
+    if (!MEAL_RUN_SERVER_EVENT_TYPES.has(eventType)) {
+      throw codedError("product_event_not_allowed", "Unsupported server product event.");
+    }
+    this.pruneProductEvents(occurredAt);
+    const businessId = `${mealRun.id}:${eventType}`;
+    const duplicate = this.data.productEvents.find((event) => (
+      event.eventType === eventType && event.businessId === businessId
+    ));
+    if (duplicate) return duplicate;
+    const event = {
+      id: randomUUID(),
+      eventType,
+      householdId: mealRun.householdId,
+      businessId,
+      occurredAt,
+    };
+    this.data.productEvents.push(event);
+    return event;
+  }
+
+  pruneProductEvents(now = new Date().toISOString()) {
+    const cutoff = Date.parse(now) - PRODUCT_EVENT_RETENTION_MS;
+    const retained = this.data.productEvents.filter((event) => {
+      const timestamp = Date.parse(event.occurredAt || event.createdAt);
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
+    });
+    this.data.productEvents = retained.length > PRODUCT_EVENT_MAX_RECORDS
+      ? retained.slice(-PRODUCT_EVENT_MAX_RECORDS)
+      : retained;
+  }
+
+  requireMealRunForMember(userId, mealRunId) {
+    const mealRun = this.data.mealRuns.find((run) => run.id === mealRunId);
+    if (!mealRun) throw codedError("meal_run_not_found", "Meal run not found.");
+    this.requireFormalMemberHousehold(userId, mealRun.householdId);
+    return mealRun;
+  }
+
+  requireEligibleReminderSource(userId, mealRunId) {
+    const normalizedId = sanitizeText(mealRunId, "", 100);
+    if (!normalizedId) throw codedError("reminder_source_required", "A completed dinner is required before scheduling a reminder.");
+    const mealRun = this.requireMealRunForMember(userId, normalizedId);
+    if (mealRun.status !== "completed") {
+      throw codedError("reminder_source_incomplete", "The reminder source dinner has not been completed.");
+    }
+    const firstCompleted = this.data.mealRuns
+      .filter((candidate) => (
+        candidate.householdId === mealRun.householdId
+        && candidate.mealSlot === "dinner"
+        && candidate.status === "completed"
+      ))
+      .sort((left, right) => (
+        Date.parse(left.completedAt || left.updatedAt || left.createdAt)
+        - Date.parse(right.completedAt || right.updatedAt || right.createdAt)
+      ))[0];
+    if (!firstCompleted || firstCompleted.id !== mealRun.id) {
+      throw codedError("reminder_source_not_first", "A reminder can be requested only after the household's first completed dinner.");
+    }
+    return mealRun;
+  }
+
   assertCollaborationActionClaimable(action, userId) {
     const claimedByUserId = sanitizeText(action?.claimedByUserId || action?.memberId, "", 100);
     if (claimedByUserId && claimedByUserId !== userId) {
       throw codedError("collaboration_already_claimed", "Guest collaboration participant has already been claimed.");
+    }
+  }
+
+  assertCollaborationRequestHouseholdActive(request) {
+    const householdId = sanitizeText(request?.householdId, "", 100);
+    const householdExists = !householdId || this.data.households.some((household) => household.id === householdId);
+    if (request?.closedReason === "household_disbanded" || !householdExists) {
+      throw codedError("household_disbanded", "The household for this collaboration request no longer exists.");
     }
   }
 
@@ -1360,6 +2494,353 @@ function maskPhoneNumber(phoneNumber) {
 function sanitizeText(value, fallback = "", maxLength = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
   return (text || fallback).slice(0, maxLength);
+}
+
+function deriveMissingIngredients(recipeSnapshot, pantryItems) {
+  const pantryNames = new Set((Array.isArray(pantryItems) ? pantryItems : [])
+    .map((item) => sanitizeText(item?.name || item, "", 40).toLowerCase())
+    .filter(Boolean));
+  const missing = [];
+  for (const recipe of Array.isArray(recipeSnapshot) ? recipeSnapshot : []) {
+    for (const ingredient of Array.isArray(recipe?.ingredients) ? recipe.ingredients : []) {
+      const name = sanitizeText(ingredient?.name, "", 40);
+      if (!name || ingredient?.required === false || pantryNames.has(name.toLowerCase()) || missing.includes(name)) continue;
+      missing.push(name);
+    }
+  }
+  return missing;
+}
+
+function sanitizeDateKey(value) {
+  const dateKey = sanitizeText(value, "", 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isFinite(Date.parse(`${dateKey}T00:00:00.000Z`))) {
+    throw codedError("date_key_invalid", "dateKey must use YYYY-MM-DD.");
+  }
+  return dateKey;
+}
+
+function sanitizeIsoDate(value, code = "date_invalid") {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) throw codedError(code, "A valid ISO date is required.");
+  return date.toISOString();
+}
+
+function sanitizeOptionalIsoDate(value) {
+  if (!value) return "";
+  return sanitizeIsoDate(value, "timer_end_invalid");
+}
+
+function createActualMealTimer(step, startedAt) {
+  const canonicalStartedAt = sanitizeCanonicalTimerIso(startedAt);
+  return {
+    stepId: step.id,
+    startedAt: canonicalStartedAt,
+    endsAt: new Date(
+      Date.parse(canonicalStartedAt) + Number(step.durationSeconds) * 1000,
+    ).toISOString(),
+  };
+}
+
+function sanitizeActualMealTimer(value, steps) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw codedError("meal_timer_step_invalid", "A passive cooking timer is required.");
+  }
+  const keys = Object.keys(value).sort();
+  if (
+    keys.length !== 3
+    || keys[0] !== "endsAt"
+    || keys[1] !== "startedAt"
+    || keys[2] !== "stepId"
+  ) {
+    throw codedError("meal_timer_step_invalid", "Cooking timer fields are invalid.");
+  }
+  const stepId = typeof value.stepId === "string" ? value.stepId : "";
+  const step = steps.find((candidate) => candidate.id === stepId);
+  if (!step || step.attention !== "passive") {
+    throw codedError("meal_timer_step_invalid", "The timer must belong to a passive step in this dinner.");
+  }
+  const startedAt = sanitizeCanonicalTimerIso(value.startedAt);
+  const endsAt = sanitizeCanonicalTimerIso(value.endsAt);
+  if (Date.parse(endsAt) - Date.parse(startedAt) !== Number(step.durationSeconds) * 1000) {
+    throw codedError("meal_timer_duration_invalid", "The timer duration must match the certified step.");
+  }
+  return { stepId, startedAt, endsAt };
+}
+
+function assertActualMealTimerBounds(timer, mealRun) {
+  if (Date.parse(timer.startedAt) > Date.now()) {
+    throw codedError("meal_timer_time_invalid", "Timer start cannot be in the future.");
+  }
+  const mealStartedAt = Date.parse(mealRun.startedAt || "");
+  if (Number.isFinite(mealStartedAt) && Date.parse(timer.startedAt) < mealStartedAt - 5 * 1000) {
+    throw codedError("meal_timer_time_invalid", "Timer start cannot predate this cooking run.");
+  }
+}
+
+function sanitizeSyncedMealStartedAt(value, { syncedFromLocalId, dateKey }) {
+  if (value === undefined || value === null || value === "") return "";
+  if (!syncedFromLocalId || typeof value !== "string") {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time requires a synced guest run.");
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value || timestamp > Date.now()) {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time is invalid.");
+  }
+  const businessDateKey = new Date(timestamp + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (businessDateKey !== dateKey) {
+    throw codedError("meal_synced_started_at_invalid", "Imported cooking time must match the dinner date.");
+  }
+  return value;
+}
+
+function sanitizeCanonicalTimerIso(value) {
+  if (typeof value !== "string") {
+    throw codedError("meal_timer_time_invalid", "Timer timestamps must use canonical ISO format.");
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
+    throw codedError("meal_timer_time_invalid", "Timer timestamps must use canonical ISO format.");
+  }
+  return value;
+}
+
+function normalizeStoredMealTimers(value, steps) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const timers = {};
+  for (const timer of Object.values(value)) {
+    try {
+      const normalized = sanitizeActualMealTimer(timer, steps);
+      timers[normalized.stepId] = normalized;
+    } catch {
+      // Persisted pre-release data is untrusted and cannot drive cooking locks.
+    }
+  }
+  return timers;
+}
+
+function assertActualMealTimerCanStart(timer, steps, timers) {
+  const stepById = new Map(steps.map((step) => [step.id, step]));
+  const step = stepById.get(timer.stepId);
+  for (const dependencyId of step.dependsOn ?? []) {
+    const dependency = stepById.get(dependencyId);
+    if (dependency?.attention !== "passive") continue;
+    const dependencyTimer = timers[dependencyId];
+    if (!dependencyTimer || Date.parse(dependencyTimer.endsAt) > Date.parse(timer.startedAt)) {
+      throw codedError("meal_timer_dependency_blocked", "A required passive step has not actually finished.");
+    }
+  }
+  for (const existingTimer of Object.values(timers)) {
+    const existingStep = stepById.get(existingTimer.stepId);
+    if (
+      existingStep
+      && resourcesOverlap(step, existingStep)
+      && timerIntervalsOverlap(timer, existingTimer)
+    ) {
+      throw codedError("meal_timer_resource_busy", "Required cookware is still occupied by another step.");
+    }
+  }
+}
+
+function assertMealStepCanProgress(step, steps, timers, now) {
+  const stepById = new Map(steps.map((candidate) => [candidate.id, candidate]));
+  for (const dependencyId of step.dependsOn ?? []) {
+    const dependency = stepById.get(dependencyId);
+    if (dependency?.attention !== "passive") continue;
+    const dependencyTimer = timers[dependencyId];
+    if (!dependencyTimer || Date.parse(dependencyTimer.endsAt) > Date.parse(now)) {
+      throw codedError("meal_timer_dependency_blocked", "A required passive step has not actually finished.");
+    }
+  }
+  if (step.attention === "passive" && !timers[step.id]) {
+    throw codedError("meal_timer_step_invalid", "A passive step requires its actual timer.");
+  }
+  for (const timer of Object.values(timers)) {
+    if (timer.stepId === step.id || Date.parse(timer.endsAt) <= Date.parse(now)) continue;
+    const timerStep = stepById.get(timer.stepId);
+    if (timerStep && resourcesOverlap(step, timerStep)) {
+      throw codedError("meal_timer_resource_busy", "Required cookware is still occupied by another step.");
+    }
+  }
+}
+
+function resourcesOverlap(left, right) {
+  const leftResources = new Set(left.resources ?? []);
+  return (right.resources ?? []).some((resource) => leftResources.has(resource));
+}
+
+function timerIntervalsOverlap(left, right) {
+  return Date.parse(left.startedAt) < Date.parse(right.endsAt)
+    && Date.parse(right.startedAt) < Date.parse(left.endsAt);
+}
+
+function sameStringArray(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function sanitizeEffortTier(value) {
+  if (["quick_15", "easy_30", "normal"].includes(value)) return value;
+  throw codedError("effort_tier_invalid", "Unsupported effort tier.");
+}
+
+function normalizeRecommendationDishCount(value, mode, effortTier, familyProfile = {}) {
+  const requested = Number.parseInt(value, 10);
+  if (Number.isFinite(requested)) return Math.max(1, Math.min(4, requested));
+  if (mode === "meal_execution") return effortTier === "quick_15" ? 1 : 2;
+  const familySize = Math.max(1, Number.parseInt(familyProfile?.familySize, 10) || 2);
+  return familySize <= 1 ? 1 : familySize >= 5 ? 3 : 2;
+}
+
+function collectRecommendationFeedback(recommendationFeedback, mealRuns, householdId) {
+  const legacy = (Array.isArray(recommendationFeedback) ? recommendationFeedback : [])
+    .map((item) => ({
+      recipeIds: [...new Set([
+        ...(Array.isArray(item?.recipeIds) ? item.recipeIds : []),
+        item?.recipeId,
+      ].filter(Boolean))],
+      value: normalizeRecommendationFeedbackValue(item?.value || item?.reasonId),
+    }))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  const completed = (Array.isArray(mealRuns) ? mealRuns : [])
+    .filter((run) => run?.householdId === householdId && run.status === "completed")
+    .flatMap((run) => (Array.isArray(run.feedback) ? run.feedback : []).map((entry) => ({
+      recipeIds: [...new Set((run.recipeIds ?? []).filter(Boolean))],
+      value: normalizeRecommendationFeedbackValue(entry?.value),
+      mealRunId: run.id || "",
+    })))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  return [...legacy, ...completed].slice(-100);
+}
+
+function sanitizeRecipeIds(value) {
+  const recipeIds = [...new Set((Array.isArray(value) ? value : [])
+    .map((recipeId) => sanitizeText(recipeId, "", 100))
+    .filter(Boolean))].slice(0, 6);
+  if (recipeIds.length === 0) throw codedError("meal_recipes_required", "Choose at least one recipe.");
+  return recipeIds;
+}
+
+function sanitizeAbandonReason(value) {
+  if (["too_much_effort", "missing_ingredients", "plans_changed", "cooking_failed"].includes(value)) return value;
+  throw codedError("abandon_reason_invalid", "Unsupported abandon reason.");
+}
+
+function sanitizeDowngradeAction(value) {
+  if (["remove_optional_side", "lower_effort_recipe", "ready_staple"].includes(value)) return value;
+  throw codedError("invalid_downgrade_action", "Unsupported downgrade action.");
+}
+
+function sanitizeMealFeedback(value) {
+  const normalized = normalizeRecommendationFeedbackValue(value);
+  if (normalized) return normalized;
+  throw codedError("meal_feedback_invalid", "Unsupported meal feedback.");
+}
+
+function sanitizeClientProductEvent(input, telemetryHashSalt) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw codedError("product_event_field_invalid", "Product event must be an object.");
+  }
+  if (Object.keys(input).some((key) => !PRODUCT_EVENT_FIELDS.has(key))) {
+    throw codedError("product_event_field_invalid", "Product event contains an unsupported field.");
+  }
+  const eventType = sanitizeText(input.eventType, "", 80);
+  if (!NATIVE_CLIENT_EVENT_TYPES.has(eventType)) {
+    throw codedError("product_event_not_allowed", "Unsupported client product event.");
+  }
+  const anonymousSessionHash = hashTelemetryAnonymousSessionId(input.anonymousSessionId, telemetryHashSalt);
+  const businessId = sanitizeTelemetryIdentifier(input.businessId, "businessId", 100);
+  const householdId = input.householdId
+    ? sanitizeTelemetryIdentifier(input.householdId, "householdId", 100)
+    : "";
+  const page = sanitizeTelemetryEnum(input.page, [
+    "boot", "tonight", "discover", "plan", "grocery", "family", "cooking", "identity", "share", "poster", "reminder",
+  ], "page", { allowEmpty: true });
+  const stage = sanitizeTelemetryEnum(input.stage, [
+    "started", "completed", "failed", "retry", "offline", "queue_flush",
+  ], "stage", { allowEmpty: true });
+  const errorCode = sanitizeTelemetryEnum(input.errorCode, [
+    "none", "network_error", "invalid_session", "request_failed", "wechat_login_failed", "unauthorized", "permission_denied",
+    "conflict", "retry", "forbidden", "offline_action_not_allowed", "offline_action_invalid",
+    "offline_action_unconfigured", "offline_queue_full", "offline_queue_too_large", "offline_product_event_unsafe",
+    "queue_conflict", "queue_retry", "queue_flush_failed",
+  ], "errorCode", { allowEmpty: true });
+  const packageVersion = sanitizeText(input.packageVersion, "", 24);
+  if (!/^\d+\.\d+\.\d+$/.test(packageVersion)) {
+    throw codedError("product_event_field_invalid", "packageVersion is invalid.");
+  }
+  const durationMs = input.durationMs === undefined
+    ? 0
+    : Number(input.durationMs);
+  if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 24 * 60 * 60 * 1000) {
+    throw codedError("product_event_field_invalid", "durationMs is invalid.");
+  }
+  return {
+    eventType,
+    anonymousSessionHash,
+    householdId,
+    page,
+    stage,
+    durationMs: Math.round(durationMs),
+    errorCode,
+    packageVersion,
+    businessId,
+  };
+}
+
+export function hashTelemetryAnonymousSessionId(value, telemetryHashSalt) {
+  const salt = String(telemetryHashSalt || "");
+  if (!salt) throw codedError("telemetry_hash_salt_required", "Telemetry hash salt is required.");
+  const anonymousSessionId = sanitizeTelemetryIdentifier(value, "anonymousSessionId", 100);
+  return createHmac("sha256", salt).update(anonymousSessionId).digest("hex");
+}
+
+function normalizeStoredProductEvent(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const eventType = sanitizeText(input.eventType, "", 80);
+  if (!NATIVE_CLIENT_EVENT_TYPES.has(eventType) && !MEAL_RUN_SERVER_EVENT_TYPES.has(eventType)) return null;
+  const occurredAt = sanitizeOptionalIsoDate(input.occurredAt || input.createdAt);
+  if (!occurredAt) return null;
+  const id = normalizeStoredTelemetryIdentifier(input.id, 100) || randomUUID();
+  const businessId = normalizeStoredTelemetryIdentifier(
+    input.businessId || input.mealRunId || input.recommendationId || input.styleId || id,
+    100,
+  );
+  if (!businessId) return null;
+  const event = { id, eventType };
+  const anonymousSessionHash = sanitizeText(input.anonymousSessionHash, "", 64).toLowerCase();
+  if (/^[a-f0-9]{64}$/.test(anonymousSessionHash)) event.anonymousSessionHash = anonymousSessionHash;
+  const householdId = normalizeStoredTelemetryIdentifier(input.householdId, 100);
+  if (householdId) event.householdId = householdId;
+  for (const [field, maxLength] of [["page", 40], ["stage", 40], ["errorCode", 40], ["packageVersion", 24]]) {
+    const value = sanitizeText(input[field], "", maxLength);
+    if (value) event[field] = value;
+  }
+  const durationMs = Number(input.durationMs);
+  if (Number.isFinite(durationMs) && durationMs >= 0 && durationMs <= 24 * 60 * 60 * 1000) {
+    event.durationMs = Math.round(durationMs);
+  }
+  event.businessId = businessId;
+  event.occurredAt = occurredAt;
+  return event;
+}
+
+function normalizeStoredTelemetryIdentifier(value, maxLength) {
+  const normalized = sanitizeText(value, "", maxLength);
+  return normalized && /^[A-Za-z0-9:_-]+$/.test(normalized) ? normalized : "";
+}
+
+function sanitizeTelemetryIdentifier(value, fieldName, maxLength) {
+  const normalized = sanitizeText(value, "", maxLength);
+  if (!normalized || !/^[A-Za-z0-9:_-]+$/.test(normalized)) {
+    throw codedError("product_event_field_invalid", `${fieldName} is invalid.`);
+  }
+  return normalized;
+}
+
+function sanitizeTelemetryEnum(value, allowed, fieldName, { allowEmpty = false } = {}) {
+  const normalized = sanitizeText(value, "", 40);
+  if (allowEmpty && !normalized) return "";
+  if (allowed.includes(normalized)) return normalized;
+  throw codedError("product_event_field_invalid", `${fieldName} is invalid.`);
 }
 
 function sanitizeCollaborationRequestType(value) {
@@ -1532,6 +3013,56 @@ function mergeMemberWritableState(currentState = {}, incomingState = {}, userId)
       ...Object.fromEntries(completedOwnKeys.map((key) => [key, true])),
     },
   };
+}
+
+function mergeFormalMemberPreferences({
+  current = [],
+  incoming = [],
+  household = {},
+  userId = "",
+} = {}) {
+  const formalMemberIds = (Array.isArray(household.members) ? household.members : [])
+    .filter((member) => member?.status === "formal" && member.memberId)
+    .map((member) => member.memberId);
+  const formalMemberIdSet = new Set(formalMemberIds);
+  const currentByMemberId = new Map(
+    normalizeMemberPreferenceEntries(current)
+      .filter((entry) => formalMemberIdSet.has(entry.memberId))
+      .map((entry) => [entry.memberId, entry]),
+  );
+  const canEditAll = household.ownerId === userId;
+  for (const entry of normalizeMemberPreferenceEntries(incoming)) {
+    if (!formalMemberIdSet.has(entry.memberId)) continue;
+    if (!canEditAll && entry.memberId !== userId) continue;
+    currentByMemberId.set(entry.memberId, entry);
+  }
+  return formalMemberIds
+    .map((memberId) => currentByMemberId.get(memberId))
+    .filter(Boolean);
+}
+
+function normalizeMemberPreferenceEntries(value) {
+  if (!Array.isArray(value)) return [];
+  const entries = new Map();
+  for (const member of value.slice(0, 50)) {
+    const memberId = sanitizeText(member?.memberId, "", 100);
+    if (!memberId) continue;
+    entries.set(memberId, {
+      memberId,
+      preference: {
+        allergies: normalizePreferenceList(member?.preference?.allergies),
+        dislikes: normalizePreferenceList(member?.preference?.dislikes),
+      },
+    });
+  }
+  return [...entries.values()];
+}
+
+function normalizePreferenceList(value) {
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map((item) => sanitizeText(item, "", 40))
+    .filter(Boolean))]
+    .slice(0, 24);
 }
 
 function resolveCraveDeadline(value, createdAt) {

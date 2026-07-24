@@ -57,6 +57,85 @@ export async function saveHumiState(session, state, householdId = state?.househo
   return data.state ?? null;
 }
 
+export function createHumiMealRun(session, payload) {
+  return humiApiRequest("/meal-runs", { method: "POST", session, body: payload });
+}
+
+export function requestDinnerRecommendation(session, payload) {
+  return humiApiRequest("/recommendations/dinner", {
+    method: "POST",
+    session,
+    body: payload,
+  });
+}
+
+export function loadCurrentHumiMealRun(session, {
+  householdId,
+  dateKey,
+  mealSlot = "dinner",
+  mealRunId = "",
+}) {
+  const params = new URLSearchParams({ householdId, dateKey, mealSlot });
+  if (mealRunId) params.set("mealRunId", mealRunId);
+  return humiApiRequest(`/meal-runs/current?${params.toString()}`, { session });
+}
+
+export function startHumiMealRun(session, mealRunId) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/start`, { method: "POST", session, body: {} });
+}
+
+export function updateHumiMealRunProgress(session, mealRunId, payload) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/progress`, { method: "PUT", session, body: payload });
+}
+
+export function completeHumiMealRun(session, mealRunId, payload = {}) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/complete`, { method: "POST", session, body: payload });
+}
+
+export function downgradeHumiMealRun(session, mealRunId, action) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/downgrade`, { method: "POST", session, body: { action } });
+}
+
+export function abandonHumiMealRun(session, mealRunId, reason) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/abandon`, { method: "POST", session, body: { reason } });
+}
+
+export function updateHumiMealRunFeedback(session, mealRunId, value) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/feedback`, { method: "PUT", session, body: { value } });
+}
+
+export function createHumiMealTask(session, mealRunId, payload) {
+  return humiApiRequest(`/meal-runs/${encodeURIComponent(mealRunId)}/tasks`, { method: "POST", session, body: payload });
+}
+
+export function claimHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/claim`, { method: "POST", session, body: {} });
+}
+
+export function loadHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}`, { session });
+}
+
+export function completeHumiMealTask(session, token) {
+  return humiApiRequest(`/meal-tasks/${encodeURIComponent(token)}/complete`, { method: "POST", session, body: {} });
+}
+
+export function loadHumiMealReminderConfig(session) {
+  return humiApiRequest("/meal-reminders/config", { session });
+}
+
+export function createHumiMealReminder(session, payload) {
+  return humiApiRequest("/meal-reminders", { method: "POST", session, body: payload });
+}
+
+export function cancelHumiMealReminder(session, reminderId) {
+  return humiApiRequest(`/meal-reminders/${encodeURIComponent(reminderId)}`, { method: "DELETE", session });
+}
+
+export function recordHumiProductEvent(session, payload) {
+  return humiApiRequest("/product-events", { method: "POST", session, body: payload });
+}
+
 export function updateHumiIdentityProfile(session, profile) {
   return humiApiRequest("/identity/profile", {
     method: "PUT",
@@ -118,11 +197,15 @@ export function leaveHumiHousehold(session, householdId) {
   });
 }
 
-export async function createHouseholdInvite(session, payload) {
+export async function createHouseholdInvite(session, payload, options = {}) {
   return humiApiRequest("/household-invites", {
     method: "POST",
     session,
-    body: payload,
+    body: {
+      ...payload,
+      ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+    },
+    notifySessionInvalid: options.notifySessionInvalid,
   });
 }
 
@@ -232,9 +315,17 @@ export async function claimGroceryShareItem(token, payload, session = null) {
 
 // Compatibility contract for the user's batch-claim UI. The API keeps these
 // routes while newer clients can use the item-level grocery share functions above.
-export async function createGroceryShareRequest(payload, session = null) {
+export async function createGroceryShareRequest(payload, session = null, options = {}) {
   if (isHumiApiSession(session)) {
-    return humiApiRequest("/grocery-share-requests", { method: "POST", session, body: payload });
+    return humiApiRequest("/grocery-share-requests", {
+      method: "POST",
+      session,
+      body: {
+        ...payload,
+        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+      },
+      notifySessionInvalid: options.notifySessionInvalid,
+    });
   }
   return humiPublicRequest("/grocery-share-requests", { method: "POST", body: payload });
 }
@@ -277,9 +368,17 @@ export function joinGroceryShareRequest(token, session, payload) {
   });
 }
 
-export async function createMenuShareRequest(payload, session = null) {
+export async function createMenuShareRequest(payload, session = null, options = {}) {
   if (isHumiApiSession(session)) {
-    return humiApiRequest("/menu-share-requests", { method: "POST", session, body: payload });
+    return humiApiRequest("/menu-share-requests", {
+      method: "POST",
+      session,
+      body: {
+        ...payload,
+        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
+      },
+      notifySessionInvalid: options.notifySessionInvalid,
+    });
   }
   return humiPublicRequest("/menu-share-requests", { method: "POST", body: payload });
 }
@@ -289,10 +388,15 @@ export async function loadMenuShareRequest(token) {
   return humiPublicRequest(`/menu-share-requests/${encodeURIComponent(token)}`);
 }
 
-export async function uploadPosterShare(session, blob) {
+export async function uploadPosterShare(session, blob, options = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   if (!(blob instanceof Blob) || !["image/jpeg", "image/png"].includes(blob.type)) {
     throw new Error("海报图片没有准备完整，请重新生成。");
+  }
+  const styleId = options.styleId === "theme" ? "theme" : "default";
+  const idempotencyKey = String(options.idempotencyKey || "").trim();
+  if (idempotencyKey.length > 100) {
+    throw new Error("海报版本标识无效，请重新生成海报。");
   }
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), 20_000);
@@ -302,13 +406,18 @@ export async function uploadPosterShare(session, blob) {
       headers: {
         "Content-Type": blob.type,
         Authorization: `Bearer ${session.accessToken}`,
+        "X-Humi-Poster-Style": styleId,
+        ...(idempotencyKey ? { "X-Humi-Idempotency-Key": idempotencyKey } : {}),
       },
       body: blob,
       signal: controller.signal,
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.message || "海报暂时没传到微信，请稍后再试。");
+      const error = new Error(data.message || "海报暂时没传到微信，请稍后再试。");
+      error.status = response.status;
+      error.code = data.error || "";
+      throw error;
     }
     return data;
   } catch (error) {
@@ -354,7 +463,7 @@ export function joinWishShareRequest(token, session, payload) {
   });
 }
 
-async function humiApiRequest(path, { method = "GET", session, body, signal } = {}) {
+async function humiApiRequest(path, { method = "GET", session, body, signal, notifySessionInvalid = true } = {}) {
   if (!session?.accessToken) throw new Error("微信登录已失效，请重新进入小程序。");
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), HUMI_API_TIMEOUT_MS);
@@ -377,7 +486,7 @@ async function humiApiRequest(path, { method = "GET", session, body, signal } = 
       const error = new Error(data.message || "Humi 账号同步暂时不可用。");
       error.status = response.status;
       error.code = data.error || "";
-      if (response.status === 401 || error.code === "invalid_session") {
+      if (notifySessionInvalid && (response.status === 401 || error.code === "invalid_session")) {
         for (const listener of sessionInvalidListeners) {
           try {
             listener(error);

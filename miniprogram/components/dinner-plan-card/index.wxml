@@ -1,0 +1,29 @@
+<view class="plan-card" wx:if="{{plan}}">
+  <view class="plan-topline">
+    <text class="plan-kicker">今晚就做这套</text>
+    <text class="plan-time">{{plan.totalMinutes}} 分钟</text>
+  </view>
+  <view class="recipe-list">
+    <view class="recipe" wx:for="{{plan.recipes}}" wx:key="id">
+      <image class="recipe-image" src="{{item.thumbnailUrl}}" mode="aspectFill" lazy-load="{{false}}" />
+      <view class="recipe-copy">
+        <text class="recipe-title">{{item.title}}</text>
+        <text class="recipe-detail">动手 {{item.activeMinutes}} 分钟</text>
+      </view>
+    </view>
+  </view>
+  <view class="plan-facts">
+    <text>总计 {{plan.totalMinutes}} 分钟</text>
+    <text>动手 {{plan.activeMinutes}} 分钟</text>
+    <text>{{plan.cookwareCount}} 件厨具</text>
+  </view>
+  <view class="missing">
+    <text class="missing-label">还需要</text>
+    <text class="missing-value">{{plan.missingIngredientsText}}</text>
+  </view>
+  <view class="plan-actions">
+    <button class="primary-action" bindtap="accept" loading="{{pending}}" disabled="{{pending || !canAccept}}">就做这顿</button>
+    <button class="secondary-action" bindtap="next" disabled="{{pending}}">换一组</button>
+  </view>
+  <text wx:if="{{!canAccept}}" class="permission-copy">家庭成员都能做饭；请由家庭创建者先确定菜单。</text>
+</view>

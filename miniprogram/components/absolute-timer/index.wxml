@@ -1,0 +1,7 @@
+<view class="timer-card {{expired ? 'expired' : ''}}">
+  <view class="timer-copy">
+    <text class="timer-label">{{label}}</text>
+    <text class="timer-state">{{expired ? '可以继续了' : '正在等待，不用一直盯着'}}</text>
+  </view>
+  <text class="timer-value">{{minuteText}}:{{secondText}}</text>
+</view>

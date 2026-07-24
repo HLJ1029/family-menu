@@ -7,7 +7,7 @@
 - `https://api.humi-home.com/health` 已返回 HTTP 200。
 - 健康检查响应：`{"ok":true,"service":"humi-api"}`。
 - `npm run release:check:online` 已通过。
-- 小程序 1.1.72 使用本合同，并包含多家庭定向保存、五类协作分享、协作状态持久化、临时身份隐私收口与短期海报图片交接。
+- 已上传兼容版 1.1.73 使用本合同；未上传的原生骨架 preview 固定为 1.1.74。两者都包含多家庭定向保存、五类协作分享、协作状态持久化、临时身份隐私收口与短期海报图片交接。
 
 2026-07-19 身份改造分支说明：本分支已实现主动微信登录、身份资料完善、一次性 H5 票据和无副作用家庭读取，但尚未部署生产或上传微信版本。普通启动不得调用微信登录；`POST /auth/wechat/login` 只允许由用户主动点击触发。
 
@@ -23,6 +23,12 @@ npm run api:dev
 
 ```bash
 npm run validate:api
+```
+
+原生启动合同：
+
+```bash
+npm run validate:native-bootstrap-api
 ```
 
 环境变量：
@@ -42,6 +48,32 @@ npm run validate:api
 | `WECHAT_APP_ID` | 微信小程序 AppID |
 | `WECHAT_APP_SECRET` | 微信小程序 AppSecret |
 | `HUMI_WECHAT_MOCK` | 仅本地测试使用，`1` 时不请求微信接口 |
+| `HUMI_NATIVE_SHELL_ENABLED` | 原生小程序壳总开关；默认 `0`。 |
+| `HUMI_NATIVE_SHELL_HOUSEHOLDS` | 原生壳家庭白名单，逗号分隔；空值不匹配任何家庭。仅测试环境在总开关为 `1` 时可使用 `*`，它也匹配尚未建家的首次用户。 |
+
+## 原生启动 Bootstrap
+
+`GET /bootstrap` 要求 `Authorization: Bearer <accessToken>`，并返回 `Cache-Control: private, no-store`。读取不会创建家庭、成员或家庭状态。响应使用 `schemaVersion: 1`，包含已脱敏的当前用户、全部家庭、当前家庭 ID、家庭状态、当天晚餐 `MealRun` 与能力开关。
+
+`stateVersion` 是对已脱敏家庭状态、当前家庭成员/角色、当前晚餐与相关能力开关做稳定 SHA-256 base64url 哈希；不包含 `generatedAt`，相同逻辑状态重复读取时保持不变。用户字段只包含 `id`、`displayName`、`avatarKey`、`avatarUrl` 与 `profileStatus`，不会返回 token、openid 或电话散列。
+
+原生壳只有在 `HUMI_NATIVE_SHELL_ENABLED=1` 且 allowlist 匹配当前家庭时才启用；空 allowlist 永不匹配。未命中时响应仍成功，但 `capabilities.nativeShellEnabled=false`，客户端继续进入既有 H5。
+
+### 原生壳灰度与回滚合同
+
+仓库默认必须保持 `HUMI_NATIVE_SHELL_ENABLED=0` 和 `HUMI_NATIVE_SHELL_HOUSEHOLDS=`。原生包内候选开关不能单独放量；服务端总开关与显式家庭白名单必须同时命中。生产环境拒绝 `*`，首次用户也不会因为没有家庭而被自动放入原生流程。
+
+关闭 `HUMI_NATIVE_SHELL_ENABLED` 后，客户端下一次 `/bootstrap` 读取必须得到 `capabilities.nativeShellEnabled=false`。客户端只清除当前用户的 bootstrap 家庭指针和对应的一条家庭读取缓存，再次启动进入 `/pages/legacy/index`；不删除 MealRun、家庭状态、离线写队列、协作记录或其他产品数据，也不执行数据库 schema 回滚。兼容页继续保留 H5 登录票据交换和微信分享行为。
+
+登录/bootstrap、分享、MealRun 上桌完成出现实质回退，出现 P0/P1，或隐私/权限行为偏离已批准合同时，必须立即关闭服务端原生总开关、验证 H5 兼容页，并停止扩大白名单。部署 API/H5、上传体验版、真机验收、提审、发布和每次白名单扩大互不授权，必须逐项留证。
+
+源码域名合同固定为：
+
+- request/download 目标：`https://api.humi-home.com`；
+- web-view 业务域名：`https://www.humi-home.com`；
+- 小程序项目保持 `urlCheck: true`。
+
+源码配置正确不等于微信公众平台已经放行。`downloadFile` 后台配置和 iOS/Android 真机下载必须在外部发布检查点单独验证；缺失时只阻塞海报图片真实分享/保存，不得把其他本地原生路径伪报为失败或通过。
 
 ## 微信登录
 
@@ -92,7 +124,7 @@ npm run validate:api
 
 ## 身份资料、头像与 H5 交接
 
-- `PUT /identity/profile`：保存必填昵称，并把 `profileStatus` 更新为 `complete`。
+- `PUT /identity/profile`：保存必填昵称。首次未完成身份必须在本次提交中提供 API canonical approved `avatarKey`，或此前已通过 `POST /identity/avatar` 成功保存头像；满足其一才把 `profileStatus` 更新为 `complete`。昵称-only 或伪造 `avatarUrl` 返回 `400 avatar_required`；任意非 approved `avatarKey` 返回 `400 invalid_avatar_key`。只上传头像仍保持 `incomplete`。
 - `POST /identity/avatar`：上传 JPEG/PNG 头像；Base64 解码后最大 512 KiB。JPEG 必须包含可解析的 segment、有效尺寸、SOF/SOS/EOI；PNG 必须通过逐 chunk 边界与 CRC、IHDR 尺寸/编码、IDAT 和 IEND 校验。只上传头像不会提前完成身份资料。
 - `GET /avatars/:token.jpg|png`：公开读取头像。URL 仅包含不透明随机 token，不包含 OpenID、手机号、昵称或用户 ID。
 - `POST /auth/h5-ticket`：资料完成的原生会话可申请 60 秒有效、只能消费一次的 H5 票据；数据文件只保存 SHA-256 哈希。
@@ -321,6 +353,64 @@ Authorization: Bearer <accessToken>
 
 - 感觉征集、买菜认领、清单、基础推荐永远免费不限次数。
 - 高成本精准 API 才进入尝鲜额度/Plus 家庭版。
+
+## 晚餐执行：每周做成两顿
+
+该能力默认关闭。只有 `HUMI_MEAL_EXECUTION_ENABLED=1`，且当前家庭 ID 命中 `HUMI_MEAL_EXECUTION_HOUSEHOLDS`（逗号分隔，或 `*`）时，`GET /me` 与 `GET /state` 才返回 `capabilities.mealExecution=true`。H5 只在该 capability 为真、且当前菜单全部为认证菜谱时展示新流程；否则保持原有今晚流程。
+
+正式接口均要求 `Authorization: Bearer <accessToken>`：
+
+- `POST /meal-runs`：owner 为指定日期晚餐创建或替换 `planned` 记录；必须携带 `idempotencyKey`。当天现有 `planned` 可替换，`cooking` 或 `completed` 不可覆盖。游客合并可同时携带 `syncedFromLocalId` 与规范 ISO `syncedStartedAt`；后者不得晚于服务端当前时间，且按上海时区必须属于该 `dateKey`，普通创建不可借此回填历史开始时间。
+- `GET /meal-runs/current?householdId=...&dateKey=YYYY-MM-DD&mealSlot=dinner`：正式成员读取当天当前晚餐。
+- `POST /meal-runs/:id/start`：正式成员开始做饭；重复调用返回同一 `startedAt`。
+- `PUT /meal-runs/:id/progress`：正式成员推进到快照时间线中的步骤，必须携带当前正整数 `timelineVersion`；缺失或与服务端不一致统一返回 `409 meal_timeline_version_conflict`，旧 epoch 不参与步骤或计时器合并。进入被动步骤时携带 `timer: { stepId, startedAt, endsAt }`；服务端校验该步骤属于当前时间线且为被动步骤、时间为规范 ISO、开始时间不晚于服务端当前时间且不得早于本次做饭开始（仅保留 5 秒设备时钟容差）、`endsAt - startedAt` 严格等于认证时长，并按步骤 first-write immutable 合并。依赖或厨具仍被实际计时占用时返回 `409`。旧 `timerEndsAt` 仅保留为响应兼容字段，不再驱动步骤解锁或倒计时。
+- `POST /meal-runs/:id/downgrade`：正式成员执行 `remove_optional_side | lower_effort_recipe | ready_staple`。每次降级都递增 `timelineVersion`；菜谱集合未变化时保留当前时间线、游标和实际计时器，菜谱变化时重建时间线并清空旧游标/计时器。
+- `POST /meal-runs/:id/complete`：必须携带当前正整数 `timelineVersion`；仍在 `cooking` 时版本不一致返回 `409 meal_timeline_version_conflict`，避免旧设备把换菜前的完成动作计到新时间线。只有该接口对应的明确“上桌了”动作把状态改为 `completed`；已经完成后的重复调用保持幂等，不重复计数。
+- `POST /meal-runs/:id/abandon`：原因仅允许 `too_much_effort | missing_ingredients | plans_changed | cooking_failed`，不破坏周节奏。
+- `PUT /meal-runs/:id/feedback`：完成后按成员幂等更新 `want_again | change_next_time | too_much_effort`。
+
+`MealRun` 保存家庭、日期、`dinner`、行动力、认证菜谱快照、时间线版本、当前步骤、按步骤索引的实际绝对计时器 `timers`、操作者、时间戳、降级历史和家庭反馈。时间线中的 `startsAt/endsAt` 只表示预计排程；真正进入被动步骤时才以实际 `startedAt` 创建完整时长计时器。多个不冲突的被动步骤可同时运行，依赖、厨具锁和后台恢复只读取 `timers`。运行时不调用 AI 生成烹饪步骤。不同 `timelineVersion` 的快照和 optimistic overlay 永不合并，高版本完整快照始终权威。游客记录保存在本机；登录后 owner 可用稳定的合并幂等键创建远端记录并逐个重放计时器、游标、完成状态和本人反馈，只有远端状态、游标、全部本地计时器与反馈完全等价后才归档并清除本地完成记录；`syncedFromLocalId` 用于恢复中断合并并避免周完成数重复。登录成员离线时可继续推进本地时间线，联网后按顺序重放带 `timelineVersion` 的幂等进度与完成操作。若另一设备已切换到更高时间线版本，客户端会丢弃该旧 epoch 的进度、完成及依赖反馈，拉取权威快照并要求重新确认上桌；不会永久阻塞队列，也不会把旧菜的完成动作计到替换后的菜谱。
+
+权限边界：
+
+- owner 可选择/替换家庭晚餐，也可以执行做饭。
+- 正式 member 不能修改家庭菜单，但可以开始、推进、降级、确认上桌、反馈和创建/完成协作任务。
+- 游客只能在本机完成选择和做饭，不能创建/领取家庭任务，也不能创建微信提醒。
+
+### 家庭做饭任务
+
+- `POST /meal-runs/:id/tasks`：从认证快照生成 `buy` 或 `prep` 任务，服务端生成安全展示文案和不可预测 token。
+- `GET /meal-tasks/:token`：只有该家庭正式成员可读取任务。
+- `POST /meal-tasks/:token/claim`：正式成员幂等认领；游客和陌生家庭不得读取或认领。
+- `POST /meal-tasks/:token/complete`：认领者或 owner 标记完成。
+
+小程序分享类型为 `meal_task`，深链参数为 `mealTask=<token>&shareSource=meal_task`。分享任务不阻塞发起者继续单人做饭。
+
+### 微信一次性提醒
+
+- `GET /meal-reminders/config`：正式成员读取服务端配置的订阅模板 ID。
+- `POST /meal-reminders`：只接受原生页在用户点击后取得 `accept` 的请求；请求必须包含 `accepted=true` 和匹配的 `templateId`。
+- `DELETE /meal-reminders/:id`：创建者取消尚未发送的提醒。
+
+H5 只负责收集用户主动选择的下一次做饭时间，然后导航到原生 `/pages/reminder/index`。原生页 `onLoad` 不调用 `wx.requestSubscribeMessage`；只有用户再次点击确认按钮才请求微信授权。拒绝后本机记忆为拒绝，不再重复索取；拒绝或取消都不会创建服务端提醒。发送失败最多重试一次，成功、失败或取消后不会再投递；目标日期晚餐已经完成或放弃时自动取消。
+
+### 分析与保留
+
+客户端只允许上报 `effort_tier_viewed`、`effort_tier_selected`、`plan_presented`、`plan_accepted`、`reminder_opened`，不上传昵称或自由文本。开始、完成和放弃由状态接口在服务端形成事实。原始产品事件保留 180 天；家庭可见的晚餐记录持续保留。
+
+灰度验证固定为 10–20 个真实家庭、两周：方案展示→开始做饭 ≥50%，开始→上桌 ≥70%，首顿完成家庭 7 天内第二顿 ≥40%，并观察激活家庭每周 Humi 辅助晚餐完成数中位数是否达到 2。回滚只需先把 `HUMI_MEAL_EXECUTION_ENABLED` 改为 `0` 并重启 API；旧今晚流程与历史 `MealRun` 数据都保留，不执行数据删除。
+
+相关环境变量：
+
+| 变量 | 用途 |
+| --- | --- |
+| `HUMI_MEAL_EXECUTION_ENABLED` | 总开关；默认 `0`。 |
+| `HUMI_MEAL_EXECUTION_HOUSEHOLDS` | 家庭 ID 白名单，逗号分隔；`*` 表示全部家庭。 |
+| `HUMI_MEAL_REMINDER_TEMPLATE_ID` | 微信一次性订阅消息模板 ID。 |
+| `HUMI_MEAL_REMINDER_THING_KEY` | 模板中的事项字段 key，默认 `thing1`。 |
+| `HUMI_MEAL_REMINDER_TIME_KEY` | 模板中的时间字段 key，默认 `time2`。 |
+
+生产启用前必须完成 30 道菜的厨房走查、10 组双菜组合、390×844 真机全流程和订阅消息真实送达验证。本地候选完成不等于允许部署、扩白名单或提交微信审核。
 
 ## 发布前平台配置
 

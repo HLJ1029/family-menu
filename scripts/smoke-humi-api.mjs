@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { HumiStore } from "../api/store.js";
 
 const port = 18787;
 const smokeDirectory = await mkdtemp(join(tmpdir(), "humi-api-smoke-"));
@@ -9,6 +10,7 @@ const dataFile = join(smokeDirectory, "data.json");
 const smokeSessionSecret = "humi-api-smoke-secret";
 const explicitWechatOpenIds = new Set();
 let explicitHouseholdCreateCount = 0;
+const recipeCatalog = JSON.parse(await readFile(new URL("../data/recipes.json", import.meta.url), "utf8"));
 process.env.HUMI_API_DATA_FILE = dataFile;
 process.env.HUMI_AVATAR_DIR = join(smokeDirectory, "avatars");
 process.env.HUMI_POSTER_DIR = join(smokeDirectory, "posters");
@@ -25,6 +27,20 @@ try {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const health = await request(`${baseUrl}/health`);
   assert(health.ok, "health should be ok");
+  const posterPreflight = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://www.humi-home.com",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "authorization,content-type,x-humi-poster-style",
+    },
+  });
+  assert.equal(posterPreflight.status, 204, "poster upload preflight should be accepted");
+  assert.match(
+    posterPreflight.accessControlAllowHeaders || "",
+    /(?:^|,)X-Humi-Poster-Style(?:,|$)/i,
+    "poster style header must be allowed through the H5 CORS preflight",
+  );
   const dishThumb = await rawRequest(`${baseUrl}/assets/dishes/thumbs/tomato-egg.webp`, { method: "HEAD" });
   assert.equal(dishThumb.status, 200, "optimized dish thumbnails should be served by the API asset origin");
   assert.equal(dishThumb.contentType, "image/webp");
@@ -64,13 +80,56 @@ try {
     headers: {
       "Content-Type": "image/jpeg",
       Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
     },
     body: posterJpeg,
   });
   assert(uploadedPoster.status === 201, "poster upload should return 201");
   assert(uploadedPoster.data.poster?.format === "jpg", "poster upload should detect JPEG");
+  assert.equal(uploadedPoster.data.poster?.styleId, "theme", "poster upload should preserve an allowlisted style ID");
   assert(uploadedPoster.data.poster?.bytes === posterJpeg.length, "poster upload should report exact bytes");
   assert(/^[A-Za-z0-9_-]{24,64}$/.test(uploadedPoster.data.poster?.token || ""), "poster upload should return an opaque token");
+  const repeatedPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
+    },
+    body: posterJpeg,
+  });
+  assert.equal(repeatedPoster.status, 201);
+  assert.equal(repeatedPoster.data.poster?.token, uploadedPoster.data.poster.token, "a lost poster response must replay the original token");
+  const concurrentPosterKey = `poster-concurrent:${runId}`;
+  const concurrentPosters = await Promise.all([0, 1].map(() => rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "default",
+      "X-Humi-Idempotency-Key": concurrentPosterKey,
+    },
+    body: posterJpeg,
+  })));
+  assert.equal(
+    new Set(concurrentPosters.map((result) => result.data.poster?.token)).size,
+    1,
+    "concurrent poster retries must converge on one token",
+  );
+  const conflictingPoster = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "theme",
+      "X-Humi-Idempotency-Key": `poster-theme:${runId}`,
+    },
+    body: Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xd9]),
+  });
+  assert.equal(conflictingPoster.status, 409, "one poster idempotency key must not accept different image bytes");
+  assert.equal(conflictingPoster.data.error, "poster_idempotency_conflict");
   const posterPath = `/poster-shares/${uploadedPoster.data.poster.token}.jpg`;
   const downloadedPoster = await rawRequest(`${baseUrl}${posterPath}`);
   assert(downloadedPoster.status === 200, "uploaded poster should be publicly downloadable by opaque token");
@@ -79,6 +138,17 @@ try {
   const posterHead = await rawRequest(`${baseUrl}${posterPath}`, { method: "HEAD" });
   assert(posterHead.status === 200, "poster HEAD should succeed");
   assert(posterHead.contentLength === String(posterJpeg.length), "poster HEAD should expose content length");
+  const sanitizedPosterStyle = await rawRequest(`${baseUrl}/poster-shares`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "image/jpeg",
+      Authorization: `Bearer ${login.accessToken}`,
+      "X-Humi-Poster-Style": "receipt<script>",
+    },
+    body: posterJpeg,
+  });
+  assert.equal(sanitizedPosterStyle.status, 201, "invalid style metadata should not block a valid poster image");
+  assert.equal(sanitizedPosterStyle.data.poster?.styleId, "default", "poster style metadata must be reduced to the allowlist");
   const invalidPoster = await rawRequest(`${baseUrl}/poster-shares`, {
     method: "POST",
     headers: {
@@ -188,6 +258,32 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: { displayName: "" },
   }, 400, "display_name_required");
+
+  explicitWechatOpenIds.add(`identity-fresh-${runId}`);
+  const freshIdentity = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `identity-fresh-${runId}` },
+  });
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "只填昵称" },
+  }, 400, "avatar_required");
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "伪造上传", avatarUrl: "https://attacker.example/avatar.jpg" },
+  }, 400, "avatar_required");
+  await assertRejectedRequest(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${freshIdentity.accessToken}` },
+    body: { displayName: "伪造头像", avatarKey: "not-an-approved-avatar" },
+  }, 400, "invalid_avatar_key");
+  const stillIncomplete = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `identity-fresh-${runId}` },
+  });
+  assert.equal(stillIncomplete.user.profileStatus, "incomplete", "rejected identity saves must not complete the first-use account");
 
   await assertRejectedRequest(`${baseUrl}/auth/h5-ticket`, {
     method: "POST",
@@ -745,6 +841,57 @@ try {
   assert(joinedCrave.households?.some((household) => household.id === loadedStateEnvelope.family.id), "joined crave user should receive households");
   assert(joinedCrave.state?.todayMenu?.[0]?.recipeId === "tomato-egg", "joined crave user should immediately receive shared household state");
 
+  const ownerPreferenceMutation = await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...joinedCrave.state,
+        familyMembers: [
+          {
+            memberId: login.user.id,
+            nickname: "客户端伪造主厨",
+            avatarUrl: "https://attacker.example/owner.png",
+            preference: {
+              allergies: [" 花生 ", "花生"],
+              dislikes: ["香菜"],
+              privateNote: "must-not-persist",
+            },
+          },
+          {
+            memberId: memberLogin.user.id,
+            nickname: "客户端伪造家人",
+            preference: { allergies: ["鸡蛋"], dislikes: [] },
+          },
+          {
+            memberId: "not-a-formal-household-member",
+            preference: { allergies: ["牛奶"], dislikes: [] },
+          },
+        ],
+      },
+    },
+  });
+  assert.deepEqual(
+    ownerPreferenceMutation.state?.familyMembers,
+    [
+      {
+        memberId: login.user.id,
+        preference: { allergies: ["花生"], dislikes: ["香菜"] },
+      },
+      {
+        memberId: memberLogin.user.id,
+        preference: { allergies: ["鸡蛋"], dislikes: [] },
+      },
+    ],
+    "owner may save normalized hard-diet preferences only for formal members",
+  );
+  assert.deepEqual(
+    Object.keys(ownerPreferenceMutation.state?.familyMembers?.[0] ?? {}).sort(),
+    ["memberId", "preference"],
+    "shared preference state must not persist client-supplied identity fields",
+  );
+
   const memberMutation = await request(`${baseUrl}/state`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
@@ -786,6 +933,21 @@ try {
             claimedAt: new Date().toISOString(),
           },
         },
+        familyMembers: [
+          {
+            memberId: login.user.id,
+            preference: { allergies: ["鸡蛋"], dislikes: ["辣"] },
+          },
+          {
+            memberId: memberLogin.user.id,
+            nickname: "篡改自己的显示身份",
+            preference: { allergies: [" 对鸡蛋过敏 "], dislikes: ["葱"] },
+          },
+          {
+            memberId: "not-a-formal-household-member",
+            preference: { allergies: ["牛奶"], dislikes: [] },
+          },
+        ],
       },
     },
   });
@@ -797,6 +959,76 @@ try {
   assert(memberMutation.state?.groceryClaims?.["custom:member-milk"]?.status === "done", "member should update their own grocery claim");
   assert(memberMutation.state?.checkedItems?.["custom:member-milk"] === true, "completed member grocery claim should mark the item checked");
   assert(memberMutation.state?.craveSignals?.[0]?.token === "crave-state-smoke-token", "member state save must not replace active crave signal");
+  assert.deepEqual(
+    memberMutation.state?.familyMembers,
+    [
+      {
+        memberId: login.user.id,
+        preference: { allergies: ["花生"], dislikes: ["香菜"] },
+      },
+      {
+        memberId: memberLogin.user.id,
+        preference: { allergies: ["对鸡蛋过敏"], dislikes: ["葱"] },
+      },
+    ],
+    "a member may update only their own preference while other formal preferences are preserved",
+  );
+
+  const preferenceStateGet = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.deepEqual(
+    preferenceStateGet.state?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "GET state must return the shared formal-member preferences",
+  );
+  const preferenceBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assert.deepEqual(
+    preferenceBootstrap.householdState?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "native bootstrap must return the same formal-member preferences",
+  );
+  const restartedPreferenceStore = new HumiStore(dataFile);
+  const restartedPreferenceState = await restartedPreferenceStore.getState(memberLogin.user.id);
+  assert.deepEqual(
+    restartedPreferenceState?.familyMembers,
+    memberMutation.state?.familyMembers,
+    "formal-member preferences must survive a store restart",
+  );
+
+  const eggRecipeIds = new Set(recipeCatalog
+    .filter((recipe) => [
+      recipe.name,
+      recipe.description,
+      ...(recipe.categories ?? []),
+      ...(recipe.tags ?? []),
+      ...(recipe.ingredients ?? []).map((item) => item.name),
+      ...(recipe.seasonings ?? []).map((item) => item.name),
+    ].filter(Boolean).join(" ").includes("蛋"))
+    .map((recipe) => recipe.id));
+  let preferenceRecommendationStateVersion = "";
+  for (let index = 0; index < 5; index += 1) {
+    const recommendation = await request(`${baseUrl}/recommendations/dinner`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+      body: {
+        householdId: loadedStateEnvelope.family.id,
+        dateKey: "2099-01-01",
+        mode: "legacy",
+        effortTier: "legacy",
+        action: index === 0 ? "initial" : "next",
+        contextFingerprint: "formal-member-preference-contract",
+        ...(preferenceRecommendationStateVersion ? { stateVersion: preferenceRecommendationStateVersion } : {}),
+      },
+    });
+    preferenceRecommendationStateVersion = recommendation.stateVersion;
+    assert(
+      recommendation.recipeIds.every((recipeId) => !eggRecipeIds.has(recipeId)),
+      "shared member egg allergy must exclude egg recipes from every real API recommendation",
+    );
+  }
 
   const targetedCrave = await request(`${baseUrl}/crave-requests`, {
     method: "POST",
@@ -1013,6 +1245,7 @@ try {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: {
+      idempotencyKey: `grocery-share:${runId}`,
       householdName: "测试家",
       initiatorName: "主厨",
       items: [
@@ -1022,6 +1255,44 @@ try {
     },
   });
   assert(batchGrocery.request?.items?.length === 2, "batch grocery share should expose the user's complete list");
+  const repeatedBatchGrocery = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      idempotencyKey: `grocery-share:${runId}`,
+      householdName: "测试家",
+      initiatorName: "主厨",
+      items: [{ id: "forged-replay", name: "不应创建", amount: "1个", category: "测试" }],
+    },
+  });
+  assert.equal(
+    repeatedBatchGrocery.request?.token,
+    batchGrocery.request?.token,
+    "replaying grocery share creation with the same idempotency key must return the original snapshot",
+  );
+  const concurrentGroceryPayload = {
+    idempotencyKey: `grocery-share-concurrent:${runId}`,
+    householdName: "测试家",
+    initiatorName: "主厨",
+    items: [{ id: "tofu", name: "豆腐", amount: "1盒", category: "豆制品" }],
+  };
+  const [concurrentGroceryA, concurrentGroceryB] = await Promise.all([
+    request(`${baseUrl}/grocery-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentGroceryPayload,
+    }),
+    request(`${baseUrl}/grocery-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentGroceryPayload,
+    }),
+  ]);
+  assert.equal(
+    concurrentGroceryA.request?.token,
+    concurrentGroceryB.request?.token,
+    "concurrent grocery share retries with one idempotency key must converge on one snapshot",
+  );
   const collaborationEventsBeforeGroceryGet = await readCollaborationEvents();
   const publicGroceryRequest = await request(`${baseUrl}/grocery-share-requests/${batchGrocery.request.token}`);
   assertNoCollaborationResponseLeaks(publicGroceryRequest, "public grocery GET");
@@ -1113,6 +1384,7 @@ try {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
     body: {
+      idempotencyKey: `menu-share:${runId}`,
       householdName: "测试家",
       initiatorName: "主厨",
       title: "今晚菜单",
@@ -1120,8 +1392,85 @@ try {
       groceryCount: 2,
     },
   });
+  const repeatedMenuShare = await request(`${baseUrl}/menu-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      idempotencyKey: `menu-share:${runId}`,
+      householdName: "测试家",
+      initiatorName: "主厨",
+      title: "不应创建的新菜单",
+      dishes: [{ id: "mapo-tofu", name: "麻婆豆腐", quantity: 1, timeMinutes: 20 }],
+      groceryCount: 1,
+    },
+  });
+  assert.equal(
+    repeatedMenuShare.request?.token,
+    menuShare.request?.token,
+    "replaying menu share creation with the same idempotency key must return the original snapshot",
+  );
+  const concurrentMenuPayload = {
+    idempotencyKey: `menu-share-concurrent:${runId}`,
+    householdName: "测试家",
+    initiatorName: "主厨",
+    title: "并发菜单",
+    dishes: [{ id: "mapo-tofu", name: "麻婆豆腐", quantity: 1, timeMinutes: 20 }],
+    groceryCount: 1,
+  };
+  const [concurrentMenuA, concurrentMenuB] = await Promise.all([
+    request(`${baseUrl}/menu-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentMenuPayload,
+    }),
+    request(`${baseUrl}/menu-share-requests`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.accessToken}` },
+      body: concurrentMenuPayload,
+    }),
+  ]);
+  assert.equal(
+    concurrentMenuA.request?.token,
+    concurrentMenuB.request?.token,
+    "concurrent menu share retries with one idempotency key must converge on one snapshot",
+  );
   const publicMenuShare = await request(`${baseUrl}/menu-share-requests/${menuShare.request.token}`);
   assert(publicMenuShare.request?.dishes?.[0]?.name === "西红柿炒鸡蛋", "menu share should open without login");
+  assert(!("token" in publicMenuShare.request), "public menu GET must not echo the opaque token");
+  assert(!("ownerId" in publicMenuShare.request) && !("householdId" in publicMenuShare.request), "public menu GET must omit internal ownership ids");
+  assert(!("recipeId" in publicMenuShare.request.dishes[0]), "public menu GET must omit internal recipe ids");
+  const memberMenuShare = await request(`${baseUrl}/menu-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      idempotencyKey: `member-menu-share:${runId}`,
+      householdName: "伪造家庭名",
+      initiatorName: "伪造发起人",
+      title: "家人分享的今晚菜单",
+      dishes: [{ id: "tomato-egg", name: "西红柿炒鸡蛋", quantity: 1, timeMinutes: 15 }],
+    },
+  });
+  assert(memberMenuShare.request?.token, "a formal member should receive 201 with a menu snapshot token");
+  const publicMemberMenu = await request(`${baseUrl}/menu-share-requests/${memberMenuShare.request.token}`);
+  assert.equal(publicMemberMenu.request.householdName, loadedStateEnvelope.family.name);
+  assert.notEqual(publicMemberMenu.request.initiatorName, "伪造发起人");
+  const memberGrocerySnapshot = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+    body: {
+      mode: "read_only",
+      idempotencyKey: `member-native-grocery-share:${runId}`,
+      householdName: "伪造清单家庭",
+      initiatorName: "伪造清单发起人",
+      title: "家人分享的只读清单",
+      items: [{ id: "egg", name: "鸡蛋", amount: "3 个" }],
+    },
+  });
+  assert(memberGrocerySnapshot.request?.token, "a formal member should receive 201 with a grocery snapshot token");
+  const publicMemberGrocery = await request(`${baseUrl}/grocery-share-requests/${memberGrocerySnapshot.request.token}`);
+  assert.equal(publicMemberGrocery.request.householdName, loadedStateEnvelope.family.name);
+  assert.notEqual(publicMemberGrocery.request.initiatorName, "伪造清单发起人");
+  assert(!("token" in publicMemberGrocery.request), "public grocery GET must not echo the opaque token");
 
   const wishShare = await request(`${baseUrl}/wish-share-requests`, {
     method: "POST",
@@ -1582,6 +1931,25 @@ try {
     headers: { Authorization: `Bearer ${login.accessToken}` },
   }, 409, "owner_cannot_be_removed");
 
+  const removalPreferenceSeed = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...removalPreferenceSeed.state,
+        familyMembers: [
+          { memberId: login.user.id, preference: { allergies: [], dislikes: ["香菜"] } },
+          { memberId: memberLogin.user.id, preference: { allergies: ["花生"], dislikes: [] } },
+          { memberId: collaborationGuest.user.id, preference: { allergies: ["鸡蛋"], dislikes: [] } },
+        ],
+      },
+    },
+  });
+
   const removedMember = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/members/${collaborationGuest.user.id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -1591,6 +1959,86 @@ try {
     !removedMember.family?.members?.some((member) => member.memberId === collaborationGuest.user.id),
     "owner should remove another household member",
   );
+  const ownerStateAfterRemoval = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    ownerStateAfterRemoval.state,
+    collaborationGuest.user.id,
+    "owner GET state after member removal",
+  );
+  assertMemberPreferenceEquals(
+    ownerStateAfterRemoval.state,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "owner GET state after member removal",
+  );
+  const ownerBootstrapAfterRemoval = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    ownerBootstrapAfterRemoval.householdState,
+    collaborationGuest.user.id,
+    "owner bootstrap after member removal",
+  );
+  assertMemberPreferenceEquals(
+    ownerBootstrapAfterRemoval.householdState,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "owner bootstrap after member removal",
+  );
+  const restartedAfterRemoval = new HumiStore(dataFile);
+  const restartedStateAfterRemoval = await restartedAfterRemoval.getState(login.user.id);
+  assertDepartedPreferenceAbsent(
+    restartedStateAfterRemoval,
+    collaborationGuest.user.id,
+    "restarted store after member removal",
+  );
+  assertMemberPreferenceEquals(
+    restartedStateAfterRemoval,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: [] },
+    "restarted store after member removal",
+  );
+  const persistedAfterRemoval = JSON.parse(await readFile(dataFile, "utf8"));
+  for (const state of Object.values(persistedAfterRemoval.states ?? {})) {
+    if (state?.householdId !== loadedStateEnvelope.family.id) continue;
+    assertDepartedPreferenceAbsent(
+      state,
+      collaborationGuest.user.id,
+      "legacy state copy after member removal",
+    );
+  }
+  await assertRecommendationsEventuallyIncludeOneOf({
+    baseUrl,
+    accessToken: login.accessToken,
+    householdId: loadedStateEnvelope.family.id,
+    dateKey: "2099-02-01",
+    contextFingerprint: "removed-member-preference-retired",
+    expectedRecipeIds: eggRecipeIds,
+    label: "removing the only egg-allergic member must stop excluding egg recipes",
+  });
+  const removedMemberState = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(removedMemberState.state, null, "removed member must not read the former household state");
+  const removedMemberBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+  });
+  assert.equal(removedMemberBootstrap.activeHouseholdId, "", "removed member bootstrap must not expose the former household");
+  assert.equal(removedMemberBootstrap.householdState ?? null, null, "removed member bootstrap must not expose the former household state");
+  await assertRejectedRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${collaborationGuest.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      dateKey: "2099-02-01",
+      mode: "legacy",
+      effortTier: "legacy",
+      action: "initial",
+      contextFingerprint: "removed-member-cannot-read-former-household",
+    },
+  }, 404, "household_not_found");
 
   await assertRejectedRequest(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
     method: "POST",
@@ -1598,6 +2046,20 @@ try {
     body: null,
   }, 404, "member_not_found");
 
+  await request(`${baseUrl}/state`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      state: {
+        ...ownerStateAfterRemoval.state,
+        familyMembers: [
+          { memberId: login.user.id, preference: { allergies: ["鸡蛋"], dislikes: [] } },
+          { memberId: memberLogin.user.id, preference: { allergies: ["花生"], dislikes: ["葱"] } },
+        ],
+      },
+    },
+  });
   const transferredHousehold = await request(`${baseUrl}/households/${loadedStateEnvelope.family.id}/owner`, {
     method: "POST",
     headers: { Authorization: `Bearer ${login.accessToken}` },
@@ -1613,6 +2075,187 @@ try {
   assertHouseholdEnvelope(leftHousehold, "former owner household leave");
   assert("state" in leftHousehold, "leaving should return the new active household state");
   assert.equal(leftHousehold.family?.id, secondHousehold.family.id, "former owner should switch to another active household");
+  const remainingOwnerStateAfterLeave = await request(`${baseUrl}/state`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    remainingOwnerStateAfterLeave.state,
+    login.user.id,
+    "remaining owner GET state after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    remainingOwnerStateAfterLeave.state,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "remaining owner GET state after member leaves",
+  );
+  const remainingOwnerBootstrapAfterLeave = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+  assertDepartedPreferenceAbsent(
+    remainingOwnerBootstrapAfterLeave.householdState,
+    login.user.id,
+    "remaining owner bootstrap after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    remainingOwnerBootstrapAfterLeave.householdState,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "remaining owner bootstrap after member leaves",
+  );
+  const restartedAfterLeave = new HumiStore(dataFile);
+  const restartedStateAfterLeave = await restartedAfterLeave.getState(memberLogin.user.id);
+  assertDepartedPreferenceAbsent(
+    restartedStateAfterLeave,
+    login.user.id,
+    "restarted store after member leaves",
+  );
+  assertMemberPreferenceEquals(
+    restartedStateAfterLeave,
+    memberLogin.user.id,
+    { allergies: ["花生"], dislikes: ["葱"] },
+    "restarted store after member leaves",
+  );
+  const persistedAfterLeave = JSON.parse(await readFile(dataFile, "utf8"));
+  for (const state of Object.values(persistedAfterLeave.states ?? {})) {
+    if (state?.householdId !== loadedStateEnvelope.family.id) continue;
+    assertDepartedPreferenceAbsent(state, login.user.id, "legacy state copy after member leaves");
+  }
+  await assertRecommendationsEventuallyIncludeOneOf({
+    baseUrl,
+    accessToken: memberLogin.accessToken,
+    householdId: loadedStateEnvelope.family.id,
+    dateKey: "2099-02-02",
+    contextFingerprint: "left-member-preference-retired",
+    expectedRecipeIds: eggRecipeIds,
+    label: "a voluntarily departed egg-allergic member must stop excluding egg recipes",
+  });
+  const formerOwnerHouseholds = await request(`${baseUrl}/households`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert(
+    !formerOwnerHouseholds.households.some((household) => household.id === loadedStateEnvelope.family.id),
+    "a departed member must not list the former household",
+  );
+  const formerOwnerBootstrap = await request(`${baseUrl}/bootstrap`, {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  assert.equal(
+    formerOwnerBootstrap.activeHouseholdId,
+    secondHousehold.family.id,
+    "a departed member bootstrap must switch to another authorized household",
+  );
+  assert(
+    !formerOwnerBootstrap.households.some((household) => household.id === loadedStateEnvelope.family.id),
+    "a departed member bootstrap must not expose the former household",
+  );
+  await assertRejectedRequest(`${baseUrl}/recommendations/dinner`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    body: {
+      householdId: loadedStateEnvelope.family.id,
+      dateKey: "2099-02-02",
+      mode: "legacy",
+      effortTier: "legacy",
+      action: "initial",
+      contextFingerprint: "departed-member-cannot-read-former-household",
+    },
+  }, 404, "household_not_found");
+
+  explicitWechatOpenIds.add(`disband-owner-${runId}`);
+  const disbandOwner = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `disband-owner-${runId}` },
+  });
+  await request(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { displayName: "解散主厨", avatarKey: "humi-avatar-parent-f-01" },
+  });
+  const disbandHousehold = await request(`${baseUrl}/households`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", memberName: "解散主厨" },
+  });
+  explicitHouseholdCreateCount += 1;
+  const disbandCrave = await request(`${baseUrl}/crave-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", initiatorName: "解散主厨" },
+  });
+  const disbandCraveVote = await request(`${baseUrl}/crave-requests/${disbandCrave.request.token}/votes`, {
+    method: "POST",
+    body: { feelingTag: "随便都行" },
+  });
+  const disbandGrocery = await request(`${baseUrl}/grocery-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: {
+      idempotencyKey: `disband-grocery:${runId}`,
+      householdName: "待解散的家",
+      initiatorName: "解散主厨",
+      items: [{ id: "disband-milk", name: "牛奶", amount: "1盒", category: "蛋奶" }],
+    },
+  });
+  const disbandGroceryClaim = await request(
+    `${baseUrl}/grocery-share-requests/${disbandGrocery.request.token}/claims`,
+    {
+      method: "POST",
+      body: { itemIds: ["disband-milk"], status: "claimed" },
+    },
+  );
+  const disbandWish = await request(`${baseUrl}/wish-share-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+    body: { householdName: "待解散的家", initiatorName: "解散主厨", title: "最近想吃什么" },
+  });
+  const disbandWishEntry = await request(`${baseUrl}/wish-share-requests/${disbandWish.request.token}/wishes`, {
+    method: "POST",
+    body: { dishName: "旧家晚饭" },
+  });
+
+  explicitWechatOpenIds.add(`disband-claimant-${runId}`);
+  const disbandClaimant = await request(`${baseUrl}/auth/wechat/login`, {
+    method: "POST",
+    body: { code: `disband-claimant-${runId}` },
+  });
+  await request(`${baseUrl}/identity/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${disbandClaimant.accessToken}` },
+    body: { displayName: "旧家参与者", avatarKey: "humi-avatar-parent-f-01" },
+  });
+  await request(`${baseUrl}/households/${disbandHousehold.family.id}/leave`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${disbandOwner.accessToken}` },
+  });
+  explicitHouseholdCreateCount -= 1;
+  const collaborationBeforeDisbandClaims = {
+    crave: await readCollaborationRequestCollection("crave"),
+    grocery: await readCollaborationRequestCollection("grocery"),
+    wish: await readCollaborationRequestCollection("wish"),
+    events: await readCollaborationEvents(),
+  };
+  for (const [path, guestParticipantId] of [
+    [`/crave-requests/${disbandCrave.request.token}/join`, disbandCraveVote.participant.id],
+    [`/grocery-share-requests/${disbandGrocery.request.token}/join`, disbandGroceryClaim.participant.id],
+    [`/wish-share-requests/${disbandWish.request.token}/join`, disbandWishEntry.participant.id],
+  ]) {
+    await assertRejectedRequest(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${disbandClaimant.accessToken}` },
+      body: { guestParticipantId },
+    }, 410, "household_disbanded");
+  }
+  assert.deepEqual(
+    {
+      crave: await readCollaborationRequestCollection("crave"),
+      grocery: await readCollaborationRequestCollection("grocery"),
+      wish: await readCollaborationRequestCollection("wish"),
+      events: await readCollaborationEvents(),
+    },
+    collaborationBeforeDisbandClaims,
+    "joining collaboration from a disbanded household must not mutate requests or identity events",
+  );
 
   const refreshed = await request(`${baseUrl}/auth/session/refresh`, {
     method: "POST",
@@ -1673,6 +2316,7 @@ async function rawRequest(url, options = {}) {
     contentType,
     contentLength: response.headers.get("content-length"),
     cacheControl: response.headers.get("cache-control"),
+    accessControlAllowHeaders: response.headers.get("access-control-allow-headers"),
     buffer,
     data,
   };
@@ -1699,6 +2343,52 @@ async function assertRejectedRequest(url, options, expectedStatus, expectedCode)
   });
   assert.equal(response.status, expectedStatus);
   assert.equal(response.data?.error, expectedCode);
+}
+
+function assertDepartedPreferenceAbsent(state, departedMemberId, label) {
+  assert(
+    !(state?.familyMembers ?? []).some((member) => member.memberId === departedMemberId),
+    `${label} must not retain the departed member preference`,
+  );
+}
+
+function assertMemberPreferenceEquals(state, memberId, expectedPreference, label) {
+  assert.deepEqual(
+    (state?.familyMembers ?? []).find((member) => member.memberId === memberId)?.preference,
+    expectedPreference,
+    `${label} must preserve the remaining formal member preference`,
+  );
+}
+
+async function assertRecommendationsEventuallyIncludeOneOf({
+  baseUrl,
+  accessToken,
+  householdId,
+  dateKey,
+  contextFingerprint,
+  expectedRecipeIds,
+  label,
+}) {
+  let stateVersion = "";
+  for (let index = 0; index < 40; index += 1) {
+    const recommendation = await request(`${baseUrl}/recommendations/dinner`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: {
+        householdId,
+        dateKey,
+        mode: "legacy",
+        effortTier: "legacy",
+        targetDishCount: 4,
+        action: index === 0 ? "initial" : "next",
+        contextFingerprint,
+        ...(stateVersion ? { stateVersion } : {}),
+      },
+    });
+    stateVersion = recommendation.stateVersion;
+    if (recommendation.recipeIds.some((recipeId) => expectedRecipeIds.has(recipeId))) return;
+  }
+  assert.fail(label);
 }
 
 async function readCollaborationEvents() {

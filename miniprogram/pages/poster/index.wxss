@@ -97,7 +97,8 @@ page {
 
 .primary-button,
 .secondary-button,
-.ghost-button {
+.ghost-button,
+.style-button {
   min-height: 100rpx;
   border-radius: 999rpx;
   font-size: 29rpx;
@@ -110,7 +111,8 @@ page {
 }
 
 .secondary-button,
-.ghost-button {
+.ghost-button,
+.style-button {
   margin-top: 18rpx;
   border: 2rpx solid rgba(17, 17, 17, 0.12);
   background: #ffffff;
@@ -119,6 +121,11 @@ page {
 
 .ghost-button {
   color: rgba(17, 17, 17, 0.58);
+}
+
+.style-button {
+  margin-top: 0;
+  margin-bottom: 18rpx;
 }
 
 button[disabled] {

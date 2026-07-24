@@ -1,0 +1,118 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="family-page">
+    <view class="page-heading">
+      <text class="page-eyebrow">HUMI FAMILY</text>
+      <text class="page-title">我的家</text>
+      <text class="page-copy">今晚的饭、谁在做、还有哪些小事要一起完成，都放在这里。</text>
+    </view>
+
+    <view wx:if="{{!activeHousehold}}" class="empty-home">
+      <text class="empty-title">把家里的人和今晚的饭放在一起</text>
+      <text class="empty-copy">只有你确认后才会创建家庭。登录和打开页面都不会自动建家。</text>
+      <button class="primary-button" bindtap="openCreateHousehold" loading="{{pendingAction === 'create'}}" disabled="{{!!pendingAction}}">{{primaryAction}}</button>
+      <button class="secondary-button" bindtap="openInviteEntry" disabled="{{!!pendingAction}}">{{secondaryAction}}</button>
+    </view>
+
+    <block wx:else>
+      <household-summary
+        household="{{activeHousehold}}"
+        household-options="{{householdOptions}}"
+        role-label="{{roleLabel}}"
+        member-count="{{memberCount}}"
+        dinner="{{dinner}}"
+        can-invite="{{canInvite}}"
+        can-open-settings="{{canOpenSettings}}"
+        pending-action="{{pendingAction}}"
+        bind:switch="switchHousehold"
+        bind:invite="prepareInvite"
+        bind:cook="startOrResumeDinner"
+        bind:settings="openSettings"
+      />
+
+      <view class="section-card">
+        <view class="section-heading">
+          <view>
+            <text class="section-eyebrow">今晚一起做</text>
+            <text class="section-title">具体的小事</text>
+          </view>
+          <text class="section-meta">{{mealTasks.length}} 项任务</text>
+        </view>
+        <view wx:if="{{mealTasks.length}}">
+          <view wx:for="{{mealTasks}}" wx:key="id" class="task-row">
+            <view>
+              <text class="row-title">{{item.label}}</text>
+              <text class="row-copy">{{item.createdByName}}发起</text>
+            </view>
+            <text class="status-pill">{{item.statusLabel}}</text>
+          </view>
+        </view>
+        <text wx:else class="quiet-empty">还没有分工也没关系，一个人也能继续把饭做完。</text>
+
+        <button
+          wx:if="{{shareableMealTask}}"
+          class="task-share-button"
+          open-type="share"
+          data-share-type="meal_task"
+          disabled="{{!preparedShares.meal_task || sharePreparing.meal_task}}"
+          loading="{{sharePreparing.meal_task}}"
+        >把“{{shareableMealTask.label}}”发给家人</button>
+        <text
+          wx:if="{{shareErrors.meal_task}}"
+          class="share-retry"
+          data-share-type="meal_task"
+          bindtap="retryNativeShare"
+        >分享内容没准备好，点这里重试</text>
+
+        <view wx:if="{{groceryClaims.length}}" class="claim-list">
+          <text class="subheading">清单领取</text>
+          <view wx:for="{{groceryClaims}}" wx:key="id" class="claim-row">
+            <text>{{item.itemName}}</text>
+            <text>{{item.memberName}} · {{item.statusLabel}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section-card">
+        <view class="section-heading">
+          <view>
+            <text class="section-eyebrow">成员</text>
+            <text class="section-title">{{memberCount}} 位正式成员</text>
+          </view>
+          <button wx:if="{{canInvite}}" class="text-button" bindtap="prepareInvite" disabled="{{!!pendingAction}}">邀请家人</button>
+        </view>
+        <member-row
+          wx:for="{{members}}"
+          wx:key="id"
+          member="{{item}}"
+          current-member-id="{{bootstrapUserId}}"
+          can-manage="{{false}}"
+          pending-action="{{pendingAction}}"
+        />
+      </view>
+
+      <view class="section-card">
+        <view class="section-heading">
+          <view>
+            <text class="section-eyebrow">最近协作</text>
+            <text class="section-title">家里刚刚一起做过</text>
+          </view>
+          <text class="section-meta">最近 5 条</text>
+        </view>
+        <collaboration-row wx:for="{{recentCollaborations}}" wx:key="id" item="{{item}}" />
+        <text wx:if="{{!recentCollaborations.length && !loadingSections}}" class="quiet-empty">还没有协作记录。正式成员会显示昵称，游客只显示游客身份。</text>
+        <text wx:if="{{loadingSections}}" class="quiet-empty">正在同步最近协作…</text>
+        <text wx:if="{{sectionError}}" class="inline-error">{{sectionError}}</text>
+      </view>
+
+      <view class="section-card settings-section">
+        <text class="section-eyebrow">家庭设置</text>
+        <text class="section-title">{{canOpenSettings ? '由家庭创建者管理' : '由家庭创建者统一管理'}}</text>
+        <text class="quiet-copy">{{canOpenSettings ? '可修改名称、管理成员、转让家庭创建者和维护硬性忌口。' : '你可以一起做饭、领任务和确认上桌，但不能改家庭菜单和设置。'}}</text>
+        <button wx:if="{{canOpenSettings}}" class="secondary-button" bindtap="openSettings" disabled="{{!!pendingAction}}">打开家庭设置</button>
+        <button wx:if="{{canLeaveHousehold}}" class="danger-link" bindtap="leaveHousehold" loading="{{pendingAction === 'leave'}}" disabled="{{!!pendingAction}}">{{activeHousehold.role === 'owner' ? '解散这个家' : '离开这个家'}}</button>
+      </view>
+    </block>
+
+    <text wx:if="{{errorText && status !== 'error'}}" class="inline-error">{{errorText}}</text>
+  </view>
+</page-state>

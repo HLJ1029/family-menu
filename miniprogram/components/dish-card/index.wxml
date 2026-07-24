@@ -1,0 +1,10 @@
+<view class="dish-card" bindtap="openRecipe" role="button" aria-label="查看{{recipe.title}}做法">
+  <view class="dish-image">
+    <image-with-fallback src="{{recipe.thumbnailUrl}}" alt="{{recipe.title}}" />
+  </view>
+  <view class="dish-copy">
+    <text class="dish-category">{{recipe.category}}</text>
+    <text class="dish-title">{{recipe.title}}</text>
+    <text class="dish-time">{{recipe.minutes}} 分钟</text>
+  </view>
+</view>

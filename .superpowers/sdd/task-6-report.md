@@ -1,44 +1,61 @@
-# Task 6 Report — Final-Review Household Isolation Corrections
+# Task 6 Report — Explicit Native Identity Onboarding
 
-## Status
+## RED
 
-Completed locally on `codex@mbp-m5pro` from baseline `becfeb0`. No production API, deployment, migration, WeChat action, or publish action was performed. Local preview servers were stopped after browser validation.
+Before implementation, the required contracts failed as intended:
 
-## RED evidence
+- `npm run validate:identity` failed at `identity API calls must reuse authenticated request retries`; the page still duplicated raw `wx.login` and `wx.request`.
+- `npm run validate:native-session` failed at `identity completion needs a user-scoped bootstrap cache reset`; no cache-reset helper existed.
 
-After adding the direct store and API regressions, `npm run validate:household && npm run validate:api` was run. The two commands were then run independently so the first failure could not mask the second.
+## GREEN changes
 
-- `validate:household` failed as expected after removing a formal member and creating a new household. The old implementation migrated `states[userId]` into the new household (`migratedFromUserId` was present); the regression expected `null` state.
-- `validate:api` failed as expected on `generic crave claim must return only the collaboration request`, because the previous claim response contained `family`, `households`, and `state` and had created formal membership.
+- Silent login now uses the Task 4 `loginWithWechat()` session foundation. An incomplete user starts with empty `displayName`, `selectedAvatarKey`, and `avatarUrl`; the server's fallback avatar key is never displayed as an explicit choice.
+- Added the approved `avatar-picker` component and required an explicit avatar key or avatar URL plus a trimmed nickname before enabling `保存并进入 Humi`.
+- `wx.getUserProfile` is called only by the explicit `使用微信头像和昵称` tap handler. A declined permission still permits manual nickname plus an approved Humi avatar. Remote WeChat avatars download, compress, and upload through the same explicit avatar save path as locally chosen avatars.
+- Identity and phone binding reuse `requestHumi`; neither duplicates raw authenticated `wx.request` logic. POST operations keep the existing no-idempotency/no-401-replay rule.
+- Identity completion persists the returned user session, clears only that user's last-household pointer and household cache, then reLaunches boot with `reason=identity_complete`.
 
-## GREEN validation
+## Review remediation RED/GREEN
 
-The following passed locally after the minimal implementation changes:
+- RED: store and API contracts accepted nickname-only identity and therefore converted the server fallback avatar into a completed identity (`Missing expected rejection` / HTTP `200 !== 400`).
+- GREEN: `miniprogram/data/approved-avatar-keys.json` is now the single approved-key contract consumed by the picker, identity page, store, and API handler. Incomplete users must provide an approved key in this save or already have a successfully uploaded avatar URL. Empty and arbitrary keys are rejected with stable `avatar_required` and `invalid_avatar_key` codes without changing profile status.
+- Runtime tests execute remote and local avatar submit paths: allowed WeChat CDN URL → `downloadFile` → `compressImage` → file read → avatar POST → profile PUT → session/cache/boot; local `wxfile://` skips download. HTTPS host parsing is anchored and rejects HTTP, subdomain, userinfo, and arbitrary-host bypasses.
+- Identity and phone-bind map request codes to fixed recoverable Chinese text; raw `invalid_session` and `network_error` are not rendered to the user.
 
-- `npm run validate:household`
-- `npm run validate:api`
-- `npm run validate:identity`
-- `npm run build`
-- `git diff --check`
-- `/Users/honglijie/AI-HQ/scripts/secret-scan.sh`
+## Second review deployment remediation
 
-Both local browser-smoke commands also passed against `http://127.0.0.1:4174/`:
+- RED: `npm run validate:api-deploy-set` failed with `ENOENT` for `api/data/approved-avatar-keys.json`; API store imported the miniprogram projection, but production rsync copies only the API deployment set.
+- GREEN: `api/data/approved-avatar-keys.json` is now canonical. The miniprogram JSON is an explicitly tested value projection. `validate:api-deploy-set` deep-compares both contracts, stages only the documented deployment set in a temporary directory, and successfully imports both `api/store.js` and `api/server.js` there.
+- The API deployment runbook now synchronizes and backs up/restores all runtime imports (`api/`, `src/lib/mealExecution.js`, recipe/cook-assist JSON, package manifests), and its production pre-start command resolves real imports after `npm ci`; it is not limited to `node --check`.
+- The temporary staging test explicitly creates every copied parent directory before `cp`; the runbook conditions `src`/`data` backup and rollback so an older production layout lacking either directory does not abort the procedure or delete an unrecoverable directory.
 
-- `node scripts/smoke-product-entrypoints.mjs --base-url http://127.0.0.1:4174/ --evidence-dir /tmp/humi-task6-product-smoke`
-- `node scripts/smoke-collaboration-landings.mjs --base-url http://127.0.0.1:4174/ --evidence-dir /tmp/humi-task6-collaboration-smoke`
+## Final regression correction
 
-The collaboration landing manifest reported `ok: true`, including guest Crave, grocery, Wish, invite and no-auto-login checks. Build emitted only Vite's existing chunk-size warning.
+- RED: `npm run validate:miniprogram-entry` reproducibly failed because its identity-page VM only allowed the pre-Task-6 `../../utils/config` dependency while the page now correctly uses shared session/request/bootstrap/error-message and approved-avatar contracts.
+- GREEN: the entry fixture now maps the current dependencies, supplies a counted shared `loginWithWechat` stub with a valid incomplete session, and asserts `action=login` clears stale session, invokes shared login exactly once, persists that session, and issues no raw `/auth/wechat/login` request. This corrects fixture drift without changing production identity behavior or weakening the legacy entry/H5/401 checks.
+- `docs/humi-api-contract.md` records the explicit-avatar completion rule and stable `400 avatar_required` / `400 invalid_avatar_key` responses.
 
-## Changes
+## No automatic household creation
 
-- Generic Crave, grocery and Wish claims now bind the public collaboration record to the authenticated identity without calling `addHouseholdMember`.
-- Those three claim routes return only `{ request }`; they do not expose a family envelope or household state.
-- H5 participation merging no longer hydrates a family envelope or fabricates a local formal member. It preserves the user’s current household and uses participation terminology.
-- Formal membership remains covered through authenticated household-invite acceptance in both direct store and API smoke flows.
-- Removing a member, voluntary leave, and sole-owner household deletion now delete the departing user's legacy `states[userId]` snapshot. Regression coverage proves a newly created household has no former menu, meal log, or family profile state.
-- The API contract explicitly distinguishes collaboration participation claims from household-invite acceptance, and records the legacy-snapshot retirement behavior.
+The identity runtime contract asserts both startup and submit issue zero `/households` requests. It asserts the post-save route is `/pages/boot/index?reason=identity_complete`; boot/bootstrap remains the sole source for deciding whether a household exists. The household and API smoke suites also passed, including the new-user/no-household lifecycle contract.
 
-## Scope and concerns
+## Verification output
 
-- The parent-owned `docs/superpowers/plans/2026-07-19-humi-family-living-room.md` was left unstaged and unmodified by this task.
-- The additional, non-required `scripts/smoke-collaboration-flow.mjs` currently fails before browser assertions because it creates a collaboration request immediately after login, while the current API correctly requires explicit household creation first. It was not changed because it is outside this Task 6 brief; the two required registered local browser smokes passed.
+Fresh final checks exited `0`:
+
+- `npm run validate:identity` — `Identity store checks passed.` / `Identity runtime checks passed.`
+- `npm run validate:household` — `Household lifecycle checks passed.`
+- `npm run validate:native-session` — `Native session foundation contract passed.`
+- `npm run validate:native-shell-routing` — `Native shell routing checks passed.`
+- `npm run validate:native-bootstrap-api` — `Native bootstrap API contract passed.`
+- `npm run validate:native-offline` — `Native offline, cache, telemetry, and store foundation contract passed.`
+- `npm run validate:api` — `Humi API smoke test passed.`
+- `npm run validate:collaboration-identity` — `Collaboration identity checks passed.`
+- `npm run release:collaboration:smoke` — completed with `"ok": true`.
+- `npm run validate:meal-execution`, `npm run validate:meal-execution-api`, `npm run validate:meal-run-client`, `npm run validate:meal-execution-ui`, and `npm run validate:miniprogram-meal-reminder` — all passed.
+- `npm run build` — completed successfully (existing Rollup large-chunk warning only).
+- `/Users/honglijie/AI-HQ/scripts/secret-scan.sh` — `Secret scan passed.`
+
+## Concerns
+
+External deployment gate remains unresolved: this code accepts only `https://thirdwx.qlogo.cn` and `https://wx.qlogo.cn` for remote WeChat avatars, but the 微信公众平台 `downloadFile` domain configuration and true-device download have not been performed or verified by this task. The runbook now marks this as a hard pre-release gate, requiring control-panel configuration and real-device evidence for those domains and `https://api.humi-home.com`. The production build also retains its pre-existing large-chunk advisory.

@@ -1,4 +1,18 @@
 export const calendarWeekdays = ["日", "一", "二", "三", "四", "五", "六"];
+export const HUMI_BUSINESS_TIME_ZONE = "Asia/Shanghai";
+
+export function formatBusinessDateKey(value = new Date(), timeZone = HUMI_BUSINESS_TIME_ZONE) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("A valid business date is required.");
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const valueFor = (type) => parts.find((part) => part.type === type)?.value || "";
+  return `${valueFor("year")}-${valueFor("month")}-${valueFor("day")}`;
+}
 
 export function getCurrentPlanDay() {
   const dayIndex = new Date().getDay();

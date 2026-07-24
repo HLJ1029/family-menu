@@ -8,7 +8,7 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { feelingTags } from "../lib/collaboration";
 import { formatProfileSummary, getProfileCompletedCount } from "../lib/profile";
 import { mealSlots } from "../lib/mealPlan";
@@ -19,6 +19,7 @@ import { CraveAudiencePicker } from "./CraveAudiencePicker";
 import { DishImage } from "./ui/DishImage";
 import { HumiPeek } from "./ui/HumiBrandIllustration";
 import { HumiScene } from "./ui/HumiScene";
+import { MealExecutionExperience } from "./MealExecutionExperience";
 
 const dinnerSources = [
   { id: "home", label: "在家做" },
@@ -86,6 +87,7 @@ export function Dashboard({
   onSetDinnerConfirmation,
   onToggleConsumedRecipe,
   canManageHousehold = true,
+  mealExecution,
 }) {
   const [arranging, setArranging] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -137,7 +139,7 @@ export function Dashboard({
 
   function revealPanel(ref) {
     window.requestAnimationFrame(() => {
-      ref.current?.scrollIntoView({ block: "start" });
+      ref.current?.scrollIntoView({ block: "start", behavior: "instant" });
     });
   }
 
@@ -147,7 +149,6 @@ export function Dashboard({
       return;
     }
     setCraveOpen(true);
-    revealPanel(cravePanelRef);
   }
 
   function openRecommendationFeedback() {
@@ -158,8 +159,12 @@ export function Dashboard({
   useEffect(() => {
     if (!cravePanelOpenSignal) return;
     setCraveOpen(true);
-    revealPanel(cravePanelRef);
   }, [cravePanelOpenSignal]);
+
+  useLayoutEffect(() => {
+    if (!craveOpen) return;
+    cravePanelRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [craveOpen]);
 
   useEffect(() => {
     if (activeCraveRequest?.token) setCraveOpen(true);
@@ -244,18 +249,20 @@ export function Dashboard({
             <p className="mt-4 max-w-2xl text-sm font-medium leading-7 text-ink/58">
               {coreSummary}
             </p>
-            <PrimaryDinnerActions
-              dinnerReady={dinnerReady}
-              craveMenuReady={craveMenuReady}
-              aiRecommendationLoading={aiRecommendationLoading}
-              onViewChange={onViewChange}
-              arrangeTonight={arrangeTonight}
-              onRequestAiRecommendation={onRequestAiRecommendation}
-              onOpenRecommendationFeedback={openRecommendationFeedback}
-              onToggleCrave={toggleCravePanel}
-              onOpenRecipeLibrary={onOpenRecipeLibrary}
-              canManageHousehold={canManageHousehold}
-            />
+            {!mealExecution?.enabled && (
+              <PrimaryDinnerActions
+                dinnerReady={dinnerReady}
+                craveMenuReady={craveMenuReady}
+                aiRecommendationLoading={aiRecommendationLoading}
+                onViewChange={onViewChange}
+                arrangeTonight={arrangeTonight}
+                onRequestAiRecommendation={onRequestAiRecommendation}
+                onOpenRecommendationFeedback={openRecommendationFeedback}
+                onToggleCrave={toggleCravePanel}
+                onOpenRecipeLibrary={onOpenRecipeLibrary}
+                canManageHousehold={canManageHousehold}
+              />
+            )}
             {!dinnerReady && aiRecommendationStatus && (
               <div className="mt-4 rounded-[20px] border border-line bg-white px-4 py-3 text-xs font-black leading-5 text-ink/58 shadow-card">
                 {aiRecommendationStatus}
@@ -271,6 +278,8 @@ export function Dashboard({
               />
             </div>
           </div>
+
+          {mealExecution?.enabled && <MealExecutionExperience {...mealExecution} />}
 
           <div className="tonight-card-swap mt-6 grid gap-4 md:mt-8 md:grid-cols-2" key={recommendation.title}>
             {visibleDinnerItems.map(({ recipe, quantity }) => (
@@ -515,18 +524,6 @@ export function Dashboard({
         </div>
       </section>
 
-      <DinnerLogPanel
-        mealLog={mealLog}
-        mealLogs={mealLogs}
-        onSetDinnerSource={onSetDinnerSource}
-        onSetDinnerConfirmation={onSetDinnerConfirmation}
-        onToggleConsumedRecipe={onToggleConsumedRecipe}
-        todayRecipes={todayRecipes}
-        showConfirmation={dinnerReady}
-        dinnerReady={dinnerReady}
-        onViewChange={onViewChange}
-        canManageHousehold={canManageHousehold}
-      />
       <BreakfastQuickPicker
         open={breakfastPickerOpen}
         recipes={breakfastChoices}
@@ -1064,6 +1061,7 @@ export function DinnerLogPanel({
   dinnerReady = false,
   onViewChange,
   canManageHousehold = true,
+  compact = false,
 }) {
   const sourceStats = buildSourceStats(mealLogs);
   const sourceResult = getDinnerSourceResult(mealLog?.source, dinnerReady, sourceStats);
@@ -1105,6 +1103,39 @@ export function DinnerLogPanel({
     if (action === "skip") {
       onSetDinnerSource?.("skip");
     }
+  }
+
+  if (compact) {
+    return (
+      <section data-testid="post-cooking-dinner-confirmation" className="rounded-[28px] border border-line bg-white p-5 shadow-card">
+        <p className="eyebrow">做饭中</p>
+        <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">吃完后确认一下</h2>
+        <p className="mt-2 text-sm font-bold leading-6 text-ink/52">
+          只记结果，不打断做饭。临时换菜或出去吃也没关系。
+        </p>
+        <button
+          type="button"
+          onClick={() => quickConfirm("done")}
+          className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-black text-white"
+        >
+          上桌了
+        </button>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <ChoiceButton active={mealLog?.source === "home" && mealLog?.confirmation === "missed"} label="换了别的" onClick={() => quickConfirm("changed")} />
+          <ChoiceButton active={mealLog?.source === "outside"} label="出去吃" onClick={() => quickConfirm("outside")} />
+          <ChoiceButton active={mealLog?.source === "skip"} label="不记录" onClick={() => quickConfirm("skip")} />
+        </div>
+        {["delivery", "outside"].includes(mealLog?.source) && (
+          <button
+            type="button"
+            onClick={() => onViewChange?.("stats")}
+            className="mt-3 min-h-10 w-full rounded-full border border-line bg-white px-4 text-xs font-black text-ink/60"
+          >
+            看看吃饭习惯
+          </button>
+        )}
+      </section>
+    );
   }
 
   return (

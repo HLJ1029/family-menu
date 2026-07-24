@@ -1,0 +1,13 @@
+<view class="run-card" wx:if="{{mealRun}}">
+  <text class="run-kicker">{{mealRun.status === 'completed' ? '今晚已经上桌' : mealRun.status === 'cooking' ? '这顿饭正在进行' : '今晚已经决定'}}</text>
+  <text class="run-title">{{plan && plan.recipes ? plan.recipes[0].title : '今晚这顿饭'}}</text>
+  <text wx:if="{{plan && plan.recipes && plan.recipes.length > 1}}" class="run-companion">再配 {{plan.recipes[1].title}}</text>
+  <view wx:if="{{plan}}" class="run-facts">
+    <text>{{plan.totalMinutes}} 分钟</text>
+    <text>{{plan.cookwareCount}} 件厨具</text>
+  </view>
+  <button wx:if="{{mealRun.status === 'planned'}}" class="run-primary" bindtap="primaryAction">开始做饭</button>
+  <button wx:elif="{{mealRun.status === 'cooking'}}" class="run-primary" bindtap="primaryAction">继续做饭</button>
+  <view wx:else class="completed-note">这一顿已完成。反馈会在上桌后收集，不打断今晚的决定。</view>
+  <button wx:if="{{mealRun.status === 'planned' && canReplacePlan}}" class="replace-action" bindtap="replace">重新选一套</button>
+</view>

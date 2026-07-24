@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { access, chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { createServer as createViteServer } from "vite";
+import { build as buildVite, createServer as createViteServer, preview as createVitePreview } from "vite";
 
 const WECHAT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 MicroMessenger/8.0.56";
 const evidenceDir = process.env.HUMI_H5_ENTRY_EVIDENCE_DIR || "";
@@ -12,8 +12,11 @@ const expectedChecks = [
   "pre-React fallback is visible when the main module fails",
   "retry action appears after six seconds",
   "normal React boot replaces the fallback",
+  "failed lazy chunks show an accessible reload recovery instead of a blank screen",
+  "production hashed lazy chunk 404 shows the same reload recovery",
   "H5 login prefers the native identity page and recovers from navigation failure",
   "one-time H5 ticket is exchanged and removed from the URL",
+  "ticket exchange gates stale-session hydration during silent recovery",
   "legacy serialized session URLs are discarded",
   "legacy incomplete identity can be completed in H5",
   "expired H5 sessions are cleared",
@@ -44,10 +47,29 @@ const screenshots = evidenceDir ? {
   normalBoot: join(evidenceDir, "wechat-normal-boot.png"),
 } : null;
 
+await buildVite({
+  root: process.cwd(),
+  logLevel: "silent",
+});
+const buildManifest = JSON.parse(fs.readFileSync("dist/.vite/manifest.json", "utf8"));
+const statsDynamicEntry = Object.values(buildManifest).find((entry) => (
+  entry.isDynamicEntry && entry.src?.endsWith("src/components/StatsPage.jsx")
+));
+assert.ok(statsDynamicEntry?.file, "production manifest must expose the hashed StatsPage chunk");
+
 const vite = await createViteServer({
   root: process.cwd(),
   logLevel: "error",
   server: {
+    host: "127.0.0.1",
+    port: 0,
+    strictPort: false,
+  },
+});
+const vitePreview = await createVitePreview({
+  root: process.cwd(),
+  logLevel: "error",
+  preview: {
     host: "127.0.0.1",
     port: 0,
     strictPort: false,
@@ -59,6 +81,8 @@ try {
   await vite.listen();
   const baseUrl = vite.resolvedUrls?.local?.[0];
   assert.ok(baseUrl, "Vite must expose a local validation URL");
+  const previewBaseUrl = vitePreview.resolvedUrls?.local?.[0];
+  assert.ok(previewBaseUrl, "Vite preview must expose the production build");
 
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -93,6 +117,66 @@ try {
   if (evidenceDir) {
     await normalBootPage.screenshot({ path: screenshots.normalBoot, fullPage: true });
   }
+
+  const lazyRecoveryContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await lazyRecoveryContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+  });
+  const lazyRecoveryPage = await lazyRecoveryContext.newPage();
+  let failLazyChunkOnce = true;
+  await lazyRecoveryPage.route("**/src/components/StatsPage.jsx*", (route) => {
+    if (failLazyChunkOnce) {
+      failLazyChunkOnce = false;
+      return route.abort("failed");
+    }
+    return route.continue();
+  });
+  await lazyRecoveryPage.goto(`${baseUrl}?view=stats`, { waitUntil: "domcontentloaded" });
+  const lazyError = lazyRecoveryPage.getByTestId("lazy-route-error");
+  await lazyError.waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await lazyError.getByRole("button", { name: "重新加载" }).isVisible(), true);
+  await lazyError.getByRole("button", { name: "重新加载" }).click();
+  await lazyRecoveryPage.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
+  assert.equal(await lazyRecoveryPage.getByTestId("lazy-route-error").count(), 0);
+  await lazyRecoveryContext.close();
+
+  const hashedRecoveryContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await hashedRecoveryContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+  });
+  const hashedRecoveryPage = await hashedRecoveryContext.newPage();
+  let failHashedChunkOnce = true;
+  await hashedRecoveryPage.route(`**/${statsDynamicEntry.file}`, (route) => {
+    if (failHashedChunkOnce) {
+      failHashedChunkOnce = false;
+      return route.fulfill({
+        status: 404,
+        contentType: "text/plain",
+        body: "simulated CDN miss",
+      });
+    }
+    return route.continue();
+  });
+  await hashedRecoveryPage.goto(`${previewBaseUrl}?view=stats`, { waitUntil: "domcontentloaded" });
+  const hashedLazyError = hashedRecoveryPage.getByTestId("lazy-route-error");
+  await hashedLazyError.waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await hashedLazyError.getByRole("button", { name: "重新加载" }).isVisible(), true);
+  await hashedLazyError.getByRole("button", { name: "重新加载" }).click();
+  await hashedRecoveryPage.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
+  assert.equal(await hashedRecoveryPage.getByTestId("lazy-route-error").count(), 0);
+  await hashedRecoveryContext.close();
 
   const bridgeContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -168,6 +252,65 @@ try {
   await ticketPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1")?.includes("user-ticket"));
   assert.equal(new URL(ticketPage.url()).searchParams.has("humiTicket"), false);
   await ticketContext.close();
+
+  const ticketRaceContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await ticketRaceContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "stale-before-recovery",
+      refreshToken: "stale-before-recovery",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "stale-user", displayName: "旧登录", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const ticketRacePage = await ticketRaceContext.newPage();
+  let staleStateRequests = 0;
+  await ticketRacePage.route("**/auth/h5/exchange", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessToken: "fresh-after-recovery",
+        refreshToken: "fresh-after-recovery",
+        expiresAt: Date.now() + 60_000,
+        user: { id: "fresh-user", displayName: "新登录", provider: "wechat", profileStatus: "complete" },
+      }),
+    });
+  });
+  await ticketRacePage.route("**/state", async (route) => {
+    const authorization = route.request().headers().authorization || "";
+    if (authorization.includes("stale-before-recovery")) {
+      staleStateRequests += 1;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "invalid_session", message: "旧登录已失效。" }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ state: null, family: null, households: [] }),
+    });
+  });
+  await ticketRacePage.goto(`${baseUrl}?channel=wechat-miniprogram&humiTicket=recovery-ticket`, { waitUntil: "networkidle" });
+  await ticketRacePage.waitForFunction(() => JSON.parse(localStorage.getItem("humi:identity-session:v1") || "null")?.accessToken === "fresh-after-recovery");
+  await ticketRacePage.waitForTimeout(350);
+  assert.equal(staleStateRequests, 0, "stale session hydration must not start while a fresh H5 ticket is exchanging");
+  assert.equal(
+    await ticketRacePage.evaluate(() => JSON.parse(localStorage.getItem("humi:identity-session:v1") || "null")?.accessToken),
+    "fresh-after-recovery",
+    "a delayed stale 401 must not clear the recovered session",
+  );
+  await ticketRaceContext.close();
 
   const rejectedLegacyUrlContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -392,7 +535,7 @@ try {
     await chmod(manifestPath, 0o600);
     await access(manifestPath);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact 12 validation checks");
+    assert.deepEqual(manifest.checks, expectedChecks, "H5 evidence manifest must carry the exact validation checks");
     assert.deepEqual(manifest.screenshots, screenshots);
     assert.equal(manifest.ok, true);
     assert.equal(manifest.evidenceDir, evidenceDir);
@@ -423,4 +566,7 @@ try {
 } finally {
   await browser?.close();
   await vite.close();
+  await new Promise((resolve, reject) => {
+    vitePreview.httpServer.close((error) => error ? reject(error) : resolve());
+  });
 }

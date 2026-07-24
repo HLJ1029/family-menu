@@ -1,0 +1,9 @@
+<view wx:if="{{status === 'loading'}}" class="content-state">
+  <view class="loading-mark"></view>
+  <text>正在打开内容</text>
+</view>
+<view wx:elif="{{status === 'error'}}" class="content-state">
+  <text>{{errorText}}</text>
+  <button bindtap="retry">重新打开</button>
+</view>
+<web-view wx:else src="{{url}}" binderror="onWebError" />

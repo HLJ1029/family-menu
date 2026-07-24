@@ -1,0 +1,13 @@
+.share-landing { min-height: 100vh; box-sizing: border-box; padding: 56rpx 32rpx 80rpx; background: #f7f5f1; color: #111; }
+.eyebrow { display: block; font-size: 22rpx; font-weight: 700; letter-spacing: 2rpx; color: #777; }
+.title { display: block; margin-top: 14rpx; font-size: 52rpx; line-height: 1.18; font-weight: 800; }
+.copy, .readonly { display: block; margin-top: 18rpx; font-size: 27rpx; line-height: 1.6; color: #666; }
+.card { margin-top: 40rpx; padding: 8rpx 30rpx; border-radius: 32rpx; background: #fff; box-shadow: 0 16rpx 50rpx rgba(0,0,0,.06); }
+.row { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 0; border-bottom: 1rpx solid #ece9e4; }
+.row:last-child { border-bottom: 0; }
+.checked { color: #8b8b8b; }
+.check { width: 38rpx; font-size: 30rpx; }
+.item-copy { flex: 1; }
+.item-name, .meta { display: block; }
+.item-name { font-size: 29rpx; font-weight: 650; }
+.meta { margin-top: 5rpx; font-size: 23rpx; color: #888; }

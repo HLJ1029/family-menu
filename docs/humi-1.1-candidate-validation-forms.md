@@ -215,3 +215,113 @@ npm run release:candidate:review
 
 - `insufficient-share-type-coverage`：五类小程序卡片尚未逐类完成。
 - `insufficient-poster-coverage`：菜单海报或清单海报尚未完成实际生成及分享/保存。
+
+## 7. 原生骨架真机证据合同
+
+原生骨架候选使用独立的 36 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
+
+每一行必须只包含以下字段，禁止增加昵称、手机号、微信号、备注、openid、token 或其他自由文本：
+
+```json
+{
+  "device": "iPhone 15 Pro",
+  "platform": "iOS",
+  "wechatVersion": "8.0.56",
+  "packageVersion": "1.1.74",
+  "householdFixture": "owner-household",
+  "startedAt": "2026-07-23T08:00:00.000Z",
+  "finishedAt": "2026-07-23T08:02:00.000Z",
+  "result": "pass",
+  "evidencePath": "owner_cooking_flow.png"
+}
+```
+
+字段规则：
+
+- `platform` 只能是 `iOS` 或 `Android`。
+- `packageVersion` 必须与 `--candidate-commit` 指定提交内的 `HUMI_PACKAGE_VERSION` 完全一致；门禁从该提交读取版本，不读取当前工作区，不能只满足版本格式，也不能填写 H5 版本代替。
+- `householdFixture` 使用不含个人信息的稳定测试夹具名。游客场景必须是 `guest`；owner/member 做饭分别使用 `owner-*`、`member-*`；五类双方分享使用 `owner-member-*`。
+- `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit；不得填写未来时间。证据描述文件和媒体文件本身的修改时间也必须晚于候选 commit。
+- `result` 只能是 `pass`、`fail`、`pending` 或 `blocked`。只有 `pass` 计入通过数。
+- `evidencePath` 必须使用 ASCII 安全相对路径，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用绝对路径、软链接、`..`、昵称式文件名或 manifest 自身。
+- 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
+
+每个 `evidencePath` 指向的 JSON 必须严格包含以下五个字段：
+
+```json
+{
+  "schemaVersion": 1,
+  "scenarioId": "menu_share_send_and_recipient_open",
+  "redacted": true,
+  "checks": {
+    "contact_panel": true,
+    "sent": true,
+    "recipient_open": true
+  },
+  "mediaPaths": [
+    "menu-share-sender.png",
+    "menu-share-recipient.png"
+  ]
+}
+```
+
+- `scenarioId` 必须与 manifest 行一致。
+- `checks` 必须与该场景的固定检查项完全一致，不能缺项、增项或写成自由文本。
+- `mediaPaths` 只接受证据目录内的 PNG/JPEG/MP4/MOV；图片必须能被系统解码且宽高至少 300×300，视频必须能被 `ffprobe` 解码、宽高至少 300×300 且时长至少 1 秒。媒体还必须满足大小边界；只有文件头、无法解码的空壳文件会被拒绝。
+- 门禁同时使用文件实体和 SHA-256 内容摘要阻止跨场景复用；把同一张截图复制成不同文件名仍会失败。
+- 五类分享至少提供发送端和接收端两个媒体证据；其他场景至少一个。
+- `redacted: true` 是执行人对媒体已移除头像、昵称、聊天内容、手机号和其他家庭隐私的明确确认。自动门禁只能验证路径、解码、尺寸、时长和复用，不能代替人工脱敏检查。
+
+固定 36 行如下：
+
+```text
+登录与身份（6）
+fresh_guest_start
+explicit_wechat_login
+new_identity_profile
+legacy_identity_recovery
+session_revocation_relogin
+logout_to_guest
+
+推荐轮换（15）
+recommendation_quick_15_rotation_1 ... recommendation_quick_15_rotation_5
+recommendation_easy_30_rotation_1 ... recommendation_easy_30_rotation_5
+recommendation_normal_rotation_1 ... recommendation_normal_rotation_5
+
+烹饪、恢复与权限（4）
+cooking_background_restore
+offline_sync_recovery
+owner_cooking_flow
+member_cooking_flow
+
+真实发送与接收（5）
+menu_share_send_and_recipient_open
+grocery_share_send_and_recipient_open
+invite_share_send_and_recipient_open
+meal_task_share_send_and_recipient_open
+poster_share_send_and_recipient_open
+
+海报风格（2）
+poster_style_change_primary
+poster_style_change_secondary
+
+提醒（3）
+reminder_accept
+reminder_reject
+reminder_cancel
+
+回滚（1）
+immediate_h5_rollback
+```
+
+证据目录的 `manifest.json` 使用 `schemaVersion: 2`，并在 `scenarios` 对象中以以上稳定 ID 为键。验收命令：
+
+```bash
+node scripts/check-humi-true-device-evidence.mjs --selftest
+npm run validate:true-device-evidence
+node scripts/check-humi-true-device-evidence.mjs \
+  --evidence-dir /absolute/private/evidence-dir \
+  --candidate-commit <candidate-sha>
+```
+
+无证据参数运行时，门禁必须逐行报告 36 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。

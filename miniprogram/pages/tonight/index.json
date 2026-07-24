@@ -1,0 +1,9 @@
+{
+  "enableShareAppMessage": true,
+  "usingComponents": {
+    "page-state": "/components/page-state/index",
+    "effort-picker": "/components/effort-picker/index",
+    "dinner-plan-card": "/components/dinner-plan-card/index",
+    "meal-run-resume": "/components/meal-run-resume/index"
+  }
+}

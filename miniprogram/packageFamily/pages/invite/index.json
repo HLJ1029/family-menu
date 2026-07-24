@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "家庭邀请",
+  "enableShareAppMessage": true,
+  "usingComponents": {
+    "page-state": "/components/page-state/index"
+  }
+}

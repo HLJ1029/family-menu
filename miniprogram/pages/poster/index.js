@@ -1,4 +1,6 @@
 const { getHumiApiBaseUrl } = require("../../utils/config");
+const { nextStyleId, normalizeStyleId, normalizeStyles, styleLabel } = require("../../utils/poster-styles");
+const { trackEvent } = require("../../utils/telemetry");
 
 Page({
   data: {
@@ -7,6 +9,12 @@ Page({
     title: "Humi 海报",
     action: "share",
     imageUrl: "",
+    posterType: "",
+    styleId: "default",
+    styleLabel: "清单",
+    styleVariants: [],
+    showStyleAction: false,
+    nextStyleLabel: "",
     pending: false,
     statusText: "海报好了。发给家人，或者留到相册里。",
   },
@@ -16,13 +24,41 @@ Page({
     const format = options.format === "png" ? "png" : "jpg";
     const title = normalizeText(options.title) || "Humi 海报";
     const action = options.action === "save" ? "save" : "share";
+    const posterType = normalizePosterType(options.posterType);
+    const requestedStyleId = normalizeStyleId(options.styleId);
+    const explicitMappingProvided = [options.defaultToken, options.themeToken]
+      .some((value) => String(value || "").trim().length > 0);
+    const explicitVariants = parsePosterVariants([
+      { styleId: "default", token: options.defaultToken, format: options.defaultFormat },
+      { styleId: "theme", token: options.themeToken, format: options.themeFormat },
+    ]);
+    let styleVariants;
+    let selectedVariant;
+    if (explicitMappingProvided) {
+      const mappedVariant = explicitVariants.find((variant) => variant.styleId === requestedStyleId);
+      selectedVariant = mappedVariant?.token === token ? mappedVariant : null;
+      styleVariants = selectedVariant ? explicitVariants : [];
+    } else {
+      styleVariants = parsePosterVariants([], { token, format, styleId: requestedStyleId });
+      selectedVariant = styleVariants[0] || null;
+    }
+    const availableStyles = normalizeStyles(styleVariants);
+    const styleId = selectedVariant?.styleId || requestedStyleId;
+    const showStyleAction = posterTypeSupportsStyles(posterType) && availableStyles.length > 1;
+    const followingStyleId = nextStyleId(styleId, availableStyles);
     this.setData({
-      token,
-      format,
+      token: selectedVariant?.token || "",
+      format: selectedVariant?.format || format,
       title,
       action,
-      imageUrl: token ? `${getHumiApiBaseUrl()}/poster-shares/${token}.${format}` : "",
-      statusText: token
+      posterType,
+      styleId,
+      styleLabel: styleLabel(styleId),
+      styleVariants,
+      showStyleAction,
+      nextStyleLabel: showStyleAction ? styleLabel(followingStyleId) : "",
+      imageUrl: selectedVariant ? buildPosterImageUrl(selectedVariant) : "",
+      statusText: selectedVariant
         ? action === "save"
           ? "点“保存到相册”就行；第一次保存时，微信会问你是否允许。"
           : "点“发给家人”，再选一个聊天。"
@@ -31,9 +67,21 @@ Page({
   },
 
   onShareAppMessage() {
+    const defaultVariant = this.data.styleVariants.find((variant) => variant.styleId === "default");
+    const themeVariant = this.data.styleVariants.find((variant) => variant.styleId === "theme");
     return {
       title: this.data.title,
-      path: `/pages/poster/index?token=${encodeURIComponent(this.data.token)}&format=${this.data.format}&title=${encodeURIComponent(this.data.title)}`,
+      path: [
+        `/pages/poster/index?token=${encodeURIComponent(this.data.token)}`,
+        `format=${this.data.format}`,
+        `styleId=${this.data.styleId}`,
+        `posterType=${encodeURIComponent(this.data.posterType)}`,
+        `defaultToken=${encodeURIComponent(defaultVariant?.token || "")}`,
+        `defaultFormat=${defaultVariant?.format || "jpg"}`,
+        `themeToken=${encodeURIComponent(themeVariant?.token || "")}`,
+        `themeFormat=${themeVariant?.format || "jpg"}`,
+        `title=${encodeURIComponent(this.data.title)}`,
+      ].join("&"),
     };
   },
 
@@ -43,6 +91,7 @@ Page({
     try {
       const tempFilePath = await this.ensurePosterDownloaded();
       if (typeof wx.showShareImageMenu !== "function") {
+        trackPosterOutcome("poster_failed", this.data.styleId, "failed", "request_failed");
         this.setData({ statusText: "这台微信还不能直接发图片，可以先存到相册。" });
         wx.showModal({
           title: "先存到相册",
@@ -53,11 +102,14 @@ Page({
         return;
       }
       await callWxApi(wx.showShareImageMenu, { path: tempFilePath });
+      trackPosterOutcome("poster_shared", this.data.styleId, "completed");
       this.setData({ statusText: "微信已经接手，选个家人发出去吧。" });
     } catch (error) {
       if (isUserCancel(error)) {
+        trackPosterOutcome("native_share_cancelled", this.data.styleId, "cancelled");
         this.setData({ statusText: "已取消发送，图片还在这里。" });
       } else {
+        trackPosterOutcome("poster_failed", this.data.styleId, "failed");
         this.setData({ statusText: friendlyPosterError(error) });
       }
     } finally {
@@ -71,22 +123,26 @@ Page({
     try {
       const tempFilePath = await this.ensurePosterDownloaded();
       await callWxApi(wx.saveImageToPhotosAlbum, { filePath: tempFilePath });
+      trackPosterOutcome("poster_saved", this.data.styleId, "completed");
       this.setData({ statusText: "已经存进相册了。" });
       wx.showToast({ title: "已保存到相册", icon: "success" });
     } catch (error) {
       if (isAlbumPermissionError(error)) {
+        trackPosterOutcome("poster_failed", this.data.styleId, "failed", "permission_denied");
         this.setData({ statusText: "还差相册权限。允许以后，再点一次保存。" });
         wx.showModal({
           title: "允许保存海报",
           content: "去设置里允许 Humi 保存图片，回来后再点一次就好。",
           confirmText: "去设置",
           success: (result) => {
-            if (result.confirm) wx.openSetting();
+            if (result.confirm && typeof wx.openSetting === "function") wx.openSetting();
           },
         });
       } else if (isUserCancel(error)) {
+        trackPosterOutcome("native_share_cancelled", this.data.styleId, "cancelled");
         this.setData({ statusText: "没有保存，海报还在这里。" });
       } else {
+        trackPosterOutcome("poster_failed", this.data.styleId, "failed");
         this.setData({ statusText: friendlyPosterError(error) });
       }
     } finally {
@@ -95,26 +151,68 @@ Page({
   },
 
   ensurePosterDownloaded() {
-    if (this._tempFilePath) return Promise.resolve(this._tempFilePath);
-    if (this._downloadPromise) return this._downloadPromise;
-    this._downloadPromise = new Promise((resolve, reject) => {
+    const imageUrl = this.data.imageUrl;
+    if (!imageUrl) return Promise.reject(new Error("poster image missing"));
+    if (this._downloadedUrl === imageUrl && this._tempFilePath) return Promise.resolve(this._tempFilePath);
+    if (!this._posterDownloads) this._posterDownloads = Object.create(null);
+    const cached = this._posterDownloads[imageUrl];
+    if (cached?.tempFilePath) {
+      this._downloadedUrl = imageUrl;
+      this._tempFilePath = cached.tempFilePath;
+      return Promise.resolve(cached.tempFilePath);
+    }
+    if (cached?.promise) return cached.promise;
+    const entry = cached || {};
+    const downloadPromise = new Promise((resolve, reject) => {
       wx.downloadFile({
-        url: this.data.imageUrl,
+        url: imageUrl,
         success: (result) => {
           if (result.statusCode !== 200 || !result.tempFilePath) {
             reject(new Error(`download status ${result.statusCode || 0}`));
             return;
           }
-          this._tempFilePath = result.tempFilePath;
+          entry.tempFilePath = result.tempFilePath;
+          if (this.data.imageUrl === imageUrl) {
+            this._downloadedUrl = imageUrl;
+            this._tempFilePath = result.tempFilePath;
+          }
           resolve(result.tempFilePath);
         },
         fail: reject,
-        complete: () => {
-          this._downloadPromise = null;
-        },
       });
     });
-    return this._downloadPromise;
+    entry.promise = downloadPromise.finally(() => {
+      entry.promise = null;
+    });
+    this._posterDownloads[imageUrl] = entry;
+    return entry.promise;
+  },
+
+  changeStyle() {
+    if (this.data.pending || !this.data.showStyleAction) return;
+    const nextId = nextStyleId(this.data.styleId, this.data.styleVariants);
+    const nextVariant = this.data.styleVariants.find((variant) => variant.styleId === nextId);
+    if (!nextVariant || nextVariant.token === this.data.token) return;
+    this._downloadedUrl = "";
+    this._tempFilePath = "";
+    const followingStyleId = nextStyleId(nextId, this.data.styleVariants);
+    this.setData({
+      token: nextVariant.token,
+      format: nextVariant.format,
+      styleId: nextId,
+      styleLabel: styleLabel(nextId),
+      imageUrl: buildPosterImageUrl(nextVariant),
+      nextStyleLabel: styleLabel(followingStyleId),
+      statusText: `已换成${styleLabel(nextId)}版，这是一张重新生成的海报。`,
+    });
+    trackEvent("poster_style_changed", {
+      page: "poster",
+      stage: "completed",
+      result: "completed",
+      errorCode: "none",
+      styleId: nextId,
+      shareSource: "poster",
+    });
   },
 
   goBack() {
@@ -123,7 +221,7 @@ Page({
       wx.navigateBack();
       return;
     }
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.reLaunch({ url: "/pages/boot/index" });
   },
 });
 
@@ -145,6 +243,47 @@ function normalizeText(value) {
   }
 }
 
+function normalizePosterType(value) {
+  return String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32);
+}
+
+function parsePosterVariants(value, fallback) {
+  const candidates = Array.isArray(value) ? value.slice() : [];
+  if (fallback?.token) candidates.unshift(fallback);
+  const variants = [];
+  const seenStyles = new Set();
+  const seenTokens = new Set();
+  for (const candidate of candidates) {
+    const styleId = normalizeStyleId(candidate?.styleId);
+    const token = normalizeToken(candidate?.token);
+    const format = candidate?.format === "png" ? "png" : "jpg";
+    if (!token || seenStyles.has(styleId) || seenTokens.has(token)) continue;
+    seenStyles.add(styleId);
+    seenTokens.add(token);
+    variants.push({ styleId, token, format });
+  }
+  return variants;
+}
+
+function posterTypeSupportsStyles(posterType) {
+  return posterType === "grocery_list";
+}
+
+function buildPosterImageUrl({ token, format }) {
+  return `${getHumiApiBaseUrl()}/poster-shares/${token}.${format}`;
+}
+
+function trackPosterOutcome(name, styleId, result, errorCode = "") {
+  trackEvent(name, {
+    page: "poster",
+    stage: result === "completed" ? "completed" : result === "cancelled" ? "completed" : "failed",
+    result,
+    errorCode: result === "completed" || result === "cancelled" ? "none" : errorCode || "request_failed",
+    styleId,
+    shareSource: "poster",
+  });
+}
+
 function errorMessage(error) {
   return String(error?.errMsg || error?.message || error || "");
 }
@@ -164,9 +303,12 @@ function friendlyPosterError(error) {
 }
 
 module.exports = {
+  buildPosterImageUrl,
   friendlyPosterError,
   isAlbumPermissionError,
   isUserCancel,
   normalizeText,
   normalizeToken,
+  parsePosterVariants,
+  posterTypeSupportsStyles,
 };

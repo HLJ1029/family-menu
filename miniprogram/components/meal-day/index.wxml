@@ -1,0 +1,29 @@
+<view class="meal-day">
+  <view class="day-heading">
+    <view>
+      <text class="day-label">{{day.label}}</text>
+      <text class="date-key">{{day.dateKey}}</text>
+    </view>
+    <text wx:if="{{day.dinnerMinutes}}" class="minutes">晚餐约 {{day.dinnerMinutes}} 分钟</text>
+  </view>
+
+  <view class="compat-row">
+    <text class="slot-label">早餐</text>
+    <text class="slot-copy">{{day.breakfast.length ? day.breakfast[0].title : "未安排"}}</text>
+    <text class="readonly">只读</text>
+  </view>
+  <view class="compat-row">
+    <text class="slot-label">午餐</text>
+    <text class="slot-copy">{{day.lunch.length ? day.lunch[0].title : "未安排"}}</text>
+    <text class="readonly">只读</text>
+  </view>
+  <view class="dinner-row">
+    <text class="slot-label">晚餐</text>
+    <view class="dinner-list">
+      <text wx:if="{{!day.dinner.length}}" class="empty">还没有安排</text>
+      <text wx:for="{{day.dinner}}" wx:key="recipeId" class="dinner-name">{{item.title}}</text>
+    </view>
+  </view>
+  <text wx:if="{{day.missingIngredientsText}}" class="missing">还缺：{{day.missingIngredientsText}}</text>
+  <button wx:if="{{canEdit && day.dinner.length}}" class="edit-button" disabled="{{busy}}" bindtap="clearDinner">移除这天晚餐</button>
+</view>

@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "meal-day": "/components/meal-day/index",
+    "page-state": "/components/page-state/index"
+  }
+}

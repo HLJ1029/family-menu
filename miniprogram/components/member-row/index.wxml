@@ -1,0 +1,15 @@
+<view class="member-row">
+  <image wx:if="{{member.avatarUrl}}" class="avatar" src="{{member.avatarUrl}}" mode="aspectFill" />
+  <view wx:else class="avatar fallback">{{member.initial}}</view>
+  <view class="member-copy">
+    <view class="member-title">
+      <text>{{member.displayName}}</text>
+      <text wx:if="{{member.id === currentMemberId}}" class="you">你</text>
+    </view>
+    <text class="member-meta">{{member.roleLabel}} · 正式成员</text>
+  </view>
+  <view wx:if="{{canManage && member.role !== 'owner'}}" class="member-actions">
+    <button class="mini-button" bindtap="transfer" disabled="{{!!pendingAction}}">转让主厨</button>
+    <button class="mini-button danger" bindtap="remove" disabled="{{!!pendingAction}}">移除</button>
+  </view>
+</view>

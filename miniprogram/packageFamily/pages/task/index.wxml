@@ -1,0 +1,43 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="task-page">
+    <text class="eyebrow">今晚一起做</text>
+    <text class="title">{{task.label || '一个家庭任务'}}</text>
+    <text class="copy">这项任务属于一个真实家庭。只有这个家的正式成员登录后才能领取或完成。</text>
+
+    <view class="status-card">
+      <text class="status-label">{{task.status === 'completed' ? '已经完成' : task.status === 'claimed' ? '已有家人领取' : '等待领取'}}</text>
+      <text class="meta">{{task.type === 'buy' ? '买食材' : '帮忙备菜'}}</text>
+    </view>
+
+    <button
+      wx:if="{{task.status === 'open'}}"
+      class="primary-button"
+      bindtap="claimTask"
+      loading="{{pendingAction === 'login' || pendingAction === 'claim'}}"
+      disabled="{{!!pendingAction}}"
+    >{{currentUserId ? '领取这个任务' : '微信登录后领取'}}</button>
+    <button
+      wx:elif="{{task.status === 'claimed' && task.viewerCanComplete}}"
+      class="primary-button"
+      bindtap="completeTask"
+      loading="{{pendingAction === 'complete'}}"
+      disabled="{{!!pendingAction}}"
+    >我完成了</button>
+    <text wx:elif="{{task.status === 'claimed'}}" class="quiet">{{task.viewerClaimed ? '你已经领取这项任务。' : '家人已经领取；你仍可以查看进度。'}}</text>
+    <text wx:else class="quiet">这件小事已经做完了。</text>
+
+    <button
+      class="secondary-button"
+      open-type="share"
+      data-share-type="meal_task"
+      disabled="{{!preparedShares.meal_task || sharePreparing.meal_task}}"
+    >再发给家人</button>
+    <text
+      wx:if="{{shareErrors.meal_task}}"
+      class="share-retry"
+      data-share-type="meal_task"
+      bindtap="retryNativeShare"
+    >分享内容没准备好，点这里重试</text>
+    <text wx:if="{{errorText && status !== 'error'}}" class="inline-error">{{errorText}}</text>
+  </view>
+</page-state>

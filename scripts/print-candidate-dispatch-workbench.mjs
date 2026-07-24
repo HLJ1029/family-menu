@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const execFileAsync = promisify(execFile);
 const args = parseArgs(process.argv.slice(2));
@@ -577,44 +578,7 @@ function buildDispatchUsersById(dispatchJson) {
 
 async function buildShareCardGuide(user, shareEvidenceDir) {
   const key = user.entryTaskKey || inferEntryTaskKey(user.entryLabel);
-  const guides = {
-    "crave-card": {
-      actionLabel: "问问大家",
-      actionButtonLabel: "选择家人发送",
-      sharePageTemplate: "pages/share/index?type=crave&token=<真实征集token>&householdName=<家庭名>",
-      landingPathTemplate: "/pages/index/index?crave=<真实征集token>",
-      directPreviewFile: "direct-preview/crave-preview-qr.png",
-    },
-    "invite-card": {
-      actionLabel: "邀请家人",
-      actionButtonLabel: "选择家人发邀请",
-      sharePageTemplate: "pages/share/index?type=invite&token=<真实邀请token>&householdName=<家庭名>&inviterName=<邀请人>",
-      landingPathTemplate: "/pages/index/index?invite=<真实邀请token>",
-      directPreviewFile: "direct-preview/invite-preview-qr.png",
-    },
-    "grocery-card": {
-      actionLabel: "买菜清单",
-      actionButtonLabel: "选择家人发清单",
-      sharePageTemplate: "pages/share/index?type=grocery&token=<真实清单token>&householdName=<家庭名>&initiatorName=<发起人>&itemCount=<清单项数>",
-      landingPathTemplate: "/pages/index/index?grocery=<真实清单token>",
-      directPreviewFile: "direct-preview/grocery-preview-qr.png",
-    },
-    "wish-card": {
-      actionLabel: "分享想吃入口",
-      actionButtonLabel: "选择家人发送",
-      sharePageTemplate: "pages/share/index?type=wish&token=<真实想吃token>&householdName=<家庭名>&initiatorName=<发起人>",
-      landingPathTemplate: "/pages/index/index?wishShare=<真实想吃token>",
-      directPreviewFile: "direct-preview/wish-preview-qr.png",
-    },
-    "menu-card": {
-      actionLabel: "去微信发菜单",
-      actionButtonLabel: "选择家人发菜单",
-      sharePageTemplate: "pages/share/index?type=menu&token=<真实菜单token>&householdName=<家庭名>&title=<菜单标题>",
-      landingPathTemplate: "/pages/index/index?menuShare=<真实菜单token>",
-      directPreviewFile: "direct-preview/menu-preview-qr.png",
-    },
-  };
-  const guide = guides[key];
+  const guide = shareCardGuideFixtures[key];
   if (!guide) return null;
   const directPreviewPath = shareEvidenceDir ? join(shareEvidenceDir, guide.directPreviewFile) : guide.directPreviewFile;
   const directPreview = await inspectDirectPreviewFile(directPreviewPath);

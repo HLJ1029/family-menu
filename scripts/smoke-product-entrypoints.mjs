@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -12,18 +13,19 @@ const evidenceDir = args.evidenceDir
   || process.env.HUMI_PRODUCT_SMOKE_EVIDENCE_DIR
   || join(process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR, `product-entrypoint-smoke-${timestamp}`);
 const minRecipeCards = Number.parseInt(args.minRecipeCards || process.env.HUMI_PRODUCT_SMOKE_MIN_RECIPE_CARDS || "20", 10);
+const recommendationMockCalls = [];
 
 await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
 
 let browser;
 try {
   browser = await chromium.launch({ headless: !args.headed });
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
     serviceWorkers: "block",
-  });
+  }, recommendationMockCalls);
   const page = await context.newPage();
   const pageErrors = [];
   const posterUploadRequests = [];
@@ -35,10 +37,12 @@ try {
         navigateTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
           payload.success?.({ errMsg: "navigateTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
         redirectTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
           payload.success?.({ errMsg: "redirectTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -192,16 +196,19 @@ try {
     if (route.request().method() !== "POST") return route.fallback();
     const body = route.request().postDataBuffer();
     const contentType = route.request().headers()["content-type"] || "";
+    const styleId = route.request().headers()["x-humi-poster-style"] === "theme" ? "theme" : "default";
     const format = contentType.includes("png") ? "png" : "jpg";
     const sequence = posterUploadRequests.length + 1;
     const token = `product_smoke_poster_token_${String(sequence).padStart(4, "0")}`;
-    posterUploadRequests.push({ size: body?.length || 0, contentType });
+    const bodySha256 = createHash("sha256").update(body || Buffer.alloc(0)).digest("hex");
+    posterUploadRequests.push({ size: body?.length || 0, contentType, styleId, bodySha256 });
     await fulfillJson(route, {
       poster: {
         token,
         format,
         url: `https://api.humi-home.com/poster-shares/${token}.${format}`,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        styleId,
       },
     });
   });
@@ -272,6 +279,7 @@ try {
   const todayMenuPosterImage = page.getByRole("img", { name: "Humi 今晚菜单海报预览" });
   await todayMenuPosterImage.waitFor({ state: "visible", timeout: 15_000 });
   const todayMenuPosterGenerated = await todayMenuPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const todayMenuPosterHasNoFakeStyleAction = await page.getByRole("button", { name: "重新生成海报", exact: true }).count() === 0;
   const todayMenuPosterPreviewScreenshot = join(evidenceDir, "today-menu-poster-preview-mobile.png");
   await page.screenshot({ path: todayMenuPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "分享海报", exact: true }).click();
@@ -377,6 +385,10 @@ try {
   const groceryPosterImage = page.getByRole("img", { name: "Humi 购物清单海报预览" });
   await groceryPosterImage.waitFor({ state: "visible", timeout: 15_000 });
   const groceryPosterGenerated = await groceryPosterImage.evaluate((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+  const groceryPosterInitialStyle = await groceryPosterImage.getAttribute("data-style-id");
+  await page.getByRole("button", { name: "换一种样式", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('img[alt="Humi 购物清单海报预览"]')?.dataset.styleId === "theme");
+  const groceryPosterChangedStyle = await groceryPosterImage.getAttribute("data-style-id");
   const groceryPosterPreviewScreenshot = join(evidenceDir, "grocery-poster-preview-mobile.png");
   await page.screenshot({ path: groceryPosterPreviewScreenshot, fullPage: true });
   await page.getByRole("button", { name: "保存图片", exact: true }).click();
@@ -427,6 +439,7 @@ try {
   const familyLivingRoomScreenshot = join(evidenceDir, "family-living-room-mobile.png");
   await familyLivingRoom.screenshot({ path: familyLivingRoomScreenshot });
   await familyLivingRoom.getByTestId("family-preference-action").click();
+  await page.getByTestId("household-settings-page").waitFor({ state: "visible", timeout: 15_000 });
   const preferenceOpenedSettings = await page.getByTestId("household-settings-page").isVisible();
   await page.getByTestId("household-settings-page").getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByRole("button", { name: "邀请家人", exact: true }).click();
@@ -459,6 +472,10 @@ try {
     nativeShareTypes.filter((candidate) => candidate === type).length,
   ]));
   const shareNavigationStayedSingle = miniProgramCalls.every((call) => call.method !== "redirectTo");
+  const bridgeEvents = await page.evaluate(() => JSON.parse(localStorage.getItem("humi:validation-events:v1") || "[]")
+    .filter((event) => event.eventName === "share_bridge_stage"));
+  const bridgeTelemetryIsSafe = bridgeEvents.some((event) => event.payload?.stage === "page_hidden")
+    && bridgeEvents.every((event) => !JSON.stringify(event.payload).includes("token"));
   const noHouseholdStart = await verifyNoHouseholdStart(browser, baseUrl, evidenceDir);
   const ownerCollaborationShares = await verifyOwnerCollaborationShares(browser, baseUrl, evidenceDir);
   const familyManagementPages = await verifyFamilyManagementPages(browser, baseUrl, evidenceDir);
@@ -513,14 +530,23 @@ try {
     { key: "today-menu-poster-entry-is-visible", ok: todayMenuPosterEntryVisible },
     { key: "grocery-poster-entry-is-visible", ok: groceryPosterEntryVisible },
     { key: "poster-preview-generates-image", ok: todayMenuPosterGenerated && groceryPosterGenerated },
+    { key: "single-template-menu-poster-hides-fake-style-action", ok: todayMenuPosterHasNoFakeStyleAction },
+    { key: "grocery-poster-style-change-is-explicit", ok: groceryPosterInitialStyle === "default" && groceryPosterChangedStyle === "theme", actual: { groceryPosterInitialStyle, groceryPosterChangedStyle } },
     { key: "menu-poster-opens-native-image-share-page", ok: menuPosterNativeShareOpened },
     { key: "grocery-poster-opens-native-album-save-page", ok: groceryPosterNativeSaveOpened },
     {
       key: "poster-uploads-stay-under-api-limit",
-      ok: posterUploadRequests.length === 2
+      ok: posterUploadRequests.length === 3
         && posterUploadRequests.every((request) => request.size > 0
           && request.size <= 950 * 1024
-          && /^image\/(?:jpeg|png)/.test(request.contentType)),
+          && /^image\/(?:jpeg|png)/.test(request.contentType))
+        && posterUploadRequests.filter((request) => request.styleId === "default").length === 2
+        && posterUploadRequests.filter((request) => request.styleId === "theme").length === 1
+        && posterUploadRequests
+          .filter((request) => request.styleId === "theme")
+          .every((themeRequest) => posterUploadRequests
+            .filter((request) => request.styleId === "default")
+            .every((defaultRequest) => defaultRequest.bodySha256 !== themeRequest.bodySha256)),
       actual: posterUploadRequests,
     },
     { key: "grocery-share-uses-native-handoff", ok: groceryShareOpened },
@@ -533,6 +559,7 @@ try {
       actual: nativeShareTypeCounts,
     },
     { key: "native-share-navigation-does-not-double-dispatch", ok: shareNavigationStayedSingle, actual: miniProgramCalls },
+    { key: "share-bridge-telemetry-is-stage-only-and-token-free", ok: bridgeTelemetryIsSafe, actual: bridgeEvents },
     { key: "inventory-maintenance-is-not-exposed", ok: inventoryMaintenanceHidden },
     { key: "nutrition-entry-is-not-on-grocery-tab", ok: groceryNutritionEntryHidden },
     { key: "family-living-room-has-four-focused-sections", ok: familyLivingRoomHasFocusedSections, actual: familyLivingRoomText },
@@ -618,7 +645,7 @@ try {
     { key: "member-menu-action-is-blocked", ok: memberBoundary.blocked },
     { key: "member-menu-stays-unchanged", ok: memberBoundary.menuBefore.length === 0 && memberBoundary.menuAfter.length === 0, actual: memberBoundary },
     { key: "member-cannot-start-crave-from-dashboard", ok: memberBoundary.memberDashboardAskButtons === 0, actual: memberBoundary.memberDashboardAskButtons },
-    { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberDinnerReadonly && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
+    { key: "member-sees-meal-rhythm-without-owner-controls", ok: memberBoundary.memberMealEditingButtons === 0 && memberBoundary.memberHasNoPrematureDinnerConfirmation && memberBoundary.memberPlannerEntries === 0, actual: memberBoundary },
     { key: "member-library-contributes-to-want-pool", ok: memberBoundary.memberLibraryUsesWantAction && memberBoundary.memberWantAddedFromLibrary, actual: memberBoundary },
     { key: "member-boundary-page-errors", ok: memberBoundary.pageErrors.length === 0, errors: memberBoundary.pageErrors },
     { key: "solo-owner-can-decide-without-family", ok: soloOwnerFlow.starterHasNoMemberPressure && soloOwnerFlow.decidedAlone && !soloOwnerFlow.shareRequestCreated, actual: soloOwnerFlow },
@@ -631,13 +658,15 @@ try {
     { key: "crave-result-generates-grocery", ok: persistedCraveDeadline.groceryGenerated, actual: persistedCraveDeadline.groceryCheckboxCount },
     { key: "persisted-crave-page-errors", ok: persistedCraveDeadline.pageErrors.length === 0, errors: persistedCraveDeadline.pageErrors },
     { key: "grocery-check-adds-hidden-pantry-clue", ok: pantryPipeline.addedAfterCheck, actual: pantryPipeline.pantryAfterCheck },
-    { key: "dinner-confirmation-consumes-hidden-pantry-clue", ok: pantryPipeline.removedAfterDinner, actual: pantryPipeline.pantryAfterDinner },
-    { key: "dinner-confirmation-writes-meal-log", ok: pantryPipeline.mealLogged, actual: pantryPipeline.mealLog },
+    { key: "dinner-confirmation-is-hidden-before-cooking", ok: pantryPipeline.dashboardLightConfirmationCount === 0 && pantryPipeline.confirmationBeforeStartCount === 0, actual: pantryPipeline },
+    { key: "opening-a-legacy-recipe-does-not-complete-dinner", ok: pantryPipeline.confirmationAfterRecipeOpenCount === 0 && !pantryPipeline.mealLogged, actual: pantryPipeline },
+    { key: "legacy-recipe-open-keeps-pantry-for-canonical-cooking", ok: pantryPipeline.pantryPreserved, actual: pantryPipeline.pantryAfterRecipeOpen },
     { key: "implicit-pantry-pipeline-page-errors", ok: pantryPipeline.pageErrors.length === 0, errors: pantryPipeline.pageErrors },
     { key: "signed-in-onboarding-only-asks-hard-constraints", ok: hardConstraintOnboarding.onlyHardConstraints },
     { key: "signed-in-onboarding-can-skip-without-diet-tags", ok: hardConstraintOnboarding.canSkip },
     { key: "signed-in-onboarding-saves-diet-constraint", ok: hardConstraintOnboarding.savedConstraint, actual: hardConstraintOnboarding.savedProfile },
     { key: "signed-in-onboarding-page-errors", ok: hardConstraintOnboarding.pageErrors.length === 0, errors: hardConstraintOnboarding.pageErrors },
+    { key: "dinner-recommendation-api-is-locally-mocked", ok: recommendationMockCalls.length > 0, actual: recommendationMockCalls.length },
     { key: "page-errors", ok: pageErrors.length === 0, errors: pageErrors },
   ];
   const manifest = {
@@ -724,7 +753,7 @@ async function seedGuestDinnerState(page) {
 
 async function verifyTonightPrimaryViewport(browser, base, evidenceDir) {
   const viewport = { width: 390, height: 844 };
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport,
     deviceScaleFactor: 3,
     isMobile: true,
@@ -825,10 +854,12 @@ async function installMiniProgramMock(page) {
       navigateTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
         payload.success?.({ errMsg: "navigateTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
       },
       redirectTo(payload) {
         window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
         payload.success?.({ errMsg: "redirectTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
       },
     };
   });
@@ -963,7 +994,7 @@ async function waitForTransientUi(page) {
 }
 
 async function verifyNoHouseholdStart(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1046,7 +1077,7 @@ async function verifyNoHouseholdStart(browser, base, evidenceDir) {
 }
 
 async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1074,10 +1105,12 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
         navigateTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "navigateTo", payload });
           payload.success?.({ errMsg: "navigateTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
         redirectTo(payload) {
           window.__humiMiniProgramCalls.push({ method: "redirectTo", payload });
           payload.success?.({ errMsg: "redirectTo:ok" });
+          window.dispatchEvent(new Event("pagehide"));
         },
       },
     };
@@ -1254,7 +1287,7 @@ async function verifyOwnerCollaborationShares(browser, base, evidenceDir) {
 }
 
 async function verifySoloOwnerFlow(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1343,7 +1376,7 @@ async function verifySoloOwnerFlow(browser, base, evidenceDir) {
 }
 
 async function verifyFamilyActivityHistory(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1485,7 +1518,7 @@ function historyEvents() {
 }
 
 async function verifyFamilyManagementPages(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1645,8 +1678,13 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const stateAfterRename = await hasPreservedHouseholdState(page);
   await settingsPage.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
   await page.getByTestId("mobile-nav-dashboard").click();
-  await page.getByRole("button", { name: "点外卖", exact: true }).click();
-  await page.getByRole("button", { name: "看看吃饭习惯", exact: true }).first().click();
+  await openTodayMenu(page);
+  await page.getByRole("button", { name: "开始做饭", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByTestId("mobile-nav-user").click();
+  await page.getByRole("button", { name: /^账号设置/ }).click();
+  await page.getByRole("button", { name: "查看吃饭习惯", exact: true }).click();
+  await page.getByTestId("nutrition-reflection-page").waitFor({ state: "visible", timeout: 15_000 });
   const nutritionReachable = await page.getByTestId("nutrition-reflection-page").isVisible();
   await page.getByTestId("mobile-nav-user").click();
   await page.getByRole("button", { name: /^成员管理/ }).click();
@@ -1710,7 +1748,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
 }
 
 async function verifyFamilyIdentityRouteReset(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1801,7 +1839,7 @@ async function verifyFamilyIdentityRouteReset(browser, base, evidenceDir) {
 }
 
 async function verifyMultiHouseholdSwitch(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -1988,7 +2026,7 @@ function hasOriginalMultiHouseholdState(state) {
 }
 
 async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2084,8 +2122,8 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
   await page.getByRole("button", { name: "今晚", exact: true }).click();
   const memberDashboardAskButtons = await page.getByRole("button", { name: "问问大家想吃啥" }).count();
   const memberMealEditingButtons = await page.getByTestId("meal-rhythm-panel").getByRole("button").count();
-  const memberDinnerReadonly = await page.getByTestId("dinner-log-readonly").isVisible()
-    && await page.getByTestId("dinner-log-readonly").getByRole("button").count() === 0;
+  const memberHasNoPrematureDinnerConfirmation = await page.getByText("晚间轻确认", { exact: true }).count() === 0
+    && await page.getByRole("button", { name: "上桌了", exact: true }).count() === 0;
   const memberPlannerEntries = await page.getByTestId("dashboard-planner-entry").count();
   const menuBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:today-menu") || "[]"));
   const memberPrimaryAction = page.getByTestId("tonight-primary-action");
@@ -2124,7 +2162,7 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
     internalActionKeepsPrimaryTab,
     memberDashboardAskButtons,
     memberMealEditingButtons,
-    memberDinnerReadonly,
+    memberHasNoPrematureDinnerConfirmation,
     memberPlannerEntries,
     memberLibraryUsesWantAction,
     memberWantAddedFromLibrary,
@@ -2134,7 +2172,7 @@ async function verifyMemberOwnerBoundary(browser, base, evidenceDir) {
 }
 
 async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2240,7 +2278,7 @@ async function verifyPersistedCraveDeadline(browser, base, evidenceDir) {
 }
 
 async function verifyImplicitPantryPipeline(browser, base) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2278,6 +2316,7 @@ async function verifyImplicitPantryPipeline(browser, base) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state, family, households: [family] }) });
   });
   await page.goto(base, { waitUntil: "networkidle" });
+  const dashboardLightConfirmationCount = await page.getByText("晚间轻确认", { exact: true }).count();
   await page.getByRole("button", { name: "清单", exact: true }).click();
   const tomatoRow = page.locator("label").filter({ hasText: "西红柿" });
   const tomatoCheckbox = tomatoRow.getByRole("checkbox");
@@ -2287,32 +2326,37 @@ async function verifyImplicitPantryPipeline(browser, base) {
   const pantryAfterCheck = await page.evaluate(() => JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"));
   const addedAfterCheck = pantryAfterCheck.some((item) => item.name === "西红柿");
   await page.getByRole("button", { name: "今晚", exact: true }).click();
-  const doneButton = page.getByRole("button", { name: "做了", exact: true });
-  if (await doneButton.count() !== 1) throw new Error("隐形食材流水线没有找到唯一的晚饭“做了”按钮。");
-  await doneButton.click();
+  await openTodayMenu(page);
+  const confirmationBeforeStartCount = await page.getByRole("button", { name: "上桌了", exact: true }).count();
+  await page.getByRole("button", { name: "开始做饭", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  const confirmationAfterRecipeOpenCount = await page.getByRole("button", { name: "上桌了", exact: true }).count();
   const result = await page.evaluate(() => ({
     pantry: JSON.parse(localStorage.getItem("family-menu:pantry-items") || "[]"),
     mealLogs: JSON.parse(localStorage.getItem("family-menu:meal-logs:v1") || "{}"),
   }));
   const today = getLocalDateKey();
   const mealLog = result.mealLogs[today] ?? {};
-  const removedAfterDinner = !result.pantry.some((item) => item.name === "西红柿");
+  const pantryPreserved = result.pantry.some((item) => item.name === "西红柿");
   const mealLogged = mealLog.confirmation === "all"
     && mealLog.consumedEntries?.some((entry) => entry.recipeId === "tomato-egg");
   await context.close();
   return {
     addedAfterCheck,
-    removedAfterDinner,
+    pantryPreserved,
     mealLogged,
     pantryAfterCheck,
-    pantryAfterDinner: result.pantry,
+    pantryAfterRecipeOpen: result.pantry,
     mealLog,
     pageErrors,
+    dashboardLightConfirmationCount,
+    confirmationBeforeStartCount,
+    confirmationAfterRecipeOpenCount,
   };
 }
 
 async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
-  const context = await browser.newContext({
+  const context = await createProductSmokeContext(browser, {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
@@ -2379,6 +2423,58 @@ async function verifyHardConstraintOnboarding(browser, base, evidenceDir) {
 
 async function fulfillJson(route, body) {
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+}
+
+async function createProductSmokeContext(browser, options, calls = recommendationMockCalls) {
+  const context = await browser.newContext(options);
+  await installDinnerRecommendationMock(context, calls);
+  return context;
+}
+
+async function installDinnerRecommendationMock(context, calls) {
+  const cursors = new Map();
+  const groups = {
+    legacy: [
+      ["potato-shreds", "vinegar-cabbage"],
+      ["garlic-broccoli", "braised-eggplant"],
+      ["wintermelon-rib-soup", "celery-lily"],
+    ],
+    quick_15: [["tomato-egg"], ["potato-shreds"], ["cucumber-egg"], ["vinegar-cabbage"]],
+    easy_30: [
+      ["tomato-tofu-shrimp-soup", "vinegar-cabbage"],
+      ["seaweed-egg-soup", "garlic-broccoli"],
+    ],
+    normal: [
+      ["cola-wings", "spinach-tofu-egg-drop-soup"],
+      ["steamed-sea-bass", "braised-eggplant"],
+    ],
+  };
+  await context.route("**/recommendations/dinner", async (route) => {
+    const payload = route.request().postDataJSON();
+    const key = [
+      payload.householdId || "guest",
+      payload.dateKey,
+      payload.mode,
+      payload.effortTier || "legacy",
+      payload.contextFingerprint,
+    ].join(":");
+    const options = payload.mode === "legacy" ? groups.legacy : groups[payload.effortTier] || groups.quick_15;
+    const current = cursors.get(key) ?? 0;
+    const index = ["next", "reject"].includes(payload.action)
+      ? (current + 1) % options.length
+      : current;
+    cursors.set(key, index);
+    calls.push({ mode: payload.mode, effortTier: payload.effortTier, action: payload.action });
+    await fulfillJson(route, {
+      recommendationId: `00000000-0000-4000-a000-${String(index + 1).padStart(12, "0")}`,
+      recipeIds: options[index],
+      cycle: 0,
+      groupIndex: index,
+      exhausted: false,
+      reasonCode: "product_smoke_mock",
+      stateVersion: `product_smoke_state_${String(index).padStart(4, "0")}`,
+    });
+  });
 }
 
 function getLocalDateKey(date = new Date()) {

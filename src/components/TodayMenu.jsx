@@ -1,6 +1,5 @@
 import { ImageIcon, Minus, Plus, Share2, ShoppingBasket, Trash2, Utensils } from "lucide-react";
 import { nutritionFor } from "../lib/recipes";
-import { DinnerLogPanel } from "./Dashboard";
 import { CloudInlineStatus } from "./system/CloudInlineStatus";
 import { Card } from "./ui/Card";
 import { DishImage } from "./ui/DishImage";
@@ -17,11 +16,6 @@ export function TodayMenu({
   onShare,
   onCreatePoster,
   shareMode = "poster",
-  mealLog,
-  mealLogs,
-  onSetDinnerSource,
-  onSetDinnerConfirmation,
-  onToggleConsumedRecipe,
   canManageHousehold = true,
 }) {
   const totalDishes = todayRecipes.reduce((total, recipe) => total + (recipe.menuQuantity ?? 1), 0);
@@ -66,18 +60,6 @@ export function TodayMenu({
             </button>
           </div>
         </Card>
-        <DinnerLogPanel
-          mealLog={mealLog}
-          mealLogs={mealLogs}
-          onSetDinnerSource={onSetDinnerSource}
-          onSetDinnerConfirmation={onSetDinnerConfirmation}
-          onToggleConsumedRecipe={onToggleConsumedRecipe}
-          todayRecipes={todayRecipes}
-          showConfirmation={false}
-          dinnerReady={false}
-          onViewChange={onViewChange}
-          canManageHousehold={canManageHousehold}
-        />
         {canManageHousehold && <CloudInlineStatus
           {...cloudSync}
           localLabel="本机今晚菜单"
@@ -234,19 +216,6 @@ export function TodayMenu({
           enabledLabel="已保存今晚菜单"
           migrateLabel={cloudSync?.enabled ? "重新保存本机菜单" : "保存今晚菜单"}
         />}
-
-        <DinnerLogPanel
-          mealLog={mealLog}
-          mealLogs={mealLogs}
-          onSetDinnerSource={onSetDinnerSource}
-          onSetDinnerConfirmation={onSetDinnerConfirmation}
-          onToggleConsumedRecipe={onToggleConsumedRecipe}
-          todayRecipes={todayRecipes}
-          showConfirmation
-          dinnerReady
-          onViewChange={onViewChange}
-          canManageHousehold={canManageHousehold}
-        />
 
       </div>
 

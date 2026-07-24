@@ -2,12 +2,16 @@ import http from "node:http";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import { createSessionToken, verifySessionToken } from "./session.js";
-import { HumiStore } from "./store.js";
-import { exchangeWechatCode, exchangeWechatPhoneNumber } from "./wechat.js";
+import { APPROVED_AVATAR_KEYS, HumiStore, hashTelemetryAnonymousSessionId } from "./store.js";
+import { buildBootstrapEnvelope } from "./bootstrap.js";
+import { exchangeWechatCode, exchangeWechatPhoneNumber, sendWechatSubscribeMessage } from "./wechat.js";
 import { generateMealRecommendation, generateRecommendationExplanation } from "./recommend.js";
 import { decodeAvatarPayload, readAvatarFile, writeAvatarFile } from "./avatar.js";
+import { buildMealTimeline, downgradeMealPlan, getCertifiedRecipe } from "../src/lib/mealExecution.js";
+import { formatBusinessDateKey } from "./recommendation-rotation.js";
 
 const config = {
   port: Number(process.env.HUMI_API_PORT || 8787),
@@ -36,13 +40,44 @@ const config = {
   avatarPublicBaseUrl: (process.env.HUMI_PUBLIC_BASE_URL || "https://api.humi-home.com").replace(/\/$/, ""),
   avatarMaxBytes: 512 * 1024,
   assetDir: process.env.HUMI_ASSET_DIR || resolve("public/assets"),
+  mealExecutionEnabled: process.env.HUMI_MEAL_EXECUTION_ENABLED === "1",
+  mealExecutionHouseholds: new Set((process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)),
+  nativeShellEnabled: process.env.HUMI_NATIVE_SHELL_ENABLED === "1",
+  nativeShellHouseholds: new Set((process.env.HUMI_NATIVE_SHELL_HOUSEHOLDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)),
+  nativeShellWildcardAllowed: process.env.NODE_ENV === "test",
+  telemetryHashSalt: process.env.HUMI_TELEMETRY_HASH_SALT || (process.env.NODE_ENV === "production" ? "" : "humi-dev-telemetry-salt"),
+  telemetryRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_RATE_LIMIT || 120)),
+  telemetryRateWindowMs: Math.max(1_000, Number(process.env.HUMI_TELEMETRY_RATE_WINDOW_MS || 60_000)),
+  telemetryNetworkRateLimit: Math.max(1, Number(process.env.HUMI_TELEMETRY_NETWORK_RATE_LIMIT || 2_400)),
+  trustedProxyIps: new Set((process.env.HUMI_TRUSTED_PROXY_IPS || "")
+    .split(",")
+    .map((value) => normalizeNetworkAddress(value))
+    .filter(Boolean)),
+  mealReminderTemplateId: process.env.HUMI_MEAL_REMINDER_TEMPLATE_ID || "",
+  mealReminderThingKey: process.env.HUMI_MEAL_REMINDER_THING_KEY || "thing1",
+  mealReminderTimeKey: process.env.HUMI_MEAL_REMINDER_TIME_KEY || "time2",
 };
+config.telemetryNetworkRateLimit = Math.max(
+  config.telemetryNetworkRateLimit,
+  config.telemetryRateLimit * 10,
+);
 
 if (!config.sessionSecret) {
   throw new Error("HUMI_SESSION_SECRET is required in production.");
 }
+if (!config.telemetryHashSalt || (process.env.NODE_ENV === "production" && config.telemetryHashSalt.length < 32)) {
+  throw new Error("HUMI_TELEMETRY_HASH_SALT must be at least 32 characters in production.");
+}
 
 const store = new HumiStore(config.dataFile);
+const recipeCatalogPromise = readFile(new URL("../data/recipes.json", import.meta.url), "utf8")
+  .then((source) => JSON.parse(source));
 
 const householdStatus = {
   household_not_found: 404,
@@ -54,7 +89,7 @@ const householdStatus = {
 };
 
 export function createHumiApiServer() {
-  return http.createServer(async (request, response) => {
+  const server = http.createServer(async (request, response) => {
     try {
       applyCors(request, response);
       if (request.method === "OPTIONS") {
@@ -77,6 +112,11 @@ export function createHumiApiServer() {
       const staticAssetMatch = url.pathname.match(/^\/assets\/(dishes\/(?:thumbs|webp)\/[A-Za-z0-9_-]+\.webp|brand\/lovart-v2\/[A-Za-z0-9_-]+\.webp)$/);
       if ((request.method === "GET" || request.method === "HEAD") && staticAssetMatch) {
         await handleGetStaticAsset(request, response, staticAssetMatch[1]);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/recipes") {
+        await handleGetRecipeSummaries(response, url);
         return;
       }
 
@@ -128,6 +168,11 @@ export function createHumiApiServer() {
 
       if (request.method === "GET" && url.pathname === "/me") {
         await handleMe(request, response);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/bootstrap") {
+        await handleBootstrap(request, response);
         return;
       }
 
@@ -206,6 +251,112 @@ export function createHumiApiServer() {
 
       if ((request.method === "PUT" || request.method === "POST") && url.pathname === "/state") {
         await handleSaveState(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/recommendations/dinner") {
+        await handleDinnerRecommendation(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/meal-runs") {
+        await handleCreateMealRun(request, response);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/meal-runs/current") {
+        await handleGetCurrentMealRun(request, response, url.searchParams);
+        return;
+      }
+
+      const mealRunStartMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/start$/);
+      if (request.method === "POST" && mealRunStartMatch) {
+        await handleStartMealRun(request, response, mealRunStartMatch[1]);
+        return;
+      }
+
+      const mealRunProgressMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/progress$/);
+      if (request.method === "PUT" && mealRunProgressMatch) {
+        await handleUpdateMealRunProgress(request, response, mealRunProgressMatch[1]);
+        return;
+      }
+
+      const mealRunCompleteMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/complete$/);
+      if (request.method === "POST" && mealRunCompleteMatch) {
+        await handleCompleteMealRun(request, response, mealRunCompleteMatch[1]);
+        return;
+      }
+
+      const mealRunDowngradeMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/downgrade$/);
+      if (request.method === "POST" && mealRunDowngradeMatch) {
+        await handleDowngradeMealRun(request, response, mealRunDowngradeMatch[1]);
+        return;
+      }
+
+      const mealRunAbandonMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/abandon$/);
+      if (request.method === "POST" && mealRunAbandonMatch) {
+        await handleAbandonMealRun(request, response, mealRunAbandonMatch[1]);
+        return;
+      }
+
+      const mealRunFeedbackMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/feedback$/);
+      if (request.method === "PUT" && mealRunFeedbackMatch) {
+        await handleMealRunFeedback(request, response, mealRunFeedbackMatch[1]);
+        return;
+      }
+
+      const mealRunTasksMatch = url.pathname.match(/^\/meal-runs\/([^/]+)\/tasks$/);
+      if (request.method === "GET" && mealRunTasksMatch) {
+        await handleGetMealTasks(request, response, mealRunTasksMatch[1]);
+        return;
+      }
+      if (request.method === "POST" && mealRunTasksMatch) {
+        await handleCreateMealTask(request, response, mealRunTasksMatch[1]);
+        return;
+      }
+
+      const mealTaskClaimMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/claim$/);
+      if (request.method === "POST" && mealTaskClaimMatch) {
+        await handleClaimMealTask(request, response, mealTaskClaimMatch[1]);
+        return;
+      }
+
+      const mealTaskShareMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/share$/);
+      if (request.method === "POST" && mealTaskShareMatch) {
+        await handlePrepareMealTaskShare(request, response, mealTaskShareMatch[1]);
+        return;
+      }
+
+      const mealTaskMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)$/);
+      if (request.method === "GET" && mealTaskMatch) {
+        await handleGetMealTask(request, response, mealTaskMatch[1]);
+        return;
+      }
+
+      const mealTaskCompleteMatch = url.pathname.match(/^\/meal-tasks\/([^/]+)\/complete$/);
+      if (request.method === "POST" && mealTaskCompleteMatch) {
+        await handleCompleteMealTask(request, response, mealTaskCompleteMatch[1]);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/meal-reminders/config") {
+        await handleMealReminderConfig(request, response, url.searchParams);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/meal-reminders") {
+        await handleCreateMealReminder(request, response);
+        return;
+      }
+
+      const mealReminderMatch = url.pathname.match(/^\/meal-reminders\/([^/]+)$/);
+      if (request.method === "DELETE" && mealReminderMatch) {
+        await handleCancelMealReminder(request, response, mealReminderMatch[1]);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/product-events") {
+        await handleProductEvent(request, response);
         return;
       }
 
@@ -350,12 +501,23 @@ export function createHumiApiServer() {
       if (process.env.NODE_ENV !== "production" && status >= 500) {
         console.error(error);
       }
+      const code = error.code || "internal_error";
       sendJson(response, status, {
-        error: error.code || "internal_error",
+        error: code,
+        code,
         message: status >= 500 ? "Humi API 暂时不可用。" : error.message,
+        ...(error.latestEnvelope ? { latestEnvelope: error.latestEnvelope } : {}),
       });
     }
   });
+  const reminderTimer = setInterval(() => {
+    void processDueMealReminders().catch((error) => {
+      if (process.env.NODE_ENV !== "production") console.error("Meal reminder worker failed", error);
+    });
+  }, 60_000);
+  reminderTimer.unref?.();
+  server.once("close", () => clearInterval(reminderTimer));
+  return server;
 }
 
 async function handleWechatLogin(request, response) {
@@ -379,7 +541,21 @@ async function handleIdentityProfile(request, response) {
   const displayName = stringValue(body.displayName, 32);
   if (!displayName) throw httpError(400, "display_name_required", "请输入你的昵称。");
   const avatarKey = stringValue(body.avatarKey, 80);
-  const user = await store.updateIdentityProfile(auth.userId, { displayName, avatarKey });
+  if (avatarKey && !APPROVED_AVATAR_KEYS.includes(avatarKey)) {
+    throw httpError(400, "invalid_avatar_key", "请选择 Humi 提供的头像。");
+  }
+  let user;
+  try {
+    user = await store.updateIdentityProfile(auth.userId, { displayName, avatarKey });
+  } catch (error) {
+    if (error?.code === "avatar_required") {
+      throw httpError(400, "avatar_required", "请选择一个 Humi 头像，或使用微信头像。");
+    }
+    if (error?.code === "invalid_avatar_key") {
+      throw httpError(400, "invalid_avatar_key", "请选择 Humi 提供的头像。");
+    }
+    throw error;
+  }
   if (!user) throw httpError(401, "invalid_session", "登录状态已失效。");
   sendJson(response, 200, { user: toPublicUser(user) });
 }
@@ -410,6 +586,45 @@ async function handleGetStaticAsset(request, response, relativePath) {
     "Access-Control-Allow-Origin": "*",
   });
   response.end(request.method === "HEAD" ? undefined : file);
+}
+
+async function handleGetRecipeSummaries(response, url) {
+  const catalog = await recipeCatalogPromise;
+  const category = stringValue(url.searchParams.get("category"), 40).trim();
+  const query = stringValue(url.searchParams.get("query"), 40).trim().toLocaleLowerCase("zh-CN");
+  const limitParam = url.searchParams.get("limit") || "";
+  const cursorParam = url.searchParams.get("cursor") || "";
+  const requestedLimit = /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
+  const requestedCursor = /^\d+$/.test(cursorParam) ? Number(cursorParam) : NaN;
+  const limit = requestedLimit > 0 ? Math.min(40, requestedLimit) : 20;
+  const cursor = Number.isSafeInteger(requestedCursor) && requestedCursor >= 0 ? requestedCursor : 0;
+  const filtered = catalog.filter((recipe) => {
+    const categories = Array.isArray(recipe.categories) ? recipe.categories : [];
+    if (category && !categories.includes(category)) return false;
+    if (!query) return true;
+    const searchText = [
+      recipe.name,
+      recipe.description,
+      ...categories,
+      ...(Array.isArray(recipe.tags) ? recipe.tags : []),
+      ...(Array.isArray(recipe.ingredients) ? recipe.ingredients.map((item) => item?.name) : []),
+    ].filter(Boolean).join(" ").toLocaleLowerCase("zh-CN");
+    return searchText.includes(query);
+  });
+  const recipes = filtered.slice(cursor, cursor + limit).map((recipe) => ({
+    id: stringValue(recipe.id, 80),
+    title: stringValue(recipe.name, 80),
+    category: category || stringValue(recipe.categories?.[0] || "家常菜", 40),
+    minutes: Math.max(1, Number.parseInt(recipe.timeMinutes, 10) || 1),
+    thumbnailUrl: `/assets/dishes/thumbs/${encodeURIComponent(stringValue(recipe.id, 80))}.webp`,
+  }));
+  const nextOffset = cursor + recipes.length;
+  sendJson(response, 200, {
+    recipes,
+    nextCursor: nextOffset < filtered.length ? String(nextOffset) : null,
+  }, {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+  });
 }
 
 async function handleCreateH5Ticket(request, response) {
@@ -493,7 +708,29 @@ async function handleMe(request, response) {
     profileCompleted: getProfileCompletedCount(profile),
     family: toHumiFamily(household, user),
     households: toHumiFamilies(households, user),
+    capabilities: mealExecutionCapabilities(household),
   });
+}
+
+async function handleBootstrap(request, response) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  const snapshot = await store.getBootstrapSnapshot(user.id, { dateKey: currentDinnerDateKey() });
+  const mealExecutionEnabled = mealExecutionCapabilities(snapshot.activeHousehold).mealExecution;
+  const payload = buildBootstrapEnvelope({
+    user,
+    households: snapshot.households,
+    activeHousehold: snapshot.activeHousehold,
+    state: snapshot.state,
+    mealRun: snapshot.mealRun,
+    flags: {
+      nativeShellEnabled: isNativeShellEnabledFor(snapshot.activeHousehold?.id),
+      mealExecutionEnabled,
+      reminderEnabled: Boolean(mealExecutionEnabled && config.mealReminderTemplateId),
+    },
+  });
+  sendJson(response, 200, payload, { "Cache-Control": "private, no-store" });
 }
 
 async function handleProfile(request, response) {
@@ -512,14 +749,7 @@ async function handleGetState(request, response) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
-  const state = await store.getState(user.id);
-  const household = await store.getHouseholdForUser(user.id);
-  const households = await store.getHouseholdsForUser(user.id);
-  sendJson(response, 200, {
-    state,
-    family: toHumiFamily(household, user),
-    households: toHumiFamilies(households, user),
-  });
+  sendJson(response, 200, await buildStateResponse(user), { "Cache-Control": "private, no-store" });
 }
 
 async function handleSaveState(request, response) {
@@ -527,6 +757,26 @@ async function handleSaveState(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
+  if (body?.patch !== undefined) {
+    const patch = sanitizeStatePatch(body.patch);
+    const householdId = stringValue(body.householdId, 80);
+    const expectedStateVersion = normalizeIfMatch(request.headers["if-match"]);
+    const idempotencyKey = stringValue(request.headers["x-humi-idempotency-key"], 100);
+    const household = await store.getHouseholdForUser(user.id);
+    try {
+      await store.saveStatePatch(user.id, patch, {
+        householdId,
+        expectedStateVersion,
+        idempotencyKey,
+        dateKey: currentDinnerDateKey(),
+        flags: bootstrapCapabilityFlags(household),
+      });
+      sendJson(response, 200, await buildStateResponse(user), { "Cache-Control": "private, no-store" });
+      return;
+    } catch (error) {
+      throw mapStatePatchError(error);
+    }
+  }
   const householdId = stringValue(body.householdId || body.state?.householdId, 80);
   const state = await store.saveState(user.id, sanitizeAppState(body.state ?? body), householdId);
   const household = await store.getHouseholdForUser(user.id);
@@ -535,7 +785,557 @@ async function handleSaveState(request, response) {
     state,
     family: toHumiFamily(household, user),
     households: toHumiFamilies(households, user),
+    capabilities: mealExecutionCapabilities(household),
   });
+}
+
+async function buildStateResponse(user) {
+  const snapshot = await store.getBootstrapSnapshot(user.id, { dateKey: currentDinnerDateKey() });
+  const envelope = buildBootstrapEnvelope({
+    user,
+    households: snapshot.households,
+    activeHousehold: snapshot.activeHousehold,
+    state: snapshot.state,
+    mealRun: snapshot.mealRun,
+    flags: bootstrapCapabilityFlags(snapshot.activeHousehold),
+  });
+  return {
+    ...envelope,
+    // The legacy H5 client still consumes the fully sanitized app-state contract,
+    // while the native bootstrap projection deliberately removes token-like fields.
+    state: snapshot.state,
+    family: toHumiFamily(snapshot.activeHousehold, user),
+    households: toHumiFamilies(snapshot.households, user),
+  };
+}
+
+function bootstrapCapabilityFlags(household) {
+  const mealExecutionEnabled = mealExecutionCapabilities(household).mealExecution;
+  return {
+    nativeShellEnabled: isNativeShellEnabledFor(household?.id),
+    mealExecutionEnabled,
+    reminderEnabled: Boolean(mealExecutionEnabled && config.mealReminderTemplateId),
+  };
+}
+
+function sanitizeStatePatch(patch) {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw httpError(400, "state_patch_invalid", "State patch must be an object.");
+  }
+  const keys = Object.keys(patch);
+  const allowedKeys = new Set(["mealPlan", "groceryClaims", "checkedItems", "familyProfile"]);
+  if (!keys.length || keys.some((key) => !allowedKeys.has(key))) {
+    throw httpError(400, "state_patch_invalid", "State patch contains unsupported fields.");
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "groceryClaims")) {
+    if (!patch.groceryClaims || typeof patch.groceryClaims !== "object" || Array.isArray(patch.groceryClaims)) {
+      throw httpError(400, "grocery_claim_invalid", "Grocery claims must be an object map.");
+    }
+    if (Object.keys(patch.groceryClaims).length > 400) {
+      throw httpError(400, "grocery_claim_invalid", "Too many grocery claims in one patch.");
+    }
+    for (const [mapKey, claim] of Object.entries(patch.groceryClaims).slice(0, 401)) {
+      if (
+        !mapKey
+        || !claim
+        || typeof claim !== "object"
+        || Array.isArray(claim)
+        || stringValue(claim.itemKey, 180) !== stringValue(mapKey, 180)
+        || !stringValue(claim.memberId, 100)
+      ) {
+        throw httpError(400, "grocery_claim_invalid", "Grocery claim key, itemKey, and member identity must match.");
+      }
+    }
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(patch, "familyProfile")
+    && (!patch.familyProfile || typeof patch.familyProfile !== "object" || Array.isArray(patch.familyProfile))
+  ) {
+    throw httpError(400, "state_patch_invalid", "Family profile patch must be an object.");
+  }
+  return Object.fromEntries(keys.map((key) => [
+    key,
+    key === "mealPlan"
+      ? sanitizeMealPlan(patch[key])
+      : key === "groceryClaims"
+        ? sanitizeGroceryClaims(patch[key])
+        : key === "checkedItems"
+          ? sanitizeBooleanMap(patch[key], 400)
+          : sanitizeProfile(patch[key]),
+  ]));
+}
+
+function normalizeIfMatch(value) {
+  const header = Array.isArray(value) ? value[0] : value;
+  const normalized = stringValue(header, 184);
+  if (normalized.startsWith("\"") && normalized.endsWith("\"")) return normalized.slice(1, -1);
+  return normalized;
+}
+
+function mapStatePatchError(error) {
+  const statusByCode = {
+    household_not_found: 404,
+    forbidden: 403,
+    state_patch_invalid: 400,
+    idempotency_key_required: 400,
+    idempotency_key_reused: 409,
+    state_precondition_required: 428,
+    state_version_conflict: 409,
+    grocery_item_claim_conflict: 409,
+    grocery_claim_invalid: 400,
+    date_key_invalid: 400,
+  };
+  const status = statusByCode[error?.code];
+  if (!status) return error;
+  const mapped = httpError(status, error.code, error.message);
+  if (error.latestEnvelope) mapped.latestEnvelope = error.latestEnvelope;
+  return mapped;
+}
+
+async function handleDinnerRecommendation(request, response) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  const requestedHouseholdId = stringValue(body.householdId, 100);
+  const households = await store.getHouseholdsForUser(user.id);
+  const activeHousehold = await store.getHouseholdForUser(user.id);
+  const household = requestedHouseholdId
+    ? households.find((item) => item.id === requestedHouseholdId)
+    : activeHousehold;
+  if (!household) throw httpError(404, "household_not_found", "没有找到这个家。");
+  const mode = stringValue(body.mode, 24);
+  if (mode === "meal_execution") assertMealExecutionEnabled(household.id);
+  try {
+    const recommendation = await store.rotateDinnerRecommendation(user.id, {
+      householdId: household.id,
+      dateKey: body.dateKey,
+      mode,
+      effortTier: body.effortTier,
+      action: body.action,
+      contextFingerprint: body.contextFingerprint,
+      stateVersion: body.stateVersion,
+    });
+    sendJson(response, 200, recommendation, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCreateMealRun(request, response) {
+  const { user, household } = await requireMealExecutionContext(request);
+  const body = await readJson(request);
+  const householdId = stringValue(body.householdId, 100) || household.id;
+  if (householdId !== household.id) {
+    const households = await store.getHouseholdsForUser(user.id);
+    const requestedHousehold = households.find((item) => item.id === householdId);
+    if (!requestedHousehold) throw httpError(404, "household_not_found", "没有找到这个家。");
+    assertMealExecutionEnabled(requestedHousehold.id);
+  }
+  const effortTier = stringValue(body.effortTier, 24);
+  const recipeIds = [...new Set((Array.isArray(body.recipeIds) ? body.recipeIds : [])
+    .map((recipeId) => stringValue(recipeId, 100))
+    .filter(Boolean))].slice(0, 6);
+  const certifiedRecipes = recipeIds.map((recipeId) => {
+    const recipe = getCertifiedRecipe(recipeId);
+    if (!recipe) throw httpError(400, "recipe_not_certified", "这套菜单还没有通过省力烹饪认证，请继续使用普通做法。");
+    return recipe;
+  });
+  assertRecipesFitEffortTier(certifiedRecipes, effortTier);
+  try {
+    const result = await store.createMealRun(user.id, {
+      householdId,
+      dateKey: body.dateKey,
+      mealSlot: body.mealSlot,
+      effortTier,
+      recipeIds,
+      idempotencyKey: body.idempotencyKey,
+      readyStaple: body.readyStaple,
+      syncedFromLocalId: body.syncedFromLocalId,
+      syncedStartedAt: body.syncedStartedAt,
+      timelineVersion: 1,
+      recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
+    });
+    sendJson(response, result.mealRun.createdAt === result.mealRun.updatedAt ? 201 : 200, {
+      mealRun: result.mealRun,
+      replacedMealRunId: result.replacedMealRunId || "",
+    });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleGetCurrentMealRun(request, response, searchParams) {
+  const householdId = stringValue(searchParams.get("householdId"), 100);
+  const mealRunId = stringValue(searchParams.get("mealRunId"), 100);
+  if (mealRunId) {
+    const { user } = await requireMealExecutionUser(request);
+    try {
+      const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+      assertMealExecutionEnabled(mealRun.householdId);
+      const requestedDateKey = stringValue(searchParams.get("dateKey"), 10);
+      const requestedMealSlot = stringValue(searchParams.get("mealSlot"), 24) || "dinner";
+      if (
+        (householdId && mealRun.householdId !== householdId)
+        || (requestedDateKey && mealRun.dateKey !== requestedDateKey)
+        || mealRun.mealSlot !== requestedMealSlot
+      ) {
+        throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+      }
+      sendJson(response, 200, { mealRun });
+      return;
+    } catch (error) {
+      throw mapMealExecutionError(error);
+    }
+  }
+  const { user } = await requireMealExecutionContext(request, householdId);
+  try {
+    const mealRun = await store.getCurrentMealRun(user.id, {
+      householdId,
+      dateKey: searchParams.get("dateKey"),
+      mealSlot: stringValue(searchParams.get("mealSlot"), 24) || "dinner",
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleStartMealRun(request, response, mealRunId) {
+  const { auth, user } = await requireMealExecutionUser(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const timeline = current.status === "cooking"
+      ? current.timeline
+      : buildMealTimeline(current.recipeIds, { startedAt: current.syncedStartedAt || new Date().toISOString() });
+    const mealRun = await store.startMealRun(auth.userId, mealRunId, timeline);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleUpdateMealRunProgress(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.updateMealRunProgress(user.id, mealRunId, {
+      currentStepId: body.currentStepId,
+      timelineVersion: body.timelineVersion,
+      timer: body.timer,
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCompleteMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.completeMealRun(user.id, mealRunId, {
+      timelineVersion: body.timelineVersion,
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleDowngradeMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const downgradedPlan = downgradeMealPlan(current.recipeIds, body.action);
+    const certifiedRecipes = downgradedPlan.recipeIds.map((recipeId) => getCertifiedRecipe(recipeId));
+    const recipeChanged = current.recipeIds.length !== downgradedPlan.recipeIds.length
+      || current.recipeIds.some((recipeId, index) => recipeId !== downgradedPlan.recipeIds[index]);
+    const timeline = current.status === "cooking" && recipeChanged
+      ? buildMealTimeline(downgradedPlan.recipeIds, { startedAt: new Date().toISOString() })
+      : current.timeline;
+    const mealRun = await store.downgradeMealRun(user.id, mealRunId, {
+      action: body.action,
+      recipeIds: downgradedPlan.recipeIds,
+      readyStaple: downgradedPlan.readyStaple,
+      recipeSnapshot: certifiedRecipes.map(toMealRecipeSnapshot),
+      timeline,
+    });
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleAbandonMealRun(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.abandonMealRun(user.id, mealRunId, body.reason);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleMealRunFeedback(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const current = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(current.householdId);
+    const mealRun = await store.updateMealRunFeedback(user.id, mealRunId, body.value);
+    sendJson(response, 200, { mealRun });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCreateMealTask(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  const body = await readJson(request);
+  try {
+    const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(mealRun.householdId);
+    const taskInput = deriveMealTask(mealRun, body);
+    const task = await store.createMealTask(user.id, mealRunId, {
+      ...taskInput,
+      idempotencyKey: stringValue(request.headers["x-humi-idempotency-key"], 180),
+    });
+    sendJson(response, 201, { task });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleGetMealTasks(request, response, mealRunId) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const mealRun = await store.getMealRunForUser(user.id, mealRunId);
+    assertMealExecutionEnabled(mealRun.householdId);
+    const tasks = await store.getMealTasksForRun(user.id, mealRunId);
+    sendJson(response, 200, {
+      tasks: tasks.map(toPublicMealTaskSummary),
+    }, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    if (error?.code === "household_not_found") {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleGetMealTask(request, response, token) {
+  const auth = await optionalAuth(request);
+  try {
+    const landing = await store.getMealTaskLanding(token, auth?.userId || "");
+    if (!landing) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    sendJson(response, 200, { task: landing }, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handlePrepareMealTaskShare(request, response, taskId) {
+  const { user } = await requireMealExecutionUser(request);
+  await readJson(request);
+  try {
+    const task = await store.prepareMealTaskShare(user.id, taskId);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    assertMealExecutionEnabled(task.householdId);
+    sendJson(response, 201, {
+      snapshot: {
+        token: task.token,
+        cacheExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      },
+    }, { "Cache-Control": "private, no-store" });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleClaimMealTask(request, response, token) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const task = await store.getMealTask(token);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    assertMealExecutionEnabled(task.householdId);
+    const claimed = await store.claimMealTask(user.id, token);
+    sendJson(response, 200, { task: claimed });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCompleteMealTask(request, response, token) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const task = await store.getMealTask(token);
+    if (!task) throw httpError(404, "meal_task_not_found", "这个家庭任务已经失效。");
+    assertMealExecutionEnabled(task.householdId);
+    const completed = await store.completeMealTask(user.id, token);
+    sendJson(response, 200, { task: completed });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleMealReminderConfig(request, response, searchParams) {
+  const { user, household } = await requireMealExecutionContext(request);
+  let existingReminder = null;
+  try {
+    const sourceMealRunId = stringValue(searchParams.get("mealRunId"), 100);
+    const source = await store.getEligibleReminderSource(user.id, sourceMealRunId);
+    if (source.householdId !== household.id) {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
+    existingReminder = await store.getMealReminderForSource(user.id, sourceMealRunId);
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+  sendJson(response, 200, {
+    enabled: Boolean(config.mealReminderTemplateId && household),
+    templateId: config.mealReminderTemplateId || "",
+    existingReminder: toPublicMealReminder(existingReminder),
+  });
+}
+
+async function handleCreateMealReminder(request, response) {
+  const { user, household } = await requireMealExecutionContext(request);
+  const body = await readJson(request);
+  if (!config.mealReminderTemplateId) throw httpError(503, "reminder_not_configured", "做饭提醒暂未配置。");
+  if (body.accepted !== true || stringValue(body.templateId, 120) !== config.mealReminderTemplateId) {
+    throw httpError(400, "reminder_consent_required", "只有微信明确授权后才能创建这次提醒。");
+  }
+  const scheduledAtMs = Date.parse(body.scheduledAt);
+  if (!Number.isFinite(scheduledAtMs) || scheduledAtMs <= Date.now() || scheduledAtMs > Date.now() + 30 * 24 * 60 * 60 * 1000) {
+    throw httpError(400, "reminder_time_invalid", "请选择未来 30 天内的做饭时间。");
+  }
+  const scheduledDateKey = formatBusinessDateKey(new Date(scheduledAtMs), "Asia/Shanghai");
+  if (stringValue(body.dateKey, 10) !== scheduledDateKey) {
+    throw httpError(400, "reminder_date_mismatch", "提醒日期必须与所选时间一致。");
+  }
+  try {
+    const sourceMealRunId = stringValue(body.sourceMealRunId || body.mealRunId, 100);
+    const source = await store.getEligibleReminderSource(user.id, sourceMealRunId);
+    if (source.householdId !== household.id) {
+      throw httpError(404, "meal_run_not_found", "没有找到这顿饭。");
+    }
+    const result = await store.createMealReminder(user.id, {
+      householdId: household.id,
+      sourceMealRunId,
+      scheduledAt: body.scheduledAt,
+      dateKey: body.dateKey,
+      effortTier: body.effortTier,
+      templateId: config.mealReminderTemplateId,
+      idempotencyKey: stringValue(request.headers["x-humi-idempotency-key"], 180),
+    });
+    sendJson(response, result.created ? 201 : 200, {
+      created: result.created,
+      reminder: toPublicMealReminder(result.reminder),
+    });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleCancelMealReminder(request, response, reminderId) {
+  const { user } = await requireMealExecutionUser(request);
+  try {
+    const reminder = await store.cancelMealReminder(user.id, reminderId);
+    if (!reminder) throw httpError(404, "meal_reminder_not_found", "没有找到这次提醒。");
+    assertMealExecutionEnabled(reminder.householdId);
+    sendJson(response, 200, { reminder });
+  } catch (error) {
+    throw mapMealExecutionError(error);
+  }
+}
+
+async function handleProductEvent(request, response) {
+  const auth = await optionalAuth(request);
+  const user = auth ? await store.getUser(auth.userId) : null;
+  if (auth && !user) throw httpError(401, "invalid_session", "Session user not found.");
+  const body = await readJson(request, 4 * 1024);
+  try {
+    enforceTelemetryAccess(request, body);
+    await store.recordClientProductEvent({
+      userId: user?.id || "",
+      telemetryHashSalt: config.telemetryHashSalt,
+      input: body,
+    });
+    sendJson(response, 202, { ok: true });
+  } catch (error) {
+    const statusByCode = {
+      product_event_field_invalid: 400,
+      product_event_not_allowed: 400,
+      product_event_household_forbidden: 403,
+      household_not_found: 404,
+      telemetry_hash_salt_required: 503,
+    };
+    const status = statusByCode[error?.code];
+    if (status) throw httpError(status, error.code, error.message);
+    throw error;
+  }
+}
+
+export function createBoundedFixedWindowLimiter({ limit, windowMs, maxEntries }) {
+  const buckets = new Map();
+  let lastSweepAt = null;
+  return {
+    consume(key, now = Date.now()) {
+      if (lastSweepAt === null || now - lastSweepAt >= windowMs) {
+        for (const [bucketKey, bucket] of buckets) {
+          if (now >= bucket.resetAt) buckets.delete(bucketKey);
+        }
+        lastSweepAt = now;
+      }
+      const bucket = buckets.get(key);
+      if (bucket && now < bucket.resetAt) {
+        if (bucket.count >= limit) return false;
+        bucket.count += 1;
+        return true;
+      }
+      if (bucket) buckets.delete(key);
+      while (buckets.size >= maxEntries) {
+        const oldestKey = buckets.keys().next().value;
+        if (oldestKey === undefined) break;
+        buckets.delete(oldestKey);
+      }
+      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      return true;
+    },
+    get size() {
+      return buckets.size;
+    },
+  };
+}
+
+const telemetrySessionLimiter = createBoundedFixedWindowLimiter({
+  limit: config.telemetryRateLimit,
+  windowMs: config.telemetryRateWindowMs,
+  maxEntries: 4_096,
+});
+const telemetryNetworkLimiter = createBoundedFixedWindowLimiter({
+  limit: config.telemetryNetworkRateLimit,
+  windowMs: config.telemetryRateWindowMs,
+  maxEntries: 1_024,
+});
+
+function enforceTelemetryAccess(request, body) {
+  const sessionKey = hashTelemetryAnonymousSessionId(body?.anonymousSessionId, config.telemetryHashSalt);
+  const networkKey = createHmac("sha256", config.telemetryHashSalt)
+    .update(getClientIp(request))
+    .digest("hex");
+  if (!telemetrySessionLimiter.consume(sessionKey) || !telemetryNetworkLimiter.consume(networkKey)) {
+    throw httpError(429, "telemetry_rate_limited", "数据上报有点快，请稍后再试。");
+  }
 }
 
 async function handleGetHouseholds(request, response) {
@@ -674,6 +1474,261 @@ function mapHouseholdError(error) {
   return status ? httpError(status, code, error.message) : error;
 }
 
+async function requireMealExecutionUser(request) {
+  const auth = await requireAuth(request);
+  const user = await store.getUser(auth.userId);
+  if (!user) throw httpError(401, "invalid_session", "Session user not found.");
+  return { auth, user };
+}
+
+async function requireMealExecutionContext(request, requestedHouseholdId = "") {
+  const context = await requireMealExecutionUser(request);
+  const households = await store.getHouseholdsForUser(context.user.id);
+  const activeHousehold = await store.getHouseholdForUser(context.user.id);
+  const household = requestedHouseholdId
+    ? households.find((item) => item.id === requestedHouseholdId)
+    : activeHousehold;
+  if (!household) throw httpError(404, "household_not_found", "请先创建或加入一个家。");
+  assertMealExecutionEnabled(household.id);
+  return { ...context, household };
+}
+
+function mealExecutionCapabilities(household) {
+  return {
+    mealExecution: household
+      ? isMealExecutionEnabledFor(household.id)
+      : isGuestMealExecutionEnabled(),
+  };
+}
+
+function isMealExecutionEnabledFor(householdId) {
+  if (!config.mealExecutionEnabled || !householdId) return false;
+  return config.mealExecutionHouseholds.has("*") || config.mealExecutionHouseholds.has(householdId);
+}
+
+function isGuestMealExecutionEnabled() {
+  return config.mealExecutionEnabled
+    && (config.mealExecutionHouseholds.has("guest") || config.mealExecutionHouseholds.has("*"));
+}
+
+function isNativeShellEnabledFor(householdId) {
+  if (!config.nativeShellEnabled) return false;
+  if (!householdId) {
+    const testWildcardCohort = config.nativeShellWildcardAllowed
+      && config.nativeShellHouseholds.has("*")
+      && config.mealExecutionHouseholds.has("*");
+    return config.mealExecutionEnabled && testWildcardCohort;
+  }
+  return (config.nativeShellWildcardAllowed && config.nativeShellHouseholds.has("*"))
+    || config.nativeShellHouseholds.has(householdId);
+}
+
+function currentDinnerDateKey(now = new Date()) {
+  return formatBusinessDateKey(now, "Asia/Shanghai");
+}
+
+function assertMealExecutionEnabled(householdId) {
+  if (!isMealExecutionEnabledFor(householdId)) {
+    throw httpError(403, "meal_execution_disabled", "这个家暂未进入省力做饭体验。");
+  }
+}
+
+function assertRecipesFitEffortTier(recipes, effortTier) {
+  const rank = { quick_15: 0, easy_30: 1, normal: 2 };
+  if (!(effortTier in rank)) throw httpError(400, "effort_tier_invalid", "请选择今天的行动力。");
+  if (recipes.length === 0) throw httpError(400, "meal_recipes_required", "请先选择今晚要做的菜。");
+  if (recipes.some((recipe) => rank[recipe.cookAssist.effortTier] > rank[effortTier])) {
+    throw httpError(400, "effort_tier_mismatch", "这套菜超过了当前行动力档位，请换一套更省力的方案。");
+  }
+}
+
+function toMealRecipeSnapshot(recipe) {
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    ingredients: recipe.ingredients.map((ingredient) => ({
+      name: stringValue(ingredient.name, 40),
+      amount: ingredient.amount,
+      unit: stringValue(ingredient.unit, 16),
+      required: ingredient.required !== false,
+    })),
+    cookAssist: structuredClone(recipe.cookAssist),
+  };
+}
+
+function deriveMealTask(mealRun, body = {}) {
+  if (body.type === "buy") {
+    const ingredientName = stringValue(body.ingredientName, 40);
+    if (!ingredientName || !(mealRun.missingIngredients ?? []).includes(ingredientName)) {
+      throw httpError(400, "meal_task_invalid", "请选择这顿饭真实缺少的食材。");
+    }
+    return {
+      type: "buy",
+      label: `请家人买${ingredientName}`,
+      sourceId: `ingredient:${ingredientName}`,
+    };
+  }
+  if (body.type === "prep") {
+    const stepId = stringValue(body.stepId, 160);
+    const step = mealRun.timeline?.steps?.find((candidate) => (
+      candidate.id === stepId
+      && candidate.phase === "prep"
+      && candidate.delegatable === true
+      && candidate.taskLabel
+    ));
+    if (!step) throw httpError(400, "meal_task_invalid", "请选择这顿饭里明确可协作的备菜步骤。");
+    return {
+      type: "prep",
+      label: stringValue(step.taskLabel, 64),
+      sourceId: `step:${step.id}`,
+    };
+  }
+  throw httpError(400, "meal_task_invalid", "只支持买食材或帮忙备菜任务。");
+}
+
+function toPublicMealTaskSummary(task = {}) {
+  return {
+    id: stringValue(task.id, 100),
+    type: task.type === "buy" ? "buy" : "prep",
+    label: stringValue(task.label, 64),
+    sourceId: stringValue(task.sourceId, 180),
+    status: ["open", "claimed", "completed"].includes(task.status) ? task.status : "open",
+    createdBy: stringValue(task.createdBy, 100),
+    claimedBy: stringValue(task.claimedBy, 100),
+    completedBy: stringValue(task.completedBy, 100),
+    createdAt: stringValue(task.createdAt, 48),
+    updatedAt: stringValue(task.updatedAt, 48),
+    claimedAt: stringValue(task.claimedAt, 48),
+    completedAt: stringValue(task.completedAt, 48),
+  };
+}
+
+function mapMealExecutionError(error) {
+  if (error?.status) return error;
+  const statusByCode = {
+    forbidden: 403,
+    household_not_found: 404,
+    meal_run_not_found: 404,
+    meal_task_not_found: 404,
+    meal_task_unavailable: 409,
+    meal_run_locked: 409,
+    meal_run_transition_invalid: 409,
+    meal_task_claimed: 409,
+    meal_task_forbidden: 403,
+    meal_task_unavailable: 409,
+    meal_step_invalid: 400,
+    meal_timer_step_invalid: 400,
+    meal_timer_time_invalid: 400,
+    meal_timer_duration_invalid: 400,
+    meal_timeline_version_conflict: 409,
+    meal_synced_started_at_invalid: 400,
+    meal_timer_dependency_blocked: 409,
+    meal_timer_resource_busy: 409,
+    meal_task_invalid: 400,
+    meal_feedback_invalid: 400,
+    abandon_reason_invalid: 400,
+    invalid_downgrade_action: 400,
+    product_event_invalid: 400,
+    recommendation_state_conflict: 409,
+    recommendation_candidates_exhausted: 409,
+    recommendation_mode_invalid: 400,
+    recommendation_action_invalid: 400,
+    context_fingerprint_invalid: 400,
+    idempotency_key_required: 400,
+    date_key_invalid: 400,
+    effort_tier_invalid: 400,
+    meal_slot_invalid: 400,
+    meal_recipes_required: 400,
+    timer_end_invalid: 400,
+    reminder_time_invalid: 400,
+    reminder_source_required: 400,
+    reminder_source_incomplete: 409,
+    reminder_source_not_first: 409,
+  };
+  const status = statusByCode[error?.code];
+  return status ? httpError(status, error.code, error.message) : error;
+}
+
+export async function processDueMealReminders({
+  now = new Date().toISOString(),
+  sendMessage = sendWechatSubscribeMessage,
+} = {}) {
+  if (!config.mealExecutionEnabled || !config.mealReminderTemplateId) return [];
+  const reminders = await store.getDueMealReminders(now);
+  const results = [];
+  for (const reminder of reminders) {
+    if (!isMealExecutionEnabledFor(reminder.householdId) || await store.shouldCancelMealReminder(reminder)) {
+      const cancelled = await store.markMealReminderCancelled(reminder.id);
+      results.push(cancelled);
+      continue;
+    }
+    const claimed = await store.claimMealReminderAttempt(reminder.id, now);
+    if (!claimed) continue;
+    try {
+      const openid = await store.getWechatOpenIdForUser(claimed.userId);
+      if (!openid) {
+        const error = new Error("wechat_openid_missing");
+        error.deliveryState = "not_submitted";
+        throw error;
+      }
+      await sendMessage({
+        openid,
+        appId: config.wechatAppId,
+        appSecret: config.wechatAppSecret,
+        mock: config.wechatMock,
+        templateId: config.mealReminderTemplateId,
+        page: buildMealReminderDeepLink(claimed),
+        data: {
+          [config.mealReminderThingKey]: { value: claimed.effortTier === "quick_15" ? "今晚 15 分钟方案已准备好" : "今晚的省力方案已准备好" },
+          [config.mealReminderTimeKey]: { value: formatWechatReminderTime(claimed.scheduledAt) },
+        },
+      });
+      results.push(await store.markMealReminderSent(claimed.id, now));
+    } catch (error) {
+      const message = error.code || error.message;
+      results.push(error.deliveryState === "not_submitted"
+        ? await store.markMealReminderFailure(claimed.id, message, now)
+        : await store.markMealReminderDeliveryUnknown(claimed.id, message, now));
+    }
+  }
+  return results;
+}
+
+export function buildMealReminderDeepLink(reminder = {}) {
+  const params = new URLSearchParams({
+    dateKey: stringValue(reminder.dateKey, 10),
+    effortTier: stringValue(reminder.effortTier, 24),
+    mealReminder: stringValue(reminder.id, 100),
+    sourceMealRunId: stringValue(reminder.sourceMealRunId, 100),
+  });
+  return `pages/tonight/index?${params.toString()}`;
+}
+
+function formatWechatReminderTime(value) {
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date).replaceAll("/", "-");
+}
+
+function toPublicMealReminder(reminder) {
+  if (!reminder) return null;
+  return {
+    id: stringValue(reminder.id, 100),
+    status: stringValue(reminder.status, 40),
+    scheduledAt: stringValue(reminder.scheduledAt, 80),
+    dateKey: stringValue(reminder.dateKey, 10),
+    effortTier: stringValue(reminder.effortTier, 24),
+    sourceMealRunId: stringValue(reminder.sourceMealRunId, 100),
+  };
+}
+
 async function handleCreateHouseholdInvite(request, response) {
   const auth = await requireAuth(request);
   const user = await store.getUser(auth.userId);
@@ -683,6 +1738,7 @@ async function handleCreateHouseholdInvite(request, response) {
     const invite = await store.createHouseholdInvite(user.id, {
       householdId: stringValue(body.householdId, 80),
       inviterName: stringValue(body.inviterName, 32) || user.displayName,
+      idempotencyKey: stringValue(body.idempotencyKey, 100),
     });
     sendJson(response, 201, { invite: toPublicHouseholdInvite(invite) });
   } catch (error) {
@@ -707,7 +1763,6 @@ async function handleAddHouseholdInviteWant(request, response, token) {
   try {
     const result = await store.addHouseholdInviteWant(token, {
       participantKey: stringValue(body.participantKey, 80),
-      memberName: stringValue(body.memberName, 32),
       title: stringValue(body.title, 40),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
@@ -733,7 +1788,7 @@ async function handleJoinHouseholdInvite(request, response, token) {
   const body = await readJson(request);
   try {
     const result = await store.acceptHouseholdInvite(token, user.id, {
-      memberName: stringValue(body.memberName, 32) || user.displayName,
+      memberName: user.displayName,
       participantKey: stringValue(body.participantKey, 80),
     });
     if (!result) throw httpError(404, "household_invite_not_found", "这个家庭邀请已经失效。");
@@ -888,6 +1943,10 @@ async function handleCreateGroceryShareRequest(request, response) {
   const user = await store.getUser(auth.userId);
   if (!user) throw httpError(401, "invalid_session", "Session user not found.");
   const body = await readJson(request);
+  const requestedMode = stringValue(body.mode, 24);
+  if (requestedMode && !["collaboration", "read_only"].includes(requestedMode)) {
+    throw httpError(400, "grocery_share_mode_invalid", "Unsupported grocery share mode.");
+  }
   try {
     const groceryRequest = await store.createGroceryShareRequest(body, user.id);
     sendJson(response, 201, {
@@ -896,7 +1955,7 @@ async function handleCreateGroceryShareRequest(request, response) {
     });
   } catch (error) {
     if (error.code === "forbidden") {
-      throw httpError(403, "forbidden", "只有主厨能分享这个家的买菜清单。");
+      throw httpError(403, "forbidden", "只有正式家庭成员能分享这个家的买菜清单。");
     }
     throw error;
   }
@@ -911,7 +1970,15 @@ async function handleGetGroceryShareRequest(response, token) {
 async function handleGroceryShareClaim(request, response, token) {
   const body = await readJson(request);
   const participant = await resolveCollaborationParticipant(request, body);
-  const groceryRequest = await store.addGroceryShareClaim(token, body, participant);
+  let groceryRequest;
+  try {
+    groceryRequest = await store.addGroceryShareClaim(token, body, participant);
+  } catch (error) {
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能认领或修改。");
+    }
+    throw error;
+  }
   if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
   sendJson(response, 200, {
     request: toPublicGroceryShareRequest(groceryRequest),
@@ -921,7 +1988,15 @@ async function handleGroceryShareClaim(request, response, token) {
 
 async function handleGroceryShareItemCheck(request, response, token, itemId) {
   const body = await readJson(request);
-  const groceryRequest = await store.updateGroceryShareItemChecked(token, decodeURIComponent(itemId), Boolean(body.checked));
+  let groceryRequest;
+  try {
+    groceryRequest = await store.updateGroceryShareItemChecked(token, decodeURIComponent(itemId), Boolean(body.checked));
+  } catch (error) {
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能认领或修改。");
+    }
+    throw error;
+  }
   if (!groceryRequest) throw httpError(404, "grocery_share_not_found", "这个清单链接已经失效。");
   sendJson(response, 200, { request: toPublicGroceryShareRequest(groceryRequest) });
 }
@@ -958,6 +2033,12 @@ async function handleJoinGroceryShare(request, response, token) {
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
+    if (error.code === "grocery_share_read_only") {
+      throw httpError(403, "grocery_share_read_only", "这个清单仅供查看，不能绑定参与记录。");
+    }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的买菜参与记录。");
+    }
     throw error;
   }
 }
@@ -969,10 +2050,10 @@ async function handleCreateMenuShareRequest(request, response) {
   const body = await readJson(request);
   try {
     const menuRequest = await store.createMenuShareRequest(body, user.id);
-    sendJson(response, 201, { request: toPublicMenuShareRequest(menuRequest) });
+    sendJson(response, 201, { request: toOwnerMenuShareRequest(menuRequest) });
   } catch (error) {
     if (error.code === "forbidden") {
-      throw httpError(403, "forbidden", "只有主厨能分享这个家的今晚菜单。");
+      throw httpError(403, "forbidden", "只有正式家庭成员能分享这个家的今晚菜单。");
     }
     throw error;
   }
@@ -1052,6 +2133,9 @@ async function handleJoinWishShare(request, response, token) {
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的想吃记录。");
+    }
     throw error;
   }
 }
@@ -1117,6 +2201,9 @@ async function handleJoinCraveRequest(request, response, token) {
     if (error.code === "collaboration_already_claimed") {
       throw httpError(409, "collaboration_already_claimed", "这次游客参与已经绑定到另一个 Humi 身份。");
     }
+    if (error.code === "household_disbanded") {
+      throw httpError(410, "household_disbanded", "这个家庭已经解散，不能再绑定旧的征集参与记录。");
+    }
     throw error;
   }
 }
@@ -1139,6 +2226,8 @@ async function handleCloseCraveRequest(request, response, token) {
 async function handleCreatePosterShare(request, response) {
   const auth = await requireAuth(request);
   enforcePosterUploadAccess(request, auth.userId);
+  const styleId = normalizePosterStyleId(request.headers["x-humi-poster-style"]);
+  const idempotencyKey = stringValue(request.headers["x-humi-idempotency-key"], 100);
   const declaredLength = Number(request.headers["content-length"] || 0);
   if (declaredLength > config.posterMaxBytes) {
     throw httpError(413, "poster_too_large", "海报图片太大，请重新生成后再试。");
@@ -1152,19 +2241,19 @@ async function handleCreatePosterShare(request, response) {
 
   await mkdir(config.posterDir, { recursive: true, mode: 0o700 });
   await cleanupExpiredPosters();
-  const token = randomBytes(24).toString("base64url");
-  const filename = `${token}.${format}`;
-  await writeFile(join(config.posterDir, filename), body, { mode: 0o600, flag: "wx" });
-  const expiresAt = new Date(Date.now() + config.posterTtlMs).toISOString();
-  sendJson(response, 201, {
-    poster: {
-      token,
-      format,
-      url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
-      expiresAt,
-      bytes: body.length,
-    },
+  const poster = await createPosterShareSnapshot({
+    userId: auth.userId,
+    idempotencyKey,
+    body,
+    format,
+    styleId,
   });
+  sendJson(response, 201, { poster });
+}
+
+function normalizePosterStyleId(value) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "theme" ? "theme" : "default";
 }
 
 async function handleGetPosterShare(request, response, token, format) {
@@ -1196,6 +2285,104 @@ async function handleGetPosterShare(request, response, token, format) {
 }
 
 const posterRateBuckets = new Map();
+const posterUploadInflight = new Map();
+
+async function createPosterShareSnapshot({ userId, idempotencyKey, body, format, styleId }) {
+  if (!idempotencyKey) return persistPosterShare({ body, format, styleId });
+  const operationKey = createHmac("sha256", config.sessionSecret)
+    .update(`poster:${userId}:${idempotencyKey}`)
+    .digest("hex");
+  const bodyDigest = createHmac("sha256", config.sessionSecret).update(body).digest("hex");
+  if (posterUploadInflight.has(operationKey)) {
+    const existing = await posterUploadInflight.get(operationKey);
+    assertMatchingPosterSnapshot(existing, { bodyDigest, format, styleId });
+    return existing.poster;
+  }
+  const pending = readOrCreatePosterSnapshot(operationKey, {
+    body,
+    bodyDigest,
+    format,
+    styleId,
+  });
+  posterUploadInflight.set(operationKey, pending);
+  try {
+    const snapshot = await pending;
+    assertMatchingPosterSnapshot(snapshot, { bodyDigest, format, styleId });
+    return snapshot.poster;
+  } finally {
+    if (posterUploadInflight.get(operationKey) === pending) posterUploadInflight.delete(operationKey);
+  }
+}
+
+async function readOrCreatePosterSnapshot(operationKey, input) {
+  const metadataPath = posterIdempotencyPath(operationKey);
+  const existing = await readPosterSnapshotMetadata(metadataPath);
+  if (existing) return existing;
+  const poster = await persistPosterShare(input);
+  const snapshot = {
+    bodyDigest: input.bodyDigest,
+    format: input.format,
+    styleId: input.styleId,
+    poster,
+  };
+  await writeFile(metadataPath, JSON.stringify(snapshot), { mode: 0o600, flag: "w" });
+  return snapshot;
+}
+
+async function persistPosterShare({ body, format, styleId }) {
+  const token = randomBytes(24).toString("base64url");
+  const filename = `${token}.${format}`;
+  await writeFile(join(config.posterDir, filename), body, { mode: 0o600, flag: "wx" });
+  const expiresAt = new Date(Date.now() + config.posterTtlMs).toISOString();
+  return {
+    token,
+    format,
+    url: `${config.posterPublicBaseUrl}/poster-shares/${token}.${format}`,
+    expiresAt,
+    bytes: body.length,
+    styleId,
+  };
+}
+
+async function readPosterSnapshotMetadata(path) {
+  let snapshot;
+  try {
+    snapshot = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    await unlink(path).catch(() => {});
+    return null;
+  }
+  const poster = snapshot?.poster;
+  const expiresAt = Date.parse(poster?.expiresAt || "");
+  const posterPath = poster?.token && poster?.format
+    ? join(config.posterDir, `${poster.token}.${poster.format}`)
+    : "";
+  const posterInfo = posterPath ? await stat(posterPath).catch(() => null) : null;
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || !posterInfo?.isFile()) {
+    await unlink(path).catch(() => {});
+    return null;
+  }
+  return snapshot;
+}
+
+function assertMatchingPosterSnapshot(snapshot, { bodyDigest, format, styleId }) {
+  if (
+    snapshot?.bodyDigest !== bodyDigest
+    || snapshot?.format !== format
+    || snapshot?.styleId !== styleId
+  ) {
+    throw httpError(
+      409,
+      "poster_idempotency_conflict",
+      "这张海报的内容已经变化，请重新生成后再分享。",
+    );
+  }
+}
+
+function posterIdempotencyPath(operationKey) {
+  return join(config.posterDir, `.poster-idempotency-${operationKey}.json`);
+}
 
 function enforcePosterUploadAccess(request, userId) {
   const key = `${userId}:${getClientIp(request)}`;
@@ -1220,8 +2407,12 @@ async function cleanupExpiredPosters() {
   const entries = await readdir(config.posterDir, { withFileTypes: true }).catch(() => []);
   const now = Date.now();
   await Promise.all(entries.map(async (entry) => {
-    if (!entry.isFile() || !/^[A-Za-z0-9_-]{24,64}\.(jpg|png)$/.test(entry.name)) return;
     const path = join(config.posterDir, entry.name);
+    if (entry.isFile() && /^\.poster-idempotency-[a-f0-9]{64}\.json$/.test(entry.name)) {
+      await readPosterSnapshotMetadata(path);
+      return;
+    }
+    if (!entry.isFile() || !/^[A-Za-z0-9_-]{24,64}\.(jpg|png)$/.test(entry.name)) return;
     const fileInfo = await stat(path).catch(() => null);
     if (fileInfo && now - fileInfo.mtimeMs > config.posterTtlMs) {
       await unlink(path).catch(() => {});
@@ -1256,11 +2447,29 @@ function enforceAiAccess(request) {
 }
 
 function getClientIp(request) {
+  const socketAddress = normalizeNetworkAddress(request.socket?.remoteAddress);
   const forwarded = request.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0].trim();
+  if (
+    socketAddress
+    && config.trustedProxyIps.has(socketAddress)
+    && typeof forwarded === "string"
+    && forwarded.length > 0
+  ) {
+    const chain = forwarded
+      .split(",")
+      .map((value) => normalizeNetworkAddress(value))
+      .filter(Boolean);
+    for (let index = chain.length - 1; index >= 0; index -= 1) {
+      if (!config.trustedProxyIps.has(chain[index])) return chain[index];
+    }
   }
-  return request.socket?.remoteAddress || "unknown";
+  return socketAddress || "unknown";
+}
+
+function normalizeNetworkAddress(value) {
+  const address = String(value || "").trim().replace(/^\[|\]$/g, "");
+  const unwrapped = address.startsWith("::ffff:") ? address.slice(7) : address;
+  return isIP(unwrapped) ? unwrapped : "";
 }
 
 function toPublicCraveRequest(request) {
@@ -1330,6 +2539,7 @@ function toPublicGroceryShareRequest(request) {
     initiatorName: request.initiatorName,
     title: request.title,
     status: request.status,
+    mode: request.mode === "read_only" ? "read_only" : "collaboration",
     items: (request.items ?? []).map((item) => ({
       id: item.id,
       name: item.name,
@@ -1363,17 +2573,11 @@ function toOwnerGroceryShareRequest(request) {
 
 function toPublicMenuShareRequest(request) {
   return {
-    id: request.id,
-    token: request.token,
-    householdId: request.householdId || "",
-    ownerId: request.ownerId || "",
     householdName: request.householdName,
     initiatorName: request.initiatorName,
     title: request.title,
     status: request.status,
     dishes: (request.dishes ?? []).map((dish) => ({
-      id: dish.id,
-      recipeId: dish.recipeId,
       name: dish.name,
       quantity: dish.quantity,
       category: dish.category,
@@ -1382,6 +2586,14 @@ function toPublicMenuShareRequest(request) {
     groceryCount: request.groceryCount,
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
+  };
+}
+
+function toOwnerMenuShareRequest(request) {
+  return {
+    ...toPublicMenuShareRequest(request),
+    id: request.id,
+    token: request.token,
   };
 }
 
@@ -1620,6 +2832,7 @@ function sanitizeAppState(state = {}) {
     excludedGroceryKeys: stringList(state.excludedGroceryKeys).slice(0, 400),
     pantryItems: sanitizeList(state.pantryItems, sanitizePantryItem, 300),
     familyProfile: sanitizeProfile(state.familyProfile),
+    familyMembers: sanitizeList(state.familyMembers, sanitizeFamilyMemberPreference, 50),
     wantToEatItems: sanitizeList(state.wantToEatItems, sanitizeWantToEatItem, 200),
     nutritionGoals: sanitizeObjectMap(state.nutritionGoals, 32),
     recommendationAccess: sanitizeRecommendationAccess(state.recommendationAccess),
@@ -1630,6 +2843,22 @@ function sanitizeAppState(state = {}) {
     activeWishShareRequest: sanitizeCollaborationState(state.activeWishShareRequest),
     householdMembers: sanitizeList(state.householdMembers, sanitizeHouseholdMemberState, 50),
   };
+}
+
+function sanitizeFamilyMemberPreference(member = {}) {
+  const memberId = stringValue(member.memberId, 100);
+  if (!memberId) return null;
+  return {
+    memberId,
+    preference: {
+      allergies: normalizedPreferenceList(member.preference?.allergies),
+      dislikes: normalizedPreferenceList(member.preference?.dislikes),
+    },
+  };
+}
+
+function normalizedPreferenceList(value) {
+  return [...new Set(stringList(value).map((item) => item.slice(0, 40)))];
 }
 
 function sanitizeHouseholdMemberState(member = {}) {
@@ -1689,6 +2918,26 @@ function sanitizeMenuEntries(value) {
       .map((item) => ({
         recipeId: stringValue(item?.recipeId),
         quantity: Math.max(1, Math.min(12, Number.parseInt(item?.quantity, 10) || 1)),
+        ...(stringValue(item?.title || item?.name, 80) ? { title: stringValue(item?.title || item?.name, 80) } : {}),
+        ...(Number.isFinite(Number(item?.minutes ?? item?.timeMinutes))
+          ? { minutes: Math.max(0, Math.min(480, Math.round(Number(item?.minutes ?? item?.timeMinutes)))) }
+          : {}),
+        ...(Array.isArray(item?.ingredients)
+          ? {
+              ingredients: sanitizeList(item.ingredients, (ingredient) => {
+                const name = stringValue(ingredient?.name, 80);
+                if (!name) return null;
+                return {
+                  name,
+                  amount: typeof ingredient?.amount === "number"
+                    ? Math.max(0, Math.min(9999, ingredient.amount))
+                    : stringValue(ingredient?.amount, 40),
+                  unit: stringValue(ingredient?.unit, 24),
+                  required: ingredient?.required !== false,
+                };
+              }, 40),
+            }
+          : {}),
       }))
       .filter((item) => item.recipeId)
       .slice(0, 40)
@@ -1940,11 +3189,11 @@ function applyCors(request, response) {
     response.setHeader("Vary", "Origin");
   }
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,If-Match,X-Humi-Idempotency-Key,X-Humi-Poster-Style");
 }
 
-function sendJson(response, status, data) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(response, status, data, headers = {}) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
   response.end(`${JSON.stringify(data)}\n`);
 }
 

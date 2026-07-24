@@ -119,7 +119,7 @@
 | ID | 项目 | 状态 | 触发条件 |
 | --- | --- | --- | --- |
 | EXT-01 | 部署本轮 H5/API | 已完成 | PR #34 合入 `main@129da03`，Pages run `29642978938` success；API 备份 `/opt/humi/backups/20260718T114140Z` 后部署并通过生产 smoke |
-| EXT-02 | 上传新小程序版本 | 已完成 | 微信开发者工具 CLI 已上传 `1.1.72`，preview/upload 证据位于 `/Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.72` |
+| EXT-02 | 上传新小程序版本 | 已完成 | 微信开发者工具 CLI 已上传兼容版 `1.1.73`，preview/upload 证据位于 `/Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z`；原生 preview `1.1.74` 未上传 |
 | EXT-03 | 微信审核/发布 | 待验收后外部动作 | 真实候选验收通过，且用户在动作当下明确确认 |
 
 ## 8. 本地完成证明

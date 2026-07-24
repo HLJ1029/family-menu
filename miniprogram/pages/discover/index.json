@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "发现",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "dish-card": "/components/dish-card/index",
+    "page-state": "/components/page-state/index"
+  }
+}

@@ -1,0 +1,87 @@
+page {
+  height: 100vh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.login-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 72rpx 44rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+.error-shell {
+  background: #f6f6f6;
+}
+
+.brand-mark {
+  font-size: 32rpx;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.login-card {
+  padding: 48rpx 0 88rpx;
+}
+
+.eyebrow {
+  margin-bottom: 20rpx;
+  color: rgba(17, 17, 17, 0.38);
+  font-size: 22rpx;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+}
+
+.title {
+  max-width: 560rpx;
+  font-size: 62rpx;
+  line-height: 1.03;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.body {
+  max-width: 520rpx;
+  margin-top: 28rpx;
+  color: rgba(17, 17, 17, 0.56);
+  font-size: 28rpx;
+  line-height: 1.7;
+  font-weight: 700;
+}
+
+.primary-button {
+  margin: 54rpx 0 0;
+  min-height: 104rpx;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.ghost-button {
+  margin: 20rpx 0 0;
+  min-height: 96rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.12);
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: rgba(17, 17, 17, 0.62);
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.primary-button[disabled],
+.ghost-button[disabled] {
+  opacity: 0.48;
+}
+
+.error-text {
+  margin-top: 24rpx;
+  color: rgba(17, 17, 17, 0.52);
+  font-size: 24rpx;
+  font-weight: 700;
+}

@@ -1,0 +1,55 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="tonight-shell">
+    <view class="tonight-header">
+      <text class="eyebrow">HUMI · 今晚</text>
+      <text class="title">{{viewState === 'choose_effort' ? '今晚有多少力气？' : viewState === 'recommendation' || viewState === 'accepting' ? '这套能端上桌。' : viewState === 'completed' ? '今晚，做成了。' : '接着把饭端上桌。'}}</text>
+      <text class="subtitle">{{viewState === 'choose_effort' ? '先选行动力，Humi 再给一套真的做得完的晚饭。' : viewState === 'recommendation' || viewState === 'accepting' ? '时间、厨具和缺什么，都先说清楚。' : '家里任何正式成员都能接着做。'}}</text>
+      <text wx:if="{{cacheState === 'cached'}}" class="offline-pill">当前显示离线缓存</text>
+    </view>
+
+    <effort-picker
+      wx:if="{{viewState === 'choose_effort'}}"
+      selected-tier="{{effortTier}}"
+      pending="{{!!pendingAction}}"
+      bind:select="selectEffort"
+    />
+
+    <dinner-plan-card
+      wx:if="{{viewState === 'recommendation' || viewState === 'accepting'}}"
+      plan="{{plan}}"
+      pending="{{viewState === 'accepting' || !!pendingAction}}"
+      can-accept="{{canReplacePlan}}"
+      bind:accept="acceptRecommendation"
+      bind:next="nextRecommendation"
+    />
+
+    <meal-run-resume
+      wx:if="{{viewState === 'planned' || viewState === 'resuming' || viewState === 'completed'}}"
+      meal-run="{{mealRun}}"
+      plan="{{plan}}"
+      can-replace-plan="{{canReplacePlan}}"
+      bind:start="startCooking"
+      bind:resume="resumeCooking"
+      bind:replace="replacePlannedMeal"
+    />
+
+    <view wx:if="{{mealRun && householdRole !== 'guest'}}" class="share-panel">
+      <button
+        class="share-button"
+        open-type="share"
+        data-share-type="menu"
+        disabled="{{!preparedShares.menu || sharePreparing.menu}}"
+        loading="{{sharePreparing.menu}}"
+      >去微信分享菜单</button>
+      <text
+        wx:if="{{shareErrors.menu}}"
+        class="share-retry"
+        data-share-type="menu"
+        bindtap="retryNativeShare"
+      >分享内容没准备好，点这里重试</text>
+    </view>
+
+    <view wx:if="{{errorText && viewState !== 'error'}}" class="inline-error" role="alert">{{errorText}}</view>
+    <view wx:if="{{pendingAction === 'recommendation' || pendingAction === 'next'}}" class="pending-note">正在把下一套晚饭准备好…</view>
+  </view>
+</page-state>

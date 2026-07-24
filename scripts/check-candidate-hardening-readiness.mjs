@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const files = {
   tracker: "docs/humi-1.1-gray-release-tracker.md",
@@ -420,11 +421,9 @@ const checks = [
       && candidateDispatchWorkbench.includes("不会标记已邀请")
       && candidateDispatchWorkbench.includes("不进入微信公众平台审核动作")
       && candidateDispatchWorkbench.includes("小程序卡片发送确认")
-      && candidateDispatchWorkbench.includes("pages/share/index?type=crave")
-      && candidateDispatchWorkbench.includes("pages/share/index?type=invite")
-      && candidateDispatchWorkbench.includes("pages/share/index?type=grocery")
-      && candidateDispatchWorkbench.includes("pages/share/index?type=wish")
-      && candidateDispatchWorkbench.includes("pages/share/index?type=menu")
+      && candidateDispatchWorkbench.includes("shareCardGuideFixtures")
+      && ["crave", "invite", "grocery", "wish", "today_menu"].every((type) => Object.values(shareCardGuideFixtures).some((guide) => guide.type === type))
+      && Object.values(shareCardGuideFixtures).every((guide) => guide.landingPathTemplate.startsWith("/pages/boot/index?"))
       && candidateDispatchWorkbench.includes("必须看到真实微信联系人面板")
       && candidateDispatchWorkbench.includes("release:wechat:share:direct-previews")
       && candidateDispatchWorkbench.includes("findLatestShareEvidenceDir")

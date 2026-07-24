@@ -8,9 +8,9 @@ const directory = await mkdtemp(join(tmpdir(), "humi-collaboration-identity-"));
 const store = new HumiStore(join(directory, "data.json"));
 
 const owner = await store.findOrCreateWechatUser({ openid: "collaboration-owner", unionid: null });
+await store.updateIdentityAvatar(owner.id, { avatarUrl: "https://api.humi-home.com/avatars/xiaohe.png" });
 await store.updateIdentityProfile(owner.id, {
   displayName: "小禾",
-  avatarUrl: "https://api.humi-home.com/avatars/xiaohe.png",
 });
 const household = await store.createHouseholdForUser(owner.id, { householdName: "小禾家" });
 
@@ -255,11 +255,32 @@ await assert.rejects(
   "collaboration history requires formal household membership",
 );
 
+const formalMemberCountBeforeTemporaryWant = household.members.length;
+const temporaryInvite = await store.createHouseholdInvite(owner.id, { householdId: household.id });
+const temporaryWant = await store.addHouseholdInviteWant(temporaryInvite.token, {
+  participantKey: "invite-guest-without-membership",
+  memberName: "伪造的正式家人",
+  title: "番茄鸡蛋面",
+});
+assert.equal(temporaryWant.want.temporary, true);
+assert.equal(temporaryWant.want.memberId, "temporary:invite-guest-without-membership");
+assert.equal(temporaryWant.want.memberName, "游客", "temporary invite identity must always be shown as a guest");
+assert.equal(
+  household.members.length,
+  formalMemberCountBeforeTemporaryWant,
+  "viewing or temporarily participating through an invite must not create formal membership",
+);
+assert.deepEqual(
+  await store.getHouseholdsForUser(outsider.id),
+  [],
+  "temporary invite participation must not make the guest a household member",
+);
+
 const atomicDirectory = await mkdtemp(join(tmpdir(), "humi-collaboration-atomic-"));
 const atomicFile = join(atomicDirectory, "data.json");
 const atomicStore = new HumiStore(atomicFile);
 const atomicUser = await atomicStore.findOrCreateWechatUser({ openid: "atomic-user", unionid: null });
-await atomicStore.updateIdentityProfile(atomicUser.id, { displayName: "原子小禾" });
+await atomicStore.updateIdentityProfile(atomicUser.id, { displayName: "原子小禾", avatarKey: "humi-avatar-parent-f-01" });
 const atomicRequests = {
   crave: await atomicStore.createCraveRequest({ householdName: "原子家" }),
   grocery: await atomicStore.createGroceryShareRequest({

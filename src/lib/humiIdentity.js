@@ -1,3 +1,5 @@
+import { requestMiniProgramIdentity } from "./runtime.js";
+
 const HUMI_SESSION_KEY = "humi:identity-session:v1";
 const HUMI_SESSION_EXPIRED_KEY = "humi:identity-session-expired:v1";
 
@@ -86,66 +88,15 @@ export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFail
     }
   };
 
-  const url = reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login";
-  const attempts = [
-    miniProgram.navigateTo,
-    miniProgram.redirectTo,
-    miniProgram.reLaunch,
-  ].filter((method) => typeof method === "function");
-  if (attempts.length === 0) return fallbackToLegacyBridge();
+  const canNavigate = [miniProgram.navigateTo, miniProgram.redirectTo, miniProgram.reLaunch]
+    .some((method) => typeof method === "function");
+  if (!canNavigate) return fallbackToLegacyBridge();
 
-  let settled = false;
-  let attemptTimer = null;
-  let attemptSequence = 0;
-  const documentRef = window.document;
-  const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
-  const cleanup = () => {
-    window.clearTimeout(attemptTimer);
-    if (supportsPageConfirmation) {
-      documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pagehide", finish);
-      window.removeEventListener("beforeunload", finish);
-    }
-  };
-  const finish = () => {
-    if (settled) return;
-    settled = true;
-    cleanup();
-  };
-  const handleVisibilityChange = () => {
-    if (documentRef.visibilityState === "hidden") finish();
-  };
-  const fallback = () => {
-    if (settled) return;
-    finish();
-    fallbackToLegacyBridge();
-  };
-  const runAttempt = (index) => {
-    if (settled) return;
-    const method = attempts[index];
-    if (!method) {
-      fallback();
-      return;
-    }
-    const attemptId = ++attemptSequence;
-    const advance = () => {
-      if (settled || attemptId !== attemptSequence) return;
-      window.clearTimeout(attemptTimer);
-      runAttempt(index + 1);
-    };
-    attemptTimer = window.setTimeout(advance, confirmationMs);
-    try {
-      method.call(miniProgram, { url, success: finish, fail: advance });
-    } catch {
-      advance();
-    }
-  };
-  if (supportsPageConfirmation) {
-    documentRef.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", finish);
-    window.addEventListener("beforeunload", finish);
-  }
-  runAttempt(0);
+  void requestMiniProgramIdentity({ reuseSession, confirmationMs })
+    .then((status) => {
+      if (status !== "handoff") fallbackToLegacyBridge();
+    })
+    .catch(() => fallbackToLegacyBridge());
   return true;
 }
 

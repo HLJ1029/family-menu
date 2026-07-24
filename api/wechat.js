@@ -1,6 +1,7 @@
 const WECHAT_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session";
 const WECHAT_ACCESS_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token";
 const WECHAT_PHONE_NUMBER_URL = "https://api.weixin.qq.com/wxa/business/getuserphonenumber";
+const WECHAT_SUBSCRIBE_MESSAGE_URL = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send";
 
 let cachedAccessToken = null;
 
@@ -70,6 +71,50 @@ export async function exchangeWechatPhoneNumber({ code, appId, appSecret, mock =
   return data.phone_info;
 }
 
+export async function sendWechatSubscribeMessage({ openid, templateId, page, data, appId, appSecret, mock = false }) {
+  if (!openid || !templateId) {
+    throw createWechatError("wechat_subscribe_message_invalid", "openid and templateId are required.", {}, "not_submitted");
+  }
+  if (mock) return { errcode: 0, errmsg: "ok" };
+
+  let accessToken;
+  try {
+    accessToken = await getWechatAccessToken({ appId, appSecret });
+  } catch (error) {
+    error.deliveryState = "not_submitted";
+    throw error;
+  }
+  const url = new URL(WECHAT_SUBSCRIBE_MESSAGE_URL);
+  url.searchParams.set("access_token", accessToken);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        touser: openid,
+        template_id: templateId,
+        page,
+        miniprogram_state: "formal",
+        lang: "zh_CN",
+        data,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || result.errcode) {
+      throw createWechatError(
+        "wechat_subscribe_message_failed",
+        result.errmsg || "WeChat subscribe message failed.",
+        result,
+        "delivery_unknown",
+      );
+    }
+    return result;
+  } catch (error) {
+    error.deliveryState = "delivery_unknown";
+    throw error;
+  }
+}
+
 async function getWechatAccessToken({ appId, appSecret }) {
   if (!appId || !appSecret) {
     throw createWechatError("missing_config", "WECHAT_APP_ID and WECHAT_APP_SECRET are required.");
@@ -99,10 +144,11 @@ async function getWechatAccessToken({ appId, appSecret }) {
   return cachedAccessToken.token;
 }
 
-function createWechatError(code, message, details = {}) {
+function createWechatError(code, message, details = {}, deliveryState = "") {
   const error = new Error(message);
   error.code = code;
   error.status = 502;
   error.details = details;
+  if (deliveryState) error.deliveryState = deliveryState;
   return error;
 }

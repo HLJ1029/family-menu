@@ -1,0 +1,9 @@
+.grocery-item { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 0; border-bottom: 1rpx solid #ededed; }
+.check { width: 52rpx; height: 52rpx; min-width: 52rpx; margin: 0; padding: 0; border: 2rpx solid #222; border-radius: 50%; background: #fff; color: #fff; font-size: 28rpx; line-height: 48rpx; }
+.check::after, .claim::after { border: 0; }
+.is-checked .check { background: #111; }
+.copy { flex: 1; min-width: 0; }
+.name { display: block; color: #111; font-size: 29rpx; font-weight: 700; }
+.amount, .status, .claimant { margin-right: 12rpx; color: #777; font-size: 23rpx; }
+.is-checked .name { color: #999; text-decoration: line-through; }
+.claim { margin: 0; padding: 12rpx 22rpx; border-radius: 999rpx; background: #f1f1f1; color: #222; font-size: 23rpx; line-height: 1.3; }

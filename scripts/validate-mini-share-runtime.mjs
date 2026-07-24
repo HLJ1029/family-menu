@@ -1,27 +1,379 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { buildMiniProgramPosterUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramShare } from "../src/lib/runtime.js";
+import { buildMiniProgramPosterUrl, buildMiniProgramReminderUrl, buildMiniProgramShareUrl, requestMiniProgramPoster, requestMiniProgramReminder, requestMiniProgramShare } from "../src/lib/runtime.js";
+import {
+  createHouseholdInvite,
+  createMenuShareRequest,
+  subscribeHumiSessionInvalid,
+  uploadPosterShare,
+} from "../src/lib/humiApi.js";
+import {
+  buildPosterUploadIdempotencyKey,
+  buildShareSnapshotKey,
+  createAsyncSnapshotCache,
+} from "../src/lib/shareSnapshot.js";
+import { replayStoredPosterRecovery } from "../src/lib/posterRecovery.js";
+import { beginShareRecoveryReplay, clearShareRecovery, getShareRecovery, queueShareRecovery } from "../src/lib/shareRecovery.js";
+import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
 const {
   buildHumiUrl,
+  buildNativeSharePayload,
   buildSharePayload,
   normalizeLaunchOptions,
   pathToQuery,
   shouldOpenAsGuest,
 } = loadMiniProgramCommonJs("miniprogram/utils/share-routing.js");
+const { validateShareLandingOptions } = loadShareLandingValidator();
 
 const miniProgramApp = JSON.parse(readFileSync("miniprogram/app.json", "utf8"));
 assert(miniProgramApp.pages.includes("pages/index/index"), "mini program app.json should include index page");
 assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.json should include native share page");
 assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
+assert.deepEqual(
+  miniProgramApp.subPackages.find((entry) => entry.root === "packageShare")?.pages?.sort(),
+  ["pages/grocery/index", "pages/menu/index"],
+  "menu and grocery recipients must land in the native share subpackage",
+);
+for (const [type, token, expectedPath] of [
+  ["menu", "menu_native_snapshot_token_1234", "/packageShare/pages/menu/index?menuShare=menu_native_snapshot_token_1234&shareSource=menu"],
+  ["grocery", "grocery_native_snapshot_123456", "/packageShare/pages/grocery/index?groceryShare=grocery_native_snapshot_123456&shareSource=grocery"],
+  ["invite", "invite_native_snapshot_1234567", "/packageFamily/pages/invite/index?token=invite_native_snapshot_1234567&shareSource=invite"],
+  ["meal_task", "meal_task_native_snapshot_12345", "/packageFamily/pages/task/index?mealTask=meal_task_native_snapshot_12345&shareSource=meal_task"],
+]) {
+  const payload = buildNativeSharePayload(type, { token });
+  assert.equal(payload.path, expectedPath);
+  assert.doesNotMatch(payload.path, /^\/pages\/boot\/index/, `${type} native sharing must not route recipients through WebView boot`);
+}
 
-assertMiniProgramSharePage("miniprogram/pages/index/index", { requiresOpenTypeButton: false, supportsTimeline: false });
+assertMiniProgramSharePage("miniprogram/pages/legacy/index", { requiresOpenTypeButton: false, supportsTimeline: false });
 assertMiniProgramSharePage("miniprogram/pages/share/index", { requiresOpenTypeButton: true, supportsTimeline: true });
 assertNativeShareReceiptTemplate();
 assertShareFeedbackDoesNotClaimUnverifiedSuccess();
 assertMiniProgramVisibleCopyKeepsPantryInvisible();
 assertMiniProgramGuestShareRouting();
+
+const snapshotCache = createAsyncSnapshotCache();
+let snapshotCreateCalls = 0;
+const snapshotKey = buildShareSnapshotKey("menu", "family-1", {
+  dishes: [{ id: "tomato-egg", quantity: 1 }],
+  groceryCount: 3,
+});
+
+const posterHouseholdId = "123e4567-e89b-42d3-a456-426614174000";
+const posterStateV1 = buildShareSnapshotKey("today_menu_poster_state", posterHouseholdId, {
+  recipes: [{ id: "tomato-egg", quantity: 1 }],
+  groceryCount: 2,
+});
+const posterStateV2 = buildShareSnapshotKey("today_menu_poster_state", posterHouseholdId, {
+  recipes: [{ id: "tomato-egg", quantity: 2 }],
+  groceryCount: 4,
+});
+const posterUploadKeyV1 = buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV1);
+const posterUploadKeyV2 = buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV2);
+assert(posterUploadKeyV1.length <= 100, "a poster upload key must fit the server contract without truncation");
+assert(posterUploadKeyV2.length <= 100, "every poster content version must fit the server contract");
+assert.notEqual(posterUploadKeyV1, posterUploadKeyV2, "poster content changes must produce a new upload key");
+const createSnapshot = async () => {
+  snapshotCreateCalls += 1;
+  return { request: { token: "menu-snapshot-token" } };
+};
+const [firstSnapshot, concurrentSnapshot] = await Promise.all([
+  snapshotCache.getOrCreate(snapshotKey, createSnapshot),
+  snapshotCache.getOrCreate(snapshotKey, createSnapshot),
+]);
+const repeatedSnapshot = await snapshotCache.getOrCreate(snapshotKey, createSnapshot);
+assert.equal(snapshotCreateCalls, 1, "the same share snapshot must be created exactly once");
+assert.equal(firstSnapshot.request.token, "menu-snapshot-token");
+assert.equal(concurrentSnapshot, firstSnapshot);
+assert.equal(repeatedSnapshot, firstSnapshot);
+
+let failedSnapshotCalls = 0;
+await assert.rejects(
+  snapshotCache.getOrCreate("menu:failed", async () => {
+    failedSnapshotCalls += 1;
+    throw new Error("first creation failed");
+  }),
+  /first creation failed/,
+);
+await snapshotCache.getOrCreate("menu:failed", async () => {
+  failedSnapshotCalls += 1;
+  return { request: { token: "retry-token" } };
+});
+assert.equal(failedSnapshotCalls, 2, "a failed snapshot must be evicted so one user retry can create it again");
+assert.notEqual(
+  buildShareSnapshotKey("menu", "family-1", { dishes: [{ id: "tomato-egg", quantity: 2 }], groceryCount: 3 }),
+  snapshotKey,
+  "a changed menu must produce a fresh snapshot key",
+);
+
+const recoveryStorage = createMemoryStorage();
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_000), true, "the first 401 may schedule one silent recovery");
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_050), false, "a concurrent caller must join the pending recovery");
+assert.deepEqual(
+  getShareRecovery(recoveryStorage, 1_050),
+  { action: "today_menu", attempts: 1, state: "pending", context: null },
+  "a duplicate original 401 must not cancel the pending recovery",
+);
+assert.deepEqual(
+  beginShareRecoveryReplay(recoveryStorage, 1_100),
+  { action: "today_menu", attempts: 1, context: null },
+  "the refreshed H5 session should replay the queued share once",
+);
+assert.equal(queueShareRecovery("today_menu", recoveryStorage, 1_200), false, "a replayed 401 must not schedule a third request");
+assert.equal(getShareRecovery(recoveryStorage, 1_200)?.state, "replaying");
+clearShareRecovery(recoveryStorage);
+assert.equal(beginShareRecoveryReplay(recoveryStorage, 1_300), null);
+for (const action of ["invite", "poster_share", "poster_save"]) {
+  const actionStorage = createMemoryStorage();
+  const context = action.startsWith("poster_")
+    ? {
+        posterType: "grocery_list",
+        styleId: "theme",
+        stateVersion: "grocery_poster_state:family-1:content-v1",
+      }
+    : null;
+  assert.equal(
+    queueShareRecovery(action, actionStorage, 2_000, context),
+    true,
+    `${action} should permit one silent recovery`,
+  );
+  assert.deepEqual(
+    beginShareRecoveryReplay(actionStorage, 2_100),
+    { action, attempts: 1, context },
+    `${action} recovery must survive a new WebView through storage`,
+  );
+  assert.equal(queueShareRecovery(action, actionStorage, 2_200), false, `${action} must not schedule a third request`);
+}
+
+const mainSource = readFileSync("src/main.jsx", "utf8");
+assert.match(
+  mainSource,
+  /rebuildPosterPreviewForRecovery/,
+  "a fresh H5 WebView must rebuild the lost poster Blob before replaying share or save",
+);
+assert.match(
+  mainSource,
+  /handoffPosterToMiniProgram\((?:action|replayAction|["'](?:share|save)["']),\s*rebuiltPreview\)/,
+  "poster recovery must hand off the rebuilt preview instead of the destroyed React state",
+);
+
+const recreatedWebViewStorage = createMemoryStorage();
+const recreatedContext = {
+  posterType: "today_menu",
+  styleId: "default",
+  stateVersion: posterStateV1,
+};
+assert.equal(
+  queueShareRecovery("poster_share", recreatedWebViewStorage, 3_000, recreatedContext),
+  true,
+);
+const recreatedRecovery = beginShareRecoveryReplay(recreatedWebViewStorage, 3_100);
+let recreatedBlobBuilds = 0;
+let recreatedPosterUploads = 0;
+const recoveryFlowFetch = globalThis.fetch;
+globalThis.fetch = async (_url, options = {}) => {
+  recreatedPosterUploads += 1;
+  assert.equal(
+    new Headers(options.headers).get("X-Humi-Idempotency-Key"),
+    buildPosterUploadIdempotencyKey(posterHouseholdId, "default", posterStateV1),
+  );
+  return new Response(JSON.stringify({
+    poster: { token: "recreated-poster-token", format: "png", styleId: "default" },
+  }), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
+};
+const recreatedNavigation = createRuntimeWindow({
+  navigateTo({ url, success, leavePage }) {
+    assert.equal(
+      url,
+      "/pages/poster/index?token=recreated-poster-token&format=png&styleId=default&posterType=today_menu&action=share",
+    );
+    success?.();
+    leavePage();
+  },
+});
+globalThis.window = recreatedNavigation.window;
+try {
+  const replayResult = await replayStoredPosterRecovery({
+    recovery: recreatedRecovery,
+    rebuildPreview: async (context) => {
+      recreatedBlobBuilds += 1;
+      assert.deepEqual(context, recreatedContext, "the new H5 must receive the descriptor persisted before identity relaunch");
+      return {
+        blob: new Blob(["rebuilt-after-hydration"], { type: "image/png" }),
+        type: context.posterType,
+        styleId: context.styleId,
+        stateVersion: context.stateVersion,
+      };
+    },
+    handoffPreview: async (action, preview) => {
+      const uploadKey = buildPosterUploadIdempotencyKey(
+        posterHouseholdId,
+        preview.styleId,
+        preview.stateVersion,
+      );
+      const uploaded = await uploadPosterShare(
+        { accessToken: "recreated-session", user: { provider: "wechat" } },
+        preview.blob,
+        { styleId: preview.styleId, idempotencyKey: uploadKey },
+      );
+      const status = await requestMiniProgramPoster({
+        token: uploaded.poster.token,
+        format: uploaded.poster.format,
+        styleId: preview.styleId,
+        posterType: preview.type,
+        action,
+      }, { timeoutMs: 100 });
+      if (status === "handoff") clearShareRecovery(recreatedWebViewStorage);
+      return status;
+    },
+    clearRecovery: () => clearShareRecovery(recreatedWebViewStorage),
+  });
+  assert.equal(replayResult.status, "handoff");
+  assert.equal(recreatedBlobBuilds, 1, "the recreated H5 must build one fresh poster Blob");
+  assert.equal(recreatedPosterUploads, 1, "the recreated H5 must upload the rebuilt poster once");
+  assert.deepEqual(recreatedNavigation.calls, ["navigateTo"]);
+  assert.equal(getShareRecovery(recreatedWebViewStorage, 3_200), null, "a confirmed replay must clear recovery");
+} finally {
+  globalThis.fetch = recoveryFlowFetch;
+  delete globalThis.window;
+}
+
+const changedPosterStorage = createMemoryStorage();
+assert.equal(queueShareRecovery("poster_save", changedPosterStorage, 4_000, recreatedContext), true);
+const changedRecovery = beginShareRecoveryReplay(changedPosterStorage, 4_100);
+let changedPosterHandoffs = 0;
+const changedResult = await replayStoredPosterRecovery({
+  recovery: changedRecovery,
+  rebuildPreview: async () => ({
+    blob: new Blob(["changed-content"], { type: "image/png" }),
+    stateVersion: posterStateV2,
+  }),
+  handoffPreview: async () => {
+    changedPosterHandoffs += 1;
+  },
+  clearRecovery: () => clearShareRecovery(changedPosterStorage),
+});
+assert.equal(changedResult.status, "stale");
+assert.equal(changedPosterHandoffs, 0, "a changed poster snapshot must not upload or enter the native bridge");
+assert.equal(getShareRecovery(changedPosterStorage, 4_200), null, "a stale poster recovery must be cleared");
+
+let recoveryInvalidations = 0;
+let recoveryRequestBody = null;
+const unsubscribeRecoveryInvalidation = subscribeHumiSessionInvalid(() => {
+  recoveryInvalidations += 1;
+});
+const originalFetch = globalThis.fetch;
+const uploadedPosterTokens = new Map();
+globalThis.fetch = async (_url, options = {}) => {
+  const idempotencyKey = new Headers(options.headers).get("X-Humi-Idempotency-Key");
+  const token = uploadedPosterTokens.get(idempotencyKey) || `poster-token-${uploadedPosterTokens.size + 1}`;
+  uploadedPosterTokens.set(idempotencyKey, token);
+  return new Response(JSON.stringify({
+    poster: {
+      token,
+      format: "png",
+      styleId: "default",
+    },
+  }), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  const posterSession = { accessToken: "poster-session", user: { provider: "wechat" } };
+  const firstVersion = await uploadPosterShare(
+    posterSession,
+    new Blob(["poster-version-one"], { type: "image/png" }),
+    { styleId: "default", idempotencyKey: posterUploadKeyV1 },
+  );
+  const secondVersion = await uploadPosterShare(
+    posterSession,
+    new Blob(["poster-version-two"], { type: "image/png" }),
+    { styleId: "default", idempotencyKey: posterUploadKeyV2 },
+  );
+  assert.notEqual(
+    firstVersion.poster.token,
+    secondVersion.poster.token,
+    "two poster content versions must upload without a 409 key collision and receive different tokens",
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+globalThis.fetch = async (_url, options = {}) => {
+  recoveryRequestBody = JSON.parse(options.body || "{}");
+  return new Response(JSON.stringify({ error: "invalid_session", message: "expired" }), {
+    status: 401,
+    headers: { "content-type": "application/json" },
+  });
+};
+const expiredSession = { accessToken: "expired", user: { provider: "wechat" } };
+try {
+  await assert.rejects(
+    createMenuShareRequest(
+      { dishes: [] },
+      expiredSession,
+      { notifySessionInvalid: false, idempotencyKey: snapshotKey },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(
+    recoveryRequestBody.idempotencyKey,
+    snapshotKey,
+    "a silently replayable share create must send its stable snapshot idempotency key",
+  );
+  assert.equal(recoveryInvalidations, 0, "a recoverable snapshot 401 must not race the global logout handler");
+  await assert.rejects(createMenuShareRequest({ dishes: [] }, expiredSession));
+  assert.equal(recoveryInvalidations, 1, "normal authenticated 401s must keep the global invalidation behavior");
+} finally {
+  unsubscribeRecoveryInvalidation();
+  globalThis.fetch = originalFetch;
+}
+
+let inviteRequestBody = null;
+let posterRequestHeaders = null;
+globalThis.fetch = async (url, options = {}) => {
+  if (String(url).endsWith("/household-invites")) {
+    inviteRequestBody = JSON.parse(options.body || "{}");
+  } else if (String(url).endsWith("/poster-shares")) {
+    posterRequestHeaders = new Headers(options.headers);
+  }
+  return new Response(JSON.stringify({ error: "invalid_session", message: "expired" }), {
+    status: 401,
+    headers: { "content-type": "application/json" },
+  });
+};
+try {
+  await assert.rejects(
+    createHouseholdInvite(
+      expiredSession,
+      { householdId: "family-1" },
+      { notifySessionInvalid: false, idempotencyKey: "invite:family-1" },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(inviteRequestBody.idempotencyKey, "invite:family-1", "an invite retry must reuse its stable household key");
+  await assert.rejects(
+    uploadPosterShare(
+      expiredSession,
+      new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" }),
+      { styleId: "theme", idempotencyKey: "poster:family-1:theme:state-v1" },
+    ),
+    (error) => error.status === 401 && error.code === "invalid_session",
+  );
+  assert.equal(
+    posterRequestHeaders.get("X-Humi-Idempotency-Key"),
+    "poster:family-1:theme:state-v1",
+    "a poster retry must reuse its stable household/style/state key",
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 assert.equal(
   buildMiniProgramShareUrl({
@@ -39,6 +391,7 @@ assert.equal(
   ["grocery", "grocery-token"],
   ["wish", "wish-token"],
   ["today_menu", "menu-token"],
+  ["meal_task", "meal-task-token"],
 ].forEach(([type, token]) => {
   assert.equal(
     buildMiniProgramShareUrl({ type, token }),
@@ -48,14 +401,41 @@ assert.equal(
 });
 
 assert.equal(
+  buildMiniProgramReminderUrl({
+    scheduledAt: "2026-07-25T10:30:00.000Z",
+    dateKey: "2026-07-25",
+    effortTier: "quick_15",
+    mealRunId: "meal 1",
+  }),
+  "/pages/reminder/index?scheduledAt=2026-07-25T10%3A30%3A00.000Z&dateKey=2026-07-25&effortTier=quick_15&mealRunId=meal+1",
+);
+
+const reminderNavigation = createRuntimeWindow({
+  navigateTo({ url, success, leavePage }) {
+    assert.equal(url, "/pages/reminder/index?scheduledAt=2026-07-25T10%3A30%3A00.000Z&dateKey=2026-07-25&effortTier=quick_15&mealRunId=meal-1");
+    success?.();
+    leavePage();
+  },
+});
+globalThis.window = reminderNavigation.window;
+assert.equal(await requestMiniProgramReminder({
+  scheduledAt: "2026-07-25T10:30:00.000Z",
+  dateKey: "2026-07-25",
+  effortTier: "quick_15",
+  mealRunId: "meal-1",
+}, { timeoutMs: 100 }), "handoff");
+assert.deepEqual(reminderNavigation.calls, ["navigateTo"]);
+
+assert.equal(
   buildMiniProgramPosterUrl({ token: "poster-token", format: "jpg", title: "今晚菜单", action: "share" }),
   "/pages/poster/index?token=poster-token&format=jpg&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95&action=share",
 );
 
 const primaryNavigation = createRuntimeWindow({
-  navigateTo({ url, success }) {
+  navigateTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=grocery&token=grocery-token&itemCount=3");
     success?.();
+    leavePage();
   },
   redirectTo() {
     assert.fail("redirectTo should not run after navigateTo succeeds");
@@ -72,9 +452,10 @@ assert.equal(
 assert.deepEqual(primaryNavigation.calls, ["navigateTo"]);
 
 const posterNavigation = createRuntimeWindow({
-  navigateTo({ url, success }) {
+  navigateTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/poster/index?token=poster-token&format=jpg&title=%E4%BB%8A%E6%99%9A%E8%8F%9C%E5%8D%95&action=save");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = posterNavigation.window;
@@ -92,9 +473,10 @@ const explicitFailureFallback = createRuntimeWindow({
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     fail?.({ errMsg: "navigateTo:fail page stack limit" });
   },
-  redirectTo({ url, success }) {
+  redirectTo({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = explicitFailureFallback.window;
@@ -133,9 +515,10 @@ const callbacklessNavigationFallback = createRuntimeWindow({
   redirectTo({ fail }) {
     fail?.({ errMsg: "redirectTo:fail callbackless navigateTo recovery" });
   },
-  reLaunch({ url, success }) {
+  reLaunch({ url, success, leavePage }) {
     assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
     success?.();
+    leavePage();
   },
 });
 globalThis.window = callbacklessNavigationFallback.window;
@@ -152,6 +535,42 @@ assert.deepEqual(
   ["navigateTo", "redirectTo", "reLaunch"],
   "native share fallback should not stop after a callbackless bridge call",
 );
+
+const callbackReceiptIsNotVisibility = createRuntimeWindow({
+  navigateTo({ success }) {
+    success?.();
+  },
+  redirectTo({ success }) {
+    success?.();
+  },
+  reLaunch({ success, leavePage }) {
+    success?.();
+    leavePage();
+  },
+});
+const bridgeStages = [];
+globalThis.window = callbackReceiptIsNotVisibility.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "today_menu", token: "sensitive-menu-token", title: "今晚菜单" },
+    {
+      timeoutMs: 180,
+      confirmationMs: 20,
+      onStage: (event) => bridgeStages.push(event),
+    },
+  ),
+  "handoff",
+  "bridge success callbacks must not replace page visibility confirmation",
+);
+assert.deepEqual(
+  callbackReceiptIsNotVisibility.calls,
+  ["navigateTo", "redirectTo", "reLaunch"],
+  "an unconfirmed success callback must continue through the native fallback chain",
+);
+assert(bridgeStages.some((event) => event.stage === "callback_received" && event.method === "navigateTo"));
+assert(bridgeStages.some((event) => event.stage === "page_hidden" && event.method === "reLaunch"));
+assert(!JSON.stringify(bridgeStages).includes("sensitive-menu-token"), "bridge telemetry must not contain share tokens");
+assert(bridgeStages.every((event) => Number.isFinite(event.elapsedMs) && event.elapsedMs >= 0));
 
 const allFailed = createRuntimeWindow({
   navigateTo() {
@@ -317,7 +736,7 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch }) {
 
 function assertMiniProgramVisibleCopyKeepsPantryInvisible() {
   [
-    "miniprogram/pages/index/index.wxml",
+    "miniprogram/pages/legacy/index.wxml",
     "miniprogram/pages/share/index.wxml",
     "miniprogram/pages/share/index.js",
     "miniprogram/pages/poster/index.wxml",
@@ -334,82 +753,42 @@ function assertMiniProgramVisibleCopyKeepsPantryInvisible() {
 
 function assertMiniProgramGuestShareRouting() {
   const baseUrl = "https://www.humi-home.com/?channel=wechat-miniprogram";
-  const craveShare = buildSharePayload({
-    type: "crave",
-    token: "crave-token",
-    householdName: "小家",
-  });
-  assert.equal(craveShare.title, "小家今晚要做饭，你想吃点啥？");
-  assert.equal(craveShare.path, "/pages/index/index?crave=crave-token&shareSource=crave");
-  const craveOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(craveShare.path))));
-  assert.equal(shouldOpenAsGuest(craveOptions), true, "crave card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, craveOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&crave=crave-token&shareSource=crave",
-  );
+  const labels = {
+    crave: "小家今晚要做饭，你想吃点啥？",
+    grocery: "Humi 买菜清单：5 项",
+    wish: "小家最近想吃什么？写一道给 Humi",
+    today_menu: "Humi 今晚菜单：番茄鸡蛋 + 青菜",
+    invite: "邀请你加入 小家，一起用 Humi",
+    meal_task: "请家人买鸡蛋",
+  };
+  const details = {
+    crave: { householdName: "小家" },
+    grocery: { itemCount: 5 },
+    wish: { householdName: "小家" },
+    today_menu: { title: "番茄鸡蛋 + 青菜" },
+    invite: { householdName: "小家" },
+    meal_task: { label: "请家人买鸡蛋" },
+  };
 
-  const groceryShare = buildSharePayload({
-    type: "grocery",
-    token: "grocery-token",
-    itemCount: 5,
-  });
-  assert.equal(groceryShare.title, "Humi 买菜清单：5 项");
-  assert.equal(groceryShare.path, "/pages/index/index?groceryShare=grocery-token&shareSource=grocery");
-  const groceryOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(groceryShare.path))));
-  assert.equal(shouldOpenAsGuest(groceryOptions), true, "grocery card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, groceryOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&groceryShare=grocery-token&shareSource=grocery",
-  );
-
-  const wishShare = buildSharePayload({
-    type: "wish",
-    token: "wish-token",
-    householdName: "小家",
-  });
-  assert.equal(wishShare.title, "小家最近想吃什么？写一道给 Humi");
-  assert.equal(wishShare.path, "/pages/index/index?wishShare=wish-token&shareSource=wish");
-  const wishOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(wishShare.path))));
-  assert.equal(shouldOpenAsGuest(wishOptions), true, "wish card should bypass login as a guest landing");
-  assert.equal(
-    buildHumiUrl(baseUrl, wishOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&wishShare=wish-token&shareSource=wish",
-  );
-
-  const menuShare = buildSharePayload({
-    type: "today_menu",
-    title: "番茄鸡蛋 + 青菜",
-    token: "menu-token",
-  });
-  assert.equal(menuShare.path, "/pages/index/index?menuShare=menu-token&shareSource=today_menu");
-  const menuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(menuShare.path))));
-  assert.equal(shouldOpenAsGuest(menuOptions), true, "today menu card should bypass login into a tokenized menu view");
-  assert.equal(
-    buildHumiUrl(baseUrl, menuOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&menuShare=menu-token&shareSource=today_menu",
-  );
+  for (const fixture of shareLandingFixtures) {
+    const landing = validateShareLandingOptions({ type: fixture.type, token: fixture.token });
+    assert.deepEqual(JSON.parse(JSON.stringify(landing)), { type: fixture.type, token: fixture.token }, `${fixture.type} guest bypass must use a valid native landing first`);
+    const share = buildSharePayload({ type: fixture.type, token: fixture.token, ...details[fixture.type] });
+    assert.equal(share.title, labels[fixture.type]);
+    assert.equal(share.path, fixture.guestPath);
+    const launchOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(share.path))));
+    assert.equal(shouldOpenAsGuest(launchOptions), true, `${fixture.type} card should bypass login only after strict landing validation`);
+    assert.equal(buildHumiUrl(baseUrl, launchOptions), `${baseUrl}&${pathToQuery(fixture.guestPath)}`);
+  }
 
   const legacyMenuShare = buildSharePayload({
     type: "today_menu",
     title: "番茄鸡蛋 + 青菜",
   });
-  assert.equal(legacyMenuShare.path, "/pages/index/index?view=today&shareSource=today_menu");
+  assert.equal(legacyMenuShare.path, "/pages/boot/index?view=today&shareSource=today_menu");
   const legacyMenuOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(legacyMenuShare.path))));
   assert.equal(shouldOpenAsGuest(legacyMenuOptions), true, "legacy today menu card should bypass login into the menu view");
 
-  const inviteShare = buildSharePayload({
-    type: "invite",
-    token: "invite-token",
-    householdName: "小家",
-  });
-  assert.equal(inviteShare.title, "邀请你加入 小家，一起用 Humi");
-  assert.equal(inviteShare.path, "/pages/index/index?invite=invite-token&shareSource=invite");
-  const inviteOptions = normalizeLaunchOptions(Object.fromEntries(new URLSearchParams(pathToQuery(inviteShare.path))));
-  assert.equal(shouldOpenAsGuest(inviteOptions), true, "household invite should open its landing before normal app login");
-  assert.equal(
-    buildHumiUrl(baseUrl, inviteOptions),
-    "https://www.humi-home.com/?channel=wechat-miniprogram&invite=invite-token&shareSource=invite",
-  );
 }
 
 function loadMiniProgramCommonJs(path) {
@@ -419,4 +798,26 @@ function loadMiniProgramCommonJs(path) {
     exports: module.exports,
   }, { filename: path });
   return module.exports;
+}
+
+function loadShareLandingValidator() {
+  const module = { exports: {} };
+  vm.runInNewContext(readFileSync("miniprogram/utils/bootstrap.js", "utf8"), {
+    module,
+    exports: module.exports,
+    require(request) {
+      if (request === "./cache" || request === "./request") return {};
+      throw new Error(`Unexpected bootstrap dependency: ${request}`);
+    },
+  }, { filename: "miniprogram/utils/bootstrap.js" });
+  return module.exports;
+}
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+  };
 }

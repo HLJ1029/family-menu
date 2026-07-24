@@ -1,0 +1,13 @@
+<view class="avatar-picker" aria-label="选择 Humi 头像">
+  <button
+    wx:for="{{avatars}}"
+    wx:key="key"
+    class="avatar-option {{selectedAvatarKey === item.key ? 'selected' : ''}}"
+    data-avatar-key="{{item.key}}"
+    bindtap="selectAvatar"
+    aria-label="选择 Humi 头像"
+    aria-pressed="{{selectedAvatarKey === item.key}}"
+  >
+    <image src="{{item.src}}" mode="aspectFill" />
+  </button>
+</view>

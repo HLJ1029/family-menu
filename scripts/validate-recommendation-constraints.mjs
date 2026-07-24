@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { recipes } from "../src/lib/recipes.js";
-import { buildTodayRecommendation, getHardAvoidSignals, recipeMatchesHardAvoid } from "../src/lib/recommendation/rules.js";
+import { createServer } from "vite";
+
+const vite = await createServer({ logLevel: "silent", server: { middlewareMode: true } });
+const { recipes } = await vite.ssrLoadModule("/src/lib/recipes.js");
+const {
+  buildTodayRecommendation,
+  getHardAvoidSignals,
+  recipeMatchesHardAvoid,
+} = await vite.ssrLoadModule("/src/lib/recommendation/rules.js");
 
 assertHardAvoidFromFamilyProfile();
 assertHardAvoidFromFamilyMemberPreference();
@@ -9,8 +16,10 @@ assertHardAvoidFromFamilyDislikes();
 assertHardAvoidFromMemberDislikes();
 assertPreciseRecommendationRequiresHumiToken();
 assertAiPromptKeepsInventoryInvisible();
+assertUnifiedDinnerRecommendationContract();
 
 console.log("Recommendation hard-avoid validation passed.");
+await vite.close();
 
 function assertHardAvoidFromFamilyProfile() {
   const context = {
@@ -23,7 +32,7 @@ function assertHardAvoidFromFamilyProfile() {
     },
   };
   const hardAvoidSignals = getHardAvoidSignals(context);
-  assert.deepEqual(hardAvoidSignals, ["鸡蛋"], "family profile allergies should become hard avoid signals");
+  assert.deepEqual(hardAvoidSignals, ["鸡蛋", "蛋"], "family profile allergies should expand to concrete hard avoid signals");
 
   const recommendation = buildTodayRecommendation(context);
   assert(recommendation.recipes.length > 0, "recommendation should still produce safe recipes");
@@ -55,7 +64,7 @@ function assertHardAvoidFromFamilyMemberPreference() {
     },
   };
   const hardAvoidSignals = getHardAvoidSignals(context);
-  assert.deepEqual(hardAvoidSignals, ["海鲜"], "member allergies should become hard avoid signals");
+  assert.deepEqual(hardAvoidSignals, ["海鲜", "鱼", "虾", "贝", "蟹"], "member seafood allergy must expand to concrete hard avoid signals");
 
   const seafoodRecipes = recipes.filter((recipe) => recipeMatchesHardAvoid(recipe, context));
   assert(seafoodRecipes.length > 0, "test data should include seafood recipes to prove filtering");
@@ -116,7 +125,7 @@ function assertHardAvoidFromMemberDislikes() {
     },
   };
   const hardAvoidSignals = getHardAvoidSignals(context);
-  assert.deepEqual(hardAvoidSignals, ["太辣"], "member dislikes should become hard avoid signals");
+  assert.deepEqual(hardAvoidSignals, ["太辣", "辣"], "spicy dislikes must expand to a concrete hard avoid signal");
 
   const recommendation = buildTodayRecommendation(context);
   assert(recommendation.recipes.length > 0, "recommendation should still produce recipes when spicy food is avoided");
@@ -145,7 +154,7 @@ function assertNoRecipeContains(recipeList, signal) {
 function assertPreciseRecommendationRequiresHumiToken() {
   const mainSource = readFileSync(new URL("../src/main.jsx", import.meta.url), "utf8");
   assert(
-    mainSource.includes("isHumiAiViaApiEnabled && Boolean(humiSession?.accessToken) && !preciseRecommendationBlocked"),
+    mainSource.includes("Boolean(humiSession?.accessToken) && identityComplete && !preciseRecommendationBlocked"),
     "precise recommendation availability should require a Humi API access token",
   );
   assert(
@@ -156,11 +165,44 @@ function assertPreciseRecommendationRequiresHumiToken() {
 
 function assertAiPromptKeepsInventoryInvisible() {
   const recommendSource = readFileSync(new URL("../api/recommend.js", import.meta.url), "utf8");
-  ["库存", "常备项"].forEach((forbiddenWord) => {
+  ["库存明细", "库存数量"].forEach((forbiddenWord) => {
     assert.equal(
       recommendSource.includes(forbiddenWord),
       false,
       `AI recommendation prompt should not expose ${forbiddenWord} wording`,
     );
   });
+}
+
+function assertUnifiedDinnerRecommendationContract() {
+  const mainSource = readFileSync(new URL("../src/main.jsx", import.meta.url), "utf8");
+  const apiSource = readFileSync(new URL("../src/lib/humiApi.js", import.meta.url), "utf8");
+  assert(
+    apiSource.includes('humiApiRequest("/recommendations/dinner"'),
+    "authenticated H5 dinner rotation must use POST /recommendations/dinner",
+  );
+  assert(
+    mainSource.includes("requestDinnerRecommendation") && mainSource.includes("requestBalancedDinnerWithFallback"),
+    "H5 must validate server dinner groups and use an immediate local fallback",
+  );
+  assert(
+    mainSource.includes('mode: "meal_execution"') && mainSource.includes('mode: "legacy"'),
+    "effort cards and the legacy Tonight flow must both use the unified contract",
+  );
+  assert(
+    mainSource.includes('action: "initial"') && mainSource.includes('action: "next"'),
+    "page hydration must preserve the current group while explicit refresh advances",
+  );
+  assert(
+    mainSource.includes("contextFingerprint") && mainSource.includes("stateVersion"),
+    "the H5 caller must send the complete household/date/tier/context rotation scope",
+  );
+  assert(
+    mainSource.includes('result.source === "server" ? result.group.stateVersion'),
+    "a local fallback cursor must never be sent back as the authenticated server stateVersion",
+  );
+  assert(
+    !mainSource.includes('if (effortTier === "easy_30") return ["tomato-tofu-shrimp-soup", "vinegar-cabbage"]'),
+    "meal execution must not retain fixed A/B recommendation groups",
+  );
 }

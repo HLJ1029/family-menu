@@ -1,2 +1,3 @@
-export const CURRENT_MINIPROGRAM_VERSION = "1.1.72";
-export const CURRENT_MINIPROGRAM_DESCRIPTION = "海报原生分享与保存到相册";
+export const CURRENT_MINIPROGRAM_VERSION = "1.1.73";
+export const CURRENT_MINIPROGRAM_DESCRIPTION = "修复身份完善入口";
+export const NATIVE_SHELL_PREVIEW_VERSION = "1.1.74";

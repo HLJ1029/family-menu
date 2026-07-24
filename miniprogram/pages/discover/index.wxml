@@ -1,0 +1,59 @@
+<view class="discover-page">
+  <view class="discover-header">
+    <text class="eyebrow">HUMI · 发现</text>
+    <text class="title">找到今晚真想做的菜</text>
+    <view class="search-box">
+      <text class="search-icon">⌕</text>
+      <input
+        class="search-input"
+        value="{{query}}"
+        maxlength="40"
+        confirm-type="search"
+        placeholder="搜索菜名或食材"
+        bindinput="onSearchInput"
+      />
+    </view>
+    <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="category-row">
+        <button
+          wx:for="{{categories}}"
+          wx:key="*this"
+          class="category-chip {{(item === '全部' && !category) || item === category ? 'is-selected' : ''}}"
+          data-category="{{item}}"
+          bindtap="selectCategory"
+        >{{item}}</button>
+      </view>
+    </scroll-view>
+  </view>
+
+  <page-state status="{{status === 'error' ? 'error' : 'ready'}}" error-text="{{errorText}}" bind:retry="retry">
+    <view wx:if="{{status === 'loading'}}" class="dish-grid" aria-label="正在加载菜谱">
+      <view wx:for="{{skeletons}}" wx:key="*this" class="skeleton-card">
+        <view class="humi-dish-placeholder"><view class="placeholder-plate"></view></view>
+        <view class="skeleton-line is-short"></view>
+        <view class="skeleton-line"></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{status === 'empty'}}" class="state-card">
+      <text class="state-title">没有找到这道菜</text>
+      <text class="state-copy">换个菜名、食材或分类试试。</text>
+    </view>
+
+    <block wx:else>
+      <view wx:if="{{errorText}}" class="inline-error">{{errorText}}</view>
+      <view class="dish-grid">
+        <dish-card
+          wx:for="{{recipes}}"
+          wx:key="id"
+          recipe="{{item}}"
+          bind:select="openRecipe"
+        />
+      </view>
+      <button wx:if="{{hasMore}}" class="load-more" loading="{{loadingMore}}" bindtap="loadMore">
+        {{loadingMore ? '正在加载' : '再看一些'}}
+      </button>
+      <text wx:else class="feed-end">已经看到这里了</text>
+    </block>
+  </page-state>
+</view>

@@ -1,0 +1,6 @@
+.native-tab { padding: 40rpx 28rpx 160rpx; }
+.eyebrow { display: block; color: #777; font-size: 24rpx; font-weight: 700; }
+.native-tab-title { display: block; margin-top: 8rpx; color: #111; font-size: 48rpx; font-weight: 800; }
+.native-tab-copy { display: block; margin: 16rpx 0 30rpx; color: #666; font-size: 27rpx; line-height: 1.6; }
+.notice { margin-bottom: 24rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: #f2f2f2; color: #555; font-size: 24rpx; }
+.conflict { background: #fff0dc; color: #75450a; }

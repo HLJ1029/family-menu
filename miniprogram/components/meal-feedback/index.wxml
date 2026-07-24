@@ -1,0 +1,15 @@
+<view class="feedback-card">
+  <text class="feedback-title">这顿饭，下次怎么安排？</text>
+  <text class="feedback-detail">选一次就好，Humi 会用它调整之后的推荐。</text>
+  <view class="feedback-options">
+    <button
+      wx:for="{{options}}"
+      wx:key="id"
+      class="feedback-option"
+      data-value="{{item.id}}"
+      bindtap="select"
+      loading="{{pending}}"
+      disabled="{{pending}}"
+    >{{item.label}}</button>
+  </view>
+</view>

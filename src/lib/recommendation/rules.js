@@ -272,6 +272,244 @@ export function recipeMatchesHardAvoid(recipe, context = {}) {
   });
 }
 
+export function collectDinnerRecommendationFeedback({
+  recommendationFeedback = [],
+  mealRuns = [],
+  householdId = "",
+} = {}) {
+  const legacy = (Array.isArray(recommendationFeedback) ? recommendationFeedback : [])
+    .map((item) => ({
+      ...item,
+      recipeIds: [...new Set([
+        ...(Array.isArray(item?.recipeIds) ? item.recipeIds : []),
+        item?.recipeId,
+      ].filter(Boolean))],
+      value: normalizeDinnerFeedbackValue(item?.value || item?.reasonId),
+    }))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  const completed = (Array.isArray(mealRuns) ? mealRuns : [])
+    .filter((run) => (
+      run?.status === "completed"
+      && (!householdId || run.householdId === householdId)
+      && Array.isArray(run.recipeIds)
+    ))
+    .flatMap((run) => (Array.isArray(run.feedback) ? run.feedback : []).map((entry) => ({
+      recipeIds: [...new Set(run.recipeIds.filter(Boolean))],
+      value: normalizeDinnerFeedbackValue(entry?.value),
+      mealRunId: run.id || "",
+      userId: entry?.userId || "",
+      createdAt: entry?.updatedAt || entry?.createdAt || run.completedAt || "",
+    })))
+    .filter((item) => item.recipeIds.length > 0 && item.value);
+  return [...legacy, ...completed].slice(-100);
+}
+
+export function normalizeDinnerFeedbackValue(value) {
+  if (value === "want_again") return "want_again";
+  if (["change_it", "change_next_time", "family_dislikes", "hard_to_buy", "wrong_taste", "not_dinner"].includes(value)) {
+    return "change_it";
+  }
+  if (["too_hard", "too_much_effort", "too_much_work"].includes(value)) return "too_hard";
+  return "";
+}
+
+export async function requestBalancedDinnerWithFallback({
+  requestServer,
+  serverPayload,
+  localInput,
+  validateServerGroup = (group) => validateDinnerRecommendationIds(group, localInput),
+}) {
+  const authenticatedScope = Boolean(localInput?.householdId && localInput.householdId !== "guest");
+  if (authenticatedScope && isLocalDinnerFallbackLocked(localInput)) {
+    return {
+      source: "local_fallback",
+      group: localInput?.storage
+        ? rotateLocalDinner({ ...localInput, fallbackLocked: true })
+        : buildLocalBalancedDinner(localInput),
+    };
+  }
+  try {
+    const group = await requestServer(serverPayload);
+    if (
+      validateServerGroup(group)
+      && String(group?.recommendationId || "").trim()
+      && String(group?.stateVersion || "").trim()
+    ) {
+      if (localInput?.storage) {
+        try {
+          seedLocalDinnerRotation(localInput, group);
+        } catch {
+          // A blocked localStorage write must not hide a valid authoritative response.
+        }
+      }
+      return { source: "server", group };
+    }
+  } catch (error) {
+    if (!isRecommendationConnectivityError(error)) throw error;
+  }
+  return {
+    source: "local_fallback",
+    group: localInput?.storage
+      ? rotateLocalDinner({ ...localInput, fallbackLocked: authenticatedScope })
+      : buildLocalBalancedDinner(localInput),
+  };
+}
+
+export function seedLocalDinnerRotation(input = {}, group = {}) {
+  const storage = input.storage;
+  if (!storage?.getItem || !storage?.setItem) {
+    throw new Error("Dinner rotation storage is required.");
+  }
+  const targetDishCount = normalizeDinnerDishCount(input);
+  if (!validateDinnerRecommendationIds(group, { ...input, targetDishCount })) {
+    throw new Error("A valid server dinner group is required.");
+  }
+  const scopeKey = localDinnerScopeKey(input);
+  const storageKey = localDinnerStorageKey(scopeKey);
+  const stored = readLocalDinnerRotation(storage, storageKey, scopeKey, input.householdId || "guest");
+  const recipeIds = [...new Set(group.recipeIds.map(String))];
+  const groupId = [...recipeIds].sort().join("+");
+  const nextRotation = {
+    scopeKey,
+    householdId: input.householdId || "guest",
+    seenRecipeIds: [
+      ...stored.seenRecipeIds.filter((recipeId) => !recipeIds.includes(recipeId)),
+      ...recipeIds,
+    ].slice(-200),
+    recentGroupIds: [
+      ...stored.recentGroupIds.filter((recentGroupId) => recentGroupId !== groupId),
+      groupId,
+    ].slice(-10),
+    cycle: stored.cycle,
+    updatedAt: new Date().toISOString(),
+    upstreamStateVersion: String(group.stateVersion || stored.upstreamStateVersion || ""),
+    fallbackLocked: false,
+  };
+  storage.setItem(storageKey, JSON.stringify(nextRotation));
+  return nextRotation;
+}
+
+export function validateDinnerRecommendationIds(group, input = {}) {
+  const recipeIds = Array.isArray(group?.recipeIds) ? group.recipeIds : [];
+  const targetDishCount = normalizeDinnerDishCount(input, recipeIds.length);
+  if (recipeIds.length !== targetDishCount || new Set(recipeIds).size !== recipeIds.length) return false;
+  const catalog = Array.isArray(input.catalog) ? input.catalog : recipes;
+  return recipeIds.every((id) => {
+    const recipe = catalog.find((candidate) => candidate.id === id);
+    if (!recipe) return false;
+    if (input.mode === "meal_execution" && (
+      recipe.cookAssist?.status !== "certified"
+      || recipe.cookAssist.effortTier !== input.effortTier
+    )) return false;
+    if ((input.dislikedRecipeIds ?? []).includes(id)) return false;
+    return !recipeMatchesHardAvoid(recipe, input);
+  });
+}
+
+export function buildLocalBalancedDinner(input = {}) {
+  const targetDishCount = normalizeDinnerDishCount(input);
+  const catalog = Array.isArray(input.catalog) ? input.catalog : recipes;
+  const seenIds = new Set([
+    ...(input.rotation?.seenRecipeIds ?? []),
+    ...(input.excludedRecipeIds ?? []),
+  ]);
+  const safe = catalog
+    .filter((recipe) => {
+      if (seenIds.has(recipe.id)) return false;
+      if (input.mode === "meal_execution" && (
+        recipe.cookAssist?.status !== "certified"
+        || recipe.cookAssist.effortTier !== input.effortTier
+      )) return false;
+      if ((input.dislikedRecipeIds ?? []).includes(recipe.id)) return false;
+      return !recipeMatchesHardAvoid(recipe, input);
+    });
+  const pool = safe.length >= targetDishCount ? safe : catalog.filter((recipe) => (
+    !seenIds.has(recipe.id)
+    && !(input.dislikedRecipeIds ?? []).includes(recipe.id)
+    && !recipeMatchesHardAvoid(recipe, input)
+    && (input.mode !== "meal_execution" || (
+      recipe.cookAssist?.status === "certified"
+      && recipe.cookAssist.effortTier === input.effortTier
+    ))
+  ));
+  const ranked = pool
+    .map((recipe) => ({ recipe, score: localRecipeScore(recipe, input) }))
+    .sort((left, right) => right.score - left.score || left.recipe.id.localeCompare(right.recipe.id));
+  const best = ranked[0]?.score ?? 0;
+  const highScoreWindow = ranked.filter((item) => item.score >= best - 12);
+  const selected = chooseLocalComplementaryGroup(
+    highScoreWindow.length >= targetDishCount ? highScoreWindow : ranked,
+    targetDishCount,
+  );
+  const recipeIds = selected.map((item) => item.recipe.id);
+  if (recipeIds.length !== targetDishCount) {
+    const error = new Error("没有足够的安全菜谱可供推荐。");
+    error.code = "recommendation_candidates_exhausted";
+    throw error;
+  }
+  return {
+    recommendationId: `local:${input.dateKey || "today"}:${input.effortTier || "legacy"}:${recipeIds.join("+")}`,
+    recipeIds,
+    cycle: Number(input.rotation?.cycle || 0),
+    groupIndex: Math.floor((input.rotation?.seenRecipeIds?.length || 0) / targetDishCount),
+    exhausted: false,
+    reasonCode: "local_balanced_fallback",
+    stateVersion: "",
+  };
+}
+
+export function rotateLocalDinner(input = {}) {
+  const storage = input.storage;
+  if (!storage?.getItem || !storage?.setItem) {
+    throw new Error("Dinner rotation storage is required.");
+  }
+  const targetDishCount = normalizeDinnerDishCount(input);
+  const scopeKey = localDinnerScopeKey(input);
+  const storageKey = localDinnerStorageKey(scopeKey);
+  const stored = readLocalDinnerRotation(storage, storageKey, scopeKey, input.householdId || "guest");
+  const action = ["next", "reject"].includes(input.action) ? input.action : "initial";
+  if (action === "initial" && stored.seenRecipeIds.length >= targetDishCount) {
+    const recipeIds = stored.seenRecipeIds.slice(-targetDishCount);
+    if (validateDinnerRecommendationIds({ recipeIds }, { ...input, targetDishCount })) {
+      return localDinnerGroup(recipeIds, stored, targetDishCount, false, "current_group");
+    }
+  }
+
+  let rotation = stored;
+  let exhausted = false;
+  let protectedRecipeIds = [];
+  const candidateCount = localDinnerCandidates({ ...input, rotation }).length;
+  if (candidateCount < targetDishCount) {
+    exhausted = true;
+    protectedRecipeIds = stored.recentGroupIds.slice(-2).flatMap((groupId) => groupId.split("+"));
+    rotation = { ...stored, seenRecipeIds: [], cycle: stored.cycle + 1 };
+  }
+  const selected = buildLocalBalancedDinner({
+    ...input,
+    targetDishCount,
+    rotation,
+    excludedRecipeIds: [...(input.excludedRecipeIds ?? []), ...protectedRecipeIds],
+  });
+  const nextRotation = {
+    scopeKey,
+    householdId: input.householdId || "guest",
+    seenRecipeIds: [...rotation.seenRecipeIds, ...selected.recipeIds],
+    recentGroupIds: [...stored.recentGroupIds, [...selected.recipeIds].sort().join("+")].slice(-10),
+    cycle: rotation.cycle,
+    updatedAt: new Date().toISOString(),
+    upstreamStateVersion: stored.upstreamStateVersion,
+    fallbackLocked: Boolean(input.fallbackLocked || stored.fallbackLocked),
+  };
+  storage.setItem(storageKey, JSON.stringify(nextRotation));
+  return localDinnerGroup(
+    selected.recipeIds,
+    nextRotation,
+    targetDishCount,
+    exhausted,
+    exhausted ? "cycle_reset_recent_protected" : "balanced_unseen",
+  );
+}
+
 function selectDinnerSet({ primary, scored, fallbackRecipes, hardAvoidSignals, targetDishCount }) {
   const selected = [];
   const selectedIds = new Set();
@@ -295,6 +533,167 @@ function selectDinnerSet({ primary, scored, fallbackRecipes, hardAvoidSignals, t
   }
 
   return selected;
+}
+
+function normalizeDinnerDishCount(input = {}, responseLength = 0) {
+  const requested = Number.parseInt(input.targetDishCount, 10);
+  if (Number.isFinite(requested)) return Math.max(1, Math.min(4, requested));
+  if (responseLength > 0) return responseLength;
+  if (input.mode === "meal_execution" && input.effortTier === "quick_15") return 1;
+  const familySize = Math.max(1, Number.parseInt(input.familyProfile?.familySize, 10) || 2);
+  return input.mode === "legacy" && familySize >= 5 ? 3 : familySize <= 1 ? 1 : 2;
+}
+
+function isRecommendationConnectivityError(error) {
+  if (error?.name === "AbortError" || error instanceof TypeError) return true;
+  if (Number(error?.status) === 0) return true;
+  return /failed to fetch|network|timeout|load failed|网络|连接|超时/i.test(String(error?.message || ""));
+}
+
+function localRecipeScore(recipe, input = {}) {
+  let score = (Array.isArray(input.recommendationFeedback) ? input.recommendationFeedback : []).reduce((total, item) => {
+    const recipeIds = [item?.recipeId, ...(Array.isArray(item?.recipeIds) ? item.recipeIds : [])];
+    if (!recipeIds.includes(recipe.id)) return total;
+    return total + feedbackScoreDelta(item.value || item.reasonId);
+  }, 100);
+  const pantryNames = new Set((input.pantryItems ?? []).map((item) => normalize(item?.name || item)));
+  score += (recipe.ingredients ?? []).filter((ingredient) => pantryNames.has(normalize(ingredient?.name))).length * 3;
+  const haystack = [
+    recipe.searchText,
+    recipe.name,
+    recipe.title,
+    recipe.description,
+    ...(recipe.categories ?? []),
+    ...(recipe.tags ?? []),
+    ...(recipe.ingredients ?? []).map((ingredient) => ingredient?.name),
+  ].filter(Boolean).map(normalize).join(" ");
+  const wanted = (input.wantToEatItems ?? []).map((item) => normalize(item?.name || item?.title || item));
+  if (wanted.some((signal) => signal && haystack.includes(signal))) score += 8;
+  if (recipe.cookAssist?.cleanupLevel === "low") score += input.effortTier === "quick_15" ? 4 : 1;
+  return score;
+}
+
+function feedbackScoreDelta(value) {
+  const normalized = normalizeDinnerFeedbackValue(value);
+  if (normalized === "want_again") return 12;
+  if (normalized === "change_it") return -7;
+  if (normalized === "too_hard") return -12;
+  return 0;
+}
+
+function chooseLocalComplementaryGroup(scored, targetDishCount) {
+  const selected = [];
+  const usedPrimaryCategories = new Set();
+  for (const item of scored) {
+    if (selected.length >= targetDishCount) break;
+    const primaryCategory = item.recipe.categories?.[0] || "";
+    if (selected.length > 0 && primaryCategory && usedPrimaryCategories.has(primaryCategory)) continue;
+    selected.push(item);
+    if (primaryCategory) usedPrimaryCategories.add(primaryCategory);
+  }
+  if (selected.length < targetDishCount) {
+    for (const item of scored) {
+      if (selected.length >= targetDishCount) break;
+      if (!selected.some((entry) => entry.recipe.id === item.recipe.id)) selected.push(item);
+    }
+  }
+  return selected;
+}
+
+function localDinnerCandidates(input = {}) {
+  const catalog = Array.isArray(input.catalog) ? input.catalog : recipes;
+  const seenIds = new Set([
+    ...(input.rotation?.seenRecipeIds ?? []),
+    ...(input.excludedRecipeIds ?? []),
+  ]);
+  return catalog.filter((recipe) => (
+    !seenIds.has(recipe.id)
+    && !(input.dislikedRecipeIds ?? []).includes(recipe.id)
+    && !recipeMatchesHardAvoid(recipe, input)
+    && (input.mode !== "meal_execution" || (
+      recipe.cookAssist?.status === "certified"
+      && recipe.cookAssist.effortTier === input.effortTier
+    ))
+  ));
+}
+
+function readLocalDinnerRotation(storage, storageKey, scopeKey, householdId) {
+  try {
+    const parsed = JSON.parse(storage.getItem(storageKey) || "null");
+    if (parsed?.scopeKey === scopeKey && Array.isArray(parsed.seenRecipeIds) && Array.isArray(parsed.recentGroupIds)) {
+      return {
+        scopeKey,
+        householdId,
+        seenRecipeIds: [...new Set(parsed.seenRecipeIds.map(String))],
+        recentGroupIds: [...new Set(parsed.recentGroupIds.map(String))].slice(-10),
+        cycle: Math.max(0, Number.parseInt(parsed.cycle, 10) || 0),
+        updatedAt: String(parsed.updatedAt || ""),
+        upstreamStateVersion: String(parsed.upstreamStateVersion || ""),
+        fallbackLocked: parsed.fallbackLocked === true,
+      };
+    }
+  } catch {
+    // Invalid local cursors are discarded and rebuilt from the scoped catalog.
+  }
+  return {
+    scopeKey,
+    householdId,
+    seenRecipeIds: [],
+    recentGroupIds: [],
+    cycle: 0,
+    updatedAt: "",
+    upstreamStateVersion: "",
+    fallbackLocked: false,
+  };
+}
+
+function isLocalDinnerFallbackLocked(input = {}) {
+  const storage = input.storage;
+  if (!storage?.getItem) return false;
+  const scopeKey = localDinnerScopeKey(input);
+  const stored = readLocalDinnerRotation(
+    storage,
+    localDinnerStorageKey(scopeKey),
+    scopeKey,
+    input.householdId || "guest",
+  );
+  return stored.fallbackLocked === true;
+}
+
+function localDinnerGroup(recipeIds, rotation, targetDishCount, exhausted, reasonCode) {
+  return {
+    recommendationId: `local:${rotation.cycle}:${recipeIds.join("+")}`,
+    recipeIds,
+    cycle: rotation.cycle,
+    groupIndex: Math.max(0, Math.floor(rotation.seenRecipeIds.length / targetDishCount) - 1),
+    exhausted,
+    reasonCode,
+    stateVersion: String(simpleDinnerHash(JSON.stringify(rotation))),
+    upstreamStateVersion: String(rotation.upstreamStateVersion || ""),
+  };
+}
+
+function localDinnerScopeKey(input = {}) {
+  return [
+    input.householdId || "guest",
+    input.dateKey,
+    input.mode,
+    input.effortTier || "legacy",
+    input.contextFingerprint,
+  ].join(":");
+}
+
+function localDinnerStorageKey(scopeKey) {
+  return `humi:recommendation:v1:${scopeKey}`;
+}
+
+function simpleDinnerHash(value) {
+  let hash = 2166136261;
+  for (const character of String(value)) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
 function getTargetDishCount(familySize) {
@@ -489,12 +888,17 @@ function buildHardAvoidSignals(familyPreference) {
 }
 
 function expandAvoidSignal(signal) {
-  const normalized = normalize(signal);
+  const normalized = normalize(signal).replace(/[，。,.；;、\s]/g, "");
   if (!normalized) return [];
-  const expanded = [normalized];
+  const stripped = normalized
+    .replace(/^(?:我|本人|孩子|小孩|宝宝)?对/, "")
+    .replace(/(?:严重)?(?:过敏|不耐受|不能吃|吃不了|忌口|不吃)$/g, "");
+  const expanded = [stripped || normalized];
   if (normalized.includes("太辣") || normalized.includes("不吃辣") || normalized.includes("少辣")) expanded.push("辣");
   if (normalized.includes("海鲜")) expanded.push("鱼", "虾", "贝", "蟹");
-  if (normalized.includes("坚果")) expanded.push("花生", "核桃", "杏仁");
+  if (normalized.includes("坚果") || normalized.includes("花生") || normalized.includes("腰果")) expanded.push("坚果", "花生", "核桃", "杏仁", "腰果");
+  if (normalized.includes("鸡蛋") || normalized.includes("蛋类")) expanded.push("鸡蛋", "蛋");
+  if (normalized.includes("豆制品")) expanded.push("豆腐", "豆浆", "豆皮");
   if (normalized.includes("乳糖")) expanded.push("牛奶", "奶酪", "奶");
   return [...new Set(expanded)];
 }

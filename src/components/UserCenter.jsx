@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { FamilyLivingRoom } from "./FamilyLivingRoom";
-import { FamilyActivityPage } from "./FamilyActivityPage";
 import { HumiAccountPage } from "./HumiAccountPage";
 import { HouseholdMembersPage } from "./HouseholdMembersPage";
-import { HouseholdSettingsPage } from "./HouseholdSettingsPage";
 import { HouseholdStart } from "./HouseholdStart";
+import { RouteLoadBoundary, RouteLoadingFallback } from "./AppShell";
+import { lazyRoutes } from "../routes/lazyRoutes";
+
+const FamilyActivityPage = lazyRoutes.familyActivity;
+const HouseholdSettingsPage = lazyRoutes.householdSettings;
 
 export function UserCenter({
   authProps,
@@ -33,6 +36,7 @@ export function UserCenter({
   onLeaveHousehold,
   onSaveFamilyProfile,
   mealLogs = {},
+  onViewChange,
 }) {
   const signedIn = Boolean(humiSession?.user?.profileStatus === "complete");
   const [familyRoute, setFamilyRoute] = useState(() => ({ familyId: family?.id || "", pageId: "home" }));
@@ -82,13 +86,25 @@ export function UserCenter({
     return <HouseholdMembersPage {...commonPageProps} family={family} members={formalMembers} canManageHousehold={canManageHousehold} onInvite={handleHouseholdInvite} onRemoveMember={onRemoveMember} onTransferOwnership={onTransferOwnership} />;
   }
   if (pageId === "settings") {
-    return <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onCreateHousehold={onCreateHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />;
+    return (
+      <RouteLoadBoundary resetKey={pageId}>
+        <Suspense fallback={<RouteLoadingFallback label="正在打开家庭设置" />}>
+          <HouseholdSettingsPage {...commonPageProps} family={family} households={households} familyProfile={familyProfile} canManageHousehold={canManageHousehold} onCreateHousehold={onCreateHousehold} onSwitchHousehold={onSwitchHousehold} onRenameHousehold={onRenameHousehold} onLeaveHousehold={onLeaveHousehold} onSaveFamilyProfile={onSaveFamilyProfile} />
+        </Suspense>
+      </RouteLoadBoundary>
+    );
   }
   if (pageId === "activity") {
-    return <FamilyActivityPage {...commonPageProps} humiSession={humiSession} householdId={family.id} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />;
+    return (
+      <RouteLoadBoundary resetKey={pageId}>
+        <Suspense fallback={<RouteLoadingFallback label="正在打开家庭动态" />}>
+          <FamilyActivityPage {...commonPageProps} humiSession={humiSession} householdId={family.id} activeCraveRequest={activeCraveRequest} activeGroceryShareRequest={activeGroceryShareRequest} activeWishShareRequest={activeWishShareRequest} mealLogs={mealLogs} />
+        </Suspense>
+      </RouteLoadBoundary>
+    );
   }
   if (pageId === "account") {
-    return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} />;
+    return <HumiAccountPage {...commonPageProps} humiSession={humiSession} onSignOut={authProps?.onSignOut} onOpenEatingHabits={() => onViewChange?.("stats")} />;
   }
 
   return (

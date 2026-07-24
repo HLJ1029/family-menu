@@ -1,11 +1,37 @@
 {
   "pages": [
+    "pages/boot/index",
+    "pages/tonight/index",
+    "pages/discover/index",
+    "pages/plan/index",
+    "pages/grocery/index",
+    "pages/family/index",
+    "pages/legacy/index",
     "pages/index/index",
+    "pages/identity/index",
     "pages/share/index",
+    "pages/reminder/index",
     "pages/poster/index",
-    "pages/phone-bind/index",
-    "pages/identity/index"
+    "pages/phone-bind/index"
   ],
+  "subPackages": [
+    { "root": "packageCooking", "pages": ["pages/cooking/index"] },
+    { "root": "packageFamily", "pages": ["pages/settings/index", "pages/invite/index", "pages/task/index"] },
+    { "root": "packageContent", "pages": ["pages/recipe/index", "pages/web-content/index"] },
+    { "root": "packageShare", "pages": ["pages/menu/index", "pages/grocery/index"] }
+  ],
+  "tabBar": {
+    "color": "#7A7A7A",
+    "selectedColor": "#111111",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      { "pagePath": "pages/tonight/index", "text": "今晚" },
+      { "pagePath": "pages/discover/index", "text": "发现" },
+      { "pagePath": "pages/plan/index", "text": "计划" },
+      { "pagePath": "pages/grocery/index", "text": "清单" },
+      { "pagePath": "pages/family/index", "text": "我的家" }
+    ]
+  },
   "window": {
     "navigationBarTitleText": "Humi",
     "navigationBarBackgroundColor": "#111111",

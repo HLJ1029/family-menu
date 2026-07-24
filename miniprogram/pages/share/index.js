@@ -1,3 +1,5 @@
+const { validateShareLandingOptions } = require("../../utils/bootstrap");
+
 Page({
   data: {
     ...buildShareData({}),
@@ -5,14 +7,21 @@ Page({
   },
 
   onLoad(options = {}) {
-    const data = buildShareData(options);
-    const canShare = Boolean(data.token);
+    const landing = validateShareLandingOptions(options);
+    if (!landing) {
+      this.setData({
+        ...buildShareData({}),
+        canShare: false,
+        helper: "这份内容没有准备完整，请返回 Humi 重新打开。"
+      });
+      this.enableShare();
+      return;
+    }
+    const data = buildShareData({ ...options, ...landing });
     this.setData({
       ...data,
-      canShare,
-      helper: canShare
-        ? data.helper
-        : "这份内容没有准备完整，请返回 Humi 重新打开。"
+      canShare: true,
+      helper: data.helper
     });
     this.enableShare();
   },
@@ -30,6 +39,7 @@ Page({
   },
 
   onShareAppMessage() {
+    if (!this.data.canShare) return null;
     return {
       title: this.data.title,
       path: this.data.path,
@@ -38,6 +48,7 @@ Page({
   },
 
   onShareTimeline() {
+    if (!this.data.canShare) return null;
     return {
       title: this.data.title,
       query: String(this.data.path || "").split("?")[1] || ""
@@ -50,7 +61,7 @@ Page({
       wx.navigateBack();
       return;
     }
-    wx.reLaunch({ url: "/pages/index/index" });
+    wx.reLaunch({ url: "/pages/boot/index" });
   }
 });
 
@@ -61,6 +72,26 @@ function buildShareData(options = {}) {
   const initiatorName = normalizeText(options.initiatorName) || "主厨";
   const inviterName = normalizeText(options.inviterName) || initiatorName;
   const itemCount = Number(options.itemCount || 0);
+
+  if (type === "meal_task") {
+    const label = normalizeText(options.label) || "一起把今晚这顿端上桌";
+    return {
+      type,
+      token,
+      householdName,
+      title: label,
+      eyebrow: "今晚协作任务",
+      body: "发给同住家人，对方登录并加入这个家后，可以认领并标记完成。",
+      meta: "不阻塞你继续做饭",
+      actionLabel: "选择家人发任务",
+      helper: "再点一下，就能选择发给哪位家人。",
+      detailRows: [
+        { label: "家人打开后", value: "登录 Humi 后认领这件具体小事" },
+        { label: "你继续做", value: "任务不会卡住单人做饭流程" }
+      ],
+      path: `/pages/boot/index?mealTask=${encodeURIComponent(token)}&shareSource=meal_task`
+    };
+  }
 
   if (type === "grocery") {
     const title = itemCount > 0
@@ -80,7 +111,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "可以直接查看，不用先登录" },
         { label: "你回来后", value: "刷新就能看到谁来买、买了什么" }
       ],
-      path: `/pages/index/index?groceryShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?groceryShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -99,7 +130,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "不用登录，写一道菜就行" },
         { label: "你回来后", value: "刷新“最近想吃”就能看到" }
       ],
-      path: `/pages/index/index?wishShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?wishShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -118,7 +149,7 @@ function buildShareData(options = {}) {
         { label: "家人会看到", value: "今晚的菜和份数" },
         { label: "菜单还会带上", value: "对应的买菜清单" }
       ],
-      path: `/pages/index/index?menuShare=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?menuShare=${encodeURIComponent(token)}`
     };
   }
 
@@ -138,7 +169,7 @@ function buildShareData(options = {}) {
         { label: "家人打开后", value: "登录一次就能加入这个家" },
         { label: "加入以后", value: "菜单、清单和回复都在一起" }
       ],
-      path: `/pages/index/index?invite=${encodeURIComponent(token)}`
+      path: `/pages/boot/index?invite=${encodeURIComponent(token)}`
     };
   }
 
@@ -157,7 +188,7 @@ function buildShareData(options = {}) {
       { label: "家人打开后", value: "不用登录，点一个感觉就行" },
       { label: "你回来后", value: "刷新就能看到大家的回复" }
     ],
-    path: `/pages/index/index?crave=${encodeURIComponent(token)}`
+    path: `/pages/boot/index?crave=${encodeURIComponent(token)}`
   };
 }
 

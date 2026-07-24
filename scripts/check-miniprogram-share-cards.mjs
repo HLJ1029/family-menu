@@ -1,16 +1,18 @@
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
-const source = await readFile("miniprogram/pages/index/index.js", "utf8");
+const source = await readFile("miniprogram/pages/legacy/index.js", "utf8");
 const pageDefinition = loadMiniProgramPage(source);
 const sharePageSource = await readFile("miniprogram/pages/share/index.js", "utf8");
-const shareRelay = loadShareRelay(sharePageSource);
+const shareRelay = loadShareRelay(sharePageSource, loadShareLandingValidator());
 const indexHtml = await readFile("index.html", "utf8");
 if (!indexHtml.includes("/vendor/jweixin-1.6.0.js")) {
   throw new Error("index.html must load the WeChat JSSDK before miniProgram share actions can navigate to the native relay page.");
 }
 
-const cases = [
+const caseDefinitions = [
   {
     name: "crave",
     message: {
@@ -22,13 +24,13 @@ const cases = [
     },
     expectedShare: {
       title: "周末家今晚征集口味，点一下就行",
-      path: "/pages/index/index?crave=crave-token-123",
+      path: "/pages/boot/index?crave=crave-token-123",
     },
     launchOptions: { crave: "crave-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?crave=crave-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "今晚征集口味，点一下就行",
-      path: "/pages/index/index?crave=crave-token-123",
+      path: "/pages/boot/index?crave=crave-token-123",
     },
   },
   {
@@ -41,13 +43,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林邀请你加入 周末家",
-      path: "/pages/index/index?invite=invite-token-123",
+      path: "/pages/boot/index?invite=invite-token-123",
     },
     launchOptions: { invite: "invite-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?invite=invite-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨邀请你加入 这个家",
-      path: "/pages/index/index?invite=invite-token-123",
+      path: "/pages/boot/index?invite=invite-token-123",
     },
   },
   {
@@ -61,13 +63,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林发来 6 项买菜清单",
-      path: "/pages/index/index?groceryShare=grocery-token-123",
+      path: "/pages/boot/index?groceryShare=grocery-token-123",
     },
     launchOptions: { groceryShare: "grocery-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?groceryShare=grocery-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨发来买菜清单",
-      path: "/pages/index/index?groceryShare=grocery-token-123",
+      path: "/pages/boot/index?groceryShare=grocery-token-123",
     },
   },
   {
@@ -80,13 +82,13 @@ const cases = [
     },
     expectedShare: {
       title: "小林想收集家里最近想吃的菜",
-      path: "/pages/index/index?wishShare=wish-token-123",
+      path: "/pages/boot/index?wishShare=wish-token-123",
     },
     launchOptions: { wishShare: "wish-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?wishShare=wish-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "主厨想收集家里最近想吃的菜",
-      path: "/pages/index/index?wishShare=wish-token-123",
+      path: "/pages/boot/index?wishShare=wish-token-123",
     },
   },
   {
@@ -99,16 +101,51 @@ const cases = [
     },
     expectedShare: {
       title: "周末家今晚菜单",
-      path: "/pages/index/index?menuShare=menu-token-123",
+      path: "/pages/boot/index?menuShare=menu-token-123",
     },
     launchOptions: { menuShare: "menu-token-123" },
     expectedLaunchUrl: "https://www.humi-home.com/?menuShare=menu-token-123&channel=wechat-miniprogram",
     expectedLaunchShare: {
       title: "今晚菜单已经安排好",
-      path: "/pages/index/index?menuShare=menu-token-123",
+      path: "/pages/boot/index?menuShare=menu-token-123",
+    },
+  },
+  {
+    name: "meal_task",
+    message: {
+      type: "humi:share-meal-task",
+      token: "meal-task-token-123",
+      householdName: "周末家",
+      initiatorName: "小林",
+      label: "请家人买鸡蛋",
+    },
+    expectedShare: {
+      title: "请家人买鸡蛋",
+      path: "/pages/boot/index?mealTask=meal-task-token-123&shareSource=meal_task",
+    },
+    launchOptions: { mealTask: "meal-task-token-123" },
+    expectedLaunchUrl: "https://www.humi-home.com/?mealTask=meal-task-token-123&shareSource=meal_task&channel=wechat-miniprogram",
+    expectedLaunchShare: {
+      title: "一起把今晚这顿端上桌",
+      path: "/pages/boot/index?mealTask=meal-task-token-123&shareSource=meal_task",
     },
   },
 ];
+
+const fixturesByType = new Map(shareLandingFixtures.map((fixture) => [fixture.type, fixture]));
+const cases = caseDefinitions.map((testCase) => {
+  const fixture = fixturesByType.get(testCase.name);
+  if (!fixture) throw new Error(`Missing native landing fixture for ${testCase.name}`);
+  return {
+    ...testCase,
+    fixture,
+    message: { ...testCase.message, token: fixture.token },
+    expectedShare: { ...testCase.expectedShare, path: fixture.expectedPath },
+    launchOptions: { [fixture.launchKey]: fixture.token },
+    expectedLaunchUrl: `https://www.humi-home.com/?${fixture.launchKey}=${fixture.token}${fixture.type === "meal_task" ? `&shareSource=${fixture.shareSource}` : ""}&channel=wechat-miniprogram`,
+    expectedLaunchShare: { ...testCase.expectedLaunchShare, path: fixture.expectedPath },
+  };
+});
 
 const results = cases.map((testCase) => {
   const sharePage = createPageInstance(pageDefinition);
@@ -117,9 +154,11 @@ const results = cases.map((testCase) => {
   assertEqual(`${testCase.name} title`, share.title, testCase.expectedShare.title);
   assertEqual(`${testCase.name} path`, share.path, testCase.expectedShare.path);
 
-  const relay = shareRelay.buildShareData({ ...testCase.message, type: testCase.name });
-  assertEqual(`${testCase.name} relay title`, relay.title, testCase.expectedShare.title);
-  assertEqual(`${testCase.name} relay path`, relay.path, testCase.expectedShare.path);
+  const nativeSharePage = createPageInstance(shareRelay.pageDefinition);
+  nativeSharePage.onLoad({ ...testCase.message, type: testCase.fixture.type, token: testCase.fixture.token });
+  const nativeShare = nativeSharePage.onShareAppMessage();
+  assertEqual(`${testCase.name} native title`, nativeShare.title, testCase.expectedShare.title);
+  assertEqual(`${testCase.name} native path`, nativeShare.path, testCase.expectedShare.path);
 
   const launchPage = createPageInstance(pageDefinition);
   launchPage.onLoad(testCase.launchOptions);
@@ -132,8 +171,8 @@ const results = cases.map((testCase) => {
     name: testCase.name,
     title: share.title,
     path: share.path,
-    relayTitle: relay.title,
-    relayPath: relay.path,
+    nativeTitle: nativeShare.title,
+    nativePath: nativeShare.path,
     launchUrl: launchPage.data.url,
     launchShareTitle: launchShare.title,
     launchSharePath: launchShare.path,
@@ -171,19 +210,25 @@ function loadMiniProgramPage(code) {
     },
   };
 
-  vm.runInNewContext(code, context, { filename: "miniprogram/pages/index/index.js" });
+  vm.runInNewContext(code, context, { filename: "miniprogram/pages/legacy/index.js" });
   if (!capturedPage) throw new Error("Mini program page definition was not captured.");
   return capturedPage;
 }
 
-function loadShareRelay(code) {
+function loadShareRelay(code, shareLandingValidator) {
   const module = { exports: {} };
+  let pageDefinition = null;
   const context = {
     console,
     module,
     exports: module.exports,
-    Page() {},
+    Page(definition) { pageDefinition = definition; },
+    require(request) {
+      if (request === "../../utils/bootstrap") return shareLandingValidator;
+      throw new Error(`Unexpected require: ${request}`);
+    },
     wx: {
+      hideShareMenu() {},
       showShareMenu() {},
       navigateBack() {},
     },
@@ -193,7 +238,22 @@ function loadShareRelay(code) {
   if (typeof module.exports.buildShareData !== "function") {
     throw new Error("Share relay buildShareData was not exported.");
   }
-  return module.exports;
+  if (!pageDefinition) throw new Error("Native share page definition was not captured.");
+  return { ...module.exports, pageDefinition };
+}
+
+function loadShareLandingValidator() {
+  const source = readFileSync("miniprogram/utils/bootstrap.js", "utf8");
+  const module = { exports: {} };
+  vm.runInNewContext(source, {
+    module,
+    exports: module.exports,
+    require(request) {
+      if (request === "./cache" || request === "./request") return {};
+      throw new Error(`Unexpected require: ${request}`);
+    },
+  }, { filename: "miniprogram/utils/bootstrap.js" });
+  return { validateShareLandingOptions: module.exports.validateShareLandingOptions };
 }
 
 function createPageInstance(definition) {
