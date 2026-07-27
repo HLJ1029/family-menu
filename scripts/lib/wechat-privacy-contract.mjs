@@ -233,10 +233,19 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
     });
     const apiNames = new Set();
     let hasIndeterminateWxProperty = false;
+    let hasIndeterminateObjectAlias = false;
     let hasIndeterminateFunctionAlias = false;
     walkAst(ast, (node) => {
       const api = memberApiName(node, objectAliases, staticStrings);
       if (api) apiNames.add(api);
+      if (
+        new Set(["MemberExpression", "OptionalMemberExpression"]).has(node.type)
+        && node.object?.type === "Identifier"
+        && initialAliases.objectAliases.has(node.object.name)
+        && !objectAliases.has(node.object.name)
+      ) {
+        hasIndeterminateObjectAlias = true;
+      }
       if (
         new Set(["MemberExpression", "OptionalMemberExpression"]).has(node.type)
         && node.object?.type === "Identifier"
@@ -259,6 +268,9 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
     });
     if (hasIndeterminateWxProperty) {
       parseErrors.push({ path, reason: "indeterminate_wx_property" });
+    }
+    if (hasIndeterminateObjectAlias) {
+      parseErrors.push({ path, reason: "indeterminate_wx_object_alias" });
     }
     if (hasIndeterminateFunctionAlias) {
       parseErrors.push({ path, reason: "indeterminate_wx_function_alias" });

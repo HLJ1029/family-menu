@@ -183,6 +183,44 @@ assert(
   "a dynamic reassignment must invalidate the old wx function alias",
 );
 
+const overwrittenObjectAlias = detectRuntimeCapabilities([{
+  path: "overwritten-object-alias.js",
+  source: "let api = wx; api = getRuntimeApi(); api.requestPayment();",
+}]);
+assert(
+  overwrittenObjectAlias.parseErrors.some((finding) => (
+    finding.path === "overwritten-object-alias.js"
+    && finding.reason === "indeterminate_wx_object_alias"
+  )),
+  "a used dynamically overwritten wx object alias must fail closed as indeterminate",
+);
+
+const overwrittenObjectAliasChain = detectRuntimeCapabilities([{
+  path: "overwritten-object-alias-chain.js",
+  source: "let api=wx; let second=api; api=getRuntimeApi(); second.requestPayment()",
+}]);
+assert(
+  overwrittenObjectAliasChain.parseErrors.some((finding) => (
+    finding.path === "overwritten-object-alias-chain.js"
+    && finding.reason === "indeterminate_wx_object_alias"
+  )),
+  "a derived wx object alias lost through dynamic overwrite analysis must fail closed",
+);
+
+const unusedOverwrittenObjectAlias = detectRuntimeCapabilities([{
+  path: "unused-overwritten-object-alias.js",
+  source: "let api=wx; api=getRuntimeApi();",
+}]);
+assert.deepEqual(
+  {
+    capabilities: [...unusedOverwrittenObjectAlias.capabilities],
+    forbidden: [...unusedOverwrittenObjectAlias.forbidden],
+    parseErrors: unusedOverwrittenObjectAlias.parseErrors,
+  },
+  { capabilities: [], forbidden: [], parseErrors: [] },
+  "an unused dynamically overwritten wx object alias must not create an unrelated finding",
+);
+
 for (const tag of ["<ad></ad>", "<ad-custom />", "<AD-BANNER></AD-BANNER>", "<ad-slot></ad-slot>"]) {
   const detected = detectRuntimeCapabilities([{ path: "ad.wxml", source: tag }]);
   assert(detected.forbidden.has("advertising"), `ad tag variant must be detected: ${tag}`);
