@@ -3,6 +3,12 @@ import { existsSync, readFileSync } from "node:fs";
 import vm from "node:vm";
 import { directPreviewFixtures, shareCardGuideFixtures, shareLandingFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
+const certifiedRecipesModule = { exports: {} };
+vm.runInNewContext(readFileSync(new URL("../miniprogram/data/certified-recipes.js", import.meta.url), "utf8"), {
+  module: certifiedRecipesModule,
+  exports: certifiedRecipesModule.exports,
+});
+const certifiedRecipes = certifiedRecipesModule.exports;
 const appConfig = JSON.parse(readFileSync(new URL("../miniprogram/app.json", import.meta.url), "utf8"));
 const tabPaths = [
   "pages/tonight/index",
@@ -20,6 +26,8 @@ assert(appConfig.pages.includes("pages/legacy/index"), "the H5 compatibility pag
 assert(appConfig.pages.includes("pages/index/index"), "the historical share-entry shim must stay registered");
 assert(!appConfig.tabBar.list.some((item) => item.pagePath === "pages/legacy/index"), "legacy must not be a tab");
 assert(!appConfig.tabBar.list.some((item) => item.pagePath === "pages/index/index"), "the historical shim must not be a tab");
+assert(Array.isArray(certifiedRecipes) && certifiedRecipes.length > 0, "the generated certified recipe catalog must be non-empty");
+assert(certifiedRecipes.some((recipe) => recipe?.cookAssist?.status === "certified"), "the generated catalog must include certified cook-assist metadata");
 for (const pagePath of appConfig.pages) assertPageFiles(`../miniprogram/${pagePath}`, `registered page ${pagePath}`);
 for (const subPackage of appConfig.subPackages || []) {
   for (const pagePath of subPackage.pages || []) {
@@ -242,6 +250,7 @@ for (const tabPath of tabPaths) {
       if (specifier === "../../utils/offline-queue") return { enqueueMutation: () => {} };
       if (specifier === "../../utils/household-state") return {};
       if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.humi-home.com" };
+      if (specifier === "../../data/certified-recipes") return certifiedRecipes;
       throw new Error(`Unexpected tab dependency: ${specifier}`);
     }
   });
