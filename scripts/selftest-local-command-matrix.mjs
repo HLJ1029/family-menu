@@ -8,6 +8,7 @@ import {
   readdir,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,6 +19,7 @@ import {
   buildAuthoritativeCommandMatrix,
   classifyMatrixResult,
 } from "./lib/local-command-matrix.mjs";
+import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
 
 const execFileAsync = promisify(execFile);
 const PRODUCT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -29,12 +31,18 @@ try {
   if (process.argv.includes("--short-smoke")) {
     await shortSmoke();
     console.log("Immutable local command matrix short smoke passed.");
+  } else if (process.argv.includes("--blocker-focused")) {
+    testExternalBlockerClassificationIsExact();
+    console.log("Immutable local command matrix blocker classification selftest passed.");
   } else {
     await testAuthoritativeCommandMatrixContract();
     testExternalBlockerClassificationIsExact();
     await testGuardRejectsUnsafeInjection();
+    await testGuardRejectsSymlinkEscape();
+    await testGuardRejectsArbitraryExternalMutation();
     await testAllPassAndDeterministicOrder();
     await testFailureContinues();
+    await testPerCommandHarnessFailuresContinue();
     await testTimeout();
     await testRedactionAndHashVerification();
     await testCollisionRefusesOverwrite();
@@ -48,6 +56,9 @@ try {
 }
 
 function testExternalBlockerClassificationIsExact() {
+  const missingRows = REQUIRED_SCENARIOS
+    .map((scenario) => `${scenario}\tmissing\tscenario_missing`)
+    .join("\n");
   const rolloutCommand = { expectedBlockerPolicy: "current-candidate-upload-missing", nonzeroClassification: "fail" };
   const expectedRollout = processResult({
     code: 1,
@@ -75,8 +86,16 @@ function testExternalBlockerClassificationIsExact() {
   ), "blocker");
   assert.equal(classifyMatrixResult(
     { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
-    processResult({ code: 1, stdout: "True-device evidence blocked: 0/56.\n" }),
+    processResult({ code: 1, stdout: "True-device evidence blocked: 0/56.\n", stderr: `${missingRows}\n` }),
   ), "blocker");
+  assert.equal(classifyMatrixResult(
+    { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
+    processResult({
+      code: 1,
+      stdout: "True-device evidence blocked: 0/56.\n",
+      stderr: `${missingRows}\nunrelated_local_failure\n`,
+    }),
+  ), "fail");
   assert.equal(classifyMatrixResult(
     { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
     processResult({ code: null, signal: "SIGTERM", stdout: "True-device evidence blocked: 0/56.\n" }),
@@ -164,8 +183,8 @@ async function testAuthoritativeCommandMatrixContract() {
 async function shortSmoke() {
   const fixture = await makeFixture("short-smoke");
   const commands = [
-    nodeCommand("first", "console.log('first')"),
-    nodeCommand("second", "console.error('second')"),
+    fixtureCommand("first", "pass"),
+    fixtureCommand("second", "pass"),
   ];
   const result = await runMatrix(fixture, commands, "short-smoke");
   assert.equal(result.code, 0, result.stderr);
@@ -177,7 +196,7 @@ async function shortSmoke() {
 
 async function testGuardRejectsUnsafeInjection() {
   const fixture = await makeFixture("guard");
-  const commandFile = await writeCommands(fixture, [nodeCommand("guard", "")]);
+  const commandFile = await writeCommands(fixture, [fixtureCommand("guard", "pass")]);
   const result = await invoke([
     "--test-repo", fixture.repo,
     "--test-evidence-root", fixture.evidenceRoot,
@@ -189,16 +208,48 @@ async function testGuardRejectsUnsafeInjection() {
   await assert.rejects(stat(join(fixture.evidenceRoot, "guard")));
 }
 
+async function testGuardRejectsSymlinkEscape() {
+  const fixture = await makeFixture("symlink-escape");
+  const repoLink = join(fixture.fixtureRoot, "repo-link");
+  await symlink(PRODUCT_ROOT, repoLink, "dir");
+  const commandFile = await writeCommands(fixture, [fixtureCommand("guard", "pass")]);
+  const result = await invoke([
+    "--test-repo", repoLink,
+    "--test-evidence-root", fixture.evidenceRoot,
+    "--test-command-file", commandFile,
+    "--test-run-id", "symlink-escape",
+  ]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /test-only matrix injection refused/i);
+  await assert.rejects(stat(join(fixture.evidenceRoot, "symlink-escape")));
+}
+
+async function testGuardRejectsArbitraryExternalMutation() {
+  const fixture = await makeFixture("arbitrary-command");
+  const outside = join(fixture.fixtureRoot, "outside-controlled.txt");
+  const commandFile = await writeCommands(fixture, [{
+    id: "arbitrary",
+    executable: process.execPath,
+    args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(outside)}, 'mutated')`],
+    timeoutMs: 5_000,
+  }]);
+  const result = await invoke([
+    "--test-repo", fixture.repo,
+    "--test-evidence-root", fixture.evidenceRoot,
+    "--test-command-file", commandFile,
+    "--test-run-id", "arbitrary-command",
+  ]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /test-only matrix command list/i);
+  await assert.rejects(stat(outside));
+}
+
 async function testAllPassAndDeterministicOrder() {
   const fixture = await makeFixture("ordered");
-  const orderPath = join(fixture.fixtureRoot, ".order");
-  const append = (value) => nodeCommand(
-    value,
-    `require('node:fs').appendFileSync(${JSON.stringify(orderPath)}, ${JSON.stringify(`${value}\n`)})`,
-  );
+  const append = (value) => fixtureCommand(value, "append-order");
   const result = await runMatrix(fixture, [append("alpha"), append("beta"), append("gamma")], "ordered");
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(await readFile(orderPath, "utf8"), "alpha\nbeta\ngamma\n");
+  assert.equal(await readFile(join(fixture.evidenceRoot, "ordered", "artifacts", "fixture-order.txt"), "utf8"), "alpha\nbeta\ngamma\n");
   const manifest = await readManifest(fixture, "ordered");
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.state, "complete");
@@ -211,27 +262,67 @@ async function testAllPassAndDeterministicOrder() {
   assert.deepEqual(manifest.aggregate, { total: 3, pass: 3, fail: 0, blocker: 0, timeout: 0 });
   assert.match(manifest.integrity.manifestSha256, /^[a-f0-9]{64}$/);
   await verifyManifest(fixture, "ordered");
+  const runDir = join(fixture.evidenceRoot, "ordered");
+  const sidecarPath = join(runDir, "manifest.sha256");
+  const sidecar = await readFile(sidecarPath, "utf8");
+  await rm(sidecarPath);
+  const missingSidecar = await invokeVerifier(join(runDir, "manifest.json"));
+  assert.notEqual(missingSidecar.code, 0);
+  assert.match(missingSidecar.stderr, /sidecar.*required|ENOENT/i);
+  await writeFile(sidecarPath, "0".repeat(64) + "  manifest.json\n");
+  const tamperedSidecar = await invokeVerifier(join(runDir, "manifest.json"));
+  assert.notEqual(tamperedSidecar.code, 0);
+  assert.match(tamperedSidecar.stderr, /manifest file hash mismatch/i);
+  await writeFile(sidecarPath, sidecar);
 }
 
 async function testFailureContinues() {
   const fixture = await makeFixture("failure");
-  const marker = join(fixture.fixtureRoot, ".continued");
   const commands = [
-    nodeCommand("fails", "process.exit(7)"),
-    nodeCommand("continues", `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'yes')`),
+    fixtureCommand("fails", "fail", { exitCode: 7 }),
+    fixtureCommand("continues", "write-marker"),
   ];
   const result = await runMatrix(fixture, commands, "failure");
   assert.notEqual(result.code, 0);
-  assert.equal(await readFile(marker, "utf8"), "yes");
+  assert.equal(await readFile(join(fixture.evidenceRoot, "failure", "artifacts", "continued.txt"), "utf8"), "yes");
   const manifest = await readManifest(fixture, "failure");
   assert.deepEqual(manifest.results.map((entry) => entry.classification), ["fail", "pass"]);
   assert.equal(manifest.results[0].exit.code, 7);
   assert.equal(manifest.overallResult, "failed");
 }
 
+async function testPerCommandHarnessFailuresContinue() {
+  const fixture = await makeFixture("harness-failures");
+  const commands = [
+    fixtureCommand("unsafe-link", "artifact-symlink"),
+    fixtureCommand("after-link", "pass"),
+    fixtureCommand("oversize", "artifact-oversize"),
+    fixtureCommand("after-oversize", "pass"),
+    fixtureCommand("observe", "observation-failure"),
+    fixtureCommand("after-observe", "pass"),
+    fixtureCommand("log-write", "log-write-failure"),
+    fixtureCommand("after-log-write", "pass"),
+  ];
+  const result = await runMatrix(fixture, commands, "harness-failures");
+  assert.notEqual(result.code, 0);
+  const manifest = await readManifest(fixture, "harness-failures");
+  assert.equal(manifest.state, "complete");
+  assert.deepEqual(
+    manifest.results.map((entry) => entry.classification),
+    ["fail", "pass", "fail", "pass", "fail", "pass", "fail", "pass"],
+  );
+  assert.deepEqual(
+    manifest.results.filter((entry) => entry.runnerErrors?.length).map((entry) => entry.runnerErrors[0].code),
+    ["artifact_sanitization_failed", "artifact_sanitization_failed", "repository_observation_failed", "log_persistence_failed"],
+  );
+  assert.equal(manifest.overallResult, "failed");
+  assert.match(await readFile(join(fixture.evidenceRoot, "harness-failures", "manifest.sha256"), "utf8"), /^[a-f0-9]{64}  manifest\.json\n$/);
+  await verifyManifest(fixture, "harness-failures");
+}
+
 async function testTimeout() {
   const fixture = await makeFixture("timeout");
-  const command = nodeCommand("times-out", "setInterval(() => {}, 1000)", { timeoutMs: 100 });
+  const command = fixtureCommand("times-out", "timeout", { timeoutMs: 100 });
   const result = await runMatrix(fixture, [command], "timeout");
   assert.notEqual(result.code, 0);
   const manifest = await readManifest(fixture, "timeout");
@@ -252,27 +343,16 @@ async function testRedactionAndHashVerification() {
   const salt = ["matrix", "test", "telemetry", "salt"].join("_");
   const secret = ["matrix", "test", "app", "secret"].join("_");
   const jsonToken = ["matrix", "test", "json", "access", "token"].join("_");
-  const payload = [
-    `Authorization: ${auth}`,
-    `https://example.test/callback?token=${token}&ticket=${ticket}`,
-    `email=${email}`,
-    `phone=${phone}`,
-    `openid=${openId}`,
-    `UnionID=${unionId}`,
-    `HUMI_TELEMETRY_HASH_SALT=${salt}`,
-    `WECHAT_APP_SECRET=${secret}`,
-    JSON.stringify({ accessToken: jsonToken, appSecret: secret, openId, unionId }),
-    fixture.evidenceRoot,
-  ].join("\n");
-  const command = nodeCommand(
-    "redacts",
-    `const fs=require('node:fs'); const p=require('node:path'); const d=p.join(process.env.HUMI_PRIVATE_EVIDENCE_DIR,'nested'); fs.mkdirSync(d,{recursive:true}); fs.writeFileSync(p.join(d,'manifest.json'),${JSON.stringify(payload)}); process.stdout.write(${JSON.stringify(payload)}); process.stderr.write(${JSON.stringify(payload)})`,
-  );
+  const basicCredential = ["matrix", "test", "basic", "credential"].join("_");
+  const plainTicket = ["matrix", "test", "plain", "ticket"].join("_");
+  const jsonTicket = ["matrix", "test", "json", "ticket"].join("_");
+  const digestCredential = ["matrix", "test", "digest", "credential"].join("_");
+  const command = fixtureCommand("redacts", "redact-output-and-artifact");
   const result = await runMatrix(fixture, [command], "redaction");
   assert.equal(result.code, 0, result.stderr);
   const runDir = join(fixture.evidenceRoot, "redaction");
   const persisted = await readPersistedText(runDir);
-  for (const unsafe of [auth, token, ticket, email, phone, openId, unionId, salt, secret, jsonToken, fixture.evidenceRoot]) {
+  for (const unsafe of [auth, token, ticket, email, phone, openId, unionId, salt, secret, jsonToken, basicCredential, plainTicket, jsonTicket, digestCredential, fixture.evidenceRoot]) {
     assert.equal(persisted.includes(unsafe), false, `persisted evidence leaked ${unsafe.length} bytes`);
   }
   assert.match(persisted, /\[REDACTED/);
@@ -289,7 +369,7 @@ async function testRedactionAndHashVerification() {
 
 async function testCollisionRefusesOverwrite() {
   const fixture = await makeFixture("collision");
-  const commands = [nodeCommand("once", "console.log('once')")];
+  const commands = [fixtureCommand("once", "pass")];
   const first = await runMatrix(fixture, commands, "collision");
   assert.equal(first.code, 0, first.stderr);
   const manifestPath = join(fixture.evidenceRoot, "collision", "manifest.json");
@@ -303,8 +383,8 @@ async function testCollisionRefusesOverwrite() {
 async function testAtomicPartialManifest() {
   const fixture = await makeFixture("partial");
   const commands = [
-    nodeCommand("first", "console.log('first')"),
-    nodeCommand("waiting", "setTimeout(() => console.log('second'), 900)"),
+    fixtureCommand("first", "pass"),
+    fixtureCommand("waiting", "wait", { delayMs: 900 }),
   ];
   const commandFile = await writeCommands(fixture, commands);
   const child = spawn(process.execPath, [
@@ -329,6 +409,9 @@ async function testAtomicPartialManifest() {
   });
   assert.equal(partial.results[0].id, "first");
   assert.equal(partial.currentCommand.id, "waiting");
+  const partialVerification = await invokeVerifier(manifestPath);
+  assert.notEqual(partialVerification.code, 0);
+  assert.match(partialVerification.stderr, /manifest is not complete/i);
   const completed = await output;
   assert.equal(completed.code, 0, completed.stderr);
   const leftovers = (await readdir(join(fixture.evidenceRoot, "partial")))
@@ -338,11 +421,7 @@ async function testAtomicPartialManifest() {
 
 async function testRepositoryMutation() {
   const fixture = await makeFixture("mutation");
-  const tracked = join(fixture.repo, "README.md");
-  const command = nodeCommand(
-    "mutates-repo",
-    `require('node:fs').writeFileSync(${JSON.stringify(tracked)}, ${JSON.stringify("changed\n")})`,
-  );
+  const command = fixtureCommand("mutates-repo", "mutate-repo");
   const result = await runMatrix(fixture, [command], "mutation");
   assert.notEqual(result.code, 0);
   const manifest = await readManifest(fixture, "mutation");
@@ -354,7 +433,7 @@ async function testRepositoryMutation() {
 
 async function testExpectedExternalBlockerNeverPasses() {
   const fixture = await makeFixture("blocker");
-  const commands = [nodeCommand("external", "console.log('no evidence')", {
+  const commands = [fixtureCommand("external", "pass", {
     expectedExternalBlocker: true,
   })];
   const result = await runMatrix(fixture, commands, "blocker");
@@ -380,11 +459,10 @@ async function makeFixture(name) {
   return { repo, evidenceRoot, fixtureRoot };
 }
 
-function nodeCommand(id, source, overrides = {}) {
+function fixtureCommand(id, action, overrides = {}) {
   return {
     id,
-    executable: process.execPath,
-    args: ["-e", source],
+    action,
     timeoutMs: 5_000,
     ...overrides,
   };

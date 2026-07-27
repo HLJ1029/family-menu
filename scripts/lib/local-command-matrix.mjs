@@ -7,6 +7,7 @@ import {
   readdir,
   realpath,
   rename,
+  rm,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -18,6 +19,7 @@ import {
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "../release-candidate.mjs";
+import { REQUIRED_SCENARIOS } from "../check-humi-true-device-evidence.mjs";
 
 export const PRODUCT_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 export const DEFAULT_EXTERNAL_HANDOFF = "/Users/honglijie/AI-HQ/deliverables/humi/HUMI-2026-001/native-shell/HANDOFF.md";
@@ -30,13 +32,12 @@ export const DEFAULT_EVIDENCE_ROOT = join(
 export const SECRET_SCAN = "/Users/honglijie/AI-HQ/scripts/secret-scan.sh";
 const MANIFEST_NAME = "manifest.json";
 const MANIFEST_HASH_SCOPE = "manifest-json-with-integrity-omitted";
-const TEST_KEYS = new Set([
-  "id",
-  "executable",
-  "args",
-  "timeoutMs",
-  "expectedExternalBlocker",
-  "nonzeroClassification",
+const FIXTURE_HELPER = resolve(fileURLToPath(new URL("../local-command-matrix-fixture.mjs", import.meta.url)));
+const TEST_ACTION_KEYS = new Set(["id", "action", "timeoutMs", "exitCode", "delayMs", "expectedExternalBlocker"]);
+const TEST_ACTIONS = new Set([
+  "pass", "fail", "timeout", "wait", "append-order", "write-marker", "mutate-repo",
+  "redact-output-and-artifact", "artifact-symlink", "artifact-oversize",
+  "observation-failure", "log-write-failure",
 ]);
 let atomicCounter = 0;
 
@@ -110,6 +111,7 @@ export async function runLocalCommandMatrix(options = {}) {
     results: [],
     aggregate: aggregateResults([]),
     overallResult: "running",
+    runnerErrors: [],
     integrity: null,
   };
   await persistManifest(runDir, manifest);
@@ -134,11 +136,44 @@ export async function runLocalCommandMatrix(options = {}) {
     const finishedAt = new Date();
     const stdout = redactOutput(execution.stdout.toString("utf8"), privatePaths);
     const stderr = redactOutput(execution.stderr.toString("utf8"), privatePaths);
-    const artifactSanitization = await sanitizeArtifactText(artifactsDir, privatePaths);
+    const runnerErrors = [];
+    let artifactSanitization = { files: 0, redactions: 0, status: "passed" };
+    try {
+      artifactSanitization = {
+        ...await sanitizeArtifactText(artifactsDir, privatePaths),
+        status: "passed",
+      };
+    } catch {
+      artifactSanitization = { files: 0, redactions: 0, status: "failed" };
+      runnerErrors.push({ code: "artifact_sanitization_failed", stage: "artifact_sanitization" });
+    }
     const logStem = `${String(sequence).padStart(3, "0")}-${command.id}`;
-    const stdoutLog = await persistLog(logsDir, `${logStem}.stdout.log`, stdout.text);
-    const stderrLog = await persistLog(logsDir, `${logStem}.stderr.log`, stderr.text);
-    const classification = classifyResult(command, execution);
+    if (command.testFixtureAction === "log-write-failure") {
+      await mkdir(join(logsDir, `${logStem}.stdout.log`), { mode: 0o700 });
+    }
+    const stdoutPersisted = await persistLogWithBoundary(logsDir, `${logStem}.stdout.log`, stdout.text);
+    const stderrPersisted = await persistLogWithBoundary(logsDir, `${logStem}.stderr.log`, stderr.text);
+    if (stdoutPersisted.error) runnerErrors.push(stdoutPersisted.error);
+    if (stderrPersisted.error) runnerErrors.push(stderrPersisted.error);
+    let observed = null;
+    try {
+      if (command.testFixtureAction === "observation-failure") throw new Error("controlled observation failure");
+      observed = await readRepositoryState(repoRoot);
+      manifest.repository.observations.push({
+        afterCommand: command.id,
+        ...publicRepositoryState(observed),
+      });
+      if (!sameRepositoryState(startState, observed)) manifest.repository.changedDuringRun = true;
+    } catch {
+      manifest.repository.changedDuringRun = true;
+      manifest.repository.observations.push({
+        afterCommand: command.id,
+        available: false,
+        errorCode: "repository_observation_failed",
+      });
+      runnerErrors.push({ code: "repository_observation_failed", stage: "repository_observation" });
+    }
+    const classification = runnerErrors.length ? "fail" : classifyResult(command, execution);
     manifest.results.push({
       ...publicCommand(command, index, privatePaths),
       startedAt: startedAt.toISOString(),
@@ -150,8 +185,8 @@ export async function runLocalCommandMatrix(options = {}) {
         timedOut: execution.timedOut,
       },
       logs: {
-        stdout: stdoutLog,
-        stderr: stderrLog,
+        stdout: stdoutPersisted.record,
+        stderr: stderrPersisted.record,
       },
       redactions: {
         stdout: stdout.count,
@@ -159,25 +194,32 @@ export async function runLocalCommandMatrix(options = {}) {
         total: stdout.count + stderr.count,
       },
       artifactSanitization,
+      runnerErrors,
       classification,
     });
-    const observed = await readRepositoryState(repoRoot);
-    manifest.repository.observations.push({
-      afterCommand: command.id,
-      ...publicRepositoryState(observed),
-    });
-    if (!sameRepositoryState(startState, observed)) {
-      manifest.repository.changedDuringRun = true;
-    }
     manifest.currentCommand = null;
     manifest.aggregate = aggregateResults(manifest.results);
     await persistManifest(runDir, manifest);
     console.log(`[local-matrix] ${sequence}/${commands.length} ${classification} ${command.id}`);
   }
 
-  const finalState = await readRepositoryState(repoRoot);
-  manifest.repository.final = publicRepositoryState(finalState);
-  if (!sameRepositoryState(startState, finalState)) manifest.repository.changedDuringRun = true;
+  try {
+    const finalState = await readRepositoryState(repoRoot);
+    manifest.repository.final = publicRepositoryState(finalState);
+    if (!sameRepositoryState(startState, finalState)) manifest.repository.changedDuringRun = true;
+  } catch {
+    manifest.repository.final = {
+      ...publicRepositoryState(startState),
+      clean: false,
+      available: false,
+      errorCode: "final_repository_observation_failed",
+    };
+    manifest.repository.changedDuringRun = true;
+    manifest.runnerErrors.push({
+      code: "final_repository_observation_failed",
+      stage: "final_repository_observation",
+    });
+  }
   manifest.state = "complete";
   manifest.finishedAt = new Date().toISOString();
   manifest.currentCommand = null;
@@ -299,6 +341,19 @@ export async function verifyLocalCommandMatrix(manifestPath) {
   const runDir = dirname(absoluteManifest);
   const bytes = await readFile(absoluteManifest);
   const manifest = JSON.parse(bytes.toString("utf8"));
+  if (manifest.state !== "complete" || typeof manifest.finishedAt !== "string"
+    || manifest.currentCommand !== null || !manifest.repository?.final
+    || !Array.isArray(manifest.matrix) || !Array.isArray(manifest.results)
+    || manifest.results.length !== manifest.matrix.length) {
+    throw new Error("manifest is not complete");
+  }
+  for (let index = 0; index < manifest.matrix.length; index += 1) {
+    if (manifest.matrix[index]?.sequence !== index + 1
+      || manifest.results[index]?.sequence !== index + 1
+      || manifest.matrix[index]?.id !== manifest.results[index]?.id) {
+      throw new Error("manifest command results are incomplete or out of order");
+    }
+  }
   const declaredIntegrity = manifest.integrity;
   assertIntegrityShape(declaredIntegrity);
   const canonical = canonicalManifestBytes(manifest);
@@ -309,6 +364,13 @@ export async function verifyLocalCommandMatrix(manifestPath) {
   for (const result of manifest.results || []) {
     for (const stream of ["stdout", "stderr"]) {
       const record = result.logs?.[stream];
+      if (record?.status === "unavailable") {
+        if (record.path !== null || record.bytes !== 0 || record.sha256 !== null
+          || !result.runnerErrors?.some((entry) => entry.code === "log_persistence_failed")) {
+          throw new Error(`invalid unavailable ${stream} log record for ${result.id}`);
+        }
+        continue;
+      }
       if (!record || !/^[a-f0-9]{64}$/.test(record.sha256) || !Number.isInteger(record.bytes)) {
         throw new Error(`invalid ${stream} log record for ${result.id}`);
       }
@@ -320,14 +382,16 @@ export async function verifyLocalCommandMatrix(manifestPath) {
     }
   }
   const sidecarPath = join(runDir, "manifest.sha256");
+  let sidecar;
   try {
-    const sidecar = (await readFile(sidecarPath, "utf8")).trim();
-    const expectedFileSha = sidecar.match(/^([a-f0-9]{64})  manifest\.json$/)?.[1];
-    if (!expectedFileSha || expectedFileSha !== sha256(bytes)) {
-      throw new Error("manifest file hash mismatch");
-    }
+    sidecar = (await readFile(sidecarPath, "utf8")).trim();
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (error?.code === "ENOENT") throw new Error("manifest SHA-256 sidecar is required");
+    throw error;
+  }
+  const expectedFileSha = sidecar.match(/^([a-f0-9]{64})  manifest\.json$/)?.[1];
+  if (!expectedFileSha || expectedFileSha !== sha256(bytes)) {
+    throw new Error("manifest file hash mismatch");
   }
   return {
     manifestCanonicalSha256: canonicalSha256,
@@ -364,13 +428,9 @@ function validateCommands(commands, { testMode }) {
   for (const item of commands) {
     if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("invalid matrix command");
     if (testMode) {
-      const extra = Object.keys(item).filter((key) => !TEST_KEYS.has(key));
-      if (extra.length) throw new Error(`test command contains unsupported keys: ${extra.join(",")}`);
-      item.env = {};
-      item.scriptIdentity = null;
-      item.nonzeroClassification = item.nonzeroClassification || "fail";
-      item.expectedExternalBlocker = item.expectedExternalBlocker === true;
-      item.expectedBlockerPolicy = null;
+      if (item.executable !== process.execPath || item.args?.[0] !== FIXTURE_HELPER || item.scriptIdentity !== "controlled-test-fixture") {
+        throw new Error("test-only matrix command list must use the controlled fixture helper");
+      }
     }
     if (!/^[a-z0-9][a-z0-9:._-]{0,79}$/.test(item.id) || ids.has(item.id)) {
       throw new Error(`invalid or duplicate matrix command id: ${item.id}`);
@@ -430,7 +490,16 @@ function classifyResult(commandEntry, execution) {
 function matchesExpectedBlocker(policy, execution) {
   const stdout = execution.stdout.toString("utf8");
   if (policy === "true-device-evidence-missing") {
-    return execution.code === 1 && /True-device evidence blocked:\s*0\/56\./.test(stdout);
+    const stdoutLines = stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const finalLine = stdoutLines.pop();
+    const expectedStderr = REQUIRED_SCENARIOS
+      .map((scenario) => `${scenario}\tmissing\tscenario_missing`);
+    const stderrLines = execution.stderr.toString("utf8").trim().split(/\r?\n/).filter(Boolean);
+    return execution.code === 1
+      && finalLine === `True-device evidence blocked: 0/${REQUIRED_SCENARIOS.length}.`
+      && stdoutLines.every((line) => line.startsWith(">"))
+      && stderrLines.length === expectedStderr.length
+      && stderrLines.every((line, index) => line === expectedStderr[index]);
   }
   const report = extractJsonReport(stdout);
   if (policy === "startup-evidence-missing") {
@@ -516,18 +585,23 @@ export function redactOutput(input, privatePaths = []) {
   const replace = (pattern, replacement) => {
     text = text.replace(pattern, (...args) => {
       count += 1;
-      return typeof replacement === "function" ? replacement(...args) : replacement;
+      if (typeof replacement === "function") return replacement(...args);
+      return replacement.replace(/\$(\d+)/g, (_token, index) => args[Number(index)] ?? "");
     });
   };
   for (const privatePath of [...privatePaths].sort((a, b) => b.length - a.length)) {
     if (!privatePath) continue;
     replace(new RegExp(escapeRegExp(privatePath), "g"), "[REDACTED_PRIVATE_EVIDENCE_PATH]");
   }
-  replace(/(authorization\s*:\s*)(?:bearer\s+)?[^\s"']+/gi, "$1[REDACTED_AUTHORIZATION]");
+  replace(/(authorization\s*:\s*)[^\r\n]+/gi, "$1[REDACTED_AUTHORIZATION]");
+  replace(
+    /((?:\\?["'])authorization(?:\\?["'])\s*:\s*(?:\\?["']))[^\\\r\n"']+(?=(?:\\?["']))/gi,
+    "$1[REDACTED_AUTHORIZATION]",
+  );
   replace(/\bbearer\s+[A-Za-z0-9._~+\/-]{8,}/gi, "Bearer [REDACTED_TOKEN]");
   replace(/([?&](?:access_token|refresh_token|token|ticket|auth|authorization|code|openid|unionid)=)[^&#\s"']+/gi, "$1[REDACTED_QUERY_VALUE]");
   replace(
-    /((?:\\?["'])?(?:(?:wechat_?)?app_?secret|humi_session_secret|humi_telemetry_hash_salt|telemetry_salt|api_?key|access_?token|refresh_?token|id_?token|session_?token)(?:\\?["'])?\s*[=:]\s*(?:\\?["'])?)[^\s,\\"']+/gi,
+    /((?:\\?["'])?(?:(?:wechat_?)?app_?secret|humi_session_secret|humi_telemetry_hash_salt|telemetry_salt|api_?key|access_?token|refresh_?token|id_?token|session_?token|ticket|authorization)(?:\\?["'])?\s*[=:]\s*(?:\\?["'])?)[^\s,\\"']+/gi,
     "$1[REDACTED_SECRET]",
   );
   replace(
@@ -550,20 +624,53 @@ async function persistLog(logsDir, filename, text) {
   };
 }
 
+async function persistLogWithBoundary(logsDir, filename, text) {
+  try {
+    return { record: await persistLog(logsDir, filename, text), error: null };
+  } catch {
+    const exactPath = join(logsDir, filename);
+    try {
+      await rm(exactPath, { recursive: true, force: true });
+      const record = await persistLog(logsDir, filename, "[RUNNER_ERROR: log persistence recovered]\n");
+      return {
+        record,
+        error: { code: "log_persistence_failed", stage: "log_persistence" },
+      };
+    } catch {
+      return {
+        record: { status: "unavailable", path: null, bytes: 0, sha256: null },
+        error: { code: "log_persistence_failed", stage: "log_persistence" },
+      };
+    }
+  }
+}
+
 async function sanitizeArtifactText(root, privatePaths) {
   const report = { files: 0, redactions: 0 };
   async function visit(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error("private matrix artifacts must not contain symlinks");
+      if (entry.isSymbolicLink()) {
+        await rm(path, { force: true });
+        throw new Error("unsafe controlled artifact rejected");
+      }
       if (entry.isDirectory()) {
         await visit(path);
         continue;
       }
-      if (!entry.isFile() || !/\.(?:json|log|txt|md)$/i.test(entry.name)) continue;
+      if (!entry.isFile()) continue;
       const info = await stat(path);
-      if (info.size > 8 * 1024 * 1024) throw new Error("private matrix text artifact is too large to sanitize");
-      const original = await readFile(path, "utf8");
+      if (info.size > 8 * 1024 * 1024) {
+        const bytes = await readFile(path);
+        if (decodeControlledText(bytes.subarray(0, 64 * 1024)) !== null) {
+          await rm(path, { force: true });
+          throw new Error("unsafe controlled artifact rejected");
+        }
+        continue;
+      }
+      const bytes = await readFile(path);
+      const original = decodeControlledText(bytes);
+      if (original === null) continue;
       const sanitized = redactOutput(original, privatePaths);
       report.files += 1;
       report.redactions += sanitized.count;
@@ -573,6 +680,21 @@ async function sanitizeArtifactText(root, privatePaths) {
   }
   await visit(root);
   return report;
+}
+
+function decodeControlledText(bytes) {
+  if (bytes.includes(0)) return null;
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    let controls = 0;
+    for (const character of text) {
+      const code = character.charCodeAt(0);
+      if (code < 32 && !new Set([9, 10, 13]).has(code)) controls += 1;
+    }
+    return controls > Math.max(4, text.length / 100) ? null : text;
+  } catch {
+    return null;
+  }
 }
 
 async function persistManifest(runDir, manifest) {
@@ -699,19 +821,67 @@ function escapeRegExp(value) {
 export async function loadTestCommands(commandFile) {
   const bytes = await readFile(commandFile);
   if (bytes.byteLength > 256 * 1024) throw new Error("test command file is too large");
-  return JSON.parse(bytes.toString("utf8"));
+  const actions = JSON.parse(bytes.toString("utf8"));
+  if (!Array.isArray(actions) || actions.length === 0) throw new Error("test-only matrix command list must contain controlled actions");
+  return actions.map((entry) => compileTestAction(entry));
 }
 
 export async function assertTestInjectionGuard({ repoRoot, evidenceRoot, commandFile }) {
   const enabled = process.env.NODE_ENV === "test" && process.env.HUMI_LOCAL_MATRIX_TEST_MODE === "1";
   if (!enabled) throw new Error("test-only matrix injection refused: explicit test guards are required");
+  const tempRoot = await realpath(tmpdir());
+  const canonicalPaths = [];
   for (const path of [repoRoot, evidenceRoot, commandFile]) {
     if (!isAbsolute(path)) throw new Error("test-only matrix injection refused: paths must be absolute");
-    const relation = relative(resolve(tmpdir()), resolve(path));
+    const canonical = await realpath(path);
+    const relation = relative(tempRoot, canonical);
     if (relation.startsWith(`..${sep}`) || relation === ".." || !relation) {
       throw new Error("test-only matrix injection refused: paths must stay under the system temporary directory");
     }
+    canonicalPaths.push(canonical);
   }
-  const commandInfo = await stat(commandFile);
+  const commandInfo = await stat(canonicalPaths[2]);
   if (!commandInfo.isFile()) throw new Error("test-only matrix command list must be a file");
+  return {
+    repoRoot: canonicalPaths[0],
+    evidenceRoot: canonicalPaths[1],
+    commandFile: canonicalPaths[2],
+  };
+}
+
+function compileTestAction(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error("test-only matrix command list contains an invalid action");
+  }
+  const extra = Object.keys(entry).filter((key) => !TEST_ACTION_KEYS.has(key));
+  if (extra.length || !TEST_ACTIONS.has(entry.action) || !/^[a-z0-9][a-z0-9._-]{0,79}$/.test(entry.id || "")) {
+    throw new Error("test-only matrix command list contains an unsupported action");
+  }
+  const timeoutMs = entry.timeoutMs ?? 5_000;
+  let value = "";
+  if (entry.action === "fail") {
+    if (!Number.isInteger(entry.exitCode) || entry.exitCode < 1 || entry.exitCode > 125) {
+      throw new Error("test-only matrix command list contains an invalid failure action");
+    }
+    value = String(entry.exitCode);
+  } else if (entry.action === "wait") {
+    if (!Number.isInteger(entry.delayMs) || entry.delayMs < 1 || entry.delayMs > 2_000) {
+      throw new Error("test-only matrix command list contains an invalid wait action");
+    }
+    value = String(entry.delayMs);
+  } else if (entry.exitCode !== undefined || entry.delayMs !== undefined) {
+    throw new Error("test-only matrix command list contains unexpected action parameters");
+  }
+  return {
+    id: entry.id,
+    executable: process.execPath,
+    args: [FIXTURE_HELPER, entry.action, entry.id, value],
+    timeoutMs,
+    scriptIdentity: "controlled-test-fixture",
+    env: {},
+    expectedExternalBlocker: entry.expectedExternalBlocker === true,
+    expectedBlockerPolicy: null,
+    nonzeroClassification: "fail",
+    testFixtureAction: entry.action,
+  };
 }

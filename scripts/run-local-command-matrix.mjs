@@ -33,13 +33,13 @@ async function parseArgs(argv) {
     const repoRoot = resolve(values["--test-repo"]);
     const evidenceRoot = resolve(values["--test-evidence-root"]);
     const commandFile = resolve(values["--test-command-file"]);
-    await assertTestInjectionGuard({ repoRoot, evidenceRoot, commandFile });
+    const guarded = await assertTestInjectionGuard({ repoRoot, evidenceRoot, commandFile });
     return {
       testMode: true,
-      repoRoot,
-      evidenceRoot,
+      repoRoot: guarded.repoRoot,
+      evidenceRoot: guarded.evidenceRoot,
       runId: values["--test-run-id"],
-      commands: await loadTestCommands(commandFile),
+      commands: await loadTestCommands(guarded.commandFile),
     };
   }
   const allowed = new Set(["--true-device-evidence-dir", "--candidate-commit"]);

@@ -146,7 +146,11 @@ npm run release:local-matrix:selftest
 npm run release:local-matrix:smoke
 ```
 
-Injected commands, test repository paths, evidence roots, and run IDs require
-both `NODE_ENV=test` and `HUMI_LOCAL_MATRIX_TEST_MODE=1`, and all injected paths
-must resolve under the system temporary directory. These options are refused in
+Test repository paths, evidence roots, command files, and run IDs require both
+`NODE_ENV=test` and `HUMI_LOCAL_MATRIX_TEST_MODE=1`, and every path is resolved
+through `realpath` before it is accepted under the system temporary directory.
+The command file is not argv: it is a small allowlisted fixture-action DSL that
+the runner compiles to one fixed repository helper. Arbitrary executables,
+arguments, paths, environment values, symlink escapes, and unknown actions are
+refused before a run directory is created. These options are unavailable in
 normal operator runs and cannot replace the authoritative matrix.
