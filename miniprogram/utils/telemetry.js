@@ -215,9 +215,9 @@ function readStoredQueue() {
   }
 }
 
-function boundPendingQueue(events) {
-  const bounded = events.slice(-MAX_PENDING_EVENTS);
-  while (bounded.length && utf8ByteLength(JSON.stringify(bounded)) > MAX_PENDING_BYTES) {
+function boundPendingQueue(events, { maxEvents = MAX_PENDING_EVENTS, maxBytes = MAX_PENDING_BYTES } = {}) {
+  const bounded = events.slice(-maxEvents);
+  while (bounded.length && utf8ByteLength(JSON.stringify(bounded)) > maxBytes) {
     bounded.shift();
   }
   return bounded;
@@ -357,4 +357,5 @@ module.exports = {
   getAnonymousSessionId,
   setTelemetryOwner,
   startSpan,
+  boundPendingQueue,
 };

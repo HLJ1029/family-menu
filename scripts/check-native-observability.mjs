@@ -559,13 +559,50 @@ await check("client telemetry keeps only the newest 100 pending events across re
   }
   assert.equal(firstRuntime.readPendingTelemetry().length, 100);
   assert.equal(firstRuntime.readPendingTelemetry()[0].fields.businessId, "bounded-001");
+  const generatedBusinessIds = Array.from(firstRuntime.readPendingTelemetry(), (event) => event.businessId);
 
   const secondRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
     "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
   }, { wx });
   assert.equal(secondRuntime.readPendingTelemetry().length, 100);
   assert.equal(secondRuntime.readPendingTelemetry()[0].fields.businessId, "bounded-001");
+  assert.deepEqual(
+    Array.from(secondRuntime.readPendingTelemetry(), (event) => event.businessId),
+    generatedBusinessIds,
+    "restart must preserve every generated top-level businessId in queue order",
+  );
   assert.equal(storage.get("humi:telemetry-queue:v1").length, 100);
+});
+
+await check("client telemetry byte eviction is oldest-first, deterministic, and retains the newest acceptable event", () => {
+  const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
+  });
+  const events = ["oldest", "middle", "newest"].map((label, index) => ({
+    name: "plan_presented",
+    fields: {
+      page: "tonight",
+      stage: "completed",
+      packageVersion: "1.1.74",
+      businessId: `meal-${label}`,
+    },
+    at: index + 1,
+    businessId: `event-${label}`,
+    anonymousSessionId: "anonymous-fixed",
+    ownerId: "account-a",
+  }));
+  const boundPendingQueue = typeof telemetry.boundPendingQueue === "function"
+    ? telemetry.boundPendingQueue
+    : () => [];
+  const limits = { maxEvents: 100, maxBytes: 500 };
+  assert.equal(Buffer.byteLength(JSON.stringify(events), "utf8") > limits.maxBytes, true, "fixture must cross the byte budget without crossing the count budget");
+  assert.equal(Buffer.byteLength(JSON.stringify(events.slice(1)), "utf8") <= limits.maxBytes, true, "newest two safe events must fit together");
+  const first = boundPendingQueue(events, limits);
+  const second = boundPendingQueue(events, limits);
+  assert.deepEqual(Array.from(first, (event) => event.businessId), ["event-middle", "event-newest"]);
+  assert.equal(Buffer.byteLength(JSON.stringify(first), "utf8") <= limits.maxBytes, true);
+  assert.equal(first.at(-1).businessId, "event-newest");
+  assert.deepEqual(second, first, "the same safe queue and limits must produce the same retained order");
 });
 
 await check("restart discards an oversized persisted event without partially retaining it", () => {
