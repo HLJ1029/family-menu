@@ -72,6 +72,7 @@ const currentUnuploaded = {
     status: "local-candidate",
     runtimeCommit: null,
     archive: null,
+    uploadReceiptRef: null,
     actions: {
       productionApiDeployed: true,
       h5Deployed: true,
@@ -96,6 +97,7 @@ futureUploaded.candidate.archive = {
   path: "/private/humi-native-shell-1.1.75.tar.gz",
   sha256: "a".repeat(64),
 };
+futureUploaded.candidate.uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
 futureUploaded.candidate.actions.miniprogramUploaded = true;
 assert.equal(
   validateNativeCandidateEvidence(futureUploaded, { expectedVersion: "1.1.75" }).actions.miniprogramUploaded,
@@ -106,6 +108,7 @@ for (const [name, mutate, message] of [
   ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /version must be 1\.1\.75/],
   ["uploaded without archive", (value) => { value.candidate.archive = null; }, /uploaded candidate requires archive/],
   ["uploaded without commit", (value) => { value.candidate.runtimeCommit = null; }, /uploaded candidate requires runtimeCommit/],
+  ["uploaded without receipt ref", (value) => { value.candidate.uploadReceiptRef = null; }, /uploaded candidate requires uploadReceiptRef/],
   ["review already submitted", (value) => { value.candidate.actions.wechatReviewSubmitted = true; }, /wechatReviewSubmitted must remain false/],
   ["extra field", (value) => { value.candidate.extra = true; }, /exact key set/],
 ]) {

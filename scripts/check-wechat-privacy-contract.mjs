@@ -1,7 +1,10 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
+import {
+  auditWechatPrivacyBehaviorConsistency,
+  auditWechatPrivacyContract,
+} from "./lib/wechat-privacy-contract.mjs";
 import { runWechatPrivacyBehaviorChecks } from "./lib/wechat-privacy-behavior.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -11,6 +14,7 @@ const declaration = JSON.parse(
 );
 const report = auditWechatPrivacyContract({ runtimeFiles, declaration });
 const behavior = runWechatPrivacyBehaviorChecks({ root: ROOT });
+const behaviorConsistency = auditWechatPrivacyBehaviorConsistency({ declaration, behavior });
 const readme = await readFile(resolve(ROOT, "miniprogram/README.md"), "utf8");
 const documentation = {
   ok: declaration.platformDeclarationStatus === "pending"
@@ -19,12 +23,13 @@ const documentation = {
   platformDeclarationStatus: declaration.platformDeclarationStatus,
   readmeClaimsPlatformComplete: readme.includes("隐私保护指引已填写"),
 };
-const ok = report.ok && behavior.ok && documentation.ok;
+const ok = report.ok && behavior.ok && behaviorConsistency.ok && documentation.ok;
 
 console.log(JSON.stringify({
   ...report,
   ok,
   behavior,
+  behaviorConsistency,
   documentation,
   declarationPath: "docs/wechat-privacy-declaration.json",
   platformDeclarationStatus: declaration.platformDeclarationStatus,

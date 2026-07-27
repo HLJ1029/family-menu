@@ -20,7 +20,7 @@ const REQUIRED_ABSENCES = Object.freeze([
 const CAPABILITY_CONTRACTS = Object.freeze({
   wechat_identity: {
     access: "collect",
-    trigger: "automatic_login",
+    trigger: "explicit_user_action",
     purpose: ["login", "session", "family_collaboration"],
   },
   nickname_avatar: {
@@ -152,6 +152,37 @@ export function auditWechatPrivacyContract({ runtimeFiles = [], declaration = {}
   };
 }
 
+export function auditWechatPrivacyBehaviorConsistency({ declaration = {}, behavior = {} } = {}) {
+  const findings = [];
+  const declared = new Map(
+    (Array.isArray(declaration.capabilities) ? declaration.capabilities : [])
+      .map((item) => [String(item?.id || ""), item]),
+  );
+  const verifiedTriggers = behavior?.verifiedTriggers || {};
+  for (const capability of [
+    "wechat_identity",
+    "nickname_avatar",
+    "photo_album",
+    "subscription_message",
+  ]) {
+    const actual = verifiedTriggers[capability];
+    if (!actual) {
+      findings.push({ code: "behavior_trigger_unverified", capability });
+      continue;
+    }
+    const declaredTrigger = declared.get(capability)?.trigger;
+    if (declaredTrigger !== actual) {
+      findings.push({
+        code: "behavior_trigger_mismatch",
+        capability,
+        declaredTrigger: declaredTrigger || null,
+        verifiedTrigger: actual,
+      });
+    }
+  }
+  return { ok: findings.length === 0, findings };
+}
+
 export function detectRuntimeCapabilities(runtimeFiles = []) {
   const capabilities = new Set();
   const forbidden = new Set();
@@ -197,6 +228,7 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
     }
     const objectAliases = new Set(["wx"]);
     const functionAliases = new Map();
+    const staticStrings = new Map();
     let changed = true;
     while (changed) {
       changed = false;
@@ -205,12 +237,35 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
         const target = node.type === "VariableDeclarator" ? node.id : node.left;
         const value = node.type === "VariableDeclarator" ? node.init : node.right;
         if (!target || !value) return;
-        if (target.type === "Identifier" && value.type === "Identifier" && objectAliases.has(value.name)) {
-          if (!objectAliases.has(target.name)) { objectAliases.add(target.name); changed = true; }
-          return;
+        if (target.type === "Identifier" && value.type === "Identifier") {
+          if (objectAliases.has(value.name)) {
+            if (!objectAliases.has(target.name)) { objectAliases.add(target.name); changed = true; }
+            return;
+          }
+          if (functionAliases.has(value.name)) {
+            const api = functionAliases.get(value.name);
+            if (functionAliases.get(target.name) !== api) {
+              functionAliases.set(target.name, api);
+              changed = true;
+            }
+            return;
+          }
+          if (staticStrings.has(value.name)) {
+            const staticValue = staticStrings.get(value.name);
+            if (staticStrings.get(target.name) !== staticValue) {
+              staticStrings.set(target.name, staticValue);
+              changed = true;
+            }
+            return;
+          }
         }
         if (target.type === "Identifier") {
-          const api = memberApiName(value, objectAliases);
+          const staticValue = evaluateStaticString(value, staticStrings);
+          if (staticValue !== "" && staticStrings.get(target.name) !== staticValue) {
+            staticStrings.set(target.name, staticValue);
+            changed = true;
+          }
+          const api = memberApiName(value, objectAliases, staticStrings);
           if (api && functionAliases.get(target.name) !== api) {
             functionAliases.set(target.name, api);
             changed = true;
@@ -220,7 +275,7 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
         if (target.type === "ObjectPattern" && value.type === "Identifier" && objectAliases.has(value.name)) {
           for (const property of target.properties || []) {
             if (property.type !== "ObjectProperty" || property.value?.type !== "Identifier") continue;
-            const api = staticPropertyName(property);
+            const api = staticPropertyName(property, staticStrings);
             if (api && functionAliases.get(property.value.name) !== api) {
               functionAliases.set(property.value.name, api);
               changed = true;
@@ -230,9 +285,19 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
       });
     }
     const apiNames = new Set();
+    let hasIndeterminateWxProperty = false;
     walkAst(ast, (node) => {
-      const api = memberApiName(node, objectAliases);
+      const api = memberApiName(node, objectAliases, staticStrings);
       if (api) apiNames.add(api);
+      if (
+        new Set(["MemberExpression", "OptionalMemberExpression"]).has(node.type)
+        && node.object?.type === "Identifier"
+        && objectAliases.has(node.object.name)
+        && node.computed
+        && !staticPropertyName(node, staticStrings)
+      ) {
+        hasIndeterminateWxProperty = true;
+      }
       if (
         (node.type === "CallExpression" || node.type === "OptionalCallExpression")
         && node.callee?.type === "Identifier"
@@ -241,6 +306,9 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
         apiNames.add(functionAliases.get(node.callee.name));
       }
     });
+    if (hasIndeterminateWxProperty) {
+      parseErrors.push({ path, reason: "indeterminate_wx_property" });
+    }
     for (const api of apiNames) {
       for (const id of WX_API_CAPABILITIES[api] || []) record(capabilities, id, path);
       for (const id of WX_API_FORBIDDEN[api] || []) record(forbidden, id, path);
@@ -269,19 +337,37 @@ function walkAst(node, visit) {
   }
 }
 
-function memberApiName(node, objectAliases) {
+function memberApiName(node, objectAliases, staticStrings = new Map()) {
   if (!node || !new Set(["MemberExpression", "OptionalMemberExpression"]).has(node.type)) return "";
   if (node.object?.type !== "Identifier" || !objectAliases.has(node.object.name)) return "";
-  return staticPropertyName(node);
+  return staticPropertyName(node, staticStrings);
 }
 
-function staticPropertyName(node) {
+function staticPropertyName(node, staticStrings = new Map()) {
   const property = node?.key || node?.property;
   if (!property) return "";
   if (!node.computed && property.type === "Identifier") return property.name;
   if (property.type === "StringLiteral") return property.value;
+  if (property.type === "Identifier" && node.computed && staticStrings.has(property.name)) {
+    return staticStrings.get(property.name);
+  }
   if (property.type === "TemplateLiteral" && property.expressions?.length === 0) {
     return property.quasis?.[0]?.value?.cooked || "";
+  }
+  return "";
+}
+
+function evaluateStaticString(node, staticStrings = new Map()) {
+  if (!node) return "";
+  if (node.type === "StringLiteral") return node.value;
+  if (node.type === "Identifier") return staticStrings.get(node.name) || "";
+  if (node.type === "TemplateLiteral" && node.expressions?.length === 0) {
+    return node.quasis?.[0]?.value?.cooked || "";
+  }
+  if (node.type === "BinaryExpression" && node.operator === "+") {
+    const left = evaluateStaticString(node.left, staticStrings);
+    const right = evaluateStaticString(node.right, staticStrings);
+    return left && right ? `${left}${right}` : "";
   }
   return "";
 }

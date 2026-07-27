@@ -5,7 +5,7 @@
     {
       "id": "wechat_identity",
       "access": "collect",
-      "trigger": "automatic_login",
+      "trigger": "explicit_user_action",
       "purpose": [
         "login",
         "session",

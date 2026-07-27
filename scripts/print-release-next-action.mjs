@@ -15,6 +15,7 @@ import {
 } from "./release-candidate.mjs";
 import { validateNativeCandidateEvidence } from "./lib/native-rollout-readiness-policy.mjs";
 import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
+import { verifyWechatUploadReceiptBinding } from "./lib/native-candidate-artifact.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -63,7 +64,10 @@ if (status.release?.lastUploadedExperienceVersion) {
 }
 lines.push("");
 
-if (status.release?.releaseComplete) {
+if (currentCandidateNeedsUpload) {
+  stageScope = "candidate-upload";
+  appendCandidateUploadStage(lines);
+} else if (status.release?.releaseComplete) {
   stageScope = "complete";
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
   lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
@@ -101,21 +105,6 @@ if (status.release?.releaseComplete) {
   lines.push("3. 在微信公众平台补齐并复核 web-view 业务域名、隐私保护指引和开发者工具登录态的私有截图证据。");
   lines.push("4. 运行 npm run validate:true-device-evidence、npm run validate:startup-performance、npm run release:wechat:privacy:check 和 npm run release:native-shell:check:local。");
   lines.push("5. N5c 证据全部通过后停下来验收；未经新的明确授权，不执行审核、发布、开关或白名单动作。");
-} else if (
-  CURRENT_MINIPROGRAM_VERSION === "1.1.75"
-  && missingSections.includes("## 4. 微信公众平台提交审核证据")
-) {
-  stageScope = "candidate-upload";
-  lines.push("当前阶段：1.1.75 候选封包与上传授权，暂不进入 N5c 或微信审核。");
-  lines.push("");
-  lines.push("下一步一句话：把当前 1.1.75 运行时绑定到新的不可变归档并取得单独上传授权；最近已上传的 1.1.74@4eb3fbeb 只保留为历史证据。");
-  lines.push("");
-  lines.push("现在该做：");
-  lines.push("1. 运行 npm run release:wechat:privacy:check 和本地工程门禁，确认 1.1.75 的能力、隐私声明与包版本一致。");
-  lines.push("2. 复核当前候选提交和 miniprogram 运行时；生成新归档时必须把提交、1.1.75、SHA-256 和包内容逐文件绑定。");
-  lines.push("3. 在任何上传动作前取得针对 1.1.75 的明确授权；本行动卡本身不会上传、提审、发布或改开关/白名单。");
-  lines.push("4. 上传成功并登记新归档/上传证据后，才进入 N5c 56 项真机、三项性能、web-view 域名和平台隐私声明验收。");
-  lines.push("5. 1.1.74 的旧二维码和 0/36 历史状态不得计入 1.1.75 的 0/56 验收。");
 } else if (openHardeningItems.length) {
   stageScope = "hardening";
   lines.push("当前阶段：提审前产品打磨。");
@@ -261,6 +250,19 @@ if (openHardeningItems.length) {
 }
 
 console.log(lines.join("\n"));
+
+function appendCandidateUploadStage(output) {
+  output.push("当前阶段：1.1.75 候选封包与上传授权，暂不进入 N5c 或微信审核。");
+  output.push("");
+  output.push("下一步一句话：把当前 1.1.75 运行时绑定到新的不可变归档并取得单独上传授权；最近已上传的 1.1.74@4eb3fbeb 只保留为历史证据。");
+  output.push("");
+  output.push("现在该做：");
+  output.push("1. 运行 npm run release:wechat:privacy:check 和本地工程门禁，确认 1.1.75 的能力、隐私声明与包版本一致。");
+  output.push("2. 复核当前候选提交和 miniprogram 运行时；生成新归档时必须把提交、1.1.75、SHA-256、包内容和受控私有微信上传回执逐项绑定。");
+  output.push("3. 在任何上传动作前取得针对 1.1.75 的明确授权；本行动卡本身不会上传、提审、发布或改开关/白名单。");
+  output.push("4. 只有微信上传回执绑定 AppID、1.1.75、完整提交和归档 SHA-256 并通过校验后，才进入 N5c 56 项真机、三项性能、web-view 域名和平台隐私声明验收。");
+  output.push("5. 1.1.74 的旧二维码和历史提交/审核/发布区块不得计入 1.1.75 的上传或 0/56 验收。");
+}
 
 async function runJsonScript(scriptName, { allowFailure, timeoutMs = 120_000 }) {
   try {
@@ -414,7 +416,8 @@ function parseLastJson(output) {
   }
 }
 
-function buildLifecycleFixtureStatus(evidence, candidate) {
+function buildLifecycleFixtureStatus(evidence, candidateFixture) {
+  const { candidate, uploadVerified } = candidateFixture;
   return {
     git: {
       head: "lifecycle-selftest",
@@ -422,7 +425,7 @@ function buildLifecycleFixtureStatus(evidence, candidate) {
     },
     release: {
       releaseComplete: false,
-      currentCandidateUploaded: candidate.actions.miniprogramUploaded,
+      currentCandidateUploaded: uploadVerified,
       miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
       miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
       lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
@@ -444,9 +447,20 @@ function buildLifecycleFixtureStatus(evidence, candidate) {
 async function readLifecycleCandidateEvidence() {
   const path = process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH;
   if (!path) throw new Error("lifecycle fixture requires HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH");
-  return validateNativeCandidateEvidence(JSON.parse(await readFile(path, "utf8")), {
+  const candidate = validateNativeCandidateEvidence(JSON.parse(await readFile(path, "utf8")), {
     expectedVersion: CURRENT_MINIPROGRAM_VERSION,
   });
+  if (!candidate.actions.miniprogramUploaded) return { candidate, uploadVerified: false };
+  try {
+    await verifyWechatUploadReceiptBinding({
+      path: process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
+      candidate,
+      allowTestFixture: releaseStatusFixtureGuard.authorized,
+    });
+    return { candidate, uploadVerified: true };
+  } catch {
+    return { candidate, uploadVerified: false };
+  }
 }
 
 function getMaterialList(scope) {

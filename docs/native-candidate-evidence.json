@@ -5,6 +5,7 @@
     "status": "local-candidate",
     "runtimeCommit": null,
     "archive": null,
+    "uploadReceiptRef": null,
     "actions": {
       "productionApiDeployed": true,
       "h5Deployed": true,

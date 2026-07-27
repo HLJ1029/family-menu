@@ -5,12 +5,14 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   readdir,
   rm,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import {
   join,
+  isAbsolute,
   relative,
   resolve,
   sep,
@@ -96,6 +98,8 @@ export async function verifyNativeCandidateUploadEvidence({
   candidate,
   repoRoot,
   evidenceBaseDir,
+  uploadReceiptPath,
+  allowTestReceiptFixture = false,
 }) {
   const version = String(candidate?.version || "");
   if (!candidate?.actions?.miniprogramUploaded) return { uploaded: false, version };
@@ -108,6 +112,11 @@ export async function verifyNativeCandidateUploadEvidence({
   if (sha256 !== candidate.archive.sha256) {
     throw new Error(`native source archive sha256 mismatch: expected ${candidate.archive.sha256}, received ${sha256}`);
   }
+  const receipt = await verifyWechatUploadReceiptBinding({
+    path: uploadReceiptPath,
+    candidate,
+    allowTestFixture: allowTestReceiptFixture,
+  });
   await assertNativeArtifactMatchesCommit({
     artifactPath,
     repoRoot,
@@ -123,7 +132,42 @@ export async function verifyNativeCandidateUploadEvidence({
     runtimeCommit: candidate.runtimeCommit,
     artifactPath,
     sha256,
+    uploadReceiptRef: receipt.receiptRef,
   };
+}
+
+export async function verifyWechatUploadReceiptBinding({ path, candidate, allowTestFixture = false }) {
+  const configuredPath = String(path || "").trim();
+  if (!isAbsolute(configuredPath)) {
+    throw new Error("a controlled absolute WeChat upload receipt path is required");
+  }
+  const actualPath = await realpath(configuredPath).catch(() => "");
+  const allowedRoots = [resolve(homedir(), ".humi-release-evidence")];
+  if (allowTestFixture) allowedRoots.push(await realpath(tmpdir()));
+  if (!actualPath || !allowedRoots.some((root) => isInsideOrEqual(root, actualPath))) {
+    throw new Error("WeChat upload receipt must be a controlled private evidence file");
+  }
+  const receipt = JSON.parse(await readFile(actualPath, "utf8"));
+  assertExactKeys(receipt, [
+    "schemaVersion",
+    "source",
+    "receiptRef",
+    "appId",
+    "candidate",
+    "uploadedAt",
+  ], "WeChat upload receipt");
+  assertExactKeys(receipt.candidate, ["version", "runtimeCommit", "archiveSha256"], "WeChat upload receipt candidate");
+  if (receipt.schemaVersion !== 1) throw new Error("WeChat upload receipt schemaVersion must be 1");
+  if (receipt.source !== "wechat-mp-console-upload-receipt") throw new Error("WeChat upload receipt source is invalid");
+  if (receipt.appId !== "wx4040b89f3b363416") throw new Error("WeChat upload receipt AppID is invalid");
+  if (receipt.receiptRef !== candidate.uploadReceiptRef) throw new Error("WeChat upload receipt reference does not match candidate");
+  if (receipt.candidate.version !== candidate.version) throw new Error("WeChat upload receipt version does not match candidate");
+  if (receipt.candidate.runtimeCommit !== candidate.runtimeCommit) throw new Error("WeChat upload receipt commit does not match candidate");
+  if (receipt.candidate.archiveSha256 !== candidate.archive.sha256) throw new Error("WeChat upload receipt archive SHA-256 does not match candidate");
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(String(receipt.uploadedAt || ""))) {
+    throw new Error("WeChat upload receipt uploadedAt must be an ISO UTC timestamp");
+  }
+  return receipt;
 }
 
 async function extractArchive(archivePath, targetRoot, { gzip }) {
@@ -234,4 +278,20 @@ function describe(entry) {
 function isInside(parent, candidate) {
   const rel = relative(parent, candidate);
   return rel !== "" && !rel.startsWith(`..${sep}`) && rel !== "..";
+}
+
+function isInsideOrEqual(parent, candidate) {
+  const rel = relative(parent, candidate);
+  return rel === "" || (!rel.startsWith(`..${sep}`) && rel !== "..");
+}
+
+function assertExactKeys(value, expectedKeys, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an exact object`);
+  }
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} must use the exact key set`);
+  }
 }

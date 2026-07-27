@@ -20,6 +20,7 @@ const NATIVE_CANDIDATE_EVIDENCE_KEYS = Object.freeze([
   "status",
   "runtimeCommit",
   "archive",
+  "uploadReceiptRef",
   "actions",
   "trueDeviceEvidence",
 ]);
@@ -116,10 +117,17 @@ export function validateNativeCandidateEvidence(evidence, { expectedVersion } = 
     if (!String(candidate.archive.path || "").trim() || !/^[0-9a-f]{64}$/.test(String(candidate.archive.sha256 || ""))) {
       throw new Error("uploaded candidate requires archive path and sha256");
     }
+    if (!/^private:\/\/[A-Za-z0-9_./-]+$/.test(String(candidate.uploadReceiptRef || ""))) {
+      throw new Error("uploaded candidate requires uploadReceiptRef");
+    }
   } else {
     if (candidate.status !== "local-candidate") throw new Error("unuploaded candidate status must be local-candidate");
-    if (candidate.runtimeCommit !== null || candidate.archive !== null) {
-      throw new Error("unuploaded candidate must not claim runtimeCommit or archive");
+    if (
+      candidate.runtimeCommit !== null
+      || candidate.archive !== null
+      || candidate.uploadReceiptRef !== null
+    ) {
+      throw new Error("unuploaded candidate must not claim runtimeCommit, archive, or upload receipt");
     }
   }
   return candidate;

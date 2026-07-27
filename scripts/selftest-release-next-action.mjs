@@ -8,6 +8,7 @@ const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
 const tempEvidence = join(tempDir, "evidence.md");
 const tempHardening = join(tempDir, "hardening.md");
 const tempCandidateEvidence = join(tempDir, "native-candidate-evidence.json");
+const tempUploadReceipt = join(tempDir, "wechat-upload-receipt.json");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
@@ -30,6 +31,10 @@ try {
   await writeValidCandidatePacket(tempDir);
 
   await writeCandidateEvidence({ uploaded: true });
+  await assertNext("1.1.75 候选封包与上传授权", {
+    forbidden: ["N5c 真机与平台证据验收"],
+  });
+  await writeUploadReceipt();
   await assertNext("N5c 真机与平台证据验收", {
     forbidden: [
       "当前阶段：1.1.75 候选封包与上传授权",
@@ -91,6 +96,10 @@ try {
   await assertNext("外部证据区块已填完，下一步是最终状态复核", {
     alternative: "1.1 已完成发布证据闭环",
   });
+  await writeCandidateEvidence({ uploaded: false });
+  await assertNext("1.1.75 候选封包与上传授权", {
+    forbidden: ["外部证据区块已填完", "微信审核已提交"],
+  });
 
   console.log(JSON.stringify({
     ok: true,
@@ -117,6 +126,7 @@ async function assertNext(expected, options = {}) {
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
       HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH: tempCandidateEvidence,
+      HUMI_WECHAT_UPLOAD_RECEIPT_PATH: tempUploadReceipt,
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
       HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST: "1",
       HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
@@ -149,6 +159,7 @@ async function writeCandidateEvidence({ uploaded }) {
         sha256: "b".repeat(64),
       }
       : null,
+    uploadReceiptRef: uploaded ? "private://n5c/upload-receipt-1.1.75" : null,
     actions: {
       productionApiDeployed: true,
       h5Deployed: true,
@@ -163,6 +174,21 @@ async function writeCandidateEvidence({ uploaded }) {
     },
   };
   await writeFile(tempCandidateEvidence, JSON.stringify({ schemaVersion: 1, candidate }, null, 2));
+}
+
+async function writeUploadReceipt() {
+  await writeFile(tempUploadReceipt, JSON.stringify({
+    schemaVersion: 1,
+    source: "wechat-mp-console-upload-receipt",
+    receiptRef: "private://n5c/upload-receipt-1.1.75",
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: "1.1.75",
+      runtimeCommit: "a".repeat(40),
+      archiveSha256: "b".repeat(64),
+    },
+    uploadedAt: "2026-07-28T08:00:00.000Z",
+  }, null, 2));
 }
 
 async function run(script, extraEnv) {

@@ -321,6 +321,36 @@ try {
   const currentArchiveSha256 = execFileSync("shasum", ["-a", "256", currentArchive], {
     encoding: "utf8",
   }).trim().split(/\s+/)[0];
+  const uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
+  const uploadReceiptPath = join(artifactFixture, "wechat-upload-receipt.json");
+  await writeFile(uploadReceiptPath, JSON.stringify({
+    schemaVersion: 1,
+    source: "wechat-mp-console-upload-receipt",
+    receiptRef: uploadReceiptRef,
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: "1.1.75",
+      runtimeCommit: currentCommit,
+      archiveSha256: currentArchiveSha256,
+    },
+    uploadedAt: "2026-07-28T08:00:00.000Z",
+  }, null, 2));
+  await assert.rejects(
+    verifyNativeCandidateUploadEvidence({
+      candidate: {
+        version: "1.1.75",
+        status: "uploaded-experience",
+        runtimeCommit: currentCommit,
+        archive: { path: currentArchive, sha256: currentArchiveSha256 },
+        uploadReceiptRef,
+        actions: { miniprogramUploaded: true },
+      },
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+    }),
+    /upload receipt/i,
+    "a local archive and boolean must not prove a WeChat upload",
+  );
   assert.deepEqual(
     await verifyNativeCandidateUploadEvidence({
       candidate: {
@@ -328,10 +358,13 @@ try {
         status: "uploaded-experience",
         runtimeCommit: currentCommit,
         archive: { path: currentArchive, sha256: currentArchiveSha256 },
+        uploadReceiptRef,
         actions: { miniprogramUploaded: true },
       },
       repoRoot: artifactFixture,
       evidenceBaseDir: artifactFixture,
+      uploadReceiptPath,
+      allowTestReceiptFixture: true,
     }),
     {
       uploaded: true,
@@ -339,6 +372,7 @@ try {
       runtimeCommit: currentCommit,
       artifactPath: currentArchive,
       sha256: currentArchiveSha256,
+      uploadReceiptRef,
     },
   );
   assert.deepEqual(
@@ -348,6 +382,7 @@ try {
         status: "local-candidate",
         runtimeCommit: null,
         archive: null,
+        uploadReceiptRef: null,
         actions: { miniprogramUploaded: false },
       },
       repoRoot: artifactFixture,
@@ -362,12 +397,15 @@ try {
         status: "uploaded-experience",
         runtimeCommit: oldCommit,
         archive: { path: currentArchive, sha256: currentArchiveSha256 },
+        uploadReceiptRef,
         actions: { miniprogramUploaded: true },
       },
       repoRoot: artifactFixture,
       evidenceBaseDir: artifactFixture,
+      uploadReceiptPath,
+      allowTestReceiptFixture: true,
     }),
-    /does not match candidate commit|differs from uploaded commit/,
+    /upload receipt commit does not match candidate|does not match candidate commit|differs from uploaded commit/i,
   );
   await assert.rejects(
     verifyNativeCandidateUploadEvidence({
@@ -376,10 +414,13 @@ try {
         status: "uploaded-experience",
         runtimeCommit: currentCommit,
         archive: { path: currentArchive, sha256: "b".repeat(64) },
+        uploadReceiptRef,
         actions: { miniprogramUploaded: true },
       },
       repoRoot: artifactFixture,
       evidenceBaseDir: artifactFixture,
+      uploadReceiptPath,
+      allowTestReceiptFixture: true,
     }),
     /sha256 mismatch/,
   );
@@ -451,11 +492,24 @@ try {
   const sha256 = execFileSync("shasum", ["-a", "256", archivePath], {
     encoding: "utf8",
   }).trim().split(/\s+/)[0];
-  const validEvidence = currentCandidateEvidence({ runtimeCommit, archivePath, sha256 });
+  const uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
+  const validEvidence = currentCandidateEvidence({ runtimeCommit, archivePath, sha256, uploadReceiptRef });
   const evidencePath = join(rolloutFixture, "candidate.json");
+  const receiptPath = join(rolloutFixture, "wechat-upload-receipt.json");
 
   await writeFile(evidencePath, JSON.stringify(validEvidence, null, 2));
-  const validReport = runRolloutChecker(repoRoot, evidencePath);
+  const archiveOnlyReport = runRolloutChecker(repoRoot, evidencePath);
+  assert.notEqual(archiveOnlyReport.status, 0, "local archive evidence without a private WeChat receipt must fail");
+  assert(
+    archiveOnlyReport.json.failures.some((failure) => /immutable upload evidence/.test(failure.name)),
+    JSON.stringify(archiveOnlyReport.json.failures),
+  );
+  await writeFile(receiptPath, JSON.stringify(wechatUploadReceipt({
+    runtimeCommit,
+    sha256,
+    uploadReceiptRef,
+  }), null, 2));
+  const validReport = runRolloutChecker(repoRoot, evidencePath, receiptPath);
   assert.equal(validReport.status, 0, validReport.stderr || validReport.stdout);
   assert.equal(validReport.json.contractOk, true);
   assert.equal(validReport.json.currentCandidate.uploadStatus, "uploaded");
@@ -468,7 +522,7 @@ try {
     const evidence = structuredClone(validEvidence);
     mutate(evidence);
     await writeFile(evidencePath, JSON.stringify(evidence, null, 2));
-    const failed = runRolloutChecker(repoRoot, evidencePath);
+    const failed = runRolloutChecker(repoRoot, evidencePath, receiptPath);
     assert.notEqual(failed.status, 0, `${label} evidence must fail`);
     assert(
       failed.json.failures.some((failure) => failurePattern.test(failure.name)),
@@ -520,7 +574,7 @@ assert.equal(rollback.allowlistPreserved, true, "the rollback must not mutate th
 
 console.log("Native rollout readiness selftest passed.");
 
-function currentCandidateEvidence({ runtimeCommit, archivePath, sha256 }) {
+function currentCandidateEvidence({ runtimeCommit, archivePath, sha256, uploadReceiptRef }) {
   return {
     schemaVersion: 1,
     candidate: {
@@ -528,6 +582,7 @@ function currentCandidateEvidence({ runtimeCommit, archivePath, sha256 }) {
       status: "uploaded-experience",
       runtimeCommit,
       archive: { path: archivePath, sha256 },
+      uploadReceiptRef,
       actions: {
         productionApiDeployed: true,
         h5Deployed: true,
@@ -541,7 +596,22 @@ function currentCandidateEvidence({ runtimeCommit, archivePath, sha256 }) {
   };
 }
 
-function runRolloutChecker(repoRoot, evidencePath = "") {
+function wechatUploadReceipt({ runtimeCommit, sha256, uploadReceiptRef }) {
+  return {
+    schemaVersion: 1,
+    source: "wechat-mp-console-upload-receipt",
+    receiptRef: uploadReceiptRef,
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: "1.1.75",
+      runtimeCommit,
+      archiveSha256: sha256,
+    },
+    uploadedAt: "2026-07-28T08:00:00.000Z",
+  };
+}
+
+function runRolloutChecker(repoRoot, evidencePath = "", receiptPath = "") {
   const result = spawnSync(
     process.execPath,
     ["scripts/check-native-rollout-readiness.mjs", "--local-contract-only"],
@@ -550,6 +620,11 @@ function runRolloutChecker(repoRoot, evidencePath = "") {
       env: {
         ...process.env,
         ...(evidencePath ? { HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH: evidencePath } : {}),
+        ...(receiptPath ? { HUMI_WECHAT_UPLOAD_RECEIPT_PATH: receiptPath } : {}),
+        ...(receiptPath ? {
+          HUMI_WECHAT_UPLOAD_RECEIPT_FIXTURE_MODE: "1",
+          NODE_ENV: "test",
+        } : {}),
       },
       encoding: "utf8",
       maxBuffer: 1024 * 1024 * 8,

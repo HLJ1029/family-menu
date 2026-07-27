@@ -12,6 +12,12 @@ assert.deepEqual(
   ],
 );
 assert.equal(result.ok, true);
+assert.deepEqual(result.verifiedTriggers, {
+  wechat_identity: "explicit_user_action",
+  nickname_avatar: "explicit_user_action",
+  photo_album: "explicit_save",
+  subscription_message: "explicit_schedule_confirmation",
+});
 
 const gateOutput = execFileSync(process.execPath, ["scripts/check-wechat-privacy-contract.mjs"], {
   cwd: process.cwd(),
@@ -19,6 +25,7 @@ const gateOutput = execFileSync(process.execPath, ["scripts/check-wechat-privacy
 });
 const gate = JSON.parse(gateOutput);
 assert.equal(gate.behavior?.ok, true, "the actual privacy gate must consume behavior results");
+assert.deepEqual(gate.behaviorConsistency, { ok: true, findings: [] });
 assert.deepEqual(gate.behavior.checks.map((check) => check.id), [
   "identity_explicit_action",
   "poster_album_write",

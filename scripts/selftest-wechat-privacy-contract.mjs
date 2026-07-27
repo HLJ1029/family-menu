@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  auditWechatPrivacyBehaviorConsistency,
   auditWechatPrivacyContract,
   detectRuntimeCapabilities,
 } from "./lib/wechat-privacy-contract.mjs";
@@ -31,7 +32,7 @@ const canonicalDeclaration = {
     {
       id: "wechat_identity",
       access: "collect",
-      trigger: "automatic_login",
+      trigger: "explicit_user_action",
       purpose: ["login", "session", "family_collaboration"],
     },
     {
@@ -79,6 +80,32 @@ const canonicalDeclaration = {
   ],
 };
 
+const verifiedBehavior = {
+  ok: true,
+  verifiedTriggers: {
+    wechat_identity: "explicit_user_action",
+    nickname_avatar: "explicit_user_action",
+    photo_album: "explicit_save",
+    subscription_message: "explicit_schedule_confirmation",
+  },
+};
+assert.deepEqual(
+  auditWechatPrivacyBehaviorConsistency({
+    declaration: canonicalDeclaration,
+    behavior: verifiedBehavior,
+  }),
+  { ok: true, findings: [] },
+);
+const contradictoryIdentityTrigger = structuredClone(canonicalDeclaration);
+contradictoryIdentityTrigger.capabilities.find((item) => item.id === "wechat_identity").trigger = "automatic_login";
+assertFinding(
+  auditWechatPrivacyBehaviorConsistency({
+    declaration: contradictoryIdentityTrigger,
+    behavior: verifiedBehavior,
+  }),
+  "behavior_trigger_mismatch",
+);
+
 assert.deepEqual(
   auditWechatPrivacyContract({ runtimeFiles, declaration: canonicalDeclaration }),
   {
@@ -112,11 +139,25 @@ const bypassFixtures = [
   ["payment bracket", "wx[`requestPayment`]({});", "payments"],
   ["album read alias", "const media = wx.chooseMedia; media({});", "photo_album_read"],
   ["advertising destructure", "const { createBannerAd } = wx; createBannerAd({});", "advertising"],
+  ["identity chained function alias", "const {login:first}=wx; const second=first; second();", "wechat_identity"],
+  ["payment computed string variable", "const key='requestPayment'; wx[key]();", "payments"],
 ];
 for (const [name, source, expected] of bypassFixtures) {
   const detected = detectRuntimeCapabilities([{ path: `${name}.js`, source }]);
   assert(detected.forbidden.has(expected) || detected.capabilities.has(expected), `${name}: ${expected}`);
 }
+
+const unknownDynamicProperty = detectRuntimeCapabilities([{
+  path: "unknown-dynamic-property.js",
+  source: "const key = getRuntimeKey(); wx[key]();",
+}]);
+assert(
+  unknownDynamicProperty.parseErrors.some((finding) => (
+    finding.path === "unknown-dynamic-property.js"
+    && finding.reason === "indeterminate_wx_property"
+  )),
+  "unknown dynamic wx properties must fail closed as indeterminate",
+);
 
 for (const tag of ["<ad></ad>", "<ad-custom />", "<AD-BANNER></AD-BANNER>", "<ad-slot></ad-slot>"]) {
   const detected = detectRuntimeCapabilities([{ path: "ad.wxml", source: tag }]);
