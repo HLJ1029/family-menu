@@ -25,6 +25,7 @@ const execFileAsync = promisify(execFile);
 const PRODUCT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const RUNNER = join(PRODUCT_ROOT, "scripts/run-local-command-matrix.mjs");
 const VERIFIER = join(PRODUCT_ROOT, "scripts/verify-local-command-matrix.mjs");
+const FIXTURE_HELPER = join(PRODUCT_ROOT, "scripts/local-command-matrix-fixture.mjs");
 const root = await mkdtemp(join(tmpdir(), "humi-local-matrix-selftest-"));
 
 try {
@@ -40,6 +41,7 @@ try {
     await testGuardRejectsUnsafeInjection();
     await testGuardRejectsSymlinkEscape();
     await testGuardRejectsArbitraryExternalMutation();
+    await testFixtureHelperRejectsUnsafeDirectInvocation();
     await testAllPassAndDeterministicOrder();
     await testFailureContinues();
     await testPerCommandHarnessFailuresContinue();
@@ -60,6 +62,8 @@ function testExternalBlockerClassificationIsExact() {
     .map((scenario) => `${scenario}\tmissing\tscenario_missing`)
     .join("\n");
   const rolloutCommand = { expectedBlockerPolicy: "current-candidate-upload-missing", nonzeroClassification: "fail" };
+  const trueDeviceCommand = buildAuthoritativeCommandMatrix()
+    .find((entry) => entry.id === "validate:true-device-evidence");
   const expectedRollout = processResult({
     code: 1,
     stdout: JSON.stringify({
@@ -85,11 +89,28 @@ function testExternalBlockerClassificationIsExact() {
     }) }),
   ), "blocker");
   assert.equal(classifyMatrixResult(
-    { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
-    processResult({ code: 1, stdout: "True-device evidence blocked: 0/56.\n", stderr: `${missingRows}\n` }),
+    trueDeviceCommand,
+    processResult({
+      code: 1,
+      stdout: [
+        "> family-menu@1.1.0 validate:true-device-evidence",
+        "> node scripts/check-humi-true-device-evidence.mjs",
+        "True-device evidence blocked: 0/56.",
+        "",
+      ].join("\n"),
+      stderr: `${missingRows}\n`,
+    }),
   ), "blocker");
   assert.equal(classifyMatrixResult(
-    { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
+    trueDeviceCommand,
+    processResult({
+      code: 1,
+      stdout: `> unrelated failure disguised as preamble\nTrue-device evidence blocked: 0/56.\n`,
+      stderr: `${missingRows}\n`,
+    }),
+  ), "fail");
+  assert.equal(classifyMatrixResult(
+    trueDeviceCommand,
     processResult({
       code: 1,
       stdout: "True-device evidence blocked: 0/56.\n",
@@ -97,7 +118,7 @@ function testExternalBlockerClassificationIsExact() {
     }),
   ), "fail");
   assert.equal(classifyMatrixResult(
-    { expectedBlockerPolicy: "true-device-evidence-missing", nonzeroClassification: "fail" },
+    trueDeviceCommand,
     processResult({ code: null, signal: "SIGTERM", stdout: "True-device evidence blocked: 0/56.\n" }),
   ), "fail");
 }
@@ -244,6 +265,33 @@ async function testGuardRejectsArbitraryExternalMutation() {
   await assert.rejects(stat(outside));
 }
 
+async function testFixtureHelperRejectsUnsafeDirectInvocation() {
+  const outsideEvidence = await mkdtemp(join(PRODUCT_ROOT, ".matrix-helper-selftest-"));
+  try {
+    const outsideResult = await invokeFixtureHelper(PRODUCT_ROOT, outsideEvidence);
+    assert.notEqual(outsideResult.code, 0);
+    await assert.rejects(stat(join(outsideEvidence, "continued.txt")));
+    assert.equal(outsideResult.stderr.includes(PRODUCT_ROOT), false);
+    assert.equal(outsideResult.stderr.includes(outsideEvidence), false);
+  } finally {
+    await rm(outsideEvidence, { recursive: true, force: true });
+  }
+
+  const fixture = await makeFixture("helper-symlink-escape");
+  const outsideTarget = await mkdtemp(join(PRODUCT_ROOT, ".matrix-helper-target-"));
+  const evidenceLink = join(fixture.fixtureRoot, "evidence-link");
+  try {
+    await symlink(outsideTarget, evidenceLink, "dir");
+    const symlinkResult = await invokeFixtureHelper(fixture.repo, evidenceLink);
+    assert.notEqual(symlinkResult.code, 0);
+    await assert.rejects(stat(join(outsideTarget, "continued.txt")));
+    assert.equal(symlinkResult.stderr.includes(outsideTarget), false);
+    assert.equal(symlinkResult.stderr.includes(evidenceLink), false);
+  } finally {
+    await rm(outsideTarget, { recursive: true, force: true });
+  }
+}
+
 async function testAllPassAndDeterministicOrder() {
   const fixture = await makeFixture("ordered");
   const append = (value) => fixtureCommand(value, "append-order");
@@ -298,6 +346,8 @@ async function testPerCommandHarnessFailuresContinue() {
     fixtureCommand("after-link", "pass"),
     fixtureCommand("oversize", "artifact-oversize"),
     fixtureCommand("after-oversize", "pass"),
+    fixtureCommand("artifact-batch", "artifact-batch-unsafe"),
+    fixtureCommand("after-artifact-batch", "pass"),
     fixtureCommand("observe", "observation-failure"),
     fixtureCommand("after-observe", "pass"),
     fixtureCommand("log-write", "log-write-failure"),
@@ -309,12 +359,21 @@ async function testPerCommandHarnessFailuresContinue() {
   assert.equal(manifest.state, "complete");
   assert.deepEqual(
     manifest.results.map((entry) => entry.classification),
-    ["fail", "pass", "fail", "pass", "fail", "pass", "fail", "pass"],
+    ["fail", "pass", "fail", "pass", "fail", "pass", "fail", "pass", "fail", "pass"],
   );
   assert.deepEqual(
     manifest.results.filter((entry) => entry.runnerErrors?.length).map((entry) => entry.runnerErrors[0].code),
-    ["artifact_sanitization_failed", "artifact_sanitization_failed", "repository_observation_failed", "log_persistence_failed"],
+    ["artifact_sanitization_failed", "artifact_sanitization_failed", "artifact_sanitization_failed", "repository_observation_failed", "log_persistence_failed"],
   );
+  assert.deepEqual(
+    manifest.results.find((entry) => entry.id === "artifact-batch").artifactSanitization.errorCodes,
+    ["artifact_symlink_rejected", "artifact_text_oversize_rejected"],
+  );
+  const artifactRoot = join(fixture.evidenceRoot, "harness-failures", "artifacts");
+  await assert.rejects(stat(join(artifactRoot, "00-symlink")));
+  await assert.rejects(stat(join(artifactRoot, "01-oversize")));
+  assert.equal((await readPersistedText(artifactRoot)).includes(["matrix", "batch", "secret"].join("_")), false);
+  assert.match(await readFile(join(fixture.evidenceRoot, "harness-failures", "logs", "006-after-artifact-batch.stdout.log"), "utf8"), /after-artifact-batch/);
   assert.equal(manifest.overallResult, "failed");
   assert.match(await readFile(join(fixture.evidenceRoot, "harness-failures", "manifest.sha256"), "utf8"), /^[a-f0-9]{64}  manifest\.json\n$/);
   await verifyManifest(fixture, "harness-failures");
@@ -402,7 +461,11 @@ async function testAtomicPartialManifest() {
   const partial = await waitFor(async () => {
     try {
       const parsed = JSON.parse(await readFile(manifestPath, "utf8"));
-      return parsed.state === "running" && parsed.results.length === 1 ? parsed : null;
+      return parsed.state === "running"
+        && parsed.results.length === 1
+        && parsed.currentCommand?.id === "waiting"
+        ? parsed
+        : null;
     } catch {
       return null;
     }
@@ -518,6 +581,31 @@ async function invokeExecutable(executable, args) {
       maxBuffer: 16 * 1024 * 1024,
       timeout: 30_000,
     });
+    return { code: 0, stdout, stderr };
+  } catch (error) {
+    return {
+      code: Number.isInteger(error.code) ? error.code : 1,
+      stdout: String(error.stdout || ""),
+      stderr: String(error.stderr || ""),
+    };
+  }
+}
+
+async function invokeFixtureHelper(cwd, evidenceRoot) {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [FIXTURE_HELPER, "write-marker", "direct"],
+      {
+        cwd,
+        env: {
+          NODE_ENV: "test",
+          HUMI_LOCAL_MATRIX_TEST_MODE: "1",
+          HUMI_PRIVATE_EVIDENCE_DIR: evidenceRoot,
+        },
+        timeout: 5_000,
+      },
+    );
     return { code: 0, stdout, stderr };
   } catch (error) {
     return {

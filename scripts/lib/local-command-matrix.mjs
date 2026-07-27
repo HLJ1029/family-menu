@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   chmod,
   mkdir,
@@ -22,6 +23,7 @@ import {
 import { REQUIRED_SCENARIOS } from "../check-humi-true-device-evidence.mjs";
 
 export const PRODUCT_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const PACKAGE_MANIFEST = JSON.parse(readFileSync(join(PRODUCT_ROOT, "package.json"), "utf8"));
 export const DEFAULT_EXTERNAL_HANDOFF = "/Users/honglijie/AI-HQ/deliverables/humi/HUMI-2026-001/native-shell/HANDOFF.md";
 export const DEFAULT_EVIDENCE_ROOT = join(
   homedir(),
@@ -36,7 +38,7 @@ const FIXTURE_HELPER = resolve(fileURLToPath(new URL("../local-command-matrix-fi
 const TEST_ACTION_KEYS = new Set(["id", "action", "timeoutMs", "exitCode", "delayMs", "expectedExternalBlocker"]);
 const TEST_ACTIONS = new Set([
   "pass", "fail", "timeout", "wait", "append-order", "write-marker", "mutate-repo",
-  "redact-output-and-artifact", "artifact-symlink", "artifact-oversize",
+  "redact-output-and-artifact", "artifact-symlink", "artifact-oversize", "artifact-batch-unsafe",
   "observation-failure", "log-write-failure",
 ]);
 let atomicCounter = 0;
@@ -137,14 +139,27 @@ export async function runLocalCommandMatrix(options = {}) {
     const stdout = redactOutput(execution.stdout.toString("utf8"), privatePaths);
     const stderr = redactOutput(execution.stderr.toString("utf8"), privatePaths);
     const runnerErrors = [];
-    let artifactSanitization = { files: 0, redactions: 0, status: "passed" };
+    let artifactSanitization = { files: 0, redactions: 0, errorCodes: [], status: "passed" };
     try {
+      const artifactReport = await sanitizeArtifactText(artifactsDir, privatePaths);
       artifactSanitization = {
-        ...await sanitizeArtifactText(artifactsDir, privatePaths),
-        status: "passed",
+        ...artifactReport,
+        status: artifactReport.errorCodes.length ? "failed" : "passed",
       };
+      if (artifactReport.errorCodes.length) {
+        runnerErrors.push({
+          code: "artifact_sanitization_failed",
+          stage: "artifact_sanitization",
+          errorCodes: artifactReport.errorCodes,
+        });
+      }
     } catch {
-      artifactSanitization = { files: 0, redactions: 0, status: "failed" };
+      artifactSanitization = {
+        files: 0,
+        redactions: 0,
+        errorCodes: ["artifact_scan_failed"],
+        status: "failed",
+      };
       runnerErrors.push({ code: "artifact_sanitization_failed", stage: "artifact_sanitization" });
     }
     const logStem = `${String(sequence).padStart(3, "0")}-${command.id}`;
@@ -401,8 +416,16 @@ export async function verifyLocalCommandMatrix(manifestPath) {
 }
 
 function npmCommand(id, script, options = {}) {
+  const scriptCommand = PACKAGE_MANIFEST.scripts?.[script];
+  if (typeof scriptCommand !== "string" || !scriptCommand) {
+    throw new Error(`package script is unavailable: ${script}`);
+  }
   return command(id, "npm", ["run", script], {
     scriptIdentity: script,
+    expectedNpmPreamble: [
+      `> ${PACKAGE_MANIFEST.name}@${PACKAGE_MANIFEST.version} ${script}`,
+      `> ${scriptCommand}`,
+    ],
     timeoutMs: 10 * 60_000,
     ...options,
   });
@@ -418,6 +441,7 @@ function command(id, executable, args, options = {}) {
     env: options.env || {},
     expectedExternalBlocker: options.expectedExternalBlocker === true,
     expectedBlockerPolicy: options.expectedBlockerPolicy || null,
+    expectedNpmPreamble: options.expectedNpmPreamble || null,
     nonzeroClassification: options.nonzeroClassification || "fail",
   };
 }
@@ -475,7 +499,7 @@ export function classifyMatrixResult(commandEntry, execution) {
   if (execution.timedOut) return "timeout";
   if (execution.signal || execution.code === null) return "fail";
   if (commandEntry.expectedBlockerPolicy) {
-    if (matchesExpectedBlocker(commandEntry.expectedBlockerPolicy, execution)) return "blocker";
+    if (matchesExpectedBlocker(commandEntry, execution)) return "blocker";
     return execution.code === 0 ? "pass" : "fail";
   }
   if (commandEntry.expectedExternalBlocker) return "blocker";
@@ -487,17 +511,20 @@ function classifyResult(commandEntry, execution) {
   return classifyMatrixResult(commandEntry, execution);
 }
 
-function matchesExpectedBlocker(policy, execution) {
+function matchesExpectedBlocker(commandEntry, execution) {
+  const policy = commandEntry.expectedBlockerPolicy;
   const stdout = execution.stdout.toString("utf8");
   if (policy === "true-device-evidence-missing") {
-    const stdoutLines = stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const stdoutLines = stdout.split(/\r?\n/).filter((line) => line.length > 0);
     const finalLine = stdoutLines.pop();
     const expectedStderr = REQUIRED_SCENARIOS
       .map((scenario) => `${scenario}\tmissing\tscenario_missing`);
     const stderrLines = execution.stderr.toString("utf8").trim().split(/\r?\n/).filter(Boolean);
     return execution.code === 1
       && finalLine === `True-device evidence blocked: 0/${REQUIRED_SCENARIOS.length}.`
-      && stdoutLines.every((line) => line.startsWith(">"))
+      && Array.isArray(commandEntry.expectedNpmPreamble)
+      && stdoutLines.length === commandEntry.expectedNpmPreamble.length
+      && stdoutLines.every((line, index) => line === commandEntry.expectedNpmPreamble[index])
       && stderrLines.length === expectedStderr.length
       && stderrLines.every((line, index) => line === expectedStderr[index]);
   }
@@ -646,36 +673,71 @@ async function persistLogWithBoundary(logsDir, filename, text) {
 }
 
 async function sanitizeArtifactText(root, privatePaths) {
-  const report = { files: 0, redactions: 0 };
+  const report = { files: 0, redactions: 0, errorCodes: [] };
+  const record = (code) => {
+    if (!report.errorCodes.includes(code)) report.errorCodes.push(code);
+  };
   async function visit(directory) {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      record("artifact_directory_read_failed");
+      return;
+    }
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
       const path = join(directory, entry.name);
       if (entry.isSymbolicLink()) {
-        await rm(path, { force: true });
-        throw new Error("unsafe controlled artifact rejected");
+        try {
+          await rm(path, { force: true });
+          record("artifact_symlink_rejected");
+        } catch {
+          record("artifact_symlink_removal_failed");
+        }
+        continue;
       }
       if (entry.isDirectory()) {
         await visit(path);
         continue;
       }
       if (!entry.isFile()) continue;
-      const info = await stat(path);
+      let info;
+      try {
+        info = await stat(path);
+      } catch {
+        record("artifact_stat_failed");
+        continue;
+      }
       if (info.size > 8 * 1024 * 1024) {
-        const bytes = await readFile(path);
-        if (decodeControlledText(bytes.subarray(0, 64 * 1024)) !== null) {
-          await rm(path, { force: true });
-          throw new Error("unsafe controlled artifact rejected");
+        try {
+          const bytes = await readFile(path);
+          if (decodeControlledText(bytes.subarray(0, 64 * 1024)) !== null) {
+            await rm(path, { force: true });
+            record("artifact_text_oversize_rejected");
+          }
+        } catch {
+          record("artifact_oversize_inspection_failed");
         }
         continue;
       }
-      const bytes = await readFile(path);
+      let bytes;
+      try {
+        bytes = await readFile(path);
+      } catch {
+        record("artifact_read_failed");
+        continue;
+      }
       const original = decodeControlledText(bytes);
       if (original === null) continue;
       const sanitized = redactOutput(original, privatePaths);
       report.files += 1;
       report.redactions += sanitized.count;
-      if (sanitized.text !== original) await atomicWrite(path, sanitized.text, 0o600);
-      else await chmod(path, 0o600);
+      try {
+        if (sanitized.text !== original) await atomicWrite(path, sanitized.text, 0o600);
+        else await chmod(path, 0o600);
+      } catch {
+        record("artifact_write_failed");
+      }
     }
   }
   await visit(root);

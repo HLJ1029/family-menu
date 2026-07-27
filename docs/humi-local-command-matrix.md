@@ -152,5 +152,15 @@ through `realpath` before it is accepted under the system temporary directory.
 The command file is not argv: it is a small allowlisted fixture-action DSL that
 the runner compiles to one fixed repository helper. Arbitrary executables,
 arguments, paths, environment values, symlink escapes, and unknown actions are
-refused before a run directory is created. These options are unavailable in
-normal operator runs and cannot replace the authoritative matrix.
+refused before a run directory is created. The fixed helper independently
+canonicalizes its repository and private evidence roots under the system
+temporary directory, requires a controlled Git repository, rejects overlapping
+or symlink-escaped roots, and constrains every write to a checked child path.
+These options are unavailable in normal operator runs and cannot replace the
+authoritative matrix.
+
+After each command, controlled artifacts are scanned in deterministic order.
+Unsafe symlinks and oversized text are removed and recorded with path-free error
+codes, while the scan continues through later readable text so secrets are still
+redacted. Any collected artifact error makes that command fail only after the
+full scan, without preventing the remaining matrix commands from running.
