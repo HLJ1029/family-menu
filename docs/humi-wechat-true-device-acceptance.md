@@ -24,11 +24,11 @@
 
 ## Manifest 与描述文件
 
-根目录 `manifest.json` 必须严格使用 `schemaVersion: 3`，每个场景行只包含 `device`、`platform`、`wechatVersion`、`packageVersion`、`householdFixture`、`startedAt`、`finishedAt`、`result`、`evidencePath`。`evidencePath` 必须指向目录内的 ASCII 安全相对 JSON 路径。
+根目录 `manifest.json` 必须严格使用 `schemaVersion: 3`，每个场景行只包含 `device`、`platform`、`wechatVersion`、`packageVersion`、`householdFixture`、`startedAt`、`finishedAt`、`result`、`evidencePath`。`evidencePath` 必须严格为 `descriptors/<scenarioId>.json`；门禁不回显操作员提供的非规范路径。
 
 每个描述文件严格使用 `schemaVersion: 2`，并只包含 `schemaVersion`、`scenarioId`、`redacted`、`checks`、`metrics`、`mediaPaths`。非性能场景的 `metrics` 必须是 `{}`；性能场景只能包含一个有限、非负数字 `durationMs`。预算由检查器自身比较，不接受自报预算或 `budgetMet`。
 
-检查器拒绝旧 schema、缺项/增项、路径穿越、软链接、复用文件或复用内容、过早/未来时间、错误候选版本、疑似 PII、超大 JSON、无法解码或尺寸不足的媒体，以及超预算性能数据。
+检查器拒绝旧 schema、缺项/增项、路径穿越、非规范描述路径、软链接、硬链接、复用文件或复用内容、过早/未来时间、错误候选版本、疑似 PII、超大 JSON、无法解码或尺寸不足的媒体，以及超预算性能数据。每档五轮推荐还必须绑定同一家庭夹具、设备、平台、微信/包版本和 Asia/Shanghai 业务日期，并按顺序执行且互不重叠。
 
 ## 检查命令
 

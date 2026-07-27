@@ -232,7 +232,7 @@ npm run release:candidate:review
   "startedAt": "2026-07-23T08:00:00.000Z",
   "finishedAt": "2026-07-23T08:02:00.000Z",
   "result": "pass",
-  "evidencePath": "owner_cooking_flow.json"
+  "evidencePath": "descriptors/owner_cooking_flow.json"
 }
 ```
 
@@ -243,7 +243,7 @@ npm run release:candidate:review
 - `householdFixture` 使用不含个人信息的稳定测试夹具名。游客场景必须是 `guest`；owner/member 做饭分别使用 `owner-*`、`member-*`；五类双方分享使用 `owner-member-*`。
 - `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit；不得填写未来时间。证据描述文件和媒体文件本身的修改时间也必须晚于候选 commit。
 - `result` 只能是 `pass`、`fail`、`pending` 或 `blocked`。只有 `pass` 计入通过数。
-- `evidencePath` 必须使用 ASCII 安全相对路径，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用绝对路径、软链接、`..`、昵称式文件名或 manifest 自身。
+- `evidencePath` 必须严格为 `descriptors/<scenarioId>.json`，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用其他目录/文件名、绝对路径、软链接、硬链接、`..`、昵称式文件名或 manifest 自身。门禁不回显操作员输入的非规范原始路径。
 - 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
 
 每个 `evidencePath` 指向的 JSON 必须严格包含以下六个字段：
@@ -291,6 +291,7 @@ recommendation_easy_30_rotation_1 ... recommendation_easy_30_rotation_5
 recommendation_normal_rotation_1 ... recommendation_normal_rotation_5
 
 每条推荐证据必须证明菜谱均已认证且满足硬约束；同一家庭/日期/档位周期的第 2–5 轮还必须证明没有重复之前出现过的组合。
+每档五轮还必须属于同一 `householdFixture`、同一设备/平台、同一微信和包版本、同一个 Asia/Shanghai 业务日期，并按 rotation 1→5 的时间顺序执行且互不重叠；不能拿不同家庭、日期或设备的结果拼成五轮。
 
 烹饪、恢复与权限（4）
 cooking_background_restore
@@ -350,7 +351,7 @@ performance_warm_bootstrap（durationMs <= 1000）
 performance_cold_authenticated_bootstrap（durationMs <= 2500）
 ```
 
-证据目录的 `manifest.json` 使用 `schemaVersion: 3`，并在 `scenarios` 对象中以以上稳定 ID 为键。实际截图和视频只保存在 Git 之外的私有证据目录，不得提交仓库、伪造、复制复用或把未执行路径标成通过。验收命令：
+证据目录的 `manifest.json` 使用 `schemaVersion: 3`，并在 `scenarios` 对象中以以上稳定 ID 为键。实际截图和视频只保存在 Git 之外的私有证据目录，不得提交仓库、伪造、软/硬链接、复制复用或把未执行路径标成通过。验收命令：
 
 ```bash
 node scripts/check-humi-true-device-evidence.mjs --selftest

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   lstat,
+  link,
   mkdir,
   mkdtemp,
   readFile,
@@ -123,7 +124,7 @@ const MIN_MEDIA_HEIGHT = 300;
 const MIN_VIDEO_DURATION_SECONDS = 1;
 const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-const SCENARIO_CHECKS = {
+export const SCENARIO_CHECKS = {
   fresh_guest_start: ["fresh_install", "guest_visible", "no_false_login"],
   explicit_wechat_login: ["wechat_consent", "login_completed", "identity_visible"],
   new_identity_profile: ["profile_required", "nickname_saved", "avatar_saved"],
@@ -219,7 +220,7 @@ export async function validateEvidence({
   const expectedPackageVersion = candidatePackageVersion || await readCandidatePackageVersion();
 
   const rows = [];
-  const issues = [];
+  const issues = validateRecommendationCycles(manifest.scenarios);
   const seenArtifacts = new Set();
   for (const scenario of scenarioIds) {
     const entry = manifest.scenarios[scenario];
@@ -310,7 +311,70 @@ function validateFields(entry, candidateTime, candidatePackageVersion, scenario)
   ) {
     return "evidence_path_invalid";
   }
+  if (entry.evidencePath !== `descriptors/${scenario}.json`) return "evidence_path_noncanonical";
   return "";
+}
+
+function validateRecommendationCycles(scenarios) {
+  const issues = [];
+  for (const tier of ["quick_15", "easy_30", "normal"]) {
+    const names = Array.from(
+      { length: 5 },
+      (_, index) => `recommendation_${tier}_rotation_${index + 1}`,
+    );
+    const entries = names.map((name) => scenarios[name]);
+    if (entries.some((entry) => !isRecord(entry))) continue;
+    const first = entries[0];
+    const firstDate = shanghaiBusinessDate(first.startedAt);
+    if (!firstDate || shanghaiBusinessDate(first.finishedAt) !== firstDate) {
+      issues.push(issue(names[0], "invalid", "recommendation_cycle_business_date_mismatch"));
+    }
+    for (let index = 1; index < entries.length; index += 1) {
+      const entry = entries[index];
+      const scenario = names[index];
+      if (entry.householdFixture !== first.householdFixture) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_household_mismatch"));
+      }
+      if (entry.device !== first.device) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_device_mismatch"));
+      }
+      if (entry.platform !== first.platform) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_platform_mismatch"));
+      }
+      if (
+        entry.wechatVersion !== first.wechatVersion
+        || entry.packageVersion !== first.packageVersion
+      ) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_version_mismatch"));
+      }
+      if (
+        !firstDate
+        || shanghaiBusinessDate(entry.startedAt) !== firstDate
+        || shanghaiBusinessDate(entry.finishedAt) !== firstDate
+      ) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_business_date_mismatch"));
+      }
+      const previousFinishedAt = Date.parse(entries[index - 1].finishedAt);
+      const startedAt = Date.parse(entry.startedAt);
+      if (!Number.isFinite(previousFinishedAt) || !Number.isFinite(startedAt) || startedAt < previousFinishedAt) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_order_invalid"));
+      }
+    }
+  }
+  return issues;
+}
+
+function shanghaiBusinessDate(timestamp) {
+  const date = new Date(timestamp);
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function fixtureMatchesScenario(fixture, scenario) {
@@ -354,6 +418,7 @@ async function validateEvidenceDescriptor({
   if (!artifactStat?.isFile() || artifactStat.isSymbolicLink() || artifactStat.size < 1) {
     return invalidDescriptor("artifact_missing");
   }
+  if (artifactStat.nlink !== 1) return invalidDescriptor("artifact_link_count_invalid");
   if (
     artifactStat.mtimeMs <= candidateTime
     || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
@@ -462,7 +527,6 @@ export async function validatePerformanceEvidence(options) {
       .map((row) => ({
         scenarioId: row.scenario,
         durationMs: row.metrics.durationMs,
-        descriptorPath: row.path,
         descriptorSha256: row.descriptorSha256,
       })),
   };
@@ -491,6 +555,7 @@ async function validateMediaArtifact({
   ) {
     return "evidence_media_missing";
   }
+  if (artifactStat.nlink !== 1) return "artifact_link_count_invalid";
   if (
     artifactStat.mtimeMs <= candidateTime
     || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
@@ -591,6 +656,71 @@ async function rejectSymlinkAncestors(root, artifactPath, scenario) {
   }
 }
 
+const SELFTEST_SCENARIO_SPEC = Object.freeze({
+  fresh_guest_start: ["fresh_install", "guest_visible", "no_false_login"],
+  explicit_wechat_login: ["wechat_consent", "login_completed", "identity_visible"],
+  new_identity_profile: ["profile_required", "nickname_saved", "avatar_saved"],
+  legacy_identity_recovery: ["legacy_detected", "profile_recovered", "session_restored"],
+  session_revocation_relogin: ["session_revoked", "login_prompted", "relogin_completed"],
+  logout_to_guest: ["logout_completed", "guest_visible", "private_state_cleared"],
+  recommendation_quick_15_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_quick_15_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_easy_30_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_normal_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  cooking_background_restore: ["timer_started", "backgrounded", "remaining_time_restored"],
+  offline_sync_recovery: ["offline_mutation", "reconnected", "server_reconciled"],
+  owner_cooking_flow: ["owner_started", "progressed", "completed"],
+  member_cooking_flow: ["member_started", "progressed", "completed", "menu_edit_denied"],
+  menu_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  grocery_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  invite_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  meal_task_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  poster_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  poster_style_change_primary: ["style_changed", "visual_changed", "poster_rendered"],
+  poster_style_change_secondary: ["style_changed", "visual_changed", "poster_rendered"],
+  reminder_accept: ["consent_prompt", "accepted", "single_reminder_scheduled"],
+  reminder_reject: ["consent_prompt", "rejected", "not_reprompted"],
+  reminder_cancel: ["reminder_scheduled", "cancelled", "not_sent"],
+  immediate_h5_rollback: ["native_enabled", "flag_disabled", "legacy_opened"],
+  native_tab_tonight: ["tab_visible", "tab_selected", "tonight_content_visible"],
+  native_tab_discover: ["tab_visible", "tab_selected", "discover_content_visible"],
+  native_tab_plan: ["tab_visible", "tab_selected", "plan_content_visible"],
+  native_tab_grocery: ["tab_visible", "tab_selected", "grocery_content_visible"],
+  native_tab_family: ["tab_visible", "tab_selected", "family_content_visible"],
+  multi_household_switch: ["two_households_visible", "switched_household", "household_context_changed"],
+  household_owner_member_permissions: ["owner_settings_allowed", "member_settings_denied", "member_cooking_allowed"],
+  meal_task_identity_claim_complete: ["task_claimed", "actor_identity_recorded", "task_completed"],
+  cooking_downgrade_remove_side: ["cooking_started", "remove_side_selected", "timeline_updated"],
+  cooking_downgrade_lower_effort: ["cooking_started", "lower_effort_selected", "recipe_replaced"],
+  cooking_downgrade_ready_staple: ["cooking_started", "ready_staple_selected", "staple_replaced"],
+  serve_feedback: ["meal_completed", "feedback_submitted", "feedback_persisted"],
+  poster_save: ["poster_rendered", "save_requested", "saved_to_album"],
+  poster_cancel: ["save_requested", "cancelled", "no_album_write"],
+  poster_permission_recovery: ["permission_denied", "settings_recovery", "saved_after_recovery"],
+  reminder_send_failure: ["reminder_scheduled", "delivery_failed", "single_retry_only"],
+  reminder_deep_link: ["reminder_received", "deep_link_opened", "meal_run_restored"],
+  performance_cached_first_paint: ["cached_summary_present", "first_paint_observed", "fresh_bootstrap_pending"],
+  performance_warm_bootstrap: ["valid_session_present", "bootstrap_measured", "native_page_ready"],
+  performance_cold_authenticated_bootstrap: ["cold_authenticated_start", "session_exchange_completed", "native_page_ready"],
+});
+
+const SELFTEST_PERFORMANCE_DURATIONS = Object.freeze({
+  performance_cached_first_paint: 400,
+  performance_warm_bootstrap: 1000,
+  performance_cold_authenticated_bootstrap: 2500,
+});
+
 function evidenceEntry(scenario, overrides = {}) {
   const fixture = (
     SHARE_SCENARIOS.includes(scenario)
@@ -602,23 +732,31 @@ function evidenceEntry(scenario, overrides = {}) {
     : scenario.startsWith("member_")
       ? "member-household"
       : "owner-household";
+  const rotation = Number(scenario.match(/^recommendation_.+_rotation_(\d)$/)?.[1] || 0);
+  const startedAt = rotation
+    ? new Date(Date.parse("2026-07-23T08:00:00.000Z") + ((rotation - 1) * 3 * 60 * 1000)).toISOString()
+    : "2026-07-23T08:00:00.000Z";
+  const finishedAt = rotation
+    ? new Date(Date.parse(startedAt) + (2 * 60 * 1000)).toISOString()
+    : "2026-07-23T08:02:00.000Z";
   return {
     device: "iPhone 15 Pro",
     platform: "iOS",
     wechatVersion: "8.0.56",
     packageVersion: "1.1.74",
     householdFixture: fixture,
-    startedAt: "2026-07-23T08:00:00.000Z",
-    finishedAt: "2026-07-23T08:02:00.000Z",
+    startedAt,
+    finishedAt,
     result: "pass",
-    evidencePath: `${scenario}.json`,
+    evidencePath: `descriptors/${scenario}.json`,
     ...overrides,
   };
 }
 
-async function writeFixture(root, scenarios) {
+async function writeFixture(root, scenarios, scenarioSpec = SELFTEST_SCENARIO_SPEC) {
   const selftestMedia = await loadSelftestMedia();
   let mediaIndex = 0;
+  await mkdir(join(root, "descriptors"), { recursive: true, mode: 0o700 });
   for (const [scenario, entry] of Object.entries(scenarios)) {
     if (entry.result === "pass") {
       const mediaCount = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
@@ -634,9 +772,9 @@ async function writeFixture(root, scenarios) {
         schemaVersion: 2,
         scenarioId: scenario,
         redacted: true,
-        checks: Object.fromEntries(SCENARIO_CHECKS[scenario].map((checkName) => [checkName, true])),
-        metrics: PERFORMANCE_SCENARIOS.includes(scenario)
-          ? { durationMs: PERFORMANCE_BUDGETS_MS[scenario] }
+        checks: Object.fromEntries(scenarioSpec[scenario].map((checkName) => [checkName, true])),
+        metrics: Object.prototype.hasOwnProperty.call(SELFTEST_PERFORMANCE_DURATIONS, scenario)
+          ? { durationMs: SELFTEST_PERFORMANCE_DURATIONS[scenario] }
           : {},
         mediaPaths,
       };
@@ -662,7 +800,7 @@ async function loadSelftestMedia() {
 }
 
 async function createSelftestMedia() {
-  const required = REQUIRED_SCENARIOS.length + SHARE_SCENARIOS.length;
+  const required = Object.keys(SELFTEST_SCENARIO_SPEC).length + 5;
   const mediaRoot = await mkdtemp(join(tmpdir(), "humi-true-device-media-"));
   const source = resolve("public/icons/humi-icon-512.png");
   const unique = [];
@@ -696,7 +834,12 @@ function fakePng() {
 
 async function selftest() {
   const root = await mkdtemp(join(tmpdir(), "humi-true-device-evidence-"));
-  const scenarios = Object.fromEntries(REQUIRED_SCENARIOS.map((scenario) => [scenario, evidenceEntry(scenario)]));
+  assert.equal(Object.keys(SELFTEST_SCENARIO_SPEC).length, 56);
+  assert.deepEqual(REQUIRED_SCENARIOS, Object.keys(SELFTEST_SCENARIO_SPEC));
+  assert.deepEqual(SCENARIO_CHECKS, SELFTEST_SCENARIO_SPEC);
+  const scenarios = Object.fromEntries(
+    Object.keys(SELFTEST_SCENARIO_SPEC).map((scenario) => [scenario, evidenceEntry(scenario)]),
+  );
   assert.equal(await readCandidatePackageVersion(), "1.1.74");
   await writeFixture(root, scenarios);
   const accepted = await validateEvidence({
@@ -708,7 +851,7 @@ async function selftest() {
 
   for (const scenario of [...COMPLETION_SCENARIOS, ...PERFORMANCE_SCENARIOS]) {
     const descriptorPath = join(root, scenarios[scenario].evidencePath);
-    for (const checkName of SCENARIO_CHECKS[scenario]) {
+    for (const checkName of SELFTEST_SCENARIO_SPEC[scenario]) {
       const descriptor = JSON.parse(await readFile(descriptorPath, "utf8"));
       delete descriptor.checks[checkName];
       await writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
@@ -832,7 +975,7 @@ async function selftest() {
 
   await writeFixture(root, scenarios);
   await writeFile(
-    join(root, `${scenarios.owner_cooking_flow.evidencePath.replace(".json", "")}-1.png`),
+    join(root, "owner_cooking_flow-1.png"),
     fakePng(),
     { mode: 0o600 },
   );
@@ -997,13 +1140,12 @@ async function selftest() {
   const externalRoot = await mkdtemp(join(tmpdir(), "humi-true-device-external-"));
   const externalArtifact = join(externalRoot, "outside.json");
   await writeFile(externalArtifact, "{\"redacted\":true}\n");
-  const linkedPath = join(root, "linked-evidence.json");
+  const linkedPath = join(root, scenarios.member_cooking_flow.evidencePath);
+  await rm(linkedPath);
   await symlink(externalArtifact, linkedPath);
-  const linked = structuredClone(scenarios);
-  linked.member_cooking_flow.evidencePath = "linked-evidence.json";
   await writeFile(
     join(root, "manifest.json"),
-    `${JSON.stringify({ schemaVersion: 3, scenarios: linked }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 3, scenarios }, null, 2)}\n`,
     { mode: 0o600 },
   );
   const linkedReport = await validateEvidence({
@@ -1017,6 +1159,7 @@ async function selftest() {
     true,
   );
 
+  await rm(linkedPath);
   await writeFixture(root, scenarios);
   const traversal = structuredClone(scenarios);
   traversal.owner_cooking_flow.evidencePath = "../outside.json";
@@ -1094,6 +1237,165 @@ async function selftest() {
   assert.deepEqual(
     oversizedDescriptorReport.issues,
     [issue("owner_cooking_flow", "invalid", "evidence_descriptor_too_large")],
+  );
+
+  await writeFixture(root, scenarios);
+  const externalMediaHardlink = join(externalRoot, "owner-hardlink.png");
+  await link(join(root, "owner_cooking_flow-1.png"), externalMediaHardlink);
+  const externalMediaHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    externalMediaHardlinkReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_link_count_invalid")],
+  );
+
+  await rm(externalMediaHardlink);
+  await writeFixture(root, scenarios);
+  const externalDescriptorHardlink = join(externalRoot, "owner-hardlink.json");
+  await link(join(root, scenarios.owner_cooking_flow.evidencePath), externalDescriptorHardlink);
+  const externalDescriptorHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    externalDescriptorHardlinkReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_link_count_invalid")],
+  );
+
+  await rm(externalDescriptorHardlink);
+  await writeFixture(root, scenarios);
+  await rm(join(root, "member_cooking_flow-1.png"));
+  await link(join(root, "owner_cooking_flow-1.png"), join(root, "member_cooking_flow-1.png"));
+  const internalHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow", "member_cooking_flow"],
+  });
+  assert.equal(
+    internalHardlinkReport.issues.every((entry) => entry.code === "artifact_link_count_invalid"),
+    true,
+  );
+
+  await rm(join(root, "member_cooking_flow-1.png"));
+  await writeFixture(root, scenarios);
+  const arbitraryDescriptor = "arbitrary-valid-looking.json";
+  await writeFile(
+    join(root, arbitraryDescriptor),
+    await readFile(join(root, scenarios.owner_cooking_flow.evidencePath)),
+  );
+  const noncanonical = structuredClone(scenarios);
+  noncanonical.owner_cooking_flow.evidencePath = arbitraryDescriptor;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: noncanonical }, null, 2)}\n`,
+  );
+  const noncanonicalReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    noncanonicalReport.issues,
+    [issue("owner_cooking_flow", "invalid", "evidence_path_noncanonical")],
+  );
+  assert.equal(JSON.stringify(noncanonicalReport).includes(arbitraryDescriptor), false);
+
+  await writeFixture(root, scenarios);
+  await mkdir(join(root, "Daniel"), { recursive: true });
+  const tokenLikeDescriptor = "Daniel/performance.json";
+  await writeFile(
+    join(root, tokenLikeDescriptor),
+    await readFile(join(root, scenarios.performance_cached_first_paint.evidencePath)),
+  );
+  const tokenLike = structuredClone(scenarios);
+  tokenLike.performance_cached_first_paint.evidencePath = tokenLikeDescriptor;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: tokenLike }, null, 2)}\n`,
+  );
+  const tokenLikeReport = await validatePerformanceEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(tokenLikeReport.ok, false);
+  assert.equal(JSON.stringify(tokenLikeReport).includes("Daniel"), false);
+  assert.equal(JSON.stringify(tokenLikeReport).includes("performance.json"), false);
+
+  await writeFixture(root, scenarios);
+  const secretLikePath = "descriptors/token=secret.json";
+  const secretLike = structuredClone(scenarios);
+  secretLike.performance_cached_first_paint.evidencePath = secretLikePath;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: secretLike }, null, 2)}\n`,
+  );
+  const secretLikeReport = await validatePerformanceEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(secretLikeReport.ok, false);
+  assert.equal(JSON.stringify(secretLikeReport).includes("token=secret"), false);
+
+  for (const [field, value, expectedCode] of [
+    ["householdFixture", "other-household", "recommendation_cycle_household_mismatch"],
+    ["device", "Android test device", "recommendation_cycle_device_mismatch"],
+    ["platform", "Android", "recommendation_cycle_platform_mismatch"],
+    ["wechatVersion", "8.0.55", "recommendation_cycle_version_mismatch"],
+    ["packageVersion", "9.9.9", "recommendation_cycle_version_mismatch"],
+  ]) {
+    await writeFixture(root, scenarios);
+    const cycleMismatch = structuredClone(scenarios);
+    cycleMismatch.recommendation_quick_15_rotation_2[field] = value;
+    await writeFile(
+      join(root, "manifest.json"),
+      `${JSON.stringify({ schemaVersion: 3, scenarios: cycleMismatch }, null, 2)}\n`,
+    );
+    const cycleMismatchReport = await validateEvidence({
+      evidenceDir: root,
+      candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    });
+    assert.equal(cycleMismatchReport.issues.some((entry) => entry.code === expectedCode), true);
+  }
+
+  await writeFixture(root, scenarios);
+  const dateMismatch = structuredClone(scenarios);
+  for (let rotation = 2; rotation <= 5; rotation += 1) {
+    const scenario = `recommendation_quick_15_rotation_${rotation}`;
+    dateMismatch[scenario].startedAt = `2026-07-24T0${rotation}:00:00.000Z`;
+    dateMismatch[scenario].finishedAt = `2026-07-24T0${rotation}:01:00.000Z`;
+  }
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: dateMismatch }, null, 2)}\n`,
+  );
+  const dateMismatchReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    dateMismatchReport.issues.some((entry) => entry.code === "recommendation_cycle_business_date_mismatch"),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  const orderMismatch = structuredClone(scenarios);
+  orderMismatch.recommendation_quick_15_rotation_2.startedAt = "2026-07-23T07:59:00.000Z";
+  orderMismatch.recommendation_quick_15_rotation_2.finishedAt = "2026-07-23T08:01:00.000Z";
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: orderMismatch }, null, 2)}\n`,
+  );
+  const orderMismatchReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    orderMismatchReport.issues.some((entry) => entry.code === "recommendation_cycle_order_invalid"),
+    true,
   );
 
   await writeFile(join(root, "manifest.json"), " ".repeat(257 * 1024));

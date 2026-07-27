@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -40,6 +40,7 @@ async function writePerformanceFixture(root, {
   const finishedAt = new Date(Math.max(candidateTime + 2000, Date.now() - 60_000)).toISOString();
   const entries = {};
   const hashes = [];
+  await mkdir(join(root, "descriptors"), { recursive: true });
   for (let index = 0; index < scenarios.length; index += 1) {
     const [scenario, checks] = scenarios[index];
     const mediaPath = unsafeMediaPath && index === 0 ? "../outside.png" : `${scenario}.png`;
@@ -52,7 +53,7 @@ async function writePerformanceFixture(root, {
       );
       hashes.push(createHash("sha256").update(await readFile(target)).digest("hex"));
     }
-    const descriptorPath = `${scenario}.json`;
+    const descriptorPath = `descriptors/${scenario}.json`;
     await writeFile(join(root, descriptorPath), `${JSON.stringify({
       schemaVersion: descriptorVersion,
       scenarioId: scenario,
@@ -107,8 +108,9 @@ try {
   );
   for (const measurement of validReport.externalEvidence.measurements) {
     assert.match(measurement.descriptorSha256, /^[a-f0-9]{64}$/);
-    assert.match(measurement.descriptorPath, /^performance_[a-z_]+\.json$/);
+    assert.equal(Object.prototype.hasOwnProperty.call(measurement, "descriptorPath"), false);
   }
+  assert.equal(JSON.stringify(validReport).includes("descriptors/"), false);
 
   for (const durations of [
     [401, 1000, 2500],
