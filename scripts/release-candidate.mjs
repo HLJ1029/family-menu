@@ -1,3 +1,4 @@
 export const CURRENT_MINIPROGRAM_VERSION = "1.1.73";
 export const CURRENT_MINIPROGRAM_DESCRIPTION = "修复身份完善入口";
 export const NATIVE_SHELL_PREVIEW_VERSION = "1.1.74";
+export const NATIVE_SHELL_EXPERIENCE_DESCRIPTION = "Humi 原生骨架体验版 N5b（4eb3fbeb）";

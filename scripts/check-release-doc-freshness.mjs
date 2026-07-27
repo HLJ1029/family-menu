@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  NATIVE_SHELL_EXPERIENCE_DESCRIPTION,
   NATIVE_SHELL_PREVIEW_VERSION,
 } from "./release-candidate.mjs";
 
@@ -124,8 +125,8 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-release-evidence-log.md",
     required: [
-      `| 小程序版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
-      `| 小程序描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+      `| 小程序版本 | \`${NATIVE_SHELL_PREVIEW_VERSION}\` |`,
+      `| 小程序描述 | \`${NATIVE_SHELL_EXPERIENCE_DESCRIPTION}\` |`,
     ],
   },
   {
