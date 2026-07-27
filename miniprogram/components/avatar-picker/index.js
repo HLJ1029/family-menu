@@ -1,5 +1,5 @@
 const { getHumiApiBaseUrl } = require("../../utils/config");
-const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.json");
+const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.js");
 
 Component({
   properties: {

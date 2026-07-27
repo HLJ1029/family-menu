@@ -94,7 +94,10 @@ vm.runInNewContext(source, {
 
 assert(capturedPage, "poster page should register with Page");
 assert(appJson.pages.includes("pages/poster/index"), "poster page should be registered in app.json");
-assert(pageJson.enableShareAppMessage === true, "poster page should enable its synchronous app-message fallback");
+assert(
+  !("enableShareAppMessage" in pageJson),
+  "poster page should rely on its synchronous callback instead of an unsupported page config key",
+);
 assert(wxml.includes("show-menu-by-longpress"), "poster image should keep long-press fallback");
 assert(wxml.includes("bindtap=\"sharePosterImage\""), "poster page should expose native image share action");
 assert(wxml.includes("bindtap=\"savePosterImage\""), "poster page should expose album save action");

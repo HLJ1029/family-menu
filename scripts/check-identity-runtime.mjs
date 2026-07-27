@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
-import { createRequire } from "node:module";
-
-const nodeRequire = createRequire(import.meta.url);
 
 const appConfig = JSON.parse(fs.readFileSync("miniprogram/app.json", "utf8"));
 assert.ok(appConfig.pages.includes("pages/identity/index"));
@@ -21,6 +18,46 @@ vm.runInNewContext(fs.readFileSync("miniprogram/utils/user-message.js", "utf8"),
   module: userMessageModule,
   exports: userMessageModule.exports,
 });
+const expectedApprovedAvatarKeys = [
+  "humi-avatar-dev-front-m-01",
+  "humi-avatar-dev-side-m-01",
+  "humi-avatar-dev-thinking-m-01",
+  "humi-avatar-dev-laptop-m-01",
+  "humi-avatar-family-f-01",
+  "humi-avatar-family-m-01",
+  "humi-avatar-parent-f-01",
+  "humi-avatar-parent-m-01",
+];
+
+function loadApprovedAvatarKeys(specifier) {
+  assert.equal(
+    specifier,
+    "../../data/approved-avatar-keys.js",
+    "mini-program runtime code must load the approved avatar contract from a JavaScript module",
+  );
+  const approvedAvatarModule = { exports: {} };
+  vm.runInNewContext(fs.readFileSync("miniprogram/data/approved-avatar-keys.js", "utf8"), {
+    module: approvedAvatarModule,
+    exports: approvedAvatarModule.exports,
+  }, { filename: "miniprogram/data/approved-avatar-keys.js" });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(approvedAvatarModule.exports)),
+    expectedApprovedAvatarKeys,
+    "the runtime JavaScript avatar contract must match the approved literal key set",
+  );
+  return approvedAvatarModule.exports;
+}
+
+let avatarPickerDefinition;
+vm.runInNewContext(fs.readFileSync("miniprogram/components/avatar-picker/index.js", "utf8"), {
+  Component: (definition) => { avatarPickerDefinition = definition; },
+  require: (specifier) => {
+    if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
+    if (specifier.startsWith("../../data/approved-avatar-keys")) return loadApprovedAvatarKeys(specifier);
+    throw new Error(`Unexpected avatar-picker dependency: ${specifier}`);
+  },
+});
+assert.equal(avatarPickerDefinition.data.avatars.length, expectedApprovedAvatarKeys.length);
 assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "invalid_session", message: "invalid_session" }), "登录状态已失效，请重新登录。");
 assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "network_error", message: "network_error" }), "网络连接失败，请检查网络后重试。");
 assert.match(identityWxml, /type="nickname"/);
@@ -203,7 +240,7 @@ function loadIdentityPage({ user, loginResult = null, rejectProfile = false, pro
     require: (specifier) => {
       if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
       if (specifier === "../../utils/user-message") return userMessageModule.exports;
-      if (specifier === "../../data/approved-avatar-keys.json") return nodeRequire("../miniprogram/data/approved-avatar-keys.json");
+      if (specifier.startsWith("../../data/approved-avatar-keys")) return loadApprovedAvatarKeys(specifier);
       if (specifier === "../../utils/session") return {
         loginWithWechat: async () => {
           calls.login += 1;

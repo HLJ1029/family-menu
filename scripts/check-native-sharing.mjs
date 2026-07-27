@@ -145,6 +145,20 @@ const packageShare = appJson.subPackages.find((item) => item.root === "packageSh
 assert(packageShare, "app.json must register the native packageShare subpackage");
 assert.deepEqual(packageShare.pages.sort(), ["pages/grocery/index", "pages/menu/index"]);
 
+for (const pageConfigPath of [
+  ...appJson.pages.map((page) => resolve(root, `miniprogram/${page}.json`)),
+  ...appJson.subPackages.flatMap((subpackage) => (
+    subpackage.pages.map((page) => resolve(root, `miniprogram/${subpackage.root}/${page}.json`))
+  )),
+]) {
+  const config = JSON.parse(readFileSync(pageConfigPath, "utf8"));
+  assert.equal(
+    "enableShareAppMessage" in config,
+    false,
+    `${relative(root, pageConfigPath)} must not use the unsupported enableShareAppMessage page config key`,
+  );
+}
+
 for (const [page, shareType] of [
   ["miniprogram/pages/tonight/index", "menu"],
   ["miniprogram/pages/grocery/index", "grocery"],
@@ -153,7 +167,6 @@ for (const [page, shareType] of [
 ]) {
   const js = readFileSync(resolve(root, `${page}.js`), "utf8");
   const wxml = readFileSync(resolve(root, `${page}.wxml`), "utf8");
-  const config = JSON.parse(readFileSync(resolve(root, `${page}.json`), "utf8"));
   assert.match(js, /shareable-page/, `${page} must use the shared native share readiness behavior`);
   assert.doesNotMatch(js, /async\s+onShareAppMessage/, `${page} share callback must stay synchronous`);
   assert.match(wxml, /open-type="share"/, `${page} must render a real WeChat share button`);
@@ -161,7 +174,6 @@ for (const [page, shareType] of [
   assert.match(wxml, /loading="\{\{[^}]*sharePreparing/, `${page} must expose share preparation loading`);
   assert.match(wxml, /分享内容没准备好，点这里重试/, `${page} must expose a clickable preparation retry`);
   assert.match(wxml, /bindtap="(?:retryNativeShare|retryInviteShare)"/, `${page} share preparation error must have a handler`);
-  assert.equal(config.enableShareAppMessage, true, `${page} must enable WeChat app-message sharing`);
 }
 
 for (const page of [

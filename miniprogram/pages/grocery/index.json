@@ -1,5 +1,4 @@
 {
-  "enableShareAppMessage": true,
   "usingComponents": {
     "grocery-item": "/components/grocery-item/index",
     "page-state": "/components/page-state/index"

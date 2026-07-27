@@ -3,7 +3,7 @@ const { requestHumi } = require("../../utils/request");
 const { clearBootstrapCacheForUser } = require("../../utils/bootstrap");
 const { startSpan } = require("../../utils/telemetry");
 const { toHumiUserMessage } = require("../../utils/user-message");
-const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.json");
+const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.js");
 const WECHAT_AVATAR_HOSTS = new Set(["thirdwx.qlogo.cn", "wx.qlogo.cn"]);
 
 Page({
