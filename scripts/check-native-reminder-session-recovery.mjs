@@ -57,6 +57,34 @@ const scheduledAt = "2026-07-28T10:30:00.000Z";
 {
   const runtime = createRuntime([
     http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
+    http(401, { code: "invalid_session" }),
+    http(200, freshSession()),
+    http(401, { code: "invalid_session" }),
+  ]);
+  runtime.seedSession(oldSession());
+  const page = runtime.loadReminderPage();
+  await page.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  await page.confirmReminder();
+  const creates = runtime.calls.request.filter((call) => call.url.endsWith("/meal-reminders"));
+  assert.equal(runtime.calls.login, 1, "a reminder POST second-401 performs only one silent refresh");
+  assert.equal(creates.length, 2, "a reminder POST second-401 makes only the initial transport and one replay");
+  assert.equal(creates[0].header["X-Humi-Idempotency-Key"], creates[1].header["X-Humi-Idempotency-Key"]);
+  assert.equal(runtime.session.getSession(), null, "a reminder POST second-401 clears the stale session");
+  assert.equal(page.data.needsLogin, true, "a reminder POST second-401 exposes the recoverable login action");
+  assert.equal(page.data.pending, false, "a reminder POST second-401 never leaves the confirmation hung");
+  assert.equal(page.data.saved, false, "a reminder is never claimed saved after a second 401");
+  assert.equal(page.data.permissionAccepted, true, "accepted consent remains reusable after authentication failure");
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.storage.get("humi:meal-reminder-consent:v3:meal-1"))), {
+    state: "accepted_pending",
+    scheduledAt,
+  });
+  assert.match(page.data.status, /登录状态已失效|重新登录/);
+  assert.equal(runtime.calls.subscribe, 1, "authentication recovery never requests subscription consent twice");
+}
+
+{
+  const runtime = createRuntime([
+    http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
     { fail: { errMsg: "request:fail network" } },
   ]);
   runtime.seedSession(oldSession());
@@ -124,6 +152,7 @@ function createRuntime(responses) {
   return {
     calls,
     session,
+    storage,
     seedSession(value) { session.saveSession(value); app.setHumiSession(value); },
     loadReminderPage() {
       load(path.join(root, "miniprogram/pages/reminder/index.js"));

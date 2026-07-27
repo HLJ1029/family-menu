@@ -16,6 +16,7 @@ Page({
     cacheState: "",
     days: [],
     canEditMenu: false,
+    menuEditAvailable: false,
     stateVersion: "",
     conflictVisible: false,
     pendingAction: "",
@@ -28,25 +29,28 @@ Page({
   syncState() {
     const bootstrap = appStore.getState().bootstrap;
     if (!bootstrap) {
-      this.setData({ status: "empty", errorText: "", days: [], canEditMenu: false, stateVersion: "" });
+      this.setData({ status: "empty", errorText: "", days: [], canEditMenu: false, menuEditAvailable: false, stateVersion: "" });
       return;
     }
     const household = getActiveHousehold(bootstrap);
     const householdState = bootstrap.householdState || {};
+    const cached = bootstrap.cacheState === "cached";
+    const canEditMenu = getHouseholdRole(bootstrap) === "owner";
     this.setData({
-      status: bootstrap.cacheState === "cached" ? "cached" : "ready",
+      status: cached ? "cached" : "ready",
       cacheState: bootstrap.cacheState || "",
       errorText: "",
       days: buildMealDays(householdState.mealPlan || {}, {
         pantrySignals: householdState.pantryItems || [],
       }),
-      canEditMenu: getHouseholdRole(bootstrap) === "owner",
+      canEditMenu,
+      menuEditAvailable: canEditMenu && !cached,
       stateVersion: bootstrap.stateVersion || "",
       householdName: household?.name || "我的家",
     });
   },
   openRecipeChooser(event = {}) {
-    if (!this.data.canEditMenu || this.data.cacheState === "cached" || this.data.pendingAction) return;
+    if (!this.data.menuEditAvailable || this.data.pendingAction) return;
     const dateKey = String(event?.detail?.dateKey || event?.currentTarget?.dataset?.dateKey || "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
     const day = this.data.days.find((item) => item.dateKey === dateKey);
@@ -136,6 +140,10 @@ Page({
           conflictVisible: true,
           stateVersion: error.latestEnvelope.stateVersion || "",
           errorText: "家人刚刚更新了安排，已为你载入最新版本。",
+          chooserVisible: false,
+          chooserDateKey: "",
+          chooserDateLabel: "",
+          recipeChoices: [],
         });
         return null;
       }

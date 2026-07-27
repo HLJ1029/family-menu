@@ -29,7 +29,7 @@
     "validate:native-sharing": "node scripts/check-native-sharing.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
     "validate:startup-performance": "node scripts/check-startup-performance.mjs && node scripts/selftest-startup-performance-report.mjs",
-    "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs && node scripts/check-native-plan-editor.mjs && node scripts/check-native-family-actions.mjs && node scripts/check-native-task-session-recovery.mjs",
+    "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs && node scripts/check-native-plan-editor.mjs && node scripts/check-native-family-actions.mjs && node scripts/check-native-task_auth-recovery.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:miniprogram-poster": "node scripts/check-miniprogram-poster-share.mjs",
     "validate:identity": "node scripts/check-identity-store.mjs && node scripts/check-identity-runtime.mjs",

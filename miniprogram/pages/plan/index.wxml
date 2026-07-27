@@ -10,7 +10,7 @@
       wx:for="{{days}}"
       wx:key="dateKey"
       day="{{item}}"
-      can-edit="{{canEditMenu}}"
+      can-edit="{{menuEditAvailable}}"
       busy="{{pendingAction !== ''}}"
       bind:choose="openRecipeChooser"
     />

@@ -173,7 +173,7 @@ function normalizeToken(value) {
 }
 
 function taskError(error, fallback) {
-  if (error?.code === "forbidden") return "只有这个家的正式成员能领取或完成任务。";
+  if (error?.code === "forbidden" || error?.code === "household_not_found") return "只有这个家的正式成员能领取或完成任务。";
   if (error?.code === "meal_task_claimed") return "这个任务已经被家人领取了，请刷新查看。";
   if (error?.code === "invalid_session") return "登录状态已失效，请重新登录。";
   return fallback;

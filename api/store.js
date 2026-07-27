@@ -2099,7 +2099,7 @@ export class HumiStore {
       label: task.label,
       type: task.type,
       status: task.status,
-      claimedByName: task.claimedByName || claimant?.nickname || "",
+      claimedByName: viewerIsMember && claimant ? claimant.nickname : "",
       viewerClaimed: viewerIsMember && task.claimedBy === viewerUserId,
       viewerCanComplete: viewerIsMember && (
         task.claimedBy === viewerUserId
@@ -2112,7 +2112,8 @@ export class HumiStore {
 
   async getMealTasksForRun(userId, mealRunId) {
     await this.load();
-    this.requireMealRunForMember(userId, mealRunId);
+    const mealRun = this.requireMealRunForMember(userId, mealRunId);
+    const household = this.data.households.find((entry) => entry.id === mealRun.householdId);
     return this.data.mealTasks
       .map((task, index) => ({ task, index }))
       .filter(({ task }) => task.mealRunId === mealRunId)
@@ -2121,7 +2122,10 @@ export class HumiStore {
         || left.index - right.index
       ))
       .slice(0, 100)
-      .map(({ task }) => structuredClone(task));
+      .map(({ task }) => {
+        const claimant = household?.members?.find((member) => member.memberId === task.claimedBy && member.status === "formal");
+        return { ...structuredClone(task), claimedByName: claimant?.nickname || "" };
+      });
   }
 
   async claimMealTask(userId, token) {

@@ -32,6 +32,7 @@ try {
   const baseUrl = `http://127.0.0.1:${port}`;
   const owner = await createUser(baseUrl, "meal-owner", "主厨小禾");
   const member = await createUser(baseUrl, "meal-member", "家人小林");
+  const formerMember = await createUser(baseUrl, "meal-former-member", "曾经家人");
   const outsider = await createUser(baseUrl, "meal-outsider", "路人");
   const familyEnvelope = await request(`${baseUrl}/households`, {
     method: "POST",
@@ -47,6 +48,16 @@ try {
   await request(`${baseUrl}/household-invites/${invite.invite.token}/join`, {
     method: "POST",
     session: member,
+    body: {},
+  });
+  const formerInvite = await request(`${baseUrl}/household-invites`, {
+    method: "POST",
+    session: owner,
+    body: { householdId },
+  });
+  await request(`${baseUrl}/household-invites/${formerInvite.invite.token}/join`, {
+    method: "POST",
+    session: formerMember,
     body: {},
   });
 
@@ -600,8 +611,10 @@ try {
   const visitorTaskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`);
   assert.equal(visitorTaskLanding.task.label, "请家人买鸡蛋", "a signed-out visitor can read controlled task context");
   assert.equal(visitorTaskLanding.task.viewerCanComplete, false);
+  assert.equal(visitorTaskLanding.task.claimedByName, "", "a public task never exposes a formal member identity");
   const outsiderTaskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { session: outsider });
   assert.equal(outsiderTaskLanding.task.viewerCanComplete, false, "a logged-in visitor still cannot mutate another household task");
+  assert.equal(outsiderTaskLanding.task.claimedByName, "", "a non-member never receives claimant identity");
   const taskLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { method: "GET", session: member });
   assert.equal(taskLanding.task.label, "请家人买鸡蛋");
   assert.equal(taskLanding.task.status, "open");
@@ -612,13 +625,33 @@ try {
   assert.equal(claimed.task.claimedBy, member.user.id);
   assert.equal(claimed.task.claimedByName, member.user.displayName, "a successful claim returns the authenticated formal member display identity");
   const claimedLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { session: member });
-  assert.equal(claimedLanding.task.claimedByName, member.user.displayName, "the task landing renders the persisted claimant identity");
+  assert.equal(claimedLanding.task.claimedByName, member.user.displayName, "a formal member sees the current claimant identity");
+  const claimedGuestLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`);
+  assert.equal(claimedGuestLanding.task.claimedByName, "", "a guest sees only the generic claimed state");
+  const claimedOutsiderLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { session: outsider });
+  assert.equal(claimedOutsiderLanding.task.claimedByName, "", "a non-member sees only the generic claimed state");
   const claimedAgain = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });
   assert.equal(claimedAgain.task.claimedAt, claimed.task.claimedAt, "repeated claims by the same member are idempotent");
   const taskDone = await request(`${baseUrl}/meal-tasks/${task.task.token}/complete`, { method: "POST", session: member, body: {} });
   assert.equal(taskDone.task.status, "completed");
   const taskDoneAgain = await request(`${baseUrl}/meal-tasks/${task.task.token}/complete`, { method: "POST", session: owner, body: {} });
   assert.equal(taskDoneAgain.task.completedAt, taskDone.task.completedAt, "owner completion replay returns the existing completed task");
+
+  const formerTask = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, {
+    method: "POST",
+    session: owner,
+    body: { type: "prep", stepId: delegatableStep.id },
+    idempotencyKey: "task-former-member",
+  });
+  const formerClaim = await request(`${baseUrl}/meal-tasks/${formerTask.task.token}/claim`, { method: "POST", session: formerMember, body: {} });
+  assert.equal(formerClaim.task.claimedByName, formerMember.user.displayName);
+  await request(`${baseUrl}/households/${householdId}/members/${formerMember.user.id}`, { method: "DELETE", session: owner });
+  const removedClaimantLanding = await request(`${baseUrl}/meal-tasks/${formerTask.task.token}`, { session: owner });
+  assert.equal(removedClaimantLanding.task.claimedByName, "", "a removed claimant's persisted name is never used as a fallback");
+  const formerMemberLanding = await request(`${baseUrl}/meal-tasks/${formerTask.task.token}`, { session: formerMember });
+  assert.equal(formerMemberLanding.task.claimedByName, "", "a removed former member is treated as a non-member viewer");
+  const currentTaskSummary = await request(`${baseUrl}/meal-runs/${taskPlan.mealRun.id}/tasks`, { session: owner });
+  assert.equal(currentTaskSummary.tasks.find((entry) => entry.id === formerTask.task.id)?.claimedByName, "", "household summaries redact former-member names too");
   assert.equal(
     buildMealReminderDeepLink({
       id: "reminder-1",

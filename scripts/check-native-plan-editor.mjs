@@ -39,6 +39,7 @@ const plan = loadPage("miniprogram/pages/plan/index.js", {
   "../../data/certified-recipes": recipes,
 });
 plan.syncState();
+assert.equal(plan.data.menuEditAvailable, true, "a connected owner receives the rendered edit action");
 
 const ownerDay = loadComponent("miniprogram/components/meal-day/index.js", {
   day: plan.data.days[0], canEdit: true, busy: false,
@@ -74,6 +75,73 @@ const memberDay = loadComponent("miniprogram/components/meal-day/index.js", {
 memberDay.bind("choose", (event) => memberEvents.push(event));
 memberDay.openDinnerChooser();
 assert.equal(memberEvents.length, 0, "the rendered member view stays read-only");
+
+const cachedBootstrap = { ...buildBootstrap([currentDinner]), cacheState: "cached" };
+const cachedPlan = loadPage("miniprogram/pages/plan/index.js", {
+  "../../utils/store": { appStore: { getState: () => ({ bootstrap: cachedBootstrap }), replaceBootstrap() {} } },
+  "../../utils/native-shell-guard": { guardNativeTab: () => true },
+  "../../utils/household-state": {
+    buildMealDays: () => [{ ...plan.data.days[0], dinner: [currentDinner] }],
+    createMutationId: () => "cached-must-not-save",
+    getActiveHousehold: () => ({ id: "household-1", name: "测试家" }),
+    getHouseholdRole: () => "owner",
+    saveHouseholdStatePatch: async () => { throw new Error("cached plan must not save"); },
+  },
+  "../../data/certified-recipes": recipes,
+});
+cachedPlan.syncState();
+assert.equal(cachedPlan.data.menuEditAvailable, false, "a cached owner receives an explicitly read-only rendered state");
+const cachedEvents = [];
+const cachedDay = loadComponent("miniprogram/components/meal-day/index.js", {
+  day: cachedPlan.data.days[0],
+  canEdit: cachedPlan.data.menuEditAvailable,
+  busy: false,
+});
+cachedDay.bind("choose", (event) => cachedEvents.push(event));
+cachedDay.openDinnerChooser();
+assert.equal(cachedEvents.length, 0, "a cached owner sees a rendered read-only day with no edit event");
+
+let conflictBootstrap = buildBootstrap([currentDinner]);
+const latestDinner = snapshot(recipes[2]);
+const latestEnvelope = buildBootstrap([latestDinner], "state-latest");
+let conflictSaves = 0;
+const conflictPlan = loadPage("miniprogram/pages/plan/index.js", {
+  "../../utils/store": {
+    appStore: {
+      getState: () => ({ bootstrap: conflictBootstrap }),
+      replaceBootstrap: (next) => { conflictBootstrap = next; },
+    },
+  },
+  "../../utils/native-shell-guard": { guardNativeTab: () => true },
+  "../../utils/household-state": {
+    buildMealDays: (mealPlan) => [{ ...plan.data.days[0], dinner: mealPlan["2026-07-28"].dinner }],
+    createMutationId: () => "stale-plan-save",
+    getActiveHousehold: () => ({ id: "household-1", name: "测试家" }),
+    getHouseholdRole: () => "owner",
+    saveHouseholdStatePatch: async () => {
+      conflictSaves += 1;
+      const error = new Error("state version conflict");
+      error.status = 409;
+      error.code = "state_version_conflict";
+      error.latestEnvelope = latestEnvelope;
+      throw error;
+    },
+  },
+  "../../data/certified-recipes": recipes,
+});
+conflictPlan.syncState();
+const conflictDay = loadComponent("miniprogram/components/meal-day/index.js", {
+  day: conflictPlan.data.days[0], canEdit: true, busy: false,
+});
+conflictDay.bind("choose", (event) => conflictPlan.openRecipeChooser(event));
+conflictDay.openDinnerChooser();
+conflictPlan.toggleRecipe({ currentTarget: { dataset: { recipeId: recipes[1].id } } });
+await conflictPlan.saveRecipeSelection();
+assert.equal(conflictPlan.data.chooserVisible, false, "a 409 closes the stale chooser and requires an explicit reopen");
+assert.equal(conflictPlan.data.recipeChoices.length, 0, "stale recipe choices are discarded after latest-envelope recovery");
+assert.equal(conflictPlan.data.days[0].dinner[0].recipeId, recipes[2].id, "the page renders the latest family dinner after conflict");
+await conflictPlan.saveRecipeSelection();
+assert.equal(conflictSaves, 1, "a stale selection cannot retry and overwrite the latest family update");
 
 console.log("Native Plan rendered recipe chooser checks passed.");
 
