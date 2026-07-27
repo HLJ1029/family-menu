@@ -6,13 +6,16 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertNativeArtifactMatchesCommit } from "./lib/native-candidate-artifact.mjs";
 import {
-  assertCandidateVersionIsUnused,
   extractNativeCandidateArtifactPath,
   extractNativeCandidateCommit,
+  extractPlatformEvidence,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
+import {
+  assertNativeRuntimeMatchesCommit,
+} from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
 
 const safeFindings = findForbiddenRuntimeFindings([
@@ -66,15 +69,6 @@ for (const expectedPath of [
   );
 }
 
-assert.equal(assertCandidateVersionIsUnused("1.1.74", "1.1.73"), true);
-assert.throws(
-  () => assertCandidateVersionIsUnused("1.1.73", "1.1.73"),
-  /must be newer than uploaded production history/,
-);
-assert.throws(
-  () => assertCandidateVersionIsUnused("1.1.72", "1.1.73"),
-  /must be newer than uploaded production history/,
-);
 assert.equal(
   extractNativeCandidateCommit("- 提交：`d05816c00f6d490a7dcb780a9461880ff44d9cd4`"),
   "d05816c00f6d490a7dcb780a9461880ff44d9cd4",
@@ -86,13 +80,42 @@ assert.throws(
   ].join("\n")),
   /exactly one candidate commit/,
 );
+assert.deepEqual(
+  extractPlatformEvidence(
+    "request/downloadFile 域名真实调用返回 200；web-view 平台截图待补；平台隐私声明尚未完成最终确认。",
+  ),
+  {
+    requestDomainVerified: true,
+    downloadFileDomainVerified: true,
+    webViewDomainVerified: false,
+    privacyDeclarationVerified: false,
+    wechatDevtoolsAuthenticated: null,
+    productionLegacyH5SmokeVerified: null,
+  },
+);
+assert.equal(
+  extractPlatformEvidence(
+    "web-view 业务域名平台截图已验证通过；平台隐私保护指引截图已验证通过。",
+  ).privacyDeclarationVerified,
+  true,
+);
 assert.equal(
   extractNativeCandidateArtifactPath([
     "| Version | Role | Path | Size | SHA256 | Status |",
     "| --- | --- | --- | ---: | --- | --- |",
-    "| native-shell-preview-1.1.74 | 小程序原生源码归档 | /tmp/humi-native-shell-1.1.74-abcd123.tar.gz | 123 | deadbeef | preview |",
-  ].join("\n")),
+    "| native-shell-uploaded-1.1.74 | 已上传小程序原生源码归档 | /tmp/humi-native-shell-1.1.74-abcd123.tar.gz | 123 | deadbeef | preview |",
+    "| native-shell-preview-1.1.74-old | 历史 N4 原生源码归档 | /tmp/humi-native-shell-1.1.74-old.tar.gz | 123 | deadbeef | superseded |",
+  ].join("\n"), { expectedVersion: "1.1.74" }),
   "/tmp/humi-native-shell-1.1.74-abcd123.tar.gz",
+);
+assert.throws(
+  () => extractNativeCandidateArtifactPath([
+    "| Version | Role | Path | Size | SHA256 | Status |",
+    "| --- | --- | --- | ---: | --- | --- |",
+    "| native-shell-uploaded-1.1.74-a | 已上传小程序原生源码归档 | /tmp/a.tar.gz | 123 | deadbeef | preview |",
+    "| native-shell-uploaded-1.1.74-b | 已上传小程序原生源码归档 | /tmp/b.tar.gz | 123 | deadbeef | preview |",
+  ].join("\n"), { expectedVersion: "1.1.74" }),
+  /exactly one current uploaded native source archive/,
 );
 assert.equal(
   resolveExternalHandoffPath({
@@ -110,7 +133,7 @@ assert.throws(
   /HUMI_NATIVE_HANDOFF_PATH is required/,
 );
 
-const candidateYaml = [
+const n4CandidateYaml = [
   "```yaml",
   "native_shell_candidate:",
   "  status: preview",
@@ -125,7 +148,18 @@ const candidateYaml = [
   "  true_device_evidence: 0/56",
   "```",
 ].join("\n");
-assert.deepEqual(validateNativeCandidateState(candidateYaml), {
+const n4ExternalActions = {
+  production_api_deployed: false,
+  h5_deployed: false,
+  miniprogram_uploaded: false,
+  wechat_review_submitted: false,
+  wechat_released: false,
+  native_allowlist_enabled: false,
+};
+assert.deepEqual(validateNativeCandidateState(n4CandidateYaml, {
+  expectedExternalActions: n4ExternalActions,
+  expectedTrueDeviceEvidence: "0/56",
+}), {
   status: "preview",
   package_version: "1.1.74",
   ads: "excluded",
@@ -137,70 +171,110 @@ assert.deepEqual(validateNativeCandidateState(candidateYaml), {
   native_allowlist_enabled: false,
   true_device_evidence: "0/56",
 });
+const n5bCandidateYaml = n4CandidateYaml
+  .replace("  production_api_deployed: false", "  production_api_deployed: true")
+  .replace("  h5_deployed: false", "  h5_deployed: true")
+  .replace("  miniprogram_uploaded: false", "  miniprogram_uploaded: true")
+  .replace("  true_device_evidence: 0/56", "  true_device_evidence: 0/36");
+const n5bExternalActions = {
+  ...n4ExternalActions,
+  production_api_deployed: true,
+  h5_deployed: true,
+  miniprogram_uploaded: true,
+};
+assert.deepEqual(
+  validateNativeCandidateState(n5bCandidateYaml, {
+    expectedExternalActions: n5bExternalActions,
+    expectedTrueDeviceEvidence: "0/36",
+  }).miniprogram_uploaded,
+  true,
+);
+const currentCandidateYaml = n4CandidateYaml
+  .replace("  status: preview", "  status: local-candidate")
+  .replace("  package_version: 1.1.74", "  package_version: 1.1.75")
+  .replace("  production_api_deployed: false", "  production_api_deployed: true")
+  .replace("  h5_deployed: false", "  h5_deployed: true");
+const currentCandidateActions = {
+  ...n4ExternalActions,
+  production_api_deployed: true,
+  h5_deployed: true,
+};
+assert.deepEqual(
+  validateNativeCandidateState(currentCandidateYaml, {
+    expectedPackageVersion: "1.1.75",
+    expectedStatus: "local-candidate",
+    expectedExternalActions: currentCandidateActions,
+    expectedTrueDeviceEvidence: "0/56",
+  }).miniprogram_uploaded,
+  false,
+  "the current 1.1.75 candidate must remain explicitly unuploaded",
+);
 assert.throws(
-  () => validateNativeCandidateState(`${candidateYaml}\n${candidateYaml}`),
+  () => validateNativeCandidateState(`${n4CandidateYaml}\n${n4CandidateYaml}`, {
+    expectedExternalActions: n4ExternalActions,
+  }),
   /exactly one native_shell_candidate block/,
 );
 assert.throws(
-  () => validateNativeCandidateState(candidateYaml.replace(
+  () => validateNativeCandidateState(n4CandidateYaml.replace(
     "  h5_deployed: false",
     "  h5_deployed: false\n  h5_deployed: true",
-  )),
+  ), { expectedExternalActions: n4ExternalActions }),
   /duplicate candidate key/,
 );
 assert.throws(
-  () => validateNativeCandidateState(candidateYaml.replace(
+  () => validateNativeCandidateState(n5bCandidateYaml.replace(
     "  wechat_released: false",
     "  wechat_released: true",
-  )),
-  /must remain false/,
+  ), { expectedExternalActions: n5bExternalActions }),
+  /wechat_released must equal false/,
 );
 assert.throws(
-  () => validateNativeCandidateState(candidateYaml.replace(
+  () => validateNativeCandidateState(n4CandidateYaml.replace(
     "  true_device_evidence: 0/56",
     "  true_device_evidence: 0/56\n  unreviewed_release_state: true",
-  )),
+  ), { expectedExternalActions: n4ExternalActions }),
   /unexpected candidate key/,
   "candidate state must use the exact reviewed key set",
 );
 assert.throws(
   () => validateNativeCandidateState([
-    candidateYaml,
+    n4CandidateYaml,
     "```yaml",
     "native_shell_candidate: { status: approved, miniprogram_uploaded: true }",
     "```",
-  ].join("\n")),
+  ].join("\n"), { expectedExternalActions: n4ExternalActions }),
   /noncanonical YAML syntax/,
   "a second flow-style candidate mapping must not hide an approved/uploaded state",
 );
 assert.throws(
   () => validateNativeCandidateState([
-    candidateYaml,
+    n4CandidateYaml,
     "```yaml",
     "release: { miniprogram_uploaded: true }",
     "```",
-  ].join("\n")),
+  ].join("\n"), { expectedExternalActions: n4ExternalActions }),
   /noncanonical YAML syntax/,
   "a flow-style release mapping must not hide an uploaded state",
 );
 assert.throws(
   () => validateNativeCandidateState([
-    candidateYaml,
+    n4CandidateYaml,
     "```yaml",
     "release:",
     "  miniprogram_uploaded: true",
     "```",
-  ].join("\n")),
+  ].join("\n"), { expectedExternalActions: n4ExternalActions }),
   /candidate key outside canonical block/,
 );
 assert.throws(
   () => validateNativeCandidateState([
-    candidateYaml,
+    n4CandidateYaml,
     "```yaml",
     "release:",
     "  status: approved",
     "```",
-  ].join("\n")),
+  ].join("\n"), { expectedExternalActions: n4ExternalActions }),
   /(?:candidate key outside canonical block|unexpected structured YAML outside canonical block)/,
 );
 for (const maliciousYaml of [
@@ -214,7 +288,9 @@ for (const maliciousYaml of [
   "release: [miniprogram_uploaded, true]",
 ]) {
   assert.throws(
-    () => validateNativeCandidateState(`${candidateYaml}\n\`\`\`yaml\n${maliciousYaml}\n\`\`\``),
+    () => validateNativeCandidateState(`${n4CandidateYaml}\n\`\`\`yaml\n${maliciousYaml}\n\`\`\``, {
+      expectedExternalActions: n4ExternalActions,
+    }),
     /noncanonical YAML syntax/,
     `noncanonical YAML must fail closed: ${maliciousYaml}`,
   );
@@ -248,7 +324,7 @@ try {
   execFileSync("git", [
     "archive",
     "--format=tar.gz",
-    "--prefix=humi-native-shell-1.1.74/",
+    "--prefix=humi-native-shell-1.1.75/",
     `--output=${currentArchive}`,
     currentCommit,
     "miniprogram",
@@ -259,6 +335,25 @@ try {
     repoRoot: artifactFixture,
     commit: currentCommit,
   });
+  await assertNativeRuntimeMatchesCommit({
+    repoRoot: artifactFixture,
+    commit: currentCommit,
+  });
+  await writeFile(join(artifactFixture, "docs.md"), "post-upload documentation\n");
+  execFileSync("git", ["add", "docs.md"], { cwd: artifactFixture });
+  execFileSync("git", ["commit", "-q", "-m", "docs after upload"], { cwd: artifactFixture });
+  await assertNativeRuntimeMatchesCommit({
+    repoRoot: artifactFixture,
+    commit: currentCommit,
+  });
+  await writeFile(join(artifactFixture, "miniprogram", "app.js"), "module.exports = 'changed-after-upload';\n");
+  await assert.rejects(
+    assertNativeRuntimeMatchesCommit({
+      repoRoot: artifactFixture,
+      commit: currentCommit,
+    }),
+    /current miniprogram runtime differs from uploaded commit/,
+  );
   await assert.rejects(
     assertNativeArtifactMatchesCommit({
       artifactPath: oldArchive,

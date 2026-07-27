@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "platformDeclarationStatus": "pending",
+  "capabilities": [
+    {
+      "id": "wechat_identity",
+      "access": "collect",
+      "trigger": "automatic_login",
+      "purpose": [
+        "login",
+        "session",
+        "family_collaboration"
+      ]
+    },
+    {
+      "id": "nickname_avatar",
+      "access": "collect_and_upload",
+      "trigger": "explicit_user_action",
+      "purpose": [
+        "family_recognition"
+      ]
+    },
+    {
+      "id": "phone_number",
+      "access": "optional_collect",
+      "trigger": "explicit_user_tap",
+      "purpose": [
+        "account_binding",
+        "account_recovery",
+        "collaboration_security"
+      ]
+    },
+    {
+      "id": "photo_album",
+      "access": "write_only",
+      "trigger": "explicit_save",
+      "purpose": [
+        "save_generated_poster"
+      ]
+    },
+    {
+      "id": "subscription_message",
+      "access": "one_time_request",
+      "trigger": "explicit_schedule_confirmation",
+      "purpose": [
+        "meal_reminder"
+      ],
+      "rejectionBehavior": "no_schedule_no_repeat_prompt"
+    }
+  ],
+  "productData": [
+    "household_membership",
+    "menu_and_meal_runs",
+    "grocery_and_claims",
+    "preferences_allergies_feedback",
+    "privacy_safe_product_events"
+  ],
+  "absentCapabilities": [
+    "location",
+    "contacts",
+    "camera",
+    "microphone",
+    "payments",
+    "supabase_runtime",
+    "advertising",
+    "photo_album_read"
+  ]
+}

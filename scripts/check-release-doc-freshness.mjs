@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
   NATIVE_SHELL_EXPERIENCE_DESCRIPTION,
   NATIVE_SHELL_PREVIEW_VERSION,
 } from "./release-candidate.mjs";
@@ -127,19 +130,24 @@ const currentCandidateDocs = [
     required: [
       `| 小程序版本 | \`${NATIVE_SHELL_PREVIEW_VERSION}\` |`,
       `| 小程序描述 | \`${NATIVE_SHELL_EXPERIENCE_DESCRIPTION}\` |`,
+      `| 最近已上传体验版 | \`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
     ],
   },
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
-      `最新已上传兼容版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
-      `原生骨架 preview 固定使用从未上传的 \`${NATIVE_SHELL_PREVIEW_VERSION}\``,
+      `当前本地审核候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `最近已上传体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      "历史兼容/生产基线是 `1.1.73`",
+      "平台隐私保护指引也仍待最终填写和留证",
     ],
   },
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     required: [
-      `已上传版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
+      `当前候选版本：\`${CURRENT_MINIPROGRAM_VERSION}\`（未上传）`,
+      `最近已上传版本：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
     ],
   },
@@ -148,6 +156,7 @@ const currentCandidateDocs = [
     required: [
       `| 上传版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
       `| 版本描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+      `最近已上传体验版是 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
@@ -182,8 +191,9 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-api-contract.md",
     required: [
-      `已上传兼容版 ${CURRENT_MINIPROGRAM_VERSION} 使用本合同`,
-      `未上传的原生骨架 preview 固定为 ${NATIVE_SHELL_PREVIEW_VERSION}`,
+      `当前本地候选 ${CURRENT_MINIPROGRAM_VERSION} 均使用本合同`,
+      `最近已上传体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
+      "历史兼容基线 1.1.73",
     ],
   },
 ];
@@ -202,6 +212,18 @@ if (!miniProgramConfig.includes(`h5v=${NATIVE_SHELL_PREVIEW_VERSION}`)) {
   failures.push({
     path: "miniprogram/utils/config.js",
     phrase: `missing h5v=${NATIVE_SHELL_PREVIEW_VERSION}`,
+  });
+}
+
+try {
+  execFileSync(process.execPath, ["scripts/check-wechat-privacy-contract.mjs"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+} catch (error) {
+  failures.push({
+    path: "docs/wechat-privacy-declaration.json",
+    phrase: `runtime privacy contract failed: ${String(error.message || error)}`,
   });
 }
 

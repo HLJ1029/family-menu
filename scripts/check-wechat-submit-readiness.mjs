@@ -23,6 +23,7 @@ const ready = Boolean(
 );
 const submitReady = Boolean(
   status.ok
+    && status.release?.currentCandidateUploaded
     && status.git?.clean
     && status.git?.syncedToOriginMain
     && status.release?.onlineReady
@@ -31,6 +32,8 @@ const submitReady = Boolean(
     && status.release?.preReviewHardeningReady
     && status.release?.productReviewReady
     && status.release?.candidateValidationReady
+    && status.release?.wechatPrivacyContractReady
+    && status.release?.wechatPrivacyContractSelftestReady
     && status.release?.wechatSubmitWorkspaceGuardReady
     && status.release?.artifactsReady,
 );
@@ -38,7 +41,7 @@ const submitReady = Boolean(
 const packet = {
   ok: submitReady,
   checkedAt: new Date().toISOString(),
-  version: status.release?.miniProgramUploadedVersion,
+  version: status.release?.miniProgramCandidateVersion ?? status.release?.miniProgramUploadedVersion,
   uploadDescription: status.release?.miniProgramUploadDescription,
   warnings: [
     ...(status.git?.clean ? [] : ["Local working tree is dirty; commit or stash engineering changes before tagging final release evidence."]),
@@ -47,7 +50,11 @@ const packet = {
     ...(status.release?.preReviewHardeningReady ? [] : ["Pre-review P0/P1 hardening is not complete; do not submit WeChat review yet."]),
     ...(status.release?.productReviewReady ? [] : ["Product review anchors are not complete; run npm run release:product:review before WeChat review."]),
     ...(status.release?.candidateValidationReady ? [] : ["Real candidate validation has not passed; run npm run release:candidate:review after filling anonymous U001-U020 feedback."]),
+    ...(status.release?.wechatPrivacyContractReady && status.release?.wechatPrivacyContractSelftestReady
+      ? []
+      : ["Native runtime and WeChat privacy declaration contract are not aligned; do not prepare review submission."]),
     ...(status.release?.wechatSubmitWorkspaceGuardReady ? [] : ["WeChat submit workspace confirmation guard is not covered; do not prepare review submission."]),
+    ...(status.release?.currentCandidateUploaded ? [] : [`Version ${CURRENT_MINIPROGRAM_VERSION} has not been uploaded; package and upload it under separate authorization before review preparation.`]),
   ],
   releaseStatusOk: ready,
   submitMaterials: [

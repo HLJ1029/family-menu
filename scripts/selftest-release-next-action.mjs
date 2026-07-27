@@ -1,11 +1,8 @@
 import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { execFileSync } from "node:child_process";
 import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
-
-const execFileAsync = promisify(execFile);
 
 const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
 const tempEvidence = join(tempDir, "evidence.md");
@@ -14,10 +11,10 @@ const tempHardening = join(tempDir, "hardening.md");
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
-  await assertNext("提审前产品打磨");
+  await assertNext("1.1.75 候选封包与上传授权");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("运行 `npm run release:candidate:today", {
+  await assertNext("1.1.75 候选封包与上传授权", {
     forbidden: [
       "- docs/wechat-submit-copy-packet.md",
       "- docs/miniprogram-platform-submit-runbook.md",
@@ -25,9 +22,9 @@ try {
     ],
   });
   await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
-  await assertNext("只发送今日分发单里尚未标记已邀请的 U 编号");
+  await assertNext("1.1.75 候选封包与上传授权");
   await writePendingCandidatePacket(tempDir, "已邀请");
-  await assertNext("今天分发单里的 U 编号已标记为已邀请");
+  await assertNext("1.1.75 候选封包与上传授权");
   await writeValidCandidatePacket(tempDir);
 
   const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
@@ -36,7 +33,7 @@ try {
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
   await rm(tempSubmitDir, { recursive: true, force: true });
 
-  await assertNext("1.1 生产候选完善与内测验证，暂不进入微信审核");
+  await assertNext("1.1.75 候选封包与上传授权");
 
   await run("release:evidence:record:submit", {
     HUMI_WECHAT_SUBMIT_TIME: "2026-07-03 14:30 CST",
@@ -103,16 +100,18 @@ try {
 }
 
 async function assertNext(expected, options = {}) {
-  const { stdout } = await execFileAsync("npm", ["run", "release:next"], {
+  const stdout = execFileSync("npm", ["run", "release:next"], {
     env: {
       ...process.env,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
+      HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST: "1",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
+    encoding: "utf8",
   });
 
   if (!stdout.includes(expected) && (!options.alternative || !stdout.includes(options.alternative))) {
@@ -126,7 +125,7 @@ async function assertNext(expected, options = {}) {
 }
 
 async function run(script, extraEnv) {
-  await execFileAsync("npm", ["run", script], {
+  execFileSync("npm", ["run", script], {
     env: {
       ...process.env,
       ...extraEnv,
@@ -136,6 +135,7 @@ async function run(script, extraEnv) {
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
+    encoding: "utf8",
   });
 }
 

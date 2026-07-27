@@ -5,12 +5,12 @@
 
 ## 1. 当前状态
 
-- 小程序版本：`1.1.73`
-- 版本描述：`修复身份完善入口`
+- 小程序版本：`1.1.75`
+- 版本描述：`Humi 原生骨架完整候选（待上传）`
 - AppID：`wx4040b89f3b363416`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
-- 当前状态：H5 与小程序包已上传；提审前 P0/P1 已完成，当前不自动提交审核，需用户确认后进入微信公众平台提交。
+- 当前状态：N5a H5/API 已部署；最近上传的是 `1.1.74@4eb3fbeb`，当前 `1.1.75` 尚未封包或上传。先取得上传授权，再做真机验收；提审、发布、开关和白名单均不在当前动作内。
 - 后端状态：1.1.73 新增短期海报图片接口；发布前后用 `npm run validate:api`、`npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 

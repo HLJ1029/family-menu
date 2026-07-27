@@ -289,9 +289,9 @@ function inspectCurrentOrder(content) {
   const section = sliceBetween(content, "## 4. 当前建议顺序", "## 5.");
   const required = [
     "核心菜单、家庭协作、五类分享、数据与安全检查",
-    "downloadFile 合法域名",
+    "request/downloadFile 探测已通过",
     "未通过就继续修",
-    "已完成 H5/API 部署和体验版上传",
+    "N5a API/H5 与 N5b",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];

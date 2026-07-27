@@ -1,21 +1,21 @@
 # Humi 1.1 Release Operator Handoff
 
-更新日期：2026-07-24
+更新日期：2026-07-27
 执行设备：codex@mbp-m5pro
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
 
-## 0. 原生骨架候选交接（N4）
+## 0. 原生骨架候选交接（N5b 后续封包状态）
 
-本节只描述 2026-07-24 形成的“原生小程序骨架”本地候选 `1.1.74`。下文出现的 API/H5 已部署、小程序已上传，都是此前兼容版基线的历史状态；最新已上传兼容版是 `1.1.73`（修复身份完善入口），未提审、未发布。不能据此推断本次未曾上传的原生骨架 `1.1.74` 已经部署、上传、提审或发布。原生候选的版本化 commit、文件路径、字节数和 SHA256 由 AI-HQ `native-shell/HANDOFF.md` 在本候选提交产生后绑定。
+本节同时区分四个不可混用的状态：历史兼容/生产基线是 `1.1.73`（`修复身份完善入口`）；最近已上传体验版是 `1.1.74`（`Humi 原生骨架体验版 N5b（4eb3fbeb）`），其运行时精确绑定 `4eb3fbeb6aba886930b3fda652be96e9246eac9e`；当前本地审核候选是 `1.1.75`（`Humi 原生骨架完整候选（待上传）`），尚未归档或上传；N5a API/H5 兼容层仍已部署。审核、发布、native/meal 开关和两个家庭白名单均保持关闭。
 
 ```yaml
 native_shell_candidate:
-  status: preview
-  package_version: 1.1.74
+  status: local-candidate
+  package_version: 1.1.75
   ads: excluded
-  production_api_deployed: false
-  h5_deployed: false
+  production_api_deployed: true
+  h5_deployed: true
   miniprogram_uploaded: false
   wechat_review_submitted: false
   wechat_released: false
@@ -26,10 +26,11 @@ native_shell_candidate:
 本地候选边界：
 
 - 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
-- `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 检查默认开关、空白名单、H5 兼容页、无广告/Supabase runtime/候选凭据、合法源码域名、包体预算、所需脚本、本地回滚演练，并强制 AI‑HQ 交付文件中的唯一候选提交等于当前 `HEAD`。未传交付文件时发布门禁必须失败；仅做非发布的本地合同检查时显式运行 `npm run release:native-shell:check:local`。命令通过仍不代表外部平台验收完成。
+- `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 会分别证明两件事：外部交付表中的 `1.1.74` 归档仍逐文件匹配 `4eb3fbeb`；当前运行时明确是未上传的 `1.1.75`。它不会要求当前源码回退到 `4eb3fbeb`，也不会把旧归档当作新候选证据。
+- 当前开发分支在 N5b 上传后继续完成原生计划、家庭任务/设置、提醒与 telemetry 收口，`miniprogram/**` 已偏离上传运行时 `4eb3fbeb`，这正是新版本 `1.1.75` 的来源。rollout gate 会保持失败，直到为 `1.1.75` 生成新的不可变归档、绑定当前候选提交并获得新的明确上传授权。
 - 原生候选不包含广告接入；后续广告需要重新设计、风险评审、实施计划与单独授权。
-- 当前真实真机证据是 `0/56`。iOS/Android 的登录、三档各五次推荐轮换、五个主标签、做饭与三种降级、家庭切换/权限/任务身份、五类分享的发送与接收者打开、海报保存恢复、提醒送达、三项性能和立即回滚都尚未形成合规证据。
-- `api.humi-home.com` 是源码中的 request/download 目标，但微信后台 `downloadFile` 合法域名仍是已知未配置阻塞项；必须在 N5 上传前复核 request、downloadFile 和 web-view 三类平台配置。
+- 当前 `1.1.75` 真机证据是 `0/56`，且在它上传前不得开始计为 N5c 合规证据。iOS/Android 的登录、三档各五次推荐轮换、五个主标签、做饭与三种降级、家庭切换/权限/任务身份、五类分享的发送与接收者打开、海报保存恢复、提醒送达、三项性能和立即回滚都尚未形成合规证据。
+- `request/downloadFile` 域名探测已由正式 AppID、`urlCheck: true` 的真实 `wx.downloadFile` 对 `https://api.humi-home.com/health` 返回 HTTP 200。web-view 业务域名仍需微信后台截图/确认；平台隐私保护指引也仍待最终填写和留证。
 - 微信开发者工具登录/自动化和约定真机暂不可用时，400/1000/2500ms 三项启动预算保持“未真机验证”；不得用本地静态合同代替。
 - 生产旧 H5 产品烟测如仍超时，应作为旧基线外部阻塞继续记录；本任务不部署 H5，也不以重试绕过失败。
 
@@ -42,11 +43,13 @@ native_shell_candidate:
 - 当前产品仓库状态以 `npm run release:status` 和 `git log --oneline -1` 为准；`release:status ok=true` 现在表示工程门和真实候选复盘都已通过，若只想看工程项健康度，查看 `release.engineeringGatesReady`。
 - 最新产品提交以 `git log --oneline -1` 为准；最新 GitHub Pages run 以 `gh run list --branch main --limit 1` 和 AI-HQ Humi STATUS 为准。
 - API 当前生产基线提交：`129da03`；此前 1.1.72 短期海报图片接口已备份并部署，备份路径 `/opt/humi/backups/20260718T114140Z`。
-- 最新已上传兼容版：`1.1.73`，描述 `修复身份完善入口`，AppID `wx4040b89f3b363416`；原生骨架 preview 固定使用从未上传的 `1.1.74`。
+- 历史兼容基线：`1.1.73`，描述 `修复身份完善入口`。
+- 当前本地审核候选：`1.1.75`，描述 `Humi 原生骨架完整候选（待上传）`，AppID `wx4040b89f3b363416`；尚未归档、上传、提审或发布。
+- 最近已上传体验版：`1.1.74`，描述 `Humi 原生骨架体验版 N5b（4eb3fbeb）`，精确绑定 `4eb3fbeb6aba886930b3fda652be96e9246eac9e`。
 - 已核验 H5：`https://www.humi-home.com/`，Pages run `29642978938` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
-- 小程序兼容版 `1.1.73` 已上传体验版、未提审、未发布；原生骨架 `1.1.74` 未上传。当前 DevTools automator 明确返回 `url not in domain list`，微信后台 downloadFile 合法域名尚未配置，双海报真机验收不可判通过。
+- 原生骨架 `1.1.74` 已上传体验版并生成预览二维码，未提审、未发布；它只保留为最近上传证据。当前 `1.1.75` 必须先走新归档和上传授权，之后才能开始其 56 项真机矩阵；web-view 域名平台截图和隐私声明也仍未完成。
 
 ## 2. 先后顺序
 
@@ -226,9 +229,10 @@ docs/wechat-submit-copy-packet.md
 
 提交版本：
 
-- 已上传兼容版：`1.1.73`
-- 描述：`修复身份完善入口`
-- 未上传原生 preview：`1.1.74`
+- 历史兼容基线：`1.1.73` / `修复身份完善入口`
+- 当前本地审核候选：`1.1.75`
+- 描述：`Humi 原生骨架完整候选（待上传）`
+- 最近已上传体验版：`1.1.74@4eb3fbeb`，不得选作当前提审版本
 
 提交前必须确认：
 
@@ -296,7 +300,7 @@ docs/humi-1.1-candidate-validation-forms.md
 
 ## 3. 当前不要做
 
-- 不要在真机验收期间无记录覆盖已上传的 `1.1.73`，也不要在 N4 阶段上传预留的 `1.1.74`；发现 P0/P1 时先登记、修复、复测，再由独立 checkpoint 决定是否上传。
+- 不要在真机验收期间无记录覆盖已上传的 `1.1.74`；发现 P0/P1 时先登记、修复、复测，再由独立 checkpoint 决定是否重新上传。
 - 不要在 1.1 发布前清退 Supabase、改支付、改登录架构或改数据库存储。
 - 不要把微信后台截图、登录态、手机号、真实家庭名单提交到仓库。
 - 不要因为 `release:status ok=false` 就误判 H5 不可发；先看失败项是不是只有生产 API SSH。

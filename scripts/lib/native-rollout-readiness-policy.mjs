@@ -51,21 +51,6 @@ export function findForbiddenRuntimeFindings(files = []) {
   return uniqueFindings(findings);
 }
 
-export function assertCandidateVersionIsUnused(candidateVersion, uploadedVersion) {
-  const candidate = parseVersion(candidateVersion);
-  const uploaded = parseVersion(uploadedVersion);
-  const isNewer = candidate.some((part, index) => (
-    part > uploaded[index]
-    && candidate.slice(0, index).every((previous, previousIndex) => previous === uploaded[previousIndex])
-  ));
-  if (!isNewer) {
-    throw new Error(
-      `candidate ${candidateVersion} must be newer than uploaded production history ${uploadedVersion}`,
-    );
-  }
-  return true;
-}
-
 export function extractNativeCandidateCommit(markdown) {
   const matches = [...String(markdown || "").matchAll(/^- 提交：`([a-f0-9]{40})`[ \t]*$/gmi)];
   if (matches.length !== 1) {
@@ -74,14 +59,33 @@ export function extractNativeCandidateCommit(markdown) {
   return matches[0][1].toLowerCase();
 }
 
-export function extractNativeCandidateArtifactPath(markdown) {
-  const matches = [...String(markdown || "").matchAll(
-    /^\|[^|\r\n]*\|[^|\r\n]*\|\s*([^|\r\n]+\.tar\.gz)\s*\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|[ \t]*$/gmi,
-  )].map((match) => match[1].trim().replace(/^`|`$/g, ""));
+export function extractNativeCandidateArtifactPath(markdown, {
+  expectedVersion = "1.1.74",
+} = {}) {
+  const rows = String(markdown || "")
+    .split(/\r?\n/)
+    .filter((line) => /^\|.*\.tar\.gz.*\|[ \t]*$/.test(line))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim().replace(/^`|`$/g, "")))
+    .filter((cells) => cells.length === 6)
+    .map(([version, role, path, size, sha256, status]) => ({
+      version,
+      role,
+      path,
+      size,
+      sha256,
+      status: status.toLowerCase(),
+    }));
+  const matches = rows.filter((row) => (
+    row.version.includes(`uploaded-${expectedVersion}`)
+    && row.role.includes("已上传")
+    && row.status !== "superseded"
+  ));
   if (matches.length !== 1) {
-    throw new Error("expected exactly one native source archive in the handoff Files table");
+    throw new Error(
+      `expected exactly one current uploaded native source archive for ${expectedVersion}`,
+    );
   }
-  return matches[0];
+  return matches[0].path;
 }
 
 export function resolveExternalHandoffPath({
@@ -96,9 +100,29 @@ export function resolveExternalHandoffPath({
   );
 }
 
+export function extractPlatformEvidence(source) {
+  const text = String(source || "");
+  return {
+    requestDomainVerified: /request(?:\s*\/\s*| and )downloadFile[^\n]{0,240}(?:200|已验证|通过)/i.test(text),
+    downloadFileDomainVerified: /downloadFile[^\n]{0,200}(?:200|已验证|通过)/i.test(text),
+    webViewDomainVerified: /web-view[^\n]{0,120}(?:平台)?(?:截图|确认)(?:已验证|已通过|通过|complete)/i.test(text),
+    privacyDeclarationVerified: /(?:平台)?隐私(?:保护指引|声明)[^\n]{0,120}(?:平台)?(?:截图|确认)(?:已验证|已通过|通过|complete)/i.test(text),
+    wechatDevtoolsAuthenticated: /(?:CLI|开发者工具)[^\n]{0,120}登录态(?:为|=)\s*`?true`?/i.test(text)
+      ? true
+      : null,
+    productionLegacyH5SmokeVerified: /生产(?:产品 )?smoke[^\n]{0,80}(?:通过|passed)/i.test(text)
+      ? true
+      : null,
+  };
+}
+
 export function validateNativeCandidateState(markdown, {
   expectedPackageVersion = "1.1.74",
+  expectedStatus = "preview",
+  expectedExternalActions,
+  expectedTrueDeviceEvidence = "0/56",
 } = {}) {
+  assertExpectedExternalActions(expectedExternalActions);
   const yamlBlocks = [...String(markdown || "").matchAll(/```ya?ml[ \t]*\r?\n([\s\S]*?)```/gi)]
     .map((match) => match[1]);
   for (const yamlBlock of yamlBlocks) assertCanonicalYamlSyntax(yamlBlock);
@@ -154,18 +178,40 @@ export function validateNativeCandidateState(markdown, {
     if (count !== 1) throw new Error(`${key} must occur exactly once in structured YAML`);
   }
 
-  if (state.status !== "preview") throw new Error("native candidate status must remain preview");
+  if (state.status !== expectedStatus) {
+    throw new Error(`native candidate status must remain ${expectedStatus}`);
+  }
   if (state.package_version !== expectedPackageVersion) {
     throw new Error(`native candidate package_version must be ${expectedPackageVersion}`);
   }
   if (state.ads !== "excluded") throw new Error("native candidate ads must remain excluded");
   for (const key of EXTERNAL_ACTION_KEYS) {
-    if (state[key] !== false) throw new Error(`${key} must remain false`);
+    if (state[key] !== expectedExternalActions[key]) {
+      throw new Error(`${key} must equal ${expectedExternalActions[key]}`);
+    }
   }
-  if (state.true_device_evidence !== "0/56") {
-    throw new Error("native candidate true_device_evidence must remain 0/56");
+  if (state.true_device_evidence !== expectedTrueDeviceEvidence) {
+    throw new Error(
+      `native candidate true_device_evidence must equal ${expectedTrueDeviceEvidence}`,
+    );
   }
   return state;
+}
+
+function assertExpectedExternalActions(expectedExternalActions) {
+  if (!expectedExternalActions || typeof expectedExternalActions !== "object") {
+    throw new Error("expectedExternalActions must be supplied explicitly");
+  }
+  const keys = Object.keys(expectedExternalActions).sort();
+  const expectedKeys = [...EXTERNAL_ACTION_KEYS].sort();
+  if (JSON.stringify(keys) !== JSON.stringify(expectedKeys)) {
+    throw new Error("expectedExternalActions must use the exact external action key set");
+  }
+  for (const key of EXTERNAL_ACTION_KEYS) {
+    if (typeof expectedExternalActions[key] !== "boolean") {
+      throw new Error(`${key} expectation must be boolean`);
+    }
+  }
 }
 
 function assertCanonicalYamlSyntax(block) {
@@ -240,13 +286,6 @@ function uniqueFindings(findings) {
     seen.add(identity);
     return true;
   });
-}
-
-function parseVersion(value) {
-  if (!/^\d+\.\d+\.\d+$/.test(String(value || ""))) {
-    throw new Error(`invalid semantic version: ${value}`);
-  }
-  return String(value).split(".").map(Number);
 }
 
 function parseYamlScalar(value) {

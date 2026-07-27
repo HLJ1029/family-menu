@@ -4,6 +4,8 @@ import { promisify } from "node:util";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -105,6 +107,7 @@ const [
   apiDeploy,
   securityAudit,
   docsFreshness,
+  nativeRollout,
   paletteValidation,
   h5EntrypointValidation,
   miniProgramPosterValidation,
@@ -126,6 +129,8 @@ const [
   candidateDayCloseSelftest,
   candidatePrivacyCheck,
   candidatePrivacySelftest,
+  wechatPrivacyContract,
+  wechatPrivacyContractSelftest,
   candidateReviewSelftest,
   wechatSubmitWorkspaceGuard,
   specAudit,
@@ -137,6 +142,7 @@ const [
   runNpmScript("deploy:api:check"),
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
+  runNpmScript("release:native-shell:check:local"),
   runNpmScript("validate:palette"),
   runNpmScript("validate:h5-entry", { timeoutMs: 30_000 }),
   runNpmScript("validate:miniprogram-poster"),
@@ -169,6 +175,8 @@ const [
   runNpmScript("release:candidate:day:close:selftest"),
   runNpmScript("release:candidate:privacy:check"),
   runNpmScript("release:candidate:privacy:selftest"),
+  runNpmScript("release:wechat:privacy:check"),
+  runNpmScript("release:wechat:privacy:selftest"),
   runNpmScript("release:candidate:review:selftest"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
@@ -184,6 +192,7 @@ const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
+const nativeRolloutOk = nativeRollout.ok;
 const paletteValidationOk = paletteValidation.ok;
 const h5EntrypointValidationOk = h5EntrypointValidation.ok;
 const miniProgramPosterValidationOk = miniProgramPosterValidation.ok;
@@ -205,17 +214,27 @@ const candidateDailySelftestOk = candidateDailySelftest.ok;
 const candidateDayCloseSelftestOk = candidateDayCloseSelftest.ok;
 const candidatePrivacyOk = candidatePrivacyCheck.ok;
 const candidatePrivacySelftestOk = candidatePrivacySelftest.ok;
+const wechatPrivacyContractOk = wechatPrivacyContract.ok;
+const wechatPrivacyContractSelftestOk = wechatPrivacyContractSelftest.ok;
 const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
 const specAuditOk = specAudit.ok;
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && nativeRolloutOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && wechatPrivacyContractOk && wechatPrivacyContractSelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
 const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
+const missingReleaseSections = new Set(
+  releaseEvidence.data?.missing?.map((item) => item.section) ?? [],
+);
+const wechatReviewSubmitted = !missingReleaseSections.has("## 4. 微信公众平台提交审核证据");
+const wechatReleased = !missingReleaseSections.has("## 6. 审核通过后发布证据");
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
 
 const nextActions = [];
+nextActions.push(
+  "Create and verify an immutable 1.1.75 candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.",
+);
 if (!git.clean || !git.syncedToOriginMain) {
   nextActions.push("Clean and sync local main with origin/main.");
 }
@@ -230,6 +249,9 @@ if (!securityAuditOk) {
 }
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
+}
+if (!nativeRolloutOk) {
+  nextActions.push("Keep 1.1.74@4eb3fbeb as immutable historical upload evidence; package 1.1.75 separately and obtain fresh upload authorization.");
 }
 if (!paletteValidationOk) {
   nextActions.push("Remove non-neutral UI colors before treating the 1.1 design system as closed.");
@@ -291,6 +313,9 @@ if (!candidatePrivacyOk) {
 if (!candidatePrivacySelftestOk) {
   nextActions.push("Fix release:candidate:privacy:selftest before relying on private candidate packet privacy checks.");
 }
+if (!wechatPrivacyContractOk || !wechatPrivacyContractSelftestOk) {
+  nextActions.push("Reconcile the native runtime with docs/wechat-privacy-declaration.json before any WeChat review preparation.");
+}
 if (!candidateReviewSelftestOk) {
   nextActions.push("Fix release:candidate:review:selftest before relying on private candidate validation review results.");
 }
@@ -343,6 +368,7 @@ console.log(JSON.stringify({
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
+    nativeRolloutReady: nativeRolloutOk,
     neutralPaletteReady: paletteValidationOk,
     h5EntrypointReady: h5EntrypointValidationOk,
     miniProgramPosterReady: miniProgramPosterValidationOk,
@@ -365,6 +391,8 @@ console.log(JSON.stringify({
     candidateDayCloseSelftestReady: candidateDayCloseSelftestOk,
     candidatePrivacyReady: candidatePrivacyOk,
     candidatePrivacySelftestReady: candidatePrivacySelftestOk,
+    wechatPrivacyContractReady: wechatPrivacyContractOk,
+    wechatPrivacyContractSelftestReady: wechatPrivacyContractSelftestOk,
     candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
     specAcceptanceAuditReady: specAuditOk,
@@ -373,8 +401,19 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: CURRENT_MINIPROGRAM_VERSION,
+    miniProgramUploadedVersion: null,
+    miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
     miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
+    lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+    lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    nativeCheckpoint: "N5b_refresh_packaging_authorization",
+    currentCandidateUploaded: false,
+    trueDeviceEvidence: "0/56",
+    wechatReviewSubmitted,
+    wechatReleased,
+    nativeAllowlistEnabled: false,
+    platformPrivacyDeclaration: "pending",
+    webViewDomainEvidence: "pending",
   },
   requiredArtifacts: artifacts,
   preReviewHardening,
@@ -384,6 +423,7 @@ console.log(JSON.stringify({
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
+    summarizeCheck(nativeRollout),
     summarizeCheck(paletteValidation),
     summarizeCheck(h5EntrypointValidation),
     summarizeCheck(miniProgramPosterValidation),
@@ -405,6 +445,8 @@ console.log(JSON.stringify({
     summarizeCheck(candidateDayCloseSelftest),
     summarizeCheck(candidatePrivacyCheck),
     summarizeCheck(candidatePrivacySelftest),
+    summarizeCheck(wechatPrivacyContract),
+    summarizeCheck(wechatPrivacyContractSelftest),
     summarizeCheck(candidateReviewSelftest),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),

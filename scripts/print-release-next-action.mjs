@@ -7,13 +7,32 @@ import {
   findLatestWechatSubmitDir,
   listWechatSubmitEvidenceFiles,
 } from "./wechat-submit-evidence-session.mjs";
-import { CURRENT_MINIPROGRAM_VERSION } from "./release-candidate.mjs";
+import {
+  CURRENT_MINIPROGRAM_DESCRIPTION,
+  CURRENT_MINIPROGRAM_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
+} from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 
-const status = await runJsonScript("release:status", { allowFailure: false });
-const wechat = await runJsonScript("release:wechat:check", { allowFailure: true });
-const shareEvidence = await runJsonScript("release:wechat:share:evidence", { allowFailure: true });
+const lifecycleSelftest = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
+const fixtureEvidence = lifecycleSelftest
+  ? await runJsonScript("release:evidence:check", { allowFailure: true })
+  : null;
+const status = lifecycleSelftest
+  ? buildLifecycleFixtureStatus(fixtureEvidence)
+  : await runJsonScript("release:status", {
+    allowFailure: false,
+    timeoutMs: 240_000,
+  });
+const currentCandidateNeedsUpload = status.release?.currentCandidateUploaded === false;
+const wechat = currentCandidateNeedsUpload
+  ? { ok: false, skipped: "current candidate is not uploaded" }
+  : await runJsonScript("release:wechat:check", { allowFailure: true });
+const shareEvidence = currentCandidateNeedsUpload
+  ? { ok: false, missingFiles: [] }
+  : await runJsonScript("release:wechat:share:evidence", { allowFailure: true });
 const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
 const missingSections = evidenceCheck?.data?.missing?.map((item) => item.section) ?? [];
 const submitEvidenceState = await getLatestSubmitEvidenceState();
@@ -27,10 +46,51 @@ lines.push("Humi 1.1 当前行动卡");
 lines.push("");
 lines.push(`检查时间：${new Date().toISOString()}`);
 lines.push(`当前提交：${status.git?.head ?? "unknown"} / origin/main ${status.git?.originMain ?? "unknown"}`);
-lines.push(`小程序版本：${status.release?.miniProgramUploadedVersion ?? "unknown"} / ${status.release?.miniProgramUploadDescription ?? "unknown"}`);
+lines.push(`小程序候选：${status.release?.miniProgramCandidateVersion ?? status.release?.miniProgramUploadedVersion ?? "unknown"} / ${status.release?.miniProgramUploadDescription ?? "unknown"}`);
+if (status.release?.lastUploadedExperienceVersion) {
+  lines.push(`最近已上传体验版：${status.release.lastUploadedExperienceVersion} / ${status.release.lastUploadedExperienceRuntimeCommit ?? "unknown commit"}`);
+}
 lines.push("");
 
-if (openHardeningItems.length) {
+if (status.release?.releaseComplete) {
+  stageScope = "complete";
+  lines.push("当前阶段：1.1 已完成发布证据闭环。");
+  lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
+} else if (!missingSections.includes("## 4. 微信公众平台提交审核证据")) {
+  stageScope = "external";
+  lines.push(`当前阶段：${nextStage.title}`);
+  lines.push("");
+  lines.push("现在该做：");
+  nextStage.actions.forEach((action, index) => {
+    lines.push(`${index + 1}. ${action}`);
+  });
+} else if (
+  missingSections.includes("## 4. 微信公众平台提交审核证据")
+  && submitEvidenceState.hasEvidence
+) {
+  stageScope = "external";
+  lines.push(`当前阶段：${nextStage.title}`);
+  lines.push("");
+  lines.push("现在该做：");
+  nextStage.actions.forEach((action, index) => {
+    lines.push(`${index + 1}. ${action}`);
+  });
+} else if (
+  CURRENT_MINIPROGRAM_VERSION === "1.1.75"
+  && missingSections.includes("## 4. 微信公众平台提交审核证据")
+) {
+  stageScope = "candidate-upload";
+  lines.push("当前阶段：1.1.75 候选封包与上传授权，暂不进入 N5c 或微信审核。");
+  lines.push("");
+  lines.push("下一步一句话：把当前 1.1.75 运行时绑定到新的不可变归档并取得单独上传授权；最近已上传的 1.1.74@4eb3fbeb 只保留为历史证据。");
+  lines.push("");
+  lines.push("现在该做：");
+  lines.push("1. 运行 npm run release:wechat:privacy:check 和本地工程门禁，确认 1.1.75 的能力、隐私声明与包版本一致。");
+  lines.push("2. 复核当前候选提交和 miniprogram 运行时；生成新归档时必须把提交、1.1.75、SHA-256 和包内容逐文件绑定。");
+  lines.push("3. 在任何上传动作前取得针对 1.1.75 的明确授权；本行动卡本身不会上传、提审、发布或改开关/白名单。");
+  lines.push("4. 上传成功并登记新归档/上传证据后，才进入 N5c 56 项真机、三项性能、web-view 域名和平台隐私声明验收。");
+  lines.push("5. 1.1.74 的旧二维码和 0/36 历史状态不得计入 1.1.75 的 0/56 验收。");
+} else if (openHardeningItems.length) {
   stageScope = "hardening";
   lines.push("当前阶段：提审前产品打磨。");
   lines.push("");
@@ -48,10 +108,6 @@ if (openHardeningItems.length) {
     lines.push("2. 小程序分享截图证据已齐，运行 npm run release:wechat:share:complete 完成视觉确认和 P1 勾选。");
   }
   lines.push(`${shareEvidence?.missingFiles?.length ? 9 : 3}. P0/P1 全部完成后，再重新运行 npm run release:next 判断是否进入生产候选完善与内测验证阶段。`);
-} else if (status.release?.releaseComplete) {
-  stageScope = "complete";
-  lines.push("当前阶段：1.1 已完成发布证据闭环。");
-  lines.push("现在该做：更新 AI-HQ Humi STATUS 的最终发布时间、P0 结果和 24 小时监控结论。");
 } else if (status.release?.engineeringGatesReady && !status.release?.candidateValidationReady) {
   stageScope = "candidate";
   lines.push("当前阶段：1.1 生产候选完善与内测验证，暂不进入微信审核。");
@@ -180,10 +236,10 @@ if (openHardeningItems.length) {
 
 console.log(lines.join("\n"));
 
-async function runJsonScript(scriptName, { allowFailure }) {
+async function runJsonScript(scriptName, { allowFailure, timeoutMs = 120_000 }) {
   try {
     const { stdout } = await execFileAsync("npm", ["run", scriptName], {
-      timeout: 120_000,
+      timeout: timeoutMs,
       maxBuffer: 1024 * 1024 * 6,
     });
     return parseLastJson(stdout);
@@ -332,7 +388,58 @@ function parseLastJson(output) {
   }
 }
 
+function buildLifecycleFixtureStatus(evidence) {
+  return {
+    git: {
+      head: "lifecycle-selftest",
+      originMain: "lifecycle-selftest",
+    },
+    release: {
+      releaseComplete: false,
+      currentCandidateUploaded: false,
+      miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
+      miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
+      lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+      lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      engineeringGatesReady: false,
+      candidateValidationReady: false,
+      preReviewHardeningOpenItems: [],
+    },
+    checks: [
+      {
+        name: "release:evidence:check",
+        data: evidence,
+      },
+    ],
+    nextActions: [],
+  };
+}
+
 function getMaterialList(scope) {
+  if (scope === "candidate-upload") {
+    return [
+      "docs/humi-1.1-release-operator-handoff.md",
+      "docs/humi-1.1-release-evidence-log.md",
+      "docs/wechat-privacy-declaration.json",
+      "docs/privacy-data-inventory.md",
+      "npm run release:status",
+      "npm run release:docs:check",
+      "npm run release:wechat:privacy:check",
+      "npm run release:native-shell:check:local",
+    ];
+  }
+  if (scope === "native-evidence") {
+    return [
+      "docs/humi-wechat-true-device-acceptance.md",
+      "docs/humi-1.1-candidate-validation-forms.md",
+      "docs/wechat-privacy-declaration.json",
+      "docs/privacy-data-inventory.md",
+      "npm run validate:true-device-evidence",
+      "npm run validate:startup-performance",
+      "npm run release:wechat:privacy:check",
+      "npm run release:native-shell:check:local",
+    ];
+  }
   if (scope === "candidate") {
     return [
       "docs/humi-1.1-candidate-validation-forms.md",
@@ -424,6 +531,15 @@ function getCompletionCriteria(scope) {
 
   if (scope === "candidate") {
     return candidateCriteria;
+  }
+  if (scope === "candidate-upload") {
+    return [
+      "候选身份：miniprogram/utils/config.js 与发布工具必须统一为 1.1.75。",
+      "历史证明：最近已上传 1.1.74 的不可变归档必须继续精确匹配 4eb3fbeb，不能与当前运行时比较后误判。",
+      "新封包：1.1.75 必须生成新的不可变归档并绑定候选提交、版本和 SHA-256。",
+      "动作授权：只有获得针对 1.1.75 上传的明确授权后才能上传；上传后才进入 N5c。",
+      "状态边界：1.1.75 保持未上传、未提审、未发布，native/meal 开关为 0，两个家庭白名单为空。",
+    ];
   }
 
   return [

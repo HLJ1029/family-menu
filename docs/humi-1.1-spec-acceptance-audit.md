@@ -9,7 +9,7 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-当前结论：1.1 台账 71 个需求 ID 均存在，本地可实现项已按当前重构 UI 完成；本轮小程序候选为 `1.1.73`。新增 `WX-05` 单独追踪双海报真实下载、分享和保存，微信后台 downloadFile 合法域名配置并复测前 `specClosureReady` 必须保持 `false`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；现在不提交微信审核。
+当前结论：1.1 台账 71 个需求 ID 均存在，本地可实现项已按当前重构 UI 完成；最近已上传体验版为 `1.1.74@4eb3fbeb`，当前本地审核候选为尚未上传的 `1.1.75`。`WX-05` 的 request/downloadFile 探测已通过，但双海报真实分享/保存与权限恢复真机证据未完成，因此 `specClosureReady` 必须保持 `false`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；现在不提交微信审核。
 
 ## 1. 当前发布事实
 
@@ -18,7 +18,7 @@
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
-- 最新小程序候选：`1.1.73` / `修复身份完善入口` / AppID `wx4040b89f3b363416`。
+- 最新小程序候选：`1.1.75` / `Humi 原生骨架完整候选（待上传）` / AppID `wx4040b89f3b363416`；最近已上传体验版为 `1.1.74@4eb3fbeb`。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260718T114140Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
@@ -83,7 +83,7 @@
 | 家庭订阅真实支付结算 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 不接支付下单、回调验签、订单和权益发放闭环 |
 | Plus 深度协调、完整版画像与一周计划打包 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 保留基础画像、营养回看和连排能力，不做 Plus 版差异 |
 | 五类小程序原生分享发送框视觉复核 | 已完成 | 2026-07-18 当前候选五类发送框均显示虚拟好友、发送动作和正确业务标题；十张 card/landing 证据通过完整性与 OCR 语义门禁 |
-| 菜单/清单海报原生分享与保存 | P0 进行中 | `npm run release:wechat:poster:domain` 已确认 `https://api.humi-home.com` 不在 downloadFile 合法域名列表；后台配置后用同一命令复测，并各留一条真实分享/保存证据 |
+| 菜单/清单海报原生分享与保存 | P0 进行中 | `npm run release:wechat:poster:domain` 已真实返回 200；仍需菜单海报分享、清单海报保存、取消与权限恢复真机证据 |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
@@ -91,9 +91,9 @@
 
 ## 4. 当前建议顺序
 
-1. 运行完整门禁，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过；`1.1.73` 已完成 H5/API 部署和体验版上传。
-2. 在微信后台把 `https://api.humi-home.com` 加入 downloadFile 合法域名，关闭开发者工具域名跳过后重新执行 `npm run release:wechat:poster:domain`。
-3. 用户在真实微信中验收 `1.1.73` 的五类卡片与双海报。未通过就继续修复并上传新的候选，不进入审核。
+1. 运行完整门禁，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过；N5a API/H5 已部署，N5b `1.1.74@4eb3fbeb` 仅作为最近上传历史，当前 `1.1.75` 尚待封包上传。
+2. 保存 web-view 业务域名和平台隐私保护指引的真实后台证据；request/downloadFile 200 探测不需要重复伪造。
+3. 为 `1.1.75` 生成不可变归档并取得上传授权；上传后用户才在真实微信中验收它的 56 项矩阵。未通过就继续修复，不进入审核。
 4. 真机体验通过后准备 10–20 个家庭灰度；反馈进入私有候选执行包，不把真实身份信息写进仓库。
 5. 灰度无 P0/P1 且用户动作当下确认后，才进入微信公众平台审核；审核通过后发布并登记 24 小时监控与真机证据。
 

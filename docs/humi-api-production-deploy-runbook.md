@@ -3,7 +3,7 @@
 更新日期：2026-07-24
 执行设备：codex@mbp-m5pro
 
-本文档记录 Humi API 1.1 服务端增量以及原生骨架 `1.1.74` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
+本文档记录 Humi API 1.1 服务端增量以及原生骨架 `1.1.75` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
 
 ## 1. 当前事实
 
@@ -12,8 +12,8 @@
 - 当前线上 H5：`https://www.humi-home.com/`
 - 当前兼容生产基线：`e66c5f0`；原生骨架候选以当前受审分支 HEAD 与 AI-HQ `native-shell/HANDOFF.md` 为准，尚未部署。
 - 最新确认的兼容 H5：GitHub Pages run `29890670549` / success；原生候选 H5 改动尚未部署。
-- 最新小程序候选：`1.1.73` / `修复身份完善入口`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
-- 未上传原生骨架 preview：`1.1.74`。其 API/H5 兼容改动部署后也不得自动上传小程序或开启原生白名单。
+- 历史兼容基线：`1.1.73` / `修复身份完善入口`。
+- 最新小程序候选：`1.1.75` / `Humi 原生骨架完整候选（待上传）`。N5a API/H5 兼容改动已部署；最近已上传体验版为 `1.1.74@4eb3fbeb`，当前候选未归档、未上传、未提审、未发布、未开启原生白名单。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -32,7 +32,7 @@
 - 1.1.54：`/crave-requests/:token/join` 返回家庭列表与共享 `state`。
 - 1.1.73：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
 
-以下属于 `1.1.74` 原生骨架候选，尚未部署：
+以下属于 `1.1.75` 原生骨架能力，已按 N5a 部署兼容 API/H5，但生产开关仍关闭：
 
 - `GET /bootstrap`：返回经过脱敏的用户、家庭、状态版本、当前 MealRun 与能力开关。
 - `POST /recommendations/dinner`：三档行动力和服务端轮换游标，硬约束不可放宽。
@@ -201,7 +201,7 @@ npm run release:check:online
 - 普通成员在【我的家】不能代替主厨发起征集或分享买菜卡片。
 - 精准推荐/解释额度用完时服务端返回 402，前端可降级。
 
-API 部署后仍不打开原生能力。先验证当前 `1.1.73` 兼容壳和生产 H5，再由后续独立 checkpoint 决定是否上传 `1.1.74`。
+N5a API 部署后仍不打开原生能力；N5b 已独立上传 `1.1.74`，当前 `1.1.75` 尚未上传。继续保持开关和白名单关闭，封包、上传、提审、发布和灰度分别走独立 checkpoint。
 
 ## 9. 回滚
 

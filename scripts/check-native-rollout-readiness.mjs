@@ -4,20 +4,26 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { dirname, extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkSupabaseRetirement } from "./check-supabase-retirement.mjs";
-import { assertNativeArtifactMatchesCommit } from "./lib/native-candidate-artifact.mjs";
+import {
+  assertNativeArtifactMatchesCommit,
+} from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
 import {
-  assertCandidateVersionIsUnused,
   EXTERNAL_ACTION_KEYS,
   extractNativeCandidateArtifactPath,
   extractNativeCandidateCommit,
+  extractPlatformEvidence,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
+import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
+import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
 import {
-  CURRENT_MINIPROGRAM_VERSION,
-  NATIVE_SHELL_PREVIEW_VERSION,
+  CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
+  PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
 } from "./release-candidate.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -27,8 +33,18 @@ const SUBPACKAGE_LIMIT_BYTES = 2 * 1024 * 1024;
 const TOTAL_PACKAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 const EXPECTED_API_ORIGIN = "https://api.humi-home.com";
 const EXPECTED_WEB_ORIGIN = "https://www.humi-home.com";
-const LATEST_UPLOADED_VERSION = "1.1.73";
-const NATIVE_PREVIEW_VERSION = "1.1.74";
+const EXPECTED_CURRENT_ACTIONS = Object.freeze({
+  production_api_deployed: true,
+  h5_deployed: true,
+  miniprogram_uploaded: false,
+  wechat_review_submitted: false,
+  wechat_released: false,
+  native_allowlist_enabled: false,
+});
+const EXPECTED_LAST_UPLOAD_ACTIONS = Object.freeze({
+  ...EXPECTED_CURRENT_ACTIONS,
+  miniprogram_uploaded: true,
+});
 const REQUIRED_SCRIPTS = Object.freeze([
   "validate:data",
   "validate:identity",
@@ -61,6 +77,7 @@ const REQUIRED_SCRIPTS = Object.freeze([
   "release:product:smoke",
   "release:collaboration:smoke",
   "validate:supabase-retirement",
+  "release:wechat:privacy:check",
   "build",
   "release:native-shell:check",
 ]);
@@ -145,11 +162,30 @@ await check("mini-program domains and platform configuration are legal", async (
 });
 
 const packageVersion = extractPackageVersion(await text("miniprogram/utils/config.js"));
-await check("native preview uses a never-uploaded package version", async () => {
-  assert.equal(CURRENT_MINIPROGRAM_VERSION, LATEST_UPLOADED_VERSION, "release history must stay at 1.1.73");
-  assert.equal(NATIVE_SHELL_PREVIEW_VERSION, NATIVE_PREVIEW_VERSION, "native preview constant must stay at 1.1.74");
-  assert.equal(packageVersion, NATIVE_PREVIEW_VERSION, `native preview must freeze ${NATIVE_PREVIEW_VERSION}`);
-  assertCandidateVersionIsUnused(packageVersion, LATEST_UPLOADED_VERSION);
+await check("native runtime is the current local review candidate", async () => {
+  assert.equal(
+    PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
+    "1.1.73",
+    "historical compatibility baseline must remain labelled",
+  );
+  assert.equal(
+    LAST_UPLOADED_EXPERIENCE_VERSION,
+    "1.1.74",
+    "the last uploaded N5b experience runtime must remain labelled",
+  );
+  assert.equal(
+    packageVersion,
+    CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+    "runtime package must match the current unuploaded review candidate",
+  );
+});
+
+const runtimeDriftFiles = listNativeRuntimeDrift(LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT);
+await check("current candidate is distinct from the last uploaded runtime", async () => {
+  assert(
+    runtimeDriftFiles.length > 0,
+    "1.1.75 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.74",
+  );
 });
 
 const packageReport = await calculatePackageSizes();
@@ -199,6 +235,24 @@ await check("candidate runtime contains no ads, Supabase, or credential values",
   );
 });
 
+await check("runtime capabilities match the pending WeChat privacy declaration", async () => {
+  const runtimeFiles = [];
+  for (const file of await listTextFiles(MINIPROGRAM_ROOT)) {
+    runtimeFiles.push({
+      path: relative(ROOT, file),
+      source: await readFile(file, "utf8"),
+    });
+  }
+  const declaration = JSON.parse(await text("docs/wechat-privacy-declaration.json"));
+  const privacy = auditWechatPrivacyContract({ runtimeFiles, declaration });
+  assert.equal(privacy.ok, true, `privacy contract findings: ${JSON.stringify(privacy.findings)}`);
+  assert.equal(
+    declaration.platformDeclarationStatus,
+    "pending",
+    "repository declaration must not claim uncollected WeChat-console evidence",
+  );
+});
+
 const rollbackReport = await runNativeRollbackDrill({ root: ROOT });
 await check("server-flag rollback returns to H5 without deleting product caches", async () => {
   assert.equal(rollbackReport.serverStarted, true);
@@ -223,18 +277,24 @@ await check("server-flag rollback returns to H5 without deleting product caches"
 });
 
 let repositoryCandidateState = null;
-await check("repository handoff records preview-only external state", async () => {
+let platformEvidenceSource = "";
+await check("repository handoff records current 1.1.75 candidate state", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
   repositoryCandidateState = validateNativeCandidateState(handoff, {
     expectedPackageVersion: packageVersion,
+    expectedStatus: "local-candidate",
+    expectedExternalActions: EXPECTED_CURRENT_ACTIONS,
+    expectedTrueDeviceEvidence: `0/${REQUIRED_SCENARIOS.length}`,
   });
-  assert.match(handoff, /downloadFile[\s\S]{0,200}(?:missing|未配置|阻塞)/i);
-  assert.match(tracker, /原生壳候选：preview/);
-  assert.match(tracker, /原生包版本：`1\.1\.74`/);
-  assert.match(tracker, /已上传兼容版：`1\.1\.73`/);
-  assert.match(tracker, /真机证据：0\/56/);
+  platformEvidenceSource = handoff;
+  assert.match(handoff, /request\/downloadFile[\s\S]{0,200}(?:200|已验证|通过)/i);
+  assert.match(tracker, /原生壳候选：local-candidate/);
+  assert.match(tracker, /原生包版本：`1\.1\.75`/);
+  assert.match(tracker, /最近已上传体验版：`1\.1\.74`/);
+  assert.match(tracker, /历史兼容基线：`1\.1\.73`/);
+  assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));
   assert.match(apiContract, /关闭 `HUMI_NATIVE_SHELL_ENABLED`/);
   assert.match(apiContract, /不删除 MealRun/);
 });
@@ -247,68 +307,87 @@ await check("release check requires the external AI-HQ handoff", async () => {
   });
 });
 if (externalHandoffPath) {
-  await check("AI-HQ native handoff matches the immutable preview state", async () => {
+  await check("AI-HQ native handoff proves the last uploaded 1.1.74 runtime", async () => {
     const externalHandoff = await readFile(resolve(externalHandoffPath), "utf8");
-    const externalCandidateState = validateNativeCandidateState(externalHandoff, {
-      expectedPackageVersion: packageVersion,
+    validateNativeCandidateState(externalHandoff, {
+      expectedPackageVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+      expectedExternalActions: EXPECTED_LAST_UPLOAD_ACTIONS,
+      expectedTrueDeviceEvidence: "0/36",
     });
-    const currentCommit = execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: ROOT,
-      encoding: "utf8",
-    }).trim().toLowerCase();
     assert.equal(
       extractNativeCandidateCommit(externalHandoff),
-      currentCommit,
-      "AI-HQ candidate commit must equal the current reviewed HEAD",
+      LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      "AI-HQ handoff must bind the exact uploaded runtime commit",
     );
     const artifactPath = resolve(
       dirname(resolve(externalHandoffPath)),
-      extractNativeCandidateArtifactPath(externalHandoff),
+      extractNativeCandidateArtifactPath(externalHandoff, {
+        expectedVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+      }),
     );
     await assertNativeArtifactMatchesCommit({
       artifactPath,
       repoRoot: ROOT,
-      commit: currentCommit,
+      commit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     });
-    assert.deepEqual(
-      externalCandidateState,
-      repositoryCandidateState,
-      "AI-HQ candidate state must match the repository handoff",
-    );
   });
 }
 
+await check("current 1.1.75 candidate has immutable upload evidence", async () => {
+  throw new Error(
+    "1.1.75 is a local candidate and has not been archived or uploaded; create a fresh immutable archive and obtain explicit upload authorization before N5c",
+  );
+});
+
+const platformEvidence = extractPlatformEvidence(platformEvidenceSource);
+const blockers = [];
+if (!platformEvidence.webViewDomainVerified) {
+  blockers.push("WeChat web-view business-domain screenshot/confirmation is still required.");
+}
+if (!platformEvidence.privacyDeclarationVerified) {
+  blockers.push("WeChat platform privacy declaration and screenshot are still required.");
+}
+blockers.push(
+  "Current 1.1.75 candidate needs a fresh immutable archive and explicit upload authorization.",
+  `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence is not valid until 1.1.75 is uploaded.`,
+  "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
+);
+
 const report = {
   contractOk: failures.length === 0,
-  status: "preview",
+  status: "local-candidate",
   ads: "excluded",
   checks,
   package: packageReport,
   rollback: rollbackReport,
   packageVersion,
-  latestUploadedVersion: LATEST_UPLOADED_VERSION,
-  externalActions: Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, false])),
+  historicalCompatibilityBaseline: PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
+  lastUploadedExperience: {
+    version: LAST_UPLOADED_EXPERIENCE_VERSION,
+    runtimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    immutableArtifactVerified: Boolean(externalHandoffPath)
+      && !failures.some((failure) => failure.name === "AI-HQ native handoff proves the last uploaded 1.1.74 runtime"),
+  },
+  currentCandidate: {
+    version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+    uploadStatus: "not_uploaded",
+    runtimeDriftFromLastUpload: runtimeDriftFiles,
+    immutableArchivePresent: false,
+  },
+  evidenceLevel: externalHandoffPath ? "external-handoff" : "local-contract",
+  externalActions: repositoryCandidateState
+    ? Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, repositoryCandidateState[action]]))
+    : { ...EXPECTED_CURRENT_ACTIONS },
   platformEvidence: {
     trueDevicePassed: 0,
-    trueDeviceRequired: 56,
+    trueDeviceRequired: REQUIRED_SCENARIOS.length,
     complete: false,
-    downloadFileDomainVerified: false,
+    ...platformEvidence,
     startupBudgetsVerifiedOnDevice: false,
   },
-  blockers: [
-    "56-row iOS/Android true-device evidence has not been collected.",
-    "api.humi-home.com is not yet verified in the WeChat downloadFile legal-domain list.",
-    "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
-  ],
+  blockers,
   failures,
 };
-
-report.platformEvidence.wechatDevtoolsAuthenticated = false;
-report.platformEvidence.productionLegacyH5SmokeVerified = false;
-report.blockers.push(
-  "WeChat DevTools automation is not authenticated for candidate device measurements.",
-  "The latest production legacy-H5 product smoke timed out and remains an external baseline blocker.",
-);
 
 console.log(JSON.stringify(report, null, 2));
 if (!report.contractOk) process.exitCode = 1;
@@ -321,6 +400,17 @@ async function check(name, operation) {
     checks.push({ name, ok: false });
     failures.push({ name, message: String(error?.message || error) });
   }
+}
+
+function listNativeRuntimeDrift(commit) {
+  return execFileSync(
+    "git",
+    ["diff", "--name-only", commit, "--", "miniprogram"],
+    { cwd: ROOT, encoding: "utf8" },
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
 }
 
 async function text(path) {

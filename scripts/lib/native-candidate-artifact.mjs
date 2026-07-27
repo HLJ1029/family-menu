@@ -66,6 +66,32 @@ export async function assertNativeArtifactMatchesCommit({
   return true;
 }
 
+export async function assertNativeRuntimeMatchesCommit({
+  repoRoot,
+  commit,
+}) {
+  const repository = resolve(String(repoRoot || ""));
+  const uploadedCommit = String(commit || "").trim().toLowerCase();
+  if (!/^[a-f0-9]{40}$/.test(uploadedCommit)) {
+    throw new Error("uploaded runtime commit must be a full 40-character Git SHA");
+  }
+  const changed = execFileSync(
+    "git",
+    ["diff", "--name-only", uploadedCommit, "--", "miniprogram"],
+    {
+      cwd: repository,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  ).split(/\r?\n/).filter(Boolean);
+  if (changed.length) {
+    throw new Error(
+      `current miniprogram runtime differs from uploaded commit ${uploadedCommit}: ${changed.join(", ")}`,
+    );
+  }
+  return true;
+}
+
 async function extractArchive(archivePath, targetRoot, { gzip }) {
   await mkdir(targetRoot, { recursive: true });
   const listArgs = gzip ? ["-tzf", archivePath] : ["-tf", archivePath];

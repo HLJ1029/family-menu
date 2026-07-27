@@ -4,7 +4,7 @@
 
 本文档是 Humi 小程序 WebView MVP 的历史执行基线。1.1 当前收口、阻塞项和下一步以 `npm run release:next`、`npm run release:closure`、`docs/humi-1.1-pre-review-hardening.md` 和 `docs/humi-1.1-spec-acceptance-audit.md` 为准；本文件中较早日期的 checklist 仅作为历史背景，不再单独作为当前提审门禁。
 
-当前状态（2026-07-18）：小程序候选 `1.1.73`（`修复身份完善入口`）基于当前重构 UI 与完整功能门禁准备；生产 H5/API 和小程序上传后继续做真实微信核心菜单、五类卡片与两类海报验收。当前不直接提交审核；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本同步记录继续保留在本文后半部分。
+当前状态（2026-07-27）：小程序候选 `1.1.75`（`Humi 原生骨架完整候选（待上传）`）尚未归档或上传；最近已上传体验版 `1.1.74` 精确绑定 `4eb3fbeb`。N5a API/H5 已部署，request/downloadFile 探测通过。当前先完成 `1.1.75` 不可变封包和上传授权，上传后再收集 56 项真机、web-view 域名和平台隐私声明证据；`release.candidateValidationReady=false` 时不得进入微信公众平台提交审核。历史版本记录继续保留在本文后半部分。
 
 ## 1. 首发结论
 
