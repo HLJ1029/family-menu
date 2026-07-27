@@ -87,6 +87,7 @@ Page({
         method: "POST",
         data: {},
         idempotencyKey: this.actionKey("claim", activeSession.user.id),
+        expectedUserId: activeSession.user.id,
       });
       this.setData({
         task: {
@@ -107,14 +108,16 @@ Page({
   },
 
   async completeTask() {
-    if (!this.data.task || this.data.pendingAction || !session.getSession()) return null;
+    const activeSession = session.getSession();
+    if (!this.data.task || this.data.pendingAction || !activeSession) return null;
     this.setData({ pendingAction: "complete", errorText: "" });
     try {
       const payload = await requestHumi({
         path: `/meal-tasks/${encodeURIComponent(this._token)}/complete`,
         method: "POST",
         data: {},
-        idempotencyKey: this.actionKey("complete", session.getSession()?.user?.id),
+        idempotencyKey: this.actionKey("complete", activeSession.user?.id),
+        expectedUserId: activeSession.user?.id,
       });
       this.setData({ task: payload?.task || this.data.task });
       return payload?.task || null;

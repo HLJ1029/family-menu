@@ -2058,6 +2058,7 @@ export class HumiStore {
         status: "open",
         createdBy: userId,
         claimedBy: "",
+        claimedByName: "",
         completedBy: "",
         createdAt: now,
         updatedAt: now,
@@ -2088,6 +2089,7 @@ export class HumiStore {
     const task = this.data.mealTasks.find((entry) => entry.token === token);
     if (!task) return null;
     const household = this.data.households.find((entry) => entry.id === task.householdId);
+    const claimant = household?.members?.find((member) => member.memberId === task.claimedBy && member.status === "formal");
     const viewerIsMember = Boolean(
       viewerUserId
       && household?.members?.some((member) => member.memberId === viewerUserId && member.status === "formal"),
@@ -2097,6 +2099,7 @@ export class HumiStore {
       label: task.label,
       type: task.type,
       status: task.status,
+      claimedByName: task.claimedByName || claimant?.nickname || "",
       viewerClaimed: viewerIsMember && task.claimedBy === viewerUserId,
       viewerCanComplete: viewerIsMember && (
         task.claimedBy === viewerUserId
@@ -2126,12 +2129,17 @@ export class HumiStore {
     return this.mutateAndSave(() => {
       const task = this.data.mealTasks.find((entry) => entry.token === token);
       if (!task) return null;
-      this.requireFormalMemberHousehold(userId, task.householdId);
-      if (task.status === "claimed" && task.claimedBy === userId) return task;
+      const household = this.requireFormalMemberHousehold(userId, task.householdId);
+      const claimant = household.members.find((member) => member.memberId === userId && member.status === "formal");
+      if (task.status === "claimed" && task.claimedBy === userId) {
+        task.claimedByName = task.claimedByName || claimant?.nickname || "家人";
+        return task;
+      }
       if (task.status !== "open") throw codedError("meal_task_claimed", "This task is already claimed or completed.");
       const now = new Date().toISOString();
       task.status = "claimed";
       task.claimedBy = userId;
+      task.claimedByName = claimant?.nickname || "家人";
       task.claimedAt = now;
       task.updatedAt = now;
       return task;

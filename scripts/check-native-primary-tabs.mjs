@@ -183,6 +183,7 @@ try {
       requestHumi: async (options) => options,
     },
   });
+  const nativeCertifiedRecipes = await loadModule("miniprogram/data/certified-recipes.js", {});
   const derivedItems = householdState.deriveGroceryItems({
     "2026-07-24": {
       dinner: [{
@@ -271,6 +272,7 @@ try {
   const ownerBootstrap = buildNativeBootstrap({ role: "owner" });
   const ownerRequests = [];
   const ownerPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../data/certified-recipes": nativeCertifiedRecipes,
     "../../utils/native-shell-guard": { guardNativeTab: () => true },
     "../../utils/store": { appStore: { getState: () => ({ bootstrap: ownerBootstrap }), replaceBootstrap: () => {} } },
     "../../utils/household-state": {
@@ -298,6 +300,7 @@ try {
 
   const memberBootstrap = buildNativeBootstrap({ role: "member" });
   const memberPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../data/certified-recipes": nativeCertifiedRecipes,
     "../../utils/native-shell-guard": { guardNativeTab: () => true },
     "../../utils/store": { appStore: { getState: () => ({ bootstrap: memberBootstrap }), replaceBootstrap: () => {} } },
     "../../utils/household-state": {
@@ -318,6 +321,7 @@ try {
 
   const conflictEnvelope = buildNativeBootstrap({ role: "owner", stateVersion: "state-v3" });
   const conflictPlan = await loadPage("miniprogram/pages/plan/index.js", {
+    "../../data/certified-recipes": nativeCertifiedRecipes,
     "../../utils/native-shell-guard": { guardNativeTab: () => true },
     "../../utils/store": {
       appStore: {
@@ -405,7 +409,7 @@ try {
   assert.equal(householdMealTasks.tasks.length, 1);
   assert.deepEqual(
     Object.keys(householdMealTasks.tasks[0]).sort(),
-    ["completedAt", "completedBy", "createdAt", "createdBy", "id", "label", "sourceId", "status", "type", "updatedAt", "claimedAt", "claimedBy"].sort(),
+    ["completedAt", "completedBy", "createdAt", "createdBy", "id", "label", "sourceId", "status", "type", "updatedAt", "claimedAt", "claimedBy", "claimedByName"].sort(),
     "household task summaries must omit share tokens and unrelated execution internals",
   );
   const outsiderLogin = await loginNativeUser(origin, "outsider");

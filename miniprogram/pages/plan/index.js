@@ -1,5 +1,6 @@
 const { appStore } = require("../../utils/store");
 const { guardNativeTab } = require("../../utils/native-shell-guard");
+const certifiedRecipes = require("../../data/certified-recipes");
 const {
   buildMealDays,
   createMutationId,
@@ -18,6 +19,10 @@ Page({
     stateVersion: "",
     conflictVisible: false,
     pendingAction: "",
+    chooserVisible: false,
+    chooserDateKey: "",
+    chooserDateLabel: "",
+    recipeChoices: [],
   },
   onShow() { if (guardNativeTab()) this.syncState(); },
   syncState() {
@@ -39,6 +44,52 @@ Page({
       stateVersion: bootstrap.stateVersion || "",
       householdName: household?.name || "我的家",
     });
+  },
+  openRecipeChooser(event = {}) {
+    if (!this.data.canEditMenu || this.data.cacheState === "cached" || this.data.pendingAction) return;
+    const dateKey = String(event?.detail?.dateKey || event?.currentTarget?.dataset?.dateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+    const day = this.data.days.find((item) => item.dateKey === dateKey);
+    if (!day) return;
+    const selectedIds = new Set((Array.isArray(day.dinner) ? day.dinner : []).map((entry) => entry.recipeId));
+    this.setData({
+      chooserVisible: true,
+      chooserDateKey: dateKey,
+      chooserDateLabel: day.label || dateKey,
+      recipeChoices: certifiedRecipes.map((recipe) => ({
+        recipeId: recipe.id,
+        title: recipe.title,
+        minutes: recipe.timeMinutes || recipe.cookAssist?.totalMinutes || 0,
+        effortLabel: effortLabel(recipe.cookAssist?.effortTier),
+        selected: selectedIds.has(recipe.id),
+      })),
+    });
+  },
+  toggleRecipe(event = {}) {
+    if (!this.data.chooserVisible || this.data.pendingAction) return;
+    const recipeId = String(event?.currentTarget?.dataset?.recipeId || "");
+    if (!recipeId) return;
+    this.setData({
+      recipeChoices: this.data.recipeChoices.map((choice) => (
+        choice.recipeId === recipeId ? { ...choice, selected: !choice.selected } : choice
+      )),
+    });
+  },
+  clearRecipeSelection() {
+    if (!this.data.chooserVisible || this.data.pendingAction) return;
+    this.setData({ recipeChoices: this.data.recipeChoices.map((choice) => ({ ...choice, selected: false })) });
+  },
+  closeRecipeChooser() {
+    if (this.data.pendingAction) return;
+    this.setData({ chooserVisible: false, chooserDateKey: "", chooserDateLabel: "", recipeChoices: [] });
+  },
+  async saveRecipeSelection() {
+    if (!this.data.chooserVisible || this.data.pendingAction) return null;
+    const selectedIds = new Set(this.data.recipeChoices.filter((choice) => choice.selected).map((choice) => choice.recipeId));
+    const entries = certifiedRecipes.filter((recipe) => selectedIds.has(recipe.id)).map(recipeSnapshot);
+    const result = await this.replaceDinner({ detail: { dateKey: this.data.chooserDateKey, entries } });
+    if (result) this.closeRecipeChooser();
+    return result;
   },
   async replaceDinner(event = {}) {
     if (!this.data.canEditMenu) {
@@ -96,3 +147,22 @@ Page({
   },
   retry() { this.setData({ status: "loading", errorText: "" }); this.syncState(); }
 });
+
+function recipeSnapshot(recipe) {
+  return {
+    recipeId: recipe.id,
+    title: String(recipe.title || recipe.name || recipe.id),
+    minutes: Number(recipe.timeMinutes || recipe.cookAssist?.totalMinutes) || 0,
+    ingredients: (Array.isArray(recipe.ingredients) ? recipe.ingredients : []).map((ingredient) => ({
+      name: String(ingredient.name || ""),
+      amount: ingredient.amount,
+      unit: String(ingredient.unit || ""),
+      required: ingredient.required !== false,
+    })),
+    quantity: 1,
+  };
+}
+
+function effortLabel(tier) {
+  return { quick_15: "15 分钟", easy_30: "30 分钟", normal: "正常做" }[tier] || "认证菜谱";
+}

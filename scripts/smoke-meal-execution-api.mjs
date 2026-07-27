@@ -610,6 +610,9 @@ try {
   const claimed = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });
   assert.equal(claimed.task.status, "claimed");
   assert.equal(claimed.task.claimedBy, member.user.id);
+  assert.equal(claimed.task.claimedByName, member.user.displayName, "a successful claim returns the authenticated formal member display identity");
+  const claimedLanding = await request(`${baseUrl}/meal-tasks/${task.task.token}`, { session: member });
+  assert.equal(claimedLanding.task.claimedByName, member.user.displayName, "the task landing renders the persisted claimant identity");
   const claimedAgain = await request(`${baseUrl}/meal-tasks/${task.task.token}/claim`, { method: "POST", session: member, body: {} });
   assert.equal(claimedAgain.task.claimedAt, claimed.task.claimedAt, "repeated claims by the same member are idempotent");
   const taskDone = await request(`${baseUrl}/meal-tasks/${task.task.token}/complete`, { method: "POST", session: member, body: {} });

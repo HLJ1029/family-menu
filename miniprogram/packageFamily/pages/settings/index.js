@@ -215,7 +215,7 @@ Page({
       await operation();
       return true;
     } catch (error) {
-      this.setData({ errorText: error?.message || fallback });
+      this.setData({ errorText: mutationError(error, fallback) });
       return null;
     } finally {
       this.setData({ pendingAction: "" });
@@ -279,6 +279,16 @@ function mutationId(prefix) {
 
 function showModal(options) {
   return new Promise((resolve) => wx.showModal({ ...options, success: resolve, fail: () => resolve({ confirm: false }) }));
+}
+
+function mutationError(error, fallback) {
+  if (error?.status === 409 || error?.code === "state_version_conflict") {
+    return "家庭信息刚刚有更新，你的输入仍保留着。请刷新确认后重试。";
+  }
+  if (error?.status === 401 || error?.code === "invalid_session") {
+    return "登录状态已失效，请重新登录后重试。";
+  }
+  return fallback;
 }
 
 module.exports = { buildFamilyProfilePatch, normalizeMembers, splitPreferences };

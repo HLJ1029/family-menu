@@ -12,7 +12,38 @@
       day="{{item}}"
       can-edit="{{canEditMenu}}"
       busy="{{pendingAction !== ''}}"
-      bind:replace="replaceDinner"
+      bind:choose="openRecipeChooser"
     />
+  </view>
+
+  <view wx:if="{{chooserVisible}}" class="chooser-backdrop" bindtap="closeRecipeChooser"></view>
+  <view wx:if="{{chooserVisible}}" class="recipe-chooser">
+    <view class="chooser-heading">
+      <view>
+        <text class="eyebrow">{{chooserDateLabel}}晚餐</text>
+        <text class="chooser-title">选择要做的菜</text>
+      </view>
+      <text class="chooser-close" bindtap="closeRecipeChooser">关闭</text>
+    </view>
+    <text class="chooser-copy">可多选；保存空选择就是移除这天晚餐。</text>
+    <scroll-view class="recipe-scroll" scroll-y>
+      <view
+        wx:for="{{recipeChoices}}"
+        wx:key="recipeId"
+        class="recipe-choice {{item.selected ? 'selected' : ''}}"
+        data-recipe-id="{{item.recipeId}}"
+        bindtap="toggleRecipe"
+      >
+        <view>
+          <text class="recipe-title">{{item.title}}</text>
+          <text class="recipe-meta">{{item.minutes}} 分钟 · {{item.effortLabel}}</text>
+        </view>
+        <text class="recipe-check">{{item.selected ? '已选' : '选择'}}</text>
+      </view>
+    </scroll-view>
+    <view class="chooser-actions">
+      <button class="clear-button" disabled="{{!!pendingAction}}" bindtap="clearRecipeSelection">清空晚餐</button>
+      <button class="save-button" loading="{{pendingAction === 'replace_dinner'}}" disabled="{{!!pendingAction}}" bindtap="saveRecipeSelection">保存安排</button>
+    </view>
   </view>
 </page-state>
