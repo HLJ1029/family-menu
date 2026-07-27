@@ -20,7 +20,7 @@ native_shell_candidate:
   wechat_review_submitted: false
   wechat_released: false
   native_allowlist_enabled: false
-  true_device_evidence: 0/36
+  true_device_evidence: 0/56
 ```
 
 本地候选边界：
@@ -28,12 +28,12 @@ native_shell_candidate:
 - 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
 - `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 检查默认开关、空白名单、H5 兼容页、无广告/Supabase runtime/候选凭据、合法源码域名、包体预算、所需脚本、本地回滚演练，并强制 AI‑HQ 交付文件中的唯一候选提交等于当前 `HEAD`。未传交付文件时发布门禁必须失败；仅做非发布的本地合同检查时显式运行 `npm run release:native-shell:check:local`。命令通过仍不代表外部平台验收完成。
 - 原生候选不包含广告接入；后续广告需要重新设计、风险评审、实施计划与单独授权。
-- 当前真实真机证据是 `0/36`。iOS/Android 的登录、三档各五次推荐轮换、做饭后台恢复/离线同步、成员权限、五类分享的发送与接收者打开、海报样式、提醒结果和立即回滚都尚未形成合规证据。
+- 当前真实真机证据是 `0/56`。iOS/Android 的登录、三档各五次推荐轮换、五个主标签、做饭与三种降级、家庭切换/权限/任务身份、五类分享的发送与接收者打开、海报保存恢复、提醒送达、三项性能和立即回滚都尚未形成合规证据。
 - `api.humi-home.com` 是源码中的 request/download 目标，但微信后台 `downloadFile` 合法域名仍是已知未配置阻塞项；必须在 N5 上传前复核 request、downloadFile 和 web-view 三类平台配置。
 - 微信开发者工具登录/自动化和约定真机暂不可用时，400/1000/2500ms 三项启动预算保持“未真机验证”；不得用本地静态合同代替。
 - 生产旧 H5 产品烟测如仍超时，应作为旧基线外部阻塞继续记录；本任务不部署 H5，也不以重试绕过失败。
 
-外部动作必须逐项重新取得授权：生产 API/H5 兼容部署、体验版上传、36 项真机验收、微信提审、正式发布、原生家庭白名单扩大。任何历史授权都不自动沿用。
+外部动作必须逐项重新取得授权：生产 API/H5 兼容部署、体验版上传、56 项真机验收、微信提审、正式发布、原生家庭白名单扩大。任何历史授权都不自动沿用。
 
 ## 1. 当前结论
 

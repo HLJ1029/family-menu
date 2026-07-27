@@ -13,11 +13,11 @@
 - 原生包版本：`1.1.74`，已上传体验候选。
 - 已上传兼容版：`1.1.73`，保留为历史兼容基线，未提审、未发布。
 - 上传绑定提交：`4eb3fbeb6aba886930b3fda652be96e9246eac9e`；未提审、未发布。
-- 真机证据：0/36；尚未完成 iOS/Android 原生路径验收，不能开始家庭灰度。
+- 真机证据：0/56；尚未完成 iOS/Android 原生路径验收，不能开始家庭灰度。
 - 仓库默认总开关为 `0`，家庭白名单为空；当前没有任何家庭被原生候选命中。
 - N5a 已部署 API/H5 兼容层，N5b 已上传小程序；没有提交审核、没有发布、没有开启原生白名单，广告明确排除。
-- 微信后台 request/downloadFile 域名已刷新并由真实 `wx.downloadFile` 返回 200；`postcss` 高危告警已通过安全补丁升级清零。当前平台阻塞为 36 项真机证据、启动性能预算和平台隐私声明。
-- `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 只给出候选提交一致性、本地合同、包体与回滚演练报告；未传交付文件时发布门禁失败。只有 36 项真机全部留证、P0/P1 为零且用户逐项授权，才允许把匿名家庭编号加入原生灰度白名单。
+- 微信后台 request/downloadFile 域名已刷新并由真实 `wx.downloadFile` 返回 200；`postcss` 高危告警已通过安全补丁升级清零。当前平台阻塞为 56 项真机证据、启动性能预算和平台隐私声明。
+- `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 只给出候选提交一致性、本地合同、包体与回滚演练报告；未传交付文件时发布门禁失败。只有 56 项真机全部留证、P0/P1 为零且用户逐项授权，才允许把匿名家庭编号加入原生灰度白名单。
 
 原生灰度每次只扩大一档，并记录当前 commit、包版本、匿名家庭 ID、开始时间、四项核心回滚指标和私有证据位置。登录/bootstrap、分享、MealRun 上桌完成任一出现实质回退，或出现 P0/P1、隐私/权限偏差时，立即把服务端 `HUMI_NATIVE_SHELL_ENABLED` 设为 `0`，确认回到 H5 后停止扩量；不删除家庭、MealRun、离线队列或其他产品数据。
 

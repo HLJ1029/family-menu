@@ -234,7 +234,7 @@ await check("repository handoff records preview-only external state", async () =
   assert.match(tracker, /原生壳候选：preview/);
   assert.match(tracker, /原生包版本：`1\.1\.74`/);
   assert.match(tracker, /已上传兼容版：`1\.1\.73`/);
-  assert.match(tracker, /真机证据：0\/36/);
+  assert.match(tracker, /真机证据：0\/56/);
   assert.match(apiContract, /关闭 `HUMI_NATIVE_SHELL_ENABLED`/);
   assert.match(apiContract, /不删除 MealRun/);
 });
@@ -290,13 +290,13 @@ const report = {
   externalActions: Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, false])),
   platformEvidence: {
     trueDevicePassed: 0,
-    trueDeviceRequired: 36,
+    trueDeviceRequired: 56,
     complete: false,
     downloadFileDomainVerified: false,
     startupBudgetsVerifiedOnDevice: false,
   },
   blockers: [
-    "36-row iOS/Android true-device evidence has not been collected.",
+    "56-row iOS/Android true-device evidence has not been collected.",
     "api.humi-home.com is not yet verified in the WeChat downloadFile legal-domain list.",
     "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
   ],

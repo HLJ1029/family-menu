@@ -218,7 +218,7 @@ npm run release:candidate:review
 
 ## 7. 原生骨架真机证据合同
 
-原生骨架候选使用独立的 36 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
+原生骨架候选使用独立的 56 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
 
 每一行必须只包含以下字段，禁止增加昵称、手机号、微信号、备注、openid、token 或其他自由文本：
 
@@ -232,7 +232,7 @@ npm run release:candidate:review
   "startedAt": "2026-07-23T08:00:00.000Z",
   "finishedAt": "2026-07-23T08:02:00.000Z",
   "result": "pass",
-  "evidencePath": "owner_cooking_flow.png"
+  "evidencePath": "owner_cooking_flow.json"
 }
 ```
 
@@ -246,11 +246,11 @@ npm run release:candidate:review
 - `evidencePath` 必须使用 ASCII 安全相对路径，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用绝对路径、软链接、`..`、昵称式文件名或 manifest 自身。
 - 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
 
-每个 `evidencePath` 指向的 JSON 必须严格包含以下五个字段：
+每个 `evidencePath` 指向的 JSON 必须严格包含以下六个字段：
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scenarioId": "menu_share_send_and_recipient_open",
   "redacted": true,
   "checks": {
@@ -258,6 +258,7 @@ npm run release:candidate:review
     "sent": true,
     "recipient_open": true
   },
+  "metrics": {},
   "mediaPaths": [
     "menu-share-sender.png",
     "menu-share-recipient.png"
@@ -267,12 +268,13 @@ npm run release:candidate:review
 
 - `scenarioId` 必须与 manifest 行一致。
 - `checks` 必须与该场景的固定检查项完全一致，不能缺项、增项或写成自由文本。
+- 非性能场景的 `metrics` 必须严格为 `{}`。三个性能场景必须严格为 `{ "durationMs": <有限且非负的数字> }`；不得填字符串、`NaN`、`Infinity`、自定义预算或 `budgetMet`。门禁自身分别按 400/1000/2500 ms 比较。
 - `mediaPaths` 只接受证据目录内的 PNG/JPEG/MP4/MOV；图片必须能被系统解码且宽高至少 300×300，视频必须能被 `ffprobe` 解码、宽高至少 300×300 且时长至少 1 秒。媒体还必须满足大小边界；只有文件头、无法解码的空壳文件会被拒绝。
 - 门禁同时使用文件实体和 SHA-256 内容摘要阻止跨场景复用；把同一张截图复制成不同文件名仍会失败。
 - 五类分享至少提供发送端和接收端两个媒体证据；其他场景至少一个。
 - `redacted: true` 是执行人对媒体已移除头像、昵称、聊天内容、手机号和其他家庭隐私的明确确认。自动门禁只能验证路径、解码、尺寸、时长和复用，不能代替人工脱敏检查。
 
-固定 36 行如下：
+固定 56 行如下：
 
 ```text
 登录与身份（6）
@@ -287,6 +289,8 @@ logout_to_guest
 recommendation_quick_15_rotation_1 ... recommendation_quick_15_rotation_5
 recommendation_easy_30_rotation_1 ... recommendation_easy_30_rotation_5
 recommendation_normal_rotation_1 ... recommendation_normal_rotation_5
+
+每条推荐证据必须证明菜谱均已认证且满足硬约束；同一家庭/日期/档位周期的第 2–5 轮还必须证明没有重复之前出现过的组合。
 
 烹饪、恢复与权限（4）
 cooking_background_restore
@@ -312,9 +316,41 @@ reminder_cancel
 
 回滚（1）
 immediate_h5_rollback
+
+五个原生主标签（5）
+native_tab_tonight
+native_tab_discover
+native_tab_plan
+native_tab_grocery
+native_tab_family
+
+家庭与协作（3）
+multi_household_switch
+household_owner_member_permissions
+meal_task_identity_claim_complete
+
+做饭降级与反馈（4）
+cooking_downgrade_remove_side
+cooking_downgrade_lower_effort
+cooking_downgrade_ready_staple
+serve_feedback
+
+海报保存与恢复（3）
+poster_save
+poster_cancel
+poster_permission_recovery
+
+提醒送达（2）
+reminder_send_failure
+reminder_deep_link
+
+真机性能（3）
+performance_cached_first_paint（durationMs <= 400）
+performance_warm_bootstrap（durationMs <= 1000）
+performance_cold_authenticated_bootstrap（durationMs <= 2500）
 ```
 
-证据目录的 `manifest.json` 使用 `schemaVersion: 2`，并在 `scenarios` 对象中以以上稳定 ID 为键。验收命令：
+证据目录的 `manifest.json` 使用 `schemaVersion: 3`，并在 `scenarios` 对象中以以上稳定 ID 为键。实际截图和视频只保存在 Git 之外的私有证据目录，不得提交仓库、伪造、复制复用或把未执行路径标成通过。验收命令：
 
 ```bash
 node scripts/check-humi-true-device-evidence.mjs --selftest
@@ -324,4 +360,4 @@ node scripts/check-humi-true-device-evidence.mjs \
   --candidate-commit <candidate-sha>
 ```
 
-无证据参数运行时，门禁必须逐行报告 36 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。
+无证据参数运行时，门禁必须逐行报告 56 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。

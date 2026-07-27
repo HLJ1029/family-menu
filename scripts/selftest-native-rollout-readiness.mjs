@@ -122,7 +122,7 @@ const candidateYaml = [
   "  wechat_review_submitted: false",
   "  wechat_released: false",
   "  native_allowlist_enabled: false",
-  "  true_device_evidence: 0/36",
+  "  true_device_evidence: 0/56",
   "```",
 ].join("\n");
 assert.deepEqual(validateNativeCandidateState(candidateYaml), {
@@ -135,7 +135,7 @@ assert.deepEqual(validateNativeCandidateState(candidateYaml), {
   wechat_review_submitted: false,
   wechat_released: false,
   native_allowlist_enabled: false,
-  true_device_evidence: "0/36",
+  true_device_evidence: "0/56",
 });
 assert.throws(
   () => validateNativeCandidateState(`${candidateYaml}\n${candidateYaml}`),
@@ -157,8 +157,8 @@ assert.throws(
 );
 assert.throws(
   () => validateNativeCandidateState(candidateYaml.replace(
-    "  true_device_evidence: 0/36",
-    "  true_device_evidence: 0/36\n  unreviewed_release_state: true",
+    "  true_device_evidence: 0/56",
+    "  true_device_evidence: 0/56\n  unreviewed_release_state: true",
   )),
   /unexpected candidate key/,
   "candidate state must use the exact reviewed key set",

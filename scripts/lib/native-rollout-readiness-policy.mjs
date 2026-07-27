@@ -162,8 +162,8 @@ export function validateNativeCandidateState(markdown, {
   for (const key of EXTERNAL_ACTION_KEYS) {
     if (state[key] !== false) throw new Error(`${key} must remain false`);
   }
-  if (state.true_device_evidence !== "0/36") {
-    throw new Error("native candidate true_device_evidence must remain 0/36");
+  if (state.true_device_evidence !== "0/56") {
+    throw new Error("native candidate true_device_evidence must remain 0/56");
   }
   return state;
 }

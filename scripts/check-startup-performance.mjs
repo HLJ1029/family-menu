@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
+import {
+  PERFORMANCE_BUDGETS_MS,
+  readCandidatePackageVersion,
+  validatePerformanceEvidence,
+} from "./check-humi-true-device-evidence.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -379,27 +385,93 @@ await check("identity exchange, content parsing, and share landings stay in the 
   assert.doesNotMatch(lazySource, /AuthLanding|ContentEntry|Landing|humiIdentity/);
 });
 
+function parseEvidenceOptions(argv) {
+  const values = {};
+  for (let index = 0; index < argv.length; index += 2) {
+    const key = argv[index];
+    const value = argv[index + 1];
+    if (!['--evidence-dir', '--candidate-commit'].includes(key) || !value || value.startsWith('--')) {
+      throw new Error('Use --evidence-dir <dir> --candidate-commit <sha>.');
+    }
+    values[key] = value;
+  }
+  const evidenceDir = values['--evidence-dir'] || process.env.HUMI_TRUE_DEVICE_EVIDENCE_DIR || '';
+  const candidateCommit = values['--candidate-commit'] || process.env.HUMI_TRUE_DEVICE_CANDIDATE_COMMIT || '';
+  if (Boolean(evidenceDir) !== Boolean(candidateCommit)) {
+    throw new Error('evidence directory and candidate commit must be supplied together');
+  }
+  return { evidenceDir, candidateCommit };
+}
+
 const contractOk = failures.length === 0;
-const deviceBudgetsVerified = false;
+let deviceBudgetsVerified = false;
+let suppliedEvidenceInvalid = false;
+let externalEvidence = {
+  required: true,
+  status: "blocked",
+  reason: "true_device_performance_evidence_missing",
+  budgets: {
+    cachedFirstPaintMs: PERFORMANCE_BUDGETS_MS.performance_cached_first_paint,
+    warmBootstrapMs: PERFORMANCE_BUDGETS_MS.performance_warm_bootstrap,
+    coldAuthenticatedBootstrapMs: PERFORMANCE_BUDGETS_MS.performance_cold_authenticated_bootstrap,
+  },
+};
+try {
+  const { evidenceDir, candidateCommit } = parseEvidenceOptions(process.argv.slice(2));
+  if (evidenceDir) {
+    const candidateTimestamp = execFileSync(
+      "git",
+      ["show", "-s", "--format=%cI", candidateCommit],
+      { encoding: "utf8", maxBuffer: 64 * 1024 },
+    ).trim();
+    const candidatePackageVersion = await readCandidatePackageVersion(candidateCommit);
+    const evidenceReport = await validatePerformanceEvidence({
+      evidenceDir,
+      candidateTimestamp,
+      candidatePackageVersion,
+    });
+    if (!evidenceReport.ok) {
+      suppliedEvidenceInvalid = true;
+      externalEvidence = {
+        ...externalEvidence,
+        status: "failed",
+        reason: "performance_evidence_invalid_or_over_budget",
+        issues: evidenceReport.issues,
+      };
+    } else {
+      deviceBudgetsVerified = true;
+      externalEvidence = {
+        ...externalEvidence,
+        status: "passed",
+        reason: "true_device_performance_evidence_verified",
+        measurements: evidenceReport.measurements,
+      };
+    }
+  }
+} catch (error) {
+  suppliedEvidenceInvalid = true;
+  externalEvidence = {
+    ...externalEvidence,
+    status: "failed",
+    reason: "performance_evidence_invalid_or_over_budget",
+    issues: [{ code: error.code || "evidence_arguments_invalid" }],
+  };
+}
 const report = {
-  overallStatus: contractOk && deviceBudgetsVerified ? "passed" : contractOk ? "blocked" : "failed",
+  overallStatus: contractOk && deviceBudgetsVerified
+    ? "passed"
+    : contractOk && !suppliedEvidenceInvalid
+      ? "blocked"
+      : "failed",
   contractOk,
   deviceBudgetsVerified,
   checkedAt: new Date().toISOString(),
   checks,
   warnings,
-  externalEvidence: {
-    required: true,
-    status: "blocked",
-    reason: "devtools_login_required",
-    budgets: {
-      cachedFirstPaintMs: 400,
-      warmBootstrapMs: 1000,
-      coldAuthenticatedBootstrapMs: 2500,
-    },
-  },
+  externalEvidence,
 };
 console.log(JSON.stringify(report, null, 2));
+if (suppliedEvidenceInvalid) process.exitCode = 1;
 if (!contractOk) {
   throw new AggregateError(failures.map((message) => new Error(message)), `${failures.length} startup performance checks failed`);
 }
