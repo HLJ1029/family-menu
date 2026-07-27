@@ -18,7 +18,7 @@
 | 小程序版本 | `1.1.74` |
 | 小程序描述 | `Humi 原生骨架体验版 N5b（4eb3fbeb）` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 原生骨架 `1.1.74` 已按 N5b 单项授权上传并生成预览二维码，未提审、未发布；native/meal 开关为 0、家庭白名单为空。request/downloadFile 域名真实调用返回 200；真机 0/36、隐私声明与提审前安全告警仍待关闭 |
+| 当前状态 | 原生骨架 `1.1.74` 已按 N5b 单项授权上传并生成预览二维码，未提审、未发布；native/meal 开关为 0、家庭白名单为空。request/downloadFile 域名真实调用返回 200；依赖安全审计已清零，真机 0/36 与平台隐私声明仍待关闭 |
 
 ## 2. 发布前命令证据
 
@@ -93,6 +93,7 @@
 | 2026-07-18 | codex@mbp-m5pro | `npm run release:wechat:poster:domain` | P0 阻断可重复 | 仓库命令校验正式 AppID 与 `urlCheck: true` 后通过 DevTools 自动化调用 `wx.downloadFile`，稳定返回 `url not in domain list` 并以退出码 1 阻止误判；配置域名后用同一命令复测 |
 | 2026-07-20 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.73` / `修复身份完善入口` / upload package `54,838 bytes`；preview QR SHA-256 `335f63b9ac8bbb528312f26249cc6725ba925c775c3160bf38af460ec0da8efa`；private evidence `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z`；未提交审核、未发布 |
 | 2026-07-27 | codex@mbp-m5pro | N5b 微信开发者工具 CLI upload / preview | 通过 | exact commit `4eb3fbeb6aba886930b3fda652be96e9246eac9e`；`1.1.74` / `Humi 原生骨架体验版 N5b（4eb3fbeb）` / upload package `560895 bytes`；preview QR SHA-256 `e998e7960c85289bf80041eaf6af9bdc27b7429d840705cf3b104272dd23c04d`；private evidence `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/n5b-*1.1.74*`；未提审、未发布、未开启任何开关或白名单 |
+| 2026-07-27 | codex@mbp-m5pro | `npm run release:security:audit` / `npm run build` / 聚焦回归 | 通过 | 将 PostCSS 最低版本从 `8.5.6` 提升到安全边界 `8.5.18`，锁定 `8.5.23`；`npm audit` 的 high/total 从 `1/1` 归零为 `0/0`。身份、原生入口、分享桥、Supabase 退役、候选/文档/local rollout 与 secret scan 均通过；只改构建依赖和证据，不改变已上传 `4eb3fbeb` 小程序运行时，不提审、不发布、不改开关或白名单 |
 
 ## 3. 生产 API 补部署证据
 
