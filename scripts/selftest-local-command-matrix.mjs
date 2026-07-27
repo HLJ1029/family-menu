@@ -31,7 +31,12 @@ const RUNNER = join(PRODUCT_ROOT, "scripts/run-local-command-matrix.mjs");
 const VERIFIER = join(PRODUCT_ROOT, "scripts/verify-local-command-matrix.mjs");
 const FIXTURE_HELPER = join(PRODUCT_ROOT, "scripts/local-command-matrix-fixture.mjs");
 const HELPER_SCRATCH_NAME = ".selftest-scratch";
-const HELPER_RUN_PATTERN = /^run-\d{13}-\d+-[a-f0-9-]{36}$/;
+const HELPER_RUN_PATTERN = /^run-(\d{13})-([1-9]\d*)-([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+const HELPER_OWNER_FILE = "fixture-owner";
+const HELPER_OWNER = "humi-local-command-matrix-selftest";
+const HELPER_OWNER_SCHEMA_VERSION = 1;
+const HELPER_STALE_AFTER_MS = 24 * 60 * 60 * 1_000;
+const HELPER_OWNER_MAX_BYTES = 4_096;
 const root = await mkdtemp(join(tmpdir(), "humi-local-matrix-selftest-"));
 
 try {
@@ -47,6 +52,7 @@ try {
     await testGuardRejectsUnsafeInjection();
     await testGuardRejectsSymlinkEscape();
     await testGuardRejectsArbitraryExternalMutation();
+    await testHelperScratchCleanupIsConservative();
     await testFixtureHelperRejectsUnsafeDirectInvocation();
     await testAllPassAndDeterministicOrder();
     await testFailureContinues();
@@ -271,6 +277,79 @@ async function testGuardRejectsArbitraryExternalMutation() {
   await assert.rejects(stat(outside));
 }
 
+async function testHelperScratchCleanupIsConservative() {
+  const scratchRoot = join(root, "helper-cleanup");
+  const nowMs = Date.now();
+  const oldMs = nowMs - (48 * 60 * 60 * 1_000);
+  const deadPid = 2_147_483_647;
+  const processStartedAt = (() => {
+    try {
+      return execFileSync("ps", ["-o", "lstart=", "-p", String(process.pid)], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null;
+    } catch {
+      return null;
+    }
+  })();
+  const makeRun = async ({ startedAtMs, pid, marker = "valid" }) => {
+    const runName = `run-${startedAtMs}-${pid}-${randomUUID()}`;
+    const runPath = join(scratchRoot, runName);
+    await mkdir(runPath, { recursive: true, mode: 0o700 });
+    const contents = marker === "valid"
+      ? JSON.stringify({
+        schemaVersion: 1,
+        owner: "humi-local-command-matrix-selftest",
+        runName,
+        pid,
+        startedAt: new Date(startedAtMs).toISOString(),
+        processStartedAt: pid === process.pid ? processStartedAt : null,
+      })
+      : marker;
+    await writeFile(join(runPath, "fixture-owner"), `${contents}\n`, { mode: 0o600 });
+    return runPath;
+  };
+
+  await mkdir(scratchRoot, { recursive: true, mode: 0o700 });
+  const active = await makeRun({ startedAtMs: nowMs, pid: process.pid });
+  const staleDead = await makeRun({ startedAtMs: oldMs, pid: deadPid });
+  const liveOld = await makeRun({ startedAtMs: oldMs - 1, pid: process.pid });
+  const freshDead = await makeRun({ startedAtMs: nowMs - 1, pid: deadPid });
+  const invalidMarker = await makeRun({ startedAtMs: oldMs - 2, pid: deadPid, marker: "{}" });
+  const markerSymlink = await makeRun({ startedAtMs: oldMs - 3, pid: deadPid });
+  const markerSymlinkPath = join(markerSymlink, "fixture-owner");
+  const markerSymlinkTarget = join(root, "helper-cleanup-marker-target");
+  await writeFile(markerSymlinkTarget, "not an ownership marker\n", { mode: 0o600 });
+  await rm(markerSymlinkPath);
+  await symlink(markerSymlinkTarget, markerSymlinkPath, "file");
+  const symlinkName = `run-${oldMs - 3}-${deadPid}-${randomUUID()}`;
+  const symlinkPath = join(scratchRoot, symlinkName);
+  const symlinkTarget = join(root, "helper-cleanup-symlink-target");
+  await mkdir(symlinkTarget, { mode: 0o700 });
+  await symlink(symlinkTarget, symlinkPath, "dir");
+
+  await removeStaleHelperScratchRuns(scratchRoot);
+
+  assert.equal((await stat(active)).isDirectory(), true);
+  await assert.rejects(lstat(staleDead), { code: "ENOENT" });
+  assert.equal((await stat(liveOld)).isDirectory(), true);
+  assert.equal((await stat(freshDead)).isDirectory(), true);
+  assert.equal((await lstat(symlinkPath)).isSymbolicLink(), true);
+  assert.equal((await stat(symlinkTarget)).isDirectory(), true);
+  assert.equal((await stat(invalidMarker)).isDirectory(), true);
+  assert.equal((await stat(markerSymlink)).isDirectory(), true);
+  assert.equal((await lstat(markerSymlinkPath)).isSymbolicLink(), true);
+
+  const unknownPid = deadPid - 1;
+  const unknownProcess = await makeRun({ startedAtMs: oldMs - 4, pid: unknownPid });
+  await removeStaleHelperScratchRuns(scratchRoot, {
+    inspectProcess: async (pid) => pid === unknownPid
+      ? { state: "unknown", processStartedAt: null }
+      : { state: "live", processStartedAt: null },
+  });
+  assert.equal((await stat(unknownProcess)).isDirectory(), true);
+}
+
 async function testFixtureHelperRejectsUnsafeDirectInvocation() {
   const startingGitStatus = repositoryStatus(PRODUCT_ROOT);
   const scratch = await createPrivateHelperScratch();
@@ -332,12 +411,24 @@ async function createPrivateHelperScratch() {
   }
 
   await removeStaleHelperScratchRuns(canonicalScratchRoot);
-  const runName = `run-${Date.now()}-${process.pid}-${randomUUID()}`;
+  const startedAtMs = Date.now();
+  const runName = `run-${startedAtMs}-${process.pid}-${randomUUID()}`;
   if (!HELPER_RUN_PATTERN.test(runName)) throw new Error("invalid helper selftest run name");
   const runRoot = checkedHelperRunPath(canonicalScratchRoot, runName);
   try {
     await mkdir(runRoot, { mode: 0o700 });
-    await writeFile(join(runRoot, "fixture-owner"), `${runName}\n`, { mode: 0o600 });
+    await writeFile(
+      join(runRoot, HELPER_OWNER_FILE),
+      `${JSON.stringify({
+        schemaVersion: HELPER_OWNER_SCHEMA_VERSION,
+        owner: HELPER_OWNER,
+        runName,
+        pid: process.pid,
+        startedAt: new Date(startedAtMs).toISOString(),
+        processStartedAt: readHelperProcessStartEvidence(process.pid),
+      })}\n`,
+      { mode: 0o600, flag: "wx" },
+    );
     const evidence = join(runRoot, "evidence");
     const target = join(runRoot, "target");
     await mkdir(evidence, { mode: 0o700 });
@@ -349,13 +440,199 @@ async function createPrivateHelperScratch() {
   }
 }
 
-async function removeStaleHelperScratchRuns(scratchRoot) {
-  for (const entry of await readdir(scratchRoot, { withFileTypes: true })) {
-    if (!HELPER_RUN_PATTERN.test(entry.name)) continue;
-    const stalePath = checkedHelperRunPath(scratchRoot, entry.name);
-    if (entry.isDirectory()) await rm(stalePath, { recursive: true, force: true });
-    else if (entry.isSymbolicLink() || entry.isFile()) await rm(stalePath, { force: true });
+async function removeStaleHelperScratchRuns(
+  scratchRoot,
+  {
+    nowMs = Date.now(),
+    inspectProcess = inspectHelperProcess,
+  } = {},
+) {
+  const decisions = [];
+  const scratchState = await lstat(scratchRoot);
+  if (scratchState.isSymbolicLink() || !scratchState.isDirectory()) {
+    throw new Error("local matrix helper selftest refused unsafe private scratch root");
   }
+  const canonicalScratchRoot = await realpath(scratchRoot);
+
+  for (const entry of await readdir(canonicalScratchRoot, { withFileTypes: true })) {
+    const runMatch = HELPER_RUN_PATTERN.exec(entry.name);
+    if (!runMatch) {
+      decisions.push("run_name_ignored");
+      continue;
+    }
+    const stalePath = checkedHelperRunPath(canonicalScratchRoot, entry.name);
+    let runState;
+    try {
+      runState = await lstat(stalePath);
+    } catch {
+      decisions.push("run_state_unknown");
+      continue;
+    }
+    if (runState.isSymbolicLink() || !runState.isDirectory()) {
+      decisions.push("run_not_regular_directory");
+      continue;
+    }
+
+    let canonicalRunPath;
+    try {
+      canonicalRunPath = await realpath(stalePath);
+    } catch {
+      decisions.push("run_canonical_state_unknown");
+      continue;
+    }
+    if (canonicalRunPath !== stalePath || !isStrictChildPath(canonicalScratchRoot, canonicalRunPath)) {
+      decisions.push("run_not_canonical_child");
+      continue;
+    }
+
+    const markerPath = join(canonicalRunPath, HELPER_OWNER_FILE);
+    let markerState;
+    let markerText;
+    try {
+      markerState = await lstat(markerPath);
+      if (markerState.isSymbolicLink()
+        || !markerState.isFile()
+        || markerState.size < 1
+        || markerState.size > HELPER_OWNER_MAX_BYTES
+        || await realpath(markerPath) !== markerPath) {
+        decisions.push("owner_marker_not_regular");
+        continue;
+      }
+      markerText = await readFile(markerPath, "utf8");
+    } catch {
+      decisions.push("owner_marker_state_unknown");
+      continue;
+    }
+
+    const marker = parseHelperOwnerMarker(markerText, entry.name, runMatch);
+    if (!marker) {
+      decisions.push("owner_marker_invalid");
+      continue;
+    }
+    if (nowMs - marker.startedAtMs <= HELPER_STALE_AFTER_MS) {
+      decisions.push("run_fresh");
+      continue;
+    }
+
+    let processState;
+    try {
+      processState = await inspectProcess(marker.pid);
+    } catch {
+      decisions.push("process_state_unknown");
+      continue;
+    }
+    if (processState?.state !== "dead") {
+      if (processState?.state === "live"
+        && marker.processStartedAt
+        && processState.processStartedAt
+        && marker.processStartedAt !== processState.processStartedAt) {
+        decisions.push("process_identity_mismatch");
+      } else if (processState?.state === "live") {
+        decisions.push("process_live");
+      } else {
+        decisions.push("process_state_unknown");
+      }
+      continue;
+    }
+
+    try {
+      const [finalRunState, finalMarkerState, finalMarkerText, finalRunPath, finalMarkerPath] = await Promise.all([
+        lstat(stalePath),
+        lstat(markerPath),
+        readFile(markerPath, "utf8"),
+        realpath(stalePath),
+        realpath(markerPath),
+      ]);
+      if (finalRunState.isSymbolicLink()
+        || !finalRunState.isDirectory()
+        || finalMarkerState.isSymbolicLink()
+        || !finalMarkerState.isFile()
+        || finalRunPath !== stalePath
+        || finalMarkerPath !== markerPath
+        || !sameFileIdentity(runState, finalRunState)
+        || !sameFileIdentity(markerState, finalMarkerState)
+        || finalMarkerText !== markerText) {
+        decisions.push("run_changed_before_cleanup");
+        continue;
+      }
+      await rm(stalePath, { recursive: true, force: false });
+      decisions.push("stale_run_removed");
+    } catch {
+      decisions.push("stale_cleanup_not_confirmed");
+    }
+  }
+  return decisions;
+}
+
+function parseHelperOwnerMarker(markerText, runName, runMatch) {
+  let marker;
+  try {
+    marker = JSON.parse(markerText);
+  } catch {
+    return null;
+  }
+  if (!marker || typeof marker !== "object" || Array.isArray(marker)) return null;
+  const expectedKeys = [
+    "owner",
+    "pid",
+    "processStartedAt",
+    "runName",
+    "schemaVersion",
+    "startedAt",
+  ];
+  if (JSON.stringify(Object.keys(marker).sort()) !== JSON.stringify(expectedKeys)) return null;
+  if (marker.schemaVersion !== HELPER_OWNER_SCHEMA_VERSION
+    || marker.owner !== HELPER_OWNER
+    || marker.runName !== runName
+    || !Number.isSafeInteger(marker.pid)
+    || marker.pid < 1
+    || String(marker.pid) !== runMatch[2]
+    || typeof marker.startedAt !== "string"
+    || (marker.processStartedAt !== null
+      && (typeof marker.processStartedAt !== "string"
+        || marker.processStartedAt.length < 1
+        || marker.processStartedAt.length > 200
+        || /[\r\n]/.test(marker.processStartedAt)))) {
+    return null;
+  }
+  const startedAtMs = Date.parse(marker.startedAt);
+  if (!Number.isFinite(startedAtMs)
+    || new Date(startedAtMs).toISOString() !== marker.startedAt
+    || String(startedAtMs) !== runMatch[1]) {
+    return null;
+  }
+  return { ...marker, startedAtMs };
+}
+
+function inspectHelperProcess(pid) {
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error?.code === "ESRCH") return { state: "dead", processStartedAt: null };
+    return { state: "unknown", processStartedAt: null };
+  }
+  return {
+    state: "live",
+    processStartedAt: readHelperProcessStartEvidence(pid),
+  };
+}
+
+function readHelperProcessStartEvidence(pid) {
+  try {
+    const evidence = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 1_000,
+      maxBuffer: 1_024,
+    }).trim();
+    return evidence && evidence.length <= 200 && !/[\r\n]/.test(evidence) ? evidence : null;
+  } catch {
+    return null;
+  }
+}
+
+function sameFileIdentity(first, second) {
+  return first.dev === second.dev && first.ino === second.ino;
 }
 
 function checkedHelperRunPath(scratchRoot, runName) {
