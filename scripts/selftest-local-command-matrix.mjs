@@ -1,23 +1,27 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
+  chmod,
+  lstat,
   mkdtemp,
   mkdir,
   readFile,
   readdir,
+  realpath,
   rm,
   stat,
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   buildAuthoritativeCommandMatrix,
   classifyMatrixResult,
+  DEFAULT_EVIDENCE_ROOT,
 } from "./lib/local-command-matrix.mjs";
 import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
 
@@ -26,6 +30,8 @@ const PRODUCT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const RUNNER = join(PRODUCT_ROOT, "scripts/run-local-command-matrix.mjs");
 const VERIFIER = join(PRODUCT_ROOT, "scripts/verify-local-command-matrix.mjs");
 const FIXTURE_HELPER = join(PRODUCT_ROOT, "scripts/local-command-matrix-fixture.mjs");
+const HELPER_SCRATCH_NAME = ".selftest-scratch";
+const HELPER_RUN_PATTERN = /^run-\d{13}-\d+-[a-f0-9-]{36}$/;
 const root = await mkdtemp(join(tmpdir(), "humi-local-matrix-selftest-"));
 
 try {
@@ -266,29 +272,112 @@ async function testGuardRejectsArbitraryExternalMutation() {
 }
 
 async function testFixtureHelperRejectsUnsafeDirectInvocation() {
-  const outsideEvidence = await mkdtemp(join(PRODUCT_ROOT, ".matrix-helper-selftest-"));
+  const startingGitStatus = repositoryStatus(PRODUCT_ROOT);
+  const scratch = await createPrivateHelperScratch();
   try {
-    const outsideResult = await invokeFixtureHelper(PRODUCT_ROOT, outsideEvidence);
+    assert.equal(repositoryStatus(PRODUCT_ROOT), startingGitStatus);
+    assert.equal(gitWorktreeRoot(scratch.runRoot), null);
+    const outsideResult = await invokeFixtureHelper(PRODUCT_ROOT, scratch.evidence);
     assert.notEqual(outsideResult.code, 0);
-    await assert.rejects(stat(join(outsideEvidence, "continued.txt")));
+    await assert.rejects(stat(join(scratch.evidence, "continued.txt")));
     assert.equal(outsideResult.stderr.includes(PRODUCT_ROOT), false);
-    assert.equal(outsideResult.stderr.includes(outsideEvidence), false);
-  } finally {
-    await rm(outsideEvidence, { recursive: true, force: true });
-  }
+    assert.equal(outsideResult.stderr.includes(scratch.evidence), false);
+    assert.equal(repositoryStatus(PRODUCT_ROOT), startingGitStatus);
 
-  const fixture = await makeFixture("helper-symlink-escape");
-  const outsideTarget = await mkdtemp(join(PRODUCT_ROOT, ".matrix-helper-target-"));
-  const evidenceLink = join(fixture.fixtureRoot, "evidence-link");
-  try {
-    await symlink(outsideTarget, evidenceLink, "dir");
+    const fixture = await makeFixture("helper-symlink-escape");
+    const evidenceLink = join(fixture.fixtureRoot, "evidence-link");
+    assert.equal(repositoryStatus(PRODUCT_ROOT), startingGitStatus);
+    await symlink(scratch.target, evidenceLink, "dir");
     const symlinkResult = await invokeFixtureHelper(fixture.repo, evidenceLink);
     assert.notEqual(symlinkResult.code, 0);
-    await assert.rejects(stat(join(outsideTarget, "continued.txt")));
-    assert.equal(symlinkResult.stderr.includes(outsideTarget), false);
+    await assert.rejects(stat(join(scratch.target, "continued.txt")));
+    assert.equal(symlinkResult.stderr.includes(scratch.target), false);
     assert.equal(symlinkResult.stderr.includes(evidenceLink), false);
+    assert.equal(repositoryStatus(PRODUCT_ROOT), startingGitStatus);
   } finally {
-    await rm(outsideTarget, { recursive: true, force: true });
+    await rm(scratch.runRoot, { recursive: true, force: true });
+  }
+  assert.equal(repositoryStatus(PRODUCT_ROOT), startingGitStatus);
+}
+
+async function createPrivateHelperScratch() {
+  await mkdir(DEFAULT_EVIDENCE_ROOT, { recursive: true, mode: 0o700 });
+  const [canonicalHome, canonicalTemp, canonicalEvidenceRoot] = await Promise.all([
+    realpath(homedir()),
+    realpath(tmpdir()),
+    realpath(DEFAULT_EVIDENCE_ROOT),
+  ]);
+  if (!isStrictChildPath(canonicalHome, canonicalEvidenceRoot)
+    || isStrictChildPath(canonicalTemp, canonicalEvidenceRoot)
+    || gitWorktreeRoot(canonicalEvidenceRoot) !== null) {
+    throw new Error("local matrix helper selftest refused unsafe private scratch parent");
+  }
+
+  const scratchRoot = join(canonicalEvidenceRoot, HELPER_SCRATCH_NAME);
+  try {
+    const existing = await lstat(scratchRoot);
+    if (existing.isSymbolicLink() || !existing.isDirectory()) {
+      throw new Error("local matrix helper selftest refused unsafe private scratch root");
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    await mkdir(scratchRoot, { mode: 0o700 });
+  }
+  await chmod(scratchRoot, 0o700);
+  const canonicalScratchRoot = await realpath(scratchRoot);
+  if (!isStrictChildPath(canonicalEvidenceRoot, canonicalScratchRoot)
+    || isStrictChildPath(canonicalTemp, canonicalScratchRoot)
+    || gitWorktreeRoot(canonicalScratchRoot) !== null) {
+    throw new Error("local matrix helper selftest refused unsafe private scratch root");
+  }
+
+  await removeStaleHelperScratchRuns(canonicalScratchRoot);
+  const runName = `run-${Date.now()}-${process.pid}-${randomUUID()}`;
+  if (!HELPER_RUN_PATTERN.test(runName)) throw new Error("invalid helper selftest run name");
+  const runRoot = checkedHelperRunPath(canonicalScratchRoot, runName);
+  try {
+    await mkdir(runRoot, { mode: 0o700 });
+    await writeFile(join(runRoot, "fixture-owner"), `${runName}\n`, { mode: 0o600 });
+    const evidence = join(runRoot, "evidence");
+    const target = join(runRoot, "target");
+    await mkdir(evidence, { mode: 0o700 });
+    await mkdir(target, { mode: 0o700 });
+    return { runRoot, evidence, target };
+  } catch (error) {
+    await rm(runRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function removeStaleHelperScratchRuns(scratchRoot) {
+  for (const entry of await readdir(scratchRoot, { withFileTypes: true })) {
+    if (!HELPER_RUN_PATTERN.test(entry.name)) continue;
+    const stalePath = checkedHelperRunPath(scratchRoot, entry.name);
+    if (entry.isDirectory()) await rm(stalePath, { recursive: true, force: true });
+    else if (entry.isSymbolicLink() || entry.isFile()) await rm(stalePath, { force: true });
+  }
+}
+
+function checkedHelperRunPath(scratchRoot, runName) {
+  if (!HELPER_RUN_PATTERN.test(runName)) throw new Error("invalid helper selftest run name");
+  const path = resolve(scratchRoot, runName);
+  if (!isStrictChildPath(scratchRoot, path)) throw new Error("unsafe helper selftest run path");
+  return path;
+}
+
+function isStrictChildPath(rootPath, candidatePath) {
+  const relation = relative(rootPath, candidatePath);
+  return Boolean(relation) && relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation);
+}
+
+function gitWorktreeRoot(directory) {
+  try {
+    return execFileSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
   }
 }
 
@@ -664,4 +753,11 @@ function testEnv() {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function repositoryStatus(directory) {
+  return execFileSync("git", ["status", "--short", "--untracked-files=all"], {
+    cwd: directory,
+    encoding: "utf8",
+  });
 }
