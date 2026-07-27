@@ -108,6 +108,7 @@
     "release:pre-review:evidence": "node scripts/prepare-pre-review-evidence-dashboard.mjs",
     "release:product:review": "node scripts/check-product-review-readiness.mjs",
     "release:product:smoke": "node scripts/smoke-product-entrypoints.mjs",
+    "release:product:smoke:family-management": "node scripts/smoke-product-entrypoints.mjs --only family-management",
     "release:collaboration:smoke": "node scripts/smoke-collaboration-landings.mjs",
     "release:security:audit": "node scripts/check-security-audit.mjs",
     "release:docs:check": "node scripts/check-release-doc-freshness.mjs",

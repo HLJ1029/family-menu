@@ -17,6 +17,9 @@ const recommendationMockCalls = [];
 
 await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
 
+if (args.only === "family-management") {
+  await runFocusedFamilyManagementSmoke();
+} else {
 let browser;
 try {
   browser = await chromium.launch({ headless: !args.headed });
@@ -723,6 +726,54 @@ try {
   process.exit(1);
 } finally {
   if (browser) await browser.close();
+}
+}
+
+async function runFocusedFamilyManagementSmoke() {
+  let focusedBrowser;
+  try {
+    focusedBrowser = await chromium.launch({ headless: !args.headed });
+    const familyManagementPages = await verifyFamilyManagementPages(focusedBrowser, baseUrl, evidenceDir);
+    const checks = [
+      { key: "family-management-pages-open-from-living-room", ok: familyManagementPages.allPagesOpened, actual: familyManagementPages.openedPages },
+      { key: "family-management-pages-return-to-living-room", ok: familyManagementPages.allPagesReturn, actual: familyManagementPages.returnedPages },
+      { key: "family-management-child-pages-keep-five-primary-tabs", ok: familyManagementPages.allPagesKeepTabs, actual: familyManagementPages.primaryTabCounts },
+      {
+        key: "family-activity-history-loads-with-management-fixtures",
+        ok: familyManagementPages.activityHistoryIsNatural && familyManagementPages.activityPrivacySafe,
+        actual: familyManagementPages.activityText,
+      },
+      { key: "family-management-page-errors", ok: familyManagementPages.pageErrors.length === 0, errors: familyManagementPages.pageErrors },
+    ];
+    const manifest = {
+      ok: checks.every((item) => item.ok),
+      scope: "family-management",
+      checkedAt: new Date().toISOString(),
+      baseUrl,
+      evidenceDir,
+      screenshots: { familyManagementMobile: familyManagementPages.screenshot },
+      checks,
+      nextActions: ["This focused smoke intercepts all family-management API calls and does not mutate production data."],
+    };
+    await access(manifest.screenshots.familyManagementMobile);
+    await writeFile(join(evidenceDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+    console.log(JSON.stringify(manifest, null, 2));
+    if (!manifest.ok) process.exitCode = 1;
+  } catch (error) {
+    const failure = {
+      ok: false,
+      scope: "family-management",
+      checkedAt: new Date().toISOString(),
+      baseUrl,
+      evidenceDir,
+      error: error.message,
+    };
+    await writeFile(join(evidenceDir, "manifest.json"), `${JSON.stringify(failure, null, 2)}\n`, { mode: 0o600 });
+    console.error(JSON.stringify(failure, null, 2));
+    process.exitCode = 1;
+  } finally {
+    if (focusedBrowser) await focusedBrowser.close();
+  }
 }
 
 async function seedGuestDinnerState(page) {
@@ -1601,6 +1652,9 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     }
     await fulfillJson(route, { state, family: activeFamily, households: [activeFamily] });
   });
+  await page.route("**/households/product-smoke-family/collaborations**", async (route) => {
+    await fulfillJson(route, { householdId: family.id, events: historyEvents() });
+  });
   await page.route("**/households/product-smoke-family", async (route) => {
     lifecycleRequests.rename = route.request().method() === "PATCH";
     activeFamily = { ...activeFamily, name: route.request().postDataJSON()?.name || activeFamily.name };
@@ -1704,6 +1758,8 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
   const lifecyclePreservesLogsAndCollaboration = lifecycleRequests.rename && lifecycleRequests.remove && lifecycleRequests.transfer
     && stateAfterRename.logsAndCollaboration && stateAfterRemove.logsAndCollaboration && stateAfterTransfer.logsAndCollaboration;
   const forbiddenActivityText = ["DO_NOT_RENDER", "ownerSecret", "participantKey", "householdId", "token"];
+  const activityHistoryIsNatural = ["小禾想吃番茄炒蛋", "游客 1 已认领 2 项买菜", "小林写下想吃：鱼香肉丝"]
+    .every((text) => activityText.includes(text));
   const activityPrivacySafe = forbiddenActivityText.every((value) => !activityText.includes(value));
   const lifecycleMembersRefresh = lifecycleRequests.remove && lifecycleRequests.transfer
     && removedMemberReflected && transferRoleReflected && refreshedAvatar;
@@ -1736,6 +1792,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     lifecyclePreservesLogsAndCollaboration,
     lifecyclePreservationSnapshots: { stateAfterRename, stateAfterRemove, stateAfterTransfer },
     activityPrivacySafe,
+    activityHistoryIsNatural,
     activityText,
     lifecycleMembersRefresh,
     accountBasicsVisible,
@@ -2509,6 +2566,11 @@ function parseArgs(argv) {
     }
     if (arg === "--min-recipe-cards") {
       parsed.minRecipeCards = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--only") {
+      parsed.only = argv[index + 1];
       index += 1;
     }
   }
