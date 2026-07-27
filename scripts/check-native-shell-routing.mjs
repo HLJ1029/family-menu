@@ -326,7 +326,11 @@ vm.runInNewContext(bootSource, {
         if (retryBootstrapCalls === 1) throw { code: "network_error" };
         return disabled;
       },
-      readCachedBootstrapSummary: () => null,
+      readCachedBootstrapSummary: () => ({
+        cacheState: "cached",
+        hasHousehold: true,
+        household: { id: "stale-household", name: "must-not-render" },
+      }),
       resolveKnownShareRoute,
       resolveStartupRoute
     };
@@ -339,6 +343,10 @@ const retryBootPage = { ...retryBootDefinition, data: structuredClone(retryBootD
 const retryOptions = { view: "today", shareSource: "today_menu", humiLogout: "1", humiExpired: "1", humiResume: "1", token: validToken, arbitrary: "drop" };
 await retryBootPage.onLoad(retryOptions);
 assert.equal(retryBootPage.data.state, "error", "a bootstrap failure must render the boot error state");
+assert.equal(retryBootPage.data.cacheState, "cached", "a failed fresh bootstrap may keep the safe cached summary visible");
+assert.equal(retryBootPage.data.hasCachedHousehold, true);
+assert.equal(Object.hasOwn(retryBootPage.data, "household"), false, "cached household details must never enter boot page state");
+assert.deepEqual(retryBootRoutes, [], "a failed fresh bootstrap must not route from cached capabilities");
 await retryBootPage.retry();
 assert.deepEqual(retryBootRoutes, ["/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1"], "retry must retain only the launch compatibility parameters when it resolves to legacy");
 retryBootRoutes.length = 0;
@@ -350,6 +358,10 @@ const spanEvents = [];
 const storeUpdates = [];
 const bootSequence = [];
 let bootstrapOptions;
+let resolveFreshBootstrap;
+const freshBootstrap = new Promise((resolve) => {
+  resolveFreshBootstrap = resolve;
+});
 vm.runInNewContext(bootSource, {
   Page: (definition) => { bootDefinition = definition; },
   getApp: () => ({ globalData: { nativeShellCandidate: true } }),
@@ -362,10 +374,10 @@ vm.runInNewContext(bootSource, {
       buildLegacyRoute,
       extractLegacyOptions: (options) => options,
       getHouseholdId: () => "",
-      loadBootstrap: async (options) => {
+      loadBootstrap: (options) => {
         bootstrapOptions = options;
         bootSequence.push("fresh_bootstrap");
-        return enabled;
+        return freshBootstrap;
       },
       readCachedBootstrapSummary: () => {
         bootSequence.push("cached_summary");
@@ -385,11 +397,17 @@ const bootPage = {
   data: structuredClone(bootDefinition.data),
   setData(patch) { this.data = { ...this.data, ...patch }; }
 };
-await bootPage.onLoad({});
+const bootStart = bootPage.onLoad({});
+await Promise.resolve();
 assert.deepEqual(JSON.parse(JSON.stringify(bootstrapOptions)), { allowCache: false }, "boot routing must wait for a fresh bootstrap and never route from the seven-day cache");
 assert.deepEqual(bootSequence, ["cached_summary", "fresh_bootstrap"], "cached summary must paint before the authoritative bootstrap starts");
 assert.equal(bootPage.data.cacheState, "cached");
 assert.equal(bootPage.data.hasCachedHousehold, true);
+assert.equal(bootPage.data.state, "loading", "cached summary remains a non-interactive loading state");
+assert.deepEqual(routes, [], "cached capabilities must never resolve a native or legacy route");
+assert.deepEqual(storeUpdates, [], "cached bootstrap data must never enter the authoritative app store");
+resolveFreshBootstrap(enabled);
+await bootStart;
 assert.deepEqual(routes, [["switchTab", "/pages/tonight/index"]], "native core entry must use switchTab");
 assert.deepEqual(JSON.parse(JSON.stringify(storeUpdates)), [{ bootstrap: enabled, currentHouseholdId: "household-1" }], "boot must store the exact API activeHouseholdId");
 assert.deepEqual(JSON.parse(JSON.stringify(spanEvents)), [

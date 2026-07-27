@@ -22,6 +22,7 @@ const {
 } = await import("../api/server.js");
 const { HumiStore } = await import("../api/store.js");
 const { sendWechatSubscribeMessage } = await import("../api/wechat.js");
+await verifyMealExecutionDisabledBoundary();
 await verifyWechatSubscribeDeliveryClassification();
 const server = createHumiApiServer();
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -949,6 +950,47 @@ async function verifyWechatSubscribeDeliveryClassification() {
   } finally {
     globalThis.fetch = originalFetch;
   }
+}
+
+async function verifyMealExecutionDisabledBoundary() {
+  const disabledDirectory = await mkdtemp(join(tmpdir(), "humi-meal-disabled-"));
+  const priorDataFile = process.env.HUMI_API_DATA_FILE;
+  const priorMealEnabled = process.env.HUMI_MEAL_EXECUTION_ENABLED;
+  const priorMealHouseholds = process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS;
+  let disabledServer;
+  try {
+    process.env.HUMI_API_DATA_FILE = join(disabledDirectory, "data.json");
+    process.env.HUMI_MEAL_EXECUTION_ENABLED = "0";
+    process.env.HUMI_MEAL_EXECUTION_HOUSEHOLDS = "*";
+    const disabledApi = await import(`../api/server.js?meal-disabled=${Date.now()}`);
+    disabledServer = disabledApi.createHumiApiServer();
+    await new Promise((resolve) => disabledServer.listen(0, "127.0.0.1", resolve));
+    const disabledBaseUrl = `http://127.0.0.1:${disabledServer.address().port}`;
+    const owner = await createUser(disabledBaseUrl, "meal-disabled-owner", "关闭体验主厨");
+    const familyEnvelope = await request(`${disabledBaseUrl}/households`, {
+      method: "POST",
+      session: owner,
+      body: { householdName: "稳定流程家" },
+    });
+    const stateEnvelope = await request(`${disabledBaseUrl}/state`, { session: owner });
+    assert.equal(stateEnvelope.capabilities.mealExecutionEnabled, false, "disabled API capability must keep clients on the stable flow");
+    await assertRejected(`${disabledBaseUrl}/meal-runs`, {
+      method: "POST",
+      session: owner,
+      body: mealPlan(familyEnvelope.family.id, "2026-07-22", "disabled-plan"),
+    }, 403, "meal_execution_disabled");
+  } finally {
+    if (disabledServer) await new Promise((resolve) => disabledServer.close(resolve));
+    await rm(disabledDirectory, { recursive: true, force: true });
+    restoreEnvironment("HUMI_API_DATA_FILE", priorDataFile);
+    restoreEnvironment("HUMI_MEAL_EXECUTION_ENABLED", priorMealEnabled);
+    restoreEnvironment("HUMI_MEAL_EXECUTION_HOUSEHOLDS", priorMealHouseholds);
+  }
+}
+
+function restoreEnvironment(key, value) {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
 }
 
 function mealPlan(householdId, dateKey, idempotencyKey) {

@@ -540,6 +540,63 @@ await check("client telemetry is durable across failure and retry with an unchan
   assert.equal(storage.has("humi:telemetry-queue:v1"), false);
 });
 
+await check("client telemetry keeps only the newest 100 pending events across restart", () => {
+  const storage = new Map();
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  const firstRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
+  }, { wx });
+  for (let index = 0; index < 101; index += 1) {
+    firstRuntime.trackEvent("plan_presented", {
+      page: "tonight",
+      stage: "completed",
+      businessId: `bounded-${String(index).padStart(3, "0")}`,
+    });
+  }
+  assert.equal(firstRuntime.readPendingTelemetry().length, 100);
+  assert.equal(firstRuntime.readPendingTelemetry()[0].fields.businessId, "bounded-001");
+
+  const secondRuntime = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
+  }, { wx });
+  assert.equal(secondRuntime.readPendingTelemetry().length, 100);
+  assert.equal(secondRuntime.readPendingTelemetry()[0].fields.businessId, "bounded-001");
+  assert.equal(storage.get("humi:telemetry-queue:v1").length, 100);
+});
+
+await check("restart discards an oversized persisted event without partially retaining it", () => {
+  const storage = new Map([[
+    "humi:telemetry-queue:v1",
+    [{
+      name: "plan_presented",
+      fields: {
+        page: "tonight",
+        stage: "completed",
+        packageVersion: "1.1.74",
+        businessId: "x".repeat(256 * 1024),
+      },
+      at: 1,
+      businessId: "persisted-oversized",
+      anonymousSessionId: "anonymous-persisted",
+      ownerId: "account-a",
+    }],
+  ]]);
+  const wx = {
+    getStorageSync: (key) => storage.get(key),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key) => storage.delete(key),
+  };
+  const telemetry = loadCommonJs("miniprogram/utils/telemetry.js", {
+    "./config": { HUMI_PACKAGE_VERSION: "1.1.74" },
+  }, { wx });
+  assert.deepEqual(telemetry.readPendingTelemetry(), []);
+  assert.equal(storage.has("humi:telemetry-queue:v1"), false);
+});
+
 await check("cold starts and account transitions rotate telemetry sessions without rewriting queued events", () => {
   const storage = new Map();
   const wx = {

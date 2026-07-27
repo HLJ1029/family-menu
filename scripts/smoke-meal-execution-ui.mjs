@@ -6,9 +6,6 @@ import { createServer } from "vite";
 
 const recipes = JSON.parse(await readFile(new URL("../data/recipes.json", import.meta.url), "utf8"));
 const cookAssist = JSON.parse(await readFile(new URL("../data/cook-assist.json", import.meta.url), "utf8"));
-const todayMenuSource = await readFile(new URL("../src/components/TodayMenu.jsx", import.meta.url), "utf8");
-assert.doesNotMatch(todayMenuSource, /\bDinnerLogPanel\b/, "TodayMenu must not retain the legacy dinner completion panel");
-assert.doesNotMatch(todayMenuSource, /\bcookingStarted\b/, "opening a recipe must not fabricate a cooking state");
 const recipeById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 const pantryFixtureNames = [...new Set(recipes.flatMap((recipe) => (
   (recipe.ingredients || []).map((ingredient) => ingredient.name).filter(Boolean)
@@ -45,6 +42,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const pageErrors = [];
   let cookingFlow = null;
+  await verifyMealExecutionFallbackBranches(browser, `http://127.0.0.1:${address.port}/`);
   for (const tierCase of tierCases) {
     const flow = await verifyTierRotation(browser, baseUrl, tierCase);
     if (tierCase.effortTier === "quick_15") cookingFlow = flow;
@@ -63,6 +61,9 @@ try {
   await page.clock.install({ time: new Date(`${plannedDateKey}T10:00:00.000Z`) });
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "开始做" }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "开始做" }).count(), 1, "planned state must expose exactly one start decision");
+  assert.equal(await page.getByRole("button", { name: "上桌了" }).count(), 0, "planned state must not expose completion before cooking starts");
+  assert.equal(await page.getByTestId("post-cooking-dinner-confirmation").count(), 0, "planned state must not resurrect the legacy dinner confirmation panel");
   await page.getByRole("button", { name: "开始做" }).click();
   await page.getByTestId("meal-cooking-timeline").waitFor();
   assert.equal(await page.getByRole("button", { name: "上桌了" }).count(), 1);
@@ -142,6 +143,87 @@ try {
 } finally {
   await browser?.close();
   await vite.close();
+}
+
+async function verifyMealExecutionFallbackBranches(browser, stableBaseUrl) {
+  const disabled = await openCapabilityFixture(browser, stableBaseUrl, { mealExecution: false });
+  await disabled.page.getByTestId("tonight-primary-action").waitFor();
+  assert.equal(await disabled.page.getByTestId("meal-execution-experience").count(), 0, "disabled capability must retain the stable Tonight experience");
+  await disabled.context.close();
+
+  const enabled = await openCapabilityFixture(browser, stableBaseUrl, { mealExecution: true });
+  await enabled.page.getByTestId("meal-execution-experience").waitFor();
+  assert.equal(await enabled.page.getByTestId("tonight-primary-action").count(), 0, "enabled capability must select the MealRun experience");
+  await enabled.context.close();
+
+  const failed = await openCapabilityFixture(browser, stableBaseUrl, { mealExecution: true, currentRunStatus: 503 });
+  assert.equal(failed.currentRunRequests(), 1, "enabled capability must attempt the actual current MealRun API boundary");
+  await failed.page.getByTestId("tonight-primary-action").waitFor();
+  assert.equal(await failed.page.getByTestId("meal-execution-experience").count(), 0, "MealRun API failure must recover to the stable Tonight experience");
+  await failed.context.close();
+}
+
+async function openCapabilityFixture(browser, stableBaseUrl, { mealExecution, currentRunStatus = 200 }) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  await context.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", JSON.stringify(true));
+    localStorage.setItem("humi:profile-onboarding-complete:v1", JSON.stringify(true));
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "meal-fallback-owner-token",
+      refreshToken: "meal-fallback-owner-token",
+      expiresAt: Date.now() + 60_000,
+      user: {
+        id: "meal-fallback-owner",
+        displayName: "主厨",
+        provider: "wechat",
+        profileStatus: "complete",
+      },
+    }));
+  });
+  const page = await context.newPage();
+  const family = {
+    id: "meal-fallback-family",
+    name: "回退测试家",
+    role: "owner",
+    currentMemberId: "meal-fallback-owner",
+    members: [{ memberId: "meal-fallback-owner", nickname: "主厨", role: "owner", status: "formal" }],
+  };
+  let currentRunRequests = 0;
+  await page.route("**/state", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      state: null,
+      family,
+      households: [family],
+      capabilities: { mealExecution },
+    }),
+  }));
+  await page.route("**/meal-runs/current?**", (route) => {
+    currentRunRequests += 1;
+    return route.fulfill({
+      status: currentRunStatus,
+      contentType: "application/json",
+      body: JSON.stringify(currentRunStatus === 200 ? { mealRun: null } : { error: "temporary_failure", message: "temporary failure" }),
+    });
+  });
+  await page.route("**/recommendations/dinner", (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "temporary_failure", message: "temporary failure" }),
+  }));
+  await page.route("**/product-events", (route) => route.fulfill({
+    status: 202,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true }),
+  }));
+  await page.goto(stableBaseUrl, { waitUntil: "networkidle" });
+  return { context, page, currentRunRequests: () => currentRunRequests };
 }
 
 async function verifyTierRotation(browser, targetUrl, tierCase) {

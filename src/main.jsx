@@ -4596,11 +4596,7 @@ function App() {
                 onSelectPlanningMode={selectPlanningMode}
                 onPlanRecommendedWeek={planRecommendedWeek}
                 mealLog={todayMealLog}
-                mealLogs={mealLogs}
-                onSetDinnerSource={setDinnerSource}
                 onSetMealSource={setMealSource}
-                onSetDinnerConfirmation={setDinnerConfirmation}
-                onToggleConsumedRecipe={toggleConsumedRecipe}
                 canManageHousehold={canManageHousehold}
                 mealExecution={mealExecutionProps}
               />
