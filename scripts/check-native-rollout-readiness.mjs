@@ -76,6 +76,7 @@ const REQUIRED_SCRIPTS = Object.freeze([
   "release:collaboration:smoke",
   "validate:supabase-retirement",
   "release:wechat:privacy:check",
+  "release:local-matrix",
   "build",
   "release:native-shell:check",
 ]);
@@ -124,6 +125,11 @@ await check("required local candidate scripts exist", async () => {
     packageJson.scripts["release:native-shell:check"],
     "node scripts/check-native-rollout-readiness.mjs",
     "native rollout command must invoke the immutable local checker",
+  );
+  assert.equal(
+    packageJson.scripts["release:local-matrix"],
+    "node scripts/run-local-command-matrix.mjs",
+    "release matrix command must invoke the immutable sequential runner",
   );
 });
 
