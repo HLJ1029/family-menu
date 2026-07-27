@@ -159,6 +159,30 @@ assert(
   "unknown dynamic wx properties must fail closed as indeterminate",
 );
 
+const overwrittenComputedProperty = detectRuntimeCapabilities([{
+  path: "overwritten-computed-property.js",
+  source: "let key='safeMethod'; key=getRuntimeKey(); wx[key]();",
+}]);
+assert(
+  overwrittenComputedProperty.parseErrors.some((finding) => (
+    finding.path === "overwritten-computed-property.js"
+    && finding.reason === "indeterminate_wx_property"
+  )),
+  "a dynamic reassignment must invalidate the old static wx property key",
+);
+
+const overwrittenFunctionAlias = detectRuntimeCapabilities([{
+  path: "overwritten-function-alias.js",
+  source: "let invoke=wx.requestPayment; invoke=getRuntimeFunction(); invoke();",
+}]);
+assert(
+  overwrittenFunctionAlias.parseErrors.some((finding) => (
+    finding.path === "overwritten-function-alias.js"
+    && finding.reason === "indeterminate_wx_function_alias"
+  )),
+  "a dynamic reassignment must invalidate the old wx function alias",
+);
+
 for (const tag of ["<ad></ad>", "<ad-custom />", "<AD-BANNER></AD-BANNER>", "<ad-slot></ad-slot>"]) {
   const detected = detectRuntimeCapabilities([{ path: "ad.wxml", source: tag }]);
   assert(detected.forbidden.has("advertising"), `ad tag variant must be detected: ${tag}`);

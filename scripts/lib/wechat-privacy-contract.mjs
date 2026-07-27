@@ -226,66 +226,14 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
       parseErrors.push({ path });
       continue;
     }
-    const objectAliases = new Set(["wx"]);
-    const functionAliases = new Map();
-    const staticStrings = new Map();
-    let changed = true;
-    while (changed) {
-      changed = false;
-      walkAst(ast, (node) => {
-        if (node.type !== "VariableDeclarator" && node.type !== "AssignmentExpression") return;
-        const target = node.type === "VariableDeclarator" ? node.id : node.left;
-        const value = node.type === "VariableDeclarator" ? node.init : node.right;
-        if (!target || !value) return;
-        if (target.type === "Identifier" && value.type === "Identifier") {
-          if (objectAliases.has(value.name)) {
-            if (!objectAliases.has(target.name)) { objectAliases.add(target.name); changed = true; }
-            return;
-          }
-          if (functionAliases.has(value.name)) {
-            const api = functionAliases.get(value.name);
-            if (functionAliases.get(target.name) !== api) {
-              functionAliases.set(target.name, api);
-              changed = true;
-            }
-            return;
-          }
-          if (staticStrings.has(value.name)) {
-            const staticValue = staticStrings.get(value.name);
-            if (staticStrings.get(target.name) !== staticValue) {
-              staticStrings.set(target.name, staticValue);
-              changed = true;
-            }
-            return;
-          }
-        }
-        if (target.type === "Identifier") {
-          const staticValue = evaluateStaticString(value, staticStrings);
-          if (staticValue !== "" && staticStrings.get(target.name) !== staticValue) {
-            staticStrings.set(target.name, staticValue);
-            changed = true;
-          }
-          const api = memberApiName(value, objectAliases, staticStrings);
-          if (api && functionAliases.get(target.name) !== api) {
-            functionAliases.set(target.name, api);
-            changed = true;
-          }
-          return;
-        }
-        if (target.type === "ObjectPattern" && value.type === "Identifier" && objectAliases.has(value.name)) {
-          for (const property of target.properties || []) {
-            if (property.type !== "ObjectProperty" || property.value?.type !== "Identifier") continue;
-            const api = staticPropertyName(property, staticStrings);
-            if (api && functionAliases.get(property.value.name) !== api) {
-              functionAliases.set(property.value.name, api);
-              changed = true;
-            }
-          }
-        }
-      });
-    }
+    const initialAliases = buildAliasState(ast);
+    const dynamicOverwrites = findDynamicOverwrites(ast, initialAliases);
+    const { objectAliases, functionAliases, staticStrings } = buildAliasState(ast, {
+      blockedTargets: dynamicOverwrites,
+    });
     const apiNames = new Set();
     let hasIndeterminateWxProperty = false;
+    let hasIndeterminateFunctionAlias = false;
     walkAst(ast, (node) => {
       const api = memberApiName(node, objectAliases, staticStrings);
       if (api) apiNames.add(api);
@@ -301,13 +249,19 @@ export function detectRuntimeCapabilities(runtimeFiles = []) {
       if (
         (node.type === "CallExpression" || node.type === "OptionalCallExpression")
         && node.callee?.type === "Identifier"
-        && functionAliases.has(node.callee.name)
       ) {
-        apiNames.add(functionAliases.get(node.callee.name));
+        if (functionAliases.has(node.callee.name)) {
+          apiNames.add(functionAliases.get(node.callee.name));
+        } else if (initialAliases.functionAliases.has(node.callee.name)) {
+          hasIndeterminateFunctionAlias = true;
+        }
       }
     });
     if (hasIndeterminateWxProperty) {
       parseErrors.push({ path, reason: "indeterminate_wx_property" });
+    }
+    if (hasIndeterminateFunctionAlias) {
+      parseErrors.push({ path, reason: "indeterminate_wx_function_alias" });
     }
     for (const api of apiNames) {
       for (const id of WX_API_CAPABILITIES[api] || []) record(capabilities, id, path);
@@ -335,6 +289,91 @@ function walkAst(node, visit) {
     if (Array.isArray(value)) value.forEach((entry) => walkAst(entry, visit));
     else if (value && typeof value === "object" && typeof value.type === "string") walkAst(value, visit);
   }
+}
+
+function buildAliasState(ast, { blockedTargets = new Set() } = {}) {
+  const objectAliases = new Set(["wx"]);
+  const functionAliases = new Map();
+  const staticStrings = new Map();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    walkAst(ast, (node) => {
+      if (node.type !== "VariableDeclarator" && node.type !== "AssignmentExpression") return;
+      const target = node.type === "VariableDeclarator" ? node.id : node.left;
+      const value = node.type === "VariableDeclarator" ? node.init : node.right;
+      if (!target || !value) return;
+      if (target.type === "Identifier" && blockedTargets.has(target.name)) return;
+      if (target.type === "Identifier" && value.type === "Identifier") {
+        if (objectAliases.has(value.name)) {
+          if (!objectAliases.has(target.name)) { objectAliases.add(target.name); changed = true; }
+          return;
+        }
+        if (functionAliases.has(value.name)) {
+          const api = functionAliases.get(value.name);
+          if (functionAliases.get(target.name) !== api) {
+            functionAliases.set(target.name, api);
+            changed = true;
+          }
+          return;
+        }
+        if (staticStrings.has(value.name)) {
+          const staticValue = staticStrings.get(value.name);
+          if (staticStrings.get(target.name) !== staticValue) {
+            staticStrings.set(target.name, staticValue);
+            changed = true;
+          }
+          return;
+        }
+      }
+      if (target.type === "Identifier") {
+        const staticValue = evaluateStaticString(value, staticStrings);
+        if (staticValue !== "" && staticStrings.get(target.name) !== staticValue) {
+          staticStrings.set(target.name, staticValue);
+          changed = true;
+        }
+        const api = memberApiName(value, objectAliases, staticStrings);
+        if (api && functionAliases.get(target.name) !== api) {
+          functionAliases.set(target.name, api);
+          changed = true;
+        }
+        return;
+      }
+      if (target.type === "ObjectPattern" && value.type === "Identifier" && objectAliases.has(value.name)) {
+        for (const property of target.properties || []) {
+          if (property.type !== "ObjectProperty" || property.value?.type !== "Identifier") continue;
+          if (blockedTargets.has(property.value.name)) continue;
+          const api = staticPropertyName(property, staticStrings);
+          if (api && functionAliases.get(property.value.name) !== api) {
+            functionAliases.set(property.value.name, api);
+            changed = true;
+          }
+        }
+      }
+    });
+  }
+  return { objectAliases, functionAliases, staticStrings };
+}
+
+function findDynamicOverwrites(ast, aliases) {
+  const blockedTargets = new Set();
+  walkAst(ast, (node) => {
+    if (node.type !== "AssignmentExpression" || node.left?.type !== "Identifier") return;
+    const value = node.right;
+    const resolvable = value?.type === "Identifier" && (
+      aliases.objectAliases.has(value.name)
+      || aliases.functionAliases.has(value.name)
+      || aliases.staticStrings.has(value.name)
+    );
+    if (
+      !resolvable
+      && evaluateStaticString(value, aliases.staticStrings) === ""
+      && !memberApiName(value, aliases.objectAliases, aliases.staticStrings)
+    ) {
+      blockedTargets.add(node.left.name);
+    }
+  });
+  return blockedTargets;
 }
 
 function memberApiName(node, objectAliases, staticStrings = new Map()) {
