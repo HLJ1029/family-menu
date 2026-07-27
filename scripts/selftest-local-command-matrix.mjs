@@ -37,6 +37,9 @@ const HELPER_OWNER = "humi-local-command-matrix-selftest";
 const HELPER_OWNER_SCHEMA_VERSION = 1;
 const HELPER_STALE_AFTER_MS = 24 * 60 * 60 * 1_000;
 const HELPER_OWNER_MAX_BYTES = 4_096;
+const HELPER_PERMISSION_MASK = 0o777;
+const HELPER_RUN_MODE = 0o700;
+const HELPER_OWNER_MODE = 0o600;
 const root = await mkdtemp(join(tmpdir(), "humi-local-matrix-selftest-"));
 
 try {
@@ -292,10 +295,17 @@ async function testHelperScratchCleanupIsConservative() {
       return null;
     }
   })();
-  const makeRun = async ({ startedAtMs, pid, marker = "valid" }) => {
+  const makeRun = async ({
+    startedAtMs,
+    pid,
+    marker = "valid",
+    runMode = 0o700,
+    markerMode = 0o600,
+  }) => {
     const runName = `run-${startedAtMs}-${pid}-${randomUUID()}`;
     const runPath = join(scratchRoot, runName);
     await mkdir(runPath, { recursive: true, mode: 0o700 });
+    await chmod(runPath, runMode);
     const contents = marker === "valid"
       ? JSON.stringify({
         schemaVersion: 1,
@@ -307,6 +317,7 @@ async function testHelperScratchCleanupIsConservative() {
       })
       : marker;
     await writeFile(join(runPath, "fixture-owner"), `${contents}\n`, { mode: 0o600 });
+    await chmod(join(runPath, "fixture-owner"), markerMode);
     return runPath;
   };
 
@@ -316,6 +327,16 @@ async function testHelperScratchCleanupIsConservative() {
   const liveOld = await makeRun({ startedAtMs: oldMs - 1, pid: process.pid });
   const freshDead = await makeRun({ startedAtMs: nowMs - 1, pid: deadPid });
   const invalidMarker = await makeRun({ startedAtMs: oldMs - 2, pid: deadPid, marker: "{}" });
+  const invalidRunMode = await makeRun({
+    startedAtMs: oldMs - 3,
+    pid: deadPid,
+    runMode: 0o755,
+  });
+  const invalidMarkerMode = await makeRun({
+    startedAtMs: oldMs - 4,
+    pid: deadPid,
+    markerMode: 0o640,
+  });
   const markerSymlink = await makeRun({ startedAtMs: oldMs - 3, pid: deadPid });
   const markerSymlinkPath = join(markerSymlink, "fixture-owner");
   const markerSymlinkTarget = join(root, "helper-cleanup-marker-target");
@@ -337,11 +358,33 @@ async function testHelperScratchCleanupIsConservative() {
   assert.equal((await lstat(symlinkPath)).isSymbolicLink(), true);
   assert.equal((await stat(symlinkTarget)).isDirectory(), true);
   assert.equal((await stat(invalidMarker)).isDirectory(), true);
+  assert.equal((await stat(invalidRunMode)).isDirectory(), true);
+  assert.equal((await stat(invalidMarkerMode)).isDirectory(), true);
   assert.equal((await stat(markerSymlink)).isDirectory(), true);
   assert.equal((await lstat(markerSymlinkPath)).isSymbolicLink(), true);
 
+  const changedRunPid = deadPid - 2;
+  const changedMarkerPid = deadPid - 3;
+  const changedRunMode = await makeRun({ startedAtMs: oldMs - 5, pid: changedRunPid });
+  const changedMarkerMode = await makeRun({ startedAtMs: oldMs - 6, pid: changedMarkerPid });
+  await removeStaleHelperScratchRuns(scratchRoot, {
+    inspectProcess: async (pid) => {
+      if (pid === changedRunPid) {
+        await chmod(changedRunMode, 0o755);
+        return { state: "dead", processStartedAt: null };
+      }
+      if (pid === changedMarkerPid) {
+        await chmod(join(changedMarkerMode, "fixture-owner"), 0o640);
+        return { state: "dead", processStartedAt: null };
+      }
+      return { state: "live", processStartedAt: null };
+    },
+  });
+  assert.equal((await stat(changedRunMode)).isDirectory(), true);
+  assert.equal((await stat(changedMarkerMode)).isDirectory(), true);
+
   const unknownPid = deadPid - 1;
-  const unknownProcess = await makeRun({ startedAtMs: oldMs - 4, pid: unknownPid });
+  const unknownProcess = await makeRun({ startedAtMs: oldMs - 7, pid: unknownPid });
   await removeStaleHelperScratchRuns(scratchRoot, {
     inspectProcess: async (pid) => pid === unknownPid
       ? { state: "unknown", processStartedAt: null }
@@ -472,6 +515,10 @@ async function removeStaleHelperScratchRuns(
       decisions.push("run_not_regular_directory");
       continue;
     }
+    if (!hasExactPermissionMode(runState, HELPER_RUN_MODE)) {
+      decisions.push("run_mode_invalid");
+      continue;
+    }
 
     let canonicalRunPath;
     try {
@@ -496,6 +543,10 @@ async function removeStaleHelperScratchRuns(
         || markerState.size > HELPER_OWNER_MAX_BYTES
         || await realpath(markerPath) !== markerPath) {
         decisions.push("owner_marker_not_regular");
+        continue;
+      }
+      if (!hasExactPermissionMode(markerState, HELPER_OWNER_MODE)) {
+        decisions.push("owner_marker_mode_invalid");
         continue;
       }
       markerText = await readFile(markerPath, "utf8");
@@ -545,8 +596,10 @@ async function removeStaleHelperScratchRuns(
       ]);
       if (finalRunState.isSymbolicLink()
         || !finalRunState.isDirectory()
+        || !hasExactPermissionMode(finalRunState, HELPER_RUN_MODE)
         || finalMarkerState.isSymbolicLink()
         || !finalMarkerState.isFile()
+        || !hasExactPermissionMode(finalMarkerState, HELPER_OWNER_MODE)
         || finalRunPath !== stalePath
         || finalMarkerPath !== markerPath
         || !sameFileIdentity(runState, finalRunState)
@@ -633,6 +686,10 @@ function readHelperProcessStartEvidence(pid) {
 
 function sameFileIdentity(first, second) {
   return first.dev === second.dev && first.ino === second.ino;
+}
+
+function hasExactPermissionMode(fileState, expectedMode) {
+  return (fileState.mode & HELPER_PERMISSION_MASK) === expectedMode;
 }
 
 function checkedHelperRunPath(scratchRoot, runName) {
