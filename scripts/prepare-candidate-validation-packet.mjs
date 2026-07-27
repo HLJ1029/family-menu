@@ -4,14 +4,21 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { buildCandidateFormsPreviewHtml, CANDIDATE_FORMS_PREVIEW_FILE } from "./lib/candidate-forms-preview.mjs";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
 
 const execFileAsync = promisify(execFile);
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
 
 const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z");
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || join(privateBaseDir, `candidate-validation-${stamp}`);
 const shouldOpen = process.env.HUMI_CANDIDATE_VALIDATION_NO_OPEN !== "1";
-const selftestMode = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1";
+const selftestMode = releaseStatusFixtureGuard.authorized
+  && process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1";
 
 const [gitState, candidate, status] = await Promise.all([
   readGitState(),

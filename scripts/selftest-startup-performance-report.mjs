@@ -26,7 +26,7 @@ function parseReport(runResult) {
 
 async function writePerformanceFixture(root, {
   durations = [400, 1000, 2500],
-  packageVersion = "1.1.74",
+  packageVersion = "1.1.75",
   manifestVersion = 3,
   descriptorVersion = 2,
   unsafeMediaPath = false,

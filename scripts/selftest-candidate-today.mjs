@@ -7,6 +7,8 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const baseDir = await mkdtemp(join(tmpdir(), "humi-candidate-today-"));
 const packetDir = join(baseDir, "candidate-validation-20260707T000000Z");
+const fixtureEvidencePath = join(baseDir, "release-evidence.md");
+await writeFile(fixtureEvidencePath, "candidate today fixture\n", { mode: 0o600 });
 
 await execFileAsync("node", ["scripts/prepare-candidate-validation-packet.mjs"], {
   env: {
@@ -15,6 +17,9 @@ await execFileAsync("node", ["scripts/prepare-candidate-validation-packet.mjs"],
     HUMI_CANDIDATE_VALIDATION_DIR: packetDir,
     HUMI_CANDIDATE_VALIDATION_NO_OPEN: "1",
     HUMI_CANDIDATE_PREPARE_SELFTEST: "1",
+    HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+    HUMI_EVIDENCE_LOG_PATH: fixtureEvidencePath,
+    NODE_ENV: "test",
   },
   timeout: 180_000,
   maxBuffer: 1024 * 1024 * 8,

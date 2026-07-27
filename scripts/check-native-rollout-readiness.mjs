@@ -6,16 +6,18 @@ import { fileURLToPath } from "node:url";
 import { checkSupabaseRetirement } from "./check-supabase-retirement.mjs";
 import {
   assertNativeArtifactMatchesCommit,
+  verifyNativeCandidateUploadEvidence,
 } from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
 import {
   EXTERNAL_ACTION_KEYS,
   extractNativeCandidateArtifactPath,
   extractNativeCandidateCommit,
-  extractPlatformEvidence,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
+  validateNativeCandidateEvidence,
   validateNativeCandidateState,
+  validateWechatPlatformEvidence,
 } from "./lib/native-rollout-readiness-policy.mjs";
 import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
 import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
@@ -33,17 +35,13 @@ const SUBPACKAGE_LIMIT_BYTES = 2 * 1024 * 1024;
 const TOTAL_PACKAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 const EXPECTED_API_ORIGIN = "https://api.humi-home.com";
 const EXPECTED_WEB_ORIGIN = "https://www.humi-home.com";
-const EXPECTED_CURRENT_ACTIONS = Object.freeze({
+const EXPECTED_LAST_UPLOAD_ACTIONS = Object.freeze({
   production_api_deployed: true,
   h5_deployed: true,
-  miniprogram_uploaded: false,
+  miniprogram_uploaded: true,
   wechat_review_submitted: false,
   wechat_released: false,
   native_allowlist_enabled: false,
-});
-const EXPECTED_LAST_UPLOAD_ACTIONS = Object.freeze({
-  ...EXPECTED_CURRENT_ACTIONS,
-  miniprogram_uploaded: true,
 });
 const REQUIRED_SCRIPTS = Object.freeze([
   "validate:data",
@@ -276,20 +274,28 @@ await check("server-flag rollback returns to H5 without deleting product caches"
   assert.equal(rollbackReport.allowlistPreserved, true, "the test household allowlist must remain unchanged");
 });
 
-let repositoryCandidateState = null;
-let platformEvidenceSource = "";
-await check("repository handoff records current 1.1.75 candidate state", async () => {
+let currentCandidateState = null;
+let currentCandidateVerification = null;
+const candidateEvidencePath = resolve(
+  process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH
+    || resolve(ROOT, "docs/native-candidate-evidence.json"),
+);
+await check("structured evidence records the current 1.1.75 candidate state", async () => {
+  const evidence = JSON.parse(await readFile(candidateEvidencePath, "utf8"));
+  currentCandidateState = validateNativeCandidateEvidence(evidence, {
+    expectedVersion: packageVersion,
+  });
+  currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
+    candidate: currentCandidateState,
+    repoRoot: ROOT,
+    evidenceBaseDir: dirname(candidateEvidencePath),
+  });
+});
+
+await check("repository handoff explains current candidate boundaries", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
-  repositoryCandidateState = validateNativeCandidateState(handoff, {
-    expectedPackageVersion: packageVersion,
-    expectedStatus: "local-candidate",
-    expectedExternalActions: EXPECTED_CURRENT_ACTIONS,
-    expectedTrueDeviceEvidence: `0/${REQUIRED_SCENARIOS.length}`,
-  });
-  platformEvidenceSource = handoff;
-  assert.match(handoff, /request\/downloadFile[\s\S]{0,200}(?:200|已验证|通过)/i);
   assert.match(tracker, /原生壳候选：local-candidate/);
   assert.match(tracker, /原生包版本：`1\.1\.75`/);
   assert.match(tracker, /最近已上传体验版：`1\.1\.74`/);
@@ -297,6 +303,13 @@ await check("repository handoff records current 1.1.75 candidate state", async (
   assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));
   assert.match(apiContract, /关闭 `HUMI_NATIVE_SHELL_ENABLED`/);
   assert.match(apiContract, /不删除 MealRun/);
+});
+
+let platformEvidence = null;
+await check("structured WeChat platform evidence is valid", async () => {
+  platformEvidence = validateWechatPlatformEvidence(
+    JSON.parse(await text("docs/wechat-platform-evidence.json")),
+  );
 });
 
 let externalHandoffPath = "";
@@ -334,28 +347,33 @@ if (externalHandoffPath) {
 }
 
 await check("current 1.1.75 candidate has immutable upload evidence", async () => {
-  throw new Error(
+  assert.equal(
+    currentCandidateVerification?.uploaded,
+    true,
     "1.1.75 is a local candidate and has not been archived or uploaded; create a fresh immutable archive and obtain explicit upload authorization before N5c",
   );
 });
 
-const platformEvidence = extractPlatformEvidence(platformEvidenceSource);
 const blockers = [];
-if (!platformEvidence.webViewDomainVerified) {
+if (!platformEvidence?.webViewDomainVerified) {
   blockers.push("WeChat web-view business-domain screenshot/confirmation is still required.");
 }
 if (!platformEvidence.privacyDeclarationVerified) {
   blockers.push("WeChat platform privacy declaration and screenshot are still required.");
 }
 blockers.push(
-  "Current 1.1.75 candidate needs a fresh immutable archive and explicit upload authorization.",
-  `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence is not valid until 1.1.75 is uploaded.`,
+  ...(!currentCandidateVerification?.uploaded
+    ? [
+      "Current 1.1.75 candidate needs a fresh immutable archive and explicit upload authorization.",
+      `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence is not valid until 1.1.75 is uploaded.`,
+    ]
+    : []),
   "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
 );
 
 const report = {
   contractOk: failures.length === 0,
-  status: "local-candidate",
+  status: currentCandidateState?.status || "invalid",
   ads: "excluded",
   checks,
   package: packageReport,
@@ -370,19 +388,27 @@ const report = {
   },
   currentCandidate: {
     version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-    uploadStatus: "not_uploaded",
+    uploadStatus: currentCandidateVerification?.uploaded ? "uploaded" : "not_uploaded",
     runtimeDriftFromLastUpload: runtimeDriftFiles,
-    immutableArchivePresent: false,
+    immutableArchivePresent: Boolean(currentCandidateVerification?.uploaded),
+    runtimeCommit: currentCandidateVerification?.runtimeCommit || null,
   },
   evidenceLevel: externalHandoffPath ? "external-handoff" : "local-contract",
-  externalActions: repositoryCandidateState
-    ? Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, repositoryCandidateState[action]]))
-    : { ...EXPECTED_CURRENT_ACTIONS },
+  externalActions: currentCandidateState
+    ? {
+      production_api_deployed: currentCandidateState.actions.productionApiDeployed,
+      h5_deployed: currentCandidateState.actions.h5Deployed,
+      miniprogram_uploaded: currentCandidateState.actions.miniprogramUploaded,
+      wechat_review_submitted: currentCandidateState.actions.wechatReviewSubmitted,
+      wechat_released: currentCandidateState.actions.wechatReleased,
+      native_allowlist_enabled: currentCandidateState.actions.nativeAllowlistEnabled,
+    }
+    : Object.fromEntries(EXTERNAL_ACTION_KEYS.map((action) => [action, false])),
   platformEvidence: {
-    trueDevicePassed: 0,
-    trueDeviceRequired: REQUIRED_SCENARIOS.length,
+    trueDevicePassed: currentCandidateState?.trueDeviceEvidence.passed ?? 0,
+    trueDeviceRequired: currentCandidateState?.trueDeviceEvidence.required ?? REQUIRED_SCENARIOS.length,
     complete: false,
-    ...platformEvidence,
+    ...(platformEvidence || {}),
     startupBudgetsVerifiedOnDevice: false,
   },
   blockers,

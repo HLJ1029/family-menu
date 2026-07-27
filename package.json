@@ -45,10 +45,11 @@
     "validate:native-observability": "node scripts/check-native-observability.mjs",
     "release:native-shell:check": "node scripts/check-native-rollout-readiness.mjs",
     "release:native-shell:check:local": "node scripts/check-native-rollout-readiness.mjs --local-contract-only",
-    "release:native-shell:check:selftest": "node scripts/selftest-native-rollout-readiness.mjs",
+    "release:native-shell:check:selftest": "node scripts/selftest-structured-release-evidence.mjs && node scripts/selftest-native-rollout-readiness.mjs",
     "release:candidate:roles:selftest": "node scripts/selftest-release-candidate-roles.mjs",
     "release:wechat:privacy:check": "node scripts/check-wechat-privacy-contract.mjs",
-    "release:wechat:privacy:selftest": "node scripts/selftest-wechat-privacy-contract.mjs",
+    "release:wechat:privacy:selftest": "node scripts/selftest-wechat-privacy-contract.mjs && node scripts/selftest-wechat-privacy-behavior.mjs && node scripts/selftest-wechat-submit-copy.mjs",
+    "release:status:fixture:selftest": "node scripts/selftest-release-status-fixture-guard.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",
     "validate:meal-execution-ui": "node scripts/smoke-meal-execution-ui.mjs",
     "validate:miniprogram-meal-reminder": "node scripts/check-miniprogram-meal-reminder.mjs && node scripts/check-native-reminder-session-recovery.mjs",
@@ -145,6 +146,7 @@
     "vite": "^7.2.4"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
     "playwright": "^1.60.0"
   }
 }

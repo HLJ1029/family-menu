@@ -2,6 +2,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
+import { runWechatPrivacyBehaviorChecks } from "./lib/wechat-privacy-behavior.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const runtimeFiles = await listTextFiles(resolve(ROOT, "miniprogram"));
@@ -9,13 +10,26 @@ const declaration = JSON.parse(
   await readFile(resolve(ROOT, "docs/wechat-privacy-declaration.json"), "utf8"),
 );
 const report = auditWechatPrivacyContract({ runtimeFiles, declaration });
+const behavior = runWechatPrivacyBehaviorChecks({ root: ROOT });
+const readme = await readFile(resolve(ROOT, "miniprogram/README.md"), "utf8");
+const documentation = {
+  ok: declaration.platformDeclarationStatus === "pending"
+    && !readme.includes("隐私保护指引已填写")
+    && readme.includes("隐私保护指引仍待在微信后台填写并留证"),
+  platformDeclarationStatus: declaration.platformDeclarationStatus,
+  readmeClaimsPlatformComplete: readme.includes("隐私保护指引已填写"),
+};
+const ok = report.ok && behavior.ok && documentation.ok;
 
 console.log(JSON.stringify({
   ...report,
+  ok,
+  behavior,
+  documentation,
   declarationPath: "docs/wechat-privacy-declaration.json",
   platformDeclarationStatus: declaration.platformDeclarationStatus,
 }, null, 2));
-if (!report.ok) process.exitCode = 1;
+if (!ok) process.exitCode = 1;
 
 async function listTextFiles(directory) {
   const files = [];

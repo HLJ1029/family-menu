@@ -92,6 +92,40 @@ export async function assertNativeRuntimeMatchesCommit({
   return true;
 }
 
+export async function verifyNativeCandidateUploadEvidence({
+  candidate,
+  repoRoot,
+  evidenceBaseDir,
+}) {
+  const version = String(candidate?.version || "");
+  if (!candidate?.actions?.miniprogramUploaded) return { uploaded: false, version };
+  const artifactPath = resolve(
+    String(evidenceBaseDir || ""),
+    String(candidate?.archive?.path || ""),
+  );
+  const content = await readFile(artifactPath);
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  if (sha256 !== candidate.archive.sha256) {
+    throw new Error(`native source archive sha256 mismatch: expected ${candidate.archive.sha256}, received ${sha256}`);
+  }
+  await assertNativeArtifactMatchesCommit({
+    artifactPath,
+    repoRoot,
+    commit: candidate.runtimeCommit,
+  });
+  await assertNativeRuntimeMatchesCommit({
+    repoRoot,
+    commit: candidate.runtimeCommit,
+  });
+  return {
+    uploaded: true,
+    version,
+    runtimeCommit: candidate.runtimeCommit,
+    artifactPath,
+    sha256,
+  };
+}
+
 async function extractArchive(archivePath, targetRoot, { gzip }) {
   await mkdir(targetRoot, { recursive: true });
   const listArgs = gzip ? ["-tzf", archivePath] : ["-tf", archivePath];

@@ -13,15 +13,26 @@ import {
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
+import { validateNativeCandidateEvidence } from "./lib/native-rollout-readiness-policy.mjs";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
 
 const execFileAsync = promisify(execFile);
 
-const lifecycleSelftest = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
+const lifecycleSelftest = releaseStatusFixtureGuard.authorized
+  && process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
 const fixtureEvidence = lifecycleSelftest
   ? await runJsonScript("release:evidence:check", { allowFailure: true })
   : null;
+const fixtureCandidate = lifecycleSelftest
+  ? await readLifecycleCandidateEvidence()
+  : null;
 const status = lifecycleSelftest
-  ? buildLifecycleFixtureStatus(fixtureEvidence)
+  ? buildLifecycleFixtureStatus(fixtureEvidence, fixtureCandidate)
   : await runJsonScript("release:status", {
     allowFailure: false,
     timeoutMs: 240_000,
@@ -75,6 +86,21 @@ if (status.release?.releaseComplete) {
   nextStage.actions.forEach((action, index) => {
     lines.push(`${index + 1}. ${action}`);
   });
+} else if (
+  status.release?.currentCandidateUploaded === true
+  && missingSections.includes("## 4. 微信公众平台提交审核证据")
+) {
+  stageScope = "native-evidence";
+  lines.push("当前阶段：N5c 真机与平台证据验收，暂不进入微信审核。");
+  lines.push("");
+  lines.push("下一步一句话：1.1.75 体验版已上传；现在只验收 56 项真机、三项启动性能、web-view 域名和平台隐私声明，不提审、不发布、不开开关或白名单。");
+  lines.push("");
+  lines.push("现在该做：");
+  lines.push("1. 用 1.1.75 体验版在约定的 iOS 与 Android 真机逐项执行 56 行验收，1.1.74 的历史结果不得复用。");
+  lines.push("2. 分别记录冷启动、暖启动和缓存命中三项真机性能；证据必须绑定 1.1.75、设备、微信版本和私有证据位置。");
+  lines.push("3. 在微信公众平台补齐并复核 web-view 业务域名、隐私保护指引和开发者工具登录态的私有截图证据。");
+  lines.push("4. 运行 npm run validate:true-device-evidence、npm run validate:startup-performance、npm run release:wechat:privacy:check 和 npm run release:native-shell:check:local。");
+  lines.push("5. N5c 证据全部通过后停下来验收；未经新的明确授权，不执行审核、发布、开关或白名单动作。");
 } else if (
   CURRENT_MINIPROGRAM_VERSION === "1.1.75"
   && missingSections.includes("## 4. 微信公众平台提交审核证据")
@@ -388,7 +414,7 @@ function parseLastJson(output) {
   }
 }
 
-function buildLifecycleFixtureStatus(evidence) {
+function buildLifecycleFixtureStatus(evidence, candidate) {
   return {
     git: {
       head: "lifecycle-selftest",
@@ -396,7 +422,7 @@ function buildLifecycleFixtureStatus(evidence) {
     },
     release: {
       releaseComplete: false,
-      currentCandidateUploaded: false,
+      currentCandidateUploaded: candidate.actions.miniprogramUploaded,
       miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
       miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
       lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
@@ -413,6 +439,14 @@ function buildLifecycleFixtureStatus(evidence) {
     ],
     nextActions: [],
   };
+}
+
+async function readLifecycleCandidateEvidence() {
+  const path = process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH;
+  if (!path) throw new Error("lifecycle fixture requires HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH");
+  return validateNativeCandidateEvidence(JSON.parse(await readFile(path, "utf8")), {
+    expectedVersion: CURRENT_MINIPROGRAM_VERSION,
+  });
 }
 
 function getMaterialList(scope) {
@@ -539,6 +573,15 @@ function getCompletionCriteria(scope) {
       "新封包：1.1.75 必须生成新的不可变归档并绑定候选提交、版本和 SHA-256。",
       "动作授权：只有获得针对 1.1.75 上传的明确授权后才能上传；上传后才进入 N5c。",
       "状态边界：1.1.75 保持未上传、未提审、未发布，native/meal 开关为 0，两个家庭白名单为空。",
+    ];
+  }
+  if (scope === "native-evidence") {
+    return [
+      "候选身份：所有真机与平台证据必须绑定当前已上传的 1.1.75，不得复用 1.1.74 的 0/36 历史结果。",
+      "真机矩阵：validate:true-device-evidence 必须完成并通过 56/56，iOS 与 Android 的设备和微信版本信息完整。",
+      "启动性能：冷启动、暖启动和缓存命中三项预算必须在约定真机通过，并保留私有原始证据。",
+      "平台证据：web-view 业务域名、隐私保护指引和开发者工具登录态必须由严格结构化证据标记为已验证。",
+      "动作边界：N5c 只收集证据；审核、发布、native/meal 开关和两个家庭白名单继续保持不变。",
     ];
   }
 

@@ -7,11 +7,26 @@ import {
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
+import { deriveNativeReleaseState } from "./lib/native-rollout-readiness-policy.mjs";
 
 const execFileAsync = promisify(execFile);
-const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
-const skipCandidatePrepareSelftest = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1" || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1";
-const skipProductSmoke = completionSelftestAllowDirty || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1";
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
+const fixtureMode = releaseStatusFixtureGuard.authorized;
+const completionSelftestAllowDirty = fixtureMode
+  && process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
+const skipCandidatePrepareSelftest = fixtureMode && (
+  process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1"
+  || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1"
+);
+const skipProductSmoke = fixtureMode && (
+  completionSelftestAllowDirty
+  || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1"
+);
 
 async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
   const startedAt = Date.now();
@@ -230,11 +245,20 @@ const missingReleaseSections = new Set(
 const wechatReviewSubmitted = !missingReleaseSections.has("## 4. 微信公众平台提交审核证据");
 const wechatReleased = !missingReleaseSections.has("## 6. 审核通过后发布证据");
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
+const nativeReleaseState = deriveNativeReleaseState(nativeRollout.data, {
+  expectedVersion: CURRENT_MINIPROGRAM_VERSION,
+});
 
 const nextActions = [];
-nextActions.push(
-  "Create and verify an immutable 1.1.75 candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.",
-);
+if (!nativeReleaseState.currentCandidateUploaded) {
+  nextActions.push(
+    "Create and verify an immutable 1.1.75 candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.",
+  );
+} else {
+  nextActions.push(
+    "Run N5c true-device, startup-performance, web-view domain, and platform privacy evidence checks; do not submit for review, publish, or enable flags/allowlists without new authorization.",
+  );
+}
 if (!git.clean || !git.syncedToOriginMain) {
   nextActions.push("Clean and sync local main with origin/main.");
 }
@@ -250,7 +274,7 @@ if (!securityAuditOk) {
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
 }
-if (!nativeRolloutOk) {
+if (!nativeRolloutOk && !nativeReleaseState.currentCandidateUploaded) {
   nextActions.push("Keep 1.1.74@4eb3fbeb as immutable historical upload evidence; package 1.1.75 separately and obtain fresh upload authorization.");
 }
 if (!paletteValidationOk) {
@@ -360,6 +384,7 @@ if (releaseComplete) {
 console.log(JSON.stringify({
   ok: platformSubmitReady && apiDeployReady && preReviewHardeningReady,
   checkedAt: new Date().toISOString(),
+  releaseStatusFixtureGuard,
   git,
   release: {
     onlineReady: onlineOk,
@@ -401,19 +426,19 @@ console.log(JSON.stringify({
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: null,
+    miniProgramUploadedVersion: nativeReleaseState.miniProgramUploadedVersion,
     miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
     miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
     lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
     lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
-    nativeCheckpoint: "N5b_refresh_packaging_authorization",
-    currentCandidateUploaded: false,
-    trueDeviceEvidence: "0/56",
+    nativeCheckpoint: nativeReleaseState.nativeCheckpoint,
+    currentCandidateUploaded: nativeReleaseState.currentCandidateUploaded,
+    trueDeviceEvidence: nativeReleaseState.trueDeviceEvidence,
     wechatReviewSubmitted,
     wechatReleased,
-    nativeAllowlistEnabled: false,
-    platformPrivacyDeclaration: "pending",
-    webViewDomainEvidence: "pending",
+    nativeAllowlistEnabled: nativeReleaseState.nativeAllowlistEnabled,
+    platformPrivacyDeclaration: nativeReleaseState.platformPrivacyDeclaration,
+    webViewDomainEvidence: nativeReleaseState.webViewDomainEvidence,
   },
   requiredArtifacts: artifacts,
   preReviewHardening,

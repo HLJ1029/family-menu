@@ -278,6 +278,9 @@ const firstUse = {
 };
 const firstUsePage = loadIdentityPage({ user: firstUse });
 firstUsePage.page.onLoad();
+assert.equal(firstUsePage.calls.login, 0, "identity page load must not start WeChat login without the explicit login action");
+assert.equal(firstUsePage.calls.getUserProfile, 0, "identity page load must not request profile permission");
+assert.equal(firstUsePage.calls.request.length, 0, "identity page load must not upload or persist profile data");
 assert.equal(firstUse.profileStatus, "incomplete", "silent account login must remain explicitly incomplete");
 assert.equal(firstUsePage.page.data.displayName, "", "first use must not prefill a default nickname");
 assert.equal(firstUsePage.page.data.selectedAvatarKey, "", "a server fallback avatar is not an explicit picker choice");

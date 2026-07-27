@@ -119,6 +119,7 @@ page.onLoad({
   title: encodeURIComponent("今晚菜单"),
   action: "share",
 });
+assert(calls.save === 0, "poster page load must not write to the photo album");
 assert(page.data.token === token, "poster page should accept an opaque token");
 assert(page.data.imageUrl === `https://api.humi-home.com/poster-shares/${token}.jpg`, "poster page should build production image URL");
 assert(page.data.title === "今晚菜单", "poster page should decode title");

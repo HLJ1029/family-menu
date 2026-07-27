@@ -7,10 +7,12 @@ import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
 const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
 const tempEvidence = join(tempDir, "evidence.md");
 const tempHardening = join(tempDir, "hardening.md");
+const tempCandidateEvidence = join(tempDir, "native-candidate-evidence.json");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
+  await writeCandidateEvidence({ uploaded: false });
   await assertNext("1.1.75 候选封包与上传授权");
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
@@ -27,13 +29,21 @@ try {
   await assertNext("1.1.75 候选封包与上传授权");
   await writeValidCandidatePacket(tempDir);
 
+  await writeCandidateEvidence({ uploaded: true });
+  await assertNext("N5c 真机与平台证据验收", {
+    forbidden: [
+      "当前阶段：1.1.75 候选封包与上传授权",
+      "进入微信公众平台提交审核",
+    ],
+  });
+
   const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
   await mkdir(tempSubmitDir, { recursive: true });
   await writeFile(join(tempSubmitDir, "humi-review-submitted.png"), "fake screenshot bytes");
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
   await rm(tempSubmitDir, { recursive: true, force: true });
 
-  await assertNext("1.1.75 候选封包与上传授权");
+  await assertNext("N5c 真机与平台证据验收");
 
   await run("release:evidence:record:submit", {
     HUMI_WECHAT_SUBMIT_TIME: "2026-07-03 14:30 CST",
@@ -106,8 +116,11 @@ async function assertNext(expected, options = {}) {
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
+      HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH: tempCandidateEvidence,
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
       HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST: "1",
+      HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+      NODE_ENV: "test",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
@@ -124,6 +137,34 @@ async function assertNext(expected, options = {}) {
   }
 }
 
+async function writeCandidateEvidence({ uploaded }) {
+  const runtimeCommit = "a".repeat(40);
+  const candidate = {
+    version: "1.1.75",
+    status: uploaded ? "uploaded-experience" : "local-candidate",
+    runtimeCommit: uploaded ? runtimeCommit : null,
+    archive: uploaded
+      ? {
+        path: "private://candidate/humi-native-shell-1.1.75.tar.gz",
+        sha256: "b".repeat(64),
+      }
+      : null,
+    actions: {
+      productionApiDeployed: true,
+      h5Deployed: true,
+      miniprogramUploaded: uploaded,
+      wechatReviewSubmitted: false,
+      wechatReleased: false,
+      nativeAllowlistEnabled: false,
+    },
+    trueDeviceEvidence: {
+      passed: 0,
+      required: 56,
+    },
+  };
+  await writeFile(tempCandidateEvidence, JSON.stringify({ schemaVersion: 1, candidate }, null, 2));
+}
+
 async function run(script, extraEnv) {
   execFileSync("npm", ["run", script], {
     env: {
@@ -132,6 +173,8 @@ async function run(script, extraEnv) {
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
+      HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+      NODE_ENV: "test",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,

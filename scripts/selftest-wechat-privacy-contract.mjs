@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
+import {
+  auditWechatPrivacyContract,
+  detectRuntimeCapabilities,
+} from "./lib/wechat-privacy-contract.mjs";
 
 const runtimeFiles = [
   { path: "miniprogram/app.js", source: "wx.login({ success() {} });" },
@@ -98,6 +101,33 @@ withoutSubscription.capabilities = withoutSubscription.capabilities.filter(
 assertFinding(
   auditWechatPrivacyContract({ runtimeFiles, declaration: withoutSubscription }),
   "undeclared_runtime_capability",
+);
+
+const bypassFixtures = [
+  ["identity bracket", "const run = wx['login']; run({});", "wechat_identity"],
+  ["location alias", "const sdk = wx; sdk.getLocation({});", "location"],
+  ["contacts destructure", "const { chooseContact: select } = wx; select({});", "contacts"],
+  ["camera property", "const camera = wx.createCameraContext; camera();", "camera"],
+  ["microphone newline", "wx\n  .getRecorderManager();", "microphone"],
+  ["payment bracket", "wx[`requestPayment`]({});", "payments"],
+  ["album read alias", "const media = wx.chooseMedia; media({});", "photo_album_read"],
+  ["advertising destructure", "const { createBannerAd } = wx; createBannerAd({});", "advertising"],
+];
+for (const [name, source, expected] of bypassFixtures) {
+  const detected = detectRuntimeCapabilities([{ path: `${name}.js`, source }]);
+  assert(detected.forbidden.has(expected) || detected.capabilities.has(expected), `${name}: ${expected}`);
+}
+
+for (const tag of ["<ad></ad>", "<ad-custom />", "<AD-BANNER></AD-BANNER>", "<ad-slot></ad-slot>"]) {
+  const detected = detectRuntimeCapabilities([{ path: "ad.wxml", source: tag }]);
+  assert(detected.forbidden.has("advertising"), `ad tag variant must be detected: ${tag}`);
+}
+
+const contradictoryDocs = structuredClone(canonicalDeclaration);
+contradictoryDocs.absentCapabilities.push("wechat_identity");
+assertFinding(
+  auditWechatPrivacyContract({ runtimeFiles, declaration: contradictoryDocs }),
+  "false_absence_claim",
 );
 
 const falseAbsence = structuredClone(canonicalDeclaration);

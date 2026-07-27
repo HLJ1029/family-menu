@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "checks": {
+    "requestDomain": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5b-request-domain"
+    },
+    "downloadFileDomain": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5b-download-domain"
+    },
+    "webViewDomain": {
+      "verified": false,
+      "status": "pending",
+      "ref": null
+    },
+    "privacyDeclaration": {
+      "verified": false,
+      "status": "pending",
+      "ref": null
+    },
+    "devtoolsAuthenticated": {
+      "verified": false,
+      "status": "pending",
+      "ref": null
+    },
+    "productionLegacyH5Smoke": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5a-h5-smoke"
+    }
+  }
+}

@@ -13,19 +13,34 @@ try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
   await fillCompleteEvidence(tempEvidence);
 
-  const { stdout } = await execFileAsync("npm", ["run", "release:complete:check"], {
-    env: {
-      ...process.env,
-      HUMI_EVIDENCE_LOG_PATH: tempEvidence,
-      HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
-    },
-    timeout: 180_000,
-    maxBuffer: 1024 * 1024 * 12,
-  });
+  let stdout = "";
+  let exitCode = 0;
+  try {
+    ({ stdout } = await execFileAsync("npm", ["run", "release:complete:check"], {
+      env: {
+        ...process.env,
+        HUMI_EVIDENCE_LOG_PATH: tempEvidence,
+        HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
+        HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+        NODE_ENV: "test",
+      },
+      timeout: 180_000,
+      maxBuffer: 1024 * 1024 * 12,
+    }));
+  } catch (error) {
+    exitCode = Number(error.code || 1);
+    stdout = String(error.stdout || "");
+  }
 
   const report = parseLastJson(stdout);
-  if (!report?.ok || !report.release?.releaseComplete) {
-    throw new Error(`release:complete:check did not pass with complete temp evidence.\n\n${stdout}`);
+  if (
+    exitCode === 0
+    || report?.ok !== false
+    || report.release?.releaseComplete !== false
+    || report.release?.releaseEvidenceReady !== true
+    || !report.failedChecks?.includes("release:native-shell:check:local")
+  ) {
+    throw new Error(`release:complete:check did not stay blocked on the unuploaded current candidate.\n\n${stdout}`);
   }
 
   console.log(JSON.stringify({
@@ -35,6 +50,7 @@ try {
       releaseComplete: report.release.releaseComplete,
       engineeringReady: report.release.engineeringReady,
       releaseEvidenceReady: report.release.releaseEvidenceReady,
+      blockedByCurrentCandidate: true,
     },
   }, null, 2));
 } finally {

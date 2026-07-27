@@ -2,8 +2,14 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { promisify } from "node:util";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
 
 const execFileAsync = promisify(execFile);
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
 
 const defaultTargets = ["root@api.humi-home.com", "ubuntu@api.humi-home.com"];
 const sshTargets = (process.env.HUMI_API_SSH_TARGETS || "")
@@ -31,7 +37,8 @@ const requiredApiIncrements = [
   "1.1.74 MealRun, task, and reminder APIs",
   "1.1.74 privacy-safe telemetry",
 ];
-const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
+const completionSelftestAllowDirty = releaseStatusFixtureGuard.authorized
+  && process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
 
 const checks = [];
 

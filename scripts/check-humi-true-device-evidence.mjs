@@ -16,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION } from "./release-candidate.mjs";
 
 const LOGIN_SCENARIOS = [
   "fresh_guest_start",
@@ -743,7 +744,7 @@ function evidenceEntry(scenario, overrides = {}) {
     device: "iPhone 15 Pro",
     platform: "iOS",
     wechatVersion: "8.0.56",
-    packageVersion: "1.1.74",
+    packageVersion: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
     householdFixture: fixture,
     startedAt,
     finishedAt,
@@ -840,7 +841,7 @@ async function selftest() {
   const scenarios = Object.fromEntries(
     Object.keys(SELFTEST_SCENARIO_SPEC).map((scenario) => [scenario, evidenceEntry(scenario)]),
   );
-  assert.equal(await readCandidatePackageVersion(), "1.1.74");
+  assert.equal(await readCandidatePackageVersion(), CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION);
   await writeFixture(root, scenarios);
   const accepted = await validateEvidence({
     evidenceDir: root,
@@ -1052,7 +1053,7 @@ async function selftest() {
   );
 
   const wrongPackage = structuredClone(scenarios);
-  wrongPackage.owner_cooking_flow.packageVersion = "9.9.9";
+  wrongPackage.owner_cooking_flow.packageVersion = "1.1.74";
   await writeFixture(root, wrongPackage);
   const wrongPackageReport = await validateEvidence({
     evidenceDir: root,

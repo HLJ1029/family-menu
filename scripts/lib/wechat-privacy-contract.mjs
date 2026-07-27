@@ -46,27 +46,28 @@ const CAPABILITY_CONTRACTS = Object.freeze({
   },
 });
 
-const CAPABILITY_PATTERNS = Object.freeze({
-  wechat_identity: [/\bwx\.login\s*\(/],
-  nickname_avatar: [
-    /open-type\s*=\s*["']chooseAvatar["']/i,
-    /type\s*=\s*["']nickname["']/i,
-    /\/identity\/avatar\b/,
-  ],
-  phone_number: [/open-type\s*=\s*["']getPhoneNumber["']/i],
-  photo_album: [/\bwx\.saveImageToPhotosAlbum\b/],
-  subscription_message: [/\bwx\.requestSubscribeMessage\s*\(/],
+const WX_API_CAPABILITIES = Object.freeze({
+  login: ["wechat_identity"],
+  saveImageToPhotosAlbum: ["photo_album"],
+  requestSubscribeMessage: ["subscription_message"],
 });
 
-const FORBIDDEN_RUNTIME_PATTERNS = Object.freeze({
-  location: [/\bwx\.(?:getLocation|chooseLocation|startLocationUpdate)\s*\(/],
-  contacts: [/\bwx\.(?:addPhoneContact|chooseContact)\s*\(/],
-  camera: [/\bwx\.(?:createCameraContext|chooseMedia|chooseImage)\s*\(/, /<camera\b/i],
-  microphone: [/\bwx\.(?:getRecorderManager|startRecord)\s*\(/],
-  payments: [/\bwx\.requestPayment\s*\(/],
-  photo_album_read: [/\bwx\.(?:chooseImage|chooseMedia)\s*\(/],
-  supabase_runtime: [/@supabase\//i, /supabase\.co/i],
-  advertising: [/\bwx\.create(?:Banner|Interstitial|RewardedVideo|Custom)Ad\s*\(/, /<ad(?:\s|>)/i],
+const WX_API_FORBIDDEN = Object.freeze({
+  getLocation: ["location"],
+  chooseLocation: ["location"],
+  startLocationUpdate: ["location"],
+  addPhoneContact: ["contacts"],
+  chooseContact: ["contacts"],
+  createCameraContext: ["camera"],
+  chooseMedia: ["camera", "photo_album_read"],
+  chooseImage: ["camera", "photo_album_read"],
+  getRecorderManager: ["microphone"],
+  startRecord: ["microphone"],
+  requestPayment: ["payments"],
+  createBannerAd: ["advertising"],
+  createInterstitialAd: ["advertising"],
+  createRewardedVideoAd: ["advertising"],
+  createCustomAd: ["advertising"],
 });
 
 export function auditWechatPrivacyContract({ runtimeFiles = [], declaration = {} } = {}) {
@@ -75,10 +76,8 @@ export function auditWechatPrivacyContract({ runtimeFiles = [], declaration = {}
     path: String(file?.path || ""),
     source: String(file?.source || ""),
   }));
-  const detected = Object.entries(CAPABILITY_PATTERNS)
-    .filter(([, patterns]) => patterns.some((pattern) => sources.some((file) => pattern.test(file.source))))
-    .map(([id]) => id)
-    .sort();
+  const detection = detectRuntimeCapabilities(sources);
+  const detected = [...detection.capabilities].sort();
   const declared = new Map(
     (Array.isArray(declaration.capabilities) ? declaration.capabilities : [])
       .map((item) => [String(item?.id || ""), item]),
@@ -128,11 +127,15 @@ export function auditWechatPrivacyContract({ runtimeFiles = [], declaration = {}
     }
   }
 
-  for (const [capability, patterns] of Object.entries(FORBIDDEN_RUNTIME_PATTERNS)) {
-    const file = sources.find((entry) => patterns.some((pattern) => pattern.test(entry.source)));
-    if (file) {
-      findings.push({ code: "forbidden_runtime_capability", capability, path: file.path });
-    }
+  for (const capability of [...detection.forbidden].sort()) {
+    findings.push({
+      code: "forbidden_runtime_capability",
+      capability,
+      path: detection.paths.get(capability) || "unknown",
+    });
+  }
+  for (const parseError of detection.parseErrors) {
+    findings.push({ code: "capability_parse_failed", path: parseError.path });
   }
 
   for (const capability of REQUIRED_ABSENCES) {
@@ -149,6 +152,103 @@ export function auditWechatPrivacyContract({ runtimeFiles = [], declaration = {}
   };
 }
 
+export function detectRuntimeCapabilities(runtimeFiles = []) {
+  const capabilities = new Set();
+  const forbidden = new Set();
+  const paths = new Map();
+  const parseErrors = [];
+  const record = (collection, id, path) => {
+    collection.add(id);
+    if (!paths.has(id)) paths.set(id, path);
+  };
+
+  for (const file of runtimeFiles) {
+    const path = String(file?.path || "");
+    const source = String(file?.source || "");
+    if (/\.wxml$/i.test(path)) {
+      for (const tag of source.matchAll(/<\s*([A-Za-z][A-Za-z0-9:_-]*)\b/g)) {
+        const normalized = tag[1].toLowerCase();
+        if (normalized === "camera") record(forbidden, "camera", path);
+        if (normalized === "ad" || normalized.startsWith("ad-")) record(forbidden, "advertising", path);
+      }
+      if (/open-type\s*=\s*["']chooseAvatar["']/i.test(source) || /type\s*=\s*["']nickname["']/i.test(source)) {
+        record(capabilities, "nickname_avatar", path);
+      }
+      if (/open-type\s*=\s*["']getPhoneNumber["']/i.test(source)) {
+        record(capabilities, "phone_number", path);
+      }
+      continue;
+    }
+    if (/\/identity\/avatar\b/.test(source)) record(capabilities, "nickname_avatar", path);
+    if (/@supabase\//i.test(source) || /supabase\.co/i.test(source)) {
+      record(forbidden, "supabase_runtime", path);
+    }
+    if (!/\.(?:js|mjs|cjs|jsx|ts|tsx)$/i.test(path)) continue;
+    let ast;
+    try {
+      ast = parse(source, {
+        sourceType: "unambiguous",
+        allowReturnOutsideFunction: true,
+        plugins: ["jsx", "optionalChaining", "objectRestSpread", "typescript"],
+      });
+    } catch {
+      parseErrors.push({ path });
+      continue;
+    }
+    const objectAliases = new Set(["wx"]);
+    const functionAliases = new Map();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      walkAst(ast, (node) => {
+        if (node.type !== "VariableDeclarator" && node.type !== "AssignmentExpression") return;
+        const target = node.type === "VariableDeclarator" ? node.id : node.left;
+        const value = node.type === "VariableDeclarator" ? node.init : node.right;
+        if (!target || !value) return;
+        if (target.type === "Identifier" && value.type === "Identifier" && objectAliases.has(value.name)) {
+          if (!objectAliases.has(target.name)) { objectAliases.add(target.name); changed = true; }
+          return;
+        }
+        if (target.type === "Identifier") {
+          const api = memberApiName(value, objectAliases);
+          if (api && functionAliases.get(target.name) !== api) {
+            functionAliases.set(target.name, api);
+            changed = true;
+          }
+          return;
+        }
+        if (target.type === "ObjectPattern" && value.type === "Identifier" && objectAliases.has(value.name)) {
+          for (const property of target.properties || []) {
+            if (property.type !== "ObjectProperty" || property.value?.type !== "Identifier") continue;
+            const api = staticPropertyName(property);
+            if (api && functionAliases.get(property.value.name) !== api) {
+              functionAliases.set(property.value.name, api);
+              changed = true;
+            }
+          }
+        }
+      });
+    }
+    const apiNames = new Set();
+    walkAst(ast, (node) => {
+      const api = memberApiName(node, objectAliases);
+      if (api) apiNames.add(api);
+      if (
+        (node.type === "CallExpression" || node.type === "OptionalCallExpression")
+        && node.callee?.type === "Identifier"
+        && functionAliases.has(node.callee.name)
+      ) {
+        apiNames.add(functionAliases.get(node.callee.name));
+      }
+    });
+    for (const api of apiNames) {
+      for (const id of WX_API_CAPABILITIES[api] || []) record(capabilities, id, path);
+      for (const id of WX_API_FORBIDDEN[api] || []) record(forbidden, id, path);
+    }
+  }
+  return { capabilities, forbidden, paths, parseErrors };
+}
+
 export {
   CAPABILITY_CONTRACTS,
   REQUIRED_ABSENCES,
@@ -159,3 +259,30 @@ function sameStringSet(actual, expected) {
   return JSON.stringify([...new Set(actual.map(String))].sort())
     === JSON.stringify([...expected].sort());
 }
+
+function walkAst(node, visit) {
+  if (!node || typeof node !== "object") return;
+  visit(node);
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) value.forEach((entry) => walkAst(entry, visit));
+    else if (value && typeof value === "object" && typeof value.type === "string") walkAst(value, visit);
+  }
+}
+
+function memberApiName(node, objectAliases) {
+  if (!node || !new Set(["MemberExpression", "OptionalMemberExpression"]).has(node.type)) return "";
+  if (node.object?.type !== "Identifier" || !objectAliases.has(node.object.name)) return "";
+  return staticPropertyName(node);
+}
+
+function staticPropertyName(node) {
+  const property = node?.key || node?.property;
+  if (!property) return "";
+  if (!node.computed && property.type === "Identifier") return property.name;
+  if (property.type === "StringLiteral") return property.value;
+  if (property.type === "TemplateLiteral" && property.expressions?.length === 0) {
+    return property.quasis?.[0]?.value?.cooked || "";
+  }
+  return "";
+}
+import { parse } from "@babel/parser";

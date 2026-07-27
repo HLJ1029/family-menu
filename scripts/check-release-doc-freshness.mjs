@@ -12,6 +12,11 @@ import {
 
 const checks = [
   {
+    path: "miniprogram/README.md",
+    forbidden: ["隐私保护指引已填写"],
+    required: ["隐私保护指引仍待在微信后台填写并留证"],
+  },
+  {
     path: "docs/miniprogram-platform-submit-runbook.md",
     forbidden: [
       "当前仍处于提审前产品打磨阶段",

@@ -1,11 +1,13 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const privateBaseDir = await mkdtemp(join(tmpdir(), "humi-candidate-prepare-"));
+const fixtureEvidencePath = join(privateBaseDir, "release-evidence.md");
+await writeFile(fixtureEvidencePath, "candidate prepare fixture\n", { mode: 0o600 });
 
 const { stdout } = await execFileAsync("npm", ["run", "release:candidate:prepare"], {
   env: {
@@ -13,6 +15,9 @@ const { stdout } = await execFileAsync("npm", ["run", "release:candidate:prepare
     HUMI_PRIVATE_EVIDENCE_DIR: privateBaseDir,
     HUMI_CANDIDATE_VALIDATION_NO_OPEN: "1",
     HUMI_CANDIDATE_PREPARE_SELFTEST: "1",
+    HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+    HUMI_EVIDENCE_LOG_PATH: fixtureEvidencePath,
+    NODE_ENV: "test",
   },
   timeout: 180_000,
   maxBuffer: 1024 * 1024 * 8,

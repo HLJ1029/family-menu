@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "version": "1.1.75",
+    "status": "local-candidate",
+    "runtimeCommit": null,
+    "archive": null,
+    "actions": {
+      "productionApiDeployed": true,
+      "h5Deployed": true,
+      "miniprogramUploaded": false,
+      "wechatReviewSubmitted": false,
+      "wechatReleased": false,
+      "nativeAllowlistEnabled": false
+    },
+    "trueDeviceEvidence": {
+      "passed": 0,
+      "required": 56
+    }
+  }
+}

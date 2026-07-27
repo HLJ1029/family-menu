@@ -14,6 +14,31 @@ const CANDIDATE_KEYS = Object.freeze([
   "true_device_evidence",
 ]);
 const CANDIDATE_KEY_SET = new Set(CANDIDATE_KEYS);
+const NATIVE_EVIDENCE_KEYS = Object.freeze(["schemaVersion", "candidate"]);
+const NATIVE_CANDIDATE_EVIDENCE_KEYS = Object.freeze([
+  "version",
+  "status",
+  "runtimeCommit",
+  "archive",
+  "actions",
+  "trueDeviceEvidence",
+]);
+const NATIVE_ACTION_KEYS = Object.freeze([
+  "productionApiDeployed",
+  "h5Deployed",
+  "miniprogramUploaded",
+  "wechatReviewSubmitted",
+  "wechatReleased",
+  "nativeAllowlistEnabled",
+]);
+const PLATFORM_CHECK_KEYS = Object.freeze([
+  "requestDomain",
+  "downloadFileDomain",
+  "webViewDomain",
+  "privacyDeclaration",
+  "devtoolsAuthenticated",
+  "productionLegacyH5Smoke",
+]);
 
 const SUPABASE_PATTERNS = Object.freeze([
   /@supabase\//i,
@@ -49,6 +74,109 @@ export function findForbiddenRuntimeFindings(files = []) {
     if (hasCredentialLiteral(source)) findings.push({ category: "credential", path });
   }
   return uniqueFindings(findings);
+}
+
+export function validateNativeCandidateEvidence(evidence, { expectedVersion } = {}) {
+  assertExactObjectKeys(evidence, NATIVE_EVIDENCE_KEYS, "native candidate evidence");
+  if (evidence.schemaVersion !== 1) throw new Error("native candidate evidence schemaVersion must be 1");
+  const candidate = evidence.candidate;
+  assertExactObjectKeys(candidate, NATIVE_CANDIDATE_EVIDENCE_KEYS, "native candidate");
+  assertExactObjectKeys(candidate.actions, NATIVE_ACTION_KEYS, "native candidate actions");
+  assertExactObjectKeys(candidate.trueDeviceEvidence, ["passed", "required"], "native candidate trueDeviceEvidence");
+  if (candidate.version !== expectedVersion) {
+    throw new Error(`native candidate version must be ${expectedVersion}`);
+  }
+  if (!new Set(["local-candidate", "uploaded-experience"]).has(candidate.status)) {
+    throw new Error("native candidate status is invalid");
+  }
+  for (const key of NATIVE_ACTION_KEYS) {
+    if (typeof candidate.actions[key] !== "boolean") throw new Error(`${key} must be boolean`);
+  }
+  if (candidate.actions.productionApiDeployed !== true) throw new Error("productionApiDeployed must remain true");
+  if (candidate.actions.h5Deployed !== true) throw new Error("h5Deployed must remain true");
+  if (candidate.actions.wechatReviewSubmitted !== false) throw new Error("wechatReviewSubmitted must remain false");
+  if (candidate.actions.wechatReleased !== false) throw new Error("wechatReleased must remain false");
+  if (candidate.actions.nativeAllowlistEnabled !== false) throw new Error("nativeAllowlistEnabled must remain false");
+  if (
+    !Number.isInteger(candidate.trueDeviceEvidence.passed)
+    || !Number.isInteger(candidate.trueDeviceEvidence.required)
+    || candidate.trueDeviceEvidence.passed < 0
+    || candidate.trueDeviceEvidence.required !== 56
+    || candidate.trueDeviceEvidence.passed > candidate.trueDeviceEvidence.required
+  ) {
+    throw new Error("native candidate trueDeviceEvidence is invalid");
+  }
+  if (candidate.actions.miniprogramUploaded) {
+    if (candidate.status !== "uploaded-experience") throw new Error("uploaded candidate status must be uploaded-experience");
+    if (!/^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))) {
+      throw new Error("uploaded candidate requires runtimeCommit");
+    }
+    if (!candidate.archive) throw new Error("uploaded candidate requires archive");
+    assertExactObjectKeys(candidate.archive, ["path", "sha256"], "uploaded candidate archive");
+    if (!String(candidate.archive.path || "").trim() || !/^[0-9a-f]{64}$/.test(String(candidate.archive.sha256 || ""))) {
+      throw new Error("uploaded candidate requires archive path and sha256");
+    }
+  } else {
+    if (candidate.status !== "local-candidate") throw new Error("unuploaded candidate status must be local-candidate");
+    if (candidate.runtimeCommit !== null || candidate.archive !== null) {
+      throw new Error("unuploaded candidate must not claim runtimeCommit or archive");
+    }
+  }
+  return candidate;
+}
+
+export function validateWechatPlatformEvidence(evidence) {
+  assertExactObjectKeys(evidence, ["schemaVersion", "checks"], "WeChat platform evidence");
+  if (evidence.schemaVersion !== 1) throw new Error("WeChat platform evidence schemaVersion must be 1");
+  assertExactObjectKeys(evidence.checks, PLATFORM_CHECK_KEYS, "WeChat platform checks");
+  const result = {};
+  const outputKeys = {
+    requestDomain: "requestDomainVerified",
+    downloadFileDomain: "downloadFileDomainVerified",
+    webViewDomain: "webViewDomainVerified",
+    privacyDeclaration: "privacyDeclarationVerified",
+    devtoolsAuthenticated: "wechatDevtoolsAuthenticated",
+    productionLegacyH5Smoke: "productionLegacyH5SmokeVerified",
+  };
+  for (const key of PLATFORM_CHECK_KEYS) {
+    const check = evidence.checks[key];
+    assertExactObjectKeys(check, ["verified", "status", "ref"], `WeChat platform check ${key}`);
+    if (typeof check.verified !== "boolean") throw new Error(`${key}.verified must be boolean`);
+    if (check.verified) {
+      if (check.status !== "verified") throw new Error(`${key}.status must be verified`);
+      if (!/^private:\/\/[A-Za-z0-9_./-]+$/.test(String(check.ref || ""))) {
+        throw new Error(`${key}.ref must be a private evidence reference`);
+      }
+    } else if (check.status !== "pending" || check.ref !== null) {
+      throw new Error(`${key}.status must be pending and ref must be null when not verified`);
+    }
+    result[outputKeys[key]] = check.verified;
+  }
+  return result;
+}
+
+export function deriveNativeReleaseState(nativeRollout, { expectedVersion } = {}) {
+  const candidate = nativeRollout?.currentCandidate || {};
+  const externalActions = nativeRollout?.externalActions || {};
+  const platform = nativeRollout?.platformEvidence || {};
+  const uploaded = candidate.version === expectedVersion
+    && candidate.uploadStatus === "uploaded"
+    && candidate.immutableArchivePresent === true
+    && /^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))
+    && externalActions.miniprogram_uploaded === true;
+  const passed = Number.isInteger(platform.trueDevicePassed) ? platform.trueDevicePassed : 0;
+  const required = Number.isInteger(platform.trueDeviceRequired) ? platform.trueDeviceRequired : 56;
+  return {
+    miniProgramUploadedVersion: uploaded ? expectedVersion : null,
+    currentCandidateUploaded: uploaded,
+    nativeCheckpoint: uploaded
+      ? "N5c_true_device_platform_evidence"
+      : "N5b_refresh_packaging_authorization",
+    trueDeviceEvidence: `${passed}/${required}`,
+    nativeAllowlistEnabled: externalActions.native_allowlist_enabled === true,
+    platformPrivacyDeclaration: platform.privacyDeclarationVerified === true ? "verified" : "pending",
+    webViewDomainEvidence: platform.webViewDomainVerified === true ? "verified" : "pending",
+  };
 }
 
 export function extractNativeCandidateCommit(markdown) {
@@ -98,22 +226,6 @@ export function resolveExternalHandoffPath({
   throw new Error(
     "HUMI_NATIVE_HANDOFF_PATH is required; use --local-contract-only only for an explicit non-release local check",
   );
-}
-
-export function extractPlatformEvidence(source) {
-  const text = String(source || "");
-  return {
-    requestDomainVerified: /request(?:\s*\/\s*| and )downloadFile[^\n]{0,240}(?:200|已验证|通过)/i.test(text),
-    downloadFileDomainVerified: /downloadFile[^\n]{0,200}(?:200|已验证|通过)/i.test(text),
-    webViewDomainVerified: /web-view[^\n]{0,120}(?:平台)?(?:截图|确认)(?:已验证|已通过|通过|complete)/i.test(text),
-    privacyDeclarationVerified: /(?:平台)?隐私(?:保护指引|声明)[^\n]{0,120}(?:平台)?(?:截图|确认)(?:已验证|已通过|通过|complete)/i.test(text),
-    wechatDevtoolsAuthenticated: /(?:CLI|开发者工具)[^\n]{0,120}登录态(?:为|=)\s*`?true`?/i.test(text)
-      ? true
-      : null,
-    productionLegacyH5SmokeVerified: /生产(?:产品 )?smoke[^\n]{0,80}(?:通过|passed)/i.test(text)
-      ? true
-      : null,
-  };
 }
 
 export function validateNativeCandidateState(markdown, {
@@ -286,6 +398,17 @@ function uniqueFindings(findings) {
     seen.add(identity);
     return true;
   });
+}
+
+function assertExactObjectKeys(value, expectedKeys, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object with the exact key set`);
+  }
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} must use the exact key set`);
+  }
 }
 
 function parseYamlScalar(value) {
