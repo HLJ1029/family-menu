@@ -25,9 +25,12 @@ The default run deliberately has three external-evidence stops:
   archive/upload receipt, while the external form still verifies the historical
   `1.1.74@4eb3fbeb6aba886930b3fda652be96e9246eac9e` archive read-only.
 
-Therefore the current complete run is expected to exit non-zero with overall
-result `blocked`, not `passed`. A normal local test failure, timeout, spawn
-failure, or repository mutation produces overall result `failed`.
+A fresh run at the current `HEAD` is expected to exit non-zero with overall
+result `blocked`, not `passed`, only when every local command passes and the
+only remaining stops are the recognized external blockers above. Earlier
+`d26fc398`-era output is historical implementation evidence, not current-HEAD
+proof. A normal local test failure, timeout, spawn failure, or repository
+mutation produces overall result `failed`.
 
 After authorized, complete N5c evidence exists, bind it to the full candidate
 commit:

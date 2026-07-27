@@ -124,8 +124,8 @@ export async function runLocalCommandMatrix(options = {}) {
     manifest.currentCommand = { sequence, id: command.id, startedAt: new Date().toISOString() };
     await persistManifest(runDir, manifest);
     console.log(`[local-matrix] ${sequence}/${commands.length} start ${command.id}`);
-    const startedAt = new Date();
     const startedMs = Date.now();
+    const startedAt = new Date(startedMs);
     const execution = await captureProcess(command.executable, command.args, {
       cwd: repoRoot,
       env: {
@@ -135,7 +135,6 @@ export async function runLocalCommandMatrix(options = {}) {
       },
       timeoutMs: command.timeoutMs,
     });
-    const finishedAt = new Date();
     const stdout = redactOutput(execution.stdout.toString("utf8"), privatePaths);
     const stderr = redactOutput(execution.stderr.toString("utf8"), privatePaths);
     const runnerErrors = [];
@@ -188,12 +187,14 @@ export async function runLocalCommandMatrix(options = {}) {
       });
       runnerErrors.push({ code: "repository_observation_failed", stage: "repository_observation" });
     }
+    const finishedMs = Date.now();
+    const finishedAt = new Date(finishedMs);
     const classification = runnerErrors.length ? "fail" : classifyResult(command, execution);
     manifest.results.push({
       ...publicCommand(command, index, privatePaths),
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
-      durationMs: Math.max(0, Date.now() - startedMs),
+      durationMs: Math.max(0, finishedMs - startedMs),
       exit: {
         code: execution.code,
         signal: execution.signal,

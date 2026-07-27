@@ -840,6 +840,11 @@ async function testRedactionAndHashVerification() {
   assert.match(persisted, /\[REDACTED/);
   const manifest = await readManifest(fixture, "redaction");
   assert.ok(manifest.results[0].redactions.total >= 16);
+  assert.equal(
+    Date.parse(manifest.results[0].finishedAt) - Date.parse(manifest.results[0].startedAt),
+    manifest.results[0].durationMs,
+    "finishedAt and durationMs must derive from the same measured start/end instants",
+  );
   await verifyManifest(fixture, "redaction");
 
   const stdoutPath = join(runDir, manifest.results[0].logs.stdout.path);

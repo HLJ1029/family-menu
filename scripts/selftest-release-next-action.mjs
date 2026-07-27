@@ -2,6 +2,11 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import {
+  createHash,
+  generateKeyPairSync,
+  sign,
+} from "node:crypto";
 import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
 
 const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
@@ -9,6 +14,9 @@ const tempEvidence = join(tempDir, "evidence.md");
 const tempHardening = join(tempDir, "hardening.md");
 const tempCandidateEvidence = join(tempDir, "native-candidate-evidence.json");
 const tempUploadReceipt = join(tempDir, "wechat-upload-receipt.json");
+const tempUploadRawEvidence = join(tempDir, "wechat-miniprogram-ci-upload-output.json");
+const uploadTestKeyId = "test-only-release-next-selftest";
+const uploadTestKeys = generateKeyPairSync("ed25519");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
@@ -127,6 +135,11 @@ async function assertNext(expected, options = {}) {
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
       HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH: tempCandidateEvidence,
       HUMI_WECHAT_UPLOAD_RECEIPT_PATH: tempUploadReceipt,
+      HUMI_WECHAT_UPLOAD_TEST_KEY_ID: uploadTestKeyId,
+      HUMI_WECHAT_UPLOAD_TEST_PUBLIC_KEY: uploadTestKeys.publicKey.export({
+        type: "spki",
+        format: "pem",
+      }),
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
       HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST: "1",
       HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
@@ -177,18 +190,59 @@ async function writeCandidateEvidence({ uploaded }) {
 }
 
 async function writeUploadReceipt() {
-  await writeFile(tempUploadReceipt, JSON.stringify({
+  const now = Date.now();
+  const rawEvidence = {
     schemaVersion: 1,
-    source: "wechat-mp-console-upload-receipt",
-    receiptRef: "private://n5c/upload-receipt-1.1.75",
+    source: "wechat-miniprogram-ci-upload-output",
+    operation: "upload",
+    appId: "wx4040b89f3b363416",
+    version: "1.1.75",
+    invocationStartedAt: new Date(now - 4_000).toISOString(),
+    uploadCompletedAt: new Date(now - 3_000).toISOString(),
+    result: {
+      subPackageInfo: [{ name: "__APP__", size: 1024 }],
+    },
+  };
+  const rawEvidenceBytes = `${JSON.stringify(rawEvidence, null, 2)}\n`;
+  await writeFile(tempUploadRawEvidence, rawEvidenceBytes);
+  const unsigned = {
+    schemaVersion: 1,
+    source: "humi-wechat-upload-machine-attestation",
+    attestationRef: "private://n5c/upload-receipt-1.1.75",
+    keyId: uploadTestKeyId,
     appId: "wx4040b89f3b363416",
     candidate: {
       version: "1.1.75",
       runtimeCommit: "a".repeat(40),
       archiveSha256: "b".repeat(64),
     },
-    uploadedAt: "2026-07-28T08:00:00.000Z",
-  }, null, 2));
+    rawEvidence: {
+      kind: rawEvidence.source,
+      path: "wechat-miniprogram-ci-upload-output.json",
+      sha256: createHash("sha256").update(rawEvidenceBytes).digest("hex"),
+    },
+    capturedAt: new Date(now - 2_000).toISOString(),
+    attestedAt: new Date(now - 1_000).toISOString(),
+  };
+  const signature = sign(
+    null,
+    Buffer.from(canonicalTestJson(unsigned)),
+    uploadTestKeys.privateKey,
+  ).toString("base64url");
+  await writeFile(
+    tempUploadReceipt,
+    `${JSON.stringify({ ...unsigned, signature }, null, 2)}\n`,
+  );
+}
+
+function canonicalTestJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalTestJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${canonicalTestJson(value[key])}`
+    )).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 async function run(script, extraEnv) {

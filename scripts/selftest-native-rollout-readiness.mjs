@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import {
+  createHash,
+  generateKeyPairSync,
+  sign,
+} from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import {
   assertNativeArtifactMatchesCommit,
   verifyNativeCandidateUploadEvidence,
+  verifyTestOnlyNativeCandidateUploadEvidence,
 } from "./lib/native-candidate-artifact.mjs";
 import {
   extractNativeCandidateArtifactPath,
@@ -19,6 +25,8 @@ import {
   assertNativeRuntimeMatchesCommit,
 } from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
+
+process.env.NODE_ENV = "test";
 
 const safeFindings = findForbiddenRuntimeFindings([
   {
@@ -351,8 +359,8 @@ try {
     /upload receipt/i,
     "a local archive and boolean must not prove a WeChat upload",
   );
-  assert.deepEqual(
-    await verifyNativeCandidateUploadEvidence({
+  await assert.rejects(
+    verifyNativeCandidateUploadEvidence({
       candidate: {
         version: "1.1.75",
         status: "uploaded-experience",
@@ -366,6 +374,35 @@ try {
       uploadReceiptPath,
       allowTestReceiptFixture: true,
     }),
+    /trusted machine attestation|authenticity cannot be verified/i,
+    "a hand-authored metadata receipt must not advance the upload checkpoint even in fixture mode",
+  );
+  const uploadedCandidate = {
+    version: "1.1.75",
+    status: "uploaded-experience",
+    runtimeCommit: currentCommit,
+    archive: { path: currentArchive, sha256: currentArchiveSha256 },
+    uploadReceiptRef,
+    actions: { miniprogramUploaded: true },
+  };
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const machineEvidence = await writeTestOnlyUploadMachineAttestation({
+    directory: artifactFixture,
+    candidate: uploadedCandidate,
+    privateKey,
+    keyId: "test-only-ed25519-selftest",
+  });
+  assert.deepEqual(
+    await verifyTestOnlyNativeCandidateUploadEvidence({
+      candidate: uploadedCandidate,
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+      uploadAttestationPath: machineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
+    }),
     {
       uploaded: true,
       version: "1.1.75",
@@ -373,8 +410,61 @@ try {
       artifactPath: currentArchive,
       sha256: currentArchiveSha256,
       uploadReceiptRef,
+      rawEvidenceSha256: machineEvidence.rawEvidenceSha256,
+      attestationKeyId: "test-only-ed25519-selftest",
     },
+    "a cryptographically bound machine-output fixture keeps the positive contract testable",
   );
+  await assert.rejects(
+    verifyNativeCandidateUploadEvidence({
+      candidate: uploadedCandidate,
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+      uploadAttestationPath: machineEvidence.attestationPath,
+    }),
+    /trusted machine attestation|authenticity cannot be verified/i,
+    "the production verifier must not trust the test-only attestation key",
+  );
+  const reordered = {
+    ...machineEvidence.attestation,
+    capturedAt: new Date(Date.parse(machineEvidence.rawEvidence.uploadCompletedAt) - 1).toISOString(),
+  };
+  await writeSignedTestAttestation(machineEvidence.attestationPath, reordered, privateKey);
+  await assert.rejects(
+    verifyTestOnlyNativeCandidateUploadEvidence({
+      candidate: uploadedCandidate,
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+      uploadAttestationPath: machineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
+    }),
+    /timestamp ordering/i,
+    "attestation capture must not predate the official upload completion output",
+  );
+  await writeSignedTestAttestation(
+    machineEvidence.attestationPath,
+    machineEvidence.attestation,
+    privateKey,
+  );
+  await writeFile(machineEvidence.rawEvidencePath, `${JSON.stringify(machineEvidence.rawEvidence)}\n `);
+  await assert.rejects(
+    verifyTestOnlyNativeCandidateUploadEvidence({
+      candidate: uploadedCandidate,
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+      uploadAttestationPath: machineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
+    }),
+    /raw evidence SHA-256/i,
+    "post-attestation edits to the raw WeChat output must be detected",
+  );
+  await writeFile(machineEvidence.rawEvidencePath, machineEvidence.rawEvidenceBytes);
   assert.deepEqual(
     await verifyNativeCandidateUploadEvidence({
       candidate: {
@@ -391,7 +481,7 @@ try {
     { uploaded: false, version: "1.1.75" },
   );
   await assert.rejects(
-    verifyNativeCandidateUploadEvidence({
+    verifyTestOnlyNativeCandidateUploadEvidence({
       candidate: {
         version: "1.1.75",
         status: "uploaded-experience",
@@ -402,13 +492,16 @@ try {
       },
       repoRoot: artifactFixture,
       evidenceBaseDir: artifactFixture,
-      uploadReceiptPath,
-      allowTestReceiptFixture: true,
+      uploadAttestationPath: machineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
     }),
-    /upload receipt commit does not match candidate|does not match candidate commit|differs from uploaded commit/i,
+    /machine attestation commit does not match candidate/i,
   );
   await assert.rejects(
-    verifyNativeCandidateUploadEvidence({
+    verifyTestOnlyNativeCandidateUploadEvidence({
       candidate: {
         version: "1.1.75",
         status: "uploaded-experience",
@@ -419,8 +512,11 @@ try {
       },
       repoRoot: artifactFixture,
       evidenceBaseDir: artifactFixture,
-      uploadReceiptPath,
-      allowTestReceiptFixture: true,
+      uploadAttestationPath: machineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
     }),
     /sha256 mismatch/,
   );
@@ -509,10 +605,17 @@ try {
     sha256,
     uploadReceiptRef,
   }), null, 2));
-  const validReport = runRolloutChecker(repoRoot, evidencePath, receiptPath);
-  assert.equal(validReport.status, 0, validReport.stderr || validReport.stdout);
-  assert.equal(validReport.json.contractOk, true);
-  assert.equal(validReport.json.currentCandidate.uploadStatus, "uploaded");
+  const fabricatedReceiptReport = runRolloutChecker(repoRoot, evidencePath, receiptPath);
+  assert.notEqual(
+    fabricatedReceiptReport.status,
+    0,
+    "a hand-authored receipt must not make the production rollout checker pass",
+  );
+  assert.equal(fabricatedReceiptReport.json.currentCandidate.uploadStatus, "not_uploaded");
+  assert(
+    fabricatedReceiptReport.json.failures.some((failure) => /immutable upload evidence/.test(failure.name)),
+    JSON.stringify(fabricatedReceiptReport.json.failures),
+  );
 
   for (const [label, mutate, failurePattern] of [
     ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /candidate state/],
@@ -637,4 +740,78 @@ function runRolloutChecker(repoRoot, evidencePath = "", receiptPath = "") {
     stderr: result.stderr,
     json: JSON.parse(result.stdout),
   };
+}
+
+async function writeTestOnlyUploadMachineAttestation({
+  directory,
+  candidate,
+  privateKey,
+  keyId,
+}) {
+  const commitAt = Date.parse(execFileSync(
+    "git",
+    ["show", "-s", "--format=%cI", candidate.runtimeCommit],
+    { cwd: directory, encoding: "utf8" },
+  ).trim());
+  const rawEvidence = {
+    schemaVersion: 1,
+    source: "wechat-miniprogram-ci-upload-output",
+    operation: "upload",
+    appId: "wx4040b89f3b363416",
+    version: candidate.version,
+    invocationStartedAt: new Date(commitAt + 1_000).toISOString(),
+    uploadCompletedAt: new Date(commitAt + 2_000).toISOString(),
+    result: {
+      subPackageInfo: [{ name: "__APP__", size: 1024 }],
+    },
+  };
+  const rawEvidenceBytes = `${JSON.stringify(rawEvidence, null, 2)}\n`;
+  const rawEvidencePath = join(directory, "wechat-miniprogram-ci-upload-output.json");
+  await writeFile(rawEvidencePath, rawEvidenceBytes);
+  const rawEvidenceSha256 = createHash("sha256").update(rawEvidenceBytes).digest("hex");
+  const attestation = {
+    schemaVersion: 1,
+    source: "humi-wechat-upload-machine-attestation",
+    attestationRef: candidate.uploadReceiptRef,
+    keyId,
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: candidate.version,
+      runtimeCommit: candidate.runtimeCommit,
+      archiveSha256: candidate.archive.sha256,
+    },
+    rawEvidence: {
+      kind: rawEvidence.source,
+      path: "wechat-miniprogram-ci-upload-output.json",
+      sha256: rawEvidenceSha256,
+    },
+    capturedAt: new Date(commitAt + 3_000).toISOString(),
+    attestedAt: new Date(commitAt + 4_000).toISOString(),
+  };
+  const attestationPath = join(directory, "wechat-upload-machine-attestation.json");
+  await writeSignedTestAttestation(attestationPath, attestation, privateKey);
+  return {
+    attestation,
+    attestationPath,
+    rawEvidence,
+    rawEvidenceBytes,
+    rawEvidencePath,
+    rawEvidenceSha256,
+  };
+}
+
+async function writeSignedTestAttestation(path, unsigned, privateKey) {
+  const payload = canonicalTestJson(unsigned);
+  const signature = sign(null, Buffer.from(payload), privateKey).toString("base64url");
+  await writeFile(path, `${JSON.stringify({ ...unsigned, signature }, null, 2)}\n`);
+}
+
+function canonicalTestJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalTestJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${canonicalTestJson(value[key])}`
+    )).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }

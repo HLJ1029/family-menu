@@ -295,9 +295,8 @@ await check("structured evidence records the current 1.1.75 candidate state", as
     candidate: currentCandidateState,
     repoRoot: ROOT,
     evidenceBaseDir: dirname(candidateEvidencePath),
-    uploadReceiptPath: process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
-    allowTestReceiptFixture: process.env.NODE_ENV === "test"
-      && process.env.HUMI_WECHAT_UPLOAD_RECEIPT_FIXTURE_MODE === "1",
+    uploadAttestationPath: process.env.HUMI_WECHAT_UPLOAD_ATTESTATION_PATH
+      || process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
   });
 });
 

@@ -22,6 +22,26 @@ const scheduledAt = "2026-07-28T10:30:00.000Z";
 
 {
   const runtime = createRuntime([
+    http(401, { code: "invalid_session" }),
+    http(200, freshSession("user-2")),
+    http(200, { enabled: true, templateId: "stale-template", existingReminder: null }),
+  ]);
+  runtime.seedSession(oldSession());
+  const page = runtime.loadReminderPage();
+  await page.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  assert.equal(runtime.calls.login, 1);
+  assert.equal(
+    runtime.calls.request.filter((call) => call.url.includes("/meal-reminders/config")).length,
+    1,
+    "a config request must not replay after silent login changes the account owner",
+  );
+  assert.equal(page.data.templateId, "", "account B must not consume account A's reminder config");
+  assert.equal(runtime.session.getSession().user.id, "user-2");
+  assert.match(page.data.status, /账号|登录/);
+}
+
+{
+  const runtime = createRuntime([
     http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
     http(401, { code: "invalid_session" }),
     http(200, freshSession()),
@@ -36,6 +56,48 @@ const scheduledAt = "2026-07-28T10:30:00.000Z";
   assert.equal(creates[0].header["X-Humi-Idempotency-Key"], creates[1].header["X-Humi-Idempotency-Key"], "the replay keeps one stable idempotency key");
   assert.equal(runtime.calls.subscribe, 1, "session recovery never asks for subscription consent again");
   assert.equal(page.data.saved, true);
+}
+
+{
+  const runtime = createRuntime([
+    http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
+    http(401, { code: "invalid_session" }),
+    http(200, freshSession("user-2")),
+    http(201, { reminder: { id: "stale-reminder", status: "scheduled", scheduledAt } }),
+  ]);
+  runtime.seedSession(oldSession());
+  const page = runtime.loadReminderPage();
+  await page.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  await page.confirmReminder();
+  const creates = runtime.calls.request.filter((call) => call.url.endsWith("/meal-reminders"));
+  assert.equal(
+    creates.length,
+    1,
+    "a reminder create must not replay after silent login changes the account owner",
+  );
+  assert.equal(page.data.saved, false, "account B must never receive account A's stale reminder");
+  assert.equal(runtime.session.getSession().user.id, "user-2");
+  assert.match(page.data.status, /账号|登录/);
+}
+
+{
+  const runtime = createRuntime([
+    http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
+    http(201, { reminder: { id: "stale-reminder", status: "scheduled", scheduledAt } }),
+  ]);
+  runtime.seedSession(oldSession());
+  const page = runtime.loadReminderPage();
+  await page.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  runtime.seedSession(freshSession("user-2"));
+  await page.confirmReminder();
+  assert.equal(runtime.calls.subscribe, 0, "an account switch before confirmation must not consume consent");
+  assert.equal(
+    runtime.calls.request.filter((call) => call.url.endsWith("/meal-reminders")).length,
+    0,
+    "an account switch before confirmation must not create a stale reminder",
+  );
+  assert.equal(page.data.saved, false);
+  assert.match(page.data.status, /账号|登录/);
 }
 
 {
@@ -74,8 +136,9 @@ const scheduledAt = "2026-07-28T10:30:00.000Z";
   assert.equal(page.data.pending, false, "a reminder POST second-401 never leaves the confirmation hung");
   assert.equal(page.data.saved, false, "a reminder is never claimed saved after a second 401");
   assert.equal(page.data.permissionAccepted, true, "accepted consent remains reusable after authentication failure");
-  assert.deepEqual(JSON.parse(JSON.stringify(runtime.storage.get("humi:meal-reminder-consent:v3:meal-1"))), {
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.storage.get("humi:meal-reminder-consent:v4:user-1:meal-1"))), {
     state: "accepted_pending",
+    ownerUserId: "user-1",
     scheduledAt,
   });
   assert.match(page.data.status, /登录状态已失效|重新登录/);
@@ -97,10 +160,36 @@ const scheduledAt = "2026-07-28T10:30:00.000Z";
   assert.equal(runtime.calls.request.filter((call) => call.url.endsWith("/meal-reminders")).length, 1, "a network failure is not blindly replayed by the auth contract");
 }
 
+{
+  const sharedStorage = new Map();
+  const first = createRuntime([
+    http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
+    { fail: { errMsg: "request:fail network" } },
+  ], { storage: sharedStorage });
+  first.seedSession(oldSession());
+  const firstPage = first.loadReminderPage();
+  await firstPage.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  await firstPage.confirmReminder();
+  assert.equal(first.calls.subscribe, 1);
+
+  const second = createRuntime([
+    http(200, { enabled: true, templateId: "template-1", existingReminder: null }),
+    http(201, { reminder: { id: "reminder-user-2", status: "scheduled", scheduledAt } }),
+  ], { storage: sharedStorage });
+  second.seedSession(freshSession("user-2"));
+  const secondPage = second.loadReminderPage();
+  await secondPage.onLoad({ mealRunId: "meal-1", scheduledAt, dateKey: "2026-07-28" });
+  await secondPage.confirmReminder();
+  assert.equal(
+    second.calls.subscribe,
+    1,
+    "account B must make its own consent decision instead of consuming account A's accepted permission",
+  );
+}
+
 console.log("Native reminder shared session recovery checks passed.");
 
-function createRuntime(responses) {
-  const storage = new Map();
+function createRuntime(responses, { storage = new Map() } = {}) {
   const calls = { login: 0, request: [], subscribe: 0 };
   let pageDefinition;
   const app = {
@@ -168,4 +257,10 @@ function createRuntime(responses) {
 
 function http(statusCode, data) { return { statusCode, data }; }
 function oldSession() { return { accessToken: "old-token", expiresAt: Date.now() + 60_000, user: { id: "user-1", displayName: "小禾", profileStatus: "complete" } }; }
-function freshSession() { return { accessToken: "fresh-token", expiresAt: Date.now() + 60_000, user: { id: "user-1", displayName: "小禾", profileStatus: "complete" } }; }
+function freshSession(userId = "user-1") {
+  return {
+    accessToken: `fresh-token-${userId}`,
+    expiresAt: Date.now() + 60_000,
+    user: { id: userId, displayName: "小禾", profileStatus: "complete" },
+  };
+}

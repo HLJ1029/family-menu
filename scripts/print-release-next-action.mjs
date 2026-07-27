@@ -15,7 +15,10 @@ import {
 } from "./release-candidate.mjs";
 import { validateNativeCandidateEvidence } from "./lib/native-rollout-readiness-policy.mjs";
 import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
-import { verifyWechatUploadReceiptBinding } from "./lib/native-candidate-artifact.mjs";
+import {
+  verifyTestOnlyWechatUploadMachineAttestation,
+  verifyWechatUploadReceiptBinding,
+} from "./lib/native-candidate-artifact.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -452,11 +455,22 @@ async function readLifecycleCandidateEvidence() {
   });
   if (!candidate.actions.miniprogramUploaded) return { candidate, uploadVerified: false };
   try {
-    await verifyWechatUploadReceiptBinding({
-      path: process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
-      candidate,
-      allowTestFixture: releaseStatusFixtureGuard.authorized,
-    });
+    if (releaseStatusFixtureGuard.authorized) {
+      await verifyTestOnlyWechatUploadMachineAttestation({
+        path: process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
+        candidate,
+        testOnlyTrustedKey: {
+          keyId: process.env.HUMI_WECHAT_UPLOAD_TEST_KEY_ID,
+          publicKey: process.env.HUMI_WECHAT_UPLOAD_TEST_PUBLIC_KEY,
+        },
+      });
+    } else {
+      await verifyWechatUploadReceiptBinding({
+        path: process.env.HUMI_WECHAT_UPLOAD_ATTESTATION_PATH
+          || process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
+        candidate,
+      });
+    }
     return { candidate, uploadVerified: true };
   } catch {
     return { candidate, uploadVerified: false };

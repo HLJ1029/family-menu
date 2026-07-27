@@ -17,7 +17,7 @@ assert.doesNotMatch(pageSource, /wx\.request\s*\(/, "reminder APIs must use the 
 assert.doesNotMatch(taskPageSource, /Date\\.now|Math\\.random/, "task claim and completion retries must use stable idempotency keys");
 
 const scheduledAt = "2026-07-25T10:30:00.000Z";
-const decisionKey = "humi:meal-reminder-consent:v3:meal-1";
+const decisionKey = "humi:meal-reminder-consent:v4:user-1:meal-1";
 
 {
   const runtime = createReminderPage({ subscriptionResult: "accept" });
@@ -38,11 +38,13 @@ const decisionKey = "humi:meal-reminder-consent:v3:meal-1";
   assert.equal(runtime.subscribeCalls.length, 0, "opening the page must not request subscription permission");
   assert.equal(runtime.requests.filter((item) => item.method === "GET").length, 1, "the page should fetch the server-owned template ID");
   assert.match(runtime.requests[0].path, /mealRunId=meal-1/, "reminder eligibility must be scoped to the completed source meal");
+  assert.equal(runtime.requests[0].expectedUserId, "user-1", "reminder config recovery must stay pinned to its initiating user");
   await runtime.page.confirmReminder();
   assert.equal(runtime.subscribeCalls.length, 1, `one user tap should request permission once: ${JSON.stringify(runtime.page.data)}`);
   assert.equal(Array.from(runtime.subscribeCalls[0]).join(","), "template-1");
   const creates = runtime.requests.filter((item) => item.method === "POST");
   assert.equal(creates.length, 1, "accepted permission should create exactly one reminder");
+  assert.equal(creates[0].expectedUserId, "user-1", "reminder creation recovery must stay pinned to its initiating user");
   assert.deepEqual(JSON.parse(JSON.stringify(creates[0].data)), {
     scheduledAt,
     dateKey: "2026-07-25",
@@ -91,6 +93,7 @@ const decisionKey = "humi:meal-reminder-consent:v3:meal-1";
   assert.equal(runtime.requests.filter((item) => item.method === "POST").length, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(sharedStorage.get(decisionKey))), {
     state: "accepted_pending",
+    ownerUserId: "user-1",
     scheduledAt,
   });
 
@@ -145,14 +148,14 @@ for (const [status, label] of [
 }
 
 {
-  const storage = new Map([[decisionKey, { state: "rejected" }]]);
+  const storage = new Map([[decisionKey, { state: "rejected", ownerUserId: "user-1" }]]);
   const runtime = createReminderPage({ configStatusCode: 503, storage });
   await runtime.page.onLoad({ scheduledAt, mealRunId: "meal-1" });
   assert.match(runtime.page.data.status, /拒绝/, "a config HTTP failure must not overwrite the stored rejection");
 }
 
 {
-  const storage = new Map([[decisionKey, { state: "cancelled" }]]);
+  const storage = new Map([[decisionKey, { state: "cancelled", ownerUserId: "user-1" }]]);
   const runtime = createReminderPage({ configFailure: true, storage });
   await runtime.page.onLoad({ scheduledAt, mealRunId: "meal-1" });
   assert.match(runtime.page.data.status, /不会再次索取授权/, "a config network failure must not overwrite the stored cancellation");

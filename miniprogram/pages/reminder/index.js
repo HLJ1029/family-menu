@@ -1,7 +1,7 @@
 const { requestHumi } = require("../../utils/request");
 const sessionStore = require("../../utils/session");
 
-const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v3:";
+const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v4:";
 
 Page({
   data: {
@@ -27,12 +27,19 @@ Page({
 
   onLoad(options = {}) {
     const session = sessionStore.getSession();
+    const initiatingUserId = isValidSession(session) ? normalizeText(session.user.id, 100) : "";
     const scheduledAt = normalizeScheduledAt(options.scheduledAt);
     const dateKey = normalizeDateKey(options.dateKey, scheduledAt);
     const selected = scheduledAt ? shanghaiDateTimeParts(scheduledAt) : { date: "", time: "" };
     const mealRunId = normalizeText(options.mealRunId, 100);
-    this._consentKey = `${REMINDER_CONSENT_PREFIX}${mealRunId}`;
-    const decision = normalizeConsentDecision(mealRunId ? wx.getStorageSync(this._consentKey) : null);
+    this._initiatingUserId = initiatingUserId;
+    this._consentKey = initiatingUserId && mealRunId
+      ? `${REMINDER_CONSENT_PREFIX}${encodeURIComponent(initiatingUserId)}:${encodeURIComponent(mealRunId)}`
+      : "";
+    const decision = normalizeConsentDecision(
+      this._consentKey ? wx.getStorageSync(this._consentKey) : null,
+      initiatingUserId,
+    );
     this._consentDecision = decision;
     const rejected = decision.state === "rejected" || decision.state === "cancelled";
     this.setData({
@@ -99,6 +106,7 @@ Page({
     try {
       const data = await requestHumi({
         path: `/meal-reminders/config?mealRunId=${encodeURIComponent(this.data.mealRunId)}`,
+        expectedUserId: this._initiatingUserId,
       });
       if (data?.enabled && data?.templateId) {
         if (data.existingReminder?.id) {
@@ -107,6 +115,7 @@ Page({
           const selected = shanghaiDateTimeParts(scheduledAt);
           const consumed = {
             state: "consumed",
+            ownerUserId: this._initiatingUserId,
             scheduledAt,
             reminderId: normalizeText(existing.id, 100),
           };
@@ -142,7 +151,9 @@ Page({
       }
       return null;
     } catch (error) {
-      if (error?.status === 401 || error?.code === "invalid_session") {
+      if (error?.code === "session_owner_changed") {
+        this.setData({ needsLogin: false, status: "登录账号已切换，请返回 Humi 后重新打开提醒。" });
+      } else if (error?.status === 401 || error?.code === "invalid_session") {
         this.setData({ needsLogin: true, status: "登录状态已失效，请重新登录后预约。" });
       } else if (!this.data.rejected && !this.data.saved) {
         this.setData({ status: "网络连接失败，暂时没有设置提醒。" });
@@ -160,6 +171,14 @@ Page({
       this.setData({ needsLogin: true, status: "先完成微信登录，再由你确认是否接收提醒。" });
       return;
     }
+    if (!this._initiatingUserId || session.user.id !== this._initiatingUserId) {
+      this.setData({
+        pending: false,
+        needsLogin: false,
+        status: "登录账号已切换，请返回 Humi 后重新打开提醒。",
+      });
+      return;
+    }
     if (!this.data.templateId || !this.data.scheduledAt) {
       this.setData({ status: "这次提醒还没有准备完整，请返回 Humi 重选时间。" });
       return;
@@ -173,7 +192,7 @@ Page({
     try {
       result = await requestSubscription([this.data.templateId]);
     } catch (_) {
-      const consent = { state: "cancelled" };
+      const consent = { state: "cancelled", ownerUserId: this._initiatingUserId };
       this._consentDecision = consent;
       wx.setStorageSync(this._consentKey, consent);
       this.setData({ pending: false, rejected: true, status: "已取消，没有设置提醒。" });
@@ -181,13 +200,17 @@ Page({
     }
     const decision = result?.[this.data.templateId];
     if (decision !== "accept") {
-      const consent = { state: "rejected" };
+      const consent = { state: "rejected", ownerUserId: this._initiatingUserId };
       this._consentDecision = consent;
       wx.setStorageSync(this._consentKey, consent);
       this.setData({ pending: false, rejected: true, status: "没有设置提醒。以后 Humi 不会重复索取授权。" });
       return null;
     }
-    const consent = { state: "accepted_pending", scheduledAt: this.data.scheduledAt };
+    const consent = {
+      state: "accepted_pending",
+      ownerUserId: this._initiatingUserId,
+      scheduledAt: this.data.scheduledAt,
+    };
     this._consentDecision = consent;
     wx.setStorageSync(this._consentKey, consent);
     this.setData({ permissionAccepted: true });
@@ -200,6 +223,7 @@ Page({
         path: "/meal-reminders",
         method: "POST",
         idempotencyKey: `meal-reminder:${this.data.mealRunId}:${this.data.scheduledAt}`,
+        expectedUserId: this._initiatingUserId,
         data: {
           scheduledAt: this.data.scheduledAt,
           dateKey: this.data.dateKey,
@@ -211,6 +235,7 @@ Page({
       });
       const consumed = {
         state: "consumed",
+        ownerUserId: this._initiatingUserId,
         scheduledAt: normalizeScheduledAt(data?.reminder?.scheduledAt || this.data.scheduledAt),
         reminderId: normalizeText(data?.reminder?.id, 100),
       };
@@ -224,7 +249,13 @@ Page({
       });
       return data?.reminder || null;
     } catch (error) {
-      if (error?.status === 401 || error?.code === "invalid_session") {
+      if (error?.code === "session_owner_changed") {
+        this.setData({
+          pending: false,
+          needsLogin: false,
+          status: "登录账号已切换，没有创建提醒。请返回 Humi 后重新打开。",
+        });
+      } else if (error?.status === 401 || error?.code === "invalid_session") {
         this.setData({ pending: false, needsLogin: true, status: "登录状态已失效，请重新登录后保存这次提醒。" });
       } else if (error?.status === 0 || error?.code === "network_error") {
         this.setData({ pending: false, status: "网络连接失败，提醒暂时没有保存。" });
@@ -254,20 +285,29 @@ Page({
 });
 
 function isValidSession(session) {
-  return Boolean(session?.accessToken && session.expiresAt > Date.now() && session.user?.profileStatus === "complete");
+  return Boolean(
+    session?.accessToken
+    && session.expiresAt > Date.now()
+    && session.user?.id
+    && session.user?.profileStatus === "complete",
+  );
 }
 
 function requestSubscription(tmplIds) {
   return new Promise((resolve, reject) => wx.requestSubscribeMessage({ tmplIds, success: resolve, fail: reject }));
 }
 
-function normalizeConsentDecision(value) {
+function normalizeConsentDecision(value, expectedUserId) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { state: "" };
+  if (!expectedUserId || normalizeText(value.ownerUserId, 100) !== expectedUserId) {
+    return { state: "" };
+  }
   const state = ["accepted_pending", "consumed", "rejected", "cancelled"].includes(value.state)
     ? value.state
     : "";
   return {
     state,
+    ownerUserId: expectedUserId,
     scheduledAt: normalizeScheduledAt(value.scheduledAt),
     reminderId: normalizeText(value.reminderId, 100),
   };
