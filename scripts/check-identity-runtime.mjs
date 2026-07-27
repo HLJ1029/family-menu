@@ -18,16 +18,9 @@ vm.runInNewContext(fs.readFileSync("miniprogram/utils/user-message.js", "utf8"),
   module: userMessageModule,
   exports: userMessageModule.exports,
 });
-const expectedApprovedAvatarKeys = [
-  "humi-avatar-dev-front-m-01",
-  "humi-avatar-dev-side-m-01",
-  "humi-avatar-dev-thinking-m-01",
-  "humi-avatar-dev-laptop-m-01",
-  "humi-avatar-family-f-01",
-  "humi-avatar-family-m-01",
-  "humi-avatar-parent-f-01",
-  "humi-avatar-parent-m-01",
-];
+const expectedApprovedAvatarKeys = JSON.parse(
+  fs.readFileSync("api/data/approved-avatar-keys.json", "utf8"),
+);
 
 function loadApprovedAvatarKeys(specifier) {
   assert.equal(
@@ -43,7 +36,7 @@ function loadApprovedAvatarKeys(specifier) {
   assert.deepEqual(
     JSON.parse(JSON.stringify(approvedAvatarModule.exports)),
     expectedApprovedAvatarKeys,
-    "the runtime JavaScript avatar contract must match the approved literal key set",
+    "the runtime JavaScript avatar contract must match the canonical API avatar contract",
   );
   return approvedAvatarModule.exports;
 }
