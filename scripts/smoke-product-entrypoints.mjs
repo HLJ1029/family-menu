@@ -13,6 +13,7 @@ const evidenceDir = args.evidenceDir
   || process.env.HUMI_PRODUCT_SMOKE_EVIDENCE_DIR
   || join(process.env.HUMI_PRIVATE_EVIDENCE_DIR || DEFAULT_PRIVATE_DIR, `product-entrypoint-smoke-${timestamp}`);
 const minRecipeCards = Number.parseInt(args.minRecipeCards || process.env.HUMI_PRODUCT_SMOKE_MIN_RECIPE_CARDS || "20", 10);
+const familyActivityHistoryDelayMs = Math.max(0, Number.parseInt(process.env.HUMI_PRODUCT_SMOKE_FAMILY_ACTIVITY_HISTORY_DELAY_MS || "0", 10) || 0);
 const recommendationMockCalls = [];
 
 await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
@@ -1653,6 +1654,7 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     await fulfillJson(route, { state, family: activeFamily, households: [activeFamily] });
   });
   await page.route("**/households/product-smoke-family/collaborations**", async (route) => {
+    if (familyActivityHistoryDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, familyActivityHistoryDelayMs));
     await fulfillJson(route, { householdId: family.id, events: historyEvents() });
   });
   await page.route("**/households/product-smoke-family", async (route) => {
@@ -1704,7 +1706,10 @@ async function verifyFamilyManagementPages(browser, base, evidenceDir) {
     await child.waitFor({ state: "visible", timeout: 15_000 });
     openedPages[item.testId] = await child.isVisible();
     primaryTabCounts[item.testId] = await page.getByTestId("mobile-primary-navigation").getByRole("button").count();
-    if (item.testId === "family-activity-page") activityText = await child.innerText();
+    if (item.testId === "family-activity-page") {
+      await child.getByText("小禾想吃番茄炒蛋", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+      activityText = await child.innerText();
+    }
     await child.getByRole("button", { name: "返回家庭客厅", exact: true }).click();
     await page.getByTestId("family-living-room").waitFor({ state: "visible", timeout: 15_000 });
     returnedPages[item.testId] = true;
