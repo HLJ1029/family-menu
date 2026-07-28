@@ -850,8 +850,8 @@ async function writeTestOnlyDevtoolsUploadMachineAttestation({
     invocationStartedAt: new Date(commitAt + 1_000).toISOString(),
     uploadCompletedAt: new Date(commitAt + 2_000).toISOString(),
     exitCode: 0,
-    stdout: "- 初始化\n✔ upload\n",
-    stderr: "",
+    stdout: "package size table\n",
+    stderr: "- 初始化\n- 上传\n✔ upload\n",
     infoOutput: {
       size: {
         total: 1536,

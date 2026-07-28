@@ -389,9 +389,9 @@ function validateOfficialWechatUploadEvidence(evidence, candidate) {
       evidence.exitCode !== 0
       || typeof evidence.stdout !== "string"
       || evidence.stdout.length > 20_000
-      || !/(?:^|\n)✔ upload(?:\n|$)/u.test(evidence.stdout)
       || typeof evidence.stderr !== "string"
       || evidence.stderr.length > 20_000
+      || !/(?:^|\n)✔ upload(?:\n|$)/u.test(`${evidence.stdout}\n${evidence.stderr}`)
     ) {
       throw new Error("WeChat DevTools CLI did not report a successful upload");
     }
