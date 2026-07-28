@@ -626,7 +626,7 @@ try {
   const archiveOnlyReport = runRolloutChecker(repoRoot, evidencePath);
   assert.notEqual(archiveOnlyReport.status, 0, "local archive evidence without a private WeChat receipt must fail");
   assert(
-    archiveOnlyReport.json.failures.some((failure) => /immutable upload evidence/.test(failure.name)),
+    archiveOnlyReport.json.failures.some((failure) => /trusted private attestation/.test(failure.name)),
     JSON.stringify(archiveOnlyReport.json.failures),
   );
   await writeFile(receiptPath, JSON.stringify(wechatUploadReceipt({
@@ -640,16 +640,20 @@ try {
     0,
     "a hand-authored receipt must not make the production rollout checker pass",
   );
-  assert.equal(fabricatedReceiptReport.json.currentCandidate.uploadStatus, "not_uploaded");
+  assert.equal(
+    fabricatedReceiptReport.json.currentCandidate.uploadStatus,
+    "uploaded",
+    "a fabricated receipt must not rewrite the recorded uploaded experience state",
+  );
   assert(
-    fabricatedReceiptReport.json.failures.some((failure) => /immutable upload evidence/.test(failure.name)),
+    fabricatedReceiptReport.json.failures.some((failure) => /trusted private attestation/.test(failure.name)),
     JSON.stringify(fabricatedReceiptReport.json.failures),
   );
 
   for (const [label, mutate, failurePattern] of [
     ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /candidate state/],
-    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /candidate state/],
-    ["wrong archive sha", (value) => { value.candidate.archive.sha256 = "c".repeat(64); }, /candidate state/],
+    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /trusted private attestation/],
+    ["wrong archive sha", (value) => { value.candidate.archive.sha256 = "c".repeat(64); }, /trusted private attestation/],
   ]) {
     const evidence = structuredClone(validEvidence);
     mutate(evidence);
@@ -658,16 +662,25 @@ try {
     assert.notEqual(failed.status, 0, `${label} evidence must fail`);
     assert(
       failed.json.failures.some((failure) => failurePattern.test(failure.name)),
-      `${label} must identify the structured current candidate failure: ${JSON.stringify(failed.json.failures)}`,
+      `${label} must fail closed before untrusted receipt metadata can advance the current candidate: ${JSON.stringify(failed.json.failures)}`,
     );
   }
 
   const defaultReport = runRolloutChecker(repoRoot);
-  assert.notEqual(defaultReport.status, 0, "the repository default must remain an unuploaded candidate");
+  assert.notEqual(
+    defaultReport.status,
+    0,
+    "the repository default must fail closed when its trusted private upload attestation is unavailable",
+  );
   assert.deepEqual(
     defaultReport.json.failures.map((failure) => failure.name),
-    ["current 1.1.75 candidate has immutable upload evidence"],
-    "the current default must fail only because 1.1.75 has not been uploaded",
+    ["current 1.1.75 experience upload requires trusted private attestation"],
+    "the current default must fail only because trusted private upload attestation is unavailable",
+  );
+  assert.match(
+    defaultReport.json.failures[0].message,
+    /trusted private upload attestation/i,
+    "the fail-closed default must identify the missing trusted private attestation, not misstate the upload state",
   );
 } finally {
   await rm(rolloutFixture, { recursive: true, force: true });

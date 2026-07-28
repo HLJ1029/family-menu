@@ -23,6 +23,7 @@ import { auditWechatPrivacyContract } from "./lib/wechat-privacy-contract.mjs";
 import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
 import {
   CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
   PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
@@ -166,7 +167,7 @@ await check("mini-program domains and platform configuration are legal", async (
 });
 
 const packageVersion = extractPackageVersion(await text("miniprogram/utils/config.js"));
-await check("native runtime is the current local review candidate", async () => {
+await check("native runtime is the current uploaded experience candidate", async () => {
   assert.equal(
     PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
     "1.1.73",
@@ -180,7 +181,7 @@ await check("native runtime is the current local review candidate", async () => 
   assert.equal(
     packageVersion,
     CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-    "runtime package must match the current unuploaded review candidate",
+    "runtime package must match the current uploaded experience candidate",
   );
 });
 
@@ -291,22 +292,45 @@ await check("structured evidence records the current 1.1.75 candidate state", as
   currentCandidateState = validateNativeCandidateEvidence(evidence, {
     expectedVersion: packageVersion,
   });
-  currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
-    candidate: currentCandidateState,
-    repoRoot: ROOT,
-    evidenceBaseDir: dirname(candidateEvidencePath),
-    uploadAttestationPath: process.env.HUMI_WECHAT_UPLOAD_ATTESTATION_PATH
-      || process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
-  });
 });
 
-await check("repository handoff explains current candidate boundaries", async () => {
+await check("current 1.1.75 experience upload requires trusted private attestation", async () => {
+  try {
+    currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
+      candidate: currentCandidateState,
+      repoRoot: ROOT,
+      evidenceBaseDir: dirname(candidateEvidencePath),
+      uploadAttestationPath: process.env.HUMI_WECHAT_UPLOAD_ATTESTATION_PATH
+        || process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH,
+    });
+  } catch (error) {
+    throw new Error(
+      `trusted private upload attestation is unavailable: ${String(error?.message || error)}`,
+    );
+  }
+  assert.equal(
+    currentCandidateVerification?.uploaded,
+    true,
+    "trusted private upload attestation is required to verify the recorded 1.1.75 experience upload before N5c",
+  );
+});
+
+await check("repository handoff documents uploaded 1.1.75 experience boundaries", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
-  assert.match(tracker, /原生壳候选：local-candidate/);
+  assert.match(handoff, /status: uploaded-experience/);
+  assert.match(handoff, /package_version: 1\.1\.75/);
+  assert.match(handoff, /miniprogram_uploaded: true/);
+  assert.match(handoff, /wechat_review_submitted: false/);
+  assert.match(handoff, /wechat_released: false/);
+  assert.match(handoff, /native_allowlist_enabled: false/);
+  assert.match(handoff, /true_device_evidence: 0\/56/);
+  assert.match(handoff, new RegExp(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT));
+  assert.match(handoff, /上一历史体验版.*`1\.1\.74`/);
+  assert.match(tracker, /原生壳候选：uploaded-experience/);
   assert.match(tracker, /原生包版本：`1\.1\.75`/);
-  assert.match(tracker, /最近已上传体验版：`1\.1\.74`/);
+  assert.match(tracker, /上一历史体验版：`1\.1\.74`/);
   assert.match(tracker, /历史兼容基线：`1\.1\.73`/);
   assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));
   assert.match(apiContract, /关闭 `HUMI_NATIVE_SHELL_ENABLED`/);
@@ -354,14 +378,6 @@ if (externalHandoffPath) {
   });
 }
 
-await check("current 1.1.75 candidate has immutable upload evidence", async () => {
-  assert.equal(
-    currentCandidateVerification?.uploaded,
-    true,
-    "1.1.75 is a local candidate and has not been archived or uploaded; create a fresh immutable archive and obtain explicit upload authorization before N5c",
-  );
-});
-
 const blockers = [];
 if (!platformEvidence?.webViewDomainVerified) {
   blockers.push("WeChat web-view business-domain screenshot/confirmation is still required.");
@@ -372,8 +388,8 @@ if (!platformEvidence.privacyDeclarationVerified) {
 blockers.push(
   ...(!currentCandidateVerification?.uploaded
     ? [
-      "Current 1.1.75 candidate needs a fresh immutable archive and explicit upload authorization.",
-      `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence is not valid until 1.1.75 is uploaded.`,
+      "Trusted private upload attestation is unavailable, so this process cannot verify the recorded 1.1.75 experience upload.",
+      `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence remains required before N5c can complete.`,
     ]
     : []),
   "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
@@ -396,10 +412,10 @@ const report = {
   },
   currentCandidate: {
     version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-    uploadStatus: currentCandidateVerification?.uploaded ? "uploaded" : "not_uploaded",
+    uploadStatus: currentCandidateState?.status === "uploaded-experience" ? "uploaded" : "not_uploaded",
     runtimeDriftFromLastUpload: runtimeDriftFiles,
     immutableArchivePresent: Boolean(currentCandidateVerification?.uploaded),
-    runtimeCommit: currentCandidateVerification?.runtimeCommit || null,
+    runtimeCommit: currentCandidateState?.runtimeCommit || null,
   },
   evidenceLevel: externalHandoffPath ? "external-handoff" : "local-contract",
   externalActions: currentCandidateState

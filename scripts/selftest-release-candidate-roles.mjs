@@ -25,8 +25,8 @@ assert.deepEqual(candidate, {
   },
   currentLocalReviewCandidate: {
     version: "1.1.75",
-    description: "Humi 原生骨架完整候选（待上传）",
-    uploadStatus: "not_uploaded",
+    description: "Humi 原生骨架完整候选（fbb4938）",
+    uploadStatus: "uploaded",
     reviewSubmitted: false,
     released: false,
   },
@@ -38,14 +38,14 @@ const { stdout: copyStdout } = await execFileAsync(
   { maxBuffer: 1024 * 1024 },
 );
 assert.match(copyStdout, /1\.1\.75/);
-assert.match(copyStdout, /Humi 原生骨架完整候选（待上传）/);
+assert.match(copyStdout, /Humi 原生骨架完整候选（fbb4938）/);
 assert.doesNotMatch(copyStdout, /提交版本[\s\S]{0,80}1\.1\.(?:73|74)/);
 
 const submitSession = await import("./wechat-submit-evidence-session.mjs");
 assert.equal(submitSession.WECHAT_SUBMIT_VERSION, "1.1.75");
 assert.equal(
   submitSession.WECHAT_SUBMIT_DESCRIPTION,
-  "Humi 原生骨架完整候选（待上传）",
+  "Humi 原生骨架完整候选（fbb4938）",
 );
 
 console.log("Release candidate roles selftest passed.");

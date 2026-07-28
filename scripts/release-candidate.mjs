@@ -6,10 +6,11 @@ export const LAST_UPLOADED_EXPERIENCE_VERSION = "1.1.74";
 export const LAST_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架体验版 N5b（4eb3fbeb）";
 export const LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "4eb3fbeb6aba886930b3fda652be96e9246eac9e";
 export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.75";
-export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架完整候选（待上传）";
+export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
+export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "fbb4938200ef0137c468bd37f3868b94b64b738b";
 
-// Backward-compatible names used by release tooling point to the current local
-// review candidate, never to the historical production or uploaded baselines.
+// Backward-compatible names used by release tooling point to the current
+// experience candidate, never to the historical production/uploaded baselines.
 export const CURRENT_MINIPROGRAM_VERSION = CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION;
 export const CURRENT_MINIPROGRAM_DESCRIPTION = CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION;
 export const NATIVE_SHELL_PREVIEW_VERSION = CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION;
@@ -31,7 +32,7 @@ export function releaseCandidateSummary() {
     currentLocalReviewCandidate: {
       version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
       description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
-      uploadStatus: "not_uploaded",
+      uploadStatus: "uploaded",
       reviewSubmitted: false,
       released: false,
     },

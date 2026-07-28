@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
   NATIVE_SHELL_EXPERIENCE_DESCRIPTION,
@@ -128,21 +129,35 @@ const failures = [];
 const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-closure-map.md",
-    required: [`小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``],
+    required: [
+      `当前体验版 \`${CURRENT_MINIPROGRAM_VERSION}\` 已从不可变归档上传`,
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      "微信审核、正式发布、开关和白名单均未触发",
+    ],
   },
   {
     path: "docs/humi-1.1-release-evidence-log.md",
     required: [
       `| 小程序版本 | \`${NATIVE_SHELL_PREVIEW_VERSION}\` |`,
       `| 小程序描述 | \`${NATIVE_SHELL_EXPERIENCE_DESCRIPTION}\` |`,
-      `| 最近已上传体验版 | \`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      `| 当前已上传体验版 | \`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
+      `| 上一历史体验版 | \`${LAST_UPLOADED_EXPERIENCE_VERSION}\` / \`Humi 原生骨架体验版 N5b（4eb3fbeb）\` / \`${LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
+      "未执行 preview、未提审、未发布、未开启任何开关或白名单",
     ],
   },
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
-      `当前本地审核候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
-      `最近已上传体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      "status: uploaded-experience",
+      "miniprogram_uploaded: true",
+      "wechat_review_submitted: false",
+      "wechat_released: false",
+      "native_allowlist_enabled: false",
+      "true_device_evidence: 0/56",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       "历史兼容/生产基线是 `1.1.73`",
       "平台隐私保护指引也仍待最终填写和留证",
@@ -151,9 +166,10 @@ const currentCandidateDocs = [
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     required: [
-      `当前候选版本：\`${CURRENT_MINIPROGRAM_VERSION}\`（未上传）`,
-      `最近已上传版本：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\``,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      "不等于可提审",
     ],
   },
   {
@@ -161,24 +177,30 @@ const currentCandidateDocs = [
     required: [
       `| 上传版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
       `| 版本描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
-      `最近已上传体验版是 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
+      `当前 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 是上一历史体验版`,
     ],
   },
   {
     path: "docs/miniprogram-launch-readiness.md",
     required: [
-      `小程序候选 \`${CURRENT_MINIPROGRAM_VERSION}\`（\`${CURRENT_MINIPROGRAM_DESCRIPTION}\`）`,
+      `小程序体验版 \`${CURRENT_MINIPROGRAM_VERSION}\`（\`${CURRENT_MINIPROGRAM_DESCRIPTION}\`）已从不可变归档上传`,
+      `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-spec-acceptance-audit.md",
     required: [
-      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-pre-review-hardening.md",
-    required: [`小程序候选更新为 \`${CURRENT_MINIPROGRAM_VERSION}\``],
+    required: [
+      `小程序候选 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 只作为历史证据`,
+    ],
   },
   {
     path: "docs/launch-day-runbook.md",
@@ -190,14 +212,15 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-api-production-deploy-runbook.md",
     required: [
-      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      "未提审、未发布、未开启原生开关或白名单",
     ],
   },
   {
     path: "docs/humi-api-contract.md",
     required: [
-      `当前本地候选 ${CURRENT_MINIPROGRAM_VERSION} 均使用本合同`,
-      `最近已上传体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
+      `当前已上传体验版 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 均使用本合同`,
+      `上一历史体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
       "历史兼容基线 1.1.73",
     ],
   },
@@ -210,6 +233,26 @@ for (const doc of currentCandidateDocs) {
       failures.push({ path: doc.path, phrase: `missing ${phrase}` });
     }
   }
+}
+
+const candidateEvidence = JSON.parse(await readFile("docs/native-candidate-evidence.json", "utf8"));
+const candidate = candidateEvidence?.candidate;
+if (
+  candidateEvidence?.schemaVersion !== 1
+  || candidate?.version !== CURRENT_MINIPROGRAM_VERSION
+  || candidate?.status !== "uploaded-experience"
+  || candidate?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || candidate?.actions?.miniprogramUploaded !== true
+  || candidate?.actions?.wechatReviewSubmitted !== false
+  || candidate?.actions?.wechatReleased !== false
+  || candidate?.actions?.nativeAllowlistEnabled !== false
+  || candidate?.trueDeviceEvidence?.passed !== 0
+  || candidate?.trueDeviceEvidence?.required !== 56
+) {
+  failures.push({
+    path: "docs/native-candidate-evidence.json",
+    phrase: "current uploaded 1.1.75 evidence must retain N5b-only action boundaries",
+  });
 }
 
 const miniProgramConfig = await readFile("miniprogram/utils/config.js", "utf8");
