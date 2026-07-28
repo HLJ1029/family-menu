@@ -25,6 +25,7 @@ import {
   assertNativeRuntimeMatchesCommit,
 } from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
+import { CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT } from "./release-candidate.mjs";
 
 process.env.NODE_ENV = "test";
 
@@ -584,27 +585,7 @@ try {
 const rolloutFixture = await mkdtemp(join(tmpdir(), "humi-native-rollout-fixture-"));
 try {
   const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-  const fixtureIndex = join(rolloutFixture, "git-index");
-  const gitEnv = { ...process.env, GIT_INDEX_FILE: fixtureIndex };
-  execFileSync("git", ["read-tree", "HEAD"], { cwd: repoRoot, env: gitEnv });
-  execFileSync("git", ["add", "miniprogram"], { cwd: repoRoot, env: gitEnv });
-  const tree = execFileSync("git", ["write-tree"], {
-    cwd: repoRoot,
-    env: gitEnv,
-    encoding: "utf8",
-  }).trim();
-  const runtimeCommit = execFileSync("git", ["commit-tree", tree, "-p", "HEAD"], {
-    cwd: repoRoot,
-    env: {
-      ...gitEnv,
-      GIT_AUTHOR_NAME: "Humi selftest",
-      GIT_AUTHOR_EMAIL: "selftest@invalid.local",
-      GIT_COMMITTER_NAME: "Humi selftest",
-      GIT_COMMITTER_EMAIL: "selftest@invalid.local",
-    },
-    input: "bind current 1.1.75 runtime\n",
-    encoding: "utf8",
-  }).trim();
+  const runtimeCommit = CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT;
   const archivePath = join(rolloutFixture, "humi-native-shell-1.1.75.tar.gz");
   execFileSync("git", [
     "archive",
@@ -652,7 +633,7 @@ try {
 
   for (const [label, mutate, failurePattern] of [
     ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /candidate state/],
-    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /trusted private attestation/],
+    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /current candidate state/],
     ["wrong archive sha", (value) => { value.candidate.archive.sha256 = "c".repeat(64); }, /trusted private attestation/],
   ]) {
     const evidence = structuredClone(validEvidence);
@@ -662,7 +643,7 @@ try {
     assert.notEqual(failed.status, 0, `${label} evidence must fail`);
     assert(
       failed.json.failures.some((failure) => failurePattern.test(failure.name)),
-      `${label} must fail closed before untrusted receipt metadata can advance the current candidate: ${JSON.stringify(failed.json.failures)}`,
+      `${label} must fail at the current-candidate state boundary before untrusted receipt metadata can advance the current candidate: ${JSON.stringify(failed.json.failures)}`,
     );
   }
 

@@ -287,14 +287,15 @@ const candidateEvidencePath = resolve(
   process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH
     || resolve(ROOT, "docs/native-candidate-evidence.json"),
 );
-await check("structured evidence records the current 1.1.75 candidate state", async () => {
+await check("current candidate state matches expected 1.1.75 runtime", async () => {
   const evidence = JSON.parse(await readFile(candidateEvidencePath, "utf8"));
   currentCandidateState = validateNativeCandidateEvidence(evidence, {
     expectedVersion: packageVersion,
+    expectedRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   });
 });
 
-await check("current 1.1.75 experience upload requires trusted private attestation", async () => {
+if (currentCandidateState) await check("current 1.1.75 experience upload requires trusted private attestation", async () => {
   try {
     currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
       candidate: currentCandidateState,

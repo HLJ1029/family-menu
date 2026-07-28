@@ -125,6 +125,19 @@ const checks = [
 ];
 
 const failures = [];
+const docFixtureTarget = process.env.NODE_ENV === "test"
+  ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_TARGET || "")
+  : "";
+const docFixturePath = process.env.NODE_ENV === "test"
+  ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_PATH || "")
+  : "";
+const staleCurrentStatePhrases = [
+  "完整候选（待上传）",
+  "尚未归档或上传",
+  "当前候选未归档、未上传",
+  "当前 1.1.75 尚未封包或上传",
+];
+const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?[：:\s]*`?1\.1\.74`?/;
 
 const currentCandidateDocs = [
   {
@@ -227,11 +240,22 @@ const currentCandidateDocs = [
 ];
 
 for (const doc of currentCandidateDocs) {
-  const content = await readFile(doc.path, "utf8");
+  const content = await readReleaseDoc(doc.path);
   for (const phrase of doc.required) {
     if (!content.includes(phrase)) {
       failures.push({ path: doc.path, phrase: `missing ${phrase}` });
     }
+  }
+  for (const phrase of staleCurrentStatePhrases) {
+    if (content.includes(phrase)) {
+      failures.push({ path: doc.path, phrase: `stale current-state: ${phrase}` });
+    }
+  }
+  if (staleHistoricalUploadPattern.test(content)) {
+    failures.push({
+      path: doc.path,
+      phrase: "stale current-state: 1.1.74 must be historical rather than recent/current upload",
+    });
   }
 }
 
@@ -276,7 +300,7 @@ try {
 }
 
 for (const check of checks) {
-  const content = await readFile(check.path, "utf8");
+  const content = await readReleaseDoc(check.path);
   for (const phrase of check.forbidden) {
     if (content.includes(phrase)) {
       failures.push({ path: check.path, phrase });
@@ -287,6 +311,13 @@ for (const check of checks) {
       failures.push({ path: check.path, phrase: `missing ${phrase}` });
     }
   }
+}
+
+async function readReleaseDoc(path) {
+  if (docFixtureTarget === path && docFixturePath) {
+    return readFile(docFixturePath, "utf8");
+  }
+  return readFile(path, "utf8");
 }
 
 const releaseMap = await readFile("scripts/print-release-map.mjs", "utf8");

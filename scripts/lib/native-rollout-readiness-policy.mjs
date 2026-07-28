@@ -77,7 +77,10 @@ export function findForbiddenRuntimeFindings(files = []) {
   return uniqueFindings(findings);
 }
 
-export function validateNativeCandidateEvidence(evidence, { expectedVersion } = {}) {
+export function validateNativeCandidateEvidence(evidence, {
+  expectedVersion,
+  expectedRuntimeCommit,
+} = {}) {
   assertExactObjectKeys(evidence, NATIVE_EVIDENCE_KEYS, "native candidate evidence");
   if (evidence.schemaVersion !== 1) throw new Error("native candidate evidence schemaVersion must be 1");
   const candidate = evidence.candidate;
@@ -111,6 +114,9 @@ export function validateNativeCandidateEvidence(evidence, { expectedVersion } = 
     if (candidate.status !== "uploaded-experience") throw new Error("uploaded candidate status must be uploaded-experience");
     if (!/^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))) {
       throw new Error("uploaded candidate requires runtimeCommit");
+    }
+    if (expectedRuntimeCommit && candidate.runtimeCommit !== expectedRuntimeCommit) {
+      throw new Error(`uploaded candidate runtimeCommit must be ${expectedRuntimeCommit}`);
     }
     if (!candidate.archive) throw new Error("uploaded candidate requires archive");
     assertExactObjectKeys(candidate.archive, ["path", "sha256"], "uploaded candidate archive");

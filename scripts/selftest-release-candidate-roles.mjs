@@ -23,14 +23,33 @@ assert.deepEqual(candidate, {
     reviewSubmitted: false,
     released: false,
   },
-  currentLocalReviewCandidate: {
+  currentUploadedExperience: {
     version: "1.1.75",
     description: "Humi 原生骨架完整候选（fbb4938）",
-    uploadStatus: "uploaded",
+    runtimeCommit: "fbb4938200ef0137c468bd37f3868b94b64b738b",
+    evidenceSource: "docs/native-candidate-evidence.json",
+    recordedUploadStatus: "uploaded-experience",
+    verificationStatus: "requires_runtime_attestation",
+    reviewSubmitted: false,
+    released: false,
+  },
+  currentLocalReviewCandidate: {
+    compatibilityAliasFor: "currentUploadedExperience",
+    version: "1.1.75",
+    description: "Humi 原生骨架完整候选（fbb4938）",
+    runtimeCommit: "fbb4938200ef0137c468bd37f3868b94b64b738b",
+    evidenceSource: "docs/native-candidate-evidence.json",
+    recordedUploadStatus: "uploaded-experience",
+    verificationStatus: "requires_runtime_attestation",
     reviewSubmitted: false,
     released: false,
   },
 });
+assert.equal(
+  Object.hasOwn(candidate.currentUploadedExperience, "uploadStatus"),
+  false,
+  "recorded upload state must remain distinct from runtime attestation verification",
+);
 
 const { stdout: copyStdout } = await execFileAsync(
   process.execPath,

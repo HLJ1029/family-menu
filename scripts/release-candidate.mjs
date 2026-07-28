@@ -8,6 +8,7 @@ export const LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "4eb3fbeb6aba886930b3fda6
 export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.75";
 export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
 export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "fbb4938200ef0137c468bd37f3868b94b64b738b";
+export const CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE = "docs/native-candidate-evidence.json";
 
 // Backward-compatible names used by release tooling point to the current
 // experience candidate, never to the historical production/uploaded baselines.
@@ -17,6 +18,16 @@ export const NATIVE_SHELL_PREVIEW_VERSION = CURRENT_LOCAL_REVIEW_CANDIDATE_VERSI
 export const NATIVE_SHELL_EXPERIENCE_DESCRIPTION = CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION;
 
 export function releaseCandidateSummary() {
+  const currentUploadedExperience = {
+    version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+    description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
+    runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    evidenceSource: CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE,
+    recordedUploadStatus: "uploaded-experience",
+    verificationStatus: "requires_runtime_attestation",
+    reviewSubmitted: false,
+    released: false,
+  };
   return {
     productionCompatibilityBaseline: {
       version: PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
@@ -29,12 +40,10 @@ export function releaseCandidateSummary() {
       reviewSubmitted: false,
       released: false,
     },
+    currentUploadedExperience,
     currentLocalReviewCandidate: {
-      version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-      description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
-      uploadStatus: "uploaded",
-      reviewSubmitted: false,
-      released: false,
+      compatibilityAliasFor: "currentUploadedExperience",
+      ...currentUploadedExperience,
     },
   };
 }
