@@ -415,6 +415,35 @@ try {
     },
     "a cryptographically bound machine-output fixture keeps the positive contract testable",
   );
+  const devtoolsMachineEvidence = await writeTestOnlyDevtoolsUploadMachineAttestation({
+    directory: artifactFixture,
+    candidate: uploadedCandidate,
+    privateKey,
+    keyId: "test-only-ed25519-selftest",
+  });
+  assert.deepEqual(
+    await verifyTestOnlyNativeCandidateUploadEvidence({
+      candidate: uploadedCandidate,
+      repoRoot: artifactFixture,
+      evidenceBaseDir: artifactFixture,
+      uploadAttestationPath: devtoolsMachineEvidence.attestationPath,
+      testOnlyTrustedKey: {
+        keyId: "test-only-ed25519-selftest",
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+      },
+    }),
+    {
+      uploaded: true,
+      version: "1.1.75",
+      runtimeCommit: currentCommit,
+      artifactPath: currentArchive,
+      sha256: currentArchiveSha256,
+      uploadReceiptRef,
+      rawEvidenceSha256: devtoolsMachineEvidence.rawEvidenceSha256,
+      attestationKeyId: "test-only-ed25519-selftest",
+    },
+    "a signed official WeChat DevTools CLI info-output must prove the uploaded candidate",
+  );
   await assert.rejects(
     verifyNativeCandidateUploadEvidence({
       candidate: uploadedCandidate,
@@ -796,6 +825,71 @@ async function writeTestOnlyUploadMachineAttestation({
     rawEvidence,
     rawEvidenceBytes,
     rawEvidencePath,
+    rawEvidenceSha256,
+  };
+}
+
+async function writeTestOnlyDevtoolsUploadMachineAttestation({
+  directory,
+  candidate,
+  privateKey,
+  keyId,
+}) {
+  const commitAt = Date.parse(execFileSync(
+    "git",
+    ["show", "-s", "--format=%cI", candidate.runtimeCommit],
+    { cwd: directory, encoding: "utf8" },
+  ).trim());
+  const rawEvidence = {
+    schemaVersion: 1,
+    source: "wechat-devtools-cli-upload-output",
+    operation: "upload",
+    appId: "wx4040b89f3b363416",
+    version: candidate.version,
+    description: "Humi 原生骨架完整候选（fbb4938）",
+    invocationStartedAt: new Date(commitAt + 1_000).toISOString(),
+    uploadCompletedAt: new Date(commitAt + 2_000).toISOString(),
+    exitCode: 0,
+    stdout: "- 初始化\n✔ upload\n",
+    stderr: "",
+    infoOutput: {
+      size: {
+        total: 1536,
+        packages: [
+          { name: "TOTAL", size: 1536 },
+          { name: "main", size: 1024 },
+          { name: "/packageFamily/", size: 512 },
+        ],
+      },
+    },
+  };
+  const rawEvidenceBytes = `${JSON.stringify(rawEvidence, null, 2)}\n`;
+  const rawEvidencePath = join(directory, "wechat-devtools-cli-upload-output.json");
+  await writeFile(rawEvidencePath, rawEvidenceBytes);
+  const rawEvidenceSha256 = createHash("sha256").update(rawEvidenceBytes).digest("hex");
+  const attestation = {
+    schemaVersion: 1,
+    source: "humi-wechat-upload-machine-attestation",
+    attestationRef: candidate.uploadReceiptRef,
+    keyId,
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: candidate.version,
+      runtimeCommit: candidate.runtimeCommit,
+      archiveSha256: candidate.archive.sha256,
+    },
+    rawEvidence: {
+      kind: rawEvidence.source,
+      path: "wechat-devtools-cli-upload-output.json",
+      sha256: rawEvidenceSha256,
+    },
+    capturedAt: new Date(commitAt + 3_000).toISOString(),
+    attestedAt: new Date(commitAt + 4_000).toISOString(),
+  };
+  const attestationPath = join(directory, "wechat-devtools-upload-machine-attestation.json");
+  await writeSignedTestAttestation(attestationPath, attestation, privateKey);
+  return {
+    attestationPath,
     rawEvidenceSha256,
   };
 }

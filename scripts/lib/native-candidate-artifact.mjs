@@ -26,9 +26,14 @@ import {
 const WECHAT_APP_ID = "wx4040b89f3b363416";
 const WECHAT_MACHINE_ATTESTATION_SOURCE = "humi-wechat-upload-machine-attestation";
 const WECHAT_CI_OUTPUT_SOURCE = "wechat-miniprogram-ci-upload-output";
+const WECHAT_DEVTOOLS_CLI_OUTPUT_SOURCE = "wechat-devtools-cli-upload-output";
 const WECHAT_VERSION_LIST_SOURCE = "wechat-platform-version-list-response";
 const MAX_ATTESTATION_CLOCK_SKEW_MS = 5 * 60 * 1000;
-const PRODUCTION_WECHAT_MACHINE_KEYS = Object.freeze({});
+const PRODUCTION_WECHAT_MACHINE_KEYS = Object.freeze({
+  "humi-wechat-upload-2026-07-28-a1": createPublicKey(`-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAthyT9Bmvxrr8ZBPwgocApzwR65rVLT34ZctgHWwTEoM=
+-----END PUBLIC KEY-----`),
+});
 
 export async function assertNativeArtifactMatchesCommit({
   artifactPath,
@@ -352,6 +357,56 @@ async function verifyWechatUploadMachineAttestationBinding({
 }
 
 function validateOfficialWechatUploadEvidence(evidence, candidate) {
+  if (evidence?.source === WECHAT_DEVTOOLS_CLI_OUTPUT_SOURCE) {
+    assertExactKeys(evidence, [
+      "schemaVersion",
+      "source",
+      "operation",
+      "appId",
+      "version",
+      "description",
+      "invocationStartedAt",
+      "uploadCompletedAt",
+      "exitCode",
+      "stdout",
+      "stderr",
+      "infoOutput",
+    ], "WeChat DevTools CLI upload output");
+    if (evidence.schemaVersion !== 1 || evidence.operation !== "upload") {
+      throw new Error("WeChat DevTools CLI upload output contract is invalid");
+    }
+    if (evidence.appId !== WECHAT_APP_ID || evidence.version !== candidate.version) {
+      throw new Error("WeChat DevTools CLI upload output does not match candidate");
+    }
+    if (
+      typeof evidence.description !== "string"
+      || !evidence.description.trim()
+      || evidence.description.length > 120
+    ) {
+      throw new Error("WeChat DevTools CLI upload description is invalid");
+    }
+    if (
+      evidence.exitCode !== 0
+      || typeof evidence.stdout !== "string"
+      || evidence.stdout.length > 20_000
+      || !/(?:^|\n)✔ upload(?:\n|$)/u.test(evidence.stdout)
+      || typeof evidence.stderr !== "string"
+      || evidence.stderr.length > 20_000
+    ) {
+      throw new Error("WeChat DevTools CLI did not report a successful upload");
+    }
+    validateWechatDevtoolsInfoOutput(evidence.infoOutput);
+    return {
+      uploadStartedAt: parseUtcTimestamp(
+        evidence.invocationStartedAt,
+        "WeChat DevTools CLI invocationStartedAt",
+      ),
+      uploadCompletedAt: parseUtcTimestamp(
+        evidence.uploadCompletedAt,
+        "WeChat DevTools CLI uploadCompletedAt",
+      ),
+    };
+  }
   if (evidence?.source === WECHAT_CI_OUTPUT_SOURCE) {
     assertExactKeys(evidence, [
       "schemaVersion",
@@ -438,6 +493,36 @@ function validateOfficialWechatUploadEvidence(evidence, candidate) {
     };
   }
   throw new Error("raw evidence is not official WeChat upload output or a platform version-list response");
+}
+
+function validateWechatDevtoolsInfoOutput(infoOutput) {
+  assertExactKeys(infoOutput, ["size"], "WeChat DevTools CLI info output");
+  assertExactKeys(infoOutput.size, ["total", "packages"], "WeChat DevTools CLI size output");
+  const { total, packages } = infoOutput.size;
+  if (!Number.isSafeInteger(total) || total <= 0 || !Array.isArray(packages) || packages.length < 2) {
+    throw new Error("WeChat DevTools CLI package size output is invalid");
+  }
+  let declaredTotal = null;
+  let packageTotal = 0;
+  const names = new Set();
+  for (const entry of packages) {
+    assertExactKeys(entry, ["name", "size"], "WeChat DevTools CLI package size entry");
+    if (
+      typeof entry.name !== "string"
+      || !/^(?:TOTAL|main|\/[A-Za-z0-9_-]+\/)$/.test(entry.name)
+      || names.has(entry.name)
+      || !Number.isSafeInteger(entry.size)
+      || entry.size < 0
+    ) {
+      throw new Error("WeChat DevTools CLI package size entry is invalid");
+    }
+    names.add(entry.name);
+    if (entry.name === "TOTAL") declaredTotal = entry.size;
+    else packageTotal += entry.size;
+  }
+  if (declaredTotal !== total || packageTotal !== total || !names.has("main")) {
+    throw new Error("WeChat DevTools CLI package totals do not reconcile");
+  }
 }
 
 function parseUtcTimestamp(value, label) {
