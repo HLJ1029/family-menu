@@ -137,7 +137,7 @@ const staleCurrentStatePhrases = [
   "当前候选未归档、未上传",
   "当前 1.1.75 尚未封包或上传",
 ];
-const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?[：:\s]*`?1\.1\.74`?/;
+const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?(?:[：:\s]|是|为)*`?1\.1\.74(?:@4eb3fbeb)?`?/;
 
 const currentCandidateDocs = [
   {
