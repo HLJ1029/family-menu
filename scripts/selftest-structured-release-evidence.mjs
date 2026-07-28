@@ -72,6 +72,7 @@ const currentUnuploaded = {
     status: "local-candidate",
     runtimeCommit: null,
     archive: null,
+    uploadEvidence: null,
     uploadReceiptRef: null,
     actions: {
       productionApiDeployed: true,
@@ -96,6 +97,10 @@ futureUploaded.candidate.runtimeCommit = "0123456789abcdef0123456789abcdef012345
 futureUploaded.candidate.archive = {
   path: "/private/humi-native-shell-1.1.75.tar.gz",
   sha256: "a".repeat(64),
+  sizeBytes: 140710,
+};
+futureUploaded.candidate.uploadEvidence = {
+  rawEvidenceSha256: "c".repeat(64),
 };
 futureUploaded.candidate.uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
 futureUploaded.candidate.actions.miniprogramUploaded = true;
@@ -107,7 +112,11 @@ assert.equal(
 for (const [name, mutate, message] of [
   ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /version must be 1\.1\.75/],
   ["uploaded without archive", (value) => { value.candidate.archive = null; }, /uploaded candidate requires archive/],
+  ["uploaded archive without size", (value) => { delete value.candidate.archive.sizeBytes; }, /uploaded candidate archive must use the exact key set/],
+  ["uploaded archive with invalid size", (value) => { value.candidate.archive.sizeBytes = 0; }, /uploaded candidate requires archive path, sha256, and sizeBytes/],
   ["uploaded without commit", (value) => { value.candidate.runtimeCommit = null; }, /uploaded candidate requires runtimeCommit/],
+  ["uploaded without raw evidence hash", (value) => { value.candidate.uploadEvidence = null; }, /uploaded candidate requires uploadEvidence/],
+  ["uploaded raw evidence hash invalid", (value) => { value.candidate.uploadEvidence.rawEvidenceSha256 = "not-a-sha"; }, /uploaded candidate requires rawEvidenceSha256/],
   ["uploaded without receipt ref", (value) => { value.candidate.uploadReceiptRef = null; }, /uploaded candidate requires uploadReceiptRef/],
   ["review already submitted", (value) => { value.candidate.actions.wechatReviewSubmitted = true; }, /wechatReviewSubmitted must remain false/],
   ["extra field", (value) => { value.candidate.extra = true; }, /exact key set/],

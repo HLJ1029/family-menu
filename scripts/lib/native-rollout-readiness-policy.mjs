@@ -20,6 +20,7 @@ const NATIVE_CANDIDATE_EVIDENCE_KEYS = Object.freeze([
   "status",
   "runtimeCommit",
   "archive",
+  "uploadEvidence",
   "uploadReceiptRef",
   "actions",
   "trueDeviceEvidence",
@@ -119,9 +120,19 @@ export function validateNativeCandidateEvidence(evidence, {
       throw new Error(`uploaded candidate runtimeCommit must be ${expectedRuntimeCommit}`);
     }
     if (!candidate.archive) throw new Error("uploaded candidate requires archive");
-    assertExactObjectKeys(candidate.archive, ["path", "sha256"], "uploaded candidate archive");
-    if (!String(candidate.archive.path || "").trim() || !/^[0-9a-f]{64}$/.test(String(candidate.archive.sha256 || ""))) {
-      throw new Error("uploaded candidate requires archive path and sha256");
+    assertExactObjectKeys(candidate.archive, ["path", "sha256", "sizeBytes"], "uploaded candidate archive");
+    if (
+      !String(candidate.archive.path || "").trim()
+      || !/^[0-9a-f]{64}$/.test(String(candidate.archive.sha256 || ""))
+      || !Number.isSafeInteger(candidate.archive.sizeBytes)
+      || candidate.archive.sizeBytes <= 0
+    ) {
+      throw new Error("uploaded candidate requires archive path, sha256, and sizeBytes");
+    }
+    if (!candidate.uploadEvidence) throw new Error("uploaded candidate requires uploadEvidence");
+    assertExactObjectKeys(candidate.uploadEvidence, ["rawEvidenceSha256"], "uploaded candidate uploadEvidence");
+    if (!/^[0-9a-f]{64}$/.test(String(candidate.uploadEvidence.rawEvidenceSha256 || ""))) {
+      throw new Error("uploaded candidate requires rawEvidenceSha256");
     }
     if (!/^private:\/\/[A-Za-z0-9_./-]+$/.test(String(candidate.uploadReceiptRef || ""))) {
       throw new Error("uploaded candidate requires uploadReceiptRef");
@@ -131,9 +142,10 @@ export function validateNativeCandidateEvidence(evidence, {
     if (
       candidate.runtimeCommit !== null
       || candidate.archive !== null
+      || candidate.uploadEvidence !== null
       || candidate.uploadReceiptRef !== null
     ) {
-      throw new Error("unuploaded candidate must not claim runtimeCommit, archive, or upload receipt");
+      throw new Error("unuploaded candidate must not claim runtimeCommit, archive, upload evidence, or upload receipt");
     }
   }
   return candidate;

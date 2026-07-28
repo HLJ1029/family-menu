@@ -5,7 +5,7 @@ import {
   generateKeyPairSync,
   sign,
 } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ import {
   extractNativeCandidateCommit,
   findForbiddenRuntimeFindings,
   resolveExternalHandoffPath,
+  validateNativeCandidateEvidence,
   validateNativeCandidateState,
 } from "./lib/native-rollout-readiness-policy.mjs";
 import {
@@ -123,6 +124,47 @@ assert.equal(
 assert.throws(
   () => resolveExternalHandoffPath({ handoffPath: "", localContractOnly: false }),
   /HUMI_NATIVE_HANDOFF_PATH is required/,
+);
+
+const immutableUploadEvidenceFixture = {
+  schemaVersion: 1,
+  candidate: {
+    version: "1.1.75",
+    status: "uploaded-experience",
+    runtimeCommit: "a".repeat(40),
+    archive: {
+      path: "/tmp/humi-native-shell-1.1.75.tar.gz",
+      sha256: "b".repeat(64),
+      sizeBytes: 140710,
+    },
+    uploadEvidence: { rawEvidenceSha256: "c".repeat(64) },
+    uploadReceiptRef: "private://n5b/upload-attestation-1.1.75",
+    actions: {
+      productionApiDeployed: true,
+      h5Deployed: true,
+      miniprogramUploaded: true,
+      wechatReviewSubmitted: false,
+      wechatReleased: false,
+      nativeAllowlistEnabled: false,
+    },
+    trueDeviceEvidence: { passed: 0, required: 56 },
+  },
+};
+assert.equal(
+  validateNativeCandidateEvidence(immutableUploadEvidenceFixture, { expectedVersion: "1.1.75" }).archive.sizeBytes,
+  140710,
+  "an uploaded candidate must retain its immutable archive byte count",
+);
+assert.throws(
+  () => validateNativeCandidateEvidence({
+    ...immutableUploadEvidenceFixture,
+    candidate: {
+      ...immutableUploadEvidenceFixture.candidate,
+      uploadEvidence: { rawEvidenceSha256: "not-a-sha" },
+    },
+  }, { expectedVersion: "1.1.75" }),
+  /rawEvidenceSha256/,
+  "an uploaded candidate must reject an unpinned raw CLI evidence hash",
 );
 
 const n4CandidateYaml = [
@@ -599,7 +641,14 @@ try {
     encoding: "utf8",
   }).trim().split(/\s+/)[0];
   const uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
-  const validEvidence = currentCandidateEvidence({ runtimeCommit, archivePath, sha256, uploadReceiptRef });
+  const archiveSizeBytes = (await stat(archivePath)).size;
+  const validEvidence = currentCandidateEvidence({
+    runtimeCommit,
+    archivePath,
+    sha256,
+    archiveSizeBytes,
+    uploadReceiptRef,
+  });
   const evidencePath = join(rolloutFixture, "candidate.json");
   const receiptPath = join(rolloutFixture, "wechat-upload-receipt.json");
 
@@ -635,6 +684,7 @@ try {
     ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /candidate state/],
     ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /current candidate state/],
     ["wrong archive sha", (value) => { value.candidate.archive.sha256 = "c".repeat(64); }, /trusted private attestation/],
+    ["wrong archive size", (value) => { value.candidate.archive.sizeBytes += 1; }, /archive size matches immutable candidate evidence/],
   ]) {
     const evidence = structuredClone(validEvidence);
     mutate(evidence);
@@ -700,14 +750,15 @@ assert.equal(rollback.allowlistPreserved, true, "the rollback must not mutate th
 
 console.log("Native rollout readiness selftest passed.");
 
-function currentCandidateEvidence({ runtimeCommit, archivePath, sha256, uploadReceiptRef }) {
+function currentCandidateEvidence({ runtimeCommit, archivePath, sha256, archiveSizeBytes, uploadReceiptRef }) {
   return {
     schemaVersion: 1,
     candidate: {
       version: "1.1.75",
       status: "uploaded-experience",
       runtimeCommit,
-      archive: { path: archivePath, sha256 },
+      archive: { path: archivePath, sha256, sizeBytes: archiveSizeBytes },
+      uploadEvidence: { rawEvidenceSha256: "c".repeat(64) },
       uploadReceiptRef,
       actions: {
         productionApiDeployed: true,

@@ -170,8 +170,10 @@ async function writeCandidateEvidence({ uploaded }) {
       ? {
         path: "private://candidate/humi-native-shell-1.1.75.tar.gz",
         sha256: "b".repeat(64),
+        sizeBytes: 140710,
       }
       : null,
+    uploadEvidence: uploaded ? { rawEvidenceSha256: "c".repeat(64) } : null,
     uploadReceiptRef: uploaded ? "private://n5c/upload-receipt-1.1.75" : null,
     actions: {
       productionApiDeployed: true,

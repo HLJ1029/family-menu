@@ -174,6 +174,8 @@ const currentCandidateDocs = [
       LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       "历史兼容/生产基线是 `1.1.73`",
       "平台隐私保护指引也仍待最终填写和留证",
+      "private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json",
+      "当前已上传 `1.1.75`，未执行 preview、未提交审核、未发布",
     ],
   },
   {
@@ -227,6 +229,11 @@ const currentCandidateDocs = [
     required: [
       `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
       "未提审、未发布、未开启原生开关或白名单",
+      "历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.75 验证）",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      "当前 N5b-1.1.75 使用签名 attestation 验证",
+      "production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true",
+      "wechat-upload-machine-attestation.json",
     ],
   },
   {
@@ -259,6 +266,23 @@ for (const doc of currentCandidateDocs) {
   }
 }
 
+const staleCurrentN5bStatements = [
+  {
+    path: "docs/humi-api-production-deploy-runbook.md",
+    pattern: /^(?!> \*\*历史 pre-N5a 模板).*当前[^\n]*(?:候选提交[^\n]*当前 `HEAD`|production_api_deployed=false[^\n]*h5_deployed=false[^\n]*miniprogram_uploaded=false)/m,
+    phrase: "stale current-state: pre-N5a current-HEAD/all-false template",
+  },
+  {
+    path: "docs/humi-1.1-release-operator-handoff.md",
+    pattern: /(?:当前上传证据目录|当前[^\n]*CLI)[^\n]*1\.1\.71/,
+    phrase: "stale current-state: 1.1.71 must be historical rather than current upload",
+  },
+];
+for (const stale of staleCurrentN5bStatements) {
+  const content = await readReleaseDoc(stale.path);
+  if (stale.pattern.test(content)) failures.push({ path: stale.path, phrase: stale.phrase });
+}
+
 const candidateEvidence = JSON.parse(await readFile("docs/native-candidate-evidence.json", "utf8"));
 const candidate = candidateEvidence?.candidate;
 if (
@@ -266,6 +290,8 @@ if (
   || candidate?.version !== CURRENT_MINIPROGRAM_VERSION
   || candidate?.status !== "uploaded-experience"
   || candidate?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || candidate?.archive?.sizeBytes !== 140710
+  || candidate?.uploadEvidence?.rawEvidenceSha256 !== "ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938"
   || candidate?.actions?.miniprogramUploaded !== true
   || candidate?.actions?.wechatReviewSubmitted !== false
   || candidate?.actions?.wechatReleased !== false

@@ -295,6 +295,19 @@ await check("current candidate state matches expected 1.1.75 runtime", async () 
   });
 });
 
+if (currentCandidateState) await check("current 1.1.75 archive size matches immutable candidate evidence", async () => {
+  const archivePath = resolve(
+    dirname(candidateEvidencePath),
+    currentCandidateState.archive.path,
+  );
+  const archiveStat = await stat(archivePath);
+  assert.equal(
+    archiveStat.size,
+    currentCandidateState.archive.sizeBytes,
+    "immutable archive size must match canonical candidate evidence",
+  );
+});
+
 if (currentCandidateState) await check("current 1.1.75 experience upload requires trusted private attestation", async () => {
   try {
     currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
@@ -313,6 +326,11 @@ if (currentCandidateState) await check("current 1.1.75 experience upload require
     currentCandidateVerification?.uploaded,
     true,
     "trusted private upload attestation is required to verify the recorded 1.1.75 experience upload before N5c",
+  );
+  assert.equal(
+    currentCandidateVerification?.rawEvidenceSha256,
+    currentCandidateState.uploadEvidence.rawEvidenceSha256,
+    "signed attestation raw CLI evidence hash must match canonical candidate evidence",
   );
 });
 

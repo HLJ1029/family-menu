@@ -351,17 +351,23 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 npm run release:wechat:copy
 ```
 
-当前上传证据目录：
+当前 N5b-1.1.75 上传证据：
+
+```text
+private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json
+```
+
+该签名 attestation 绑定 `1.1.75@fbb4938`、不可变归档、原始 CLI 证据及版本/AppID；当前已上传 `1.1.75`，未执行 preview、未提交审核、未发布。后续如果重新运行 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit`，以命令最新输出的目录为准。
+
+历史 1.1.71 证据目录（仅作历史记录，不是当前上传证据）：
 
 ```text
 /Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.71
 ```
 
-后续如果重新运行 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit`，以命令最新输出的目录为准。
-
 自动化边界：
 
-- 微信开发者工具 CLI 已完成 `1.1.71` 上传；本机 CLI 没有提交审核或发布。
+- 微信开发者工具 CLI 已完成当前 `1.1.75` 上传；未执行 preview、没有提交审核或发布。历史 `1.1.71` 上传记录仅用于追溯，不得作为当前上传状态。
 - `release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只负责复制审核备注、打开公众平台和证据目录；不提交审核、不发布、不撤回，也不调用微信开放接口。
 - 微信公众平台 `mp.weixin.qq.com` 不允许本会话用浏览器自动化控制；不得绕过该限制。
 - 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。

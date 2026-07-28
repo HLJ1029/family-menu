@@ -72,7 +72,18 @@ npm run release:check:online
 HUMI_REPO="$PWD" /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-预检失败时不要部署。先修复并重新走完整验证。`HUMI_NATIVE_HANDOFF_PATH` 必须指向本次候选的 AI‑HQ 交付文件，且其中唯一候选提交必须等于当前 `HEAD`；不得用 `release:native-shell:check:local` 代替部署预检。`release:native-shell:check` 必须继续报告 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false` 和原生白名单关闭；这一步只证明候选完整，不会改变外部状态。
+预检失败时不要部署。先修复并重新走完整验证。
+
+> **历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.75 验证）：** 当时 `HUMI_NATIVE_HANDOFF_PATH` 指向候选 AI‑HQ 交付文件，唯一候选提交需等于当时的 `HEAD`，并要求 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false`。这是上传前模板，不能用于描述已上传体验版的当前状态。
+
+当前 N5b-1.1.75 使用签名 attestation 验证，而不是要求当前文档 `HEAD` 等于已上传运行时。运行时绑定为 `fbb4938200ef0137c468bd37f3868b94b64b738b`；上传后允许继续提交文档和验证修复，只要不改变该小程序运行时。当前事实是 `production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true`，`wechat_review_submitted=false`、`wechat_released=false`、`native_allowlist_enabled=false`。本地只读复验必须显式提供签名 attestation：
+
+```bash
+HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/Users/honglijie/.humi-release-evidence/HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json \
+  npm run release:native-shell:check:local
+```
+
+该复验会校验不可变归档、归档大小、归档 SHA-256、运行时提交以及签名原始 CLI 证据哈希；它只读本地证据，不会执行 preview、提审、发布或开关/白名单动作。
 
 ## 4. 恢复 SSH 后的连接检查
 
