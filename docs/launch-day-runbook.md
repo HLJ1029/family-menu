@@ -1,16 +1,16 @@
 # Humi 1.1 小程序发布 Runbook
 
-更新日期：2026-07-18
+更新日期：2026-07-28
 执行设备：codex@mbp-m5pro
 
 ## 1. 当前状态
 
 - 小程序版本：`1.1.75`
-- 版本描述：`Humi 原生骨架完整候选（待上传）`
+- 版本描述：`Humi 原生骨架完整候选（fbb4938）`
 - AppID：`wx4040b89f3b363416`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
-- 当前状态：N5a H5/API 已部署；最近上传的是 `1.1.74@4eb3fbeb`，当前 `1.1.75` 尚未封包或上传。先取得上传授权，再做真机验收；提审、发布、开关和白名单均不在当前动作内。
+- 当前状态：N5a H5/API 已部署；`1.1.75@fbb4938` 已按 N5b-1.1.75 上传为体验版。下一步需单独授权 N5c 真机验收；提审、发布、开关和白名单均未执行。
 - 后端状态：1.1.73 新增短期海报图片接口；发布前后用 `npm run validate:api`、`npm run monitor:prod` 和 `npm run release:status` 复核。
 - 操作顺序总览：`docs/humi-1.1-release-operator-handoff.md`。
 

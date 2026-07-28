@@ -1,6 +1,6 @@
 # Humi API 1.1 Production Deploy Runbook
 
-更新日期：2026-07-24
+更新日期：2026-07-28
 执行设备：codex@mbp-m5pro
 
 本文档记录 Humi API 1.1 服务端增量以及原生骨架 `1.1.75` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
@@ -10,10 +10,10 @@
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前兼容生产基线：`e66c5f0`；原生骨架候选以当前受审分支 HEAD 与 AI-HQ `native-shell/HANDOFF.md` 为准，尚未部署。
-- 最新确认的兼容 H5：GitHub Pages run `29890670549` / success；原生候选 H5 改动尚未部署。
+- 当前兼容生产基线：PR #37 merge `b7f9488`；原生骨架候选以当前受审分支和签名候选证据为准。
+- 最新确认的兼容 H5：GitHub Pages deployment `30088654727` / success；N5a 原生候选 H5/API 兼容改动已部署。
 - 历史兼容基线：`1.1.73` / `修复身份完善入口`。
-- 最新小程序候选：`1.1.75` / `Humi 原生骨架完整候选（待上传）`。N5a API/H5 兼容改动已部署；最近已上传体验版为 `1.1.74@4eb3fbeb`，当前候选未归档、未上传、未提审、未发布、未开启原生白名单。
+- 当前已上传体验版：`1.1.75` / `Humi 原生骨架完整候选（fbb4938）`。N5a API/H5 兼容改动已部署；N5b-1.1.75 已绑定 `fbb4938` 上传，未提审、未发布、未开启原生开关或白名单。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -201,7 +201,7 @@ npm run release:check:online
 - 普通成员在【我的家】不能代替主厨发起征集或分享买菜卡片。
 - 精准推荐/解释额度用完时服务端返回 402，前端可降级。
 
-N5a API 部署后仍不打开原生能力；N5b 已独立上传 `1.1.74`，当前 `1.1.75` 尚未上传。继续保持开关和白名单关闭，封包、上传、提审、发布和灰度分别走独立 checkpoint。
+N5a API 部署后仍不打开原生能力；N5b-1.1.75 已独立上传 `1.1.75@fbb4938`。继续保持开关和白名单关闭，N5c 真机验收、提审、发布和灰度分别走独立 checkpoint。
 
 ## 9. 回滚
 

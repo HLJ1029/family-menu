@@ -1,9 +1,9 @@
 # Humi 1.1 微信公众平台提交与发布 Runbook
 
-更新日期：2026-07-18
+更新日期：2026-07-28
 执行设备：codex@mbp-m5pro
 
-本文档用于在当前本地候选 Humi 1.1.75 完成不可变归档、取得上传授权并真正上传后，再推进微信公众平台审核、发布和发布后证据留存。后台页面名称和字段可能随微信平台调整，最终以微信公众平台实时展示为准。最近已上传体验版仍是 `1.1.74@4eb3fbeb`，不能用它代替当前候选证据。只有 `1.1.75` 上传、56 项真机证据、平台隐私声明和 web-view 域名证据完成，且用户动作当下确认后，才进入本 runbook 的平台提交动作。
+本文档用于在当前 Humi 1.1.75 体验版完成真机和平台证据后，再推进微信公众平台审核、发布和发布后证据留存。后台页面名称和字段可能随微信平台调整，最终以微信公众平台实时展示为准。当前已上传体验版是 `1.1.75@fbb4938`；`1.1.74@4eb3fbeb` 只保留为历史证据。只有 56 项真机证据、平台隐私声明和 web-view 域名证据完成，且用户动作当下确认后，才进入本 runbook 的平台提交动作。
 
 真实候选复盘尚未通过；`npm run release:candidate:review` 与真机/平台证据必须共同满足，任何单一工程检查都不等于可提审。
 
@@ -14,9 +14,9 @@
 
 - 小程序名称：`Humi`
 - AppID：`wx4040b89f3b363416`
-- 当前候选版本：`1.1.75`（未上传）
-- 版本描述：`Humi 原生骨架完整候选（待上传）`
-- 最近已上传版本：`1.1.74` / `Humi 原生骨架体验版 N5b（4eb3fbeb）`
+- 当前已上传体验版：`1.1.75@fbb4938`
+- 版本描述：`Humi 原生骨架完整候选（fbb4938）`
+- 上一历史体验版：`1.1.74` / `Humi 原生骨架体验版 N5b（4eb3fbeb）`
 - H5：`https://www.humi-home.com/`
 - API：`https://api.humi-home.com`
 - request 合法域名：`api.humi-home.com`
@@ -62,12 +62,12 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 - `npm run release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只会把审核备注复制到剪贴板、打开微信公众平台和证据目录；不会提交表单、点击审核按钮或改变微信后台状态。
 - 微信公众平台提交审核/发布会改变外部平台状态，必须由有权限的操作者在后台确认后执行。
 - 若改用微信开放接口提交审核/发布，必须先有正式授权 token、可用类目和一次动作级确认；不得用聊天记录、后台截图或仓库文件保存 AppSecret/access token。
-- 私有证据目录以 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit` 输出为准；目录前缀应为 `wechat-submit-1.1.75-*`。后台截图放这里，仓库只记录结论和私有位置。当前未上传时不得提前创建“已上传/可提审”证据。
+- 私有提审证据目录以 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit` 输出为准；目录前缀应为 `wechat-submit-1.1.75-*`。后台截图放这里，仓库只记录结论和私有位置。当前上传成功不等于可提审，N5c 与平台证据未完成时不得创建“可提审”结论。
 
 ## 3. 公众平台操作顺序
 
 1. 登录微信公众平台，进入 Humi 小程序。
-2. 检查开发管理/版本管理里是否已经存在上传版本 `1.1.75`，描述为 `Humi 原生骨架完整候选（待上传）`；若只看到 `1.1.74`，立即停止提审流程并回到封包/上传授权阶段。
+2. 检查开发管理/版本管理里是否已经存在上传版本 `1.1.75`，描述为 `Humi 原生骨架完整候选（fbb4938）`；若只看到 `1.1.74`，立即停止提审流程并核对 N5b-1.1.75 的签名上传证据与平台状态。
 3. 检查服务器域名（身份头像与海报保存的部署前硬门禁）：
    - request 合法域名包含 `https://api.humi-home.com`。
    - 在微信公众平台实际配置并用真机验证 downloadFile 合法域名至少包含 `https://api.humi-home.com`、`https://thirdwx.qlogo.cn` 和 `https://wx.qlogo.cn`。身份页只接受后两者的 HTTPS 微信头像地址；任一域名尚未配置、控制台未显示或真机下载失败时，禁止发布包含该链路的版本。
@@ -125,7 +125,7 @@ npm run release:evidence:record:submit:latest
 npm run release:evidence:commands -- submit
 ```
 
-如果截图已经放到最新 `wechat-submit-1.1.74-*` 私有目录，优先运行 `release:evidence:record:submit:latest`，它会自动使用最新私有目录登记证据；若目录里只有 README、没有截图或录屏，命令会拒绝登记。`release:evidence:commands -- submit` 会打印手动登记模板；替换时间、提交人、状态和私有证据位置后再运行。
+如果截图已经放到最新 `wechat-submit-1.1.75-*` 私有目录，优先运行 `release:evidence:record:submit:latest`，它会自动使用最新私有目录登记证据；若目录里只有 README、没有截图或录屏，命令会拒绝登记。`release:evidence:commands -- submit` 会打印手动登记模板；替换时间、提交人、状态和私有证据位置后再运行。
 `HUMI_WECHAT_EVIDENCE_LOCATION` 只填私有位置或飞书私有链接，不填截图内容、登录态、手机号或真实家庭名单。
 
 ## 6. 审核通过后发布
