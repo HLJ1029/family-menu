@@ -537,10 +537,12 @@ function matchesExpectedBlocker(commandEntry, execution) {
       && report?.externalEvidence?.reason === "true_device_performance_evidence_missing";
   }
   if (policy === "current-candidate-upload-missing") {
+    const failure = report?.failures?.[0];
     return execution.code === 1
       && Array.isArray(report?.failures)
       && report.failures.length === 1
-      && report.failures[0]?.name === "current 1.1.75 candidate has immutable upload evidence";
+      && failure?.name === "current 1.1.75 experience upload requires trusted private attestation"
+      && failure?.message === "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required";
   }
   return false;
 }

@@ -82,15 +82,31 @@ function testExternalBlockerClassificationIsExact() {
   const expectedRollout = processResult({
     code: 1,
     stdout: JSON.stringify({
-      failures: [{ name: "current 1.1.75 candidate has immutable upload evidence", message: "archive missing" }],
+      failures: [{
+        name: "current 1.1.75 experience upload requires trusted private attestation",
+        message: "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required",
+      }],
     }),
   });
   assert.equal(classifyMatrixResult(rolloutCommand, expectedRollout), "blocker");
+  const invalidAttestation = processResult({
+    code: 1,
+    stdout: JSON.stringify({
+      failures: [{
+        name: "current 1.1.75 experience upload requires trusted private attestation",
+        message: "trusted private upload attestation is unavailable: WeChat upload machine attestation signature is invalid",
+      }],
+    }),
+  });
+  assert.equal(classifyMatrixResult(rolloutCommand, invalidAttestation), "fail");
   const mixedRollout = processResult({
     code: 1,
     stdout: JSON.stringify({
       failures: [
-        { name: "current 1.1.75 candidate has immutable upload evidence", message: "archive missing" },
+        {
+          name: "current 1.1.75 experience upload requires trusted private attestation",
+          message: "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required",
+        },
         { name: "repository rollout defaults remain off", message: "flag changed" },
       ],
     }),

@@ -20,9 +20,10 @@ The default run deliberately has three external-evidence stops:
   supplied, even though its local contract command exits zero;
 - `validate:true-device-evidence` is an explicit blocker at the current `0/56`
   state and is never recorded as a pass without an evidence directory;
-- local and historical-handoff rollout checks classify a non-zero result as a
-  blocker. At the current `1.1.75` state they stop on the missing immutable
-  archive/upload receipt, while the external form still verifies the historical
+- local and historical-handoff rollout checks classify the exact absence of an
+  explicitly bound private `1.1.75` upload attestation as a blocker. A malformed,
+  mismatched, or invalidly signed attestation remains a local failure. The
+  external form still verifies the historical
   `1.1.74@4eb3fbeb6aba886930b3fda652be96e9246eac9e` archive read-only.
 
 A fresh run at the current `HEAD` is expected to exit non-zero with overall
