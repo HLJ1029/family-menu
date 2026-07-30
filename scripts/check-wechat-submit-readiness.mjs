@@ -1,18 +1,17 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { CURRENT_MINIPROGRAM_VERSION } from "./release-candidate.mjs";
+import { runWechatReleaseStatus } from "./lib/wechat-submit-readiness-runner.mjs";
 
-const execFileAsync = promisify(execFile);
-
-const { stdout } = await execFileAsync("npm", ["run", "release:status"], {
-  timeout: 90_000,
-  maxBuffer: 1024 * 1024 * 4,
-});
-
-const status = parseLastJson(stdout);
-if (!status) {
-  throw new Error("Unable to parse release:status output.");
+const execution = await runWechatReleaseStatus();
+if (!execution.ok) {
+  console.log(JSON.stringify({
+    ok: false,
+    checkedAt: new Date().toISOString(),
+    code: execution.code,
+    releaseStatusOk: false,
+  }, null, 2));
+  process.exit(1);
 }
+const status = execution.status;
 
 const ready = Boolean(
   status.ok
@@ -83,14 +82,3 @@ const packet = {
 console.log(JSON.stringify(packet, null, 2));
 
 if (!submitReady) process.exit(1);
-
-function parseLastJson(output) {
-  const text = String(output || "").trim();
-  const jsonStart = text.lastIndexOf("\n{");
-  const candidate = jsonStart >= 0 ? text.slice(jsonStart + 1) : text;
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    return null;
-  }
-}

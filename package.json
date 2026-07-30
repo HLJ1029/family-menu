@@ -60,6 +60,12 @@
     "validate:migration": "node scripts/check-humi-migration.mjs",
     "validate:true-device-evidence": "node scripts/check-humi-true-device-evidence.mjs",
     "validate:true-device-evidence:selftest": "node scripts/check-humi-true-device-evidence.mjs --selftest",
+    "release:n5c:prepare": "node scripts/prepare-n5c-evidence-session.mjs",
+    "release:n5c:prepare:selftest": "node scripts/selftest-n5c-evidence-session-prepare.mjs",
+    "release:n5c:record": "node scripts/record-n5c-evidence-scenario.mjs",
+    "release:n5c:record:selftest": "node scripts/selftest-n5c-evidence-session-record.mjs",
+    "release:n5c:check": "node scripts/check-n5c-evidence-session.mjs",
+    "release:n5c:check:selftest": "node scripts/selftest-n5c-evidence-session-check.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "validate:api-deploy-set": "node scripts/check-api-deploy-set.mjs",
@@ -137,7 +143,8 @@
     "release:wechat:share:landings": "node scripts/capture-miniprogram-share-landings.mjs",
     "release:wechat:share:selftest": "node scripts/check-miniprogram-share-cards.mjs",
     "release:wechat:poster:domain": "node scripts/check-wechat-poster-domain.mjs",
-    "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
+    "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs",
+    "release:wechat:check:selftest": "node scripts/selftest-wechat-submit-readiness.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",

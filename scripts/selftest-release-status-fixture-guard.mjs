@@ -78,8 +78,41 @@ try {
       `${script} must reject ${variable} before any work`,
     );
   }
+
+  const fixtureOutput = execFileSync(process.execPath, ["scripts/check-release-status.mjs"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      ...requested,
+      NODE_ENV: "test",
+      HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+      HUMI_EVIDENCE_LOG_PATH: evidencePath,
+    },
+    encoding: "utf8",
+    timeout: 180_000,
+    maxBuffer: 1024 * 1024 * 8,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const fixtureReport = parseLastJson(fixtureOutput);
+  assert.equal(fixtureReport.releaseStatusFixtureGuard.authorized, true);
+  for (const command of [
+    "release:check:online",
+    "monitor:prod",
+    "deploy:api:check",
+    "release:product:smoke",
+    "release:collaboration:smoke",
+  ]) {
+    const check = fixtureReport.checks.find((entry) => entry.name === command);
+    assert.equal(check?.data?.skipped, true, `${command} must not run in fixture mode`);
+  }
 } finally {
   await rm(root, { recursive: true, force: true });
 }
 
 console.log("Release status fixture guard selftest passed.");
+
+function parseLastJson(output) {
+  const text = String(output || "").trim();
+  const jsonStart = text.lastIndexOf("\n{");
+  return JSON.parse(jsonStart >= 0 ? text.slice(jsonStart + 1) : text);
+}

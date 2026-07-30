@@ -33,6 +33,7 @@
 
 ```bash
 npm run release:candidate:review
+npm run release:n5c:check -- --session /absolute/private/n5c-session
 npm run release:wechat:check
 npm run release:status
 npm run release:check:online
@@ -43,8 +44,9 @@ npm run deploy:api:check
 判定：
 
 - `release:candidate:review` 必须达到 10 个真实体验、8 个完成【今晚】菜单、8 个完成清单、3 个尝试协作，且无 P0/P1。
+- `release:n5c:check` 必须严格返回 `56/56`，三项性能达标、iOS/Android 各有精确 `390×844` 真机图、五类分享均包含不同发送/接收槽；空会话或缺证据必须失败。
 - `release:status` 会汇总线上状态、生产监控、API 部署预检、真实候选复盘和下一步动作；`release.candidateValidationReady` 必须为 `true`。
-- `release:wechat:check` 会确认是否可进入微信公众平台提交，并输出本次提交要打开的材料；真实候选复盘未通过时它必须失败。
+- `release:wechat:check` 会确认是否可进入微信公众平台提交，并输出本次提交要打开的材料；真实候选复盘未通过时它必须失败。它等待完整 `release:status` 最多 360 秒，超时、子进程失败或输出损坏均返回结构化稳定错误码，不输出裸 Node 堆栈。
 - `release:check:online` 必须通过。
 - `monitor:prod` 必须至少证明 H5 200、API health 200、基础推荐可用。
 - `deploy:api:check` 必须通过；N5a 已部署兼容 API/H5，当前生产 API 健康。1.1.75 使用包含短期海报图片、原生身份和 MealRun 兼容能力的主线 API 合同。

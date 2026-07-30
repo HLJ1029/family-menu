@@ -1,8 +1,7 @@
 import { execFile } from "node:child_process";
-import { access, chmod, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { access, chmod, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
 
@@ -21,7 +20,7 @@ const noOpen = Boolean(args.noOpen) || process.env.HUMI_CANDIDATE_WORKBENCH_NO_O
 const markdownPath = join(packetDir, `candidate-dispatch-${date}.md`);
 const jsonPath = join(packetDir, `candidate-dispatch-${date}.json`);
 const workbenchPath = join(packetDir, `candidate-dispatch-workbench-${date}.html`);
-const shareEvidenceDir = await findLatestShareEvidenceDir();
+const shareEvidenceDir = null;
 
 await ensureDispatchExists();
 
@@ -181,20 +180,6 @@ async function findLatestPacketDir() {
     throw new Error(`No candidate-validation-* directory found under ${privateBaseDir}. Run npm run release:candidate:prepare first.`);
   }
   return join(privateBaseDir, latest);
-}
-
-async function findLatestShareEvidenceDir() {
-  try {
-    const entries = await readdir(privateBaseDir, { withFileTypes: true });
-    const latest = entries
-      .filter((entry) => entry.isDirectory() && entry.name.startsWith("miniprogram-share-card-preview-"))
-      .map((entry) => entry.name)
-      .sort()
-      .at(-1);
-    return latest ? join(privateBaseDir, latest) : null;
-  } catch {
-    return null;
-  }
 }
 
 function parseDispatchUsers(markdown) {
@@ -437,7 +422,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       <div>私有执行包：<code>${escapeHtml(packetDir)}</code></div>
       <div>来源分发单：<code>${escapeHtml(markdownPath)}</code></div>
       <div>来源 JSON：<code>${escapeHtml(jsonPath)}</code></div>
-      <div>小程序卡片证据目录：<code>${escapeHtml(shareEvidenceDir || "未找到；需要连调时先运行 npm run release:wechat:share:prepare")}</code></div>
+      <div>当前小程序入口：<strong>从微信体验版打开 1.1.75</strong>（历史二维码已禁用）</div>
       <div>发送状态：<strong>${escapeHtml(String(alreadySentCount))}</strong> 已发送/已体验，<strong>${escapeHtml(String(pendingUsers.length))}</strong> 待发送</div>
     </section>
     <section class="command-bar" aria-label="批次命令">
@@ -546,19 +531,12 @@ function renderShareCardGuide(guide) {
   return `<div class="copy-block">
     <div class="copy-head">
       <h3>小程序卡片发送确认</h3>
-      <button class="secondary" data-copy="${escapeAttribute(guide.devtoolsCommand)}">复制 DevTools 连调命令</button>
-      <button class="secondary" data-copy="${escapeAttribute(guide.directPreviewPath)}">复制直达二维码路径</button>
     </div>
-    ${guide.directPreviewUrl ? `<figure class="qr-preview" data-share-qr="ready">
-      <img src="${escapeAttribute(guide.directPreviewUrl)}" alt="${escapeAttribute(guide.actionLabel)}直达二维码">
-      <figcaption>可扫码直达「${escapeHtml(guide.actionLabel)}」原生发送页；扫码后再点「${escapeHtml(guide.actionButtonLabel)}」。</figcaption>
-    </figure>` : ""}
     <ul class="guide-list">
+      <li>入口固定为：<strong>从微信体验版打开 1.1.75</strong>；不要使用历史开发者工具二维码。</li>
       <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生发送页后点「${escapeHtml(guide.actionButtonLabel)}」，必须看到真实微信联系人面板。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
       <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
-      <li>直达二维码状态：${guide.directPreviewOk ? `<strong>已找到</strong>（${escapeHtml(String(guide.directPreviewSize))} bytes）` : `<strong>未找到</strong>，先运行 <code>${escapeHtml(guide.devtoolsCommand)}</code>`}</li>
-      <li>需要小程序卡片连调时运行：<code>${escapeHtml(guide.devtoolsCommand)}</code>，扫码打开 <code>${escapeHtml(guide.directPreviewPath)}</code> 后再点「${escapeHtml(guide.actionButtonLabel)}」。</li>
       <li>卡片真实发出后，才运行本 U 的已发送登记命令；工作台不会替你发送或标记。</li>
     </ul>
   </div>`;
@@ -580,31 +558,14 @@ async function buildShareCardGuide(user, shareEvidenceDir) {
   const key = user.entryTaskKey || inferEntryTaskKey(user.entryLabel);
   const guide = shareCardGuideFixtures[key];
   if (!guide) return null;
-  const directPreviewPath = shareEvidenceDir ? join(shareEvidenceDir, guide.directPreviewFile) : guide.directPreviewFile;
-  const directPreview = await inspectDirectPreviewFile(directPreviewPath);
   return {
     ...guide,
-    devtoolsCommand: "npm run release:wechat:share:direct-previews",
-    directPreviewPath,
-    directPreviewOk: directPreview.ok,
-    directPreviewSize: directPreview.size,
-    directPreviewUrl: directPreview.ok ? pathToFileURL(directPreviewPath).href : "",
+    experienceEntry: "从微信体验版打开 1.1.75",
+    directPreviewPath: "",
+    directPreviewOk: false,
+    directPreviewSize: 0,
+    directPreviewUrl: "",
   };
-}
-
-async function inspectDirectPreviewFile(path) {
-  try {
-    const fileStat = await stat(path);
-    return {
-      ok: fileStat.isFile() && fileStat.size > 0,
-      size: fileStat.size,
-    };
-  } catch {
-    return {
-      ok: false,
-      size: 0,
-    };
-  }
 }
 
 function inferEntryTaskKey(label) {

@@ -8,6 +8,33 @@
 - 所有证据必须绑定候选 commit 里的小程序版本，开始时间、结束时间、JSON 描述文件和媒体文件都必须晚于候选 commit，且不得写未来时间。
 - 头像、昵称、手机号、OpenID、UnionID、token、二维码、请求头、聊天内容和其他家庭隐私不得出现在 manifest、文件名或未脱敏媒体中。
 - 实际 PNG/JPEG/MP4/MOV 只保存在 Git 之外的私有 release evidence 目录；目录建议 `0700`，文件建议 `0600`。不得伪造、复制复用或提交到 Git。
+- 当前入口固定为微信中的 `1.1.75` 体验版。候选工作台不会再自动发现或展示历史开发者工具二维码。
+
+## N5c 私有会话
+
+先从已签名的上传证明创建独立会话。准备命令会交叉验证 AppID `wx4040b89f3b363416`、`1.1.75`、运行时 `fbb4938200ef0137c468bd37f3868b94b64b738b`、不可变归档 SHA-256 和原始上传回执 SHA-256；调用方不能覆盖这些值。
+
+```bash
+npm run release:n5c:prepare -- \
+  --candidate-commit fbb4938200ef0137c468bd37f3868b94b64b738b \
+  --attestation "$HOME/.humi-release-evidence/HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json"
+```
+
+会话创建在 `~/.humi-release-evidence/HUMI-2026-001/n5c-1.1.75-<UTC>-<random>/`，包含只读候选事实 `session.json`、56 行匿名分工 `allocation.json`、中文执行单和严格为空的 `manifest.json`。`descriptors/`、`media/`、`drafts/` 初始为空，因此创建完成后仍必须真实报告 `0/56`。
+
+每条真实结果先把九字段 row JSON 放进会话 `drafts/`；`pass` 还要把六字段 descriptor JSON 放进 `drafts/`，并把已人工脱敏的真实媒体放到 `media/<scenarioId>/`。分享场景媒体名必须分别含 `sender-` 和 `recipient-`。随后执行：
+
+```bash
+npm run release:n5c:record -- \
+  --session /absolute/private/n5c-session \
+  --scenario fresh_guest_start \
+  --row /absolute/private/n5c-session/drafts/fresh_guest_start-row.json \
+  --descriptor /absolute/private/n5c-session/drafts/fresh_guest_start-descriptor.json
+
+npm run release:n5c:check -- --session /absolute/private/n5c-session
+```
+
+非 `pass` 结果不提供 descriptor。记录器不支持 force/skip 参数；已有 `pass` 不可覆盖，任何校验失败都保持 `manifest.json` 字节不变。完整检查还要求 iOS、Android 各至少一张精确 `390×844` 图片，五类分享的发送与接收槽不同，三项性能全部达标。
 
 ## 权威矩阵
 
@@ -20,7 +47,7 @@
 - 4 条做饭降级与反馈、3 条海报保存恢复、2 条提醒送达；
 - 3 条真机性能：缓存首屏 `<=400ms`、暖启动 `<=1000ms`、冷态已登录启动 `<=2500ms`。
 
-推荐每一轮必须证明只包含认证菜谱且满足硬约束；同一家庭/日期/档位周期第 2–5 轮还必须证明没有重复之前的组合。五类分享每条至少需要两个互不复用的媒体文件，分别证明真实微信联系人面板/发送和另一台微信接收/打开。
+推荐每一轮必须证明只包含认证菜谱且满足硬约束；同一家庭/日期/档位周期第 2–5 轮还必须证明没有重复之前的组合。每档五轮作为一个不可拆分周期分配给同一设备，三档整体覆盖 iOS/Android；这是现有权威轮换门禁与双平台覆盖同时成立的唯一分工。五类分享每条至少需要两个互不复用的媒体文件，分别证明真实微信联系人面板/发送和另一台微信接收/打开。
 
 ## Manifest 与描述文件
 
@@ -34,6 +61,9 @@
 
 ```bash
 npm run validate:true-device-evidence:selftest
+npm run release:n5c:prepare:selftest
+npm run release:n5c:record:selftest
+npm run release:n5c:check:selftest
 npm run validate:true-device-evidence
 npm run validate:true-device-evidence -- \
   --evidence-dir /approved/private/evidence/humi-true-device \

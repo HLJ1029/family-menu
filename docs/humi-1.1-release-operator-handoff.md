@@ -1,6 +1,6 @@
 # Humi 1.1 Release Operator Handoff
 
-更新日期：2026-07-28
+更新日期：2026-07-31
 执行设备：codex@mbp-m5pro
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
@@ -29,10 +29,10 @@ native_shell_candidate:
 - `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 会分别证明历史 `1.1.74@4eb3fbeb` 交付仍可追溯，以及当前 `1.1.75` 的受控归档、签名 CLI 证据和 `fbb4938` 运行时一致；不会用旧上传证据冒充当前体验版。
 - 当前 `1.1.75` 归档 SHA-256 为 `a1a3a9876e782de8526605d1260c1cf1dd2e70cde85dbb53d051a242c718a0d6`，上传包体 `570449 bytes`，签名证据为 `private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json`。本次没有执行 preview。
 - 原生候选不包含广告接入；后续广告需要重新设计、风险评审、实施计划与单独授权。
-- 当前 `1.1.75` 真机证据是 `0/56`；N5c 尚未授权。iOS/Android 的登录、三档各五次推荐轮换、五个主标签、做饭与三种降级、家庭切换/权限/任务身份、五类分享的发送与接收者打开、海报保存恢复、提醒送达、三项性能和立即回滚都尚未形成合规证据。
+- 当前 `1.1.75` 真机证据是 `0/56`；N5c 本地私有会话、原子记录和完整检查工具已实现，但真实 iOS/Android 执行尚未开始。登录、三档各五次推荐轮换、五个主标签、做饭与三种降级、家庭切换/权限/任务身份、五类分享的发送与接收者打开、海报保存恢复、提醒送达、三项性能和立即回滚都尚未形成合规证据。
 - `request/downloadFile` 域名探测已由正式 AppID、`urlCheck: true` 的真实 `wx.downloadFile` 对 `https://api.humi-home.com/health` 返回 HTTP 200。web-view 业务域名仍需微信后台截图/确认；平台隐私保护指引也仍待最终填写和留证。
 - 微信开发者工具登录/自动化和约定真机暂不可用时，400/1000/2500ms 三项启动预算保持“未真机验证”；不得用本地静态合同代替。
-- 生产旧 H5 产品烟测如仍超时，应作为旧基线外部阻塞继续记录；本任务不部署 H5，也不以重试绕过失败。
+- 完整 `release:status` 的产品烟测预算是 240 秒，`release:wechat:check` 外层预算是 360 秒；受控 fixture 自测不会连接生产在线检查、API/SSH、产品烟测或协作烟测。超时仍会用稳定错误码失败，不会以重试或跳过冒充通过。
 
 外部动作必须逐项重新取得授权：生产 API/H5 兼容部署、体验版上传、56 项真机验收、微信提审、正式发布、原生家庭白名单扩大。任何历史授权都不自动沿用。
 
@@ -49,7 +49,7 @@ native_shell_candidate:
 - 已核验 H5：`https://www.humi-home.com/`，Pages run `29642978938` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
-- 原生骨架 `1.1.75` 已上传体验版，未执行 preview、未提审、未发布；下一步需单独授权 N5c 后开始 56 项真机矩阵。web-view 域名平台截图和隐私声明仍未完成。
+- 原生骨架 `1.1.75` 已上传体验版，未执行 preview、未提审、未发布；N5c 本地工具已就绪，下一步是在真实 iOS/Android 和独立接收账号上执行 56 项矩阵。web-view 域名平台截图和隐私声明仍未完成。
 
 ## 2. 先后顺序
 
@@ -109,12 +109,12 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:forms:preview` 可在最新私有包重新生成并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。
 - `npm run release:candidate:forms:preview:selftest` 可用临时私有包验证 HTML 预览可生成、权限为 600 且包含核心单据板块。
 - `npm run release:candidate:today -- --date YYYY-MM-DD` 可作为每天开工入口，一次刷新 `candidate-day-plan.md`、`candidate-forms-preview.html`、`candidate-dispatch-YYYY-MM-DD.md/json`、`candidate-dispatch-workbench-YYYY-MM-DD.html`，并运行隐私扫描和 doctor 摘要；它不发送消息、不标记邀请、不写反馈、不提交审核。
-- `npm run release:candidate:today:selftest` 可用临时私有包验证今日开工入口会生成当前私有材料、显示小程序卡片可扫码二维码，并保留不发送/不审核护栏。
+- `npm run release:candidate:today:selftest` 可用临时私有包验证今日开工入口会生成当前私有材料、忽略历史二维码、固定提示从微信体验版打开 `1.1.75`，并保留不发送/不审核护栏。
 - `npm run release:candidate:plan` 可在私有执行包生成 `candidate-day-plan.md`，按当前缺口列出今天建议邀请、需要追问、必跑【今晚】/清单和优先协作的 U 编号。
 - `npm run release:candidate:plan:selftest` 可用临时私有执行包验证日计划能选出追问用户、下一批邀请用户和协作目标。
 - `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 可在私有执行包生成 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽当天计划里的 U 编号、对应邀请文案、反馈单摘要和回填命令模板，减少从 U001-U020 全量清单里手工筛选；模板必须替换成真实匿名反馈后再运行，不能原样运行。
 - `npm run release:candidate:dispatch:selftest` 可用临时私有执行包验证今日分发单能按日计划抽取文案并保留隐私/审核护栏。
-- `npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 可把当天分发单转成私有 `candidate-dispatch-workbench-YYYY-MM-DD.html`，在一个页面里复制体验者文案、入口任务、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令；小程序卡片任务会直接显示可扫码直达原生分享确认页的二维码，并保留二维码路径；它会读取 `anonymous-users.csv` 显示待邀请/已邀请/已体验状态，部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不发送消息、不自动标记邀请、不提交审核。
+- `npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 可把当天分发单转成私有 `candidate-dispatch-workbench-YYYY-MM-DD.html`，在一个页面里复制体验者文案、入口任务、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令；小程序卡片任务固定提示从微信体验版打开 `1.1.75`，不会自动发现、嵌入或复制任何历史二维码；它会读取 `anonymous-users.csv` 显示待邀请/已邀请/已体验状态，部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不发送消息、不自动标记邀请、不提交审核。
 - `npm run release:candidate:dispatch:workbench:selftest` 可用临时私有执行包验证 HTML 工作台能生成、权限为 600 且保留隐私/审核护栏。
 - `npm run release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 可在单个 U 的消息或小程序卡片真实发出后，把该匿名 U 编号标为已邀请；整批都已真实发出时也可运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`。它不记录真实联系人，也不会生成体验反馈；未带确认参数时不会写入。
 - `npm run release:candidate:invite:selftest` 可用临时私有执行包验证邀请状态标记只更新匿名邀请状态，dry-run 不写入。
@@ -217,7 +217,7 @@ npm run release:candidate:review
 npm run release:wechat:check
 ```
 
-`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；每天开始优先运行 `release:candidate:today -- --date YYYY-MM-DD`，它会一次刷新私有包里的单据预览、日计划、今日分发单、扫码工作台、隐私扫描和 doctor 摘要；需要分步执行时，`release:candidate:forms:preview` 先打开私有包里的单据设计预览，确认体验者反馈单和主厨记录单可读；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；`release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 会生成私有 HTML 工作台，便于逐个复制体验者文案、本 U 已发送登记命令、回填草稿命令和回填模板；小程序卡片任务会直接显示可扫码直达二维码，同时显示每个 U 当前是待邀请、已邀请还是已体验，避免重复发送；每发完一个 U 后，优先复制该卡片里的 `release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；整批都已真实发出时，也可运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`；收到单个体验者反馈后，先运行 `release:candidate:record:draft -- --user U00X --date YYYY-MM-DD --entry "入口任务"` 生成私有回填草稿，再把真实匿名结果填进 `release:candidate:record` 命令，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
+`release:candidate:doctor` 先展示当前还差多少真实样本和核心路径完成数；每天开始优先运行 `release:candidate:today -- --date YYYY-MM-DD`，它会一次刷新私有包里的单据预览、日计划、今日分发单、体验版入口工作台、隐私扫描和 doctor 摘要；需要分步执行时，`release:candidate:forms:preview` 先打开私有包里的单据设计预览，确认体验者反馈单和主厨记录单可读；`release:candidate:plan` 再把今天建议邀请、需要追问和优先协作的 U 编号写入私有包；`release:candidate:dispatch -- --date YYYY-MM-DD` 会抽出当天 U 编号的私有分发单；`release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 会生成私有 HTML 工作台，便于逐个复制体验者文案、本 U 已发送登记命令、回填草稿命令和回填模板；小程序卡片任务固定从微信体验版 `1.1.75` 打开，不显示历史二维码，同时显示每个 U 当前是待邀请、已邀请还是已体验，避免重复发送；每发完一个 U 后，优先复制该卡片里的 `release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 标记匿名 U 编号已邀请；整批都已真实发出时，也可运行 `release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`；收到单个体验者反馈后，先运行 `release:candidate:record:draft -- --user U00X --date YYYY-MM-DD --entry "入口任务"` 生成私有回填草稿，再把真实匿名结果填进 `release:candidate:record` 命令，不能用默认值代替真实反馈；如反馈为 P0/P1，record 会自动写入 `issue-triage.csv`；每天收工前运行 `npm run release:candidate:day:close -- --date YYYY-MM-DD` 生成私有收尾单；`release:candidate:privacy:check` 必须确认候选包没有手机号、邮箱、微信号或真实姓名；`release:candidate:review` 必须通过真实匿名候选复盘；`release:wechat:check` 必须在产品仓库干净、`main` 已同步到 `origin/main`、候选复盘达标时返回 `ok=true`。如果本地还有未提交改动，或 `release.candidateValidationReady=false`，只能继续候选收口，不能把微信审核准备视为可执行。
 
 执行材料：
 

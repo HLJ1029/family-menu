@@ -58,6 +58,7 @@ const result = {
     dispatchUsers: dispatch.users ?? [],
     pendingUsers: (workbench.users ?? []).filter((user) => !["已邀请", "已体验"].includes(user.inviteStatus)),
     shareCardQrReadyUsers: (workbench.users ?? []).filter((user) => user.shareCardQrReady === true).map((user) => user.id),
+    miniProgramEntry: "从微信体验版打开 1.1.75（历史二维码已禁用）",
     privacyFindings: privacy.findings ?? [],
   },
   nextActions: [
@@ -162,7 +163,7 @@ function buildText(data, doctorText) {
   lines.push(`- 主厨记录单：${data.files.hostRunSheet}`);
   lines.push("");
   lines.push("当前确认：");
-  lines.push(`- 小程序卡片二维码可扫码 U：${formatIds(data.today.shareCardQrReadyUsers)}`);
+  lines.push(`- 小程序入口：${data.today.miniProgramEntry}`);
   lines.push(`- 隐私扫描：${data.today.privacyFindings.length ? `${data.today.privacyFindings.length} 个发现，先清理` : "通过"}`);
   lines.push(`- 待发送 U：${formatIds(data.today.pendingUsers.map((user) => user.id))}`);
   lines.push("");

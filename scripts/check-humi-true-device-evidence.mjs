@@ -191,12 +191,14 @@ export async function validateEvidence({
   candidateTimestamp,
   candidatePackageVersion = "",
   scenarioIds = REQUIRED_SCENARIOS,
+  manifestFileName = "manifest.json",
 }) {
   const root = resolve(evidenceDir);
   const rootStat = await lstat(root).catch(() => null);
   if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) fail("evidence_root_invalid");
   const realRoot = await realpath(root);
-  const manifestPath = resolve(root, "manifest.json");
+  if (!/^[.A-Za-z0-9_-]+\.json$/.test(manifestFileName)) fail("manifest_path_invalid");
+  const manifestPath = resolve(root, manifestFileName);
   const manifestStat = await lstat(manifestPath).catch(() => null);
   if (!manifestStat?.isFile() || manifestStat.isSymbolicLink()) fail("manifest_path_invalid");
   const realManifestPath = await realpath(manifestPath);

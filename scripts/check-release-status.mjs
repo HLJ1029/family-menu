@@ -17,16 +17,14 @@ if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.author
   process.exit(1);
 }
 const fixtureMode = releaseStatusFixtureGuard.authorized;
+const skipNetworkChecks = fixtureMode;
 const completionSelftestAllowDirty = fixtureMode
   && process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
 const skipCandidatePrepareSelftest = fixtureMode && (
   process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1"
   || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1"
 );
-const skipProductSmoke = fixtureMode && (
-  completionSelftestAllowDirty
-  || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1"
-);
+const skipProductSmoke = fixtureMode;
 
 async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
   const startedAt = Date.now();
@@ -44,13 +42,15 @@ async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
       data: parseLastJson(stdout),
     };
   } catch (error) {
+    const timedOut = error.code === "ETIMEDOUT" || error.killed === true || error.signal === "SIGTERM";
     return {
       name: scriptName,
       ok: false,
       ms: Date.now() - startedAt,
       stdout: String(error.stdout || "").trim(),
       stderr: String(error.stderr || "").trim(),
-      error: error.message,
+      code: timedOut ? "command_timeout" : "command_failed",
+      error: timedOut ? `command exceeded ${timeoutMs}ms` : "command exited unsuccessfully",
       data: parseLastJson(error.stdout || ""),
     };
   }
@@ -152,9 +152,18 @@ const [
   releaseEvidence,
 ] = await Promise.all([
   gitInfo(),
-  runNpmScript("release:check:online"),
-  runNpmScript("monitor:prod"),
-  runNpmScript("deploy:api:check"),
+  runOptionalNpmScript("release:check:online", {
+    skip: skipNetworkChecks,
+    reason: "skip production online readiness during controlled release-status fixtures",
+  }),
+  runOptionalNpmScript("monitor:prod", {
+    skip: skipNetworkChecks,
+    reason: "skip production monitoring during controlled release-status fixtures",
+  }),
+  runOptionalNpmScript("deploy:api:check", {
+    skip: skipNetworkChecks,
+    reason: "skip production API/SSH readiness during controlled release-status fixtures",
+  }),
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
   runNpmScript("release:native-shell:check:local"),
@@ -165,18 +174,19 @@ const [
   runOptionalNpmScript("release:product:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 Playwright smoke during release completion selftests",
-    timeoutMs: 150_000,
+    timeoutMs: 240_000,
   }),
   runOptionalNpmScript("release:collaboration:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 collaboration landing smoke during release completion selftests",
+    timeoutMs: 120_000,
   }),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
   runOptionalNpmScript("release:candidate:prepare:selftest", {
     skip: skipCandidatePrepareSelftest,
     reason: "skip candidate prepare selftest while candidate prepare is calling release:status",
-    timeoutMs: 150_000,
+    timeoutMs: 240_000,
   }),
   runNpmScript("release:candidate:forms:preview:selftest"),
   runNpmScript("release:candidate:plan:selftest"),

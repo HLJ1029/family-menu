@@ -60,7 +60,7 @@ assert(result.files.dispatchMarkdown === join(packetDir, "candidate-dispatch-202
 assert(result.files.workbench === join(packetDir, "candidate-dispatch-workbench-2026-07-07.html"), "today should generate workbench path");
 assert(result.today.dispatchUsers.length === 6, "today should select six dispatch users from empty packet");
 assert(result.today.pendingUsers.length === 6, "today should keep dispatch users pending before real sends");
-assert(result.today.shareCardQrReadyUsers.join(",") === "U001,U002,U003", "today should report three ready share QR users");
+assert(result.today.shareCardQrReadyUsers.length === 0, "today must not report stale share QR users as ready");
 assert(result.today.privacyFindings.length === 0, "today should pass privacy scan for anonymous packet");
 
 for (const file of [
@@ -75,8 +75,10 @@ for (const file of [
 }
 
 const workbenchHtml = await readFile(result.files.workbench, "utf8");
-assert(workbenchHtml.includes('data-share-qr="ready"'), "today workbench should include ready QR images");
-assert(workbenchHtml.includes("可扫码直达"), "today workbench should explain direct QR scanning");
+assert(!workbenchHtml.includes('data-share-qr="ready"'), "today workbench must not include stale QR images");
+assert(workbenchHtml.includes("从微信体验版打开 1.1.75"), "today workbench should use the experience-version entry");
+assert(!workbenchHtml.includes("可扫码直达"), "today workbench must not describe stale direct QR scanning");
+assert(workbenchHtml.includes("历史二维码已禁用"), "today workbench should explain that historical QR codes are disabled");
 assert(workbenchHtml.includes("不会发送微信消息"), "today workbench should preserve no-send guard");
 
 console.log(JSON.stringify({
