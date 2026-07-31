@@ -65,6 +65,7 @@ const enabled = { schemaVersion: 1, stateVersion: "state-enabled", activeHouseho
 const disabled = { schemaVersion: 1, stateVersion: "state-disabled", activeHouseholdId: "household-1", capabilities: { nativeShellEnabled: false }, user: { id: "user-1", profileStatus: "complete" } };
 const mealExecutionDisabled = { ...enabled, stateVersion: "state-meal-disabled", capabilities: { nativeShellEnabled: true, mealExecutionEnabled: false } };
 const incomplete = { schemaVersion: 1, stateVersion: "state-incomplete", activeHouseholdId: "", capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true }, user: { id: "user-1", profileStatus: "incomplete" } };
+const withoutHousehold = { schemaVersion: 1, stateVersion: "state-without-household", activeHouseholdId: "", households: [], capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true }, user: { id: "user-1", profileStatus: "complete" } };
 const validToken = "abcdefghijklmnopqrstuvwx";
 const assertRoute = (actual, expected) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 
@@ -72,6 +73,7 @@ assertRoute(resolveStartupRoute({ candidate: false, envelope: enabled }), { rout
 assertRoute(resolveStartupRoute({ candidate: true, envelope: disabled }), { route: "/pages/legacy/index", reason: "server_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: mealExecutionDisabled }), { route: "/pages/legacy/index", reason: "meal_execution_disabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: incomplete }), { route: "/pages/identity/index", reason: "identity_incomplete" });
+assertRoute(resolveStartupRoute({ candidate: true, envelope: withoutHousehold }), { route: "/pages/family/index", reason: "household_required" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: enabled }), { route: "/pages/tonight/index", reason: "native_enabled" });
 assertRoute(resolveStartupRoute({ candidate: true, envelope: { ...enabled, cacheState: "cached" } }), { route: "/pages/tonight/index", reason: "native_enabled" });
 assert.equal(bootstrapModule.exports.getHouseholdId({ activeHouseholdId: "api-household", activeHousehold: { id: "legacy-household" } }), "api-household", "the exact API field must take precedence");
@@ -93,6 +95,11 @@ assert.equal(
   buildLegacyRoute({ view: "today", shareSource: "today_menu", humiLogout: "1", humiExpired: true, humiResume: "1", token: validToken, note: "private" }),
   "/pages/legacy/index?view=today&shareSource=today_menu&humiLogout=1&humiExpired=1&humiResume=1",
   "legacy routes must preserve only the reviewed compatibility parameters",
+);
+assert.equal(
+  buildLegacyRoute({ humiGuest: "1", token: validToken, note: "private" }),
+  "/pages/legacy/index?humiGuest=1",
+  "the explicit guest choice may preserve only its reviewed boolean flag",
 );
 assert.equal(buildLegacyRoute({ view: "admin", shareSource: "unknown", invite: validToken, arbitrary: "value" }), "/pages/legacy/index", "legacy routes must not forward token or free-text query values");
 
@@ -202,7 +209,7 @@ assert.deepEqual(
 );
 
 const guardSource = readFileSync(new URL("../miniprogram/utils/native-shell-guard.js", import.meta.url), "utf8");
-function runGuard({ bootstrap, candidate, sessionUserId = "user-1" }) {
+function runGuard({ bootstrap, candidate, sessionUserId = "user-1", allowHouseholdSetup = false, allowLocalGuestRun = false }) {
   const module = { exports: {} };
   const guardRoutes = [];
   vm.runInNewContext(guardSource, {
@@ -216,7 +223,7 @@ function runGuard({ bootstrap, candidate, sessionUserId = "user-1" }) {
       throw new Error(`Unexpected guard dependency: ${specifier}`);
     }
   });
-  return { allowed: module.exports.guardNativeTab(), guardRoutes };
+  return { allowed: module.exports.guardNativeTab({ allowHouseholdSetup, allowLocalGuestRun }), guardRoutes };
 }
 assert.deepEqual(runGuard({ bootstrap: null, candidate: true }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "an unknown direct tab entry must return to boot");
 assert.deepEqual(runGuard({ bootstrap: disabled, candidate: true }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a server-disabled direct tab entry must return to legacy");
@@ -227,6 +234,9 @@ assert.deepEqual(
 );
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: false }), { allowed: false, guardRoutes: ["/pages/legacy/index"] }, "a package-disabled direct tab entry must return to legacy");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true }), { allowed: true, guardRoutes: [] }, "an enabled envelope may enter any core tab");
+assert.deepEqual(runGuard({ bootstrap: withoutHousehold, candidate: true }), { allowed: false, guardRoutes: ["/pages/family/index"] }, "a user without a household must not enter an unrelated core tab");
+assert.deepEqual(runGuard({ bootstrap: withoutHousehold, candidate: true, allowHouseholdSetup: true }), { allowed: true, guardRoutes: [] }, "the family tab must remain available for explicit create-or-join setup");
+assert.deepEqual(runGuard({ bootstrap: withoutHousehold, candidate: true, allowLocalGuestRun: true }), { allowed: true, guardRoutes: [] }, "an existing local guest dinner must remain resumable before household setup");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true, sessionUserId: "" }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "a native tab requires an authenticated app session user");
 assert.deepEqual(runGuard({ bootstrap: enabled, candidate: true, sessionUserId: "user-2" }), { allowed: false, guardRoutes: ["/pages/boot/index"] }, "a bootstrap owned by another session user must return to boot");
 for (const tabPath of tabPaths) {
@@ -260,6 +270,80 @@ for (const tabPath of tabPaths) {
 }
 
 const bootSource = readFileSync(new URL("../miniprogram/pages/boot/index.js", import.meta.url), "utf8");
+let firstUseBootDefinition;
+const firstUseBootRoutes = [];
+let firstUseBootstrapCalls = 0;
+vm.runInNewContext(bootSource, {
+  Page: (definition) => { firstUseBootDefinition = definition; },
+  getApp: () => ({ globalData: { nativeShellCandidate: true, humiSession: null } }),
+  wx: {
+    switchTab: () => assert.fail("first use must not enter a native tab before login"),
+    reLaunch: ({ url }) => firstUseBootRoutes.push(url),
+  },
+  require: (specifier) => {
+    if (specifier === "../../utils/bootstrap") return {
+      buildLegacyRoute,
+      extractLegacyOptions: (options) => options,
+      loadBootstrap: async () => {
+        firstUseBootstrapCalls += 1;
+        return enabled;
+      },
+      readCachedBootstrapSummary: () => null,
+      resolveKnownShareRoute,
+      resolveStartupRoute,
+    };
+    if (specifier === "../../utils/session") return { getSession: () => null, hasSessionHistory: () => false };
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
+    if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
+    throw new Error(`Unexpected first-use boot dependency: ${specifier}`);
+  },
+});
+const firstUseBootPage = {
+  ...firstUseBootDefinition,
+  data: structuredClone(firstUseBootDefinition.data),
+  setData(patch) { this.data = { ...this.data, ...patch }; },
+};
+await firstUseBootPage.onLoad({});
+assert.deepEqual(firstUseBootRoutes, ["/pages/identity/index"], "first use must show the explicit native login/guest choice");
+assert.equal(firstUseBootstrapCalls, 0, "first use must not call authenticated bootstrap or trigger account creation");
+
+let returningExpiredBootDefinition;
+const returningExpiredBootRoutes = [];
+let returningExpiredBootstrapCalls = 0;
+vm.runInNewContext(bootSource, {
+  Page: (definition) => { returningExpiredBootDefinition = definition; },
+  getApp: () => ({ globalData: { nativeShellCandidate: true, humiSession: null } }),
+  wx: {
+    switchTab: ({ url }) => returningExpiredBootRoutes.push(url),
+    reLaunch: () => assert.fail("an expired returning session must attempt its one silent recovery before showing login"),
+  },
+  require: (specifier) => {
+    if (specifier === "../../utils/bootstrap") return {
+      buildLegacyRoute,
+      extractLegacyOptions: (options) => options,
+      loadBootstrap: async () => {
+        returningExpiredBootstrapCalls += 1;
+        return enabled;
+      },
+      readCachedBootstrapSummary: () => null,
+      resolveKnownShareRoute,
+      resolveStartupRoute,
+    };
+    if (specifier === "../../utils/session") return { getSession: () => null, hasSessionHistory: () => true };
+    if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
+    if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
+    throw new Error(`Unexpected returning-user boot dependency: ${specifier}`);
+  },
+});
+const returningExpiredBootPage = {
+  ...returningExpiredBootDefinition,
+  data: structuredClone(returningExpiredBootDefinition.data),
+  setData(patch) { this.data = { ...this.data, ...patch }; },
+};
+await returningExpiredBootPage.onLoad({});
+assert.deepEqual(returningExpiredBootRoutes, ["/pages/tonight/index"], "a returning expired session may silently recover into the native shell");
+assert.equal(returningExpiredBootstrapCalls, 1, "returning recovery must make exactly one bootstrap attempt");
+
 let legacyBootDefinition;
 const legacyBootRoutes = [];
 vm.runInNewContext(bootSource, {
@@ -268,6 +352,7 @@ vm.runInNewContext(bootSource, {
   wx: { switchTab: () => assert.fail("server-disabled boot must not switch to a tab"), reLaunch: ({ url }) => legacyBootRoutes.push(url) },
   require: (specifier) => {
     if (specifier === "../../utils/bootstrap") return { buildLegacyRoute, extractLegacyOptions: (options) => options, getHouseholdId: () => "", loadBootstrap: async () => disabled, readCachedBootstrapSummary: () => null, resolveKnownShareRoute, resolveStartupRoute };
+    if (specifier === "../../utils/session") return { getSession: () => ({ accessToken: "stored-session" }) };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected legacy boot dependency: ${specifier}`);
@@ -293,6 +378,7 @@ vm.runInNewContext(bootSource, {
         resolveStartupRoute,
       };
     }
+    if (specifier === "../../utils/session") return { getSession: () => ({ accessToken: "stored-session" }) };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected meal-disabled boot dependency: ${specifier}`);
@@ -343,6 +429,7 @@ vm.runInNewContext(bootSource, {
       resolveKnownShareRoute,
       resolveStartupRoute
     };
+    if (specifier === "../../utils/session") return { getSession: () => ({ accessToken: "stored-session" }) };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: () => {} } };
     if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
     throw new Error(`Unexpected retry boot dependency: ${specifier}`);
@@ -395,6 +482,7 @@ vm.runInNewContext(bootSource, {
       resolveKnownShareRoute,
       resolveStartupRoute
     };
+    if (specifier === "../../utils/session") return { getSession: () => ({ accessToken: "stored-session" }) };
     if (specifier === "../../utils/store") return { appStore: { replaceBootstrap: (envelope) => storeUpdates.push({ bootstrap: envelope, currentHouseholdId: envelope.activeHouseholdId }) } };
     if (specifier === "../../utils/telemetry") return { startSpan: (name) => ({ end: (result, fields) => spanEvents.push({ name, result, fields }) }) };
     throw new Error(`Unexpected boot dependency: ${specifier}`);

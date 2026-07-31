@@ -195,7 +195,7 @@ const runtimeDriftFiles = listNativeRuntimeDrift(CURRENT_UPLOADED_EXPERIENCE_RUN
 await check("current local candidate is distinct from the uploaded 1.1.75 runtime", async () => {
   assert(
     runtimeDriftFiles.length > 0,
-    "1.1.77 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.75",
+    "1.1.78 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.75",
   );
 });
 
@@ -295,7 +295,7 @@ const candidateEvidencePath = resolve(
   process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH
     || resolve(ROOT, "docs/native-candidate-evidence.json"),
 );
-await check("current candidate state matches expected 1.1.77 runtime", async () => {
+await check("current candidate state matches expected 1.1.78 runtime", async () => {
   const evidence = JSON.parse(await readFile(candidateEvidencePath, "utf8"));
   currentCandidateState = validateNativeCandidateEvidence(evidence, {
     expectedVersion: packageVersion,
@@ -372,7 +372,7 @@ if (
   });
 }
 
-await check("repository handoff documents uploaded 1.1.75 and local 1.1.77 boundaries", async () => {
+await check("repository handoff documents uploaded 1.1.75 and local 1.1.78 boundaries", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
@@ -385,10 +385,10 @@ await check("repository handoff documents uploaded 1.1.75 and local 1.1.77 bound
   assert.match(handoff, /true_device_evidence: 0\/56/);
   assert.match(handoff, new RegExp(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT));
   assert.match(handoff, /上一历史体验版.*`1\.1\.74`/);
-  assert.match(handoff, /本地.*`1\.1\.77`/);
+  assert.match(handoff, /本地.*`1\.1\.78`/);
   assert.match(tracker, /原生壳候选：uploaded-experience/);
   assert.match(tracker, /原生包版本：`1\.1\.75`/);
-  assert.match(tracker, /本地.*`1\.1\.77`/);
+  assert.match(tracker, /本地.*`1\.1\.78`/);
   assert.match(tracker, /上一历史体验版：`1\.1\.74`/);
   assert.match(tracker, /历史兼容基线：`1\.1\.73`/);
   assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));

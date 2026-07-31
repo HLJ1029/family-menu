@@ -8,6 +8,8 @@
 
 **Tech Stack:** WeChat Mini Program JavaScript/WXML/WXSS on base library `3.8.10`, Node.js self-hosted HTTP API with atomic JSON persistence, React 19/Vite H5 fallback, Node `assert` contract tests, Playwright mobile smoke tests.
 
+**2026-07-31 identity correction:** First use with no stored Humi session must not enter the one-time `401` recovery path. Boot routes to the explicit native `微信登录 / 先体验 Humi` choice without requesting authenticated bootstrap or calling `wx.login`; only the visible login action creates/restores an account. The one-time silent login replay below applies only to a request that began with a real stored session or a local returning-session marker retained after natural expiry; explicit logout clears both the session and that marker.
+
 ## Global Constraints
 
 - Completely exclude WeChat traffic-owner ads, interstitial ads, rewarded-video ads, ad application work, ad components, and ad unit IDs from this plan.
@@ -20,7 +22,7 @@
 - For a recommendation scope, five consecutive groups may not repeat any recipe; after exhaustion, exclude the two most recent groups before beginning a new cycle.
 - All formal household members may start, advance, downgrade, abandon, complete, and give feedback on a meal; only the owner may replace the household menu or edit household settings.
 - Login, bootstrap, state mutations, images, share handoff, and poster actions must expose privacy-safe stage, duration, result, and error-code telemetry without nickname, token, notes, or other free text.
-- A `401` permits one silent re-login and one replay only; a non-idempotent mutation may be replayed only when it carries an idempotency key.
+- A `401` from a request that began with a real stored session permits one silent re-login and one replay only; missing session never triggers login, and a non-idempotent mutation may be replayed only when it carries an idempotency key.
 - The native cache is never authoritative for shared household state; state conflicts return `409` with the latest `stateVersion`.
 - `nativeShellCandidate` is package-local; `HUMI_NATIVE_SHELL_ENABLED` and `HUMI_NATIVE_SHELL_HOUSEHOLDS` are server-side, default off, and both must permit native entry.
 - Keep the H5 fallback functional for at least one stable mini-program version after the native shell reaches 100%.
@@ -569,9 +571,14 @@ function resolveStartupRoute({ candidate, envelope }) {
   if (envelope.user?.profileStatus !== "complete") {
     return { route: "/pages/identity/index", reason: "identity_incomplete" };
   }
+  if (!envelope.activeHouseholdId) {
+    return { route: "/pages/family/index", reason: "household_required" };
+  }
   return { route: "/pages/tonight/index", reason: "native_enabled" };
 }
 ```
+
+Before calling `loadBootstrap`, boot checks `getSession()`. A missing session reLaunches `/pages/identity/index`, whose first state contains the explicit `微信登录` and `先体验 Humi` actions. The guest action enters the stable local-first compatibility experience with `humiGuest=1`; it never calls the login API.
 
 - [ ] **Step 1: Write failing routing tests for native, identity, offline-cache, and rollback paths**
 
@@ -579,6 +586,7 @@ function resolveStartupRoute({ candidate, envelope }) {
 assert.equal(resolveStartupRoute({ candidate: false, envelope }).route, "/pages/legacy/index");
 assert.equal(resolveStartupRoute({ candidate: true, envelope: disabled }).route, "/pages/legacy/index");
 assert.equal(resolveStartupRoute({ candidate: true, envelope: incomplete }).route, "/pages/identity/index");
+assert.equal(resolveStartupRoute({ candidate: true, envelope: completeWithoutHousehold }).route, "/pages/family/index");
 assert.equal(resolveStartupRoute({ candidate: true, envelope: enabled }).route, "/pages/tonight/index");
 ```
 
@@ -698,7 +706,7 @@ git commit -m "feat: add feature-gated native shell routing"
 - Modify: `scripts/check-native-session.mjs`
 
 **Interfaces:**
-- Consumes: silent account session from `loginWithWechat()` and user `profileStatus`.
+- Consumes: the session created by an explicit `loginWithWechat()` action and user `profileStatus`.
 - Produces: `saveIdentity({ displayName, avatarKey, avatarUrl })`; identity completion routes through boot, never directly assumes a household exists.
 
 - [ ] **Step 1: Add failing first-use and existing-user identity tests**
@@ -1919,7 +1927,7 @@ Mark the handoff `approved` only when all stages have evidence and the user conf
 
 | Area | Required evidence |
 |---|---|
-| First use | New openid creates one incomplete user, zero households, no false “logged in” identity, explicit nickname/avatar completion |
+| First use | Opening with no session makes zero login/bootstrap/account requests and shows `微信登录 / 先体验 Humi`; only the explicit login action creates one incomplete user, zero households, followed by explicit nickname/avatar completion |
 | Returning use | Valid session opens cached native UI; expired session performs one silent login and one bootstrap replay |
 | Recommendation | Three effort tiers × five consecutive groups, no repeated recipe, zero hard-constraint violations |
 | Dinner loop | Accept → planned → start → cooking → background restore → downgrade → `上桌了` → one feedback |

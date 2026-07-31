@@ -14,7 +14,7 @@ const SHARE_TOKEN_TYPES = [
 const SHARE_LANDING_TYPES = new Set(SHARE_TOKEN_TYPES.map(([, type]) => type));
 const SAFE_LEGACY_VIEWS = new Set(["today", "user", "grocery"]);
 const SAFE_LEGACY_SOURCES = new Set(["crave", "grocery", "today_menu", "wish", "invite", "meal_task"]);
-const SAFE_LEGACY_FLAGS = ["humiLogout", "humiExpired", "humiResume"];
+const SAFE_LEGACY_FLAGS = ["humiLogout", "humiExpired", "humiResume", "humiGuest"];
 const SHARE_TOKEN = /^[A-Za-z0-9_-]{24,64}$/;
 
 function resolveStartupRoute({ candidate, envelope }) {
@@ -24,6 +24,7 @@ function resolveStartupRoute({ candidate, envelope }) {
     return { route: "/pages/legacy/index", reason: "meal_execution_disabled" };
   }
   if (envelope.user?.profileStatus !== "complete") return { route: "/pages/identity/index", reason: "identity_incomplete" };
+  if (!getHouseholdId(envelope)) return { route: "/pages/family/index", reason: "household_required" };
   return { route: "/pages/tonight/index", reason: "native_enabled" };
 }
 

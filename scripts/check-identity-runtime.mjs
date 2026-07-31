@@ -66,6 +66,8 @@ const silentLoginSource = identityJs.slice(identityJs.indexOf("async loginWithWe
 assert.doesNotMatch(silentLoginSource, /getUserProfile/, "silent login must not request profile permission");
 assert.match(identityJson, /"avatar-picker": "\/components\/avatar-picker\/index"/, "identity must register approved Humi avatar choices");
 assert.match(identityWxml, /使用微信头像和昵称/);
+assert.match(identityWxml, /微信登录/);
+assert.match(identityWxml, /先体验 Humi/);
 assert.match(identityWxml, /保存并进入 Humi/);
 assert.match(identityWxml, /disabled="\{\{!canSubmit \|\| pending\}\}"/, "identity save must require an explicit name and avatar choice");
 
@@ -276,6 +278,15 @@ const firstUse = {
   avatarUrl: "",
   profileStatus: "incomplete"
 };
+const welcomePage = loadIdentityPage({ user: null });
+welcomePage.page.onLoad();
+assert.equal(welcomePage.page.data.mode, "welcome", "first use must show the explicit login/guest choice");
+assert.equal(welcomePage.calls.login, 0, "opening the first-use page must not call wx.login");
+assert.equal(welcomePage.calls.getUserProfile, 0, "opening the first-use page must not request profile permission");
+assert.deepEqual(welcomePage.calls.request, [], "opening the first-use page must not create or update backend data");
+welcomePage.page.continueAsGuest();
+assert.deepEqual(welcomePage.routes, ["/pages/legacy/index?humiGuest=1"], "guest choice must enter the stable local-first H5 path directly");
+
 const firstUsePage = loadIdentityPage({ user: firstUse });
 firstUsePage.page.onLoad();
 assert.equal(firstUsePage.calls.login, 0, "identity page load must not start WeChat login without the explicit login action");
@@ -332,6 +343,14 @@ assert.equal(firstSilentLogin.app.globalData.humiSession.user.profileStatus, "in
 assert.equal(firstSilentLogin.page.data.displayName, "", "first silent login must not turn the default name into a completed identity");
 assert.equal(firstSilentLogin.page.data.selectedAvatarKey, "", "first silent login must not turn the server fallback avatar into a selected avatar");
 assert.equal(firstSilentLogin.calls.getUserProfile, 0, "silent login must not claim WeChat profile permission");
+
+const firstExplicitLogin = loadIdentityPage({ user: null, loginResult: { accessToken: "first-token", expiresAt: Date.now() + 60_000, user: firstUse } });
+await firstExplicitLogin.page.startWechatLogin();
+assert.equal(firstExplicitLogin.calls.login, 1, "the visible login button must trigger exactly one wx.login flow");
+assert.equal(firstExplicitLogin.calls.getUserProfile, 1, "the same explicit login action should request the WeChat profile once");
+assert.equal(firstExplicitLogin.page.data.mode, "profile", "an incomplete account must continue into identity completion");
+assert.equal(firstExplicitLogin.page.data.displayName, "微信小禾");
+assert.equal(firstExplicitLogin.page.data.localAvatarUrl, "https://thirdwx.qlogo.cn/mmopen/avatar.jpg");
 
 const manualIdentity = loadIdentityPage({ user: firstUse });
 manualIdentity.page.onLoad();

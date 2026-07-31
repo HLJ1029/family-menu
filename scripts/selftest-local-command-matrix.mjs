@@ -743,7 +743,7 @@ async function testAllPassAndDeterministicOrder() {
   assert.equal(manifest.state, "complete");
   assert.equal(manifest.repository.start.clean, true);
   assert.equal(manifest.repository.changedDuringRun, false);
-  assert.equal(manifest.candidate.reviewPackageVersion, "1.1.77");
+  assert.equal(manifest.candidate.reviewPackageVersion, "1.1.78");
   assert.equal(manifest.candidate.uploadedRuntimeVersion, "1.1.75");
   assert.equal(manifest.candidate.uploadedRuntimeCommit, "fbb4938200ef0137c468bd37f3868b94b64b738b");
   assert.deepEqual(manifest.matrix.map((entry) => entry.id), ["alpha", "beta", "gamma"]);

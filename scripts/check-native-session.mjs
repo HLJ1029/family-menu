@@ -135,6 +135,38 @@ function createRuntime({ responses = [], loginCode = "wechat-code", asyncRespons
 }
 
 {
+  const runtime = createRuntime();
+  await assert.rejects(
+    () => runtime.requestHumi({ path: "/bootstrap" }),
+    (error) => error.code === "invalid_session" && error.status === 401,
+    "a first-use request without a stored session must wait for an explicit login action",
+  );
+  assert.equal(runtime.calls.login, 0, "first use must not silently call wx.login");
+  assert.equal(runtime.calls.request.length, 0, "first use must not create an account through the login API");
+}
+
+{
+  const runtime = createRuntime({
+    responses: [
+      { statusCode: 200, data: { accessToken: "renewed-token", expiresAt: Date.now() + 60_000, user: { id: "returning-user" } } },
+      { statusCode: 200, data: { schemaVersion: 1, stateVersion: "renewed-bootstrap" } }
+    ]
+  });
+  runtime.storage.set("humi:native-session:v1", {
+    accessToken: "expired-token",
+    expiresAt: Date.now() - 1,
+    user: { id: "returning-user" }
+  });
+  const envelope = await runtime.requestHumi({ path: "/bootstrap" });
+  assert.equal(envelope.stateVersion, "renewed-bootstrap");
+  assert.equal(runtime.calls.login, 1, "a returning user with an expired stored session receives one silent refresh");
+  assert.equal(runtime.calls.request.filter((call) => call.url.endsWith("/bootstrap")).length, 1, "an already-expired local token must not be sent before refresh");
+  assert.equal(runtime.calls.request.at(-1).header.Authorization, "Bearer renewed-token");
+  runtime.session.clearSession();
+  assert.equal(runtime.session.hasSessionHistory(), false, "explicit logout must also remove the returning-session marker");
+}
+
+{
   const runtime = createRuntime({
     responses: [
       { statusCode: 401, data: { error: "unauthorized" } },

@@ -26,6 +26,7 @@ Page({
   },
 
   onLoad(options = {}) {
+    this._continueAsGuest = options.humiGuest === "1";
     if (options.humiLogout === "1") {
       getApp().clearHumiSession();
       this.setData({ currentSession: null, loginError: "" });
@@ -305,7 +306,9 @@ Page({
   finishInitialLoad() {
     if (this._initialLoadFinished) return;
     this._initialLoadFinished = true;
-    this.openWebView(this.buildH5Url());
+    this.openWebView(this._continueAsGuest
+      ? appendQuery(this.buildH5Url(), { humiGuest: "1" })
+      : this.buildH5Url());
   },
 
   openAuthenticatedH5(session) {

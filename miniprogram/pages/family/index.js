@@ -36,7 +36,7 @@ Page({
   },
 
   async onShow() {
-    if (!guardNativeTab()) return;
+    if (!guardNativeTab({ allowHouseholdSetup: true })) return;
     this.syncState();
     if (this.data.activeHousehold && this.data.cacheState !== "cached") {
       await this.loadCollaborationData();

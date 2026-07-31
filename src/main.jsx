@@ -239,6 +239,7 @@ function App() {
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单。");
   const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
+  const guestEntry = isGuestEntry();
   const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
@@ -408,6 +409,10 @@ function App() {
     todayMenu,
     weekPlan,
   ]);
+
+  useEffect(() => {
+    if (guestEntry) setOnboardingComplete(true);
+  }, [guestEntry, setOnboardingComplete]);
 
   useEffect(() => {
     if (!humiTicket) return undefined;
@@ -4509,7 +4514,7 @@ function App() {
     );
   }
 
-  if (!signedIn && (sessionExpired || authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
+  if (!signedIn && (sessionExpired || authGateIntent || (!onboardingComplete && !guestEntry)) && !sharedGuestLanding) {
     return (
       <>
         <AuthLanding
@@ -4927,6 +4932,11 @@ function isSharedGuestLanding() {
   if (typeof window === "undefined") return false;
   const params = new URLSearchParams(window.location.search);
   return Boolean(params.get("groceryShare") || params.get("menuShare") || params.get("wishShare") || params.get("mealTask") || params.get("shareSource") || params.get("view") === "grocery" || params.get("view") === "today");
+}
+
+function isGuestEntry() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("humiGuest") === "1";
 }
 
 function getDisplayName(session) {

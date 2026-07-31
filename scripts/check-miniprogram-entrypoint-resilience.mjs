@@ -160,6 +160,17 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
 
 {
   let loginCalls = 0;
+  const { page } = createPage({
+    login: () => { loginCalls += 1; }
+  });
+  page.onLoad({ humiGuest: "1" });
+  assert.equal(loginCalls, 0, "explicit guest entry must never call wx.login");
+  assert.match(page.data.url, /[?&]humiGuest=1(?:&|$)/, "native guest choice must bypass the duplicate H5 login gate");
+  assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
+}
+
+{
+  let loginCalls = 0;
   const { page, changes } = createPage({
     login: () => {
       loginCalls += 1;
