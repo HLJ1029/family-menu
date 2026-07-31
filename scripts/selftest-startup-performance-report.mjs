@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION } from "./release-candidate.mjs";
 
 const candidateCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const candidateTime = Date.parse(execFileSync(
@@ -26,7 +27,7 @@ function parseReport(runResult) {
 
 async function writePerformanceFixture(root, {
   durations = [400, 1000, 2500],
-  packageVersion = "1.1.75",
+  packageVersion = CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
   manifestVersion = 3,
   descriptorVersion = 2,
   unsafeMediaPath = false,
