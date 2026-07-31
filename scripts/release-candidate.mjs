@@ -5,10 +5,12 @@ export const PRODUCTION_COMPATIBILITY_BASELINE_DESCRIPTION = "修复身份完善
 export const LAST_UPLOADED_EXPERIENCE_VERSION = "1.1.74";
 export const LAST_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架体验版 N5b（4eb3fbeb）";
 export const LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "4eb3fbeb6aba886930b3fda652be96e9246eac9e";
-export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.75";
-export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
+export const CURRENT_UPLOADED_EXPERIENCE_VERSION = "1.1.75";
+export const CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
 export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "fbb4938200ef0137c468bd37f3868b94b64b738b";
-export const CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE = "docs/native-candidate-evidence.json";
+export const CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE = "docs/native-uploaded-experience-evidence.json";
+export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.76";
+export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架黑白灰视觉收口候选";
 
 // Backward-compatible names used by release tooling point to the current
 // experience candidate, never to the historical production/uploaded baselines.
@@ -19,8 +21,8 @@ export const NATIVE_SHELL_EXPERIENCE_DESCRIPTION = CURRENT_LOCAL_REVIEW_CANDIDAT
 
 export function releaseCandidateSummary() {
   const currentUploadedExperience = {
-    version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-    description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
+    version: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+    description: CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION,
     runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     evidenceSource: CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE,
     recordedUploadStatus: "uploaded-experience",
@@ -42,8 +44,13 @@ export function releaseCandidateSummary() {
     },
     currentUploadedExperience,
     currentLocalReviewCandidate: {
-      compatibilityAliasFor: "currentUploadedExperience",
-      ...currentUploadedExperience,
+      version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
+      description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
+      runtimeCommit: null,
+      recordedUploadStatus: "not_uploaded",
+      verificationStatus: "not_applicable",
+      reviewSubmitted: false,
+      released: false,
     },
   };
 }

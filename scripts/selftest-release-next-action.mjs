@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -20,12 +20,16 @@ const uploadTestKeys = generateKeyPairSync("ed25519");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
+  await writeFile(
+    tempEvidence,
+    (await readFile(tempEvidence, "utf8")).replaceAll("1.1.75", WECHAT_SUBMIT_VERSION),
+  );
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
   await writeCandidateEvidence({ uploaded: false });
-  await assertNext("1.1.75 候选封包与上传授权");
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("1.1.75 候选封包与上传授权", {
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`, {
     forbidden: [
       "- docs/wechat-submit-copy-packet.md",
       "- docs/miniprogram-platform-submit-runbook.md",
@@ -33,23 +37,23 @@ try {
     ],
   });
   await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
-  await assertNext("1.1.75 候选封包与上传授权");
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writePendingCandidatePacket(tempDir, "已邀请");
-  await assertNext("1.1.75 候选封包与上传授权");
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writeValidCandidatePacket(tempDir);
 
   await writeCandidateEvidence({ uploaded: true });
-  await assertNext("1.1.75 已上传记录的受控验签确认", {
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 已上传记录的受控验签确认`, {
     forbidden: [
-      "当前阶段：1.1.75 候选封包与上传授权",
+      `当前阶段：${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`,
       "当前阶段：N5c 真机与平台证据验收",
-      "重新上传 1.1.75",
+      `重新上传 ${WECHAT_SUBMIT_VERSION}`,
     ],
   });
   await writeUploadReceipt();
   await assertNext("N5c 真机与平台证据验收", {
     forbidden: [
-      "当前阶段：1.1.75 候选封包与上传授权",
+      `当前阶段：${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`,
       "进入微信公众平台提交审核",
     ],
   });
@@ -109,7 +113,7 @@ try {
     alternative: "1.1 已完成发布证据闭环",
   });
   await writeCandidateEvidence({ uploaded: false });
-  await assertNext("1.1.75 候选封包与上传授权", {
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`, {
     forbidden: ["外部证据区块已填完", "微信审核已提交"],
   });
 
@@ -167,18 +171,18 @@ async function assertNext(expected, options = {}) {
 async function writeCandidateEvidence({ uploaded }) {
   const runtimeCommit = "a".repeat(40);
   const candidate = {
-    version: "1.1.75",
+    version: WECHAT_SUBMIT_VERSION,
     status: uploaded ? "uploaded-experience" : "local-candidate",
     runtimeCommit: uploaded ? runtimeCommit : null,
     archive: uploaded
       ? {
-        path: "private://candidate/humi-native-shell-1.1.75.tar.gz",
+        path: `private://candidate/humi-native-shell-${WECHAT_SUBMIT_VERSION}.tar.gz`,
         sha256: "b".repeat(64),
         sizeBytes: 140710,
       }
       : null,
     uploadEvidence: uploaded ? { rawEvidenceSha256: "c".repeat(64) } : null,
-    uploadReceiptRef: uploaded ? "private://n5c/upload-receipt-1.1.75" : null,
+    uploadReceiptRef: uploaded ? `private://n5c/upload-receipt-${WECHAT_SUBMIT_VERSION}` : null,
     actions: {
       productionApiDeployed: true,
       h5Deployed: true,
@@ -202,7 +206,7 @@ async function writeUploadReceipt() {
     source: "wechat-miniprogram-ci-upload-output",
     operation: "upload",
     appId: "wx4040b89f3b363416",
-    version: "1.1.75",
+    version: WECHAT_SUBMIT_VERSION,
     invocationStartedAt: new Date(now - 4_000).toISOString(),
     uploadCompletedAt: new Date(now - 3_000).toISOString(),
     result: {
@@ -214,11 +218,11 @@ async function writeUploadReceipt() {
   const unsigned = {
     schemaVersion: 1,
     source: "humi-wechat-upload-machine-attestation",
-    attestationRef: "private://n5c/upload-receipt-1.1.75",
+    attestationRef: `private://n5c/upload-receipt-${WECHAT_SUBMIT_VERSION}`,
     keyId: uploadTestKeyId,
     appId: "wx4040b89f3b363416",
     candidate: {
-      version: "1.1.75",
+      version: WECHAT_SUBMIT_VERSION,
       runtimeCommit: "a".repeat(40),
       archiveSha256: "b".repeat(64),
     },

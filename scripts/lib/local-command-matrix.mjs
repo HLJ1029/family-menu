@@ -17,8 +17,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { fileURLToPath } from "node:url";
 import {
   CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
-  LAST_UPLOADED_EXPERIENCE_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
 } from "../release-candidate.mjs";
 import { REQUIRED_SCENARIOS } from "../check-humi-true-device-evidence.mjs";
 
@@ -101,8 +101,8 @@ export async function runLocalCommandMatrix(options = {}) {
     },
     candidate: {
       reviewPackageVersion: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-      uploadedRuntimeVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
-      uploadedRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      uploadedRuntimeVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+      uploadedRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     },
     runtime: {
       node: process.version,
@@ -335,12 +335,9 @@ export function buildAuthoritativeCommandMatrix({
       expectedBlockerPolicy: !trueDeviceEvidenceDir ? "true-device-evidence-missing" : null,
     }),
     npmCommand("build", "build"),
-    npmCommand("release:native-shell:check:local", "release:native-shell:check:local", {
-      expectedBlockerPolicy: "current-candidate-upload-missing",
-    }),
+    npmCommand("release:native-shell:check:local", "release:native-shell:check:local"),
     npmCommand("release:native-shell:check", "release:native-shell:check", {
       env: { HUMI_NATIVE_HANDOFF_PATH: DEFAULT_EXTERNAL_HANDOFF },
-      expectedBlockerPolicy: "current-candidate-upload-missing",
       timeoutMs: 10 * 60_000,
     }),
     command("git-diff-check", "git", ["diff", "--check"], { timeoutMs: 60_000 }),

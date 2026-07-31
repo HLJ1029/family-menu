@@ -4,6 +4,8 @@ import { promisify } from "node:util";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
@@ -270,7 +272,7 @@ if (nativeReleaseState.currentCandidateUploadVerificationRequired) {
   );
 } else if (!nativeReleaseState.currentCandidateUploaded) {
   nextActions.push(
-    "Create and verify an immutable 1.1.75 candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.",
+    `Create and verify an immutable ${CURRENT_MINIPROGRAM_VERSION} candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.`,
   );
 } else {
   nextActions.push(
@@ -297,7 +299,7 @@ if (
   && !nativeReleaseState.currentCandidateUploaded
   && !nativeReleaseState.currentCandidateUploadRecorded
 ) {
-  nextActions.push("Keep 1.1.74@4eb3fbeb as immutable historical upload evidence; package 1.1.75 separately and obtain fresh upload authorization.");
+  nextActions.push(`Keep ${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 8)} as immutable uploaded evidence; package ${CURRENT_MINIPROGRAM_VERSION} separately and obtain fresh upload authorization.`);
 }
 if (!paletteValidationOk) {
   nextActions.push("Remove non-neutral UI colors before treating the 1.1 design system as closed.");
@@ -455,6 +457,8 @@ console.log(JSON.stringify({
     miniProgramRecordedUploadVersion: nativeReleaseState.miniProgramRecordedUploadVersion,
     miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
     miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
+    currentUploadedExperienceVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+    currentUploadedExperienceRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
     lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     nativeCheckpoint: nativeReleaseState.nativeCheckpoint,

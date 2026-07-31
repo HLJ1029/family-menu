@@ -229,7 +229,8 @@ async function testAuthoritativeCommandMatrixContract() {
   ]);
   assert.equal(matrix.find((entry) => entry.id === "validate:startup-performance").expectedBlockerPolicy, "startup-evidence-missing");
   assert.equal(matrix.find((entry) => entry.id === "validate:true-device-evidence").expectedBlockerPolicy, "true-device-evidence-missing");
-  assert.equal(matrix.find((entry) => entry.id === "release:native-shell:check").expectedBlockerPolicy, "current-candidate-upload-missing");
+  assert.equal(matrix.find((entry) => entry.id === "release:native-shell:check:local").expectedBlockerPolicy, null);
+  assert.equal(matrix.find((entry) => entry.id === "release:native-shell:check").expectedBlockerPolicy, null);
 }
 
 async function shortSmoke() {
@@ -742,8 +743,9 @@ async function testAllPassAndDeterministicOrder() {
   assert.equal(manifest.state, "complete");
   assert.equal(manifest.repository.start.clean, true);
   assert.equal(manifest.repository.changedDuringRun, false);
-  assert.equal(manifest.candidate.reviewPackageVersion, "1.1.75");
-  assert.equal(manifest.candidate.uploadedRuntimeCommit, "4eb3fbeb6aba886930b3fda652be96e9246eac9e");
+  assert.equal(manifest.candidate.reviewPackageVersion, "1.1.76");
+  assert.equal(manifest.candidate.uploadedRuntimeVersion, "1.1.75");
+  assert.equal(manifest.candidate.uploadedRuntimeCommit, "fbb4938200ef0137c468bd37f3868b94b64b738b");
   assert.deepEqual(manifest.matrix.map((entry) => entry.id), ["alpha", "beta", "gamma"]);
   assert.deepEqual(manifest.results.map((entry) => entry.classification), ["pass", "pass", "pass"]);
   assert.deepEqual(manifest.aggregate, { total: 3, pass: 3, fail: 0, blocker: 0, timeout: 0 });

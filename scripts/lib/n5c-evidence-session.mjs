@@ -21,6 +21,7 @@ import {
 } from "../check-humi-true-device-evidence.mjs";
 import { verifyNativeCandidateUploadEvidence } from "./native-candidate-artifact.mjs";
 import { validateNativeCandidateEvidence } from "./native-rollout-readiness-policy.mjs";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "../release-candidate.mjs";
 
 export const N5C_APP_ID = "wx4040b89f3b363416";
 export const N5C_SESSION_FIELDS = Object.freeze([
@@ -100,14 +101,19 @@ export async function loadVerifiedN5cCandidate({
   repoRoot,
   candidateCommit,
   attestationPath,
-  candidateEvidencePath = resolve(repoRoot, "docs/native-candidate-evidence.json"),
+  candidateEvidencePath,
 }) {
   const commit = String(candidateCommit || "").trim().toLowerCase();
   if (!/^[a-f0-9]{40}$/.test(commit)) fail("candidate_commit_invalid");
-  const evidencePath = resolve(candidateEvidencePath);
+  const expectedVersion = await readCandidatePackageVersion(commit);
+  const evidencePath = resolve(candidateEvidencePath || (
+    expectedVersion === CURRENT_UPLOADED_EXPERIENCE_VERSION
+      ? resolve(repoRoot, "docs/native-uploaded-experience-evidence.json")
+      : resolve(repoRoot, "docs/native-candidate-evidence.json")
+  ));
   const evidence = await readJsonFile(evidencePath, "candidate_evidence_invalid");
   const candidate = validateNativeCandidateEvidence(evidence, {
-    expectedVersion: await readCandidatePackageVersion(commit),
+    expectedVersion,
     expectedRuntimeCommit: commit,
   });
   if (!candidate.actions.miniprogramUploaded || candidate.status !== "uploaded-experience") {

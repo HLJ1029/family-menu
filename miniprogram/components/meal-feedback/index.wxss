@@ -31,7 +31,7 @@
 .feedback-option {
   height: 82rpx;
   border-radius: 22rpx;
-  background: #f0eee8;
+  background: #eeeeee;
   color: #111111;
   font-size: 24rpx;
   font-weight: 850;

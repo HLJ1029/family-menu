@@ -6,13 +6,13 @@
   margin-top: 12rpx;
   padding: 22rpx 24rpx;
   border-radius: 24rpx;
-  background: #20201f;
+  background: #202020;
   color: #ffffff;
 }
 
 .timer-card.expired {
-  background: #dfe6d7;
-  color: #2f4328;
+  background: #e3e3e3;
+  color: #3e3e3e;
 }
 
 .timer-copy {

@@ -299,7 +299,7 @@ Page({
         ? "这是最后一位成员，确认后这个家及其家庭数据将不再可用。"
         : "离开后，你将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: household.role === "owner" ? "确认解散" : "确认离开",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!result.confirm) return null;
     this.setData({ pendingAction: "leave", errorText: "" });

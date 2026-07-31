@@ -3,7 +3,7 @@
 .native-tab-title { display: block; margin-top: 8rpx; color: #111; font-size: 48rpx; font-weight: 800; }
 .native-tab-copy { display: block; margin: 16rpx 0 30rpx; color: #666; font-size: 27rpx; line-height: 1.6; }
 .notice { margin-bottom: 24rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: #f2f2f2; color: #555; font-size: 24rpx; }
-.conflict { background: #fff0dc; color: #75450a; }
+.conflict { background: #f2f2f2; color: #505050; }
 .chooser-backdrop { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; background: rgba(0, 0, 0, .36); }
 .recipe-chooser { position: fixed; right: 0; bottom: 0; left: 0; z-index: 21; padding: 30rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 34rpx 34rpx 0 0; background: #fff; }
 .chooser-heading { display: flex; align-items: flex-start; justify-content: space-between; }

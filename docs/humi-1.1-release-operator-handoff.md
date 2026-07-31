@@ -5,9 +5,9 @@
 
 本文档给实际发布操作者使用：不用翻聊天记录，只按这里判断 Humi 1.1 现在在哪、下一步谁做什么、做完后用什么证据收口。只想看当前进度时先看 `docs/humi-1.1-closure-map.md`。
 
-## 0. 原生骨架候选交接（N5b-1.1.75 已上传）
+## 0. 原生骨架候选交接（1.1.75 已上传，1.1.76 本地待封包）
 
-本节同时区分四个不可混用的状态：历史兼容/生产基线是 `1.1.73`（`修复身份完善入口`）；上一历史体验版是 `1.1.74`（`Humi 原生骨架体验版 N5b（4eb3fbeb）`），运行时精确绑定 `4eb3fbeb6aba886930b3fda652be96e9246eac9e`；当前已上传体验版是 `1.1.75`（`Humi 原生骨架完整候选（fbb4938）`），运行时精确绑定 `fbb4938200ef0137c468bd37f3868b94b64b738b`；N5a API/H5 兼容层仍已部署。审核、发布、native/meal 开关和两个家庭白名单均保持关闭。
+本节同时区分五个不可混用的状态：历史兼容/生产基线是 `1.1.73`（`修复身份完善入口`）；上一历史体验版是 `1.1.74`（`Humi 原生骨架体验版 N5b（4eb3fbeb）`），运行时精确绑定 `4eb3fbeb6aba886930b3fda652be96e9246eac9e`；当前已上传体验版是 `1.1.75`（`Humi 原生骨架完整候选（fbb4938）`），运行时精确绑定 `fbb4938200ef0137c468bd37f3868b94b64b738b`；本地视觉收口候选是 `1.1.76`（`Humi 原生骨架黑白灰视觉收口候选`），尚未封包、上传、提审或发布；N5a API/H5 兼容层仍已部署。审核、发布、native/meal 开关和两个家庭白名单均保持关闭。
 
 ```yaml
 native_shell_candidate:
@@ -25,6 +25,7 @@ native_shell_candidate:
 
 当前体验版边界：
 
+- 本地 `1.1.76` 只收口小程序原生黑白灰视觉规范；它与已上传 `1.1.75@fbb4938` 明确分离，在新的不可变归档和动作级授权完成前不得开始新一轮 N5c。
 - 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
 - `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 会分别证明历史 `1.1.74@4eb3fbeb` 交付仍可追溯，以及当前 `1.1.75` 的受控归档、签名 CLI 证据和 `fbb4938` 运行时一致；不会用旧上传证据冒充当前体验版。
 - 当前 `1.1.75` 归档 SHA-256 为 `a1a3a9876e782de8526605d1260c1cf1dd2e70cde85dbb53d051a242c718a0d6`，上传包体 `570449 bytes`，签名证据为 `private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json`。本次没有执行 preview。
@@ -45,11 +46,12 @@ native_shell_candidate:
 - API 当前生产基线提交：`129da03`；此前 1.1.72 短期海报图片接口已备份并部署，备份路径 `/opt/humi/backups/20260718T114140Z`。
 - 历史兼容基线：`1.1.73`，描述 `修复身份完善入口`。
 - 当前已上传体验版：`1.1.75`，描述 `Humi 原生骨架完整候选（fbb4938）`，AppID `wx4040b89f3b363416`；精确绑定 `fbb4938200ef0137c468bd37f3868b94b64b738b`，尚未提审或发布。
+- 当前本地候选：`1.1.76`，描述 `Humi 原生骨架黑白灰视觉收口候选`；尚未生成不可变归档、上传、提审或发布。
 - 上一历史体验版：`1.1.74`，描述 `Humi 原生骨架体验版 N5b（4eb3fbeb）`，精确绑定 `4eb3fbeb6aba886930b3fda652be96e9246eac9e`。
 - 已核验 H5：`https://www.humi-home.com/`，Pages run `29642978938` 已成功部署；五类 H5 分享入口均只进入一次原生发送页。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
-- 原生骨架 `1.1.75` 已上传体验版，未执行 preview、未提审、未发布；N5c 本地工具已就绪，下一步是在真实 iOS/Android 和独立接收账号上执行 56 项矩阵。web-view 域名平台截图和隐私声明仍未完成。
+- 原生骨架 `1.1.75` 已上传体验版，未执行 preview、未提审、未发布；其 `0/56` 会话保留为历史空会话。下一步先为本地 `1.1.76` 完成不可变封包和单独上传授权，再在真实 iOS/Android 和独立接收账号上重新创建并执行 56 项矩阵。web-view 域名平台截图和隐私声明仍未完成。
 
 ## 2. 先后顺序
 

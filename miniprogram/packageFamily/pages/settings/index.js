@@ -153,7 +153,7 @@ Page({
       title: `移除${member.displayName}？`,
       content: "移除后，对方将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: "确认移除",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!confirmation.confirm) return null;
     return this.runMutation(`remove:${memberId}`, async () => {
@@ -179,7 +179,7 @@ Page({
         ? "你是最后一位成员。确认后，这个家及其家庭数据将不再可用。"
         : "离开后，你将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: isOwner ? "确认解散" : "确认离开",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!confirmation.confirm) return null;
     return this.runMutation("leave", async () => {

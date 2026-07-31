@@ -26,7 +26,7 @@ import {
   assertNativeRuntimeMatchesCommit,
 } from "./lib/native-candidate-artifact.mjs";
 import { runNativeRollbackDrill } from "./lib/native-rollout-drill.mjs";
-import { CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT } from "./release-candidate.mjs";
+import { CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION } from "./release-candidate.mjs";
 
 process.env.NODE_ENV = "test";
 
@@ -627,12 +627,15 @@ try {
 const rolloutFixture = await mkdtemp(join(tmpdir(), "humi-native-rollout-fixture-"));
 try {
   const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-  const runtimeCommit = CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT;
-  const archivePath = join(rolloutFixture, "humi-native-shell-1.1.75.tar.gz");
+  const runtimeCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  const archivePath = join(rolloutFixture, `humi-native-shell-${CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION}.tar.gz`);
   execFileSync("git", [
     "archive",
     "--format=tar.gz",
-    "--prefix=humi-native-shell-1.1.75/",
+    `--prefix=humi-native-shell-${CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION}/`,
     `--output=${archivePath}`,
     runtimeCommit,
     "miniprogram",
@@ -640,7 +643,7 @@ try {
   const sha256 = execFileSync("shasum", ["-a", "256", archivePath], {
     encoding: "utf8",
   }).trim().split(/\s+/)[0];
-  const uploadReceiptRef = "private://n5c/upload-receipt-1.1.75";
+  const uploadReceiptRef = `private://n5c/upload-receipt-${CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION}`;
   const archiveSizeBytes = (await stat(archivePath)).size;
   const validEvidence = currentCandidateEvidence({
     runtimeCommit,
@@ -682,7 +685,7 @@ try {
 
   for (const [label, mutate, failurePattern] of [
     ["wrong version", (value) => { value.candidate.version = "1.1.74"; }, /candidate state/],
-    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /current candidate state/],
+    ["wrong commit", (value) => { value.candidate.runtimeCommit = "4eb3fbeb6aba886930b3fda652be96e9246eac9e"; }, /trusted private attestation/],
     ["wrong archive sha", (value) => { value.candidate.archive.sha256 = "c".repeat(64); }, /trusted private attestation/],
     ["wrong archive size", (value) => { value.candidate.archive.sizeBytes += 1; }, /archive size matches immutable candidate evidence/],
   ]) {
@@ -698,20 +701,12 @@ try {
   }
 
   const defaultReport = runRolloutChecker(repoRoot);
-  assert.notEqual(
-    defaultReport.status,
-    0,
-    "the repository default must fail closed when its trusted private upload attestation is unavailable",
-  );
-  assert.deepEqual(
-    defaultReport.json.failures.map((failure) => failure.name),
-    ["current 1.1.75 experience upload requires trusted private attestation"],
-    "the current default must fail only because trusted private upload attestation is unavailable",
-  );
-  assert.match(
-    defaultReport.json.failures[0].message,
-    /trusted private upload attestation/i,
-    "the fail-closed default must identify the missing trusted private attestation, not misstate the upload state",
+  assert.equal(defaultReport.status, 0, "the repository local candidate contract must remain valid before upload");
+  assert.deepEqual(defaultReport.json.failures, []);
+  assert.equal(defaultReport.json.currentCandidate.uploadStatus, "not_uploaded");
+  assert(
+    defaultReport.json.blockers.some((blocker) => blocker.includes(CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION)),
+    "the local candidate must explicitly require a separately authorized upload",
   );
 } finally {
   await rm(rolloutFixture, { recursive: true, force: true });
@@ -754,7 +749,7 @@ function currentCandidateEvidence({ runtimeCommit, archivePath, sha256, archiveS
   return {
     schemaVersion: 1,
     candidate: {
-      version: "1.1.75",
+      version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
       status: "uploaded-experience",
       runtimeCommit,
       archive: { path: archivePath, sha256, sizeBytes: archiveSizeBytes },
@@ -780,7 +775,7 @@ function wechatUploadReceipt({ runtimeCommit, sha256, uploadReceiptRef }) {
     receiptRef: uploadReceiptRef,
     appId: "wx4040b89f3b363416",
     candidate: {
-      version: "1.1.75",
+      version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
       runtimeCommit,
       archiveSha256: sha256,
     },

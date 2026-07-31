@@ -5,6 +5,8 @@ import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
   CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
   NATIVE_SHELL_EXPERIENCE_DESCRIPTION,
@@ -132,9 +134,6 @@ const docFixturePath = process.env.NODE_ENV === "test"
   ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_PATH || "")
   : "";
 const staleCurrentStatePhrases = [
-  "完整候选（待上传）",
-  "尚未归档或上传",
-  "当前候选未归档、未上传",
   "当前 1.1.75 尚未封包或上传",
 ];
 const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?(?:[：:\s]|是|为)*`?1\.1\.74(?:@4eb3fbeb)?`?/;
@@ -143,7 +142,7 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-closure-map.md",
     required: [
-      `当前体验版 \`${CURRENT_MINIPROGRAM_VERSION}\` 已从不可变归档上传`,
+      `当前体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 已从不可变归档上传`,
       CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       "微信审核、正式发布、开关和白名单均未触发",
@@ -152,9 +151,9 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-release-evidence-log.md",
     required: [
-      `| 小程序版本 | \`${NATIVE_SHELL_PREVIEW_VERSION}\` |`,
-      `| 小程序描述 | \`${NATIVE_SHELL_EXPERIENCE_DESCRIPTION}\` |`,
-      `| 当前已上传体验版 | \`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
+      `| 小程序版本 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` |`,
+      `| 小程序描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
+      `| 当前已上传体验版 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
       `| 上一历史体验版 | \`${LAST_UPLOADED_EXPERIENCE_VERSION}\` / \`Humi 原生骨架体验版 N5b（4eb3fbeb）\` / \`${LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
       "未执行 preview、未提审、未发布、未开启任何开关或白名单",
     ],
@@ -162,7 +161,8 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
-      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\`，描述 \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      `当前本地候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       "status: uploaded-experience",
       "miniprogram_uploaded: true",
@@ -181,53 +181,53 @@ const currentCandidateDocs = [
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     required: [
-      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\``,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
-      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `版本描述：\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
       "不等于可提审",
     ],
   },
   {
     path: "docs/wechat-submit-copy-packet.md",
     required: [
-      `| 上传版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
-      `| 版本描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
-      `当前 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `| 上传版本 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` |`,
+      `| 版本描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
+      `当前 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
       `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 是上一历史体验版`,
     ],
   },
   {
     path: "docs/miniprogram-launch-readiness.md",
     required: [
-      `小程序体验版 \`${CURRENT_MINIPROGRAM_VERSION}\`（\`${CURRENT_MINIPROGRAM_DESCRIPTION}\`）已从不可变归档上传`,
+      `小程序体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\`（\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\`）已从不可变归档上传`,
       `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-spec-acceptance-audit.md",
     required: [
-      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
       `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-pre-review-hardening.md",
     required: [
-      `小程序候选 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `小程序候选 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
       `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 只作为历史证据`,
     ],
   },
   {
     path: "docs/launch-day-runbook.md",
     required: [
-      `小程序版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
-      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `本地待封包版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
+      `本地版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
     ],
   },
   {
     path: "docs/humi-api-production-deploy-runbook.md",
     required: [
-      `当前已上传体验版：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
       "未提审、未发布、未开启原生开关或白名单",
       "历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.75 验证）",
       CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
@@ -239,7 +239,7 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-api-contract.md",
     required: [
-      `当前已上传体验版 \`${CURRENT_MINIPROGRAM_VERSION}@fbb4938\` 均使用本合同`,
+      `当前已上传体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 均使用本合同`,
       `上一历史体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
       "历史兼容基线 1.1.73",
     ],
@@ -288,11 +288,12 @@ const candidate = candidateEvidence?.candidate;
 if (
   candidateEvidence?.schemaVersion !== 1
   || candidate?.version !== CURRENT_MINIPROGRAM_VERSION
-  || candidate?.status !== "uploaded-experience"
-  || candidate?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
-  || candidate?.archive?.sizeBytes !== 140710
-  || candidate?.uploadEvidence?.rawEvidenceSha256 !== "ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938"
-  || candidate?.actions?.miniprogramUploaded !== true
+  || candidate?.status !== "local-candidate"
+  || candidate?.runtimeCommit !== null
+  || candidate?.archive !== null
+  || candidate?.uploadEvidence !== null
+  || candidate?.uploadReceiptRef !== null
+  || candidate?.actions?.miniprogramUploaded !== false
   || candidate?.actions?.wechatReviewSubmitted !== false
   || candidate?.actions?.wechatReleased !== false
   || candidate?.actions?.nativeAllowlistEnabled !== false
@@ -301,7 +302,31 @@ if (
 ) {
   failures.push({
     path: "docs/native-candidate-evidence.json",
-    phrase: "current uploaded 1.1.75 evidence must retain N5b-only action boundaries",
+    phrase: `current local ${CURRENT_MINIPROGRAM_VERSION} evidence must not claim upload, review, release, or rollout actions`,
+  });
+}
+
+const uploadedExperienceEvidence = JSON.parse(
+  await readFile("docs/native-uploaded-experience-evidence.json", "utf8"),
+);
+const uploadedExperience = uploadedExperienceEvidence?.candidate;
+if (
+  uploadedExperienceEvidence?.schemaVersion !== 1
+  || uploadedExperience?.version !== CURRENT_UPLOADED_EXPERIENCE_VERSION
+  || uploadedExperience?.status !== "uploaded-experience"
+  || uploadedExperience?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || uploadedExperience?.archive?.sizeBytes !== 140710
+  || uploadedExperience?.uploadEvidence?.rawEvidenceSha256 !== "ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938"
+  || uploadedExperience?.actions?.miniprogramUploaded !== true
+  || uploadedExperience?.actions?.wechatReviewSubmitted !== false
+  || uploadedExperience?.actions?.wechatReleased !== false
+  || uploadedExperience?.actions?.nativeAllowlistEnabled !== false
+  || uploadedExperience?.trueDeviceEvidence?.passed !== 0
+  || uploadedExperience?.trueDeviceEvidence?.required !== 56
+) {
+  failures.push({
+    path: "docs/native-uploaded-experience-evidence.json",
+    phrase: "uploaded 1.1.75 evidence must retain its immutable N5b-only action boundaries",
   });
 }
 

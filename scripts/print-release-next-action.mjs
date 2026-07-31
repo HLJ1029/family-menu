@@ -10,6 +10,8 @@ import {
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
@@ -109,11 +111,11 @@ if (currentCandidateNeedsUpload) {
   stageScope = "native-evidence";
   lines.push("当前阶段：N5c 真机与平台证据验收，暂不进入微信审核。");
   lines.push("");
-  lines.push("下一步一句话：1.1.75 体验版已上传；现在只验收 56 项真机、三项启动性能、web-view 域名和平台隐私声明，不提审、不发布、不开开关或白名单。");
+  lines.push(`下一步一句话：${CURRENT_MINIPROGRAM_VERSION} 体验版已上传；现在只验收 56 项真机、三项启动性能、web-view 域名和平台隐私声明，不提审、不发布、不开开关或白名单。`);
   lines.push("");
   lines.push("现在该做：");
-  lines.push("1. 用 1.1.75 体验版在约定的 iOS 与 Android 真机逐项执行 56 行验收，1.1.74 的历史结果不得复用。");
-  lines.push("2. 分别记录冷启动、暖启动和缓存命中三项真机性能；证据必须绑定 1.1.75、设备、微信版本和私有证据位置。");
+  lines.push(`1. 用 ${CURRENT_MINIPROGRAM_VERSION} 体验版在约定的 iOS 与 Android 真机逐项执行 56 行验收，${CURRENT_UPLOADED_EXPERIENCE_VERSION} 的旧空会话和更早历史结果不得复用。`);
+  lines.push(`2. 分别记录冷启动、暖启动和缓存命中三项真机性能；证据必须绑定 ${CURRENT_MINIPROGRAM_VERSION}、设备、微信版本和私有证据位置。`);
   lines.push("3. 在微信公众平台补齐并复核 web-view 业务域名、隐私保护指引和开发者工具登录态的私有截图证据。");
   lines.push("4. 运行 npm run validate:true-device-evidence、npm run validate:startup-performance、npm run release:wechat:privacy:check 和 npm run release:native-shell:check:local。");
   lines.push("5. N5c 证据全部通过后停下来验收；未经新的明确授权，不执行审核、发布、开关或白名单动作。");
@@ -264,26 +266,26 @@ if (openHardeningItems.length) {
 console.log(lines.join("\n"));
 
 function appendCandidateUploadStage(output) {
-  output.push("当前阶段：1.1.75 候选封包与上传授权，暂不进入 N5c 或微信审核。");
+  output.push(`当前阶段：${CURRENT_MINIPROGRAM_VERSION} 候选封包与上传授权，暂不进入 N5c 或微信审核。`);
   output.push("");
-  output.push("下一步一句话：把当前 1.1.75 运行时绑定到新的不可变归档并取得单独上传授权；最近已上传的 1.1.74@4eb3fbeb 只保留为历史证据。");
+  output.push(`下一步一句话：把当前 ${CURRENT_MINIPROGRAM_VERSION} 运行时绑定到新的不可变归档并取得单独上传授权；已上传的 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 8)} 保持不可变。`);
   output.push("");
   output.push("现在该做：");
-  output.push("1. 运行 npm run release:wechat:privacy:check 和本地工程门禁，确认 1.1.75 的能力、隐私声明与包版本一致。");
-  output.push("2. 复核当前候选提交和 miniprogram 运行时；生成新归档时必须把提交、1.1.75、SHA-256、包内容和受控私有微信上传回执逐项绑定。");
-  output.push("3. 在任何上传动作前取得针对 1.1.75 的明确授权；本行动卡本身不会上传、提审、发布或改开关/白名单。");
-  output.push("4. 只有微信上传回执绑定 AppID、1.1.75、完整提交和归档 SHA-256 并通过校验后，才进入 N5c 56 项真机、三项性能、web-view 域名和平台隐私声明验收。");
-  output.push("5. 1.1.74 的旧二维码和历史提交/审核/发布区块不得计入 1.1.75 的上传或 0/56 验收。");
+  output.push(`1. 运行 npm run release:wechat:privacy:check 和本地工程门禁，确认 ${CURRENT_MINIPROGRAM_VERSION} 的能力、隐私声明与包版本一致。`);
+  output.push(`2. 复核当前候选提交和 miniprogram 运行时；生成新归档时必须把提交、${CURRENT_MINIPROGRAM_VERSION}、SHA-256、包内容和受控私有微信上传回执逐项绑定。`);
+  output.push(`3. 在任何上传动作前取得针对 ${CURRENT_MINIPROGRAM_VERSION} 的明确授权；本行动卡本身不会上传、提审、发布或改开关/白名单。`);
+  output.push(`4. 只有微信上传回执绑定 AppID、${CURRENT_MINIPROGRAM_VERSION}、完整提交和归档 SHA-256 并通过校验后，才进入 N5c 56 项真机、三项性能、web-view 域名和平台隐私声明验收。`);
+  output.push(`5. ${CURRENT_UPLOADED_EXPERIENCE_VERSION} 的旧空会话和历史提交/审核/发布区块不得计入 ${CURRENT_MINIPROGRAM_VERSION} 的上传或 0/56 验收。`);
 }
 
 function appendCandidateAttestationStage(output) {
-  output.push("当前阶段：1.1.75 已上传记录的受控验签确认，禁止重复上传。");
+  output.push(`当前阶段：${CURRENT_MINIPROGRAM_VERSION} 已上传记录的受控验签确认，禁止重复上传。`);
   output.push("");
-  output.push("下一步一句话：仓库已记录 1.1.75@fbb4938 的上传、归档与原始回执；当前进程只缺显式传入现有受控私有 machine attestation，验签通过后直接进入 N5c。");
+  output.push(`下一步一句话：仓库已记录 ${CURRENT_MINIPROGRAM_VERSION} 的上传、归档与原始回执；当前进程只缺显式传入现有受控私有 machine attestation，验签通过后直接进入 N5c。`);
   output.push("");
   output.push("现在该做：");
   output.push("1. 设置 HUMI_WECHAT_UPLOAD_ATTESTATION_PATH 为现有受控私有 wechat-upload-machine-attestation.json 的绝对路径。");
-  output.push("2. 运行 npm run release:native-shell:check:local，验证 AppID、1.1.75、fbb4938、归档 SHA-256、原始 CLI 回执和 Ed25519 签名绑定。");
+  output.push(`2. 运行 npm run release:native-shell:check:local，验证 AppID、${CURRENT_MINIPROGRAM_VERSION}、候选提交、归档 SHA-256、原始 CLI 回执和 Ed25519 签名绑定。`);
   output.push("3. 验签通过后运行 npm run release:next；行动卡必须直接进入 N5c 真机与平台证据验收。");
   output.push("4. 本阶段不得重新封包、重新上传、生成 preview、提审、发布或修改开关/白名单。");
 }
@@ -629,16 +631,16 @@ function getCompletionCriteria(scope) {
   }
   if (scope === "candidate-upload") {
     return [
-      "候选身份：miniprogram/utils/config.js 与发布工具必须统一为 1.1.75。",
-      "历史证明：最近已上传 1.1.74 的不可变归档必须继续精确匹配 4eb3fbeb，不能与当前运行时比较后误判。",
-      "新封包：1.1.75 必须生成新的不可变归档并绑定候选提交、版本和 SHA-256。",
-      "动作授权：只有获得针对 1.1.75 上传的明确授权后才能上传；上传后才进入 N5c。",
-      "状态边界：1.1.75 保持未上传、未提审、未发布，native/meal 开关为 0，两个家庭白名单为空。",
+      `候选身份：miniprogram/utils/config.js 与发布工具必须统一为 ${CURRENT_MINIPROGRAM_VERSION}。`,
+      `历史证明：已上传 ${CURRENT_UPLOADED_EXPERIENCE_VERSION} 的不可变归档必须继续精确匹配 ${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 8)}，不能与当前运行时比较后误判。`,
+      `新封包：${CURRENT_MINIPROGRAM_VERSION} 必须生成新的不可变归档并绑定候选提交、版本和 SHA-256。`,
+      `动作授权：只有获得针对 ${CURRENT_MINIPROGRAM_VERSION} 上传的明确授权后才能上传；上传后才进入 N5c。`,
+      `状态边界：${CURRENT_MINIPROGRAM_VERSION} 保持未上传、未提审、未发布，native/meal 开关为 0，两个家庭白名单为空。`,
     ];
   }
   if (scope === "candidate-attestation") {
     return [
-      "事实边界：1.1.75@fbb4938 已记录为 uploaded-experience；缺少的是当前进程的显式受控私有 attestation 路径，不是再次上传。",
+      `事实边界：${CURRENT_MINIPROGRAM_VERSION} 已记录为 uploaded-experience；缺少的是当前进程的显式受控私有 attestation 路径，不是再次上传。`,
       "验签绑定：AppID、版本、运行时提交、归档 SHA-256、原始 CLI 回执 SHA-256 与 Ed25519 签名必须全部通过。",
       "失败关闭：缺路径、路径不受控、签名错误、归档不符或原始回执被修改时均不得进入 N5c。",
       "动作边界：不得重新上传、生成 preview、提审、发布或修改 native/meal 开关与白名单。",
@@ -646,7 +648,7 @@ function getCompletionCriteria(scope) {
   }
   if (scope === "native-evidence") {
     return [
-      "候选身份：所有真机与平台证据必须绑定当前已上传的 1.1.75，不得复用 1.1.74 的 0/36 历史结果。",
+      `候选身份：所有真机与平台证据必须绑定当前已上传的 ${CURRENT_MINIPROGRAM_VERSION}，不得复用 ${CURRENT_UPLOADED_EXPERIENCE_VERSION} 的空会话或更早历史结果。`,
       "真机矩阵：validate:true-device-evidence 必须完成并通过 56/56，iOS 与 Android 的设备和微信版本信息完整。",
       "启动性能：冷启动、暖启动和缓存命中三项预算必须在约定真机通过，并保留私有原始证据。",
       "平台证据：web-view 业务域名、隐私保护指引和开发者工具登录态必须由严格结构化证据标记为已验证。",

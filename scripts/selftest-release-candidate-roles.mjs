@@ -27,20 +27,18 @@ assert.deepEqual(candidate, {
     version: "1.1.75",
     description: "Humi 原生骨架完整候选（fbb4938）",
     runtimeCommit: "fbb4938200ef0137c468bd37f3868b94b64b738b",
-    evidenceSource: "docs/native-candidate-evidence.json",
+    evidenceSource: "docs/native-uploaded-experience-evidence.json",
     recordedUploadStatus: "uploaded-experience",
     verificationStatus: "requires_runtime_attestation",
     reviewSubmitted: false,
     released: false,
   },
   currentLocalReviewCandidate: {
-    compatibilityAliasFor: "currentUploadedExperience",
-    version: "1.1.75",
-    description: "Humi 原生骨架完整候选（fbb4938）",
-    runtimeCommit: "fbb4938200ef0137c468bd37f3868b94b64b738b",
-    evidenceSource: "docs/native-candidate-evidence.json",
-    recordedUploadStatus: "uploaded-experience",
-    verificationStatus: "requires_runtime_attestation",
+    version: "1.1.76",
+    description: "Humi 原生骨架黑白灰视觉收口候选",
+    runtimeCommit: null,
+    recordedUploadStatus: "not_uploaded",
+    verificationStatus: "not_applicable",
     reviewSubmitted: false,
     released: false,
   },
@@ -56,15 +54,15 @@ const { stdout: copyStdout } = await execFileAsync(
   ["scripts/print-wechat-submit-copy.mjs"],
   { maxBuffer: 1024 * 1024 },
 );
-assert.match(copyStdout, /1\.1\.75/);
-assert.match(copyStdout, /Humi 原生骨架完整候选（fbb4938）/);
+assert.match(copyStdout, /1\.1\.76/);
+assert.match(copyStdout, /Humi 原生骨架黑白灰视觉收口候选/);
 assert.doesNotMatch(copyStdout, /提交版本[\s\S]{0,80}1\.1\.(?:73|74)/);
 
 const submitSession = await import("./wechat-submit-evidence-session.mjs");
-assert.equal(submitSession.WECHAT_SUBMIT_VERSION, "1.1.75");
+assert.equal(submitSession.WECHAT_SUBMIT_VERSION, "1.1.76");
 assert.equal(
   submitSession.WECHAT_SUBMIT_DESCRIPTION,
-  "Humi 原生骨架完整候选（fbb4938）",
+  "Humi 原生骨架黑白灰视觉收口候选",
 );
 
 console.log("Release candidate roles selftest passed.");

@@ -24,6 +24,7 @@ import { REQUIRED_SCENARIOS } from "./check-humi-true-device-evidence.mjs";
 import {
   CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
   CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
   LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   LAST_UPLOADED_EXPERIENCE_VERSION,
   PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
@@ -167,7 +168,7 @@ await check("mini-program domains and platform configuration are legal", async (
 });
 
 const packageVersion = extractPackageVersion(await text("miniprogram/utils/config.js"));
-await check("native runtime is the current uploaded experience candidate", async () => {
+await check("native runtime is the current local review candidate", async () => {
   assert.equal(
     PRODUCTION_COMPATIBILITY_BASELINE_VERSION,
     "1.1.73",
@@ -176,20 +177,25 @@ await check("native runtime is the current uploaded experience candidate", async
   assert.equal(
     LAST_UPLOADED_EXPERIENCE_VERSION,
     "1.1.74",
-    "the last uploaded N5b experience runtime must remain labelled",
+    "the historical N5b experience runtime must remain labelled",
+  );
+  assert.equal(
+    CURRENT_UPLOADED_EXPERIENCE_VERSION,
+    "1.1.75",
+    "the current uploaded experience runtime must remain labelled",
   );
   assert.equal(
     packageVersion,
     CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
-    "runtime package must match the current uploaded experience candidate",
+    "runtime package must match the current local review candidate",
   );
 });
 
-const runtimeDriftFiles = listNativeRuntimeDrift(LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT);
-await check("current candidate is distinct from the last uploaded runtime", async () => {
+const runtimeDriftFiles = listNativeRuntimeDrift(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT);
+await check("current local candidate is distinct from the uploaded 1.1.75 runtime", async () => {
   assert(
     runtimeDriftFiles.length > 0,
-    "1.1.75 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.74",
+    "1.1.76 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.75",
   );
 });
 
@@ -283,19 +289,20 @@ await check("server-flag rollback returns to H5 without deleting product caches"
 
 let currentCandidateState = null;
 let currentCandidateVerification = null;
+let uploadedExperienceState = null;
+let uploadedExperienceVerification = null;
 const candidateEvidencePath = resolve(
   process.env.HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH
     || resolve(ROOT, "docs/native-candidate-evidence.json"),
 );
-await check("current candidate state matches expected 1.1.75 runtime", async () => {
+await check("current candidate state matches expected 1.1.76 runtime", async () => {
   const evidence = JSON.parse(await readFile(candidateEvidencePath, "utf8"));
   currentCandidateState = validateNativeCandidateEvidence(evidence, {
     expectedVersion: packageVersion,
-    expectedRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
   });
 });
 
-if (currentCandidateState) await check("current 1.1.75 archive size matches immutable candidate evidence", async () => {
+if (currentCandidateState?.actions.miniprogramUploaded) await check("current candidate archive size matches immutable candidate evidence", async () => {
   const archivePath = resolve(
     dirname(candidateEvidencePath),
     currentCandidateState.archive.path,
@@ -308,7 +315,7 @@ if (currentCandidateState) await check("current 1.1.75 archive size matches immu
   );
 });
 
-if (currentCandidateState) await check("current 1.1.75 experience upload requires trusted private attestation", async () => {
+if (currentCandidateState?.actions.miniprogramUploaded) await check("current candidate upload requires trusted private attestation", async () => {
   try {
     currentCandidateVerification = await verifyNativeCandidateUploadEvidence({
       candidate: currentCandidateState,
@@ -325,7 +332,7 @@ if (currentCandidateState) await check("current 1.1.75 experience upload require
   assert.equal(
     currentCandidateVerification?.uploaded,
     true,
-    "trusted private upload attestation is required to verify the recorded 1.1.75 experience upload before N5c",
+    "trusted private upload attestation is required to verify the recorded current experience upload before N5c",
   );
   assert.equal(
     currentCandidateVerification?.rawEvidenceSha256,
@@ -334,7 +341,38 @@ if (currentCandidateState) await check("current 1.1.75 experience upload require
   );
 });
 
-await check("repository handoff documents uploaded 1.1.75 experience boundaries", async () => {
+const uploadedExperienceEvidencePath = resolve(ROOT, "docs/native-uploaded-experience-evidence.json");
+await check("uploaded 1.1.75 experience evidence remains immutable", async () => {
+  uploadedExperienceState = validateNativeCandidateEvidence(
+    JSON.parse(await readFile(uploadedExperienceEvidencePath, "utf8")),
+    {
+      expectedVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+      expectedRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    },
+  );
+  const archiveStat = await stat(uploadedExperienceState.archive.path);
+  assert.equal(archiveStat.size, uploadedExperienceState.archive.sizeBytes);
+});
+
+const uploadAttestationPath = process.env.HUMI_WECHAT_UPLOAD_ATTESTATION_PATH
+  || process.env.HUMI_WECHAT_UPLOAD_RECEIPT_PATH;
+if (
+  uploadedExperienceState
+  && uploadAttestationPath
+  && !currentCandidateState?.actions.miniprogramUploaded
+) {
+  await check("uploaded 1.1.75 experience attestation remains verifiable", async () => {
+    uploadedExperienceVerification = await verifyNativeCandidateUploadEvidence({
+      candidate: uploadedExperienceState,
+      repoRoot: ROOT,
+      evidenceBaseDir: dirname(uploadedExperienceEvidencePath),
+      uploadAttestationPath,
+    });
+    assert.equal(uploadedExperienceVerification.uploaded, true);
+  });
+}
+
+await check("repository handoff documents uploaded 1.1.75 and local 1.1.76 boundaries", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
@@ -347,8 +385,10 @@ await check("repository handoff documents uploaded 1.1.75 experience boundaries"
   assert.match(handoff, /true_device_evidence: 0\/56/);
   assert.match(handoff, new RegExp(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT));
   assert.match(handoff, /上一历史体验版.*`1\.1\.74`/);
+  assert.match(handoff, /本地.*`1\.1\.76`/);
   assert.match(tracker, /原生壳候选：uploaded-experience/);
   assert.match(tracker, /原生包版本：`1\.1\.75`/);
+  assert.match(tracker, /本地.*`1\.1\.76`/);
   assert.match(tracker, /上一历史体验版：`1\.1\.74`/);
   assert.match(tracker, /历史兼容基线：`1\.1\.73`/);
   assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));
@@ -404,13 +444,15 @@ if (!platformEvidence?.webViewDomainVerified) {
 if (!platformEvidence.privacyDeclarationVerified) {
   blockers.push("WeChat platform privacy declaration and screenshot are still required.");
 }
+if (!currentCandidateState?.actions.miniprogramUploaded) {
+  blockers.push(
+    `Local ${CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION} must be committed, archived, and uploaded under separate authorization before N5c begins.`,
+  );
+} else if (!currentCandidateVerification?.uploaded) {
+  blockers.push("Trusted private upload attestation is unavailable for the current candidate.");
+}
 blockers.push(
-  ...(!currentCandidateVerification?.uploaded
-    ? [
-      "Trusted private upload attestation is unavailable, so this process cannot verify the recorded 1.1.75 experience upload.",
-      `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence remains required before N5c can complete.`,
-    ]
-    : []),
+  `${REQUIRED_SCENARIOS.length}-row iOS/Android true-device evidence remains required for the current uploaded candidate.`,
   "native cached/warm/cold startup budgets have not been verified on agreed real devices.",
 );
 
@@ -428,6 +470,12 @@ const report = {
     runtimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     immutableArtifactVerified: Boolean(externalHandoffPath)
       && !failures.some((failure) => failure.name === "AI-HQ native handoff proves the last uploaded 1.1.74 runtime"),
+  },
+  currentUploadedExperience: {
+    version: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+    runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    immutableArtifactVerified: Boolean(uploadedExperienceState),
+    trustedAttestationVerified: Boolean(uploadedExperienceVerification?.uploaded),
   },
   currentCandidate: {
     version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
