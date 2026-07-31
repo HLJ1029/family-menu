@@ -53,7 +53,11 @@ const packet = {
       ? []
       : ["Native runtime and WeChat privacy declaration contract are not aligned; do not prepare review submission."]),
     ...(status.release?.wechatSubmitWorkspaceGuardReady ? [] : ["WeChat submit workspace confirmation guard is not covered; do not prepare review submission."]),
-    ...(status.release?.currentCandidateUploaded ? [] : [`Version ${CURRENT_MINIPROGRAM_VERSION} has not been uploaded; package and upload it under separate authorization before review preparation.`]),
+    ...(status.release?.currentCandidateUploaded
+      ? []
+      : status.release?.currentCandidateUploadRecorded
+        ? [`Version ${CURRENT_MINIPROGRAM_VERSION} upload is recorded but this process has not verified its trusted private attestation; provide the attestation path and do not upload again.`]
+        : [`Version ${CURRENT_MINIPROGRAM_VERSION} has not been uploaded; package and upload it under separate authorization before review preparation.`]),
   ],
   releaseStatusOk: ready,
   submitMaterials: [

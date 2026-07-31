@@ -41,6 +41,7 @@ const report = {
     syncedToOriginMain: Boolean(git.syncedToOriginMain),
   },
   gates: {
+    specAuditIntegrityReady: Boolean(release.specAuditIntegrityReady),
     specAcceptanceAuditReady: Boolean(release.specAcceptanceAuditReady),
     preReviewHardeningReady: Boolean(release.preReviewHardeningReady),
     productReviewReady: Boolean(release.productReviewReady),
@@ -69,7 +70,9 @@ const report = {
     releaseComplete: Boolean(release.releaseComplete),
   },
   miniProgram: {
-    uploadedVersion: release.miniProgramUploadedVersion ?? "unknown",
+    uploadedVersion: release.miniProgramUploadedVersion ?? release.miniProgramRecordedUploadVersion ?? "unknown",
+    uploadVerified: Boolean(release.currentCandidateUploaded),
+    uploadRecorded: Boolean(release.currentCandidateUploadRecorded),
     uploadDescription: release.miniProgramUploadDescription ?? "unknown",
     remainingNativeShareCards: shareEvidence?.missingFiles?.filter((file) => file.endsWith("-card.png")) ?? [],
   },
@@ -103,6 +106,19 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
       nextCommands: [
         "npm run release:complete:check",
         "npm run release:status",
+      ],
+      userConfirmationsRequired: [],
+    };
+  }
+
+  if (release.currentCandidateUploadVerificationRequired) {
+    return {
+      key: "candidate-attestation",
+      title: "1.1.75 已上传记录的受控验签确认",
+      description: "上传、归档和回执已经记录；当前进程只缺显式受控私有 attestation 验签，禁止重复上传。",
+      nextCommands: [
+        "HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/absolute/private/wechat-upload-machine-attestation.json npm run release:native-shell:check:local",
+        "HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/absolute/private/wechat-upload-machine-attestation.json npm run release:next",
       ],
       userConfirmationsRequired: [],
     };
@@ -333,6 +349,13 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
 
 function buildBlockers({ git, release, openHardeningItems, shareEvidence, missingReleaseEvidence }) {
   const blockers = [];
+  if (release.currentCandidateUploadVerificationRequired) {
+    blockers.push({
+      key: "candidate-attestation",
+      title: "当前进程尚未验签已记录的 1.1.75 上传",
+      details: ["Provide the existing trusted private attestation path; do not repackage or re-upload."],
+    });
+  }
   if (!git.clean || !git.syncedToOriginMain) {
     blockers.push({
       key: "git",

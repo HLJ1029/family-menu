@@ -41,11 +41,14 @@ const status = lifecycleSelftest
     allowFailure: false,
     timeoutMs: 240_000,
   });
-const currentCandidateNeedsUpload = status.release?.currentCandidateUploaded === false;
-const wechat = currentCandidateNeedsUpload
-  ? { ok: false, skipped: "current candidate is not uploaded" }
+const currentCandidateNeedsUpload = status.release?.currentCandidateUploaded === false
+  && status.release?.currentCandidateUploadRecorded !== true;
+const currentCandidateNeedsAttestation = status.release?.currentCandidateUploadVerificationRequired === true;
+const currentCandidateNotVerified = status.release?.currentCandidateUploaded !== true;
+const wechat = currentCandidateNotVerified
+  ? { ok: false, skipped: "current candidate upload is not verified" }
   : await runJsonScript("release:wechat:check", { allowFailure: true });
-const shareEvidence = currentCandidateNeedsUpload
+const shareEvidence = currentCandidateNotVerified
   ? { ok: false, missingFiles: [] }
   : await runJsonScript("release:wechat:share:evidence", { allowFailure: true });
 const evidenceCheck = status.checks?.find((check) => check.name === "release:evidence:check");
@@ -63,13 +66,19 @@ lines.push(`检查时间：${new Date().toISOString()}`);
 lines.push(`当前提交：${status.git?.head ?? "unknown"} / origin/main ${status.git?.originMain ?? "unknown"}`);
 lines.push(`小程序候选：${status.release?.miniProgramCandidateVersion ?? status.release?.miniProgramUploadedVersion ?? "unknown"} / ${status.release?.miniProgramUploadDescription ?? "unknown"}`);
 if (status.release?.lastUploadedExperienceVersion) {
-  lines.push(`最近已上传体验版：${status.release.lastUploadedExperienceVersion} / ${status.release.lastUploadedExperienceRuntimeCommit ?? "unknown commit"}`);
+  lines.push(`上一历史体验版：${status.release.lastUploadedExperienceVersion} / ${status.release.lastUploadedExperienceRuntimeCommit ?? "unknown commit"}`);
+}
+if (status.release?.miniProgramRecordedUploadVersion) {
+  lines.push(`当前已记录体验版：${status.release.miniProgramRecordedUploadVersion} / ${status.release.currentCandidateUploaded ? "验签通过" : "等待本进程验签"}`);
 }
 lines.push("");
 
 if (currentCandidateNeedsUpload) {
   stageScope = "candidate-upload";
   appendCandidateUploadStage(lines);
+} else if (currentCandidateNeedsAttestation) {
+  stageScope = "candidate-attestation";
+  appendCandidateAttestationStage(lines);
 } else if (status.release?.releaseComplete) {
   stageScope = "complete";
   lines.push("当前阶段：1.1 已完成发布证据闭环。");
@@ -267,6 +276,18 @@ function appendCandidateUploadStage(output) {
   output.push("5. 1.1.74 的旧二维码和历史提交/审核/发布区块不得计入 1.1.75 的上传或 0/56 验收。");
 }
 
+function appendCandidateAttestationStage(output) {
+  output.push("当前阶段：1.1.75 已上传记录的受控验签确认，禁止重复上传。");
+  output.push("");
+  output.push("下一步一句话：仓库已记录 1.1.75@fbb4938 的上传、归档与原始回执；当前进程只缺显式传入现有受控私有 machine attestation，验签通过后直接进入 N5c。");
+  output.push("");
+  output.push("现在该做：");
+  output.push("1. 设置 HUMI_WECHAT_UPLOAD_ATTESTATION_PATH 为现有受控私有 wechat-upload-machine-attestation.json 的绝对路径。");
+  output.push("2. 运行 npm run release:native-shell:check:local，验证 AppID、1.1.75、fbb4938、归档 SHA-256、原始 CLI 回执和 Ed25519 签名绑定。");
+  output.push("3. 验签通过后运行 npm run release:next；行动卡必须直接进入 N5c 真机与平台证据验收。");
+  output.push("4. 本阶段不得重新封包、重新上传、生成 preview、提审、发布或修改开关/白名单。");
+}
+
 async function runJsonScript(scriptName, { allowFailure, timeoutMs = 120_000 }) {
   try {
     const { stdout } = await execFileAsync("npm", ["run", scriptName], {
@@ -429,6 +450,9 @@ function buildLifecycleFixtureStatus(evidence, candidateFixture) {
     release: {
       releaseComplete: false,
       currentCandidateUploaded: uploadVerified,
+      currentCandidateUploadRecorded: candidate.actions.miniprogramUploaded,
+      currentCandidateUploadVerificationRequired: candidate.actions.miniprogramUploaded && !uploadVerified,
+      miniProgramRecordedUploadVersion: candidate.actions.miniprogramUploaded ? candidate.version : null,
       miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
       miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
       lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
@@ -488,6 +512,15 @@ function getMaterialList(scope) {
       "npm run release:docs:check",
       "npm run release:wechat:privacy:check",
       "npm run release:native-shell:check:local",
+    ];
+  }
+  if (scope === "candidate-attestation") {
+    return [
+      "docs/native-candidate-evidence.json",
+      "docs/humi-1.1-release-operator-handoff.md",
+      "npm run release:native-shell:check:local",
+      "npm run release:native-shell:check:selftest",
+      "npm run release:next",
     ];
   }
   if (scope === "native-evidence") {
@@ -601,6 +634,14 @@ function getCompletionCriteria(scope) {
       "新封包：1.1.75 必须生成新的不可变归档并绑定候选提交、版本和 SHA-256。",
       "动作授权：只有获得针对 1.1.75 上传的明确授权后才能上传；上传后才进入 N5c。",
       "状态边界：1.1.75 保持未上传、未提审、未发布，native/meal 开关为 0，两个家庭白名单为空。",
+    ];
+  }
+  if (scope === "candidate-attestation") {
+    return [
+      "事实边界：1.1.75@fbb4938 已记录为 uploaded-experience；缺少的是当前进程的显式受控私有 attestation 路径，不是再次上传。",
+      "验签绑定：AppID、版本、运行时提交、归档 SHA-256、原始 CLI 回执 SHA-256 与 Ed25519 签名必须全部通过。",
+      "失败关闭：缺路径、路径不受控、签名错误、归档不符或原始回执被修改时均不得进入 N5c。",
+      "动作边界：不得重新上传、生成 preview、提审、发布或修改 native/meal 开关与白名单。",
     ];
   }
   if (scope === "native-evidence") {

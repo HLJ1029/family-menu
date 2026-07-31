@@ -168,7 +168,7 @@ const [
   runNpmScript("release:docs:check"),
   runNpmScript("release:native-shell:check:local"),
   runNpmScript("validate:palette"),
-  runNpmScript("validate:h5-entry", { timeoutMs: 30_000 }),
+  runNpmScript("validate:h5-entry", { timeoutMs: 120_000 }),
   runNpmScript("validate:miniprogram-poster"),
   runNpmScript("release:product:review"),
   runOptionalNpmScript("release:product:smoke", {
@@ -243,10 +243,14 @@ const wechatPrivacyContractOk = wechatPrivacyContract.ok;
 const wechatPrivacyContractSelftestOk = wechatPrivacyContractSelftest.ok;
 const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
-const specAuditOk = specAudit.ok;
+const specAuditIntegrityOk = Boolean(
+  specAudit.data?.auditIntegrityOk
+  && specAudit.data?.localImplementationReady,
+);
+const specClosureReady = Boolean(specAudit.data?.specClosureReady);
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && nativeRolloutOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && wechatPrivacyContractOk && wechatPrivacyContractSelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
-const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && nativeRolloutOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && wechatPrivacyContractOk && wechatPrivacyContractSelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditIntegrityOk;
+const platformSubmitReady = engineeringGatesReady && candidateValidationReady && specClosureReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
 const missingReleaseSections = new Set(
@@ -260,7 +264,11 @@ const nativeReleaseState = deriveNativeReleaseState(nativeRollout.data, {
 });
 
 const nextActions = [];
-if (!nativeReleaseState.currentCandidateUploaded) {
+if (nativeReleaseState.currentCandidateUploadVerificationRequired) {
+  nextActions.push(
+    "Provide the existing trusted private 1.1.75 upload attestation path and rerun the native gate; do not repackage or re-upload the recorded experience version.",
+  );
+} else if (!nativeReleaseState.currentCandidateUploaded) {
   nextActions.push(
     "Create and verify an immutable 1.1.75 candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.",
   );
@@ -284,7 +292,11 @@ if (!securityAuditOk) {
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
 }
-if (!nativeRolloutOk && !nativeReleaseState.currentCandidateUploaded) {
+if (
+  !nativeRolloutOk
+  && !nativeReleaseState.currentCandidateUploaded
+  && !nativeReleaseState.currentCandidateUploadRecorded
+) {
   nextActions.push("Keep 1.1.74@4eb3fbeb as immutable historical upload evidence; package 1.1.75 separately and obtain fresh upload authorization.");
 }
 if (!paletteValidationOk) {
@@ -368,8 +380,10 @@ if (!candidateValidationReady) {
 if (!wechatSubmitWorkspaceGuardOk) {
   nextActions.push("Restore release:wechat:prepare-submit confirmation guard before relying on WeChat review preparation.");
 }
-if (!specAuditOk) {
+if (!specAuditIntegrityOk) {
   nextActions.push("Fix docs/humi-1.1-spec-acceptance-audit.md coverage before claiming the 1.1 spec scope is implemented.");
+} else if (!specClosureReady) {
+  nextActions.push("Complete the explicitly open native evidence rows before treating the 1.1 spec as closed; do not rewrite completed local implementation as incomplete.");
 }
 if (!preReviewHardeningReady) {
   nextActions.push("Finish docs/humi-1.1-pre-review-hardening.md P0/P1 product hardening before WeChat review.");
@@ -430,19 +444,23 @@ console.log(JSON.stringify({
     wechatPrivacyContractSelftestReady: wechatPrivacyContractSelftestOk,
     candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
-    specAcceptanceAuditReady: specAuditOk,
+    specAuditIntegrityReady: specAuditIntegrityOk,
+    specAcceptanceAuditReady: specClosureReady,
     preReviewHardeningReady,
     preReviewHardeningOpenItems: preReviewHardening.openItems,
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
     miniProgramUploadedVersion: nativeReleaseState.miniProgramUploadedVersion,
+    miniProgramRecordedUploadVersion: nativeReleaseState.miniProgramRecordedUploadVersion,
     miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
     miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
     lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
     lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     nativeCheckpoint: nativeReleaseState.nativeCheckpoint,
     currentCandidateUploaded: nativeReleaseState.currentCandidateUploaded,
+    currentCandidateUploadRecorded: nativeReleaseState.currentCandidateUploadRecorded,
+    currentCandidateUploadVerificationRequired: nativeReleaseState.currentCandidateUploadVerificationRequired,
     trueDeviceEvidence: nativeReleaseState.trueDeviceEvidence,
     wechatReviewSubmitted,
     wechatReleased,

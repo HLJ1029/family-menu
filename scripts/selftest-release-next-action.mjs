@@ -39,8 +39,12 @@ try {
   await writeValidCandidatePacket(tempDir);
 
   await writeCandidateEvidence({ uploaded: true });
-  await assertNext("1.1.75 候选封包与上传授权", {
-    forbidden: ["N5c 真机与平台证据验收"],
+  await assertNext("1.1.75 已上传记录的受控验签确认", {
+    forbidden: [
+      "当前阶段：1.1.75 候选封包与上传授权",
+      "当前阶段：N5c 真机与平台证据验收",
+      "重新上传 1.1.75",
+    ],
   });
   await writeUploadReceipt();
   await assertNext("N5c 真机与平台证据验收", {

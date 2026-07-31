@@ -21,7 +21,25 @@ const unuploadedReleaseState = deriveNativeReleaseState({
   },
 }, { expectedVersion: "1.1.75" });
 assert.equal(unuploadedReleaseState.currentCandidateUploaded, false);
+assert.equal(unuploadedReleaseState.currentCandidateUploadRecorded, false);
+assert.equal(unuploadedReleaseState.currentCandidateUploadVerificationRequired, false);
 assert.equal(unuploadedReleaseState.nativeCheckpoint, "N5b_refresh_packaging_authorization");
+
+const recordedButUnverifiedReleaseState = deriveNativeReleaseState({
+  currentCandidate: {
+    version: "1.1.75",
+    uploadStatus: "uploaded",
+    immutableArchivePresent: false,
+    runtimeCommit: "a".repeat(40),
+  },
+  externalActions: { miniprogram_uploaded: true, native_allowlist_enabled: false },
+  platformEvidence: { trueDevicePassed: 0, trueDeviceRequired: 56 },
+}, { expectedVersion: "1.1.75" });
+assert.equal(recordedButUnverifiedReleaseState.currentCandidateUploaded, false);
+assert.equal(recordedButUnverifiedReleaseState.currentCandidateUploadRecorded, true);
+assert.equal(recordedButUnverifiedReleaseState.currentCandidateUploadVerificationRequired, true);
+assert.equal(recordedButUnverifiedReleaseState.miniProgramRecordedUploadVersion, "1.1.75");
+assert.equal(recordedButUnverifiedReleaseState.nativeCheckpoint, "N5b_trusted_attestation_verification");
 
 const uploadedReleaseState = deriveNativeReleaseState({
   currentCandidate: {
@@ -40,7 +58,10 @@ const uploadedReleaseState = deriveNativeReleaseState({
 }, { expectedVersion: "1.1.75" });
 assert.deepEqual(uploadedReleaseState, {
   miniProgramUploadedVersion: "1.1.75",
+  miniProgramRecordedUploadVersion: "1.1.75",
   currentCandidateUploaded: true,
+  currentCandidateUploadRecorded: true,
+  currentCandidateUploadVerificationRequired: false,
   nativeCheckpoint: "N5c_true_device_platform_evidence",
   trueDeviceEvidence: "12/56",
   nativeAllowlistEnabled: false,

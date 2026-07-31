@@ -185,19 +185,24 @@ export function deriveNativeReleaseState(nativeRollout, { expectedVersion } = {}
   const candidate = nativeRollout?.currentCandidate || {};
   const externalActions = nativeRollout?.externalActions || {};
   const platform = nativeRollout?.platformEvidence || {};
-  const uploaded = candidate.version === expectedVersion
+  const uploadRecorded = candidate.version === expectedVersion
     && candidate.uploadStatus === "uploaded"
-    && candidate.immutableArchivePresent === true
     && /^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))
     && externalActions.miniprogram_uploaded === true;
+  const uploaded = uploadRecorded && candidate.immutableArchivePresent === true;
   const passed = Number.isInteger(platform.trueDevicePassed) ? platform.trueDevicePassed : 0;
   const required = Number.isInteger(platform.trueDeviceRequired) ? platform.trueDeviceRequired : 56;
   return {
     miniProgramUploadedVersion: uploaded ? expectedVersion : null,
+    miniProgramRecordedUploadVersion: uploadRecorded ? expectedVersion : null,
     currentCandidateUploaded: uploaded,
+    currentCandidateUploadRecorded: uploadRecorded,
+    currentCandidateUploadVerificationRequired: uploadRecorded && !uploaded,
     nativeCheckpoint: uploaded
       ? "N5c_true_device_platform_evidence"
-      : "N5b_refresh_packaging_authorization",
+      : uploadRecorded
+        ? "N5b_trusted_attestation_verification"
+        : "N5b_refresh_packaging_authorization",
     trueDeviceEvidence: `${passed}/${required}`,
     nativeAllowlistEnabled: externalActions.native_allowlist_enabled === true,
     platformPrivacyDeclaration: platform.privacyDeclarationVerified === true ? "verified" : "pending",
