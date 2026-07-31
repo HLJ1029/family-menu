@@ -12,6 +12,7 @@ const expectedChecks = [
   "pre-React fallback is visible when the main module fails",
   "retry action appears after six seconds",
   "normal React boot replaces the fallback",
+  "legacy WeChat WebView without structuredClone completes React boot",
   "failed lazy chunks show an accessible reload recovery instead of a blank screen",
   "production hashed lazy chunk 404 shows the same reload recovery",
   "H5 login prefers the native identity page and recovers from navigation failure",
@@ -117,6 +118,25 @@ try {
   if (evidenceDir) {
     await normalBootPage.screenshot({ path: screenshots.normalBoot, fullPage: true });
   }
+
+  const legacyWechatContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await legacyWechatContext.addInitScript(() => {
+    window.structuredClone = undefined;
+  });
+  const legacyWechatPage = await legacyWechatContext.newPage();
+  const legacyWechatErrors = [];
+  legacyWechatPage.on("pageerror", (error) => legacyWechatErrors.push(error.message));
+  await legacyWechatPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await legacyWechatPage.locator("#root > :not(#humi-boot-fallback)").first().waitFor({ state: "visible", timeout: 15_000 });
+  assert.equal(await legacyWechatPage.locator("#humi-boot-fallback").count(), 0);
+  assert.deepEqual(legacyWechatErrors, []);
+  await legacyWechatContext.close();
 
   const lazyRecoveryContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
