@@ -33,10 +33,12 @@ assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.jso
 assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
 assert.deepEqual(
   miniProgramApp.subPackages.find((entry) => entry.root === "packageShare")?.pages?.sort(),
-  ["pages/grocery/index", "pages/menu/index"],
-  "menu and grocery recipients must land in the native share subpackage",
+  ["pages/crave/index", "pages/grocery/index", "pages/menu/index", "pages/wish/index"],
+  "collaboration and read-only recipients must land in the native share subpackage",
 );
 for (const [type, token, expectedPath] of [
+  ["crave", "crave_native_snapshot_token_12345", "/packageShare/pages/crave/index?crave=crave_native_snapshot_token_12345&shareSource=crave"],
+  ["wish", "wish_native_snapshot_token_123456", "/packageShare/pages/wish/index?wishShare=wish_native_snapshot_token_123456&shareSource=wish"],
   ["menu", "menu_native_snapshot_token_1234", "/packageShare/pages/menu/index?menuShare=menu_native_snapshot_token_1234&shareSource=menu"],
   ["grocery", "grocery_native_snapshot_123456", "/packageShare/pages/grocery/index?groceryShare=grocery_native_snapshot_123456&shareSource=grocery"],
   ["invite", "invite_native_snapshot_1234567", "/packageFamily/pages/invite/index?token=invite_native_snapshot_1234567&shareSource=invite"],

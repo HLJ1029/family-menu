@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "今晚想吃什么",
+  "navigationBarBackgroundColor": "#111111",
+  "navigationBarTextStyle": "white",
+  "usingComponents": {
+    "page-state": "/components/page-state/index"
+  }
+}

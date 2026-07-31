@@ -50,6 +50,15 @@ Page({
   retry() {
     return this.loadMenu();
   },
+
+  goHome() {
+    const pages = typeof getCurrentPages === "function" ? getCurrentPages() : [];
+    if (pages.length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: "/pages/boot/index" });
+  },
 });
 
 function normalizeToken(value) {

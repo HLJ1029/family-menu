@@ -9,8 +9,8 @@ export const CURRENT_UPLOADED_EXPERIENCE_VERSION = "1.1.75";
 export const CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
 export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "fbb4938200ef0137c468bd37f3868b94b64b738b";
 export const CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE = "docs/native-uploaded-experience-evidence.json";
-export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.76";
-export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生骨架黑白灰视觉收口候选";
+export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.77";
+export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生家庭协作与分享闭环候选";
 
 // Backward-compatible names used by release tooling point to the current
 // experience candidate, never to the historical production/uploaded baselines.

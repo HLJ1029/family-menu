@@ -77,13 +77,13 @@ assertRoute(resolveStartupRoute({ candidate: true, envelope: { ...enabled, cache
 assert.equal(bootstrapModule.exports.getHouseholdId({ activeHouseholdId: "api-household", activeHousehold: { id: "legacy-household" } }), "api-household", "the exact API field must take precedence");
 assert.equal(bootstrapModule.exports.getHouseholdId({ activeHouseholdId: "", activeHousehold: { id: "legacy-household" } }), "", "an explicit empty API field must not revive stale legacy household data");
 
-assert.equal(resolveKnownShareRoute({ crave: ` ${validToken} `, shareSource: "ignored" }), `/pages/share/index?type=crave&token=${validToken}&shareSource=crave`);
-assert.equal(resolveKnownShareRoute({ grocery: validToken, shareSource: "ignored" }), `/pages/share/index?type=grocery&token=${validToken}&shareSource=grocery`);
-assert.equal(resolveKnownShareRoute({ groceryShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=grocery&token=${validToken}&shareSource=grocery`);
-assert.equal(resolveKnownShareRoute({ menuShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=today_menu&token=${validToken}&shareSource=today_menu`);
-assert.equal(resolveKnownShareRoute({ wishShare: validToken, shareSource: "ignored" }), `/pages/share/index?type=wish&token=${validToken}&shareSource=wish`);
+assert.equal(resolveKnownShareRoute({ crave: ` ${validToken} `, shareSource: "ignored" }), `/packageShare/pages/crave/index?crave=${validToken}&shareSource=crave`);
+assert.equal(resolveKnownShareRoute({ grocery: validToken, shareSource: "ignored" }), `/packageShare/pages/grocery/index?grocery=${validToken}&shareSource=grocery`);
+assert.equal(resolveKnownShareRoute({ groceryShare: validToken, shareSource: "ignored" }), `/packageShare/pages/grocery/index?groceryShare=${validToken}&shareSource=grocery`);
+assert.equal(resolveKnownShareRoute({ menuShare: validToken, shareSource: "ignored" }), `/packageShare/pages/menu/index?menuShare=${validToken}&shareSource=menu`);
+assert.equal(resolveKnownShareRoute({ wishShare: validToken, shareSource: "ignored" }), `/packageShare/pages/wish/index?wishShare=${validToken}&shareSource=wish`);
 assert.equal(resolveKnownShareRoute({ invite: validToken, shareSource: "ignored" }), `/packageFamily/pages/invite/index?token=${validToken}&shareSource=invite`);
-assert.equal(resolveKnownShareRoute({ mealTask: validToken, shareSource: "ignored" }), `/pages/share/index?type=meal_task&token=${validToken}&shareSource=meal_task`);
+assert.equal(resolveKnownShareRoute({ mealTask: validToken, shareSource: "ignored" }), `/packageFamily/pages/task/index?mealTask=${validToken}&shareSource=meal_task`);
 for (const invalidToken of [{ value: validToken }, "", "   ", "short", "x".repeat(65), "abcdefghijklmnopqrstuv!" ]) {
   assert.equal(resolveKnownShareRoute({ crave: invalidToken }), null, "only opaque 24–64 character token strings may use the native landing");
 }
@@ -445,7 +445,7 @@ vm.runInNewContext(shimSource, {
 shimDefinition.onLoad({ menuShare: validToken, shareSource: "today_menu" });
 shimDefinition.onLoad({ view: "today", shareSource: "today_menu" });
 assert.deepEqual(shimRoutes, [
-  `/pages/share/index?type=today_menu&token=${validToken}&shareSource=today_menu`,
+  `/packageShare/pages/menu/index?menuShare=${validToken}&shareSource=menu`,
   "/pages/legacy/index?view=today&shareSource=today_menu"
 ], "the historical index shim must preserve token compatibility and send unknown deep links to legacy");
 assert.doesNotMatch(shimSource, /web-view/, "the historical index shim must never mount a WebView");

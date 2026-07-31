@@ -13,5 +13,6 @@
       </view>
     </view>
     <text class="readonly">这是只读清单。查看不会领取、勾选或改动家人的清单。</text>
+    <button class="home-button" bindtap="goHome">回到 Humi</button>
   </view>
 </page-state>

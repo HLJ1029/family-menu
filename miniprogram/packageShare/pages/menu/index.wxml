@@ -17,5 +17,6 @@
       </view>
     </view>
     <text class="readonly">这是只读菜单。查看不会加入家庭，也不会修改家人的安排。</text>
+    <button class="home-button" bindtap="goHome">回到 Humi</button>
   </view>
 </page-state>

@@ -7,7 +7,10 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 
 await checkTaskPage();
 await checkSettingsPage();
-console.log("Native family task and household settings action checks passed.");
+await checkCraveLanding();
+await checkWishLanding();
+await checkActivityPage();
+console.log("Native family task, household settings, collaboration landings, and activity checks passed.");
 
 async function checkTaskPage() {
   const token = "t".repeat(32);
@@ -132,6 +135,161 @@ async function checkSettingsPage() {
     assert.equal(failed.page.data.pendingAction, "", "a failed mutation never leaves the page hung");
     assert.equal(failed.page.data.household.name, "测试家", "failed optimistic input never overwrites household truth");
   }
+}
+
+async function checkCraveLanding() {
+  const token = "c".repeat(32);
+  const storage = new Map();
+  let activeSession = null;
+  const requests = [];
+  const page = loadPage("miniprogram/packageShare/pages/crave/index.js", {
+    "../../../utils/request": {
+      rawRequest: async (options) => {
+        requests.push({ boundary: "guest", ...options });
+        if (options.method === "POST") {
+          return {
+            request: { status: "open", householdName: "测试家", initiatorName: "主理人" },
+            participant: { type: "guest", id: "guest-participant-1234567890", displayName: "游客 1" },
+          };
+        }
+        return { request: { status: "open", householdName: "测试家", initiatorName: "主理人" } };
+      },
+      requestHumi: async (options) => {
+        requests.push({ boundary: "formal", ...options });
+        return {
+          request: { status: "open", householdName: "测试家", initiatorName: "主理人" },
+          participant: { type: "user", id: "member-1", displayName: "小米" },
+        };
+      },
+    },
+    "../../../utils/session": { getSession: () => activeSession },
+    "../../../utils/telemetry": { trackEvent() {} },
+    "../../../utils/share-routing": {
+      buildNativeSharePayload: (_type, payload) => ({
+        title: "测试家今晚要做饭，你想吃点啥？",
+        path: `/packageShare/pages/crave/index?crave=${payload.token}&shareSource=crave`,
+      }),
+    },
+  }, {
+    wx: {
+      getStorageSync: (key) => storage.get(key),
+      setStorageSync: (key, value) => storage.set(key, value),
+      navigateBack() {},
+      reLaunch() {},
+    },
+    getCurrentPages: () => [{}],
+  });
+
+  await page.onLoad({ crave: token, shareSource: "crave" });
+  page.selectFeeling({ currentTarget: { dataset: { feeling: "清淡点" } } });
+  await page.submitVote();
+  const guestPost = requests.find((request) => request.method === "POST");
+  assert.equal(guestPost.boundary, "guest", "a visitor must submit without a forced login");
+  assert.equal(guestPost.data.feelingTag, "清淡点");
+  assert.equal(Object.hasOwn(guestPost.data, "memberName"), false, "guest collaboration must not ask for identity");
+  assert.equal(page.data.participant.displayName, "游客 1");
+  assert.equal(storage.get(`humi:crave-participant:v1:${token}`), "guest-participant-1234567890");
+
+  activeSession = { accessToken: "member-token", user: { id: "member-1", displayName: "小米" } };
+  page.setData({ submitted: false, pendingAction: "" });
+  await page.submitVote();
+  const formalPost = requests.filter((request) => request.method === "POST").at(-1);
+  assert.equal(formalPost.boundary, "formal", "an existing login must automatically carry formal identity");
+  assert.equal(Object.hasOwn(formalPost.data, "memberName"), false, "the client must not forge formal identity fields");
+}
+
+async function checkActivityPage() {
+  const bootstrap = householdBootstrap("member", true);
+  const requests = [];
+  const page = loadPage("miniprogram/packageFamily/pages/activity/index.js", {
+    "../../../utils/request": {
+      requestHumi: async (options) => {
+        requests.push(options);
+        return {
+          events: [
+            {
+              id: "event-1",
+              participant: { displayName: "游客 1" },
+              actionType: "crave_vote",
+              payload: { feelingTag: "想喝汤", token: "must-not-render" },
+              createdAt: "2026-07-31T08:00:00.000Z",
+              ownerSecret: "must-not-render",
+            },
+          ],
+        };
+      },
+    },
+    "../../../utils/store": { appStore: { getState: () => ({ bootstrap }) } },
+  });
+
+  await page.onLoad({ householdId: "household-1" });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(requests)),
+    [{ path: "/households/household-1/collaborations?limit=50" }],
+  );
+  assert.equal(page.data.events[0].participantName, "游客 1");
+  assert.match(page.data.events[0].detail, /想喝汤/);
+  assert.equal(JSON.stringify(page.data.events).includes("must-not-render"), false, "activity UI must drop internal fields");
+}
+
+async function checkWishLanding() {
+  const token = "w".repeat(32);
+  const storage = new Map();
+  let activeSession = null;
+  const requests = [];
+  const page = loadPage("miniprogram/packageShare/pages/wish/index.js", {
+    "../../../utils/request": {
+      rawRequest: async (options) => {
+        requests.push({ boundary: "guest", ...options });
+        if (options.method === "POST") {
+          return {
+            request: { status: "open", householdName: "测试家", initiatorName: "主理人" },
+            participant: { type: "guest", id: "wish-guest-participant-12345", displayName: "游客 1" },
+          };
+        }
+        return { request: { status: "open", householdName: "测试家", initiatorName: "主理人" } };
+      },
+      requestHumi: async (options) => {
+        requests.push({ boundary: "formal", ...options });
+        return {
+          request: { status: "open", householdName: "测试家", initiatorName: "主理人" },
+          participant: { type: "user", id: "member-1", displayName: "小米" },
+        };
+      },
+    },
+    "../../../utils/session": { getSession: () => activeSession },
+    "../../../utils/telemetry": { trackEvent() {} },
+    "../../../utils/share-routing": {
+      buildNativeSharePayload: (_type, payload) => ({
+        title: "测试家最近想吃什么？",
+        path: `/packageShare/pages/wish/index?wishShare=${payload.token}&shareSource=wish`,
+      }),
+    },
+  }, {
+    wx: {
+      getStorageSync: (key) => storage.get(key),
+      setStorageSync: (key, value) => storage.set(key, value),
+      navigateBack() {},
+      reLaunch() {},
+    },
+    getCurrentPages: () => [{}],
+  });
+
+  await page.onLoad({ wishShare: token, shareSource: "wish" });
+  page.updateDishName({ detail: { value: "番茄牛腩" } });
+  await page.submitWish();
+  const guestPost = requests.find((request) => request.method === "POST");
+  assert.equal(guestPost.boundary, "guest");
+  assert.equal(guestPost.data.dishName, "番茄牛腩");
+  assert.equal(Object.hasOwn(guestPost.data, "memberName"), false);
+  assert.equal(page.data.participant.displayName, "游客 1");
+
+  activeSession = { accessToken: "member-token", user: { id: "member-1", displayName: "小米" } };
+  page.setData({ submitted: false, pendingAction: "" });
+  await page.submitWish();
+  const formalPost = requests.filter((request) => request.method === "POST").at(-1);
+  assert.equal(formalPost.boundary, "formal");
+  assert.equal(Object.hasOwn(formalPost.data, "memberName"), false);
 }
 
 function createSettingsRuntime(initialBootstrap, initialFailure = null) {

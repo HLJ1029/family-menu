@@ -820,6 +820,12 @@ try {
     "/packageFamily/pages/invite/index?mode=prepare&householdId=household-1",
     "the household owner must stay in the native invitation flow",
   );
+  ownerFamilyPage.openActivity();
+  assert.equal(
+    familyRoutes.at(-1),
+    "/packageFamily/pages/activity/index?householdId=household-1",
+    "the household collaboration history must be a real native child page",
+  );
 
   const memberFamilyPage = await loadPage(
     "miniprogram/pages/family/index.js",
@@ -896,7 +902,9 @@ try {
     "openInviteEntry",
     "switchHousehold",
     "prepareInvite",
+    "prepareCrave",
     "startOrResumeDinner",
+    "openActivity",
     "openSettings",
     "leaveHousehold",
   ]) {

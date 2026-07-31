@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "家庭协作记录",
+  "navigationBarBackgroundColor": "#111111",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "page-state": "/components/page-state/index",
+    "collaboration-row": "/components/collaboration-row/index"
+  }
+}

@@ -11,3 +11,4 @@
 .item-name, .meta { display: block; }
 .item-name { font-size: 29rpx; font-weight: 650; }
 .meta { margin-top: 5rpx; font-size: 23rpx; color: #888; }
+.home-button { min-height: 90rpx; margin: 28rpx 0 0; border: 2rpx solid rgba(17,17,17,.12); border-radius: 999rpx; background: #fff; color: #111; font-size: 25rpx; font-weight: 900; }

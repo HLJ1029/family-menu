@@ -37,6 +37,22 @@ function resolveKnownShareRoute(options = {}) {
   if (landing.type === "invite") {
     return `/packageFamily/pages/invite/index?token=${encodeURIComponent(landing.token)}&shareSource=invite`;
   }
+  if (landing.type === "crave") {
+    return `/packageShare/pages/crave/index?crave=${encodeURIComponent(landing.token)}&shareSource=crave`;
+  }
+  if (landing.type === "grocery") {
+    const tokenKey = key === "grocery" ? "grocery" : "groceryShare";
+    return `/packageShare/pages/grocery/index?${tokenKey}=${encodeURIComponent(landing.token)}&shareSource=grocery`;
+  }
+  if (landing.type === "today_menu") {
+    return `/packageShare/pages/menu/index?menuShare=${encodeURIComponent(landing.token)}&shareSource=menu`;
+  }
+  if (landing.type === "wish") {
+    return `/packageShare/pages/wish/index?wishShare=${encodeURIComponent(landing.token)}&shareSource=wish`;
+  }
+  if (landing.type === "meal_task") {
+    return `/packageFamily/pages/task/index?mealTask=${encodeURIComponent(landing.token)}&shareSource=meal_task`;
+  }
   const query = [`type=${encodeURIComponent(landing.type)}`, `token=${encodeURIComponent(landing.token)}`, `shareSource=${encodeURIComponent(landing.type)}`];
   return `/pages/share/index?${query.join("&")}`;
 }

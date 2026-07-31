@@ -1,0 +1,40 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="wish-page">
+    <view class="heading">
+      <text class="eyebrow">{{request.householdName || '家里'}} · 最近想吃</text>
+      <text class="title">写一道最近想吃的菜</text>
+      <text class="copy">不用登录，写一道就够了；已经登录时会自动使用你的 Humi 身份，不会重复询问昵称。</text>
+    </view>
+
+    <view wx:if="{{request.status !== 'open'}}" class="result-card">
+      <text class="result-title">这个入口已经结束</text>
+      <text class="result-copy">可以请家人重新发一个“最近想吃”入口。</text>
+      <button class="primary-button" bindtap="goHome">回到 Humi</button>
+    </view>
+
+    <view wx:elif="{{submitted}}" class="result-card">
+      <text class="result-kicker">已记下</text>
+      <text class="result-title">{{participant.displayName || '这次回复'}}想吃“{{dishName}}”</text>
+      <text class="result-copy">{{request.initiatorName || '家人'}}回到 Humi 后就能看到。你可以直接关掉，不需要再补资料。</text>
+      <button class="primary-button" open-type="share">也问问另一位家人</button>
+      <button class="secondary-button" bindtap="goHome">回到 Humi</button>
+    </view>
+
+    <form wx:else bindsubmit="submitWish">
+      <view class="input-card">
+        <text class="card-label">最近想吃</text>
+        <input class="dish-input" value="{{dishName}}" maxlength="80" placeholder="比如：番茄牛腩、凉拌黄瓜" bindinput="updateDishName" />
+      </view>
+
+      <view class="detail-card">
+        <button class="detail-toggle" type="button" bindtap="toggleDetails">想补一句？选填</button>
+        <view wx:if="{{detailsOpen}}" class="detail-fields">
+          <input class="detail-input" value="{{note}}" maxlength="80" placeholder="比如：少辣、周末再做" bindinput="updateNote" />
+        </view>
+      </view>
+
+      <text wx:if="{{errorText}}" class="inline-error">{{errorText}}</text>
+      <button class="primary-button" form-type="submit" loading="{{pendingAction === 'submit'}}" disabled="{{!!pendingAction}}">发给家人</button>
+    </form>
+  </view>
+</page-state>
