@@ -66,6 +66,8 @@
     "release:n5c:record:selftest": "node scripts/selftest-n5c-evidence-session-record.mjs",
     "release:n5c:check": "node scripts/check-n5c-evidence-session.mjs",
     "release:n5c:check:selftest": "node scripts/selftest-n5c-evidence-session-check.mjs",
+    "release:n5c:doctor": "node scripts/check-n5c-device-readiness.mjs",
+    "release:n5c:doctor:selftest": "node scripts/selftest-n5c-device-readiness.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "validate:api-deploy-set": "node scripts/check-api-deploy-set.mjs",

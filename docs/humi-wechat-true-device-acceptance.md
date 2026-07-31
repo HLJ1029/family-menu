@@ -22,6 +22,12 @@ npm run release:n5c:prepare -- \
 
 会话创建在 `~/.humi-release-evidence/HUMI-2026-001/n5c-1.1.75-<UTC>-<random>/`，包含只读候选事实 `session.json`、56 行匿名分工 `allocation.json`、中文执行单和严格为空的 `manifest.json`。`descriptors/`、`media/`、`drafts/` 初始为空，因此创建完成后仍必须真实报告 `0/56`。
 
+连接设备后先运行只读体检。它只报告设备数量与就绪布尔值，不输出设备名称、序列号或 USB 标识；当前矩阵要求一台可生成 `390×844` 证据的真实 iPhone 和一台真实 Android，iPad 或模拟器不能替代：
+
+```bash
+npm run release:n5c:doctor -- --session /absolute/private/n5c-session
+```
+
 每条真实结果先把九字段 row JSON 放进会话 `drafts/`；`pass` 还要把六字段 descriptor JSON 放进 `drafts/`，并把已人工脱敏的真实媒体放到 `media/<scenarioId>/`。分享场景媒体名必须分别含 `sender-` 和 `recipient-`。随后执行：
 
 ```bash
@@ -64,6 +70,7 @@ npm run validate:true-device-evidence:selftest
 npm run release:n5c:prepare:selftest
 npm run release:n5c:record:selftest
 npm run release:n5c:check:selftest
+npm run release:n5c:doctor:selftest
 npm run validate:true-device-evidence
 npm run validate:true-device-evidence -- \
   --evidence-dir /approved/private/evidence/humi-true-device \
