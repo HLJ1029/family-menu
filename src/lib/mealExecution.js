@@ -1,5 +1,6 @@
 import rawRecipes from "../../data/recipes.json" with { type: "json" };
 import cookAssistCatalog from "../../data/cook-assist.json" with { type: "json" };
+import { cloneData } from "./clone.js";
 
 const rawRecipeById = new Map(rawRecipes.map((recipe) => [recipe.id, recipe]));
 const catalogById = new Map(cookAssistCatalog.map((entry) => [entry.id, entry]));
@@ -214,7 +215,7 @@ function buildCookAssist(entry, recipe) {
     totalMinutes: entry.totalMinutes,
     cookware: [...entry.cookware],
     cleanupLevel: entry.cleanupLevel,
-    substitutions: structuredClone(entry.substitutions ?? []),
+    substitutions: cloneData(entry.substitutions ?? []),
     downgradeRecipeIds: [...(entry.downgradeRecipeIds ?? [])],
     readyStaple: entry.readyStaple || "即食米饭",
     steps: recipe.steps.map((text, index) => {
