@@ -291,7 +291,10 @@ function inspectCurrentOrder(content) {
     "核心菜单、家庭协作、五类分享、数据与安全检查",
     "request/downloadFile 探测已通过",
     "未通过就继续修",
-    "N5a API/H5 与 N5b",
+    "N5a API",
+    "PR #39 H5 热修复",
+    "N5b-1.1.78 均已完成",
+    "1.1.78@7606aad",
     "灰度无 P0/P1",
     "用户动作当下确认",
   ];

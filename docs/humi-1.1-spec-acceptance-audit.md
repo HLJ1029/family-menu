@@ -71,9 +71,9 @@
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 五类分享落地页与游客参与烟测 | 已完成 | `release:collaboration:smoke` 验证征集、清单、邀请的游客参与；五类 landing 取证额外覆盖想吃与今晚菜单 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery`/`wish`/`menu` | 已完成 | `miniprogram/pages/index/index.js`、原生分享页与五个 H5 落地组件覆盖对应 token |
-| 五类分享确实进入小程序原生分享页 | 已完成 | `runtime.js` 优先调用 `navigateTo`，只在明确失败时降级 `redirectTo`，成功回调立即确认交接且不会重复派发。`validate:share-bridge` 验证本地实现；当前候选五类原生发送框证据作为外部复核项单独保持开放 |
+| 五类分享确实进入小程序原生分享页 | 已完成 | 原生一级页预生成一次快照，并通过原生 `open-type="share"` 与同步 `onShareAppMessage` 交付菜单、清单、邀请和任务卡片；历史 H5 桥的成功回调只记录“已接收”，必须观察页面离开才算交接成功，否则按 `navigateTo → redirectTo → reLaunch` 回退。`validate:native-sharing` 与 `validate:share-bridge` 验证本地实现；真实联系人发送/接收仍在 N5c 单独验收 |
 | 小程序卡片分享与菜单/清单海报入口并存 | 已完成 | 今晚菜单操作区提供“生成菜单海报”，买菜清单分享区提供“生成清单海报”；两者不替换原生小程序卡片分享。`release:product:review` 防止入口再次被 UI 重构隐藏，`release:product:smoke` 实际生成并验证两张海报图片 |
-| 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
+| 小程序普通启动不被登录墙挡住 | 已完成 | `1.1.78` 原生启动在没有 Humi session 时只显示“微信登录 / 先体验 Humi”，不请求 `/bootstrap`、不调用 `wx.login`、不创建账号或家庭；游客可直接进入本机体验，只有用户明确点击登录才调用微信登录。`validate:native-session`、`validate:native-shell-routing` 与 `validate:identity` 覆盖本地合同，N5c 继续验证真机行为 |
 | 发布材料与当前五入口 UI 一致，不恢复旧库存维护主路径 | 已完成 | 产品 smoke 验证五入口，发布材料以当前重构 UI 为准；库存继续保持隐形流水线 |
 
 ## 3. 仍未完成或仍需外部确认
