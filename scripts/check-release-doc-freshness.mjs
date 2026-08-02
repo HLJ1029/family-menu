@@ -177,6 +177,7 @@ const currentCandidateDocs = [
       "历史兼容/生产基线是 `1.1.73`",
       "平台隐私保护指引也仍待最终填写和留证",
       "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json",
+      "private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed",
       "当前已上传 `1.1.78`，未执行 preview、未提交审核、未发布",
     ],
   },
@@ -186,6 +187,8 @@ const currentCandidateDocs = [
       `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\``,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       `版本描述：\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      `wechat-submit-${CURRENT_UPLOADED_EXPERIENCE_VERSION}-*`,
+      `进入版本管理选择 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 提交审核`,
       "不等于可提审",
     ],
   },
@@ -196,6 +199,38 @@ const currentCandidateDocs = [
       `| 版本描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
       `当前 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 已从不可变归档上传为体验版`,
       `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 是上一历史体验版`,
+      `提交版本：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\``,
+    ],
+  },
+  {
+    path: "docs/humi-wechat-true-device-acceptance.md",
+    required: [
+      `n5c-${CURRENT_UPLOADED_EXPERIENCE_VERSION}-<UTC>-<random>`,
+      "private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    ],
+  },
+  {
+    path: "docs/humi-1.1-candidate-validation-forms.md",
+    required: [
+      `当前微信体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 入口`,
+      `"packageVersion": "${CURRENT_UPLOADED_EXPERIENCE_VERSION}"`,
+      "入口版本来自唯一发布常量",
+    ],
+  },
+  {
+    path: "scripts/print-candidate-dispatch-workbench.mjs",
+    required: [
+      "CURRENT_UPLOADED_EXPERIENCE_VERSION",
+      "EXPERIENCE_ENTRY",
+      "历史二维码已禁用",
+    ],
+  },
+  {
+    path: "scripts/prepare-candidate-today.mjs",
+    required: [
+      "CURRENT_UPLOADED_EXPERIENCE_VERSION",
+      "历史二维码已禁用",
     ],
   },
   {

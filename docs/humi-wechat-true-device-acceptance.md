@@ -20,7 +20,7 @@ npm run release:n5c:prepare -- \
   --attestation "$HOME/.humi-release-evidence/HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json"
 ```
 
-会话创建在 `~/.humi-release-evidence/HUMI-2026-001/n5c-1.1.75-<UTC>-<random>/`，包含只读候选事实 `session.json`、56 行匿名分工 `allocation.json`、中文执行单和严格为空的 `manifest.json`。`descriptors/`、`media/`、`drafts/` 初始为空，因此创建完成后仍必须真实报告 `0/56`。
+会话创建在 `~/.humi-release-evidence/HUMI-2026-001/n5c-1.1.78-<UTC>-<random>/`，包含只读候选事实 `session.json`、56 行匿名分工 `allocation.json`、中文执行单和严格为空的 `manifest.json`。`descriptors/`、`media/`、`drafts/` 初始为空，因此创建完成后仍必须真实报告 `0/56`。当前权威空会话是 `private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed`。
 
 连接设备后先运行只读体检。它只报告设备数量与就绪布尔值，不输出设备名称、序列号或 USB 标识；当前矩阵要求一台可生成 `390×844` 证据的真实 iPhone 和一台真实 Android，iPad 或模拟器不能替代：
 

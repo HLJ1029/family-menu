@@ -4,8 +4,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { shareCardGuideFixtures } from "./lib/native-share-qa-fixtures.mjs";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
+const EXPERIENCE_ENTRY = `从微信体验版打开 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}`;
 const args = parseArgs(process.argv.slice(2));
 const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
 
@@ -422,7 +424,7 @@ function buildWorkbenchHtml({ packetDir, date, checkedAt, markdownPath, jsonPath
       <div>私有执行包：<code>${escapeHtml(packetDir)}</code></div>
       <div>来源分发单：<code>${escapeHtml(markdownPath)}</code></div>
       <div>来源 JSON：<code>${escapeHtml(jsonPath)}</code></div>
-      <div>当前小程序入口：<strong>从微信体验版打开 1.1.75</strong>（历史二维码已禁用）</div>
+      <div>当前小程序入口：<strong>${escapeHtml(EXPERIENCE_ENTRY)}</strong>（历史二维码已禁用）</div>
       <div>发送状态：<strong>${escapeHtml(String(alreadySentCount))}</strong> 已发送/已体验，<strong>${escapeHtml(String(pendingUsers.length))}</strong> 待发送</div>
     </section>
     <section class="command-bar" aria-label="批次命令">
@@ -533,7 +535,7 @@ function renderShareCardGuide(guide) {
       <h3>小程序卡片发送确认</h3>
     </div>
     <ul class="guide-list">
-      <li>入口固定为：<strong>从微信体验版打开 1.1.75</strong>；不要使用历史开发者工具二维码。</li>
+      <li>入口固定为：<strong>${escapeHtml(EXPERIENCE_ENTRY)}</strong>；不要使用历史开发者工具二维码。</li>
       <li>真实发送优先从 Humi 小程序内触发「${escapeHtml(guide.actionLabel)}」，进入原生发送页后点「${escapeHtml(guide.actionButtonLabel)}」，必须看到真实微信联系人面板。</li>
       <li>确认页路径模板：<code>${escapeHtml(guide.sharePageTemplate)}</code></li>
       <li>卡片落地参数：<code>${escapeHtml(guide.landingPathTemplate)}</code></li>
@@ -560,7 +562,7 @@ async function buildShareCardGuide(user, shareEvidenceDir) {
   if (!guide) return null;
   return {
     ...guide,
-    experienceEntry: "从微信体验版打开 1.1.75",
+    experienceEntry: EXPERIENCE_ENTRY,
     directPreviewPath: "",
     directPreviewOk: false,
     directPreviewSize: 0,

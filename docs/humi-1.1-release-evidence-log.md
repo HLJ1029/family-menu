@@ -99,6 +99,7 @@
 | 2026-07-28 | codex@mbp-m5pro | N5b-1.1.75 受控签名归档 / 微信开发者工具 CLI upload | 通过 | exact runtime `fbb4938200ef0137c468bd37f3868b94b64b738b`；`1.1.75` / `Humi 原生骨架完整候选（fbb4938）` / upload package `570449 bytes`；immutable archive `140710 bytes` / SHA-256 `a1a3a9876e782de8526605d1260c1cf1dd2e70cde85dbb53d051a242c718a0d6`；raw evidence SHA-256 `ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938`；attestation `private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json`；未执行 preview、未提审、未发布、未开启任何开关或白名单 |
 | 2026-08-02 | codex@mbp-m5pro | N5b-1.1.78 受控不可变归档 / 微信开发者工具 CLI upload | 通过 | exact runtime `7606aadcd03dafe9925885b7fef5c308ecfb73e0`；`1.1.78` / `Humi 原生主动登录与家庭协作闭环候选` / upload package `603694 bytes`；immutable archive `147102 bytes` / SHA-256 `4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7`；raw evidence SHA-256 `12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3`；attestation `private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json`；未执行 preview、未提审、未发布、未开启任何开关或白名单 |
 | 2026-08-02 | codex@mbp-m5pro | PR #39 / GitHub Pages / production H5 verification | 通过 | PR #39 merge `3462c763aa9396efaed64ed449696b438b69deee`；Pages run `30751481573` build/deploy success；线上主包 `index-CIKb91QP.js` 与 Actions 构建清单一致，旧 WebView 使用受保护的 `globalThis.structuredClone` 与递归回退；H5/API/recommend 均 200 |
+| 2026-08-02 | codex@mbp-m5pro | N5c-1.1.78 私有会话准备 / 设备只读 doctor | 待真机 | 会话 `private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed` 已机械绑定 `1.1.78@7606aad`、正式 AppID、不可变归档与签名上传证明；manifest 严格为空，权威状态 `0/56`。开发者工具已登录；可用 iPhone 0、Android 0，另有 1 台已配对但不可用 Apple 设备；没有生成占位媒体或伪造 pass |
 
 ## 3. 生产 API 补部署证据
 
@@ -172,7 +173,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.75` |
+| 发布版本 | `1.1.78` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

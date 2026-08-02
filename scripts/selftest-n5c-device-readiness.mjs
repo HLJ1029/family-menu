@@ -41,7 +41,7 @@ const blocked = summarizeN5cDeviceReadiness({
   session: {
     ok: false,
     sessionId: "n5c-test",
-    candidate: "1.1.75@fbb4938",
+    candidate: "1.1.78@7606aad",
     passed: 0,
     required: 56,
     performance: { ok: false },
@@ -62,7 +62,7 @@ const ready = summarizeN5cDeviceReadiness({
   session: {
     ok: true,
     sessionId: "n5c-test",
-    candidate: "1.1.75@fbb4938",
+    candidate: "1.1.78@7606aad",
     passed: 56,
     required: 56,
     performance: { ok: true },

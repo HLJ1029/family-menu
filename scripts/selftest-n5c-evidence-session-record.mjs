@@ -130,14 +130,14 @@ console.log("N5c evidence session record selftest passed.");
 function fixtureSession(stamp) {
   return {
     schemaVersion: 1,
-    sessionId: `n5c-1.1.75-${stamp}-deadbeef`,
-    createdAt: "2026-07-29T00:00:00.000Z",
+    sessionId: `n5c-1.1.78-${stamp}-deadbeef`,
+    createdAt: "2026-08-02T14:39:02.982Z",
     appId: N5C_APP_ID,
-    packageVersion: "1.1.75",
-    runtimeCommit: "fbb4938200ef0137c468bd37f3868b94b64b738b",
-    archiveSha256: "a1a3a9876e782de8526605d1260c1cf1dd2e70cde85dbb53d051a242c718a0d6",
-    uploadAttestationRef: "private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json",
-    uploadRawEvidenceSha256: "ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938",
+    packageVersion: "1.1.78",
+    runtimeCommit: "7606aadcd03dafe9925885b7fef5c308ecfb73e0",
+    archiveSha256: "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7",
+    uploadAttestationRef: "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json",
+    uploadRawEvidenceSha256: "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3",
     status: "prepared",
   };
 }
@@ -149,7 +149,7 @@ function rowFor(scenarioId, result, { platform = "iOS", fixture = "guest", offse
     device: platform === "iOS" ? "iPhone 15 Pro" : "Pixel 9",
     platform,
     wechatVersion: "8.0.60",
-    packageVersion: "1.1.75",
+    packageVersion: "1.1.78",
     householdFixture: fixture,
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),

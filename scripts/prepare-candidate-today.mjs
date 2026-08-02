@@ -3,6 +3,7 @@ import { access, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 const args = parseArgs(process.argv.slice(2));
@@ -58,7 +59,7 @@ const result = {
     dispatchUsers: dispatch.users ?? [],
     pendingUsers: (workbench.users ?? []).filter((user) => !["已邀请", "已体验"].includes(user.inviteStatus)),
     shareCardQrReadyUsers: (workbench.users ?? []).filter((user) => user.shareCardQrReady === true).map((user) => user.id),
-    miniProgramEntry: "从微信体验版打开 1.1.75（历史二维码已禁用）",
+    miniProgramEntry: `从微信体验版打开 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}（历史二维码已禁用）`,
     privacyFindings: privacy.findings ?? [],
   },
   nextActions: [

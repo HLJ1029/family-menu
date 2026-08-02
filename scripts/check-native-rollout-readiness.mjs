@@ -412,28 +412,29 @@ await check("release check requires the external AI-HQ handoff", async () => {
   });
 });
 if (externalHandoffPath) {
-  await check("AI-HQ native handoff proves the last uploaded 1.1.74 runtime", async () => {
+  await check("AI-HQ native handoff proves the current uploaded 1.1.78 runtime", async () => {
     const externalHandoff = await readFile(resolve(externalHandoffPath), "utf8");
     validateNativeCandidateState(externalHandoff, {
-      expectedPackageVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+      expectedPackageVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+      expectedStatus: "uploaded-experience",
       expectedExternalActions: EXPECTED_LAST_UPLOAD_ACTIONS,
-      expectedTrueDeviceEvidence: "0/36",
+      expectedTrueDeviceEvidence: `0/${REQUIRED_SCENARIOS.length}`,
     });
     assert.equal(
       extractNativeCandidateCommit(externalHandoff),
-      LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       "AI-HQ handoff must bind the exact uploaded runtime commit",
     );
     const artifactPath = resolve(
       dirname(resolve(externalHandoffPath)),
       extractNativeCandidateArtifactPath(externalHandoff, {
-        expectedVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+        expectedVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
       }),
     );
     await assertNativeArtifactMatchesCommit({
       artifactPath,
       repoRoot: ROOT,
-      commit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      commit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     });
   });
 }
@@ -469,13 +470,14 @@ const report = {
   lastUploadedExperience: {
     version: LAST_UPLOADED_EXPERIENCE_VERSION,
     runtimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
-    immutableArtifactVerified: Boolean(externalHandoffPath)
-      && !failures.some((failure) => failure.name === "AI-HQ native handoff proves the last uploaded 1.1.74 runtime"),
+    immutableArtifactVerified: false,
   },
   currentUploadedExperience: {
     version: CURRENT_UPLOADED_EXPERIENCE_VERSION,
     runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     immutableArtifactVerified: Boolean(uploadedExperienceState),
+    externalHandoffArtifactVerified: Boolean(externalHandoffPath)
+      && !failures.some((failure) => failure.name === "AI-HQ native handoff proves the current uploaded 1.1.78 runtime"),
     trustedAttestationVerified: Boolean(
       currentCandidateVerification?.uploaded || uploadedExperienceVerification?.uploaded,
     ),

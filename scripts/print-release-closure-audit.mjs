@@ -114,7 +114,7 @@ function determineCurrentPhase({ release, openHardeningItems, missingSections, s
   if (release.currentCandidateUploadVerificationRequired) {
     return {
       key: "candidate-attestation",
-      title: "1.1.75 已上传记录的受控验签确认",
+      title: `${WECHAT_SUBMIT_VERSION} 已上传记录的受控验签确认`,
       description: "上传、归档和回执已经记录；当前进程只缺显式受控私有 attestation 验签，禁止重复上传。",
       nextCommands: [
         "HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/absolute/private/wechat-upload-machine-attestation.json npm run release:native-shell:check:local",
@@ -352,7 +352,7 @@ function buildBlockers({ git, release, openHardeningItems, shareEvidence, missin
   if (release.currentCandidateUploadVerificationRequired) {
     blockers.push({
       key: "candidate-attestation",
-      title: "当前进程尚未验签已记录的 1.1.75 上传",
+      title: `当前进程尚未验签已记录的 ${WECHAT_SUBMIT_VERSION} 上传`,
       details: ["Provide the existing trusted private attestation path; do not repackage or re-upload."],
     });
   }

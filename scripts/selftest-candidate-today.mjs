@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 const baseDir = await mkdtemp(join(tmpdir(), "humi-candidate-today-"));
@@ -76,7 +77,7 @@ for (const file of [
 
 const workbenchHtml = await readFile(result.files.workbench, "utf8");
 assert(!workbenchHtml.includes('data-share-qr="ready"'), "today workbench must not include stale QR images");
-assert(workbenchHtml.includes("从微信体验版打开 1.1.75"), "today workbench should use the experience-version entry");
+assert(workbenchHtml.includes(`从微信体验版打开 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}`), "today workbench should use the experience-version entry");
 assert(!workbenchHtml.includes("可扫码直达"), "today workbench must not describe stale direct QR scanning");
 assert(workbenchHtml.includes("历史二维码已禁用"), "today workbench should explain that historical QR codes are disabled");
 assert(workbenchHtml.includes("不会发送微信消息"), "today workbench should preserve no-send guard");

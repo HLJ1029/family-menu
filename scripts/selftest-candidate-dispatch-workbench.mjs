@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-workbench-"));
@@ -60,7 +61,7 @@ assert(html.includes("问问大家小程序卡片 / 优先跑协作 / 已邀请"
 assert(html.includes("普通打开小程序 / 普通路径 / 待邀请"), "workbench should show pending non-card status in summary");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
 assert(html.includes("小程序卡片发送确认"), "workbench should expose mini program share card send guidance");
-assert(html.includes("从微信体验版打开 1.1.75"), "workbench should use the bound experience-version entry");
+assert(html.includes(`从微信体验版打开 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}`), "workbench should use the bound experience-version entry");
 assert(html.includes("历史二维码已禁用"), "workbench should state that historical QR codes are disabled");
 assert(html.includes("pages/share/index?type=crave&amp;token=&lt;真实征集token&gt;&amp;householdName=&lt;家庭名&gt;"), "workbench should show crave share confirmation path template");
 assert(html.includes("/pages/boot/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");

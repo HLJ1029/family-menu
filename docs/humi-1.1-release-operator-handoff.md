@@ -25,7 +25,7 @@ native_shell_candidate:
 
 当前体验版边界：
 
-- 当前体验版 `1.1.78` 在小程序原生黑白灰视觉、家庭口味征集、游客/正式身份自动归因、独立协作历史和全部历史分享卡片原生落地的基础上，修复首次无会话启动会被请求重试层静默建号的问题；首次打开只显示“微信登录 / 先体验 Humi”，游客直达本机体验，只有显式登录动作才调用微信登录。它已按动作级授权上传，但尚未生成 preview、提审、发布或进入 N5c。
+- 当前体验版 `1.1.78` 在小程序原生黑白灰视觉、家庭口味征集、游客/正式身份自动归因、独立协作历史和全部历史分享卡片原生落地的基础上，修复首次无会话启动会被请求重试层静默建号的问题；首次打开只显示“微信登录 / 先体验 Humi”，游客直达本机体验，只有显式登录动作才调用微信登录。它已按动作级授权上传并创建 N5c 权威空会话，但尚未生成 preview、执行真机、提审或发布。
 - 仓库默认 `HUMI_NATIVE_SHELL_ENABLED=0`，`HUMI_NATIVE_SHELL_HOUSEHOLDS=`；未命中时始终回到 `pages/legacy/index`。
 - `HUMI_NATIVE_HANDOFF_PATH=/absolute/path/to/HANDOFF.md npm run release:native-shell:check` 会分别证明历史 `1.1.74@4eb3fbeb` 外部交付仍可追溯，以及当前 `1.1.78` 的受控归档、签名 CLI 证据和 `7606aad` 运行时一致；不会用旧上传证据冒充当前体验版。
 - 当前 `1.1.78` 归档 SHA-256 为 `4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7`，上传包体 `603694 bytes`，签名证据为 `private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json`。本次没有执行 preview。
@@ -51,7 +51,7 @@ native_shell_candidate:
 - 已核验 H5：`https://www.humi-home.com/`，Pages run `30751481573` 已成功部署 PR #39 的旧微信 WebView 修复；线上主包与 Actions 构建清单一致。
 - 当前 API：`https://api.humi-home.com`，`/health` 返回 HTTP 200。
 - 生产 API 补部署已完成：`humi-api.service` 已重启，线上 health/monitor/readiness/product/collaboration smoke 通过。
-- 原生骨架 `1.1.78` 已上传体验版，未执行 preview、未提审、未发布；`1.1.75` 的 `0/56` 会话只保留为历史空会话。下一步为 `1.1.78` 创建新的 N5c 私有会话，再在真实 iOS/Android 和独立接收账号上执行 56 项矩阵。web-view 域名平台截图和隐私声明仍未完成。
+- 原生骨架 `1.1.78` 已上传体验版，未执行 preview、未提审、未发布；`1.1.75` 的 `0/56` 会话只保留为历史空会话。当前已创建并验签新的权威 N5c 私有会话 `private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed`，真实保持 `0/56`；下一步是在真实 iOS/Android 和独立接收账号上执行 56 项矩阵。web-view 域名平台截图和隐私声明仍未完成。
 
 ## 2. 先后顺序
 
@@ -111,12 +111,12 @@ npm run release:candidate:review:selftest
 - `npm run release:candidate:forms:preview` 可在最新私有包重新生成并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则。
 - `npm run release:candidate:forms:preview:selftest` 可用临时私有包验证 HTML 预览可生成、权限为 600 且包含核心单据板块。
 - `npm run release:candidate:today -- --date YYYY-MM-DD` 可作为每天开工入口，一次刷新 `candidate-day-plan.md`、`candidate-forms-preview.html`、`candidate-dispatch-YYYY-MM-DD.md/json`、`candidate-dispatch-workbench-YYYY-MM-DD.html`，并运行隐私扫描和 doctor 摘要；它不发送消息、不标记邀请、不写反馈、不提交审核。
-- `npm run release:candidate:today:selftest` 可用临时私有包验证今日开工入口会生成当前私有材料、忽略历史二维码、固定提示从微信体验版打开 `1.1.75`，并保留不发送/不审核护栏。
+- `npm run release:candidate:today:selftest` 可用临时私有包验证今日开工入口会生成当前私有材料、忽略历史二维码、按唯一发布常量提示从当前微信体验版 `1.1.78` 打开，并保留不发送/不审核护栏。
 - `npm run release:candidate:plan` 可在私有执行包生成 `candidate-day-plan.md`，按当前缺口列出今天建议邀请、需要追问、必跑【今晚】/清单和优先协作的 U 编号。
 - `npm run release:candidate:plan:selftest` 可用临时私有执行包验证日计划能选出追问用户、下一批邀请用户和协作目标。
 - `npm run release:candidate:dispatch -- --date YYYY-MM-DD` 可在私有执行包生成 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽当天计划里的 U 编号、对应邀请文案、反馈单摘要和回填命令模板，减少从 U001-U020 全量清单里手工筛选；模板必须替换成真实匿名反馈后再运行，不能原样运行。
 - `npm run release:candidate:dispatch:selftest` 可用临时私有执行包验证今日分发单能按日计划抽取文案并保留隐私/审核护栏。
-- `npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 可把当天分发单转成私有 `candidate-dispatch-workbench-YYYY-MM-DD.html`，在一个页面里复制体验者文案、入口任务、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令；小程序卡片任务固定提示从微信体验版打开 `1.1.75`，不会自动发现、嵌入或复制任何历史二维码；它会读取 `anonymous-users.csv` 显示待邀请/已邀请/已体验状态，部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不发送消息、不自动标记邀请、不提交审核。
+- `npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD` 可把当天分发单转成私有 `candidate-dispatch-workbench-YYYY-MM-DD.html`，在一个页面里复制体验者文案、入口任务、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令；小程序卡片任务从唯一发布常量读取当前微信体验版 `1.1.78`，不会自动发现、嵌入或复制任何历史二维码；它会读取 `anonymous-users.csv` 显示待邀请/已邀请/已体验状态，部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它不发送消息、不自动标记邀请、不提交审核。
 - `npm run release:candidate:dispatch:workbench:selftest` 可用临时私有执行包验证 HTML 工作台能生成、权限为 600 且保留隐私/审核护栏。
 - `npm run release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed` 可在单个 U 的消息或小程序卡片真实发出后，把该匿名 U 编号标为已邀请；整批都已真实发出时也可运行 `npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed`。它不记录真实联系人，也不会生成体验反馈；未带确认参数时不会写入。
 - `npm run release:candidate:invite:selftest` 可用临时私有执行包验证邀请状态标记只更新匿名邀请状态，dry-run 不写入。
@@ -302,7 +302,7 @@ docs/humi-1.1-candidate-validation-forms.md
 
 ## 3. 当前不要做
 
-- 不要在真机验收期间无记录覆盖已上传的 `1.1.75@fbb4938`；发现 P0/P1 时先登记、修复、复测，再由独立 checkpoint 决定是否重新上传。
+- 不要在真机验收期间无记录覆盖已上传的 `1.1.78@7606aad`；发现 P0/P1 时先登记、修复、复测，再由独立 checkpoint 决定是否重新上传。
 - 不要在 1.1 发布前清退 Supabase、改支付、改登录架构或改数据库存储。
 - 不要把微信后台截图、登录态、手机号、真实家庭名单提交到仓库。
 - 不要因为 `release:status ok=false` 就误判 H5 不可发；先看失败项是不是只有生产 API SSH。
@@ -369,7 +369,7 @@ private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attest
 
 自动化边界：
 
-- 微信开发者工具 CLI 已完成当前 `1.1.75` 上传；未执行 preview、没有提交审核或发布。历史 `1.1.71` 上传记录仅用于追溯，不得作为当前上传状态。
+- 微信开发者工具 CLI 已完成当前 `1.1.78@7606aad` 上传；未执行 preview、没有提交审核或发布。`1.1.75@fbb4938` 的空会话和更早上传记录仅用于追溯，不得作为当前上传状态。
 - `release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只负责复制审核备注、打开公众平台和证据目录；不提交审核、不发布、不撤回，也不调用微信开放接口。
 - 微信公众平台 `mp.weixin.qq.com` 不允许本会话用浏览器自动化控制；不得绕过该限制。
 - 提交审核、发布、撤回审核、调用微信开放接口提交审核/发布都属于小程序审核关键路径，必须由平台权限操作者在动作当下确认。

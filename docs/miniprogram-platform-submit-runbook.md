@@ -49,7 +49,7 @@ npm run deploy:api:check
 - `release:wechat:check` 会确认是否可进入微信公众平台提交，并输出本次提交要打开的材料；真实候选复盘未通过时它必须失败。它等待完整 `release:status` 最多 360 秒，超时、子进程失败或输出损坏均返回结构化稳定错误码，不输出裸 Node 堆栈。
 - `release:check:online` 必须通过。
 - `monitor:prod` 必须至少证明 H5 200、API health 200、基础推荐可用。
-- `deploy:api:check` 必须通过；N5a 已部署兼容 API/H5，当前生产 API 健康。1.1.75 使用包含短期海报图片、原生身份和 MealRun 兼容能力的主线 API 合同。
+- `deploy:api:check` 必须通过；N5a 已部署兼容 API/H5，当前生产 API 健康。当前 `1.1.78` 使用包含短期海报图片、原生身份和 MealRun 兼容能力的主线 API 合同。
 
 候选复盘与上述只读检查都通过后，用户再在动作当下确认并打开提交工作台：
 
@@ -64,7 +64,7 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
 - `npm run release:wechat:prepare-submit` 必须带 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1` 才会打开微信公众平台；未带确认变量时只打印说明并退出。确认后它会复用最新未留证的私有目录；如果最新目录已经有后台截图或录屏，才新建一个提审目录。它只会把审核备注复制到剪贴板、打开微信公众平台和证据目录；不会提交表单、点击审核按钮或改变微信后台状态。
 - 微信公众平台提交审核/发布会改变外部平台状态，必须由有权限的操作者在后台确认后执行。
 - 若改用微信开放接口提交审核/发布，必须先有正式授权 token、可用类目和一次动作级确认；不得用聊天记录、后台截图或仓库文件保存 AppSecret/access token。
-- 私有提审证据目录以 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit` 输出为准；目录前缀应为 `wechat-submit-1.1.75-*`。后台截图放这里，仓库只记录结论和私有位置。当前上传成功不等于可提审，N5c 与平台证据未完成时不得创建“可提审”结论。
+- 私有提审证据目录以 `HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit` 输出为准；目录前缀应为 `wechat-submit-1.1.78-*`。后台截图放这里，仓库只记录结论和私有位置。当前上传成功不等于可提审，N5c 与平台证据未完成时不得创建“可提审”结论。
 
 ## 3. 公众平台操作顺序
 
@@ -79,7 +79,7 @@ HUMI_WECHAT_REVIEW_ACTION_CONFIRMED=1 npm run release:wechat:prepare-submit
    - 微信身份标识用于账号登录、会话恢复和家庭协作。
    - 手机号仅在用户主动绑定时用于账号绑定、登录验证、账号找回和家庭协作安全。
    - 不声明精确位置、通讯录、相册内容、摄像头、麦克风、支付信息。
-5. 只有在 `1.1.75` 已上传、证据和用户授权全部满足后，进入版本管理选择 `1.1.75` 提交审核。
+5. 只有在 `1.1.78@7606aad` 已上传、证据和用户授权全部满足后，进入版本管理选择 `1.1.78` 提交审核；不得选择 `1.1.75` 或更早历史版本。
 6. 填写服务类目。若有多个候选，优先选择工具/生活信息管理相关类目；避免医疗健康、营养治疗、食品销售或外卖类描述。
 7. 填写审核备注，使用 `docs/miniprogram-review-materials.md` 第 4 节内容。
 8. 若后台要求账号，优先填写“无需账号，打开即可体验核心功能”；若强制测试账号，再创建审核专用账号，不使用私人账号。
@@ -127,14 +127,14 @@ npm run release:evidence:record:submit:latest
 npm run release:evidence:commands -- submit
 ```
 
-如果截图已经放到最新 `wechat-submit-1.1.75-*` 私有目录，优先运行 `release:evidence:record:submit:latest`，它会自动使用最新私有目录登记证据；若目录里只有 README、没有截图或录屏，命令会拒绝登记。`release:evidence:commands -- submit` 会打印手动登记模板；替换时间、提交人、状态和私有证据位置后再运行。
+如果截图已经放到最新 `wechat-submit-1.1.78-*` 私有目录，优先运行 `release:evidence:record:submit:latest`，它会自动使用最新私有目录登记证据；若目录里只有 README、没有截图或录屏，命令会拒绝登记。`release:evidence:commands -- submit` 会打印手动登记模板；替换时间、提交人、状态和私有证据位置后再运行。
 `HUMI_WECHAT_EVIDENCE_LOCATION` 只填私有位置或飞书私有链接，不填截图内容、登录态、手机号或真实家庭名单。
 
 ## 6. 审核通过后发布
 
 审核通过后：
 
-1. 进入版本管理，找到审核通过的 `1.1.75`。
+1. 进入版本管理，找到审核通过的 `1.1.78`。
 2. 点击发布。
 3. 等待 3-10 分钟。
 4. 用真实微信搜索或扫码打开小程序，不只看开发者工具。

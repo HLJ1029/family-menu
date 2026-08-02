@@ -268,7 +268,7 @@ const nativeReleaseState = deriveNativeReleaseState(nativeRollout.data, {
 const nextActions = [];
 if (nativeReleaseState.currentCandidateUploadVerificationRequired) {
   nextActions.push(
-    "Provide the existing trusted private 1.1.75 upload attestation path and rerun the native gate; do not repackage or re-upload the recorded experience version.",
+    `Provide the existing trusted private ${CURRENT_MINIPROGRAM_VERSION} upload attestation path and rerun the native gate; do not repackage or re-upload the recorded experience version.`,
   );
 } else if (!nativeReleaseState.currentCandidateUploaded) {
   nextActions.push(
