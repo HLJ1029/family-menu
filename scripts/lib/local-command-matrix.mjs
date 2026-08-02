@@ -538,7 +538,7 @@ function matchesExpectedBlocker(commandEntry, execution) {
     return execution.code === 1
       && Array.isArray(report?.failures)
       && report.failures.length === 1
-      && failure?.name === "current 1.1.75 experience upload requires trusted private attestation"
+      && failure?.name === "current candidate upload requires trusted private attestation"
       && failure?.message === "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required";
   }
   return false;

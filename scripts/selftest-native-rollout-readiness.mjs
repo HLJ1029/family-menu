@@ -701,12 +701,19 @@ try {
   }
 
   const defaultReport = runRolloutChecker(repoRoot);
-  assert.equal(defaultReport.status, 0, "the repository local candidate contract must remain valid before upload");
-  assert.deepEqual(defaultReport.json.failures, []);
-  assert.equal(defaultReport.json.currentCandidate.uploadStatus, "not_uploaded");
+  assert.notEqual(
+    defaultReport.status,
+    0,
+    "the repository uploaded candidate must fail closed until the controlled private attestation is supplied",
+  );
   assert(
-    defaultReport.json.blockers.some((blocker) => blocker.includes(CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION)),
-    "the local candidate must explicitly require a separately authorized upload",
+    defaultReport.json.failures.some((failure) => /trusted private attestation/.test(failure.name)),
+    JSON.stringify(defaultReport.json.failures),
+  );
+  assert.equal(defaultReport.json.currentCandidate.uploadStatus, "uploaded");
+  assert(
+    defaultReport.json.blockers.some((blocker) => /attestation/i.test(blocker)),
+    "the uploaded candidate must explicitly require its controlled private attestation",
   );
 } finally {
   await rm(rolloutFixture, { recursive: true, force: true });

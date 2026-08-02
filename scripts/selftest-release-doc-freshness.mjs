@@ -9,8 +9,8 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = await mkdtemp(join(tmpdir(), "humi-release-doc-freshness-"));
 try {
   for (const [target, label, staleStatement] of [
-    ["docs/humi-1.1-release-evidence-log.md", "current 1.1.75 upload", "当前 1.1.75 尚未封包或上传。"],
-    ["docs/humi-1.1-release-evidence-log.md", "1.1.74 recent upload", "最近已上传体验版是 `1.1.74@4eb3fbeb`。"],
+    ["docs/humi-1.1-release-evidence-log.md", "current 1.1.78 upload", "当前 1.1.78 尚未封包或上传。"],
+    ["docs/humi-1.1-release-evidence-log.md", "1.1.75 recent upload", "最近已上传体验版是 `1.1.75@fbb4938`。"],
     ["docs/humi-api-production-deploy-runbook.md", "pre-N5a current HEAD and all-false template", "当前部署预检要求候选提交必须等于当前 HEAD，并且 production_api_deployed=false、h5_deployed=false、miniprogram_uploaded=false。"],
     ["docs/humi-1.1-release-operator-handoff.md", "current 1.1.71 upload", "当前上传证据目录是 /Users/honglijie/.humi-release-evidence/miniprogram-upload-1.1.71；微信开发者工具 CLI 已完成 1.1.71 上传。"],
   ]) {

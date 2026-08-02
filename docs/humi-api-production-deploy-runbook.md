@@ -13,7 +13,7 @@
 - 当前兼容生产基线：PR #37 merge `b7f9488`；原生骨架候选以当前受审分支和签名候选证据为准。
 - 最新确认的兼容 H5：GitHub Pages deployment `30088654727` / success；N5a 原生候选 H5/API 兼容改动已部署。
 - 历史兼容基线：`1.1.73` / `修复身份完善入口`。
-- 当前已上传体验版：`1.1.75` / `Humi 原生骨架完整候选（fbb4938）`。N5a API/H5 兼容改动已部署；N5b-1.1.75 已绑定 `fbb4938` 上传，未提审、未发布、未开启原生开关或白名单。
+- 当前已上传体验版：`1.1.78` / `Humi 原生主动登录与家庭协作闭环候选`。N5a API 与 PR #39 H5 热修复已部署；N5b-1.1.78 已绑定 `7606aad` 上传，未提审、未发布、未开启原生开关或白名单。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -74,12 +74,12 @@ HUMI_REPO="$PWD" /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 
 预检失败时不要部署。先修复并重新走完整验证。
 
-> **历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.75 验证）：** 当时 `HUMI_NATIVE_HANDOFF_PATH` 指向候选 AI‑HQ 交付文件，唯一候选提交需等于当时的 `HEAD`，并要求 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false`。这是上传前模板，不能用于描述已上传体验版的当前状态。
+> **历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.78 验证）：** 当时 `HUMI_NATIVE_HANDOFF_PATH` 指向候选 AI‑HQ 交付文件，唯一候选提交需等于当时的 `HEAD`，并要求 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false`。这是上传前模板，不能用于描述已上传体验版的当前状态。
 
-当前 N5b-1.1.75 使用签名 attestation 验证，而不是要求当前文档 `HEAD` 等于已上传运行时。运行时绑定为 `fbb4938200ef0137c468bd37f3868b94b64b738b`；上传后允许继续提交文档和验证修复，只要不改变该小程序运行时。当前事实是 `production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true`，`wechat_review_submitted=false`、`wechat_released=false`、`native_allowlist_enabled=false`。本地只读复验必须显式提供签名 attestation：
+当前 N5b-1.1.78 使用签名 attestation 验证，而不是要求当前文档 `HEAD` 等于已上传运行时。运行时绑定为 `7606aadcd03dafe9925885b7fef5c308ecfb73e0`；上传后允许继续提交文档和验证修复，只要不改变该小程序运行时。当前事实是 `production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true`，`wechat_review_submitted=false`、`wechat_released=false`、`native_allowlist_enabled=false`。本地只读复验必须显式提供签名 attestation：
 
 ```bash
-HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/Users/honglijie/.humi-release-evidence/HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json \
+HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/Users/honglijie/.humi-release-evidence/HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json \
   npm run release:native-shell:check:local
 ```
 
@@ -212,7 +212,7 @@ npm run release:check:online
 - 普通成员在【我的家】不能代替主厨发起征集或分享买菜卡片。
 - 精准推荐/解释额度用完时服务端返回 402，前端可降级。
 
-N5a API 部署后仍不打开原生能力；N5b-1.1.75 已独立上传 `1.1.75@fbb4938`。继续保持开关和白名单关闭，N5c 真机验收、提审、发布和灰度分别走独立 checkpoint。
+N5a API 部署后仍不打开原生能力；N5b-1.1.78 已独立上传 `1.1.78@7606aad`。继续保持开关和白名单关闭，N5c 真机验收、提审、发布和灰度分别走独立 checkpoint。
 
 ## 9. 回滚
 

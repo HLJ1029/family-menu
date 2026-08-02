@@ -24,12 +24,12 @@
     "devtoolsAuthenticated": {
       "verified": true,
       "status": "verified",
-      "ref": "private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json"
+      "ref": "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json"
     },
     "productionLegacyH5Smoke": {
       "verified": true,
       "status": "verified",
-      "ref": "private://HUMI-2026-001/n5a-h5-smoke"
+      "ref": "private://HUMI-2026-001/h5-hotfix-3462c76-pages-30751481573/report.json"
     }
   }
 }

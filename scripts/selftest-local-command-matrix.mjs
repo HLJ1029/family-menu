@@ -83,7 +83,7 @@ function testExternalBlockerClassificationIsExact() {
     code: 1,
     stdout: JSON.stringify({
       failures: [{
-        name: "current 1.1.75 experience upload requires trusted private attestation",
+        name: "current candidate upload requires trusted private attestation",
         message: "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required",
       }],
     }),
@@ -93,7 +93,7 @@ function testExternalBlockerClassificationIsExact() {
     code: 1,
     stdout: JSON.stringify({
       failures: [{
-        name: "current 1.1.75 experience upload requires trusted private attestation",
+        name: "current candidate upload requires trusted private attestation",
         message: "trusted private upload attestation is unavailable: WeChat upload machine attestation signature is invalid",
       }],
     }),
@@ -104,7 +104,7 @@ function testExternalBlockerClassificationIsExact() {
     stdout: JSON.stringify({
       failures: [
         {
-          name: "current 1.1.75 experience upload requires trusted private attestation",
+          name: "current candidate upload requires trusted private attestation",
           message: "trusted private upload attestation is unavailable: a controlled absolute WeChat upload receipt machine-attestation path is required",
         },
         { name: "repository rollout defaults remain off", message: "flag changed" },
@@ -744,8 +744,8 @@ async function testAllPassAndDeterministicOrder() {
   assert.equal(manifest.repository.start.clean, true);
   assert.equal(manifest.repository.changedDuringRun, false);
   assert.equal(manifest.candidate.reviewPackageVersion, "1.1.78");
-  assert.equal(manifest.candidate.uploadedRuntimeVersion, "1.1.75");
-  assert.equal(manifest.candidate.uploadedRuntimeCommit, "fbb4938200ef0137c468bd37f3868b94b64b738b");
+  assert.equal(manifest.candidate.uploadedRuntimeVersion, "1.1.78");
+  assert.equal(manifest.candidate.uploadedRuntimeCommit, "7606aadcd03dafe9925885b7fef5c308ecfb73e0");
   assert.deepEqual(manifest.matrix.map((entry) => entry.id), ["alpha", "beta", "gamma"]);
   assert.deepEqual(manifest.results.map((entry) => entry.classification), ["pass", "pass", "pass"]);
   assert.deepEqual(manifest.aggregate, { total: 3, pass: 3, fail: 0, blocker: 0, timeout: 0 });

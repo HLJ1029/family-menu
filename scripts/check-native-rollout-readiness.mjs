@@ -181,7 +181,7 @@ await check("native runtime is the current local review candidate", async () => 
   );
   assert.equal(
     CURRENT_UPLOADED_EXPERIENCE_VERSION,
-    "1.1.75",
+    "1.1.78",
     "the current uploaded experience runtime must remain labelled",
   );
   assert.equal(
@@ -192,10 +192,11 @@ await check("native runtime is the current local review candidate", async () => 
 });
 
 const runtimeDriftFiles = listNativeRuntimeDrift(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT);
-await check("current local candidate is distinct from the uploaded 1.1.75 runtime", async () => {
-  assert(
-    runtimeDriftFiles.length > 0,
-    "1.1.78 must not claim to be a new candidate when its mini-program runtime is identical to uploaded 1.1.75",
+await check("current runtime remains identical to the uploaded 1.1.78 experience", async () => {
+  assert.deepEqual(
+    runtimeDriftFiles,
+    [],
+    "post-upload bookkeeping must not change the 1.1.78 mini-program runtime",
   );
 });
 
@@ -342,7 +343,7 @@ if (currentCandidateState?.actions.miniprogramUploaded) await check("current can
 });
 
 const uploadedExperienceEvidencePath = resolve(ROOT, "docs/native-uploaded-experience-evidence.json");
-await check("uploaded 1.1.75 experience evidence remains immutable", async () => {
+await check("uploaded 1.1.78 experience evidence remains immutable", async () => {
   uploadedExperienceState = validateNativeCandidateEvidence(
     JSON.parse(await readFile(uploadedExperienceEvidencePath, "utf8")),
     {
@@ -361,7 +362,7 @@ if (
   && uploadAttestationPath
   && !currentCandidateState?.actions.miniprogramUploaded
 ) {
-  await check("uploaded 1.1.75 experience attestation remains verifiable", async () => {
+  await check("uploaded 1.1.78 experience attestation remains verifiable", async () => {
     uploadedExperienceVerification = await verifyNativeCandidateUploadEvidence({
       candidate: uploadedExperienceState,
       repoRoot: ROOT,
@@ -372,12 +373,12 @@ if (
   });
 }
 
-await check("repository handoff documents uploaded 1.1.75 and local 1.1.78 boundaries", async () => {
+await check("repository handoff documents uploaded 1.1.78 boundaries", async () => {
   const handoff = await text("docs/humi-1.1-release-operator-handoff.md");
   const tracker = await text("docs/humi-1.1-gray-release-tracker.md");
   const apiContract = await text("docs/humi-api-contract.md");
   assert.match(handoff, /status: uploaded-experience/);
-  assert.match(handoff, /package_version: 1\.1\.75/);
+  assert.match(handoff, /package_version: 1\.1\.78/);
   assert.match(handoff, /miniprogram_uploaded: true/);
   assert.match(handoff, /wechat_review_submitted: false/);
   assert.match(handoff, /wechat_released: false/);
@@ -385,10 +386,10 @@ await check("repository handoff documents uploaded 1.1.75 and local 1.1.78 bound
   assert.match(handoff, /true_device_evidence: 0\/56/);
   assert.match(handoff, new RegExp(CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT));
   assert.match(handoff, /上一历史体验版.*`1\.1\.74`/);
-  assert.match(handoff, /本地.*`1\.1\.78`/);
+  assert.match(handoff, /当前体验版.*`1\.1\.78`/);
   assert.match(tracker, /原生壳候选：uploaded-experience/);
-  assert.match(tracker, /原生包版本：`1\.1\.75`/);
-  assert.match(tracker, /本地.*`1\.1\.78`/);
+  assert.match(tracker, /原生包版本：`1\.1\.78`/);
+  assert.match(tracker, /当前体验版.*`1\.1\.78`/);
   assert.match(tracker, /上一历史体验版：`1\.1\.74`/);
   assert.match(tracker, /历史兼容基线：`1\.1\.73`/);
   assert.match(tracker, new RegExp(`真机证据：0/${REQUIRED_SCENARIOS.length}`));
@@ -441,7 +442,7 @@ const blockers = [];
 if (!platformEvidence?.webViewDomainVerified) {
   blockers.push("WeChat web-view business-domain screenshot/confirmation is still required.");
 }
-if (!platformEvidence.privacyDeclarationVerified) {
+if (!platformEvidence?.privacyDeclarationVerified) {
   blockers.push("WeChat platform privacy declaration and screenshot are still required.");
 }
 if (!currentCandidateState?.actions.miniprogramUploaded) {
@@ -475,7 +476,9 @@ const report = {
     version: CURRENT_UPLOADED_EXPERIENCE_VERSION,
     runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
     immutableArtifactVerified: Boolean(uploadedExperienceState),
-    trustedAttestationVerified: Boolean(uploadedExperienceVerification?.uploaded),
+    trustedAttestationVerified: Boolean(
+      currentCandidateVerification?.uploaded || uploadedExperienceVerification?.uploaded,
+    ),
   },
   currentCandidate: {
     version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,

@@ -134,9 +134,11 @@ const docFixturePath = process.env.NODE_ENV === "test"
   ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_PATH || "")
   : "";
 const staleCurrentStatePhrases = [
+  "当前 1.1.78 尚未封包或上传",
   "当前 1.1.75 尚未封包或上传",
 ];
-const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?(?:[：:\s]|是|为)*`?1\.1\.74(?:@4eb3fbeb)?`?/;
+const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?(?:[：:\s]|是|为)*`?1\.1\.(?:74|75)(?:@[a-f0-9]{7,8})?`?/;
+const currentRuntimeShort = CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 7);
 
 const currentCandidateDocs = [
   {
@@ -162,7 +164,7 @@ const currentCandidateDocs = [
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
       `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\`，描述 \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
-      `当前本地候选：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前体验版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       "status: uploaded-experience",
       "miniprogram_uploaded: true",
@@ -174,14 +176,14 @@ const currentCandidateDocs = [
       LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
       "历史兼容/生产基线是 `1.1.73`",
       "平台隐私保护指引也仍待最终填写和留证",
-      "private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json",
-      "当前已上传 `1.1.75`，未执行 preview、未提交审核、未发布",
+      "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json",
+      "当前已上传 `1.1.78`，未执行 preview、未提交审核、未发布",
     ],
   },
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     required: [
-      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\``,
       `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
       `版本描述：\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
       "不等于可提审",
@@ -192,7 +194,7 @@ const currentCandidateDocs = [
     required: [
       `| 上传版本 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` |`,
       `| 版本描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
-      `当前 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `当前 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 已从不可变归档上传为体验版`,
       `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 是上一历史体验版`,
     ],
   },
@@ -213,15 +215,15 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-pre-review-hardening.md",
     required: [
-      `小程序候选 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 已从不可变归档上传为体验版`,
+      `小程序候选 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 已从不可变归档上传为体验版`,
       `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 只作为历史证据`,
     ],
   },
   {
     path: "docs/launch-day-runbook.md",
     required: [
-      `本地待封包版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
-      `本地版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前体验版：\`${CURRENT_MINIPROGRAM_VERSION}@${currentRuntimeShort}\``,
+      `当前版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
     ],
   },
   {
@@ -229,9 +231,9 @@ const currentCandidateDocs = [
     required: [
       `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
       "未提审、未发布、未开启原生开关或白名单",
-      "历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.75 验证）",
+      "历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.78 验证）",
       CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
-      "当前 N5b-1.1.75 使用签名 attestation 验证",
+      "当前 N5b-1.1.78 使用签名 attestation 验证",
       "production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true",
       "wechat-upload-machine-attestation.json",
     ],
@@ -239,7 +241,7 @@ const currentCandidateDocs = [
   {
     path: "docs/humi-api-contract.md",
     required: [
-      `当前已上传体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@fbb4938\` 均使用本合同`,
+      `当前已上传体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 均使用本合同`,
       `上一历史体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
       "历史兼容基线 1.1.73",
     ],
@@ -288,12 +290,13 @@ const candidate = candidateEvidence?.candidate;
 if (
   candidateEvidence?.schemaVersion !== 1
   || candidate?.version !== CURRENT_MINIPROGRAM_VERSION
-  || candidate?.status !== "local-candidate"
-  || candidate?.runtimeCommit !== null
-  || candidate?.archive !== null
-  || candidate?.uploadEvidence !== null
-  || candidate?.uploadReceiptRef !== null
-  || candidate?.actions?.miniprogramUploaded !== false
+  || candidate?.status !== "uploaded-experience"
+  || candidate?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || candidate?.archive?.sizeBytes !== 147102
+  || candidate?.archive?.sha256 !== "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7"
+  || candidate?.uploadEvidence?.rawEvidenceSha256 !== "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3"
+  || candidate?.uploadReceiptRef !== "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json"
+  || candidate?.actions?.miniprogramUploaded !== true
   || candidate?.actions?.wechatReviewSubmitted !== false
   || candidate?.actions?.wechatReleased !== false
   || candidate?.actions?.nativeAllowlistEnabled !== false
@@ -302,7 +305,7 @@ if (
 ) {
   failures.push({
     path: "docs/native-candidate-evidence.json",
-    phrase: `current local ${CURRENT_MINIPROGRAM_VERSION} evidence must not claim upload, review, release, or rollout actions`,
+    phrase: `current ${CURRENT_MINIPROGRAM_VERSION} evidence must bind the uploaded runtime without claiming review, release, or rollout actions`,
   });
 }
 
@@ -315,8 +318,9 @@ if (
   || uploadedExperience?.version !== CURRENT_UPLOADED_EXPERIENCE_VERSION
   || uploadedExperience?.status !== "uploaded-experience"
   || uploadedExperience?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
-  || uploadedExperience?.archive?.sizeBytes !== 140710
-  || uploadedExperience?.uploadEvidence?.rawEvidenceSha256 !== "ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938"
+  || uploadedExperience?.archive?.sizeBytes !== 147102
+  || uploadedExperience?.archive?.sha256 !== "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7"
+  || uploadedExperience?.uploadEvidence?.rawEvidenceSha256 !== "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3"
   || uploadedExperience?.actions?.miniprogramUploaded !== true
   || uploadedExperience?.actions?.wechatReviewSubmitted !== false
   || uploadedExperience?.actions?.wechatReleased !== false
@@ -326,7 +330,7 @@ if (
 ) {
   failures.push({
     path: "docs/native-uploaded-experience-evidence.json",
-    phrase: "uploaded 1.1.75 evidence must retain its immutable N5b-only action boundaries",
+    phrase: "uploaded 1.1.78 evidence must retain its immutable N5b-only action boundaries",
   });
 }
 

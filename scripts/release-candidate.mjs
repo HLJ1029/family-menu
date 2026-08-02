@@ -5,9 +5,9 @@ export const PRODUCTION_COMPATIBILITY_BASELINE_DESCRIPTION = "修复身份完善
 export const LAST_UPLOADED_EXPERIENCE_VERSION = "1.1.74";
 export const LAST_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架体验版 N5b（4eb3fbeb）";
 export const LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "4eb3fbeb6aba886930b3fda652be96e9246eac9e";
-export const CURRENT_UPLOADED_EXPERIENCE_VERSION = "1.1.75";
-export const CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生骨架完整候选（fbb4938）";
-export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "fbb4938200ef0137c468bd37f3868b94b64b738b";
+export const CURRENT_UPLOADED_EXPERIENCE_VERSION = "1.1.78";
+export const CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION = "Humi 原生主动登录与家庭协作闭环候选";
+export const CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT = "7606aadcd03dafe9925885b7fef5c308ecfb73e0";
 export const CURRENT_UPLOADED_EXPERIENCE_EVIDENCE_SOURCE = "docs/native-uploaded-experience-evidence.json";
 export const CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION = "1.1.78";
 export const CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION = "Humi 原生主动登录与家庭协作闭环候选";
@@ -46,9 +46,9 @@ export function releaseCandidateSummary() {
     currentLocalReviewCandidate: {
       version: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
       description: CURRENT_LOCAL_REVIEW_CANDIDATE_DESCRIPTION,
-      runtimeCommit: null,
-      recordedUploadStatus: "not_uploaded",
-      verificationStatus: "not_applicable",
+      runtimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      recordedUploadStatus: "uploaded-experience",
+      verificationStatus: "requires_runtime_attestation",
       reviewSubmitted: false,
       released: false,
     },
