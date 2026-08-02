@@ -7,6 +7,7 @@ import {
   remainingTimerSeconds,
   runningMealTimelineTimers,
 } from "./mealExecution.js";
+import { cloneData } from "./clone.js";
 
 const runStatusRank = { planned: 0, cooking: 1, abandoned: 2, completed: 3 };
 
@@ -31,7 +32,7 @@ export function createLocalMealRun({
     recipeIds: normalizedRecipeIds,
     recipeSnapshot: normalizedRecipeIds.map((recipeId) => {
       const recipe = getCertifiedRecipe(recipeId);
-      return { id: recipe.id, name: recipe.name, cookAssist: structuredClone(recipe.cookAssist) };
+      return { id: recipe.id, name: recipe.name, cookAssist: cloneData(recipe.cookAssist) };
     }),
     timelineVersion: 1,
     timeline: null,
@@ -62,13 +63,13 @@ export function downgradeLocalMealRun(run, action, { now = new Date().toISOStrin
   }
   const changedAt = normalizeIsoDate(now);
   const result = downgradeMealPlan(run.recipeIds, action);
-  const next = structuredClone(run);
+  const next = cloneData(run);
   const previousRecipeIds = [...next.recipeIds];
   next.recipeIds = result.recipeIds;
   next.readyStaple = result.readyStaple || next.readyStaple || "";
   next.recipeSnapshot = next.recipeIds.map((recipeId) => {
     const recipe = getCertifiedRecipe(recipeId);
-    return { id: recipe.id, name: recipe.name, cookAssist: structuredClone(recipe.cookAssist) };
+    return { id: recipe.id, name: recipe.name, cookAssist: cloneData(recipe.cookAssist) };
   });
   next.downgrades = [...(next.downgrades ?? []), {
     action,
@@ -97,7 +98,7 @@ export function downgradeLocalMealRun(run, action, { now = new Date().toISOStrin
 
 export function transitionLocalMealRun(run, action, payload = {}) {
   if (!run?.id) throw mealRunError("meal_run_invalid", "A meal run is required.");
-  const next = structuredClone(run);
+  const next = cloneData(run);
   const now = normalizeIsoDate(payload.now || new Date().toISOString());
 
   if (action === "start") {
@@ -201,20 +202,20 @@ export function mergeLocalMealRun(localRun, remoteRun) {
     const localTimelineVersion = Number(localRun.timelineVersion || 1);
     const remoteTimelineVersion = Number(remoteRun.timelineVersion || 1);
     if (remoteTimelineVersion > localTimelineVersion) {
-      return { ...structuredClone(remoteRun), localOnly: false, syncStatus: "synced" };
+      return { ...cloneData(remoteRun), localOnly: false, syncStatus: "synced" };
     }
     if (localTimelineVersion > remoteTimelineVersion) return localRun;
   }
   const timers = mergeTimerMaps(remoteRun.timers, localRun.timers);
   if (remoteRun.syncedFromLocalId === localRun.id || localRun.syncedToRemoteId === remoteRun.id) {
-    return { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" };
+    return { ...cloneData(remoteRun), timers, localOnly: false, syncStatus: "synced" };
   }
   const localRank = runStatusRank[localRun.status] ?? -1;
   const remoteRank = runStatusRank[remoteRun.status] ?? -1;
-  if (remoteRank > localRank) return { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" };
+  if (remoteRank > localRank) return { ...cloneData(remoteRun), timers, localOnly: false, syncStatus: "synced" };
   if (localRank > remoteRank) return { ...localRun, timers };
   return Date.parse(remoteRun.updatedAt || 0) >= Date.parse(localRun.updatedAt || 0)
-    ? { ...structuredClone(remoteRun), timers, localOnly: false, syncStatus: "synced" }
+    ? { ...cloneData(remoteRun), timers, localOnly: false, syncStatus: "synced" }
     : { ...localRun, timers };
 }
 
