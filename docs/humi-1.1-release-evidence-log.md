@@ -101,6 +101,7 @@
 | 2026-08-02 | codex@mbp-m5pro | PR #39 / GitHub Pages / production H5 verification | 通过 | PR #39 merge `3462c763aa9396efaed64ed449696b438b69deee`；Pages run `30751481573` build/deploy success；线上主包 `index-CIKb91QP.js` 与 Actions 构建清单一致，旧 WebView 使用受保护的 `globalThis.structuredClone` 与递归回退；H5/API/recommend 均 200 |
 | 2026-08-02 | codex@mbp-m5pro | N5c-1.1.78 私有会话准备 / 设备只读 doctor | 待真机 | 会话 `private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed` 已机械绑定 `1.1.78@7606aad`、正式 AppID、不可变归档与签名上传证明；manifest 严格为空，权威状态 `0/56`。开发者工具已登录；可用 iPhone 0、Android 0，另有 1 台已配对但不可用 Apple 设备；没有生成占位媒体或伪造 pass |
 | 2026-08-02 | codex@mbp-m5pro | `cb9d28e` 不可变 41 项本地矩阵 | 39 通过 / 2 外部阻断 | `private://HUMI-2026-001/local-command-matrix/20260802T145313Z-cb9d28ec3e11/manifest.json`；0 failure / 0 timeout / 仓库运行前后未变；canonical SHA-256 `d4ade50dbe367d52ca1a0c4e87742969793acf73f9ee734b6851e6dd1a2c31dd`。两项仅为真机启动性能与当前 `0/56` 证据 |
+| 2026-08-02 | codex@mbp-m5pro | `33b45b4` 规格事实修复后不可变 41 项本地矩阵 | 39 通过 / 2 外部阻断 | `private://HUMI-2026-001/local-command-matrix/20260802T152401Z-33b45b484454/manifest.json`；0 failure / 0 timeout / 仓库运行前后未变；canonical SHA-256 `bd3f49618a2b905812d52bd7402976f7cf9867c12d2fac00696389d99abde9e6`。规格审计完整性与 71 项本地需求均通过；两项仅为真机启动性能与当前 `0/56` 证据 |
 
 ## 3. 生产 API 补部署证据
 

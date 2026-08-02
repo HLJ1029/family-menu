@@ -33,7 +33,7 @@ only remaining stops are the recognized external blockers above. Earlier
 proof. A normal local test failure, timeout, spawn failure, or repository
 mutation produces overall result `failed`.
 
-Current authoritative run: `private://HUMI-2026-001/local-command-matrix/20260802T145313Z-cb9d28ec3e11/manifest.json`, bound to `cb9d28ec3e111a720069716a7b76fed468bab668`. With the trusted `1.1.78` attestation supplied, the result is 39 pass / 2 expected external blocker / 0 failure / 0 timeout; canonical manifest SHA-256 is `d4ade50dbe367d52ca1a0c4e87742969793acf73f9ee734b6851e6dd1a2c31dd`. The only blockers are true-device startup performance and the empty `0/56` true-device matrix.
+Current authoritative run: `private://HUMI-2026-001/local-command-matrix/20260802T152401Z-33b45b484454/manifest.json`, bound to `33b45b484454dc1cfec57673e3aeffc7af74933c`. With the trusted `1.1.78` attestation supplied, the result is 39 pass / 2 expected external blocker / 0 failure / 0 timeout; canonical manifest SHA-256 is `bd3f49618a2b905812d52bd7402976f7cf9867c12d2fac00696389d99abde9e6`. The only blockers are true-device startup performance and the empty `0/56` true-device matrix.
 
 After authorized, complete N5c evidence exists, bind it to the full candidate
 commit:
