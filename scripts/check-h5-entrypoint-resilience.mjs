@@ -241,18 +241,20 @@ try {
   });
   await guestLoginContext.addInitScript(() => {
     window.__humiNativeCalls = [];
+    const wxBridge = {
+      miniProgram: {
+        navigateTo: (payload) => {
+          window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+          payload.fail?.({ errMsg: "navigateTo:fail page not found" });
+        },
+      },
+    };
+    window.wx = wxBridge;
+    window.jWeixin = wxBridge;
   });
   const guestLoginPage = await guestLoginContext.newPage();
   await guestLoginPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiGuest=1`, { waitUntil: "networkidle" });
-  await guestLoginPage.evaluate(() => {
-    window.wx = window.wx || {};
-    window.wx.miniProgram = {
-      navigateTo: (payload) => {
-        window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
-        payload.fail?.({ errMsg: "navigateTo:fail page not found" });
-      },
-    };
-  });
+  await guestLoginPage.waitForTimeout(50);
   assert.deepEqual(await guestLoginPage.evaluate(() => window.__humiNativeCalls), [], "guest entry must not request login before the user acts");
   await guestLoginPage.getByTestId("mobile-nav-user").click();
   const guestFamily = guestLoginPage.getByTestId("guest-family-explanation");
@@ -268,6 +270,47 @@ try {
   await guestFamily.getByText("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。").waitFor({ state: "visible", timeout: 5_000 });
   assert.equal(await guestFamily.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await guestLoginContext.close();
+
+  const guestLoginTimeoutContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await guestLoginTimeoutContext.addInitScript(() => {
+    window.__humiNativeCalls = [];
+    const wxBridge = {
+      miniProgram: {
+        navigateTo: (payload) => {
+          window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+        },
+        postMessage: (payload) => {
+          window.__humiNativeCalls.push({ method: "postMessage", payload });
+        },
+      },
+    };
+    window.wx = wxBridge;
+    window.jWeixin = wxBridge;
+  });
+  const guestLoginTimeoutPage = await guestLoginTimeoutContext.newPage();
+  await guestLoginTimeoutPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiGuest=1`, { waitUntil: "networkidle" });
+  await guestLoginTimeoutPage.getByTestId("mobile-nav-user").click();
+  const guestTimeoutFamily = guestLoginTimeoutPage.getByTestId("guest-family-explanation");
+  await guestTimeoutFamily.getByRole("button", { name: "微信登录", exact: true }).click();
+  const pendingGuestLoginButton = guestTimeoutFamily.getByRole("button", { name: "正在打开微信登录", exact: true });
+  await pendingGuestLoginButton.waitFor({ state: "visible", timeout: 2_000 });
+  assert.equal(await pendingGuestLoginButton.isEnabled(), false, "guest login should stay disabled while the native handoff is pending");
+  await guestLoginTimeoutPage.waitForFunction(() => window.__humiNativeCalls.some((call) => call.method === "postMessage"), null, { timeout: 2_000 });
+  await guestTimeoutFamily.getByText("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。").waitFor({ state: "visible", timeout: 6_000 });
+  const retryGuestLoginButton = guestTimeoutFamily.getByRole("button", { name: "微信登录", exact: true });
+  assert.equal(await retryGuestLoginButton.isEnabled(), true, "guest login should recover when the native bridge never answers");
+  await retryGuestLoginButton.click();
+  await guestLoginTimeoutPage.waitForFunction(
+    () => window.__humiNativeCalls.filter((call) => call.method === "navigateTo").length === 2,
+    null,
+    { timeout: 2_000 },
+  );
+  await guestLoginTimeoutContext.close();
 
   const browserGuestContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
