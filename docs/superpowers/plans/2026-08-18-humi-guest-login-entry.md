@@ -20,6 +20,56 @@
 
 ---
 
+### Task 0: Restore the dependency security baseline
+
+**Files:**
+- Modify: `package-lock.json`
+
+**Interfaces:**
+- Consumes: the existing PostCSS dependency graph and npm advisory `GHSA-2v37-7h3g-55p8` affecting `nanoid <3.3.18`.
+- Produces: a lockfile that resolves the existing transitive `nanoid` dependency to a non-vulnerable version without changing `package.json`.
+
+- [ ] **Step 1: Preserve the observed RED result**
+
+The pre-implementation baseline already ran:
+
+```bash
+npm run release:security:audit
+npm audit --json
+```
+
+Observed: `release:security:audit` returned `ok=false`; npm reported one high advisory for `nanoid <3.3.18` with a fix available.
+
+- [ ] **Step 2: Update only the vulnerable transitive dependency**
+
+Run:
+
+```bash
+npm update nanoid
+```
+
+Expected: `package-lock.json` resolves `nanoid` to `>=3.3.18`; `package.json` remains unchanged.
+
+- [ ] **Step 3: Verify the security gate is GREEN**
+
+Run:
+
+```bash
+npm run release:security:audit
+npm audit --json
+npm run build
+git diff --check
+```
+
+Expected: both audits report zero vulnerabilities, build exits 0, and the diff is limited to the lockfile's `nanoid` resolution and integrity metadata.
+
+- [ ] **Step 4: Commit the isolated security fix**
+
+```bash
+git add package-lock.json
+git commit -m "fix: update vulnerable nanoid lock"
+```
+
 ### Task 1: Guest “我的家” login CTA and bridge recovery
 
 **Files:**
@@ -257,14 +307,14 @@ git show --stat --oneline HEAD
 git diff HEAD^ -- scripts/check-h5-entrypoint-resilience.mjs src/main.jsx src/components/UserCenter.jsx
 ```
 
-Expected: product changes are limited to the guest login regression, `main.jsx` bridge orchestration, and the `UserCenter` guest CTA; no API, database, dependency, or release configuration file changed.
+Expected: product behavior changes are limited to the guest login regression, `main.jsx` bridge orchestration, and the `UserCenter` guest CTA. The only dependency artifact change is the separately committed transitive `nanoid` lockfile security update; no API, database, direct dependency declaration, or release configuration file changed.
 
 - [ ] **Step 3: Record verified facts in AI-HQ**
 
 Append a dated note to the active task and project status containing only these verified facts:
 
 ```markdown
-2026-08-18 CST 修复游客进入 H5 后无法再次登录的入口缺失：`我的家` 游客卡片新增用户主动点击的“微信登录”主按钮，复用既有 `/pages/identity/index?action=login` 小程序身份桥；失败或非小程序环境会保留可重试按钮并显示明确提示。首次启动仍保持“微信登录 / 先体验 Humi”二选一，游客点击前不调用登录、不创建账号或家庭，API、数据库、权限与会话格式未改。聚焦身份/H5/小程序入口、产品 smoke、构建、依赖安全和 secret scan 已通过。本次仅形成本地候选，没有部署、上传、提审或发布。
+2026-08-18 CST 修复游客进入 H5 后无法再次登录的入口缺失：`我的家` 游客卡片新增用户主动点击的“微信登录”主按钮，复用既有 `/pages/identity/index?action=login` 小程序身份桥；失败或非小程序环境会保留可重试按钮并显示明确提示。首次启动仍保持“微信登录 / 先体验 Humi”二选一，游客点击前不调用登录、不创建账号或家庭，API、数据库、权限与会话格式未改。实施前基线发现 `nanoid <3.3.18` 的 high 公告并按用户授权仅更新传递依赖锁定版本，未增加或修改直接依赖。聚焦身份/H5/小程序入口、产品 smoke、构建、依赖安全和 secret scan 已通过。本次仅形成本地候选，没有部署、上传、提审或发布。
 ```
 
 - [ ] **Step 4: Re-run the cross-repository secret gate and commit the record**
@@ -278,4 +328,3 @@ git -C /Users/honglijie/AI-HQ status --short --branch
 ```
 
 Expected: secret scan passes and the AI-HQ diff is limited to `tasks/active/HUMI-2026-001.md` and `projects/humi/STATUS.md`. Commit only if the AI-HQ worktree has no unrelated overlapping changes; otherwise leave the scoped edits uncommitted and report the pre-existing dirty state.
-
