@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "version": "1.1.78",
+    "status": "uploaded-experience",
+    "runtimeCommit": "7606aadcd03dafe9925885b7fef5c308ecfb73e0",
+    "archive": {
+      "path": "/Users/honglijie/.humi-release-evidence/HUMI-2026-001/n5b-1.1.78-20260802T140601Z/humi-native-shell-1.1.78-7606aad.tar.gz",
+      "sha256": "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7",
+      "sizeBytes": 147102
+    },
+    "uploadEvidence": {
+      "rawEvidenceSha256": "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3"
+    },
+    "uploadReceiptRef": "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json",
+    "actions": {
+      "productionApiDeployed": true,
+      "h5Deployed": true,
+      "miniprogramUploaded": true,
+      "wechatReviewSubmitted": false,
+      "wechatReleased": false,
+      "nativeAllowlistEnabled": false
+    },
+    "trueDeviceEvidence": {
+      "passed": 0,
+      "required": 56
+    }
+  }
+}

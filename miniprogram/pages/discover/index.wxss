@@ -1,5 +1,5 @@
 page {
-  background: #f7f6f3;
+  background: #f6f6f6;
 }
 
 .discover-page {
@@ -14,7 +14,7 @@ page {
 }
 
 .eyebrow {
-  color: #77736d;
+  color: #737373;
   font-size: 22rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
@@ -35,13 +35,13 @@ page {
   height: 88rpx;
   margin-top: 28rpx;
   padding: 0 26rpx;
-  border: 1rpx solid #e2dfda;
+  border: 1rpx solid #dfdfdf;
   border-radius: 24rpx;
   background: #ffffff;
 }
 
 .search-icon {
-  color: #77736d;
+  color: #737373;
   font-size: 36rpx;
 }
 
@@ -70,9 +70,9 @@ page {
   height: 64rpx;
   margin: 0;
   padding: 0 24rpx;
-  border: 1rpx solid #e2dfda;
+  border: 1rpx solid #dfdfdf;
   border-radius: 999rpx;
-  color: #55514c;
+  color: #525252;
   background: #ffffff;
   font-size: 25rpx;
   line-height: 64rpx;
@@ -110,13 +110,13 @@ page {
   align-items: center;
   justify-content: center;
   height: 300rpx;
-  background: #eceae6;
+  background: #eaeaea;
 }
 
 .placeholder-plate {
   width: 108rpx;
   height: 108rpx;
-  border: 12rpx solid #d6d2cb;
+  border: 12rpx solid #d2d2d2;
   border-radius: 999rpx;
 }
 
@@ -124,7 +124,7 @@ page {
   height: 22rpx;
   margin: 18rpx 22rpx 0;
   border-radius: 999rpx;
-  background: #eceae6;
+  background: #eaeaea;
 }
 
 .skeleton-line.is-short {
@@ -139,7 +139,7 @@ page {
   margin-top: 48rpx;
   padding: 48rpx 32rpx;
   border-radius: 28rpx;
-  color: #55514c;
+  color: #525252;
   background: #ffffff;
   text-align: center;
 }
@@ -151,7 +151,7 @@ page {
 }
 
 .state-copy {
-  color: #77736d;
+  color: #737373;
   font-size: 25rpx;
 }
 
@@ -175,8 +175,8 @@ page {
   margin-top: 22rpx;
   padding: 18rpx 22rpx;
   border-radius: 18rpx;
-  color: #6b4d27;
-  background: #f5ead9;
+  color: #535353;
+  background: #ebebeb;
   font-size: 23rpx;
 }
 
@@ -188,7 +188,7 @@ page {
 .feed-end {
   display: block;
   margin-top: 36rpx;
-  color: #99958f;
+  color: #959595;
   font-size: 22rpx;
   text-align: center;
 }

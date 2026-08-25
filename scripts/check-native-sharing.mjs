@@ -111,11 +111,27 @@ assert(
 
 const routing = loadCommonJs(resolve(root, "miniprogram/utils/share-routing.js"));
 const shareTokens = {
+  crave: "crave_snapshot_token_123456789",
+  wish: "wish_snapshot_token_1234567890",
   menu: "menu_snapshot_token_1234567890",
   grocery: "grocery_snapshot_token_123456",
   invite: "invite_snapshot_token_123456789",
   meal_task: "meal_task_snapshot_token_123456",
 };
+assert.match(
+  routing.buildNativeSharePayload("crave", {
+    token: shareTokens.crave,
+    householdName: "分享测试家",
+  }).path,
+  /^\/packageShare\/pages\/crave\/index\?crave=/,
+);
+assert.match(
+  routing.buildNativeSharePayload("wish", {
+    token: shareTokens.wish,
+    householdName: "分享测试家",
+  }).path,
+  /^\/packageShare\/pages\/wish\/index\?wishShare=/,
+);
 assert.deepEqual(
   plain(routing.buildNativeSharePayload("menu", {
     token: shareTokens.menu,
@@ -143,7 +159,21 @@ const appJson = JSON.parse(readFileSync(resolve(root, "miniprogram/app.json"), "
 assert(appJson.pages.includes("pages/poster/index"), "app.json must register the native poster share page");
 const packageShare = appJson.subPackages.find((item) => item.root === "packageShare");
 assert(packageShare, "app.json must register the native packageShare subpackage");
-assert.deepEqual(packageShare.pages.sort(), ["pages/grocery/index", "pages/menu/index"]);
+assert.deepEqual(packageShare.pages.sort(), ["pages/crave/index", "pages/grocery/index", "pages/menu/index", "pages/wish/index"]);
+
+for (const pageConfigPath of [
+  ...appJson.pages.map((page) => resolve(root, `miniprogram/${page}.json`)),
+  ...appJson.subPackages.flatMap((subpackage) => (
+    subpackage.pages.map((page) => resolve(root, `miniprogram/${subpackage.root}/${page}.json`))
+  )),
+]) {
+  const config = JSON.parse(readFileSync(pageConfigPath, "utf8"));
+  assert.equal(
+    "enableShareAppMessage" in config,
+    false,
+    `${relative(root, pageConfigPath)} must not use the unsupported enableShareAppMessage page config key`,
+  );
+}
 
 for (const [page, shareType] of [
   ["miniprogram/pages/tonight/index", "menu"],
@@ -153,7 +183,6 @@ for (const [page, shareType] of [
 ]) {
   const js = readFileSync(resolve(root, `${page}.js`), "utf8");
   const wxml = readFileSync(resolve(root, `${page}.wxml`), "utf8");
-  const config = JSON.parse(readFileSync(resolve(root, `${page}.json`), "utf8"));
   assert.match(js, /shareable-page/, `${page} must use the shared native share readiness behavior`);
   assert.doesNotMatch(js, /async\s+onShareAppMessage/, `${page} share callback must stay synchronous`);
   assert.match(wxml, /open-type="share"/, `${page} must render a real WeChat share button`);
@@ -161,10 +190,11 @@ for (const [page, shareType] of [
   assert.match(wxml, /loading="\{\{[^}]*sharePreparing/, `${page} must expose share preparation loading`);
   assert.match(wxml, /分享内容没准备好，点这里重试/, `${page} must expose a clickable preparation retry`);
   assert.match(wxml, /bindtap="(?:retryNativeShare|retryInviteShare)"/, `${page} share preparation error must have a handler`);
-  assert.equal(config.enableShareAppMessage, true, `${page} must enable WeChat app-message sharing`);
 }
 
 for (const page of [
+  "miniprogram/packageShare/pages/crave/index",
+  "miniprogram/packageShare/pages/wish/index",
   "miniprogram/packageShare/pages/menu/index",
   "miniprogram/packageShare/pages/grocery/index",
   "miniprogram/packageFamily/pages/task/index",
@@ -226,6 +256,7 @@ async function nextTurn() {
 async function assertDynamicNativeSharePages() {
   await assertTonightSharePage();
   await assertGroceryShareRetry();
+  await assertCraveSharePage();
   await assertInviteSharePage();
   await assertMealTaskSharePage();
   await assertGuestShareLandings();
@@ -443,6 +474,48 @@ async function assertGroceryShareRetry() {
     "/pages/grocery/index",
     "offline state must never share a stale prepared snapshot",
   );
+}
+
+async function assertCraveSharePage() {
+  let createCalls = 0;
+  const bootstrap = nativeBootstrap({ role: "owner" });
+  const runtime = createMiniRuntime({
+    mocks: {
+      "miniprogram/utils/bootstrap.js": { loadBootstrap: async () => bootstrap },
+      "miniprogram/utils/native-shell-guard.js": { guardNativeTab: () => true },
+      "miniprogram/utils/store.js": { appStore: { getState: () => ({ bootstrap }), replaceBootstrap: () => {} } },
+      "miniprogram/utils/request.js": {
+        requestHumi: async (options) => {
+          if (options.path.endsWith("/collaborations?limit=5")) return { events: [] };
+          if (options.path !== "/crave-requests") throw new Error(`unexpected request ${options.path}`);
+          createCalls += 1;
+          assert.equal(options.data.householdName, "分享测试家");
+          assert.equal(options.data.initiatorName, "家人");
+          assert.equal(options.data.initialFeelingTag, "随便都行");
+          return {
+            request: {
+              token: "crave_dynamic_snapshot_token_12345",
+              householdName: "分享测试家",
+              initiatorName: "家人",
+              status: "open",
+            },
+          };
+        },
+      },
+      "miniprogram/utils/telemetry.js": { trackEvent: () => null },
+    },
+  });
+  const page = runtime.loadPage("miniprogram/pages/family/index.js");
+  page.syncState();
+  await page.prepareCrave();
+  await page.prepareCrave();
+  assert.equal(createCalls, 1, "repeated crave preparation must reuse one snapshot");
+  assert(page.data.preparedShares.crave, "the prepared crave card must become shareable");
+  const payload = page.onShareAppMessage({
+    from: "button",
+    target: { dataset: { shareType: "crave" } },
+  });
+  assert.match(payload.path, /packageShare\/pages\/crave\/index\?crave=crave_dynamic_snapshot_token_12345/);
 }
 
 async function assertInviteSharePage() {

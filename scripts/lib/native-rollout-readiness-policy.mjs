@@ -14,6 +14,33 @@ const CANDIDATE_KEYS = Object.freeze([
   "true_device_evidence",
 ]);
 const CANDIDATE_KEY_SET = new Set(CANDIDATE_KEYS);
+const NATIVE_EVIDENCE_KEYS = Object.freeze(["schemaVersion", "candidate"]);
+const NATIVE_CANDIDATE_EVIDENCE_KEYS = Object.freeze([
+  "version",
+  "status",
+  "runtimeCommit",
+  "archive",
+  "uploadEvidence",
+  "uploadReceiptRef",
+  "actions",
+  "trueDeviceEvidence",
+]);
+const NATIVE_ACTION_KEYS = Object.freeze([
+  "productionApiDeployed",
+  "h5Deployed",
+  "miniprogramUploaded",
+  "wechatReviewSubmitted",
+  "wechatReleased",
+  "nativeAllowlistEnabled",
+]);
+const PLATFORM_CHECK_KEYS = Object.freeze([
+  "requestDomain",
+  "downloadFileDomain",
+  "webViewDomain",
+  "privacyDeclaration",
+  "devtoolsAuthenticated",
+  "productionLegacyH5Smoke",
+]);
 
 const SUPABASE_PATTERNS = Object.freeze([
   /@supabase\//i,
@@ -51,19 +78,136 @@ export function findForbiddenRuntimeFindings(files = []) {
   return uniqueFindings(findings);
 }
 
-export function assertCandidateVersionIsUnused(candidateVersion, uploadedVersion) {
-  const candidate = parseVersion(candidateVersion);
-  const uploaded = parseVersion(uploadedVersion);
-  const isNewer = candidate.some((part, index) => (
-    part > uploaded[index]
-    && candidate.slice(0, index).every((previous, previousIndex) => previous === uploaded[previousIndex])
-  ));
-  if (!isNewer) {
-    throw new Error(
-      `candidate ${candidateVersion} must be newer than uploaded production history ${uploadedVersion}`,
-    );
+export function validateNativeCandidateEvidence(evidence, {
+  expectedVersion,
+  expectedRuntimeCommit,
+} = {}) {
+  assertExactObjectKeys(evidence, NATIVE_EVIDENCE_KEYS, "native candidate evidence");
+  if (evidence.schemaVersion !== 1) throw new Error("native candidate evidence schemaVersion must be 1");
+  const candidate = evidence.candidate;
+  assertExactObjectKeys(candidate, NATIVE_CANDIDATE_EVIDENCE_KEYS, "native candidate");
+  assertExactObjectKeys(candidate.actions, NATIVE_ACTION_KEYS, "native candidate actions");
+  assertExactObjectKeys(candidate.trueDeviceEvidence, ["passed", "required"], "native candidate trueDeviceEvidence");
+  if (candidate.version !== expectedVersion) {
+    throw new Error(`native candidate version must be ${expectedVersion}`);
   }
-  return true;
+  if (!new Set(["local-candidate", "uploaded-experience"]).has(candidate.status)) {
+    throw new Error("native candidate status is invalid");
+  }
+  for (const key of NATIVE_ACTION_KEYS) {
+    if (typeof candidate.actions[key] !== "boolean") throw new Error(`${key} must be boolean`);
+  }
+  if (candidate.actions.productionApiDeployed !== true) throw new Error("productionApiDeployed must remain true");
+  if (candidate.actions.h5Deployed !== true) throw new Error("h5Deployed must remain true");
+  if (candidate.actions.wechatReviewSubmitted !== false) throw new Error("wechatReviewSubmitted must remain false");
+  if (candidate.actions.wechatReleased !== false) throw new Error("wechatReleased must remain false");
+  if (candidate.actions.nativeAllowlistEnabled !== false) throw new Error("nativeAllowlistEnabled must remain false");
+  if (
+    !Number.isInteger(candidate.trueDeviceEvidence.passed)
+    || !Number.isInteger(candidate.trueDeviceEvidence.required)
+    || candidate.trueDeviceEvidence.passed < 0
+    || candidate.trueDeviceEvidence.required !== 56
+    || candidate.trueDeviceEvidence.passed > candidate.trueDeviceEvidence.required
+  ) {
+    throw new Error("native candidate trueDeviceEvidence is invalid");
+  }
+  if (candidate.actions.miniprogramUploaded) {
+    if (candidate.status !== "uploaded-experience") throw new Error("uploaded candidate status must be uploaded-experience");
+    if (!/^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))) {
+      throw new Error("uploaded candidate requires runtimeCommit");
+    }
+    if (expectedRuntimeCommit && candidate.runtimeCommit !== expectedRuntimeCommit) {
+      throw new Error(`uploaded candidate runtimeCommit must be ${expectedRuntimeCommit}`);
+    }
+    if (!candidate.archive) throw new Error("uploaded candidate requires archive");
+    assertExactObjectKeys(candidate.archive, ["path", "sha256", "sizeBytes"], "uploaded candidate archive");
+    if (
+      !String(candidate.archive.path || "").trim()
+      || !/^[0-9a-f]{64}$/.test(String(candidate.archive.sha256 || ""))
+      || !Number.isSafeInteger(candidate.archive.sizeBytes)
+      || candidate.archive.sizeBytes <= 0
+    ) {
+      throw new Error("uploaded candidate requires archive path, sha256, and sizeBytes");
+    }
+    if (!candidate.uploadEvidence) throw new Error("uploaded candidate requires uploadEvidence");
+    assertExactObjectKeys(candidate.uploadEvidence, ["rawEvidenceSha256"], "uploaded candidate uploadEvidence");
+    if (!/^[0-9a-f]{64}$/.test(String(candidate.uploadEvidence.rawEvidenceSha256 || ""))) {
+      throw new Error("uploaded candidate requires rawEvidenceSha256");
+    }
+    if (!/^private:\/\/[A-Za-z0-9_./-]+$/.test(String(candidate.uploadReceiptRef || ""))) {
+      throw new Error("uploaded candidate requires uploadReceiptRef");
+    }
+  } else {
+    if (candidate.status !== "local-candidate") throw new Error("unuploaded candidate status must be local-candidate");
+    if (
+      candidate.runtimeCommit !== null
+      || candidate.archive !== null
+      || candidate.uploadEvidence !== null
+      || candidate.uploadReceiptRef !== null
+    ) {
+      throw new Error("unuploaded candidate must not claim runtimeCommit, archive, upload evidence, or upload receipt");
+    }
+  }
+  return candidate;
+}
+
+export function validateWechatPlatformEvidence(evidence) {
+  assertExactObjectKeys(evidence, ["schemaVersion", "checks"], "WeChat platform evidence");
+  if (evidence.schemaVersion !== 1) throw new Error("WeChat platform evidence schemaVersion must be 1");
+  assertExactObjectKeys(evidence.checks, PLATFORM_CHECK_KEYS, "WeChat platform checks");
+  const result = {};
+  const outputKeys = {
+    requestDomain: "requestDomainVerified",
+    downloadFileDomain: "downloadFileDomainVerified",
+    webViewDomain: "webViewDomainVerified",
+    privacyDeclaration: "privacyDeclarationVerified",
+    devtoolsAuthenticated: "wechatDevtoolsAuthenticated",
+    productionLegacyH5Smoke: "productionLegacyH5SmokeVerified",
+  };
+  for (const key of PLATFORM_CHECK_KEYS) {
+    const check = evidence.checks[key];
+    assertExactObjectKeys(check, ["verified", "status", "ref"], `WeChat platform check ${key}`);
+    if (typeof check.verified !== "boolean") throw new Error(`${key}.verified must be boolean`);
+    if (check.verified) {
+      if (check.status !== "verified") throw new Error(`${key}.status must be verified`);
+      if (!/^private:\/\/[A-Za-z0-9_./-]+$/.test(String(check.ref || ""))) {
+        throw new Error(`${key}.ref must be a private evidence reference`);
+      }
+    } else if (check.status !== "pending" || check.ref !== null) {
+      throw new Error(`${key}.status must be pending and ref must be null when not verified`);
+    }
+    result[outputKeys[key]] = check.verified;
+  }
+  return result;
+}
+
+export function deriveNativeReleaseState(nativeRollout, { expectedVersion } = {}) {
+  const candidate = nativeRollout?.currentCandidate || {};
+  const externalActions = nativeRollout?.externalActions || {};
+  const platform = nativeRollout?.platformEvidence || {};
+  const uploadRecorded = candidate.version === expectedVersion
+    && candidate.uploadStatus === "uploaded"
+    && /^[0-9a-f]{40}$/.test(String(candidate.runtimeCommit || ""))
+    && externalActions.miniprogram_uploaded === true;
+  const uploaded = uploadRecorded && candidate.immutableArchivePresent === true;
+  const passed = Number.isInteger(platform.trueDevicePassed) ? platform.trueDevicePassed : 0;
+  const required = Number.isInteger(platform.trueDeviceRequired) ? platform.trueDeviceRequired : 56;
+  return {
+    miniProgramUploadedVersion: uploaded ? expectedVersion : null,
+    miniProgramRecordedUploadVersion: uploadRecorded ? expectedVersion : null,
+    currentCandidateUploaded: uploaded,
+    currentCandidateUploadRecorded: uploadRecorded,
+    currentCandidateUploadVerificationRequired: uploadRecorded && !uploaded,
+    nativeCheckpoint: uploaded
+      ? "N5c_true_device_platform_evidence"
+      : uploadRecorded
+        ? "N5b_trusted_attestation_verification"
+        : "N5b_refresh_packaging_authorization",
+    trueDeviceEvidence: `${passed}/${required}`,
+    nativeAllowlistEnabled: externalActions.native_allowlist_enabled === true,
+    platformPrivacyDeclaration: platform.privacyDeclarationVerified === true ? "verified" : "pending",
+    webViewDomainEvidence: platform.webViewDomainVerified === true ? "verified" : "pending",
+  };
 }
 
 export function extractNativeCandidateCommit(markdown) {
@@ -74,14 +218,33 @@ export function extractNativeCandidateCommit(markdown) {
   return matches[0][1].toLowerCase();
 }
 
-export function extractNativeCandidateArtifactPath(markdown) {
-  const matches = [...String(markdown || "").matchAll(
-    /^\|[^|\r\n]*\|[^|\r\n]*\|\s*([^|\r\n]+\.tar\.gz)\s*\|[^|\r\n]*\|[^|\r\n]*\|[^|\r\n]*\|[ \t]*$/gmi,
-  )].map((match) => match[1].trim().replace(/^`|`$/g, ""));
+export function extractNativeCandidateArtifactPath(markdown, {
+  expectedVersion = "1.1.74",
+} = {}) {
+  const rows = String(markdown || "")
+    .split(/\r?\n/)
+    .filter((line) => /^\|.*\.tar\.gz.*\|[ \t]*$/.test(line))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim().replace(/^`|`$/g, "")))
+    .filter((cells) => cells.length === 6)
+    .map(([version, role, path, size, sha256, status]) => ({
+      version,
+      role,
+      path,
+      size,
+      sha256,
+      status: status.toLowerCase(),
+    }));
+  const matches = rows.filter((row) => (
+    row.version.includes(`uploaded-${expectedVersion}`)
+    && row.role.includes("已上传")
+    && row.status !== "superseded"
+  ));
   if (matches.length !== 1) {
-    throw new Error("expected exactly one native source archive in the handoff Files table");
+    throw new Error(
+      `expected exactly one current uploaded native source archive for ${expectedVersion}`,
+    );
   }
-  return matches[0];
+  return matches[0].path;
 }
 
 export function resolveExternalHandoffPath({
@@ -98,7 +261,11 @@ export function resolveExternalHandoffPath({
 
 export function validateNativeCandidateState(markdown, {
   expectedPackageVersion = "1.1.74",
+  expectedStatus = "preview",
+  expectedExternalActions,
+  expectedTrueDeviceEvidence = "0/56",
 } = {}) {
+  assertExpectedExternalActions(expectedExternalActions);
   const yamlBlocks = [...String(markdown || "").matchAll(/```ya?ml[ \t]*\r?\n([\s\S]*?)```/gi)]
     .map((match) => match[1]);
   for (const yamlBlock of yamlBlocks) assertCanonicalYamlSyntax(yamlBlock);
@@ -154,18 +321,40 @@ export function validateNativeCandidateState(markdown, {
     if (count !== 1) throw new Error(`${key} must occur exactly once in structured YAML`);
   }
 
-  if (state.status !== "preview") throw new Error("native candidate status must remain preview");
+  if (state.status !== expectedStatus) {
+    throw new Error(`native candidate status must remain ${expectedStatus}`);
+  }
   if (state.package_version !== expectedPackageVersion) {
     throw new Error(`native candidate package_version must be ${expectedPackageVersion}`);
   }
   if (state.ads !== "excluded") throw new Error("native candidate ads must remain excluded");
   for (const key of EXTERNAL_ACTION_KEYS) {
-    if (state[key] !== false) throw new Error(`${key} must remain false`);
+    if (state[key] !== expectedExternalActions[key]) {
+      throw new Error(`${key} must equal ${expectedExternalActions[key]}`);
+    }
   }
-  if (state.true_device_evidence !== "0/36") {
-    throw new Error("native candidate true_device_evidence must remain 0/36");
+  if (state.true_device_evidence !== expectedTrueDeviceEvidence) {
+    throw new Error(
+      `native candidate true_device_evidence must equal ${expectedTrueDeviceEvidence}`,
+    );
   }
   return state;
+}
+
+function assertExpectedExternalActions(expectedExternalActions) {
+  if (!expectedExternalActions || typeof expectedExternalActions !== "object") {
+    throw new Error("expectedExternalActions must be supplied explicitly");
+  }
+  const keys = Object.keys(expectedExternalActions).sort();
+  const expectedKeys = [...EXTERNAL_ACTION_KEYS].sort();
+  if (JSON.stringify(keys) !== JSON.stringify(expectedKeys)) {
+    throw new Error("expectedExternalActions must use the exact external action key set");
+  }
+  for (const key of EXTERNAL_ACTION_KEYS) {
+    if (typeof expectedExternalActions[key] !== "boolean") {
+      throw new Error(`${key} expectation must be boolean`);
+    }
+  }
 }
 
 function assertCanonicalYamlSyntax(block) {
@@ -242,11 +431,15 @@ function uniqueFindings(findings) {
   });
 }
 
-function parseVersion(value) {
-  if (!/^\d+\.\d+\.\d+$/.test(String(value || ""))) {
-    throw new Error(`invalid semantic version: ${value}`);
+function assertExactObjectKeys(value, expectedKeys, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object with the exact key set`);
   }
-  return String(value).split(".").map(Number);
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} must use the exact key set`);
+  }
 }
 
 function parseYamlScalar(value) {

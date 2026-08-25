@@ -107,6 +107,20 @@ function buildNativeSharePayload(type, payload = {}) {
   const normalizedType = sanitizeOption(type);
   const token = sanitizeShareToken(payload.token);
   if (!token) throw new Error("share_token_invalid");
+  if (normalizedType === "crave") {
+    const householdName = sanitizeOption(payload.householdName) || "我家";
+    return {
+      title: `${householdName}今晚要做饭，你想吃点啥？`,
+      path: `/packageShare/pages/crave/index?crave=${encodeURIComponent(token)}&shareSource=crave`,
+    };
+  }
+  if (normalizedType === "wish") {
+    const householdName = sanitizeOption(payload.householdName) || "我家";
+    return {
+      title: `${householdName}最近想吃什么？写一道给 Humi`,
+      path: `/packageShare/pages/wish/index?wishShare=${encodeURIComponent(token)}&shareSource=wish`,
+    };
+  }
   if (normalizedType === "menu") {
     return {
       title: sanitizeOption(payload.title) || "Humi 今晚菜单",

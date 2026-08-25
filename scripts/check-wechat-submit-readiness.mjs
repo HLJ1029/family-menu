@@ -1,18 +1,17 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { CURRENT_MINIPROGRAM_VERSION } from "./release-candidate.mjs";
+import { runWechatReleaseStatus } from "./lib/wechat-submit-readiness-runner.mjs";
 
-const execFileAsync = promisify(execFile);
-
-const { stdout } = await execFileAsync("npm", ["run", "release:status"], {
-  timeout: 90_000,
-  maxBuffer: 1024 * 1024 * 4,
-});
-
-const status = parseLastJson(stdout);
-if (!status) {
-  throw new Error("Unable to parse release:status output.");
+const execution = await runWechatReleaseStatus();
+if (!execution.ok) {
+  console.log(JSON.stringify({
+    ok: false,
+    checkedAt: new Date().toISOString(),
+    code: execution.code,
+    releaseStatusOk: false,
+  }, null, 2));
+  process.exit(1);
 }
+const status = execution.status;
 
 const ready = Boolean(
   status.ok
@@ -23,6 +22,7 @@ const ready = Boolean(
 );
 const submitReady = Boolean(
   status.ok
+    && status.release?.currentCandidateUploaded
     && status.git?.clean
     && status.git?.syncedToOriginMain
     && status.release?.onlineReady
@@ -31,6 +31,8 @@ const submitReady = Boolean(
     && status.release?.preReviewHardeningReady
     && status.release?.productReviewReady
     && status.release?.candidateValidationReady
+    && status.release?.wechatPrivacyContractReady
+    && status.release?.wechatPrivacyContractSelftestReady
     && status.release?.wechatSubmitWorkspaceGuardReady
     && status.release?.artifactsReady,
 );
@@ -38,7 +40,7 @@ const submitReady = Boolean(
 const packet = {
   ok: submitReady,
   checkedAt: new Date().toISOString(),
-  version: status.release?.miniProgramUploadedVersion,
+  version: status.release?.miniProgramCandidateVersion ?? status.release?.miniProgramUploadedVersion,
   uploadDescription: status.release?.miniProgramUploadDescription,
   warnings: [
     ...(status.git?.clean ? [] : ["Local working tree is dirty; commit or stash engineering changes before tagging final release evidence."]),
@@ -47,7 +49,15 @@ const packet = {
     ...(status.release?.preReviewHardeningReady ? [] : ["Pre-review P0/P1 hardening is not complete; do not submit WeChat review yet."]),
     ...(status.release?.productReviewReady ? [] : ["Product review anchors are not complete; run npm run release:product:review before WeChat review."]),
     ...(status.release?.candidateValidationReady ? [] : ["Real candidate validation has not passed; run npm run release:candidate:review after filling anonymous U001-U020 feedback."]),
+    ...(status.release?.wechatPrivacyContractReady && status.release?.wechatPrivacyContractSelftestReady
+      ? []
+      : ["Native runtime and WeChat privacy declaration contract are not aligned; do not prepare review submission."]),
     ...(status.release?.wechatSubmitWorkspaceGuardReady ? [] : ["WeChat submit workspace confirmation guard is not covered; do not prepare review submission."]),
+    ...(status.release?.currentCandidateUploaded
+      ? []
+      : status.release?.currentCandidateUploadRecorded
+        ? [`Version ${CURRENT_MINIPROGRAM_VERSION} upload is recorded but this process has not verified its trusted private attestation; provide the attestation path and do not upload again.`]
+        : [`Version ${CURRENT_MINIPROGRAM_VERSION} has not been uploaded; package and upload it under separate authorization before review preparation.`]),
   ],
   releaseStatusOk: ready,
   submitMaterials: [
@@ -76,14 +86,3 @@ const packet = {
 console.log(JSON.stringify(packet, null, 2));
 
 if (!submitReady) process.exit(1);
-
-function parseLastJson(output) {
-  const text = String(output || "").trim();
-  const jsonStart = text.lastIndexOf("\n{");
-  const candidate = jsonStart >= 0 ? text.slice(jsonStart + 1) : text;
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    return null;
-  }
-}

@@ -3,7 +3,7 @@ const { buildNativeSharePayload } = require("./share-routing");
 const { trackEvent } = require("./telemetry");
 
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
-const SUPPORTED_TYPES = new Set(["menu", "grocery", "invite", "meal_task"]);
+const SUPPORTED_TYPES = new Set(["crave", "menu", "grocery", "invite", "meal_task"]);
 const prepared = new Map();
 const pending = new Map();
 
@@ -77,6 +77,9 @@ async function createSnapshot(type, context) {
 function requestOptions(type, context) {
   const data = context.data && typeof context.data === "object" ? context.data : {};
   const idempotencyKey = snapshotKey(type, context);
+  if (type === "crave") {
+    return { path: "/crave-requests", method: "POST", data: { ...data, idempotencyKey }, idempotencyKey };
+  }
   if (type === "menu") {
     return { path: "/menu-share-requests", method: "POST", data: { ...data, idempotencyKey }, idempotencyKey };
   }
@@ -108,6 +111,7 @@ function snapshotValue(type, token, context) {
       token,
       title: context.title || context.record?.title,
       householdName: context.householdName || context.record?.householdName,
+      initiatorName: context.initiatorName || context.record?.initiatorName,
       inviterName: context.inviterName || context.record?.inviterName,
       label: context.label || context.record?.label,
       itemCount: context.itemCount,

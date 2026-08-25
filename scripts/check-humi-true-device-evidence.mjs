@@ -3,16 +3,20 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   lstat,
+  link,
   mkdir,
   mkdtemp,
   readFile,
   realpath,
   rm,
   symlink,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION } from "./release-candidate.mjs";
 
 const LOGIN_SCENARIOS = [
   "fresh_guest_start",
@@ -52,6 +56,33 @@ const REMINDER_SCENARIOS = [
   "reminder_cancel",
 ];
 
+const COMPLETION_SCENARIOS = [
+  "native_tab_tonight",
+  "native_tab_discover",
+  "native_tab_plan",
+  "native_tab_grocery",
+  "native_tab_family",
+  "multi_household_switch",
+  "household_owner_member_permissions",
+  "meal_task_identity_claim_complete",
+  "cooking_downgrade_remove_side",
+  "cooking_downgrade_lower_effort",
+  "cooking_downgrade_ready_staple",
+  "serve_feedback",
+  "poster_save",
+  "poster_cancel",
+  "poster_permission_recovery",
+  "reminder_send_failure",
+  "reminder_deep_link",
+];
+
+export const PERFORMANCE_BUDGETS_MS = Object.freeze({
+  performance_cached_first_paint: 400,
+  performance_warm_bootstrap: 1000,
+  performance_cold_authenticated_bootstrap: 2500,
+});
+export const PERFORMANCE_SCENARIOS = Object.freeze(Object.keys(PERFORMANCE_BUDGETS_MS));
+
 export const REQUIRED_SCENARIOS = Object.freeze([
   ...LOGIN_SCENARIOS,
   ...RECOMMENDATION_SCENARIOS,
@@ -60,6 +91,8 @@ export const REQUIRED_SCENARIOS = Object.freeze([
   ...POSTER_SCENARIOS,
   ...REMINDER_SCENARIOS,
   "immediate_h5_rollback",
+  ...COMPLETION_SCENARIOS,
+  ...PERFORMANCE_SCENARIOS,
 ]);
 
 const REQUIRED_FIELDS = Object.freeze([
@@ -81,7 +114,8 @@ const WECHAT_VERSION = /^\d+\.\d+\.\d+(?:\.\d+)?$/;
 const UTC_ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const FIXTURE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const PII_PATTERN = /(?:\+?86[- ]?)?1[3-9]\d{9}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:openid|unionid|token|session|authorization)\b\s*[:=]\s*\S+|\bo[A-Za-z0-9_-]{27}\b|sk-[A-Za-z0-9_-]{12,}/i;
-const DESCRIPTOR_FIELDS = new Set(["schemaVersion", "scenarioId", "redacted", "checks", "mediaPaths"]);
+const MANIFEST_FIELDS = new Set(["schemaVersion", "scenarios"]);
+const DESCRIPTOR_FIELDS = new Set(["schemaVersion", "scenarioId", "redacted", "checks", "metrics", "mediaPaths"]);
 const MEDIA_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".mp4", ".mov"]);
 const MIN_IMAGE_BYTES = 10 * 1024;
 const MIN_VIDEO_BYTES = 50 * 1024;
@@ -91,7 +125,7 @@ const MIN_MEDIA_HEIGHT = 300;
 const MIN_VIDEO_DURATION_SECONDS = 1;
 const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-const SCENARIO_CHECKS = {
+export const SCENARIO_CHECKS = {
   fresh_guest_start: ["fresh_install", "guest_visible", "no_false_login"],
   explicit_wechat_login: ["wechat_consent", "login_completed", "identity_visible"],
   new_identity_profile: ["profile_required", "nickname_saved", "avatar_saved"],
@@ -108,17 +142,44 @@ const SCENARIO_CHECKS = {
   reminder_reject: ["consent_prompt", "rejected", "not_reprompted"],
   reminder_cancel: ["reminder_scheduled", "cancelled", "not_sent"],
   immediate_h5_rollback: ["native_enabled", "flag_disabled", "legacy_opened"],
+  native_tab_tonight: ["tab_visible", "tab_selected", "tonight_content_visible"],
+  native_tab_discover: ["tab_visible", "tab_selected", "discover_content_visible"],
+  native_tab_plan: ["tab_visible", "tab_selected", "plan_content_visible"],
+  native_tab_grocery: ["tab_visible", "tab_selected", "grocery_content_visible"],
+  native_tab_family: ["tab_visible", "tab_selected", "family_content_visible"],
+  multi_household_switch: ["two_households_visible", "switched_household", "household_context_changed"],
+  household_owner_member_permissions: ["owner_settings_allowed", "member_settings_denied", "member_cooking_allowed"],
+  meal_task_identity_claim_complete: ["task_claimed", "actor_identity_recorded", "task_completed"],
+  cooking_downgrade_remove_side: ["cooking_started", "remove_side_selected", "timeline_updated"],
+  cooking_downgrade_lower_effort: ["cooking_started", "lower_effort_selected", "recipe_replaced"],
+  cooking_downgrade_ready_staple: ["cooking_started", "ready_staple_selected", "staple_replaced"],
+  serve_feedback: ["meal_completed", "feedback_submitted", "feedback_persisted"],
+  poster_save: ["poster_rendered", "save_requested", "saved_to_album"],
+  poster_cancel: ["save_requested", "cancelled", "no_album_write"],
+  poster_permission_recovery: ["permission_denied", "settings_recovery", "saved_after_recovery"],
+  reminder_send_failure: ["reminder_scheduled", "delivery_failed", "single_retry_only"],
+  reminder_deep_link: ["reminder_received", "deep_link_opened", "meal_run_restored"],
+  performance_cached_first_paint: ["cached_summary_present", "first_paint_observed", "fresh_bootstrap_pending"],
+  performance_warm_bootstrap: ["valid_session_present", "bootstrap_measured", "native_page_ready"],
+  performance_cold_authenticated_bootstrap: ["cold_authenticated_start", "session_exchange_completed", "native_page_ready"],
 };
 
 for (const scenario of RECOMMENDATION_SCENARIOS) {
-  SCENARIO_CHECKS[scenario] = ["tier_selected", "rotation_changed", "plan_visible"];
+  const rotation = Number(scenario.match(/rotation_(\d+)$/)?.[1] || 0);
+  SCENARIO_CHECKS[scenario] = [
+    "tier_selected",
+    "certified_recipes_only",
+    "hard_constraints_satisfied",
+    "plan_visible",
+    ...(rotation > 1 ? ["no_group_repeat"] : []),
+  ];
 }
 for (const scenario of SHARE_SCENARIOS) {
   SCENARIO_CHECKS[scenario] = ["contact_panel", "sent", "recipient_open"];
 }
 Object.freeze(SCENARIO_CHECKS);
 
-assert.equal(REQUIRED_SCENARIOS.length, 36, "the native true-device matrix must retain all 36 required rows");
+assert.equal(REQUIRED_SCENARIOS.length, 56, "the native true-device matrix must retain all 56 required rows");
 assert.deepEqual(
   Object.keys(SCENARIO_CHECKS).sort(),
   [...REQUIRED_SCENARIOS].sort(),
@@ -129,27 +190,42 @@ export async function validateEvidence({
   evidenceDir,
   candidateTimestamp,
   candidatePackageVersion = "",
+  scenarioIds = REQUIRED_SCENARIOS,
+  manifestFileName = "manifest.json",
 }) {
   const root = resolve(evidenceDir);
   const rootStat = await lstat(root).catch(() => null);
   if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) fail("evidence_root_invalid");
   const realRoot = await realpath(root);
-  const manifestPath = resolve(root, "manifest.json");
+  if (!/^[.A-Za-z0-9_-]+\.json$/.test(manifestFileName)) fail("manifest_path_invalid");
+  const manifestPath = resolve(root, manifestFileName);
   const manifestStat = await lstat(manifestPath).catch(() => null);
   if (!manifestStat?.isFile() || manifestStat.isSymbolicLink()) fail("manifest_path_invalid");
   const realManifestPath = await realpath(manifestPath);
   if (!isInside(realRoot, realManifestPath)) fail("manifest_path_invalid");
 
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  if (manifest?.schemaVersion !== 2 || !isRecord(manifest.scenarios)) fail("manifest_schema_invalid");
+  if (manifestStat.size > 256 * 1024) fail("manifest_too_large");
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  } catch {
+    fail("manifest_schema_invalid");
+  }
+  if (
+    manifest?.schemaVersion !== 3
+    || !isRecord(manifest.scenarios)
+    || Object.keys(manifest).length !== MANIFEST_FIELDS.size
+    || Object.keys(manifest).some((field) => !MANIFEST_FIELDS.has(field))
+    || Object.keys(manifest.scenarios).some((scenario) => !REQUIRED_SCENARIOS.includes(scenario))
+  ) fail("manifest_schema_invalid");
   const candidateTime = Date.parse(candidateTimestamp);
   if (!Number.isFinite(candidateTime)) fail("candidate_timestamp_invalid");
   const expectedPackageVersion = candidatePackageVersion || await readCandidatePackageVersion();
 
   const rows = [];
-  const issues = [];
+  const issues = validateRecommendationCycles(manifest.scenarios);
   const seenArtifacts = new Set();
-  for (const scenario of REQUIRED_SCENARIOS) {
+  for (const scenario of scenarioIds) {
     const entry = manifest.scenarios[scenario];
     if (!isRecord(entry)) {
       issues.push(issue(scenario, "missing", "scenario_missing"));
@@ -173,7 +249,7 @@ export async function validateEvidence({
       rows.push({ scenario, status: entry.result, path: entry.evidencePath });
       continue;
     }
-    const artifactIssue = await validateEvidenceDescriptor({
+    const descriptorResult = await validateEvidenceDescriptor({
       root,
       realRoot,
       realManifestPath,
@@ -182,16 +258,22 @@ export async function validateEvidence({
       seenArtifacts,
       candidateTime,
     });
-    if (artifactIssue) {
-      issues.push(issue(scenario, "invalid", artifactIssue));
+    if (descriptorResult.issue) {
+      issues.push(issue(scenario, "invalid", descriptorResult.issue));
       continue;
     }
-    rows.push({ scenario, status: "pass", path: entry.evidencePath });
+    rows.push({
+      scenario,
+      status: "pass",
+      path: entry.evidencePath,
+      metrics: descriptorResult.metrics,
+      descriptorSha256: descriptorResult.descriptorSha256,
+    });
   }
 
   return {
     ok: issues.length === 0,
-    required: REQUIRED_SCENARIOS.length,
+    required: scenarioIds.length,
     passed: rows.filter((row) => row.status === "pass").length,
     rows,
     issues,
@@ -232,14 +314,80 @@ function validateFields(entry, candidateTime, candidatePackageVersion, scenario)
   ) {
     return "evidence_path_invalid";
   }
+  if (entry.evidencePath !== `descriptors/${scenario}.json`) return "evidence_path_noncanonical";
   return "";
+}
+
+function validateRecommendationCycles(scenarios) {
+  const issues = [];
+  for (const tier of ["quick_15", "easy_30", "normal"]) {
+    const names = Array.from(
+      { length: 5 },
+      (_, index) => `recommendation_${tier}_rotation_${index + 1}`,
+    );
+    const entries = names.map((name) => scenarios[name]);
+    if (entries.some((entry) => !isRecord(entry))) continue;
+    const first = entries[0];
+    const firstDate = shanghaiBusinessDate(first.startedAt);
+    if (!firstDate || shanghaiBusinessDate(first.finishedAt) !== firstDate) {
+      issues.push(issue(names[0], "invalid", "recommendation_cycle_business_date_mismatch"));
+    }
+    for (let index = 1; index < entries.length; index += 1) {
+      const entry = entries[index];
+      const scenario = names[index];
+      if (entry.householdFixture !== first.householdFixture) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_household_mismatch"));
+      }
+      if (entry.device !== first.device) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_device_mismatch"));
+      }
+      if (entry.platform !== first.platform) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_platform_mismatch"));
+      }
+      if (
+        entry.wechatVersion !== first.wechatVersion
+        || entry.packageVersion !== first.packageVersion
+      ) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_version_mismatch"));
+      }
+      if (
+        !firstDate
+        || shanghaiBusinessDate(entry.startedAt) !== firstDate
+        || shanghaiBusinessDate(entry.finishedAt) !== firstDate
+      ) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_business_date_mismatch"));
+      }
+      const previousFinishedAt = Date.parse(entries[index - 1].finishedAt);
+      const startedAt = Date.parse(entry.startedAt);
+      if (!Number.isFinite(previousFinishedAt) || !Number.isFinite(startedAt) || startedAt < previousFinishedAt) {
+        issues.push(issue(scenario, "invalid", "recommendation_cycle_order_invalid"));
+      }
+    }
+  }
+  return issues;
+}
+
+function shanghaiBusinessDate(timestamp) {
+  const date = new Date(timestamp);
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function fixtureMatchesScenario(fixture, scenario) {
   if (["fresh_guest_start", "logout_to_guest"].includes(scenario)) return fixture === "guest";
   if (scenario === "owner_cooking_flow") return fixture.startsWith("owner-");
   if (scenario === "member_cooking_flow") return fixture.startsWith("member-");
-  if (SHARE_SCENARIOS.includes(scenario)) return fixture.startsWith("owner-member-");
+  if (
+    SHARE_SCENARIOS.includes(scenario)
+    || ["multi_household_switch", "household_owner_member_permissions", "meal_task_identity_claim_complete"].includes(scenario)
+  ) return fixture.startsWith("owner-member-");
   return true;
 }
 
@@ -265,57 +413,61 @@ async function validateEvidenceDescriptor({
   seenArtifacts,
   candidateTime,
 }) {
-  if (!relativePath.endsWith(".json")) return "evidence_descriptor_required";
+  if (!relativePath.endsWith(".json")) return invalidDescriptor("evidence_descriptor_required");
   await rejectSymlinkAncestors(root, relativePath, scenario);
   const artifactPath = resolve(root, relativePath);
-  if (!isInside(root, artifactPath)) return "evidence_path_invalid";
+  if (!isInside(root, artifactPath)) return invalidDescriptor("evidence_path_invalid");
   const artifactStat = await lstat(artifactPath).catch(() => null);
   if (!artifactStat?.isFile() || artifactStat.isSymbolicLink() || artifactStat.size < 1) {
-    return "artifact_missing";
+    return invalidDescriptor("artifact_missing");
   }
+  if (artifactStat.nlink !== 1) return invalidDescriptor("artifact_link_count_invalid");
   if (
     artifactStat.mtimeMs <= candidateTime
     || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
   ) {
-    return "artifact_timestamp_invalid";
+    return invalidDescriptor("artifact_timestamp_invalid");
   }
   const realArtifactPath = await realpath(artifactPath).catch(() => "");
   if (!realArtifactPath || !isInside(realRoot, realArtifactPath) || realArtifactPath === realManifestPath) {
-    return "evidence_path_invalid";
+    return invalidDescriptor("evidence_path_invalid");
   }
   const artifactIdentity = `${artifactStat.dev}:${artifactStat.ino}`;
-  if (seenArtifacts.has(artifactIdentity)) return "artifact_reused";
+  if (seenArtifacts.has(artifactIdentity)) return invalidDescriptor("artifact_reused");
   seenArtifacts.add(artifactIdentity);
-  if (artifactStat.size > 64 * 1024) return "evidence_descriptor_too_large";
+  if (artifactStat.size > 64 * 1024) return invalidDescriptor("evidence_descriptor_too_large");
 
   let descriptor;
   const descriptorSource = await readFile(artifactPath, "utf8");
   try {
     descriptor = JSON.parse(descriptorSource);
   } catch {
-    return "evidence_descriptor_invalid";
+    return invalidDescriptor("evidence_descriptor_invalid");
   }
   if (
     !isRecord(descriptor)
     || Object.keys(descriptor).length !== DESCRIPTOR_FIELDS.size
     || Object.keys(descriptor).some((field) => !DESCRIPTOR_FIELDS.has(field))
-    || descriptor.schemaVersion !== 1
+    || descriptor.schemaVersion !== 2
     || descriptor.scenarioId !== scenario
     || descriptor.redacted !== true
     || !isRecord(descriptor.checks)
+    || !isRecord(descriptor.metrics)
     || !Array.isArray(descriptor.mediaPaths)
   ) {
-    return "evidence_descriptor_invalid";
+    return invalidDescriptor("evidence_descriptor_invalid");
   }
   const expectedChecks = SCENARIO_CHECKS[scenario];
   if (
     Object.keys(descriptor.checks).sort().join(",") !== [...expectedChecks].sort().join(",")
     || expectedChecks.some((checkName) => descriptor.checks[checkName] !== true)
   ) {
-    return "evidence_checks_incomplete";
+    return invalidDescriptor("evidence_checks_incomplete");
   }
+  const metricsIssue = validateMetrics(scenario, descriptor.metrics);
+  if (metricsIssue) return invalidDescriptor(metricsIssue);
   const minimumMedia = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
-  if (descriptor.mediaPaths.length < minimumMedia) return "evidence_media_incomplete";
+  if (descriptor.mediaPaths.length < minimumMedia) return invalidDescriptor("evidence_media_incomplete");
   if (
     descriptor.mediaPaths.some((mediaPath) => (
       typeof mediaPath !== "string"
@@ -326,7 +478,7 @@ async function validateEvidenceDescriptor({
       || PII_PATTERN.test(mediaPath)
     ))
   ) {
-    return "evidence_media_path_invalid";
+    return invalidDescriptor("evidence_media_path_invalid");
   }
   for (const mediaPath of descriptor.mediaPaths) {
     const mediaIssue = await validateMediaArtifact({
@@ -337,9 +489,50 @@ async function validateEvidenceDescriptor({
       seenArtifacts,
       candidateTime,
     });
-    if (mediaIssue) return mediaIssue;
+    if (mediaIssue) return invalidDescriptor(mediaIssue);
   }
-  return "";
+  return {
+    issue: "",
+    metrics: descriptor.metrics,
+    descriptorSha256: createHash("sha256").update(descriptorSource).digest("hex"),
+  };
+}
+
+function invalidDescriptor(issue) {
+  return { issue, metrics: {}, descriptorSha256: "" };
+}
+
+function validateMetrics(scenario, metrics) {
+  const keys = Object.keys(metrics);
+  if (!PERFORMANCE_SCENARIOS.includes(scenario)) {
+    return keys.length === 0 ? "" : "evidence_metrics_invalid";
+  }
+  if (
+    keys.length !== 1
+    || keys[0] !== "durationMs"
+    || typeof metrics.durationMs !== "number"
+    || !Number.isFinite(metrics.durationMs)
+    || metrics.durationMs < 0
+  ) {
+    return "evidence_metrics_invalid";
+  }
+  return metrics.durationMs <= PERFORMANCE_BUDGETS_MS[scenario]
+    ? ""
+    : "performance_budget_exceeded";
+}
+
+export async function validatePerformanceEvidence(options) {
+  const report = await validateEvidence({ ...options, scenarioIds: PERFORMANCE_SCENARIOS });
+  return {
+    ...report,
+    measurements: report.rows
+      .filter((row) => row.status === "pass")
+      .map((row) => ({
+        scenarioId: row.scenario,
+        durationMs: row.metrics.durationMs,
+        descriptorSha256: row.descriptorSha256,
+      })),
+  };
 }
 
 async function validateMediaArtifact({
@@ -365,6 +558,7 @@ async function validateMediaArtifact({
   ) {
     return "evidence_media_missing";
   }
+  if (artifactStat.nlink !== 1) return "artifact_link_count_invalid";
   if (
     artifactStat.mtimeMs <= candidateTime
     || artifactStat.mtimeMs > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
@@ -465,31 +659,107 @@ async function rejectSymlinkAncestors(root, artifactPath, scenario) {
   }
 }
 
+const SELFTEST_SCENARIO_SPEC = Object.freeze({
+  fresh_guest_start: ["fresh_install", "guest_visible", "no_false_login"],
+  explicit_wechat_login: ["wechat_consent", "login_completed", "identity_visible"],
+  new_identity_profile: ["profile_required", "nickname_saved", "avatar_saved"],
+  legacy_identity_recovery: ["legacy_detected", "profile_recovered", "session_restored"],
+  session_revocation_relogin: ["session_revoked", "login_prompted", "relogin_completed"],
+  logout_to_guest: ["logout_completed", "guest_visible", "private_state_cleared"],
+  recommendation_quick_15_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_quick_15_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_quick_15_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_easy_30_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_easy_30_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_1: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible"],
+  recommendation_normal_rotation_2: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_3: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_4: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  recommendation_normal_rotation_5: ["tier_selected", "certified_recipes_only", "hard_constraints_satisfied", "plan_visible", "no_group_repeat"],
+  cooking_background_restore: ["timer_started", "backgrounded", "remaining_time_restored"],
+  offline_sync_recovery: ["offline_mutation", "reconnected", "server_reconciled"],
+  owner_cooking_flow: ["owner_started", "progressed", "completed"],
+  member_cooking_flow: ["member_started", "progressed", "completed", "menu_edit_denied"],
+  menu_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  grocery_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  invite_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  meal_task_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  poster_share_send_and_recipient_open: ["contact_panel", "sent", "recipient_open"],
+  poster_style_change_primary: ["style_changed", "visual_changed", "poster_rendered"],
+  poster_style_change_secondary: ["style_changed", "visual_changed", "poster_rendered"],
+  reminder_accept: ["consent_prompt", "accepted", "single_reminder_scheduled"],
+  reminder_reject: ["consent_prompt", "rejected", "not_reprompted"],
+  reminder_cancel: ["reminder_scheduled", "cancelled", "not_sent"],
+  immediate_h5_rollback: ["native_enabled", "flag_disabled", "legacy_opened"],
+  native_tab_tonight: ["tab_visible", "tab_selected", "tonight_content_visible"],
+  native_tab_discover: ["tab_visible", "tab_selected", "discover_content_visible"],
+  native_tab_plan: ["tab_visible", "tab_selected", "plan_content_visible"],
+  native_tab_grocery: ["tab_visible", "tab_selected", "grocery_content_visible"],
+  native_tab_family: ["tab_visible", "tab_selected", "family_content_visible"],
+  multi_household_switch: ["two_households_visible", "switched_household", "household_context_changed"],
+  household_owner_member_permissions: ["owner_settings_allowed", "member_settings_denied", "member_cooking_allowed"],
+  meal_task_identity_claim_complete: ["task_claimed", "actor_identity_recorded", "task_completed"],
+  cooking_downgrade_remove_side: ["cooking_started", "remove_side_selected", "timeline_updated"],
+  cooking_downgrade_lower_effort: ["cooking_started", "lower_effort_selected", "recipe_replaced"],
+  cooking_downgrade_ready_staple: ["cooking_started", "ready_staple_selected", "staple_replaced"],
+  serve_feedback: ["meal_completed", "feedback_submitted", "feedback_persisted"],
+  poster_save: ["poster_rendered", "save_requested", "saved_to_album"],
+  poster_cancel: ["save_requested", "cancelled", "no_album_write"],
+  poster_permission_recovery: ["permission_denied", "settings_recovery", "saved_after_recovery"],
+  reminder_send_failure: ["reminder_scheduled", "delivery_failed", "single_retry_only"],
+  reminder_deep_link: ["reminder_received", "deep_link_opened", "meal_run_restored"],
+  performance_cached_first_paint: ["cached_summary_present", "first_paint_observed", "fresh_bootstrap_pending"],
+  performance_warm_bootstrap: ["valid_session_present", "bootstrap_measured", "native_page_ready"],
+  performance_cold_authenticated_bootstrap: ["cold_authenticated_start", "session_exchange_completed", "native_page_ready"],
+});
+
+const SELFTEST_PERFORMANCE_DURATIONS = Object.freeze({
+  performance_cached_first_paint: 400,
+  performance_warm_bootstrap: 1000,
+  performance_cold_authenticated_bootstrap: 2500,
+});
+
 function evidenceEntry(scenario, overrides = {}) {
-  const fixture = SHARE_SCENARIOS.includes(scenario)
+  const fixture = (
+    SHARE_SCENARIOS.includes(scenario)
+    || ["multi_household_switch", "household_owner_member_permissions", "meal_task_identity_claim_complete"].includes(scenario)
+  )
     ? "owner-member-household"
     : scenario.includes("guest")
     ? "guest"
     : scenario.startsWith("member_")
       ? "member-household"
       : "owner-household";
+  const rotation = Number(scenario.match(/^recommendation_.+_rotation_(\d)$/)?.[1] || 0);
+  const startedAt = rotation
+    ? new Date(Date.parse("2026-07-23T08:00:00.000Z") + ((rotation - 1) * 3 * 60 * 1000)).toISOString()
+    : "2026-07-23T08:00:00.000Z";
+  const finishedAt = rotation
+    ? new Date(Date.parse(startedAt) + (2 * 60 * 1000)).toISOString()
+    : "2026-07-23T08:02:00.000Z";
   return {
     device: "iPhone 15 Pro",
     platform: "iOS",
     wechatVersion: "8.0.56",
-    packageVersion: "1.1.74",
+    packageVersion: CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION,
     householdFixture: fixture,
-    startedAt: "2026-07-23T08:00:00.000Z",
-    finishedAt: "2026-07-23T08:02:00.000Z",
+    startedAt,
+    finishedAt,
     result: "pass",
-    evidencePath: `${scenario}.json`,
+    evidencePath: `descriptors/${scenario}.json`,
     ...overrides,
   };
 }
 
-async function writeFixture(root, scenarios) {
+async function writeFixture(root, scenarios, scenarioSpec = SELFTEST_SCENARIO_SPEC) {
   const selftestMedia = await loadSelftestMedia();
   let mediaIndex = 0;
+  await mkdir(join(root, "descriptors"), { recursive: true, mode: 0o700 });
   for (const [scenario, entry] of Object.entries(scenarios)) {
     if (entry.result === "pass") {
       const mediaCount = SHARE_SCENARIOS.includes(scenario) ? 2 : 1;
@@ -502,10 +772,13 @@ async function writeFixture(root, scenarios) {
         mediaIndex += 1;
       }
       const descriptor = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         scenarioId: scenario,
         redacted: true,
-        checks: Object.fromEntries(SCENARIO_CHECKS[scenario].map((checkName) => [checkName, true])),
+        checks: Object.fromEntries(scenarioSpec[scenario].map((checkName) => [checkName, true])),
+        metrics: Object.prototype.hasOwnProperty.call(SELFTEST_PERFORMANCE_DURATIONS, scenario)
+          ? { durationMs: SELFTEST_PERFORMANCE_DURATIONS[scenario] }
+          : {},
         mediaPaths,
       };
       await writeFile(
@@ -517,7 +790,7 @@ async function writeFixture(root, scenarios) {
   }
   await writeFile(
     join(root, "manifest.json"),
-    `${JSON.stringify({ schemaVersion: 2, scenarios }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 3, scenarios }, null, 2)}\n`,
     { mode: 0o600 },
   );
 }
@@ -530,7 +803,7 @@ async function loadSelftestMedia() {
 }
 
 async function createSelftestMedia() {
-  const required = REQUIRED_SCENARIOS.length + SHARE_SCENARIOS.length;
+  const required = Object.keys(SELFTEST_SCENARIO_SPEC).length + 5;
   const mediaRoot = await mkdtemp(join(tmpdir(), "humi-true-device-media-"));
   const source = resolve("public/icons/humi-icon-512.png");
   const unique = [];
@@ -564,18 +837,148 @@ function fakePng() {
 
 async function selftest() {
   const root = await mkdtemp(join(tmpdir(), "humi-true-device-evidence-"));
-  const scenarios = Object.fromEntries(REQUIRED_SCENARIOS.map((scenario) => [scenario, evidenceEntry(scenario)]));
-  assert.equal(await readCandidatePackageVersion(), "1.1.74");
+  assert.equal(Object.keys(SELFTEST_SCENARIO_SPEC).length, 56);
+  assert.deepEqual(REQUIRED_SCENARIOS, Object.keys(SELFTEST_SCENARIO_SPEC));
+  assert.deepEqual(SCENARIO_CHECKS, SELFTEST_SCENARIO_SPEC);
+  const scenarios = Object.fromEntries(
+    Object.keys(SELFTEST_SCENARIO_SPEC).map((scenario) => [scenario, evidenceEntry(scenario)]),
+  );
+  assert.equal(await readCandidatePackageVersion(), CURRENT_LOCAL_REVIEW_CANDIDATE_VERSION);
   await writeFixture(root, scenarios);
   const accepted = await validateEvidence({
     evidenceDir: root,
     candidateTimestamp: "2026-07-23T07:00:00.000Z",
   });
   assert.equal(accepted.ok, true, JSON.stringify(accepted.issues));
-  assert.equal(accepted.passed, 36);
+  assert.equal(accepted.passed, 56);
 
+  for (const scenario of [...COMPLETION_SCENARIOS, ...PERFORMANCE_SCENARIOS]) {
+    const descriptorPath = join(root, scenarios[scenario].evidencePath);
+    for (const checkName of SELFTEST_SCENARIO_SPEC[scenario]) {
+      const descriptor = JSON.parse(await readFile(descriptorPath, "utf8"));
+      delete descriptor.checks[checkName];
+      await writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+      const incompleteRow = await validateEvidence({
+        evidenceDir: root,
+        candidateTimestamp: "2026-07-23T07:00:00.000Z",
+        scenarioIds: [scenario],
+      });
+      assert.deepEqual(incompleteRow.issues, [issue(scenario, "invalid", "evidence_checks_incomplete")]);
+      descriptor.checks[checkName] = true;
+      await writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+    }
+  }
+
+  for (const [scenario, checkName] of [
+    ["recommendation_quick_15_rotation_1", "certified_recipes_only"],
+    ["recommendation_quick_15_rotation_1", "hard_constraints_satisfied"],
+    ["recommendation_quick_15_rotation_2", "no_group_repeat"],
+  ]) {
+    const descriptorPath = join(root, scenarios[scenario].evidencePath);
+    const descriptor = JSON.parse(await readFile(descriptorPath, "utf8"));
+    delete descriptor.checks[checkName];
+    await writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+    const incompleteRecommendation = await validateEvidence({
+      evidenceDir: root,
+      candidateTimestamp: "2026-07-23T07:00:00.000Z",
+      scenarioIds: [scenario],
+    });
+    assert.deepEqual(
+      incompleteRecommendation.issues,
+      [issue(scenario, "invalid", "evidence_checks_incomplete")],
+    );
+    descriptor.checks[checkName] = true;
+    await writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+  }
+
+  await writeFixture(root, scenarios);
+  const performanceScenario = "performance_cached_first_paint";
+  const performanceDescriptorPath = join(root, scenarios[performanceScenario].evidencePath);
+  for (const [metrics, expectedCode] of [
+    [{ durationMs: 401 }, "performance_budget_exceeded"],
+    [{ durationMs: "400" }, "evidence_metrics_invalid"],
+    [{ durationMs: -1 }, "evidence_metrics_invalid"],
+    [{ durationMs: 400, budgetMet: true }, "evidence_metrics_invalid"],
+  ]) {
+    const descriptor = JSON.parse(await readFile(performanceDescriptorPath, "utf8"));
+    descriptor.metrics = metrics;
+    await writeFile(performanceDescriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+    const metricsReport = await validateEvidence({
+      evidenceDir: root,
+      candidateTimestamp: "2026-07-23T07:00:00.000Z",
+      scenarioIds: [performanceScenario],
+    });
+    assert.deepEqual(metricsReport.issues, [issue(performanceScenario, "invalid", expectedCode)]);
+  }
+
+  await writeFixture(root, scenarios);
+  const nonPerformanceDescriptorPath = join(root, scenarios.owner_cooking_flow.evidencePath);
+  const nonPerformanceDescriptor = JSON.parse(await readFile(nonPerformanceDescriptorPath, "utf8"));
+  nonPerformanceDescriptor.metrics = { durationMs: 1 };
+  await writeFile(nonPerformanceDescriptorPath, `${JSON.stringify(nonPerformanceDescriptor, null, 2)}\n`);
+  const nonPerformanceMetrics = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    nonPerformanceMetrics.issues,
+    [issue("owner_cooking_flow", "invalid", "evidence_metrics_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  const legacyDescriptor = JSON.parse(await readFile(performanceDescriptorPath, "utf8"));
+  legacyDescriptor.schemaVersion = 1;
+  await writeFile(performanceDescriptorPath, `${JSON.stringify(legacyDescriptor, null, 2)}\n`);
+  const legacyDescriptorReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: [performanceScenario],
+  });
+  assert.deepEqual(
+    legacyDescriptorReport.issues,
+    [issue(performanceScenario, "invalid", "evidence_descriptor_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  await writeFile(performanceDescriptorPath, "{\"schemaVersion\":2,\"metrics\":{\"durationMs\":NaN}}\n");
+  const malformedMetricsReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: [performanceScenario],
+  });
+  assert.deepEqual(
+    malformedMetricsReport.issues,
+    [issue(performanceScenario, "invalid", "evidence_descriptor_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  const infiniteMetricsDescriptor = JSON.parse(await readFile(performanceDescriptorPath, "utf8"));
+  const infiniteMetricsSource = JSON.stringify(infiniteMetricsDescriptor, null, 2)
+    .replace(`${PERFORMANCE_BUDGETS_MS[performanceScenario]}`, "1e309");
+  await writeFile(performanceDescriptorPath, `${infiniteMetricsSource}\n`);
+  const infiniteMetricsReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: [performanceScenario],
+  });
+  assert.deepEqual(
+    infiniteMetricsReport.issues,
+    [issue(performanceScenario, "invalid", "evidence_metrics_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  const legacyManifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
+  legacyManifest.schemaVersion = 2;
+  await writeFile(join(root, "manifest.json"), `${JSON.stringify(legacyManifest, null, 2)}\n`);
+  await assert.rejects(
+    validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-23T07:00:00.000Z" }),
+    (error) => error.code === "manifest_schema_invalid",
+  );
+
+  await writeFixture(root, scenarios);
   await writeFile(
-    join(root, `${scenarios.owner_cooking_flow.evidencePath.replace(".json", "")}-1.png`),
+    join(root, "owner_cooking_flow-1.png"),
     fakePng(),
     { mode: 0o600 },
   );
@@ -652,7 +1055,7 @@ async function selftest() {
   );
 
   const wrongPackage = structuredClone(scenarios);
-  wrongPackage.owner_cooking_flow.packageVersion = "9.9.9";
+  wrongPackage.owner_cooking_flow.packageVersion = "1.1.74";
   await writeFixture(root, wrongPackage);
   const wrongPackageReport = await validateEvidence({
     evidenceDir: root,
@@ -696,7 +1099,7 @@ async function selftest() {
   await writeFixture(root, scenarios);
   await writeFile(
     join(root, scenarios.explicit_wechat_login.evidencePath),
-    "{\"schemaVersion\":1}\n",
+    "{\"schemaVersion\":2}\n",
     { mode: 0o600 },
   );
   const placeholderReport = await validateEvidence({
@@ -713,10 +1116,11 @@ async function selftest() {
   await writeFixture(root, scenarios);
   const shareScenario = SHARE_SCENARIOS[0];
   const incompleteShareDescriptor = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scenarioId: shareScenario,
     redacted: true,
     checks: { contact_panel: true, sent: true },
+    metrics: {},
     mediaPaths: [`${shareScenario}-1.png`],
   };
   await writeFile(
@@ -739,13 +1143,12 @@ async function selftest() {
   const externalRoot = await mkdtemp(join(tmpdir(), "humi-true-device-external-"));
   const externalArtifact = join(externalRoot, "outside.json");
   await writeFile(externalArtifact, "{\"redacted\":true}\n");
-  const linkedPath = join(root, "linked-evidence.json");
+  const linkedPath = join(root, scenarios.member_cooking_flow.evidencePath);
+  await rm(linkedPath);
   await symlink(externalArtifact, linkedPath);
-  const linked = structuredClone(scenarios);
-  linked.member_cooking_flow.evidencePath = "linked-evidence.json";
   await writeFile(
     join(root, "manifest.json"),
-    `${JSON.stringify({ schemaVersion: 2, scenarios: linked }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 3, scenarios }, null, 2)}\n`,
     { mode: 0o600 },
   );
   const linkedReport = await validateEvidence({
@@ -759,7 +1162,255 @@ async function selftest() {
     true,
   );
 
-  console.log("Humi true-device evidence v2 selftest passed (36 required rows).");
+  await rm(linkedPath);
+  await writeFixture(root, scenarios);
+  const traversal = structuredClone(scenarios);
+  traversal.owner_cooking_flow.evidencePath = "../outside.json";
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: traversal }, null, 2)}\n`,
+  );
+  const traversalReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    traversalReport.issues.some((entry) => (
+      entry.scenario === "owner_cooking_flow" && entry.code === "evidence_path_invalid"
+    )),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  const staleMediaPath = join(root, "owner_cooking_flow-1.png");
+  await utimes(staleMediaPath, new Date("2026-07-23T06:00:00.000Z"), new Date("2026-07-23T06:00:00.000Z"));
+  const staleMediaReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    staleMediaReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_timestamp_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  const staleDescriptorPath = join(root, scenarios.owner_cooking_flow.evidencePath);
+  await utimes(
+    staleDescriptorPath,
+    new Date("2026-07-23T06:00:00.000Z"),
+    new Date("2026-07-23T06:00:00.000Z"),
+  );
+  const staleDescriptorReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    staleDescriptorReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_timestamp_invalid")],
+  );
+
+  await writeFixture(root, scenarios);
+  const externalMedia = join(externalRoot, "outside.png");
+  await writeFile(externalMedia, await readFile(join(root, "owner_cooking_flow-1.png")));
+  await rm(join(root, "owner_cooking_flow-1.png"));
+  await symlink(externalMedia, join(root, "owner_cooking_flow-1.png"));
+  const linkedMediaReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    linkedMediaReport.issues,
+    [issue("owner_cooking_flow", "invalid", "evidence_media_missing")],
+  );
+
+  await rm(join(root, "owner_cooking_flow-1.png"));
+  await writeFixture(root, scenarios);
+  await writeFile(
+    join(root, scenarios.owner_cooking_flow.evidencePath),
+    JSON.stringify({ padding: "x".repeat(70 * 1024) }),
+  );
+  const oversizedDescriptorReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    oversizedDescriptorReport.issues,
+    [issue("owner_cooking_flow", "invalid", "evidence_descriptor_too_large")],
+  );
+
+  await writeFixture(root, scenarios);
+  const externalMediaHardlink = join(externalRoot, "owner-hardlink.png");
+  await link(join(root, "owner_cooking_flow-1.png"), externalMediaHardlink);
+  const externalMediaHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    externalMediaHardlinkReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_link_count_invalid")],
+  );
+
+  await rm(externalMediaHardlink);
+  await writeFixture(root, scenarios);
+  const externalDescriptorHardlink = join(externalRoot, "owner-hardlink.json");
+  await link(join(root, scenarios.owner_cooking_flow.evidencePath), externalDescriptorHardlink);
+  const externalDescriptorHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    externalDescriptorHardlinkReport.issues,
+    [issue("owner_cooking_flow", "invalid", "artifact_link_count_invalid")],
+  );
+
+  await rm(externalDescriptorHardlink);
+  await writeFixture(root, scenarios);
+  await rm(join(root, "member_cooking_flow-1.png"));
+  await link(join(root, "owner_cooking_flow-1.png"), join(root, "member_cooking_flow-1.png"));
+  const internalHardlinkReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow", "member_cooking_flow"],
+  });
+  assert.equal(
+    internalHardlinkReport.issues.every((entry) => entry.code === "artifact_link_count_invalid"),
+    true,
+  );
+
+  await rm(join(root, "member_cooking_flow-1.png"));
+  await writeFixture(root, scenarios);
+  const arbitraryDescriptor = "arbitrary-valid-looking.json";
+  await writeFile(
+    join(root, arbitraryDescriptor),
+    await readFile(join(root, scenarios.owner_cooking_flow.evidencePath)),
+  );
+  const noncanonical = structuredClone(scenarios);
+  noncanonical.owner_cooking_flow.evidencePath = arbitraryDescriptor;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: noncanonical }, null, 2)}\n`,
+  );
+  const noncanonicalReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    scenarioIds: ["owner_cooking_flow"],
+  });
+  assert.deepEqual(
+    noncanonicalReport.issues,
+    [issue("owner_cooking_flow", "invalid", "evidence_path_noncanonical")],
+  );
+  assert.equal(JSON.stringify(noncanonicalReport).includes(arbitraryDescriptor), false);
+
+  await writeFixture(root, scenarios);
+  await mkdir(join(root, "Daniel"), { recursive: true });
+  const tokenLikeDescriptor = "Daniel/performance.json";
+  await writeFile(
+    join(root, tokenLikeDescriptor),
+    await readFile(join(root, scenarios.performance_cached_first_paint.evidencePath)),
+  );
+  const tokenLike = structuredClone(scenarios);
+  tokenLike.performance_cached_first_paint.evidencePath = tokenLikeDescriptor;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: tokenLike }, null, 2)}\n`,
+  );
+  const tokenLikeReport = await validatePerformanceEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(tokenLikeReport.ok, false);
+  assert.equal(JSON.stringify(tokenLikeReport).includes("Daniel"), false);
+  assert.equal(JSON.stringify(tokenLikeReport).includes("performance.json"), false);
+
+  await writeFixture(root, scenarios);
+  const secretLikePath = "descriptors/token=secret.json";
+  const secretLike = structuredClone(scenarios);
+  secretLike.performance_cached_first_paint.evidencePath = secretLikePath;
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: secretLike }, null, 2)}\n`,
+  );
+  const secretLikeReport = await validatePerformanceEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(secretLikeReport.ok, false);
+  assert.equal(JSON.stringify(secretLikeReport).includes("token=secret"), false);
+
+  for (const [field, value, expectedCode] of [
+    ["householdFixture", "other-household", "recommendation_cycle_household_mismatch"],
+    ["device", "Android test device", "recommendation_cycle_device_mismatch"],
+    ["platform", "Android", "recommendation_cycle_platform_mismatch"],
+    ["wechatVersion", "8.0.55", "recommendation_cycle_version_mismatch"],
+    ["packageVersion", "9.9.9", "recommendation_cycle_version_mismatch"],
+  ]) {
+    await writeFixture(root, scenarios);
+    const cycleMismatch = structuredClone(scenarios);
+    cycleMismatch.recommendation_quick_15_rotation_2[field] = value;
+    await writeFile(
+      join(root, "manifest.json"),
+      `${JSON.stringify({ schemaVersion: 3, scenarios: cycleMismatch }, null, 2)}\n`,
+    );
+    const cycleMismatchReport = await validateEvidence({
+      evidenceDir: root,
+      candidateTimestamp: "2026-07-23T07:00:00.000Z",
+    });
+    assert.equal(cycleMismatchReport.issues.some((entry) => entry.code === expectedCode), true);
+  }
+
+  await writeFixture(root, scenarios);
+  const dateMismatch = structuredClone(scenarios);
+  for (let rotation = 2; rotation <= 5; rotation += 1) {
+    const scenario = `recommendation_quick_15_rotation_${rotation}`;
+    dateMismatch[scenario].startedAt = `2026-07-24T0${rotation}:00:00.000Z`;
+    dateMismatch[scenario].finishedAt = `2026-07-24T0${rotation}:01:00.000Z`;
+  }
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: dateMismatch }, null, 2)}\n`,
+  );
+  const dateMismatchReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    dateMismatchReport.issues.some((entry) => entry.code === "recommendation_cycle_business_date_mismatch"),
+    true,
+  );
+
+  await writeFixture(root, scenarios);
+  const orderMismatch = structuredClone(scenarios);
+  orderMismatch.recommendation_quick_15_rotation_2.startedAt = "2026-07-23T07:59:00.000Z";
+  orderMismatch.recommendation_quick_15_rotation_2.finishedAt = "2026-07-23T08:01:00.000Z";
+  await writeFile(
+    join(root, "manifest.json"),
+    `${JSON.stringify({ schemaVersion: 3, scenarios: orderMismatch }, null, 2)}\n`,
+  );
+  const orderMismatchReport = await validateEvidence({
+    evidenceDir: root,
+    candidateTimestamp: "2026-07-23T07:00:00.000Z",
+  });
+  assert.equal(
+    orderMismatchReport.issues.some((entry) => entry.code === "recommendation_cycle_order_invalid"),
+    true,
+  );
+
+  await writeFile(join(root, "manifest.json"), " ".repeat(257 * 1024));
+  await assert.rejects(
+    validateEvidence({ evidenceDir: root, candidateTimestamp: "2026-07-23T07:00:00.000Z" }),
+    (error) => error.code === "manifest_too_large",
+  );
+
+  await rm(externalRoot, { recursive: true, force: true });
+  await rm(root, { recursive: true, force: true });
+
+  console.log("Humi true-device evidence v3 selftest passed (56 required rows).");
 }
 
 function parseArgs(argv) {
@@ -827,4 +1478,6 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  await main();
+}

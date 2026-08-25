@@ -39,7 +39,7 @@ async function verifyGuestCapabilityCrossMatrix() {
       },
       nativeShellEnabled: true,
       mealExecutionEnabled: true,
-      route: { route: "/pages/tonight/index", reason: "native_enabled" },
+      route: { route: "/pages/family/index", reason: "household_required" },
     },
     {
       name: "guest-native-only",
@@ -299,9 +299,19 @@ async function verifyTestOnlyWildcardAllowlist() {
   });
   try {
     const session = await login(server.baseUrl, "bootstrap-wildcard-first-use");
+    await request(`${server.baseUrl}/identity/profile`, {
+      method: "PUT",
+      token: session.accessToken,
+      body: { displayName: "首次使用者", avatarKey: "humi-avatar-family-m-01" },
+    });
     const bootstrap = await request(`${server.baseUrl}/bootstrap`, { token: session.accessToken });
     assert.equal(bootstrap.activeHouseholdId, "");
     assert.equal(bootstrap.capabilities.nativeShellEnabled, true, "test-only native and meal wildcards include first-use users");
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(resolveStartupRoute({ candidate: true, envelope: bootstrap }))),
+      { route: "/pages/family/index", reason: "household_required" },
+      "a complete first-use identity must continue to explicit household setup",
+    );
   } finally {
     await stopServer(server);
   }

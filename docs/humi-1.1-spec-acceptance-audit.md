@@ -1,6 +1,6 @@
 # Humi 1.1 Spec Acceptance Audit
 
-更新日期：2026-07-18
+更新日期：2026-07-28
 执行设备：codex@mbp-m5pro
 
 本文档把三份 1.1 策划书收敛成验收清单：
@@ -9,7 +9,7 @@
 - `/Users/honglijie/Downloads/humi 感觉征集 spec.md`
 - `/Users/honglijie/Downloads/humi 结构重构 spec.md`
 
-当前结论：1.1 台账 71 个需求 ID 均存在，本地可实现项已按当前重构 UI 完成；本轮小程序候选为 `1.1.73`。新增 `WX-05` 单独追踪双海报真实下载、分享和保存，微信后台 downloadFile 合法域名配置并复测前 `specClosureReady` 必须保持 `false`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；现在不提交微信审核。
+当前结论：1.1 台账 71 个需求 ID 均存在，本地可实现项已按当前重构 UI 完成；当前体验版为 `1.1.78@7606aad`，已从不可变归档上传。`WX-05` 的 request/downloadFile 探测已通过，但双海报真实分享/保存与权限恢复真机证据未完成，因此 `specClosureReady` 必须保持 `false`。2026-07-14 用户已确认真实支付、Plus 深度协调、完整版画像、一周计划付费包装及后续菜单体验深化统一列入 1.2；现在不提交微信审核。
 
 ## 1. 当前发布事实
 
@@ -18,7 +18,7 @@
 - AI-HQ 长期状态账本见 `/Users/honglijie/AI-HQ/projects/humi/STATUS.md`。
 - 发布操作者交接单见 `docs/humi-1.1-release-operator-handoff.md`，用于判断下一步和留证要求。
 - 发布证据日志见 `docs/humi-1.1-release-evidence-log.md`，用于登记 API 补部署、微信审核、发布和真机 P0 证据索引。
-- 最新小程序候选：`1.1.73` / `修复身份完善入口` / AppID `wx4040b89f3b363416`。
+- 当前已上传体验版：`1.1.78` / `Humi 原生主动登录与家庭协作闭环候选` / AppID `wx4040b89f3b363416`；上一历史体验版为 `1.1.74@4eb3fbeb`，`1.1.75@fbb4938` 为空会话历史版本。
 - 生产 API 健康检查：`https://api.humi-home.com/health` 返回 HTTP 200。
 - 生产 API 代码补部署：已完成，备份 `/opt/humi/backups/20260718T114140Z`，`humi-api.service` 已重启，详见 `docs/humi-1.1-release-evidence-log.md`。
 
@@ -71,9 +71,9 @@
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 五类分享落地页与游客参与烟测 | 已完成 | `release:collaboration:smoke` 验证征集、清单、邀请的游客参与；五类 landing 取证额外覆盖想吃与今晚菜单 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery`/`wish`/`menu` | 已完成 | `miniprogram/pages/index/index.js`、原生分享页与五个 H5 落地组件覆盖对应 token |
-| 五类分享确实进入小程序原生分享页 | 已完成 | `runtime.js` 优先调用 `navigateTo`，只在明确失败时降级 `redirectTo`，成功回调立即确认交接且不会重复派发。`validate:share-bridge` 验证本地实现；当前候选五类原生发送框证据作为外部复核项单独保持开放 |
+| 五类分享确实进入小程序原生分享页 | 已完成 | 原生一级页预生成一次快照，并通过原生 `open-type="share"` 与同步 `onShareAppMessage` 交付菜单、清单、邀请和任务卡片；历史 H5 桥的成功回调只记录“已接收”，必须观察页面离开才算交接成功，否则按 `navigateTo → redirectTo → reLaunch` 回退。`validate:native-sharing` 与 `validate:share-bridge` 验证本地实现；真实联系人发送/接收仍在 N5c 单独验收 |
 | 小程序卡片分享与菜单/清单海报入口并存 | 已完成 | 今晚菜单操作区提供“生成菜单海报”，买菜清单分享区提供“生成清单海报”；两者不替换原生小程序卡片分享。`release:product:review` 防止入口再次被 UI 重构隐藏，`release:product:smoke` 实际生成并验证两张海报图片 |
-| 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
+| 小程序普通启动不被登录墙挡住 | 已完成 | `1.1.78` 原生启动在没有 Humi session 时只显示“微信登录 / 先体验 Humi”，不请求 `/bootstrap`、不调用 `wx.login`、不创建账号或家庭；游客可直接进入本机体验，只有用户明确点击登录才调用微信登录。`validate:native-session`、`validate:native-shell-routing` 与 `validate:identity` 覆盖本地合同，N5c 继续验证真机行为 |
 | 发布材料与当前五入口 UI 一致，不恢复旧库存维护主路径 | 已完成 | 产品 smoke 验证五入口，发布材料以当前重构 UI 为准；库存继续保持隐形流水线 |
 
 ## 3. 仍未完成或仍需外部确认
@@ -83,7 +83,7 @@
 | 家庭订阅真实支付结算 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 不接支付下单、回调验签、订单和权益发放闭环 |
 | Plus 深度协调、完整版画像与一周计划打包 | 暂缓 | 2026-07-14 用户确认列入 1.2；1.1 保留基础画像、营养回看和连排能力，不做 Plus 版差异 |
 | 五类小程序原生分享发送框视觉复核 | 已完成 | 2026-07-18 当前候选五类发送框均显示虚拟好友、发送动作和正确业务标题；十张 card/landing 证据通过完整性与 OCR 语义门禁 |
-| 菜单/清单海报原生分享与保存 | P0 进行中 | `npm run release:wechat:poster:domain` 已确认 `https://api.humi-home.com` 不在 downloadFile 合法域名列表；后台配置后用同一命令复测，并各留一条真实分享/保存证据 |
+| 菜单/清单海报原生分享与保存 | P0 进行中 | `npm run release:wechat:poster:domain` 已真实返回 200；仍需菜单海报分享、清单海报保存、取消与权限恢复真机证据 |
 | 生产 API 补部署 | 已完成 | `docs/humi-1.1-release-evidence-log.md` 记录备份、重启、monitor、readiness 和 public smoke 证据 |
 | 微信公众平台提交审核/发布 | 暂缓 | 候选复盘达标并由用户动作当下确认后，再按 `docs/miniprogram-platform-submit-runbook.md` 提交审核，审核通过后按 `docs/launch-day-runbook.md` 发布并做真机 P0 验收 |
 | 10-20 个家庭灰度名单与反馈表 | 模板已准备，待填真实名单 | 使用 `docs/humi-1.1-gray-release-tracker.md` 和 `docs/launch-feedback-and-101-backlog.md` 收集首批反馈 |
@@ -91,9 +91,9 @@
 
 ## 4. 当前建议顺序
 
-1. 运行完整门禁，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过；`1.1.73` 已完成 H5/API 部署和体验版上传。
-2. 在微信后台把 `https://api.humi-home.com` 加入 downloadFile 合法域名，关闭开发者工具域名跳过后重新执行 `npm run release:wechat:poster:domain`。
-3. 用户在真实微信中验收 `1.1.73` 的五类卡片与双海报。未通过就继续修复并上传新的候选，不进入审核。
+1. 运行完整门禁，确认核心菜单、家庭协作、五类分享、数据与安全检查仍全部通过；N5a API、PR #39 H5 热修复与 N5b-1.1.78 均已完成，后者已绑定 `7606aad` 上传，`1.1.75@fbb4938` 与 `1.1.74@4eb3fbeb` 仅作为历史上传证据。
+2. 保存 web-view 业务域名和平台隐私保护指引的真实后台证据；request/downloadFile 探测已通过（HTTP 200），不需要重复伪造。
+3. 取得 N5c 单独授权后，用户在真实微信中验收 `1.1.78@7606aad` 的 56 项矩阵；历史 `1.1.75` 空会话不得复用，未通过就继续修复，不进入审核。
 4. 真机体验通过后准备 10–20 个家庭灰度；反馈进入私有候选执行包，不把真实身份信息写进仓库。
 5. 灰度无 P0/P1 且用户动作当下确认后，才进入微信公众平台审核；审核通过后发布并登记 24 小时监控与真机证据。
 

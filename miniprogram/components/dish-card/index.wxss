@@ -1,6 +1,6 @@
 .dish-card {
   overflow: hidden;
-  border: 1rpx solid #e7e4df;
+  border: 1rpx solid #e4e4e4;
   border-radius: 28rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 28rpx rgba(17, 17, 17, 0.05);
@@ -9,7 +9,7 @@
 .dish-image {
   width: 100%;
   height: 300rpx;
-  background: #eceae6;
+  background: #eaeaea;
 }
 
 .dish-copy {
@@ -23,8 +23,8 @@
   align-self: flex-start;
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
-  color: #55514c;
-  background: #f3f1ed;
+  color: #525252;
+  background: #f1f1f1;
   font-size: 20rpx;
 }
 
@@ -36,6 +36,6 @@
 }
 
 .dish-time {
-  color: #77736d;
+  color: #737373;
   font-size: 23rpx;
 }

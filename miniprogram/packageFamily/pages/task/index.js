@@ -87,6 +87,7 @@ Page({
         method: "POST",
         data: {},
         idempotencyKey: this.actionKey("claim", activeSession.user.id),
+        expectedUserId: activeSession.user.id,
       });
       this.setData({
         task: {
@@ -107,14 +108,16 @@ Page({
   },
 
   async completeTask() {
-    if (!this.data.task || this.data.pendingAction || !session.getSession()) return null;
+    const activeSession = session.getSession();
+    if (!this.data.task || this.data.pendingAction || !activeSession) return null;
     this.setData({ pendingAction: "complete", errorText: "" });
     try {
       const payload = await requestHumi({
         path: `/meal-tasks/${encodeURIComponent(this._token)}/complete`,
         method: "POST",
         data: {},
-        idempotencyKey: this.actionKey("complete", session.getSession()?.user?.id),
+        idempotencyKey: this.actionKey("complete", activeSession.user?.id),
+        expectedUserId: activeSession.user?.id,
       });
       this.setData({ task: payload?.task || this.data.task });
       return payload?.task || null;
@@ -170,7 +173,7 @@ function normalizeToken(value) {
 }
 
 function taskError(error, fallback) {
-  if (error?.code === "forbidden") return "只有这个家的正式成员能领取或完成任务。";
+  if (error?.code === "forbidden" || error?.code === "household_not_found") return "只有这个家的正式成员能领取或完成任务。";
   if (error?.code === "meal_task_claimed") return "这个任务已经被家人领取了，请刷新查看。";
   if (error?.code === "invalid_session") return "登录状态已失效，请重新登录。";
   return fallback;

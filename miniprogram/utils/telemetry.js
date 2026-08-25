@@ -2,7 +2,8 @@ const { HUMI_PACKAGE_VERSION } = require("./config");
 
 const TELEMETRY_QUEUE_KEY = "humi:telemetry-queue:v1";
 const TELEMETRY_DEAD_LETTER_KEY = "humi:telemetry-dead-letter:v1";
-const MAX_PENDING_EVENTS = 200;
+const MAX_PENDING_EVENTS = 100;
+const MAX_PENDING_BYTES = 256 * 1024;
 const MAX_FLUSH_EVENTS = 20;
 const MAX_DEAD_LETTERS = 20;
 const EVENT_FIELDS = new Set(["sessionId", "householdId", "mealRunId", "recipeId", "recommendationId", "businessId", "effortTier", "page", "stage", "result", "errorCode", "stateVersion", "durationMs", "count", "styleId", "shareSource", "packageVersion"]);
@@ -40,6 +41,7 @@ const pending = readStoredQueue();
 const deadLetters = readStoredDeadLetters();
 let flushPromise = null;
 let flushScheduled = false;
+persistPending();
 
 function sanitizeFields(fields = {}) {
   const clean = {};
@@ -69,9 +71,10 @@ function trackEvent(name, fields) {
     anonymousSessionId: activeAnonymousSessionId,
     ownerId: activeOwnerId,
   };
-  pending.push(event);
-  if (pending.length > MAX_PENDING_EVENTS) pending.splice(0, pending.length - MAX_PENDING_EVENTS);
+  const bounded = boundPendingQueue([...pending, event]);
+  pending.splice(0, pending.length, ...bounded);
   persistPending();
+  if (!bounded.includes(event)) return null;
   scheduleTelemetryFlush();
   return event;
 }
@@ -189,7 +192,7 @@ function readStoredQueue() {
   try {
     const stored = typeof wx !== "undefined" ? wx.getStorageSync(TELEMETRY_QUEUE_KEY) : null;
     if (!Array.isArray(stored)) return [];
-    return stored
+    return boundPendingQueue(stored
       .filter((event) => (
         EVENT_NAMES.has(event?.name)
         && safeBusinessId(event?.businessId)
@@ -206,10 +209,37 @@ function readStoredQueue() {
         anonymousSessionId: safeBusinessId(event.anonymousSessionId) || activeAnonymousSessionId,
         ownerId: safeBusinessId(event.ownerId),
       }))
-      .slice(-MAX_PENDING_EVENTS);
+    );
   } catch (_) {
     return [];
   }
+}
+
+function boundPendingQueue(events, { maxEvents = MAX_PENDING_EVENTS, maxBytes = MAX_PENDING_BYTES } = {}) {
+  const bounded = events.slice(-maxEvents);
+  while (bounded.length && utf8ByteLength(JSON.stringify(bounded)) > maxBytes) {
+    bounded.shift();
+  }
+  return bounded;
+}
+
+function utf8ByteLength(value) {
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x7f) bytes += 1;
+    else if (code <= 0x7ff) bytes += 2;
+    else if (
+      code >= 0xd800
+      && code <= 0xdbff
+      && value.charCodeAt(index + 1) >= 0xdc00
+      && value.charCodeAt(index + 1) <= 0xdfff
+    ) {
+      bytes += 4;
+      index += 1;
+    } else bytes += 3;
+  }
+  return bytes;
 }
 
 function persistPending() {
@@ -327,4 +357,5 @@ module.exports = {
   getAnonymousSessionId,
   setTelemetryOwner,
   startSpan,
+  boundPendingQueue,
 };

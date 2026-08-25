@@ -105,7 +105,7 @@
 | WX-02 | 五类分享真实打开原生分享子页，失败不误报成功 | 已完成 | `validate:share-bridge` 验证 `navigateTo` 成功、明确失败后 `redirectTo` 降级、WebView 离开事件和单次派发；`release:product:smoke` 覆盖真实入口点击 |
 | WX-03 | 五类 token 落地页不强制登录 | 已完成 | `release:collaboration:smoke` 覆盖游客参与，`release:wechat:share:landings` 覆盖五类 landing |
 | WX-04 | 五类原生分享发送框在微信开发者工具完成视觉验收 | 已完成 | 2026-07-18 当前候选逐类打开 `crave`/`invite`/`grocery`/`wish`/`menu` 原生发送框；十张 card/landing 证据通过 PNG 完整性、尺寸与 OCR 语义门禁。私有证据：`/Users/honglijie/.humi-release-evidence/miniprogram-share-card-preview-20260718Th7nuXe` |
-| WX-05 | 菜单/清单海报在关闭调试域名跳过后可下载，并真实分享或保存 | 进行中 | H5 生成、压缩、上传与原生页交接已完成；`npm run release:wechat:poster:domain` 当前返回 `downloadFile:fail ... url not in domain list`。需微信后台配置 `https://api.humi-home.com` 为 downloadFile 合法域名，再完成菜单海报分享和清单海报保存真机证据 |
+| WX-05 | 菜单/清单海报在关闭调试域名跳过后可下载，并真实分享或保存 | 进行中 | `npm run release:wechat:poster:domain` 已用正式 AppID、`urlCheck: true` 的真实 `wx.downloadFile` 对 API health 返回 200；仍需完成菜单海报真实分享、清单海报真实保存及拒绝/取消/权限恢复真机证据 |
 | UI-01 | 主界面与小程序壳仅使用黑白灰 | 已完成 | `validate:palette` 扫描 76 个文件 |
 | UI-02 | 完整菜品库使用双列图片卡片流 | 已完成 | `Library.jsx`；`discovery-mobile.png` |
 | UI-03 | 空状态中性、无愧疚和大插图 | 已完成 | 清单与今晚菜单的轻空状态 |
@@ -119,7 +119,7 @@
 | ID | 项目 | 状态 | 触发条件 |
 | --- | --- | --- | --- |
 | EXT-01 | 部署本轮 H5/API | 已完成 | PR #34 合入 `main@129da03`，Pages run `29642978938` success；API 备份 `/opt/humi/backups/20260718T114140Z` 后部署并通过生产 smoke |
-| EXT-02 | 上传新小程序版本 | 已完成 | 微信开发者工具 CLI 已上传兼容版 `1.1.73`，preview/upload 证据位于 `/Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z`；原生 preview `1.1.74` 未上传 |
+| EXT-02 | 上传新小程序版本 | 已完成 | 历史兼容基线 `1.1.73` 保留；N5b 已从精确运行时 `4eb3fbeb6aba886930b3fda652be96e9246eac9e` 上传原生体验候选 `1.1.74` 并生成预览二维码，未提审、未发布、未开启开关或白名单 |
 | EXT-03 | 微信审核/发布 | 待验收后外部动作 | 真实候选验收通过，且用户在动作当下明确确认 |
 
 ## 8. 本地完成证明

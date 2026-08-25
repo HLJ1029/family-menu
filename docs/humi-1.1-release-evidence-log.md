@@ -1,6 +1,6 @@
 # Humi 1.1 Release Evidence Log
 
-更新日期：2026-07-24
+更新日期：2026-08-02
 执行设备：codex@mbp-m5pro
 
 本文档只记录发布证据索引和结论，不保存微信后台截图、登录态、手机号、真实家庭名单或任何个人隐私。截图/录屏原件放在本机私有目录、飞书私有空间或其他受控位置；这里只写匿名路径、时间、执行人和验收结论。
@@ -10,15 +10,17 @@
 | 项目 | 当前值 |
 | --- | --- |
 | 产品仓库 | `HLJ1029/family-menu` |
-| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-1.1-release` |
-| API 部署提交 | `129da03` |
-| GitHub Pages deployment | `29642978938` / success / PR #34 merge `129da03` |
+| 本地 worktree | `/Users/honglijie/agent-worktrees/humi/humi-wechat-identity-startup` |
+| API 部署提交 | `b7f9488` |
+| GitHub Pages deployment | `30751481573` / success / PR #39 merge `3462c76` |
 | H5 | `https://www.humi-home.com/` |
 | API | `https://api.humi-home.com` |
-| 小程序版本 | `1.1.73` |
-| 小程序描述 | `修复身份完善入口` |
+| 小程序版本 | `1.1.78` |
+| 小程序描述 | `Humi 原生主动登录与家庭协作闭环候选` |
+| 当前已上传体验版 | `1.1.78` / `Humi 原生主动登录与家庭协作闭环候选` / `7606aadcd03dafe9925885b7fef5c308ecfb73e0` |
+| 上一历史体验版 | `1.1.74` / `Humi 原生骨架体验版 N5b（4eb3fbeb）` / `4eb3fbeb6aba886930b3fda652be96e9246eac9e` |
 | AppID | `wx4040b89f3b363416` |
-| 当前状态 | 兼容版 `1.1.73` 已上传体验版，未提审、未发布；原生骨架 preview 预留 `1.1.74`，尚未上传。DevTools 自动化已确认微信后台缺少 downloadFile 合法域名，配置完成前双海报真机动作不能通过 |
+| 当前状态 | 原生骨架 `1.1.78` 已按 N5b-1.1.78 单项授权从 `7606aad` 的不可变归档上传为体验版；本次未执行 preview、未提审、未发布。native/meal 开关为 0、两个家庭白名单为空；rollout gate 已验证签名原始 CLI 证据、归档 SHA-256 和运行时提交一致 |
 
 ## 2. 发布前命令证据
 
@@ -92,6 +94,14 @@
 | 2026-07-18 | codex@mbp-m5pro | official miniprogram-automator / `wx.downloadFile` | P0 阻断 | 关闭合法域名跳过后请求 `https://api.humi-home.com/poster-shares/...jpg` 返回 `downloadFile:fail createDownloadTask:fail url not in domain list`；必须先在微信后台添加 downloadFile 合法域名，不能以 H5 或 DevTools 调试模式代替真机通过 |
 | 2026-07-18 | codex@mbp-m5pro | `npm run release:wechat:poster:domain` | P0 阻断可重复 | 仓库命令校验正式 AppID 与 `urlCheck: true` 后通过 DevTools 自动化调用 `wx.downloadFile`，稳定返回 `url not in domain list` 并以退出码 1 阻止误判；配置域名后用同一命令复测 |
 | 2026-07-20 | codex@mbp-m5pro | 微信开发者工具 CLI upload / preview | 通过 | `1.1.73` / `修复身份完善入口` / upload package `54,838 bytes`；preview QR SHA-256 `335f63b9ac8bbb528312f26249cc6725ba925c775c3160bf38af460ec0da8efa`；private evidence `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z`；未提交审核、未发布 |
+| 2026-07-27 | codex@mbp-m5pro | N5b 微信开发者工具 CLI upload / preview | 通过 | exact commit `4eb3fbeb6aba886930b3fda652be96e9246eac9e`；`1.1.74` / `Humi 原生骨架体验版 N5b（4eb3fbeb）` / upload package `560895 bytes`；preview QR SHA-256 `e998e7960c85289bf80041eaf6af9bdc27b7429d840705cf3b104272dd23c04d`；private evidence `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/n5b-*1.1.74*`；未提审、未发布、未开启任何开关或白名单 |
+| 2026-07-27 | codex@mbp-m5pro | `npm run release:security:audit` / `npm run build` / 聚焦回归 | 通过 | 将 PostCSS 最低版本从 `8.5.6` 提升到安全边界 `8.5.18`，锁定 `8.5.23`；`npm audit` 的 high/total 从 `1/1` 归零为 `0/0`。身份、原生入口、分享桥、Supabase 退役、候选/文档/local rollout 与 secret scan 均通过；只改构建依赖和证据，不改变已上传 `4eb3fbeb` 小程序运行时，不提审、不发布、不改开关或白名单 |
+| 2026-07-28 | codex@mbp-m5pro | N5b-1.1.75 受控签名归档 / 微信开发者工具 CLI upload | 通过 | exact runtime `fbb4938200ef0137c468bd37f3868b94b64b738b`；`1.1.75` / `Humi 原生骨架完整候选（fbb4938）` / upload package `570449 bytes`；immutable archive `140710 bytes` / SHA-256 `a1a3a9876e782de8526605d1260c1cf1dd2e70cde85dbb53d051a242c718a0d6`；raw evidence SHA-256 `ec77d67f2c24f6f795e27d6439b32ace11c6b79dc4028cfb0c2dc795a52d2938`；attestation `private://HUMI-2026-001/n5b-1.1.75-20260728T111436Z/wechat-upload-machine-attestation.json`；未执行 preview、未提审、未发布、未开启任何开关或白名单 |
+| 2026-08-02 | codex@mbp-m5pro | N5b-1.1.78 受控不可变归档 / 微信开发者工具 CLI upload | 通过 | exact runtime `7606aadcd03dafe9925885b7fef5c308ecfb73e0`；`1.1.78` / `Humi 原生主动登录与家庭协作闭环候选` / upload package `603694 bytes`；immutable archive `147102 bytes` / SHA-256 `4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7`；raw evidence SHA-256 `12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3`；attestation `private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json`；未执行 preview、未提审、未发布、未开启任何开关或白名单 |
+| 2026-08-02 | codex@mbp-m5pro | PR #39 / GitHub Pages / production H5 verification | 通过 | PR #39 merge `3462c763aa9396efaed64ed449696b438b69deee`；Pages run `30751481573` build/deploy success；线上主包 `index-CIKb91QP.js` 与 Actions 构建清单一致，旧 WebView 使用受保护的 `globalThis.structuredClone` 与递归回退；H5/API/recommend 均 200 |
+| 2026-08-02 | codex@mbp-m5pro | N5c-1.1.78 私有会话准备 / 设备只读 doctor | 待真机 | 会话 `private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed` 已机械绑定 `1.1.78@7606aad`、正式 AppID、不可变归档与签名上传证明；manifest 严格为空，权威状态 `0/56`。开发者工具已登录；可用 iPhone 0、Android 0，另有 1 台已配对但不可用 Apple 设备；没有生成占位媒体或伪造 pass |
+| 2026-08-02 | codex@mbp-m5pro | `cb9d28e` 不可变 41 项本地矩阵 | 39 通过 / 2 外部阻断 | `private://HUMI-2026-001/local-command-matrix/20260802T145313Z-cb9d28ec3e11/manifest.json`；0 failure / 0 timeout / 仓库运行前后未变；canonical SHA-256 `d4ade50dbe367d52ca1a0c4e87742969793acf73f9ee734b6851e6dd1a2c31dd`。两项仅为真机启动性能与当前 `0/56` 证据 |
+| 2026-08-02 | codex@mbp-m5pro | `33b45b4` 规格事实修复后不可变 41 项本地矩阵 | 39 通过 / 2 外部阻断 | `private://HUMI-2026-001/local-command-matrix/20260802T152401Z-33b45b484454/manifest.json`；0 failure / 0 timeout / 仓库运行前后未变；canonical SHA-256 `bd3f49618a2b905812d52bd7402976f7cf9867c12d2fac00696389d99abde9e6`。规格审计完整性与 71 项本地需求均通过；两项仅为真机启动性能与当前 `0/56` 证据 |
 
 ## 3. 生产 API 补部署证据
 
@@ -130,15 +140,15 @@
 | --- | --- |
 | 提交时间 | 待填 |
 | 提交人 | 待填 |
-| 提交版本 | `1.1.73` |
+| 提交版本 | `1.1.78` |
 | 审核备注版本 | 待填 |
 | 审核单状态 | 待填 |
 | 证据原件位置 | 待填，仅填私有目录或飞书链接，不提交截图 |
 
 | 证据项 | 是否已留存 | 私有位置/编号 | 备注 |
 | --- | --- | --- | --- |
-| 上传版本 `1.1.73` 列表 | 已有 CLI 证据，后台截图待填 | `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/miniprogram-upload-1.1.73-20260720T051150Z` | 上传成功，尚未提审 |
-| request / downloadFile 合法域名 `api.humi-home.com` | P0 未完成 | 待后台截图 | `release:wechat:poster:domain` 已确认 downloadFile 域名缺失；配置后必须重测 |
+| 上传版本 `1.1.78` 列表 | 已通过 CLI 机读验证 | `private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json` | 签名原始证据绑定 `7606aad`、归档哈希、AppID、版本和 `603694 bytes` 包体；平台版本列表截图仍在 N5c/提审前留存 |
+| request / downloadFile 合法域名 `api.humi-home.com` | 已通过运行时验证 | `private:///Users/honglijie/.humi-release-evidence/HUMI-2026-001/20260720T023826Z/n5b-preflight-20260725.md` | 平台缓存已包含 API 与两个微信头像域名；真实 `wx.downloadFile` 对 API health 返回 200 |
 | web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |
 | 隐私保护指引关键项 | 待填 | 待填 |  |
 | 审核备注/提交页 | 待填 | 待填 |  |
@@ -165,7 +175,7 @@
 | --- | --- |
 | 发布时间 | 待填 |
 | 发布人 | 待填 |
-| 发布版本 | `1.1.73` |
+| 发布版本 | `1.1.78` |
 | 发布状态截图位置 | 待填 |
 | 首次真机验证设备 | 待填 |
 | 是否需要回滚/暂停扩散 | 否 / 是，原因待填 |

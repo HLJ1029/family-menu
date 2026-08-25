@@ -131,7 +131,7 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
       if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: () => {} };
       if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
       if (specifier === "../../utils/user-message") return { toHumiUserMessage: (_error, fallback) => fallback };
-      if (specifier === "../../data/approved-avatar-keys.json") return ["humi-avatar-parent-f-01"];
+      if (specifier === "../../data/approved-avatar-keys.js") return ["humi-avatar-parent-f-01"];
       assert.fail(`Unexpected identity dependency: ${specifier}`);
     }
   });
@@ -155,6 +155,17 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
   page.onLoad({});
   assert.equal(loginCalls, 0, "normal startup must not call wx.login");
   assert.equal(changes.filter((patch) => patch.url).length, 1);
+  assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
+}
+
+{
+  let loginCalls = 0;
+  const { page } = createPage({
+    login: () => { loginCalls += 1; }
+  });
+  page.onLoad({ humiGuest: "1" });
+  assert.equal(loginCalls, 0, "explicit guest entry must never call wx.login");
+  assert.match(page.data.url, /[?&]humiGuest=1(?:&|$)/, "native guest choice must bypass the duplicate H5 login gate");
   assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
 }
 

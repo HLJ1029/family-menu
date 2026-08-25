@@ -62,11 +62,17 @@ function clearActiveSession() {
 
 async function requestHumi(options = {}) {
   const requestOptions = { ...options, method: String(options.method || "GET").toUpperCase() };
-  if (requestOptions.expectedUserId && session.getSession()?.user?.id !== requestOptions.expectedUserId) {
+  const hadSessionHistory = session.hasSessionHistory();
+  const initialSession = session.getSession();
+  if (!initialSession && !hadSessionHistory) {
+    throw new HumiRequestError(401, "invalid_session", { retryable: false });
+  }
+  if (requestOptions.expectedUserId && initialSession && initialSession.user?.id !== requestOptions.expectedUserId) {
     throw new HumiRequestError(401, "session_owner_changed", { retryable: false });
   }
   const canReplay = requestOptions.method === "GET" || Boolean(requestOptions.idempotencyKey);
   try {
+    if (!initialSession) throw new HumiRequestError(401, "invalid_session", { retryable: false });
     return await authenticatedRequest(requestOptions);
   } catch (error) {
     if (error.status !== 401 || requestOptions.retry401 === false || !canReplay) throw error;

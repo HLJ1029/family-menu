@@ -1595,6 +1595,7 @@ function toPublicMealTaskSummary(task = {}) {
     status: ["open", "claimed", "completed"].includes(task.status) ? task.status : "open",
     createdBy: stringValue(task.createdBy, 100),
     claimedBy: stringValue(task.claimedBy, 100),
+    claimedByName: stringValue(task.claimedByName, 32),
     completedBy: stringValue(task.completedBy, 100),
     createdAt: stringValue(task.createdAt, 48),
     updatedAt: stringValue(task.updatedAt, 48),

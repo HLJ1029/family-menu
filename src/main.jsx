@@ -181,6 +181,7 @@ function App() {
   const dinnerRecommendationStateRef = useRef(new Map());
   const legacyRecommendationHydrationRef = useRef("");
   const legacyRecommendationRequestRef = useRef(0);
+  const guestLoginRecoveryTimerRef = useRef(null);
   const [activeView, setActiveView] = useState(() => getInitialView());
   const [landingCraveToken, setLandingCraveToken] = useState(() => getInitialCraveToken());
   const [landingGroceryShareToken, setLandingGroceryShareToken] = useState(() => getInitialGroceryShareToken());
@@ -220,6 +221,7 @@ function App() {
   const [notice, setNotice] = useState(null);
   const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [authStatus, setAuthStatus] = useState("");
+  const [guestLoginPending, setGuestLoginPending] = useState(false);
   const [humiTicket] = useState(() => takeHumiTicketFromUrl());
   const [humiTicketPending, setHumiTicketPending] = useState(() => Boolean(humiTicket));
   const [humiSession, setHumiSession] = useState(() => readHumiSession());
@@ -239,6 +241,7 @@ function App() {
   const [cloudGroceryLoading, setCloudGroceryLoading] = useState(false);
   const [cloudGroceryStatus, setCloudGroceryStatus] = useState("菜单保存后，可以继续保存食材清单。");
   const [onboardingComplete, setOnboardingComplete] = useLocalStorageState("humi:onboarding-complete", false);
+  const guestEntry = isGuestEntry();
   const [profileOnboardingComplete, setProfileOnboardingComplete] = useLocalStorageState("humi:profile-onboarding-complete:v1", false);
   const [familyMembers, setFamilyMembers] = useState([]);
   const [familyProfile, setFamilyProfile] = useLocalStorageState("family-menu:family-profile", defaultFamilyProfile);
@@ -408,6 +411,12 @@ function App() {
     todayMenu,
     weekPlan,
   ]);
+
+  useEffect(() => {
+    if (guestEntry) setOnboardingComplete(true);
+  }, [guestEntry, setOnboardingComplete]);
+
+  useEffect(() => () => globalThis.clearTimeout(guestLoginRecoveryTimerRef.current), []);
 
   useEffect(() => {
     if (!humiTicket) return undefined;
@@ -3801,6 +3810,28 @@ function App() {
     };
   }
 
+  function startGuestWechatLogin() {
+    if (guestLoginPending) return;
+    const recover = () => {
+      globalThis.clearTimeout(guestLoginRecoveryTimerRef.current);
+      guestLoginRecoveryTimerRef.current = null;
+      setGuestLoginPending(false);
+      setAuthStatus("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。");
+    };
+    if (!isWechatMiniProgramWebView()) {
+      setAuthStatus("请从微信小程序打开 Humi 后登录。");
+      return;
+    }
+    setGuestLoginPending(true);
+    setAuthStatus("正在打开微信登录。");
+    const started = requestWechatLoginFromMiniProgram({ onFailure: recover });
+    if (!started) {
+      recover();
+      return;
+    }
+    guestLoginRecoveryTimerRef.current = globalThis.setTimeout(recover, 4_500);
+  }
+
   const authProps = {
     authStatus,
     setAuthStatus,
@@ -3808,6 +3839,8 @@ function App() {
     familyName,
     setFamilyName,
     cloudLoading,
+    loginPending: guestLoginPending,
+    onWechatLogin: startGuestWechatLogin,
     onCreateFamily: createFamily,
     onSignOut: handleSignOut,
     showNotice,
@@ -4509,7 +4542,7 @@ function App() {
     );
   }
 
-  if (!signedIn && (sessionExpired || authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
+  if (!signedIn && (sessionExpired || authGateIntent || (!onboardingComplete && !guestEntry)) && !sharedGuestLanding) {
     return (
       <>
         <AuthLanding
@@ -4596,11 +4629,7 @@ function App() {
                 onSelectPlanningMode={selectPlanningMode}
                 onPlanRecommendedWeek={planRecommendedWeek}
                 mealLog={todayMealLog}
-                mealLogs={mealLogs}
-                onSetDinnerSource={setDinnerSource}
                 onSetMealSource={setMealSource}
-                onSetDinnerConfirmation={setDinnerConfirmation}
-                onToggleConsumedRecipe={toggleConsumedRecipe}
                 canManageHousehold={canManageHousehold}
                 mealExecution={mealExecutionProps}
               />
@@ -4931,6 +4960,11 @@ function isSharedGuestLanding() {
   if (typeof window === "undefined") return false;
   const params = new URLSearchParams(window.location.search);
   return Boolean(params.get("groceryShare") || params.get("menuShare") || params.get("wishShare") || params.get("mealTask") || params.get("shareSource") || params.get("view") === "grocery" || params.get("view") === "today");
+}
+
+function isGuestEntry() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("humiGuest") === "1";
 }
 
 function getDisplayName(session) {

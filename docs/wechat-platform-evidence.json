@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "checks": {
+    "requestDomain": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5b-request-domain"
+    },
+    "downloadFileDomain": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5b-download-domain"
+    },
+    "webViewDomain": {
+      "verified": false,
+      "status": "pending",
+      "ref": null
+    },
+    "privacyDeclaration": {
+      "verified": false,
+      "status": "pending",
+      "ref": null
+    },
+    "devtoolsAuthenticated": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json"
+    },
+    "productionLegacyH5Smoke": {
+      "verified": true,
+      "status": "verified",
+      "ref": "private://HUMI-2026-001/h5-hotfix-3462c76-pages-30751481573/report.json"
+    }
+  }
+}

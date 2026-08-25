@@ -65,7 +65,13 @@ export function UserCenter({
   }
 
   if (!signedIn) {
-    return <GuestFamilyExplanation />;
+    return (
+      <GuestFamilyExplanation
+        loginPending={Boolean(authProps?.loginPending)}
+        onWechatLogin={authProps?.onWechatLogin}
+        status={authProps?.authStatus || ""}
+      />
+    );
   }
 
   if (!family) {
@@ -127,7 +133,7 @@ export function UserCenter({
   );
 }
 
-function GuestFamilyExplanation() {
+function GuestFamilyExplanation({ loginPending = false, onWechatLogin, status = "" }) {
   return (
     <section data-testid="guest-family-explanation" className="mx-auto max-w-2xl rounded-[28px] border border-line bg-white p-6 text-ink shadow-card sm:p-8">
       <p className="eyebrow">我的家</p>
@@ -135,6 +141,15 @@ function GuestFamilyExplanation() {
       <p className="mt-3 text-sm font-bold leading-7 text-ink/58">
         游客模式不会创建家庭。登录后，你可以主动创建自己的家，或通过家人发来的邀请加入。
       </p>
+      <button
+        type="button"
+        onClick={onWechatLogin}
+        disabled={loginPending}
+        className="mt-6 min-h-12 w-full rounded-full bg-ink px-5 text-sm font-black text-white shadow-card transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-55"
+      >
+        {loginPending ? "正在打开微信登录" : "微信登录"}
+      </button>
+      {status && <p role="status" className="mt-3 text-center text-xs font-bold leading-5 text-ink/45">{status}</p>}
     </section>
   );
 }

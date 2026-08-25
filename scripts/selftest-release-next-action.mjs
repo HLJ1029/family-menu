@@ -1,23 +1,35 @@
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { execFileSync } from "node:child_process";
+import {
+  createHash,
+  generateKeyPairSync,
+  sign,
+} from "node:crypto";
 import { WECHAT_SUBMIT_VERSION } from "./wechat-submit-evidence-session.mjs";
-
-const execFileAsync = promisify(execFile);
 
 const tempDir = await mkdtemp(join(tmpdir(), "humi-release-next-"));
 const tempEvidence = join(tempDir, "evidence.md");
 const tempHardening = join(tempDir, "hardening.md");
+const tempCandidateEvidence = join(tempDir, "native-candidate-evidence.json");
+const tempUploadReceipt = join(tempDir, "wechat-upload-receipt.json");
+const tempUploadRawEvidence = join(tempDir, "wechat-miniprogram-ci-upload-output.json");
+const uploadTestKeyId = "test-only-release-next-selftest";
+const uploadTestKeys = generateKeyPairSync("ed25519");
 
 try {
   await copyFile("docs/humi-1.1-release-evidence-log.md", tempEvidence);
+  await writeFile(
+    tempEvidence,
+    (await readFile(tempEvidence, "utf8")).replaceAll("1.1.75", WECHAT_SUBMIT_VERSION),
+  );
   await writeFile(tempHardening, "- [ ] P1 selftest open item\n");
-  await assertNext("提审前产品打磨");
+  await writeCandidateEvidence({ uploaded: false });
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writeFile(tempHardening, "- [x] P1 selftest open item\n");
   await writePendingCandidatePacket(tempDir, "待邀请");
-  await assertNext("运行 `npm run release:candidate:today", {
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`, {
     forbidden: [
       "- docs/wechat-submit-copy-packet.md",
       "- docs/miniprogram-platform-submit-runbook.md",
@@ -25,10 +37,26 @@ try {
     ],
   });
   await writePendingCandidatePacket(tempDir, ["已邀请", "待邀请"]);
-  await assertNext("只发送今日分发单里尚未标记已邀请的 U 编号");
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writePendingCandidatePacket(tempDir, "已邀请");
-  await assertNext("今天分发单里的 U 编号已标记为已邀请");
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`);
   await writeValidCandidatePacket(tempDir);
+
+  await writeCandidateEvidence({ uploaded: true });
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 已上传记录的受控验签确认`, {
+    forbidden: [
+      `当前阶段：${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`,
+      "当前阶段：N5c 真机与平台证据验收",
+      `重新上传 ${WECHAT_SUBMIT_VERSION}`,
+    ],
+  });
+  await writeUploadReceipt();
+  await assertNext("N5c 真机与平台证据验收", {
+    forbidden: [
+      `当前阶段：${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`,
+      "进入微信公众平台提交审核",
+    ],
+  });
 
   const tempSubmitDir = join(tempDir, `wechat-submit-${WECHAT_SUBMIT_VERSION}-20990101T000000`);
   await mkdir(tempSubmitDir, { recursive: true });
@@ -36,7 +64,7 @@ try {
   await assertNext("微信提交截图已留存，下一步是登记提交审核证据");
   await rm(tempSubmitDir, { recursive: true, force: true });
 
-  await assertNext("1.1 生产候选完善与内测验证，暂不进入微信审核");
+  await assertNext("N5c 真机与平台证据验收");
 
   await run("release:evidence:record:submit", {
     HUMI_WECHAT_SUBMIT_TIME: "2026-07-03 14:30 CST",
@@ -84,6 +112,10 @@ try {
   await assertNext("外部证据区块已填完，下一步是最终状态复核", {
     alternative: "1.1 已完成发布证据闭环",
   });
+  await writeCandidateEvidence({ uploaded: false });
+  await assertNext(`${WECHAT_SUBMIT_VERSION} 候选封包与上传授权`, {
+    forbidden: ["外部证据区块已填完", "微信审核已提交"],
+  });
 
   console.log(JSON.stringify({
     ok: true,
@@ -103,16 +135,27 @@ try {
 }
 
 async function assertNext(expected, options = {}) {
-  const { stdout } = await execFileAsync("npm", ["run", "release:next"], {
+  const stdout = execFileSync("npm", ["run", "release:next"], {
     env: {
       ...process.env,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRIVATE_EVIDENCE_DIR: tempDir,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
+      HUMI_NATIVE_CANDIDATE_EVIDENCE_PATH: tempCandidateEvidence,
+      HUMI_WECHAT_UPLOAD_RECEIPT_PATH: tempUploadReceipt,
+      HUMI_WECHAT_UPLOAD_TEST_KEY_ID: uploadTestKeyId,
+      HUMI_WECHAT_UPLOAD_TEST_PUBLIC_KEY: uploadTestKeys.publicKey.export({
+        type: "spki",
+        format: "pem",
+      }),
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
+      HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST: "1",
+      HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+      NODE_ENV: "test",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
+    encoding: "utf8",
   });
 
   if (!stdout.includes(expected) && (!options.alternative || !stdout.includes(options.alternative))) {
@@ -125,17 +168,107 @@ async function assertNext(expected, options = {}) {
   }
 }
 
+async function writeCandidateEvidence({ uploaded }) {
+  const runtimeCommit = "a".repeat(40);
+  const candidate = {
+    version: WECHAT_SUBMIT_VERSION,
+    status: uploaded ? "uploaded-experience" : "local-candidate",
+    runtimeCommit: uploaded ? runtimeCommit : null,
+    archive: uploaded
+      ? {
+        path: `private://candidate/humi-native-shell-${WECHAT_SUBMIT_VERSION}.tar.gz`,
+        sha256: "b".repeat(64),
+        sizeBytes: 140710,
+      }
+      : null,
+    uploadEvidence: uploaded ? { rawEvidenceSha256: "c".repeat(64) } : null,
+    uploadReceiptRef: uploaded ? `private://n5c/upload-receipt-${WECHAT_SUBMIT_VERSION}` : null,
+    actions: {
+      productionApiDeployed: true,
+      h5Deployed: true,
+      miniprogramUploaded: uploaded,
+      wechatReviewSubmitted: false,
+      wechatReleased: false,
+      nativeAllowlistEnabled: false,
+    },
+    trueDeviceEvidence: {
+      passed: 0,
+      required: 56,
+    },
+  };
+  await writeFile(tempCandidateEvidence, JSON.stringify({ schemaVersion: 1, candidate }, null, 2));
+}
+
+async function writeUploadReceipt() {
+  const now = Date.now();
+  const rawEvidence = {
+    schemaVersion: 1,
+    source: "wechat-miniprogram-ci-upload-output",
+    operation: "upload",
+    appId: "wx4040b89f3b363416",
+    version: WECHAT_SUBMIT_VERSION,
+    invocationStartedAt: new Date(now - 4_000).toISOString(),
+    uploadCompletedAt: new Date(now - 3_000).toISOString(),
+    result: {
+      subPackageInfo: [{ name: "__APP__", size: 1024 }],
+    },
+  };
+  const rawEvidenceBytes = `${JSON.stringify(rawEvidence, null, 2)}\n`;
+  await writeFile(tempUploadRawEvidence, rawEvidenceBytes);
+  const unsigned = {
+    schemaVersion: 1,
+    source: "humi-wechat-upload-machine-attestation",
+    attestationRef: `private://n5c/upload-receipt-${WECHAT_SUBMIT_VERSION}`,
+    keyId: uploadTestKeyId,
+    appId: "wx4040b89f3b363416",
+    candidate: {
+      version: WECHAT_SUBMIT_VERSION,
+      runtimeCommit: "a".repeat(40),
+      archiveSha256: "b".repeat(64),
+    },
+    rawEvidence: {
+      kind: rawEvidence.source,
+      path: "wechat-miniprogram-ci-upload-output.json",
+      sha256: createHash("sha256").update(rawEvidenceBytes).digest("hex"),
+    },
+    capturedAt: new Date(now - 2_000).toISOString(),
+    attestedAt: new Date(now - 1_000).toISOString(),
+  };
+  const signature = sign(
+    null,
+    Buffer.from(canonicalTestJson(unsigned)),
+    uploadTestKeys.privateKey,
+  ).toString("base64url");
+  await writeFile(
+    tempUploadReceipt,
+    `${JSON.stringify({ ...unsigned, signature }, null, 2)}\n`,
+  );
+}
+
+function canonicalTestJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalTestJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${canonicalTestJson(value[key])}`
+    )).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 async function run(script, extraEnv) {
-  await execFileAsync("npm", ["run", script], {
+  execFileSync("npm", ["run", script], {
     env: {
       ...process.env,
       ...extraEnv,
       HUMI_EVIDENCE_LOG_PATH: tempEvidence,
       HUMI_PRE_REVIEW_HARDENING_PATH: tempHardening,
       HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY: "1",
+      HUMI_RELEASE_STATUS_FIXTURE_MODE: "1",
+      NODE_ENV: "test",
     },
     timeout: 120_000,
     maxBuffer: 1024 * 1024 * 8,
+    encoding: "utf8",
   });
 }
 

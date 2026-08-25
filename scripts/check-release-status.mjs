@@ -4,12 +4,29 @@ import { promisify } from "node:util";
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
 } from "./release-candidate.mjs";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
+import { deriveNativeReleaseState } from "./lib/native-rollout-readiness-policy.mjs";
 
 const execFileAsync = promisify(execFile);
-const completionSelftestAllowDirty = process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1" && Boolean(process.env.HUMI_EVIDENCE_LOG_PATH);
-const skipCandidatePrepareSelftest = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1" || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1";
-const skipProductSmoke = completionSelftestAllowDirty || process.env.HUMI_RELEASE_STATUS_SKIP_PRODUCT_SMOKE === "1";
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
+const fixtureMode = releaseStatusFixtureGuard.authorized;
+const skipNetworkChecks = fixtureMode;
+const completionSelftestAllowDirty = fixtureMode
+  && process.env.HUMI_RELEASE_COMPLETION_SELFTEST_ALLOW_DIRTY === "1";
+const skipCandidatePrepareSelftest = fixtureMode && (
+  process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1"
+  || process.env.HUMI_RELEASE_STATUS_SKIP_CANDIDATE_PREPARE_SELFTEST === "1"
+);
+const skipProductSmoke = fixtureMode;
 
 async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
   const startedAt = Date.now();
@@ -27,13 +44,15 @@ async function runNpmScript(scriptName, { timeoutMs = 60_000 } = {}) {
       data: parseLastJson(stdout),
     };
   } catch (error) {
+    const timedOut = error.code === "ETIMEDOUT" || error.killed === true || error.signal === "SIGTERM";
     return {
       name: scriptName,
       ok: false,
       ms: Date.now() - startedAt,
       stdout: String(error.stdout || "").trim(),
       stderr: String(error.stderr || "").trim(),
-      error: error.message,
+      code: timedOut ? "command_timeout" : "command_failed",
+      error: timedOut ? `command exceeded ${timeoutMs}ms` : "command exited unsuccessfully",
       data: parseLastJson(error.stdout || ""),
     };
   }
@@ -105,6 +124,7 @@ const [
   apiDeploy,
   securityAudit,
   docsFreshness,
+  nativeRollout,
   paletteValidation,
   h5EntrypointValidation,
   miniProgramPosterValidation,
@@ -126,36 +146,49 @@ const [
   candidateDayCloseSelftest,
   candidatePrivacyCheck,
   candidatePrivacySelftest,
+  wechatPrivacyContract,
+  wechatPrivacyContractSelftest,
   candidateReviewSelftest,
   wechatSubmitWorkspaceGuard,
   specAudit,
   releaseEvidence,
 ] = await Promise.all([
   gitInfo(),
-  runNpmScript("release:check:online"),
-  runNpmScript("monitor:prod"),
-  runNpmScript("deploy:api:check"),
+  runOptionalNpmScript("release:check:online", {
+    skip: skipNetworkChecks,
+    reason: "skip production online readiness during controlled release-status fixtures",
+  }),
+  runOptionalNpmScript("monitor:prod", {
+    skip: skipNetworkChecks,
+    reason: "skip production monitoring during controlled release-status fixtures",
+  }),
+  runOptionalNpmScript("deploy:api:check", {
+    skip: skipNetworkChecks,
+    reason: "skip production API/SSH readiness during controlled release-status fixtures",
+  }),
   runNpmScript("release:security:audit"),
   runNpmScript("release:docs:check"),
+  runNpmScript("release:native-shell:check:local"),
   runNpmScript("validate:palette"),
-  runNpmScript("validate:h5-entry", { timeoutMs: 30_000 }),
+  runNpmScript("validate:h5-entry", { timeoutMs: 120_000 }),
   runNpmScript("validate:miniprogram-poster"),
   runNpmScript("release:product:review"),
   runOptionalNpmScript("release:product:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 Playwright smoke during release completion selftests",
-    timeoutMs: 150_000,
+    timeoutMs: 240_000,
   }),
   runOptionalNpmScript("release:collaboration:smoke", {
     skip: skipProductSmoke,
     reason: "skip production H5 collaboration landing smoke during release completion selftests",
+    timeoutMs: 120_000,
   }),
   runNpmScript("release:candidate:check"),
   runNpmScript("release:candidate:review"),
   runOptionalNpmScript("release:candidate:prepare:selftest", {
     skip: skipCandidatePrepareSelftest,
     reason: "skip candidate prepare selftest while candidate prepare is calling release:status",
-    timeoutMs: 150_000,
+    timeoutMs: 240_000,
   }),
   runNpmScript("release:candidate:forms:preview:selftest"),
   runNpmScript("release:candidate:plan:selftest"),
@@ -169,6 +202,8 @@ const [
   runNpmScript("release:candidate:day:close:selftest"),
   runNpmScript("release:candidate:privacy:check"),
   runNpmScript("release:candidate:privacy:selftest"),
+  runNpmScript("release:wechat:privacy:check"),
+  runNpmScript("release:wechat:privacy:selftest"),
   runNpmScript("release:candidate:review:selftest"),
   runNpmScript("release:wechat:prepare-submit:selftest"),
   runNpmScript("release:spec:audit"),
@@ -184,6 +219,7 @@ const onlineOk = online.ok;
 const artifactsOk = artifacts.every((item) => item.ok);
 const securityAuditOk = securityAudit.ok;
 const docsFreshnessOk = docsFreshness.ok;
+const nativeRolloutOk = nativeRollout.ok;
 const paletteValidationOk = paletteValidation.ok;
 const h5EntrypointValidationOk = h5EntrypointValidation.ok;
 const miniProgramPosterValidationOk = miniProgramPosterValidation.ok;
@@ -205,17 +241,44 @@ const candidateDailySelftestOk = candidateDailySelftest.ok;
 const candidateDayCloseSelftestOk = candidateDayCloseSelftest.ok;
 const candidatePrivacyOk = candidatePrivacyCheck.ok;
 const candidatePrivacySelftestOk = candidatePrivacySelftest.ok;
+const wechatPrivacyContractOk = wechatPrivacyContract.ok;
+const wechatPrivacyContractSelftestOk = wechatPrivacyContractSelftest.ok;
 const candidateReviewSelftestOk = candidateReviewSelftest.ok;
 const wechatSubmitWorkspaceGuardOk = wechatSubmitWorkspaceGuard.ok;
-const specAuditOk = specAudit.ok;
+const specAuditIntegrityOk = Boolean(
+  specAudit.data?.auditIntegrityOk
+  && specAudit.data?.localImplementationReady,
+);
+const specClosureReady = Boolean(specAudit.data?.specClosureReady);
 const preReviewHardeningReady = preReviewHardening.ok;
-const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditOk;
-const platformSubmitReady = engineeringGatesReady && candidateValidationReady;
+const engineeringGatesReady = git.clean && git.syncedToOriginMain && onlineOk && productionOk && artifactsOk && securityAuditOk && docsFreshnessOk && nativeRolloutOk && paletteValidationOk && h5EntrypointValidationOk && miniProgramPosterValidationOk && productReviewOk && productSmokeOk && collaborationSmokeOk && candidateHardeningOk && candidatePrepareSelftestOk && candidateFormsPreviewSelftestOk && candidatePlanSelftestOk && candidateDispatchSelftestOk && candidateDispatchWorkbenchSelftestOk && candidateInviteSelftestOk && candidateDeskSelftestOk && candidateRecordDraftSelftestOk && candidateRecordSelftestOk && candidateDailySelftestOk && candidateDayCloseSelftestOk && candidatePrivacyOk && candidatePrivacySelftestOk && wechatPrivacyContractOk && wechatPrivacyContractSelftestOk && candidateReviewSelftestOk && wechatSubmitWorkspaceGuardOk && specAuditIntegrityOk;
+const platformSubmitReady = engineeringGatesReady && candidateValidationReady && specClosureReady;
 const apiDeployReady = apiDeploy.ok;
 const releaseEvidenceReady = releaseEvidence.ok;
+const missingReleaseSections = new Set(
+  releaseEvidence.data?.missing?.map((item) => item.section) ?? [],
+);
+const wechatReviewSubmitted = !missingReleaseSections.has("## 4. 微信公众平台提交审核证据");
+const wechatReleased = !missingReleaseSections.has("## 6. 审核通过后发布证据");
 const releaseComplete = platformSubmitReady && apiDeployReady && preReviewHardeningReady && releaseEvidenceReady;
+const nativeReleaseState = deriveNativeReleaseState(nativeRollout.data, {
+  expectedVersion: CURRENT_MINIPROGRAM_VERSION,
+});
 
 const nextActions = [];
+if (nativeReleaseState.currentCandidateUploadVerificationRequired) {
+  nextActions.push(
+    `Provide the existing trusted private ${CURRENT_MINIPROGRAM_VERSION} upload attestation path and rerun the native gate; do not repackage or re-upload the recorded experience version.`,
+  );
+} else if (!nativeReleaseState.currentCandidateUploaded) {
+  nextActions.push(
+    `Create and verify an immutable ${CURRENT_MINIPROGRAM_VERSION} candidate archive, then obtain explicit upload authorization; only after upload may N5c true-device evidence begin.`,
+  );
+} else {
+  nextActions.push(
+    "Run N5c true-device, startup-performance, web-view domain, and platform privacy evidence checks; do not submit for review, publish, or enable flags/allowlists without new authorization.",
+  );
+}
 if (!git.clean || !git.syncedToOriginMain) {
   nextActions.push("Clean and sync local main with origin/main.");
 }
@@ -230,6 +293,13 @@ if (!securityAuditOk) {
 }
 if (!docsFreshnessOk) {
   nextActions.push("Fix stale release-doc wording before relying on the release action map.");
+}
+if (
+  !nativeRolloutOk
+  && !nativeReleaseState.currentCandidateUploaded
+  && !nativeReleaseState.currentCandidateUploadRecorded
+) {
+  nextActions.push(`Keep ${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 8)} as immutable uploaded evidence; package ${CURRENT_MINIPROGRAM_VERSION} separately and obtain fresh upload authorization.`);
 }
 if (!paletteValidationOk) {
   nextActions.push("Remove non-neutral UI colors before treating the 1.1 design system as closed.");
@@ -291,6 +361,9 @@ if (!candidatePrivacyOk) {
 if (!candidatePrivacySelftestOk) {
   nextActions.push("Fix release:candidate:privacy:selftest before relying on private candidate packet privacy checks.");
 }
+if (!wechatPrivacyContractOk || !wechatPrivacyContractSelftestOk) {
+  nextActions.push("Reconcile the native runtime with docs/wechat-privacy-declaration.json before any WeChat review preparation.");
+}
 if (!candidateReviewSelftestOk) {
   nextActions.push("Fix release:candidate:review:selftest before relying on private candidate validation review results.");
 }
@@ -309,8 +382,10 @@ if (!candidateValidationReady) {
 if (!wechatSubmitWorkspaceGuardOk) {
   nextActions.push("Restore release:wechat:prepare-submit confirmation guard before relying on WeChat review preparation.");
 }
-if (!specAuditOk) {
+if (!specAuditIntegrityOk) {
   nextActions.push("Fix docs/humi-1.1-spec-acceptance-audit.md coverage before claiming the 1.1 spec scope is implemented.");
+} else if (!specClosureReady) {
+  nextActions.push("Complete the explicitly open native evidence rows before treating the 1.1 spec as closed; do not rewrite completed local implementation as incomplete.");
 }
 if (!preReviewHardeningReady) {
   nextActions.push("Finish docs/humi-1.1-pre-review-hardening.md P0/P1 product hardening before WeChat review.");
@@ -335,6 +410,7 @@ if (releaseComplete) {
 console.log(JSON.stringify({
   ok: platformSubmitReady && apiDeployReady && preReviewHardeningReady,
   checkedAt: new Date().toISOString(),
+  releaseStatusFixtureGuard,
   git,
   release: {
     onlineReady: onlineOk,
@@ -343,6 +419,7 @@ console.log(JSON.stringify({
     apiDeployOnlySshBlocked,
     securityAuditReady: securityAuditOk,
     docsFreshnessReady: docsFreshnessOk,
+    nativeRolloutReady: nativeRolloutOk,
     neutralPaletteReady: paletteValidationOk,
     h5EntrypointReady: h5EntrypointValidationOk,
     miniProgramPosterReady: miniProgramPosterValidationOk,
@@ -365,16 +442,35 @@ console.log(JSON.stringify({
     candidateDayCloseSelftestReady: candidateDayCloseSelftestOk,
     candidatePrivacyReady: candidatePrivacyOk,
     candidatePrivacySelftestReady: candidatePrivacySelftestOk,
+    wechatPrivacyContractReady: wechatPrivacyContractOk,
+    wechatPrivacyContractSelftestReady: wechatPrivacyContractSelftestOk,
     candidateReviewSelftestReady: candidateReviewSelftestOk,
     wechatSubmitWorkspaceGuardReady: wechatSubmitWorkspaceGuardOk,
-    specAcceptanceAuditReady: specAuditOk,
+    specAuditIntegrityReady: specAuditIntegrityOk,
+    specAcceptanceAuditReady: specClosureReady,
     preReviewHardeningReady,
     preReviewHardeningOpenItems: preReviewHardening.openItems,
     artifactsReady: artifactsOk,
     releaseEvidenceReady,
     releaseComplete,
-    miniProgramUploadedVersion: CURRENT_MINIPROGRAM_VERSION,
+    miniProgramUploadedVersion: nativeReleaseState.miniProgramUploadedVersion,
+    miniProgramRecordedUploadVersion: nativeReleaseState.miniProgramRecordedUploadVersion,
+    miniProgramCandidateVersion: CURRENT_MINIPROGRAM_VERSION,
     miniProgramUploadDescription: CURRENT_MINIPROGRAM_DESCRIPTION,
+    currentUploadedExperienceVersion: CURRENT_UPLOADED_EXPERIENCE_VERSION,
+    currentUploadedExperienceRuntimeCommit: CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    lastUploadedExperienceVersion: LAST_UPLOADED_EXPERIENCE_VERSION,
+    lastUploadedExperienceRuntimeCommit: LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    nativeCheckpoint: nativeReleaseState.nativeCheckpoint,
+    currentCandidateUploaded: nativeReleaseState.currentCandidateUploaded,
+    currentCandidateUploadRecorded: nativeReleaseState.currentCandidateUploadRecorded,
+    currentCandidateUploadVerificationRequired: nativeReleaseState.currentCandidateUploadVerificationRequired,
+    trueDeviceEvidence: nativeReleaseState.trueDeviceEvidence,
+    wechatReviewSubmitted,
+    wechatReleased,
+    nativeAllowlistEnabled: nativeReleaseState.nativeAllowlistEnabled,
+    platformPrivacyDeclaration: nativeReleaseState.platformPrivacyDeclaration,
+    webViewDomainEvidence: nativeReleaseState.webViewDomainEvidence,
   },
   requiredArtifacts: artifacts,
   preReviewHardening,
@@ -384,6 +480,7 @@ console.log(JSON.stringify({
     summarizeCheck(apiDeploy),
     summarizeCheck(securityAudit),
     summarizeCheck(docsFreshness),
+    summarizeCheck(nativeRollout),
     summarizeCheck(paletteValidation),
     summarizeCheck(h5EntrypointValidation),
     summarizeCheck(miniProgramPosterValidation),
@@ -405,6 +502,8 @@ console.log(JSON.stringify({
     summarizeCheck(candidateDayCloseSelftest),
     summarizeCheck(candidatePrivacyCheck),
     summarizeCheck(candidatePrivacySelftest),
+    summarizeCheck(wechatPrivacyContract),
+    summarizeCheck(wechatPrivacyContractSelftest),
     summarizeCheck(candidateReviewSelftest),
     summarizeCheck(wechatSubmitWorkspaceGuard),
     summarizeCheck(specAudit),

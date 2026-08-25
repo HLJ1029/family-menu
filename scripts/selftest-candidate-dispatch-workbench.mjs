@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { CURRENT_UPLOADED_EXPERIENCE_VERSION } from "./release-candidate.mjs";
 
 const execFileAsync = promisify(execFile);
 const packetDir = await mkdtemp(join(tmpdir(), "humi-candidate-workbench-"));
@@ -33,7 +34,7 @@ const mode = (await stat(result.workbenchPath)).mode & 0o777;
 
 assert(result.ok === true, "workbench did not return ok=true");
 assert(result.workbenchPath === join(packetDir, "candidate-dispatch-workbench-2026-07-07.html"), "workbench path should be inside packet");
-assert(result.shareEvidenceDir === join(packetDir, "miniprogram-share-card-preview-20260707T000000"), "workbench should expose latest share evidence dir");
+assert(result.shareEvidenceDir === null, "workbench must not auto-discover historical share evidence");
 assert(result.users.length === 6, "workbench should parse five card tasks and one non-card task");
 assert(result.users[0].id === "U001", "workbench should parse U001");
 assert(result.users[0].entryLabel === "问问大家小程序卡片", "workbench should preserve U001 entry label");
@@ -41,12 +42,12 @@ assert(result.users[0].inviteStatus === "已邀请", "workbench should read U001
 assert(result.users[5].inviteStatus === "待邀请", "workbench should read U006 invite status");
 assert(result.users[0].hasTesterMessage, "workbench should include tester message");
 assert(result.users[0].hasShareCardGuide, "workbench should include share card guide for card tasks");
-assert(result.users[0].shareCardQrReady === true, "workbench should mark existing share QR ready for card tasks");
-assert(result.users[0].hasShareCardQrImage === true, "workbench should expose share QR image when direct-preview exists");
+assert(result.users[0].shareCardQrReady === false, "workbench must fail closed for historical share QR files");
+assert(result.users[0].hasShareCardQrImage === false, "workbench must not expose historical share QR images");
 for (const user of result.users.slice(0, 5)) {
   assert(user.hasShareCardGuide, `${user.id} should include a share card guide`);
-  assert(user.shareCardQrReady === true, `${user.id} should mark its direct-preview QR ready`);
-  assert(user.hasShareCardQrImage === true, `${user.id} should expose its direct-preview QR image`);
+  assert(user.shareCardQrReady === false, `${user.id} should keep direct-preview QR unavailable`);
+  assert(user.hasShareCardQrImage === false, `${user.id} should not expose a direct-preview QR image`);
 }
 assert(!result.users[5].hasShareCardGuide, "workbench should not show share card guide for non-card tasks");
 assert(result.users[5].shareCardQrReady === null, "workbench should not report QR readiness for non-card tasks");
@@ -60,7 +61,8 @@ assert(html.includes("问问大家小程序卡片 / 优先跑协作 / 已邀请"
 assert(html.includes("普通打开小程序 / 普通路径 / 待邀请"), "workbench should show pending non-card status in summary");
 assert(html.includes("复制体验者文案"), "workbench should expose copy buttons for tester messages");
 assert(html.includes("小程序卡片发送确认"), "workbench should expose mini program share card send guidance");
-assert(html.includes("小程序卡片证据目录"), "workbench should expose mini program share evidence directory");
+assert(html.includes(`从微信体验版打开 ${CURRENT_UPLOADED_EXPERIENCE_VERSION}`), "workbench should use the bound experience-version entry");
+assert(html.includes("历史二维码已禁用"), "workbench should state that historical QR codes are disabled");
 assert(html.includes("pages/share/index?type=crave&amp;token=&lt;真实征集token&gt;&amp;householdName=&lt;家庭名&gt;"), "workbench should show crave share confirmation path template");
 assert(html.includes("/pages/boot/index?crave=&lt;真实征集token&gt;"), "workbench should show crave landing path template");
 assert(html.includes("pages/share/index?type=invite&amp;token=&lt;真实邀请token&gt;"), "workbench should show invite share confirmation path template");
@@ -72,19 +74,11 @@ assert(html.includes("/pages/boot/index?menuShare=&lt;真实菜单token&gt;"), "
 assert(html.includes("必须看到真实微信联系人面板"), "workbench should require the real contact picker");
 assert(html.includes("选择家人发清单"), "workbench should show the grocery second-step button");
 assert(html.includes("选择家人发菜单"), "workbench should show the menu second-step button");
-assert(html.includes("npm run release:wechat:share:direct-previews"), "workbench should expose DevTools direct-preview command");
-assert(html.includes("direct-preview/crave-preview-qr.png"), "workbench should show crave direct-preview QR file");
-assert(html.includes("direct-preview/invite-preview-qr.png"), "workbench should show invite direct-preview QR file");
-assert(html.includes("direct-preview/grocery-preview-qr.png"), "workbench should show grocery direct-preview QR file");
-assert(html.includes("direct-preview/wish-preview-qr.png"), "workbench should show wish direct-preview QR file");
-assert(html.includes("direct-preview/menu-preview-qr.png"), "workbench should show menu direct-preview QR file");
-assert(html.includes("复制直达二维码路径"), "workbench should expose copy buttons for direct-preview QR paths");
-assert(html.includes(`${packetDir}/miniprogram-share-card-preview-20260707T000000/direct-preview/crave-preview-qr.png`), "workbench should show absolute crave direct-preview QR path");
-assert(html.includes('data-share-qr="ready"'), "workbench should render ready share QR image");
-assert(html.includes(`src="file://${packetDir}/miniprogram-share-card-preview-20260707T000000/direct-preview/crave-preview-qr.png"`), "workbench should render crave direct-preview QR as file image");
-assert(html.includes("可扫码直达"), "workbench should explain QR can be scanned directly");
-assert(html.includes("直达二维码状态"), "workbench should show direct-preview QR readiness status");
-assert(html.includes("<strong>已找到</strong>"), "workbench should show existing direct-preview QR as ready");
+assert(!html.includes("npm run release:wechat:share:direct-previews"), "workbench must not suggest stale direct-preview generation");
+assert(!html.includes("direct-preview/crave-preview-qr.png"), "workbench must not show stale crave QR files");
+assert(!html.includes("复制直达二维码路径"), "workbench must not expose historical QR path controls");
+assert(!html.includes('data-share-qr="ready"'), "workbench must not render any historical QR as ready");
+assert(!html.includes("src=\"file://"), "workbench must not embed private historical QR files");
 assert(html.includes("复制本 U 已发送登记命令"), "workbench should expose per-user sent mark commands");
 assert(html.includes("复制待发送标记命令"), "workbench should expose pending-only batch command when some users were already invited");
 assert(html.includes("npm run release:candidate:invite -- --users U001 --date 2026-07-07 --sent-confirmed"), "workbench missing per-user U001 invite command");

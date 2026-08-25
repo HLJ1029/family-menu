@@ -125,9 +125,9 @@ P0/P1 会由 `release:candidate:record` 自动同步写入 issue-triage.csv，�
 每天结束时运行 npm run release:candidate:daily -- --date YYYY-MM-DD。
 每天收工前优先运行 npm run release:candidate:day:close -- --date YYYY-MM-DD，一次完成隐私扫描、daily-review、doctor、candidate review 和私有收尾报告。
 每轮回填后运行 npm run release:candidate:doctor。
-每天开始优先运行 npm run release:candidate:today -- --date YYYY-MM-DD，一次刷新今日计划、单据预览、分发单、扫码工作台、隐私扫描和 doctor 摘要；该命令不会发送消息、不会标记邀请、不会写反馈、不会提交审核。
+每天开始优先运行 npm run release:candidate:today -- --date YYYY-MM-DD，一次刷新今日计划、单据预览、分发单、体验版入口工作台、隐私扫描和 doctor 摘要；该命令不会发送消息、不会标记邀请、不会写反馈、不会提交审核。
 每轮邀请前运行 npm run release:candidate:plan，生成 candidate-day-plan.md，先看今天建议邀请、需要追问和优先协作的 U 编号。
-每轮发送前运行 npm run release:candidate:dispatch -- --date YYYY-MM-DD，生成只包含今天 U 编号的 candidate-dispatch-YYYY-MM-DD.md/json；再运行 npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD，生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、小程序卡片可扫码直达二维码、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令放到同一个私有页面里。
+每轮发送前运行 npm run release:candidate:dispatch -- --date YYYY-MM-DD，生成只包含今天 U 编号的 candidate-dispatch-YYYY-MM-DD.md/json；再运行 npm run release:candidate:dispatch:workbench -- --date YYYY-MM-DD，生成 candidate-dispatch-workbench-YYYY-MM-DD.html，把逐个发送文案、当前微信体验版 `1.1.78` 入口、每个 U 的已发送登记命令、回填草稿命令、回填模板和日结命令放到同一个私有页面里。入口版本来自唯一发布常量；历史开发者工具二维码不会被自动发现或显示。
 每发完一个 U，就复制工作台里该卡片的 npm run release:candidate:invite -- --users U00X --date YYYY-MM-DD --sent-confirmed，把匿名 U 编号标为已邀请；如果整批都已经真实发出，也可以运行 npm run release:candidate:invite -- --from-dispatch YYYY-MM-DD --sent-confirmed。不要记录真实联系人；未带确认参数时不会写入。
 每轮复盘前运行 npm run release:candidate:privacy:check，确认匿名包没有手机号、邮箱、微信号或真实姓名。
 ```
@@ -207,7 +207,7 @@ npm run release:candidate:privacy:selftest
 npm run release:candidate:review
 ```
 
-`release:candidate:today` 是每天开工入口，会在私有候选包里串起 `candidate-day-plan.md`、`candidate-forms-preview.html`、`candidate-dispatch-YYYY-MM-DD.md/json`、`candidate-dispatch-workbench-YYYY-MM-DD.html`、隐私扫描和 doctor 摘要；它不发送消息、不标记邀请、不写反馈、不提交审核。`release:candidate:forms:preview` 会在私有候选包写入并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的版式；该文件不提交仓库。`release:candidate:plan` 会在私有候选包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:dispatch:workbench` 会在私有候选包写入 `candidate-dispatch-workbench-YYYY-MM-DD.html`，读取 `anonymous-users.csv` 显示每个 U 的待邀请/已邀请/已体验状态，并在部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它用于逐个复制体验者文案、入口任务、小程序卡片可扫码直达二维码、本 U 已发送登记命令、回填草稿命令和回填模板，不会发送消息、不会自动标记邀请、不会提交审核。`release:candidate:record:draft` 会在收到反馈后先生成私有 `candidate-record-draft-U00X-YYYY-MM-DD.md`，把必填字段、占位符和 `release:candidate:record` 命令整理成一张草稿；它不会写入 `anonymous-users.csv`、`feedback-template.csv` 或 `issue-triage.csv`。`release:candidate:invite` 会从当天分发单或显式 `--users U00X` 读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈；非 dry-run 写入必须带 `--sent-confirmed`，确认消息或小程序卡片已经真实发出。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
+`release:candidate:today` 是每天开工入口，会在私有候选包里串起 `candidate-day-plan.md`、`candidate-forms-preview.html`、`candidate-dispatch-YYYY-MM-DD.md/json`、`candidate-dispatch-workbench-YYYY-MM-DD.html`、隐私扫描和 doctor 摘要；它不发送消息、不标记邀请、不写反馈、不提交审核。`release:candidate:forms:preview` 会在私有候选包写入并打开 `candidate-forms-preview.html`，用于确认体验者反馈单、主厨记录单、导入字段和每日复盘规则的版式；该文件不提交仓库。`release:candidate:plan` 会在私有执行包写入 `candidate-day-plan.md`，用于当日执行，不提交仓库。`release:candidate:dispatch` 会在私有候选包写入 `candidate-dispatch-YYYY-MM-DD.md/json`，只抽今天计划里的 U 编号、邀请文案、反馈摘要和回填命令模板，不提交仓库；分发单里的 `release:candidate:record` 只能在替换真实匿名反馈后运行，不能原样运行。`release:candidate:dispatch:workbench` 会在私有候选包写入 `candidate-dispatch-workbench-YYYY-MM-DD.html`，读取 `anonymous-users.csv` 显示每个 U 的待邀请/已邀请/已体验状态，并在部分 U 已邀请时只生成未邀请 U 编号的批量发送标记命令；它用于逐个复制体验者文案、入口任务、当前微信体验版 `1.1.78` 入口、本 U 已发送登记命令、回填草稿命令和回填模板，入口版本由唯一发布常量提供，历史二维码保持不可用，不会发送消息、不会自动标记邀请、不会提交审核。`release:candidate:record:draft` 会在收到反馈后先生成私有 `candidate-record-draft-U00X-YYYY-MM-DD.md`，把必填字段、占位符和 `release:candidate:record` 命令整理成一张草稿；它不会写入 `anonymous-users.csv`、`feedback-template.csv` 或 `issue-triage.csv`。`release:candidate:invite` 会从当天分发单或显式 `--users U00X` 读取匿名 U 编号并把 `anonymous-users.csv` 标为已邀请，不写真实联系人，也不生成体验反馈；非 dry-run 写入必须带 `--sent-confirmed`，确认消息或小程序卡片已经真实发出。`release:candidate:day:close` 会在私有候选包写入 `candidate-day-close-YYYY-MM-DD.md/json`，用于当天收尾，不提交仓库，也不会把真实候选复盘伪造成通过。`release:candidate:privacy:check` 在发现手机号、邮箱、微信号或真实姓名时失败是正确结果；先清理私有候选包再继续复盘。`release:candidate:review` 在真实反馈不足时失败也是正确结果；它用于在候选内测未完成时阻止进入微信审核。
 
 `release:candidate:desk` 会优先识别当天 `candidate-dispatch-YYYY-MM-DD.md/json`，把 U001-U010 的固定入口任务直接打印出来：U001-U005 逐类覆盖五种小程序卡片，U006 普通打开，U007 完整菜品页，U008 买菜清单，U009 菜单海报，U010 清单海报；并提示生成 `candidate-dispatch-workbench-YYYY-MM-DD.html`。如果当天分发单还没生成，执行台会提示先运行 `release:candidate:dispatch -- --date YYYY-MM-DD`，避免执行人回到全量 `outreach-batch.md` 里手工找文案。
 
@@ -218,7 +218,7 @@ npm run release:candidate:review
 
 ## 7. 原生骨架真机证据合同
 
-原生骨架候选使用独立的 36 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
+原生骨架候选使用独立的 56 行真机证据矩阵。这里的“通过”只代表候选包在指定真机上完成了对应路径，不能由模拟器、代码单测、开发者工具截图或口头确认替代。
 
 每一行必须只包含以下字段，禁止增加昵称、手机号、微信号、备注、openid、token 或其他自由文本：
 
@@ -227,12 +227,12 @@ npm run release:candidate:review
   "device": "iPhone 15 Pro",
   "platform": "iOS",
   "wechatVersion": "8.0.56",
-  "packageVersion": "1.1.74",
+  "packageVersion": "1.1.78",
   "householdFixture": "owner-household",
   "startedAt": "2026-07-23T08:00:00.000Z",
   "finishedAt": "2026-07-23T08:02:00.000Z",
   "result": "pass",
-  "evidencePath": "owner_cooking_flow.png"
+  "evidencePath": "descriptors/owner_cooking_flow.json"
 }
 ```
 
@@ -243,14 +243,14 @@ npm run release:candidate:review
 - `householdFixture` 使用不含个人信息的稳定测试夹具名。游客场景必须是 `guest`；owner/member 做饭分别使用 `owner-*`、`member-*`；五类双方分享使用 `owner-member-*`。
 - `startedAt` 和 `finishedAt` 必须是 UTC ISO 时间，且都晚于候选 commit；不得填写未来时间。证据描述文件和媒体文件本身的修改时间也必须晚于候选 commit。
 - `result` 只能是 `pass`、`fail`、`pending` 或 `blocked`。只有 `pass` 计入通过数。
-- `evidencePath` 必须使用 ASCII 安全相对路径，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用绝对路径、软链接、`..`、昵称式文件名或 manifest 自身。
+- `evidencePath` 必须严格为 `descriptors/<scenarioId>.json`，指向证据目录内经过脱敏且不复用的 JSON 描述文件；不得使用其他目录/文件名、绝对路径、软链接、硬链接、`..`、昵称式文件名或 manifest 自身。门禁不回显操作员输入的非规范原始路径。
 - 菜单、清单、邀请、做饭任务和海报五类分享的单行证据，必须同时覆盖“出现真实微信联系人面板并发送”和“另一台微信收到并打开落地页”。只证明发送端或只看到 Humi 内部成功提示都不能填 `pass`。
 
-每个 `evidencePath` 指向的 JSON 必须严格包含以下五个字段：
+每个 `evidencePath` 指向的 JSON 必须严格包含以下六个字段：
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scenarioId": "menu_share_send_and_recipient_open",
   "redacted": true,
   "checks": {
@@ -258,6 +258,7 @@ npm run release:candidate:review
     "sent": true,
     "recipient_open": true
   },
+  "metrics": {},
   "mediaPaths": [
     "menu-share-sender.png",
     "menu-share-recipient.png"
@@ -267,12 +268,13 @@ npm run release:candidate:review
 
 - `scenarioId` 必须与 manifest 行一致。
 - `checks` 必须与该场景的固定检查项完全一致，不能缺项、增项或写成自由文本。
+- 非性能场景的 `metrics` 必须严格为 `{}`。三个性能场景必须严格为 `{ "durationMs": <有限且非负的数字> }`；不得填字符串、`NaN`、`Infinity`、自定义预算或 `budgetMet`。门禁自身分别按 400/1000/2500 ms 比较。
 - `mediaPaths` 只接受证据目录内的 PNG/JPEG/MP4/MOV；图片必须能被系统解码且宽高至少 300×300，视频必须能被 `ffprobe` 解码、宽高至少 300×300 且时长至少 1 秒。媒体还必须满足大小边界；只有文件头、无法解码的空壳文件会被拒绝。
 - 门禁同时使用文件实体和 SHA-256 内容摘要阻止跨场景复用；把同一张截图复制成不同文件名仍会失败。
 - 五类分享至少提供发送端和接收端两个媒体证据；其他场景至少一个。
 - `redacted: true` 是执行人对媒体已移除头像、昵称、聊天内容、手机号和其他家庭隐私的明确确认。自动门禁只能验证路径、解码、尺寸、时长和复用，不能代替人工脱敏检查。
 
-固定 36 行如下：
+固定 56 行如下：
 
 ```text
 登录与身份（6）
@@ -287,6 +289,9 @@ logout_to_guest
 recommendation_quick_15_rotation_1 ... recommendation_quick_15_rotation_5
 recommendation_easy_30_rotation_1 ... recommendation_easy_30_rotation_5
 recommendation_normal_rotation_1 ... recommendation_normal_rotation_5
+
+每条推荐证据必须证明菜谱均已认证且满足硬约束；同一家庭/日期/档位周期的第 2–5 轮还必须证明没有重复之前出现过的组合。
+每档五轮还必须属于同一 `householdFixture`、同一设备/平台、同一微信和包版本、同一个 Asia/Shanghai 业务日期，并按 rotation 1→5 的时间顺序执行且互不重叠；不能拿不同家庭、日期或设备的结果拼成五轮。
 
 烹饪、恢复与权限（4）
 cooking_background_restore
@@ -312,9 +317,41 @@ reminder_cancel
 
 回滚（1）
 immediate_h5_rollback
+
+五个原生主标签（5）
+native_tab_tonight
+native_tab_discover
+native_tab_plan
+native_tab_grocery
+native_tab_family
+
+家庭与协作（3）
+multi_household_switch
+household_owner_member_permissions
+meal_task_identity_claim_complete
+
+做饭降级与反馈（4）
+cooking_downgrade_remove_side
+cooking_downgrade_lower_effort
+cooking_downgrade_ready_staple
+serve_feedback
+
+海报保存与恢复（3）
+poster_save
+poster_cancel
+poster_permission_recovery
+
+提醒送达（2）
+reminder_send_failure
+reminder_deep_link
+
+真机性能（3）
+performance_cached_first_paint（durationMs <= 400）
+performance_warm_bootstrap（durationMs <= 1000）
+performance_cold_authenticated_bootstrap（durationMs <= 2500）
 ```
 
-证据目录的 `manifest.json` 使用 `schemaVersion: 2`，并在 `scenarios` 对象中以以上稳定 ID 为键。验收命令：
+证据目录的 `manifest.json` 使用 `schemaVersion: 3`，并在 `scenarios` 对象中以以上稳定 ID 为键。实际截图和视频只保存在 Git 之外的私有证据目录，不得提交仓库、伪造、软/硬链接、复制复用或把未执行路径标成通过。验收命令：
 
 ```bash
 node scripts/check-humi-true-device-evidence.mjs --selftest
@@ -324,4 +361,4 @@ node scripts/check-humi-true-device-evidence.mjs \
   --candidate-commit <candidate-sha>
 ```
 
-无证据参数运行时，门禁必须逐行报告 36 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。
+无证据参数运行时，门禁必须逐行报告 56 个 `missing` 并以非零状态退出；有证据时，所有 `missing`、`pending`、`fail`、`blocked` 和字段错误必须一次聚合输出。不得为了让门禁转绿而生成占位截图、复用同一证据或把未执行路径写成 `pass`。

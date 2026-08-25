@@ -16,6 +16,7 @@ const expectedChecks = [
   "failed lazy chunks show an accessible reload recovery instead of a blank screen",
   "production hashed lazy chunk 404 shows the same reload recovery",
   "H5 login prefers the native identity page and recovers from navigation failure",
+  "guest My Home exposes an explicit retryable native WeChat login action",
   "one-time H5 ticket is exchanged and removed from the URL",
   "ticket exchange gates stale-session hydration during silent recovery",
   "legacy serialized session URLs are discarded",
@@ -231,6 +232,98 @@ try {
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
   assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
+
+  const guestLoginContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await guestLoginContext.addInitScript(() => {
+    window.__humiNativeCalls = [];
+    const wxBridge = {
+      miniProgram: {
+        navigateTo: (payload) => {
+          window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+          payload.fail?.({ errMsg: "navigateTo:fail page not found" });
+        },
+      },
+    };
+    window.wx = wxBridge;
+    window.jWeixin = wxBridge;
+  });
+  const guestLoginPage = await guestLoginContext.newPage();
+  await guestLoginPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiGuest=1`, { waitUntil: "networkidle" });
+  await guestLoginPage.waitForTimeout(50);
+  assert.deepEqual(await guestLoginPage.evaluate(() => window.__humiNativeCalls), [], "guest entry must not request login before the user acts");
+  await guestLoginPage.getByTestId("mobile-nav-user").click();
+  const guestFamily = guestLoginPage.getByTestId("guest-family-explanation");
+  const guestLoginButton = guestFamily.getByRole("button", { name: "微信登录", exact: true });
+  await guestLoginButton.waitFor({ state: "visible", timeout: 5_000 });
+  assert.equal(await guestFamily.getByRole("button").count(), 1, "guest My Home should expose one primary login action");
+  await guestLoginButton.click();
+  await guestLoginPage.waitForFunction(() => window.__humiNativeCalls.length === 1, null, { timeout: 2_000 });
+  assert.deepEqual(await guestLoginPage.evaluate(() => window.__humiNativeCalls[0]), {
+    method: "navigateTo",
+    payload: { url: "/pages/identity/index?action=login" },
+  });
+  await guestFamily.getByText("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。").waitFor({ state: "visible", timeout: 5_000 });
+  assert.equal(await guestFamily.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
+  await guestLoginContext.close();
+
+  const guestLoginTimeoutContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await guestLoginTimeoutContext.addInitScript(() => {
+    window.__humiNativeCalls = [];
+    const wxBridge = {
+      miniProgram: {
+        navigateTo: (payload) => {
+          window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+        },
+        postMessage: (payload) => {
+          window.__humiNativeCalls.push({ method: "postMessage", payload });
+        },
+      },
+    };
+    window.wx = wxBridge;
+    window.jWeixin = wxBridge;
+  });
+  const guestLoginTimeoutPage = await guestLoginTimeoutContext.newPage();
+  await guestLoginTimeoutPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiGuest=1`, { waitUntil: "networkidle" });
+  await guestLoginTimeoutPage.getByTestId("mobile-nav-user").click();
+  const guestTimeoutFamily = guestLoginTimeoutPage.getByTestId("guest-family-explanation");
+  await guestTimeoutFamily.getByRole("button", { name: "微信登录", exact: true }).click();
+  const pendingGuestLoginButton = guestTimeoutFamily.getByRole("button", { name: "正在打开微信登录", exact: true });
+  await pendingGuestLoginButton.waitFor({ state: "visible", timeout: 2_000 });
+  assert.equal(await pendingGuestLoginButton.isEnabled(), false, "guest login should stay disabled while the native handoff is pending");
+  await guestLoginTimeoutPage.waitForFunction(() => window.__humiNativeCalls.some((call) => call.method === "postMessage"), null, { timeout: 2_000 });
+  await guestTimeoutFamily.getByText("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。").waitFor({ state: "visible", timeout: 6_000 });
+  const retryGuestLoginButton = guestTimeoutFamily.getByRole("button", { name: "微信登录", exact: true });
+  assert.equal(await retryGuestLoginButton.isEnabled(), true, "guest login should recover when the native bridge never answers");
+  await retryGuestLoginButton.click();
+  await guestLoginTimeoutPage.waitForFunction(
+    () => window.__humiNativeCalls.filter((call) => call.method === "navigateTo").length === 2,
+    null,
+    { timeout: 2_000 },
+  );
+  await guestLoginTimeoutContext.close();
+
+  const browserGuestContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+  });
+  const browserGuestPage = await browserGuestContext.newPage();
+  await browserGuestPage.goto(`${baseUrl}?humiGuest=1`, { waitUntil: "networkidle" });
+  await browserGuestPage.getByTestId("mobile-nav-user").click();
+  await browserGuestPage.getByTestId("guest-family-explanation").getByRole("button", { name: "微信登录", exact: true }).click();
+  await browserGuestPage.getByText("请从微信小程序打开 Humi 后登录。").waitFor({ state: "visible", timeout: 2_000 });
+  assert.equal(await browserGuestPage.getByTestId("guest-family-explanation").getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
+  await browserGuestContext.close();
 
   const ticketContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

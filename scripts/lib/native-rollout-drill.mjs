@@ -162,6 +162,7 @@ export async function runNativeRollbackDrill({ root }) {
       filename: resolve(repositoryRoot, "miniprogram/pages/boot/index.js"),
       dependencies: {
         "../../utils/bootstrap": bootstrapModule,
+        "../../utils/session": sessionModule,
         "../../utils/store": storeModule,
         "../../utils/telemetry": {
           startSpan: () => ({ end: () => {} }),

@@ -32,8 +32,8 @@
   flex: 0 0 auto;
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  background: #ebe6db;
-  color: #5d513a;
+  background: #e6e6e6;
+  color: #525252;
   font-size: 19rpx;
   font-weight: 800;
 }
@@ -50,8 +50,8 @@
   margin-top: 20rpx;
   padding: 18rpx 20rpx;
   border-radius: 18rpx;
-  background: #f2eee5;
-  color: #65593f;
+  background: #eeeeee;
+  color: #5a5a5a;
   font-size: 22rpx;
   font-weight: 700;
   line-height: 1.45;

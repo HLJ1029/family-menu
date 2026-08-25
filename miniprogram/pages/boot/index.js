@@ -1,4 +1,5 @@
 const { buildLegacyRoute, extractLegacyOptions, loadBootstrap, readCachedBootstrapSummary, resolveKnownShareRoute, resolveStartupRoute } = require("../../utils/bootstrap");
+const { getSession, hasSessionHistory } = require("../../utils/session");
 const { appStore } = require("../../utils/store");
 const { startSpan } = require("../../utils/telemetry");
 
@@ -29,6 +30,11 @@ Page({
     if (shareRoute) {
       span.end("completed", { page: "boot" });
       this.route(shareRoute);
+      return;
+    }
+    if (!getSession() && !hasSessionHistory()) {
+      span.end("completed", { page: "boot" });
+      this.route("/pages/identity/index");
       return;
     }
 

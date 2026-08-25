@@ -29,7 +29,7 @@
     "validate:native-sharing": "node scripts/check-native-sharing.mjs",
     "validate:h5-entry": "node scripts/check-h5-entrypoint-resilience.mjs",
     "validate:startup-performance": "node scripts/check-startup-performance.mjs && node scripts/selftest-startup-performance-report.mjs",
-    "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs",
+    "validate:native-primary-tabs": "node scripts/check-native-primary-tabs.mjs && node scripts/check-native-discover-regressions.mjs && node scripts/check-native-plan-editor.mjs && node scripts/check-native-family-actions.mjs && node scripts/check-native-task_auth-recovery.mjs",
     "validate:miniprogram-entry": "node scripts/check-miniprogram-entrypoint-resilience.mjs",
     "validate:miniprogram-poster": "node scripts/check-miniprogram-poster-share.mjs",
     "validate:identity": "node scripts/check-identity-store.mjs && node scripts/check-identity-runtime.mjs",
@@ -45,13 +45,29 @@
     "validate:native-observability": "node scripts/check-native-observability.mjs",
     "release:native-shell:check": "node scripts/check-native-rollout-readiness.mjs",
     "release:native-shell:check:local": "node scripts/check-native-rollout-readiness.mjs --local-contract-only",
-    "release:native-shell:check:selftest": "node scripts/selftest-native-rollout-readiness.mjs",
+    "release:native-shell:check:selftest": "node scripts/selftest-structured-release-evidence.mjs && node scripts/selftest-native-rollout-readiness.mjs",
+    "release:local-matrix": "node scripts/run-local-command-matrix.mjs",
+    "release:local-matrix:selftest": "node scripts/selftest-local-command-matrix.mjs",
+    "release:local-matrix:smoke": "node scripts/selftest-local-command-matrix.mjs --short-smoke",
+    "release:local-matrix:verify": "node scripts/verify-local-command-matrix.mjs",
+    "release:candidate:roles:selftest": "node scripts/selftest-release-candidate-roles.mjs",
+    "release:wechat:privacy:check": "node scripts/check-wechat-privacy-contract.mjs",
+    "release:wechat:privacy:selftest": "node scripts/selftest-wechat-privacy-contract.mjs && node scripts/selftest-wechat-privacy-behavior.mjs && node scripts/selftest-wechat-submit-copy.mjs",
+    "release:status:fixture:selftest": "node scripts/selftest-release-status-fixture-guard.mjs",
     "validate:meal-run-client": "node scripts/check-meal-run-client.mjs",
     "validate:meal-execution-ui": "node scripts/smoke-meal-execution-ui.mjs",
-    "validate:miniprogram-meal-reminder": "node scripts/check-miniprogram-meal-reminder.mjs",
+    "validate:miniprogram-meal-reminder": "node scripts/check-miniprogram-meal-reminder.mjs && node scripts/check-native-reminder-session-recovery.mjs",
     "validate:migration": "node scripts/check-humi-migration.mjs",
     "validate:true-device-evidence": "node scripts/check-humi-true-device-evidence.mjs",
     "validate:true-device-evidence:selftest": "node scripts/check-humi-true-device-evidence.mjs --selftest",
+    "release:n5c:prepare": "node scripts/prepare-n5c-evidence-session.mjs",
+    "release:n5c:prepare:selftest": "node scripts/selftest-n5c-evidence-session-prepare.mjs",
+    "release:n5c:record": "node scripts/record-n5c-evidence-scenario.mjs",
+    "release:n5c:record:selftest": "node scripts/selftest-n5c-evidence-session-record.mjs",
+    "release:n5c:check": "node scripts/check-n5c-evidence-session.mjs",
+    "release:n5c:check:selftest": "node scripts/selftest-n5c-evidence-session-check.mjs",
+    "release:n5c:doctor": "node scripts/check-n5c-device-readiness.mjs",
+    "release:n5c:doctor:selftest": "node scripts/selftest-n5c-device-readiness.mjs",
     "validate:supabase-retirement": "node scripts/check-supabase-retirement-selftest.mjs && node scripts/check-supabase-retirement.mjs",
     "deploy:api:check": "node scripts/check-api-deploy-readiness.mjs",
     "validate:api-deploy-set": "node scripts/check-api-deploy-set.mjs",
@@ -108,6 +124,7 @@
     "release:pre-review:evidence": "node scripts/prepare-pre-review-evidence-dashboard.mjs",
     "release:product:review": "node scripts/check-product-review-readiness.mjs",
     "release:product:smoke": "node scripts/smoke-product-entrypoints.mjs",
+    "release:product:smoke:family-management": "node scripts/smoke-product-entrypoints.mjs --only family-management",
     "release:collaboration:smoke": "node scripts/smoke-collaboration-landings.mjs",
     "release:security:audit": "node scripts/check-security-audit.mjs",
     "release:docs:check": "node scripts/check-release-doc-freshness.mjs",
@@ -128,7 +145,8 @@
     "release:wechat:share:landings": "node scripts/capture-miniprogram-share-landings.mjs",
     "release:wechat:share:selftest": "node scripts/check-miniprogram-share-cards.mjs",
     "release:wechat:poster:domain": "node scripts/check-wechat-poster-domain.mjs",
-    "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs"
+    "release:wechat:check": "node scripts/check-wechat-submit-readiness.mjs",
+    "release:wechat:check:selftest": "node scripts/selftest-wechat-submit-readiness.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
@@ -141,6 +159,7 @@
     "vite": "^7.2.4"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
     "playwright": "^1.60.0"
   }
 }

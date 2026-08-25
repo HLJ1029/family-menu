@@ -44,13 +44,19 @@ for (const [field, value] of replacements) {
 }
 
 const preservedLocation = values.evidenceLocation;
-nextSection = nextSection
-  .replace(`| 上传版本 \`${WECHAT_SUBMIT_VERSION}\` 列表 | 待填 | 待填 |  |`, `| 上传版本 \`${WECHAT_SUBMIT_VERSION}\` 列表 | 已留存 | ${preservedLocation} |  |`)
-  .replace("| request 合法域名 `api.humi-home.com` | 待填 | 待填 |  |", `| request 合法域名 \`api.humi-home.com\` | 已留存 | ${preservedLocation} |  |`)
-  .replace("| web-view 业务域名 `www.humi-home.com` | 待填 | 待填 |  |", `| web-view 业务域名 \`www.humi-home.com\` | 已留存 | ${preservedLocation} |  |`)
-  .replace("| 隐私保护指引关键项 | 待填 | 待填 |  |", `| 隐私保护指引关键项 | 已留存 | ${preservedLocation} |  |`)
-  .replace("| 审核备注/提交页 | 待填 | 待填 |  |", `| 审核备注/提交页 | 已留存 | ${preservedLocation} |  |`)
-  .replace("| 提交成功/审核中状态 | 待填 | 待填 |  |", `| 提交成功/审核中状态 | 已留存 | ${preservedLocation} | ${values.reviewStatus} |`);
+for (const [label, note] of [
+  [`上传版本 \`${WECHAT_SUBMIT_VERSION}\` 列表`, "上传候选与后台列表已核对"],
+  ["request / downloadFile 合法域名 `api.humi-home.com`", "正式 AppID 运行时探测与平台配置已核对"],
+  ["request 合法域名 `api.humi-home.com`", "平台配置已核对"],
+  ["web-view 业务域名 `www.humi-home.com`", "平台配置已核对"],
+  ["隐私保护指引关键项", "平台声明已核对"],
+  ["审核备注/提交页", "提交页已核对"],
+  ["提交成功/审核中状态", values.reviewStatus],
+]) {
+  nextSection = replaceEvidenceRow(nextSection, label, preservedLocation, note, {
+    optional: label === "request 合法域名 `api.humi-home.com`",
+  });
+}
 
 const updated = content.replace(section, nextSection);
 
@@ -85,6 +91,18 @@ function replaceField(markdown, field, value) {
     throw new Error(`Unable to find evidence field: ${field}`);
   }
   return markdown.replace(pattern, replacement);
+}
+
+function replaceEvidenceRow(markdown, label, location, note, { optional = false } = {}) {
+  const pattern = new RegExp(
+    `^\\| ${escapeRegExp(label)} \\|[^\\r\\n]*\\|[^\\r\\n]*\\|[^\\r\\n]*\\|$`,
+    "m",
+  );
+  if (!pattern.test(markdown)) {
+    if (optional) return markdown;
+    throw new Error(`Unable to find evidence row: ${label}`);
+  }
+  return markdown.replace(pattern, `| ${label} | 已留存 | ${location} | ${note} |`);
 }
 
 function getSection(markdown, heading) {

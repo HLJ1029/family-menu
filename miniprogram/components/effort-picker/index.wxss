@@ -47,7 +47,7 @@
   margin-left: 20rpx;
   padding: 10rpx 14rpx;
   border-radius: 999rpx;
-  background: #f0eee8;
+  background: #eeeeee;
   font-size: 20rpx;
   font-weight: 800;
 }

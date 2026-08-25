@@ -4,14 +4,21 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { buildCandidateFormsPreviewHtml, CANDIDATE_FORMS_PREVIEW_FILE } from "./lib/candidate-forms-preview.mjs";
+import { validateReleaseStatusFixtureMode } from "./lib/release-status-fixture-guard.mjs";
 
 const execFileAsync = promisify(execFile);
+const releaseStatusFixtureGuard = validateReleaseStatusFixtureMode(process.env);
+if (releaseStatusFixtureGuard.skipRequested && !releaseStatusFixtureGuard.authorized) {
+  console.log(JSON.stringify({ ok: false, releaseStatusFixtureGuard }, null, 2));
+  process.exit(1);
+}
 
 const privateBaseDir = process.env.HUMI_PRIVATE_EVIDENCE_DIR || join(homedir(), ".humi-release-evidence");
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z");
 const packetDir = process.env.HUMI_CANDIDATE_VALIDATION_DIR || join(privateBaseDir, `candidate-validation-${stamp}`);
 const shouldOpen = process.env.HUMI_CANDIDATE_VALIDATION_NO_OPEN !== "1";
-const selftestMode = process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1";
+const selftestMode = releaseStatusFixtureGuard.authorized
+  && process.env.HUMI_CANDIDATE_PREPARE_SELFTEST === "1";
 
 const [gitState, candidate, status] = await Promise.all([
   readGitState(),
@@ -69,7 +76,9 @@ const result = {
     candidateValidationReady: Boolean(status.release?.candidateValidationReady),
     candidateHardeningReady: Boolean(status.release?.candidateHardeningReady),
     productReviewReady: Boolean(status.release?.productReviewReady),
-    uploadedVersion: status.release?.miniProgramUploadedVersion,
+    uploadedVersion: status.release?.miniProgramUploadedVersion
+      ?? status.release?.miniProgramRecordedUploadVersion,
+    uploadVerified: Boolean(status.release?.currentCandidateUploaded),
     uploadDescription: status.release?.miniProgramUploadDescription,
   },
   files: files.map(([file]) => join(packetDir, file)),
@@ -145,7 +154,7 @@ function buildReadme({ git, candidate, status }) {
     "",
     `生成时间：${new Date().toISOString()}`,
     `产品提交：${git.head} / origin/main ${git.originMain}`,
-    `小程序版本：${status.release?.miniProgramUploadedVersion} / ${status.release?.miniProgramUploadDescription}`,
+    `小程序版本：${status.release?.miniProgramUploadedVersion ?? status.release?.miniProgramRecordedUploadVersion} / ${status.release?.miniProgramUploadDescription}`,
     "",
     "## 使用边界",
     "",

@@ -1,19 +1,19 @@
 # Humi API 1.1 Production Deploy Runbook
 
-更新日期：2026-07-24
+更新日期：2026-07-28
 执行设备：codex@mbp-m5pro
 
-本文档记录 Humi API 1.1 服务端增量以及原生骨架 `1.1.74` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
+本文档记录 Humi API 1.1 服务端增量以及当前原生骨架 `1.1.78` API 合同的生产部署与复验方法。原生候选部署后仍保持服务端总开关关闭；API/H5 部署、小程序上传、提审、发布和白名单扩张是不同动作。
 
 ## 1. 当前事实
 
 - 生产 API：`https://api.humi-home.com`
 - 健康检查：`https://api.humi-home.com/health` 当前返回 HTTP 200。
 - 当前线上 H5：`https://www.humi-home.com/`
-- 当前兼容生产基线：`e66c5f0`；原生骨架候选以当前受审分支 HEAD 与 AI-HQ `native-shell/HANDOFF.md` 为准，尚未部署。
-- 最新确认的兼容 H5：GitHub Pages run `29890670549` / success；原生候选 H5 改动尚未部署。
-- 最新小程序候选：`1.1.73` / `修复身份完善入口`。短期海报图片上传与公开下载接口已部署；微信后台 downloadFile 合法域名仍需配置后才能完成真机联调。
-- 未上传原生骨架 preview：`1.1.74`。其 API/H5 兼容改动部署后也不得自动上传小程序或开启原生白名单。
+- 当前兼容生产基线：PR #37 merge `b7f9488`；原生骨架候选以当前受审分支和签名候选证据为准。
+- 最新确认的兼容 H5：GitHub Pages deployment `30088654727` / success；N5a 原生候选 H5/API 兼容改动已部署。
+- 历史兼容基线：`1.1.73` / `修复身份完善入口`。
+- 当前已上传体验版：`1.1.78` / `Humi 原生主动登录与家庭协作闭环候选`。N5a API 与 PR #39 H5 热修复已部署；N5b-1.1.78 已绑定 `7606aad` 上传，未提审、未发布、未开启原生开关或白名单。
 - 当前 SSH 结论：2026-07-03 已确认 `ubuntu@api.humi-home.com` 可用，需显式使用本机 `~/.ssh/humi_tencent_lighthouse` key；`root@api.humi-home.com` 不可用。
 - 当前服务管理：`systemd` unit `humi-api.service`，`WorkingDirectory=/opt/humi`，`ExecStart=/usr/bin/node api/server.js`，`User=ubuntu`。
 - 当前数据文件：`HUMI_API_DATA_FILE=/var/lib/humi-api/data.json`。
@@ -32,7 +32,7 @@
 - 1.1.54：`/crave-requests/:token/join` 返回家庭列表与共享 `state`。
 - 1.1.73：登录用户上传 950KB 内 JPG/PNG 海报，服务端按不透明 token 保存 24 小时，供小程序原生图片分享和相册保存下载。
 
-以下属于 `1.1.74` 原生骨架候选，尚未部署：
+以下属于当前 `1.1.78` 原生骨架能力，已按 N5a 部署兼容 API/H5，但生产开关仍关闭：
 
 - `GET /bootstrap`：返回经过脱敏的用户、家庭、状态版本、当前 MealRun 与能力开关。
 - `POST /recommendations/dinner`：三档行动力和服务端轮换游标，硬约束不可放宽。
@@ -72,7 +72,18 @@ npm run release:check:online
 HUMI_REPO="$PWD" /Users/honglijie/AI-HQ/scripts/secret-scan.sh
 ```
 
-预检失败时不要部署。先修复并重新走完整验证。`HUMI_NATIVE_HANDOFF_PATH` 必须指向本次候选的 AI‑HQ 交付文件，且其中唯一候选提交必须等于当前 `HEAD`；不得用 `release:native-shell:check:local` 代替部署预检。`release:native-shell:check` 必须继续报告 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false` 和原生白名单关闭；这一步只证明候选完整，不会改变外部状态。
+预检失败时不要部署。先修复并重新走完整验证。
+
+> **历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.78 验证）：** 当时 `HUMI_NATIVE_HANDOFF_PATH` 指向候选 AI‑HQ 交付文件，唯一候选提交需等于当时的 `HEAD`，并要求 `production_api_deployed=false`、`h5_deployed=false`、`miniprogram_uploaded=false`。这是上传前模板，不能用于描述已上传体验版的当前状态。
+
+当前 N5b-1.1.78 使用签名 attestation 验证，而不是要求当前文档 `HEAD` 等于已上传运行时。运行时绑定为 `7606aadcd03dafe9925885b7fef5c308ecfb73e0`；上传后允许继续提交文档和验证修复，只要不改变该小程序运行时。当前事实是 `production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true`，`wechat_review_submitted=false`、`wechat_released=false`、`native_allowlist_enabled=false`。本地只读复验必须显式提供签名 attestation：
+
+```bash
+HUMI_WECHAT_UPLOAD_ATTESTATION_PATH=/Users/honglijie/.humi-release-evidence/HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json \
+  npm run release:native-shell:check:local
+```
+
+该复验会校验不可变归档、归档大小、归档 SHA-256、运行时提交以及签名原始 CLI 证据哈希；它只读本地证据，不会执行 preview、提审、发布或开关/白名单动作。
 
 ## 4. 恢复 SSH 后的连接检查
 
@@ -201,7 +212,7 @@ npm run release:check:online
 - 普通成员在【我的家】不能代替主厨发起征集或分享买菜卡片。
 - 精准推荐/解释额度用完时服务端返回 402，前端可降级。
 
-API 部署后仍不打开原生能力。先验证当前 `1.1.73` 兼容壳和生产 H5，再由后续独立 checkpoint 决定是否上传 `1.1.74`。
+N5a API 部署后仍不打开原生能力；N5b-1.1.78 已独立上传 `1.1.78@7606aad`。继续保持开关和白名单关闭，N5c 真机验收、提审、发布和灰度分别走独立 checkpoint。
 
 ## 9. 回滚
 

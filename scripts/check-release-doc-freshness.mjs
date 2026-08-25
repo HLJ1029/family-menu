@@ -1,12 +1,24 @@
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 
 import {
   CURRENT_MINIPROGRAM_DESCRIPTION,
   CURRENT_MINIPROGRAM_VERSION,
+  CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION,
+  CURRENT_UPLOADED_EXPERIENCE_VERSION,
+  LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+  LAST_UPLOADED_EXPERIENCE_VERSION,
+  NATIVE_SHELL_EXPERIENCE_DESCRIPTION,
   NATIVE_SHELL_PREVIEW_VERSION,
 } from "./release-candidate.mjs";
 
 const checks = [
+  {
+    path: "miniprogram/README.md",
+    forbidden: ["隐私保护指引已填写"],
+    required: ["隐私保护指引仍待在微信后台填写并留证"],
+  },
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     forbidden: [
@@ -115,85 +127,246 @@ const checks = [
 ];
 
 const failures = [];
+const docFixtureTarget = process.env.NODE_ENV === "test"
+  ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_TARGET || "")
+  : "";
+const docFixturePath = process.env.NODE_ENV === "test"
+  ? String(process.env.HUMI_RELEASE_DOC_FIXTURE_PATH || "")
+  : "";
+const staleCurrentStatePhrases = [
+  "当前 1.1.78 尚未封包或上传",
+  "当前 1.1.75 尚未封包或上传",
+];
+const staleHistoricalUploadPattern = /(?:最近|当前)已上传(?:体验版)?(?:[：:\s]|是|为)*`?1\.1\.(?:74|75)(?:@[a-f0-9]{7,8})?`?/;
+const currentRuntimeShort = CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT.slice(0, 7);
 
 const currentCandidateDocs = [
   {
     path: "docs/humi-1.1-closure-map.md",
-    required: [`小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``],
+    required: [
+      `当前体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 已从不可变归档上传`,
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      "微信审核、正式发布、开关和白名单均未触发",
+    ],
   },
   {
     path: "docs/humi-1.1-release-evidence-log.md",
     required: [
-      `| 小程序版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
-      `| 小程序描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+      `| 小程序版本 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` |`,
+      `| 小程序描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
+      `| 当前已上传体验版 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
+      `| 上一历史体验版 | \`${LAST_UPLOADED_EXPERIENCE_VERSION}\` / \`Humi 原生骨架体验版 N5b（4eb3fbeb）\` / \`${LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT}\` |`,
+      "未执行 preview、未提审、未发布、未开启任何开关或白名单",
     ],
   },
   {
     path: "docs/humi-1.1-release-operator-handoff.md",
     required: [
-      `最新已上传兼容版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
-      `原生骨架 preview 固定使用从未上传的 \`${NATIVE_SHELL_PREVIEW_VERSION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\`，描述 \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      `当前体验版：\`${CURRENT_MINIPROGRAM_VERSION}\`，描述 \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      "status: uploaded-experience",
+      "miniprogram_uploaded: true",
+      "wechat_review_submitted: false",
+      "wechat_released: false",
+      "native_allowlist_enabled: false",
+      "true_device_evidence: 0/56",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      LAST_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      "历史兼容/生产基线是 `1.1.73`",
+      "平台隐私保护指引也仍待最终填写和留证",
+      "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json",
+      "private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed",
+      "当前已上传 `1.1.78`，未执行 preview、未提交审核、未发布",
     ],
   },
   {
     path: "docs/miniprogram-platform-submit-runbook.md",
     required: [
-      `已上传版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
-      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\``,
+      `上一历史体验版：\`${LAST_UPLOADED_EXPERIENCE_VERSION}\``,
+      `版本描述：\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      `wechat-submit-${CURRENT_UPLOADED_EXPERIENCE_VERSION}-*`,
+      `进入版本管理选择 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 提交审核`,
+      "不等于可提审",
     ],
   },
   {
     path: "docs/wechat-submit-copy-packet.md",
     required: [
-      `| 上传版本 | \`${CURRENT_MINIPROGRAM_VERSION}\` |`,
-      `| 版本描述 | \`${CURRENT_MINIPROGRAM_DESCRIPTION}\` |`,
+      `| 上传版本 | \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` |`,
+      `| 版本描述 | \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\` |`,
+      `当前 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 已从不可变归档上传为体验版`,
+      `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 是上一历史体验版`,
+      `提交版本：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\``,
+    ],
+  },
+  {
+    path: "docs/humi-wechat-true-device-acceptance.md",
+    required: [
+      `n5c-${CURRENT_UPLOADED_EXPERIENCE_VERSION}-<UTC>-<random>`,
+      "private://HUMI-2026-001/n5c-1.1.78-20260802T143902Z-db4ca4ed",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+    ],
+  },
+  {
+    path: "docs/humi-1.1-candidate-validation-forms.md",
+    required: [
+      `当前微信体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` 入口`,
+      `"packageVersion": "${CURRENT_UPLOADED_EXPERIENCE_VERSION}"`,
+      "入口版本来自唯一发布常量",
+    ],
+  },
+  {
+    path: "scripts/print-candidate-dispatch-workbench.mjs",
+    required: [
+      "CURRENT_UPLOADED_EXPERIENCE_VERSION",
+      "EXPERIENCE_ENTRY",
+      "历史二维码已禁用",
+    ],
+  },
+  {
+    path: "scripts/prepare-candidate-today.mjs",
+    required: [
+      "CURRENT_UPLOADED_EXPERIENCE_VERSION",
+      "历史二维码已禁用",
     ],
   },
   {
     path: "docs/miniprogram-launch-readiness.md",
     required: [
-      `小程序候选 \`${CURRENT_MINIPROGRAM_VERSION}\`（\`${CURRENT_MINIPROGRAM_DESCRIPTION}\`）`,
+      `小程序体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\`（\`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\`）已从不可变归档上传`,
+      `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-spec-acceptance-audit.md",
     required: [
-      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      `上一历史体验版为 \`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\``,
     ],
   },
   {
     path: "docs/humi-1.1-pre-review-hardening.md",
-    required: [`小程序候选更新为 \`${CURRENT_MINIPROGRAM_VERSION}\``],
+    required: [
+      `小程序候选 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 已从不可变归档上传为体验版`,
+      `\`${LAST_UPLOADED_EXPERIENCE_VERSION}@4eb3fbeb\` 只作为历史证据`,
+    ],
   },
   {
     path: "docs/launch-day-runbook.md",
     required: [
-      `小程序版本：\`${CURRENT_MINIPROGRAM_VERSION}\``,
-      `版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前体验版：\`${CURRENT_MINIPROGRAM_VERSION}@${currentRuntimeShort}\``,
+      `当前版本描述：\`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
     ],
   },
   {
     path: "docs/humi-api-production-deploy-runbook.md",
     required: [
-      `最新小程序候选：\`${CURRENT_MINIPROGRAM_VERSION}\` / \`${CURRENT_MINIPROGRAM_DESCRIPTION}\``,
+      `当前已上传体验版：\`${CURRENT_UPLOADED_EXPERIENCE_VERSION}\` / \`${CURRENT_UPLOADED_EXPERIENCE_DESCRIPTION}\``,
+      "未提审、未发布、未开启原生开关或白名单",
+      "历史 pre-N5a 模板（仅保留作历史记录，不适用于当前 N5b-1.1.78 验证）",
+      CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT,
+      "当前 N5b-1.1.78 使用签名 attestation 验证",
+      "production_api_deployed=true`、`h5_deployed=true`、`miniprogram_uploaded=true",
+      "wechat-upload-machine-attestation.json",
     ],
   },
   {
     path: "docs/humi-api-contract.md",
     required: [
-      `已上传兼容版 ${CURRENT_MINIPROGRAM_VERSION} 使用本合同`,
-      `未上传的原生骨架 preview 固定为 ${NATIVE_SHELL_PREVIEW_VERSION}`,
+      `当前已上传体验版 \`${CURRENT_UPLOADED_EXPERIENCE_VERSION}@${currentRuntimeShort}\` 均使用本合同`,
+      `上一历史体验版 ${LAST_UPLOADED_EXPERIENCE_VERSION}`,
+      "历史兼容基线 1.1.73",
     ],
   },
 ];
 
 for (const doc of currentCandidateDocs) {
-  const content = await readFile(doc.path, "utf8");
+  const content = await readReleaseDoc(doc.path);
   for (const phrase of doc.required) {
     if (!content.includes(phrase)) {
       failures.push({ path: doc.path, phrase: `missing ${phrase}` });
     }
   }
+  for (const phrase of staleCurrentStatePhrases) {
+    if (content.includes(phrase)) {
+      failures.push({ path: doc.path, phrase: `stale current-state: ${phrase}` });
+    }
+  }
+  if (staleHistoricalUploadPattern.test(content)) {
+    failures.push({
+      path: doc.path,
+      phrase: "stale current-state: 1.1.74 must be historical rather than recent/current upload",
+    });
+  }
+}
+
+const staleCurrentN5bStatements = [
+  {
+    path: "docs/humi-api-production-deploy-runbook.md",
+    pattern: /^(?!> \*\*历史 pre-N5a 模板).*当前[^\n]*(?:候选提交[^\n]*当前 `HEAD`|production_api_deployed=false[^\n]*h5_deployed=false[^\n]*miniprogram_uploaded=false)/m,
+    phrase: "stale current-state: pre-N5a current-HEAD/all-false template",
+  },
+  {
+    path: "docs/humi-1.1-release-operator-handoff.md",
+    pattern: /(?:当前上传证据目录|当前[^\n]*CLI)[^\n]*1\.1\.71/,
+    phrase: "stale current-state: 1.1.71 must be historical rather than current upload",
+  },
+];
+for (const stale of staleCurrentN5bStatements) {
+  const content = await readReleaseDoc(stale.path);
+  if (stale.pattern.test(content)) failures.push({ path: stale.path, phrase: stale.phrase });
+}
+
+const candidateEvidence = JSON.parse(await readFile("docs/native-candidate-evidence.json", "utf8"));
+const candidate = candidateEvidence?.candidate;
+if (
+  candidateEvidence?.schemaVersion !== 1
+  || candidate?.version !== CURRENT_MINIPROGRAM_VERSION
+  || candidate?.status !== "uploaded-experience"
+  || candidate?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || candidate?.archive?.sizeBytes !== 147102
+  || candidate?.archive?.sha256 !== "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7"
+  || candidate?.uploadEvidence?.rawEvidenceSha256 !== "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3"
+  || candidate?.uploadReceiptRef !== "private://HUMI-2026-001/n5b-1.1.78-20260802T140601Z/wechat-upload-machine-attestation.json"
+  || candidate?.actions?.miniprogramUploaded !== true
+  || candidate?.actions?.wechatReviewSubmitted !== false
+  || candidate?.actions?.wechatReleased !== false
+  || candidate?.actions?.nativeAllowlistEnabled !== false
+  || candidate?.trueDeviceEvidence?.passed !== 0
+  || candidate?.trueDeviceEvidence?.required !== 56
+) {
+  failures.push({
+    path: "docs/native-candidate-evidence.json",
+    phrase: `current ${CURRENT_MINIPROGRAM_VERSION} evidence must bind the uploaded runtime without claiming review, release, or rollout actions`,
+  });
+}
+
+const uploadedExperienceEvidence = JSON.parse(
+  await readFile("docs/native-uploaded-experience-evidence.json", "utf8"),
+);
+const uploadedExperience = uploadedExperienceEvidence?.candidate;
+if (
+  uploadedExperienceEvidence?.schemaVersion !== 1
+  || uploadedExperience?.version !== CURRENT_UPLOADED_EXPERIENCE_VERSION
+  || uploadedExperience?.status !== "uploaded-experience"
+  || uploadedExperience?.runtimeCommit !== CURRENT_UPLOADED_EXPERIENCE_RUNTIME_COMMIT
+  || uploadedExperience?.archive?.sizeBytes !== 147102
+  || uploadedExperience?.archive?.sha256 !== "4cd91aa53673664b1bb05612b6766b41f393811604111f25280c8db326ce9cc7"
+  || uploadedExperience?.uploadEvidence?.rawEvidenceSha256 !== "12475c024ba4096a2d0dee33a4582245eb9e7def0b8982b74f854388e554c6f3"
+  || uploadedExperience?.actions?.miniprogramUploaded !== true
+  || uploadedExperience?.actions?.wechatReviewSubmitted !== false
+  || uploadedExperience?.actions?.wechatReleased !== false
+  || uploadedExperience?.actions?.nativeAllowlistEnabled !== false
+  || uploadedExperience?.trueDeviceEvidence?.passed !== 0
+  || uploadedExperience?.trueDeviceEvidence?.required !== 56
+) {
+  failures.push({
+    path: "docs/native-uploaded-experience-evidence.json",
+    phrase: "uploaded 1.1.78 evidence must retain its immutable N5b-only action boundaries",
+  });
 }
 
 const miniProgramConfig = await readFile("miniprogram/utils/config.js", "utf8");
@@ -204,8 +377,20 @@ if (!miniProgramConfig.includes(`h5v=${NATIVE_SHELL_PREVIEW_VERSION}`)) {
   });
 }
 
+try {
+  execFileSync(process.execPath, ["scripts/check-wechat-privacy-contract.mjs"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+} catch (error) {
+  failures.push({
+    path: "docs/wechat-privacy-declaration.json",
+    phrase: `runtime privacy contract failed: ${String(error.message || error)}`,
+  });
+}
+
 for (const check of checks) {
-  const content = await readFile(check.path, "utf8");
+  const content = await readReleaseDoc(check.path);
   for (const phrase of check.forbidden) {
     if (content.includes(phrase)) {
       failures.push({ path: check.path, phrase });
@@ -216,6 +401,13 @@ for (const check of checks) {
       failures.push({ path: check.path, phrase: `missing ${phrase}` });
     }
   }
+}
+
+async function readReleaseDoc(path) {
+  if (docFixtureTarget === path && docFixturePath) {
+    return readFile(docFixturePath, "utf8");
+  }
+  return readFile(path, "utf8");
 }
 
 const releaseMap = await readFile("scripts/print-release-map.mjs", "utf8");
