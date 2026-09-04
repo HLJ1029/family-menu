@@ -21,6 +21,7 @@ Page({
     bootstrapUserId: "",
     roleLabel: "",
     canInvite: false,
+    canAskFamily: false,
     canOpenSettings: false,
     canStartCooking: false,
     canLeaveHousehold: false,
@@ -29,12 +30,13 @@ Page({
     shareableMealTask: null,
     groceryClaims: [],
     recentCollaborations: [],
+    preparedCrave: null,
     pendingAction: "",
     loadingSections: false,
   },
 
   async onShow() {
-    if (!guardNativeTab()) return;
+    if (!guardNativeTab({ allowHouseholdSetup: true })) return;
     this.syncState();
     if (this.data.activeHousehold && this.data.cacheState !== "cached") {
       await this.loadCollaborationData();
@@ -55,6 +57,7 @@ Page({
         memberCount: 0,
         bootstrapUserId: "",
         canInvite: false,
+        canAskFamily: false,
         canOpenSettings: false,
         canStartCooking: false,
         canLeaveHousehold: false,
@@ -63,7 +66,9 @@ Page({
         shareableMealTask: null,
         groceryClaims: [],
         recentCollaborations: [],
+        preparedCrave: null,
       });
+      this.invalidateNativeShare?.("crave");
       return;
     }
 
@@ -82,6 +87,7 @@ Page({
         bootstrapUserId: bootstrap.user?.id || "",
         roleLabel: "",
         canInvite: false,
+        canAskFamily: false,
         canOpenSettings: false,
         canStartCooking: false,
         canLeaveHousehold: false,
@@ -90,7 +96,9 @@ Page({
         shareableMealTask: null,
         groceryClaims: [],
         recentCollaborations: [],
+        preparedCrave: null,
       });
+      this.invalidateNativeShare?.("crave");
       return;
     }
 
@@ -110,6 +118,7 @@ Page({
       bootstrapUserId: bootstrap.user?.id || "",
       roleLabel: isOwner ? "家庭创建者" : "家庭成员",
       canInvite: isOwner,
+      canAskFamily: isOwner,
       canOpenSettings: isOwner,
       canStartCooking: ["owner", "member"].includes(activeHousehold.role),
       canLeaveHousehold: !isOwner || members.length === 1,
@@ -210,7 +219,9 @@ Page({
       mealTasks: [],
       groceryClaims: [],
       recentCollaborations: [],
+      preparedCrave: null,
     });
+    this.invalidateNativeShare?.("crave");
     try {
       await requestHumi({
         path: "/households/active",
@@ -235,6 +246,32 @@ Page({
     wx.navigateTo({
       url: `/packageFamily/pages/invite/index?mode=prepare&householdId=${encodeURIComponent(householdId)}`,
     });
+  },
+
+  async prepareCrave() {
+    const household = this.data.activeHousehold;
+    if (!this.data.canAskFamily || !household?.id || this.data.pendingAction) return null;
+    const bootstrap = appStore.getState().bootstrap;
+    try {
+      const snapshot = await this.prepareNativeShare("crave", {
+        page: "family",
+        householdId: household.id,
+        stateVersion: bootstrap?.stateVersion || "",
+        householdName: household.name || "我家",
+        initiatorName: bootstrap?.user?.displayName || "主厨",
+        data: {
+          householdName: household.name || "我家",
+          initiatorName: bootstrap?.user?.displayName || "主厨",
+          mealType: "dinner",
+          initialFeelingTag: "随便都行",
+        },
+      });
+      this.setData({ preparedCrave: snapshot?.record || { token: snapshot?.token || "" } });
+      return snapshot;
+    } catch (_) {
+      this.setData({ preparedCrave: null });
+      return null;
+    }
   },
 
   prepareFirstMealTaskShare() {
@@ -263,6 +300,17 @@ Page({
   },
 
   onShareAppMessage(event) {
+    const shareType = String(
+      event.target?.dataset?.shareType
+      || event.currentTarget?.dataset?.shareType
+      || "meal_task",
+    );
+    if (shareType === "crave") {
+      return this.getNativeSharePayload(event, {
+        title: `${this.data.activeHousehold?.name || "我家"}今晚要做饭，你想吃点啥？`,
+        path: "/pages/family/index",
+      }, "crave");
+    }
     return this.getNativeSharePayload(event, {
       title: this.data.shareableMealTask?.label || "一起把今晚这顿端上桌",
       path: "/pages/family/index",
@@ -286,6 +334,14 @@ Page({
     });
   },
 
+  openActivity() {
+    const householdId = String(this.data.activeHousehold?.id || "");
+    if (!householdId || this.data.pendingAction) return;
+    wx.navigateTo({
+      url: `/packageFamily/pages/activity/index?householdId=${encodeURIComponent(householdId)}`,
+    });
+  },
+
   async leaveHousehold() {
     const household = this.data.activeHousehold;
     if (!household || this.data.pendingAction) return null;
@@ -299,7 +355,7 @@ Page({
         ? "这是最后一位成员，确认后这个家及其家庭数据将不再可用。"
         : "离开后，你将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: household.role === "owner" ? "确认解散" : "确认离开",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!result.confirm) return null;
     this.setData({ pendingAction: "leave", errorText: "" });

@@ -1,6 +1,7 @@
-const { getHumiApiBaseUrl } = require("../../utils/config");
+const { requestHumi } = require("../../utils/request");
+const sessionStore = require("../../utils/session");
 
-const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v3:";
+const REMINDER_CONSENT_PREFIX = "humi:meal-reminder-consent:v4:";
 
 Page({
   data: {
@@ -25,13 +26,20 @@ Page({
   },
 
   onLoad(options = {}) {
-    const session = getApp().globalData?.humiSession;
+    const session = sessionStore.getSession();
+    const initiatingUserId = isValidSession(session) ? normalizeText(session.user.id, 100) : "";
     const scheduledAt = normalizeScheduledAt(options.scheduledAt);
     const dateKey = normalizeDateKey(options.dateKey, scheduledAt);
     const selected = scheduledAt ? shanghaiDateTimeParts(scheduledAt) : { date: "", time: "" };
     const mealRunId = normalizeText(options.mealRunId, 100);
-    this._consentKey = `${REMINDER_CONSENT_PREFIX}${mealRunId}`;
-    const decision = normalizeConsentDecision(mealRunId ? wx.getStorageSync(this._consentKey) : null);
+    this._initiatingUserId = initiatingUserId;
+    this._consentKey = initiatingUserId && mealRunId
+      ? `${REMINDER_CONSENT_PREFIX}${encodeURIComponent(initiatingUserId)}:${encodeURIComponent(mealRunId)}`
+      : "";
+    const decision = normalizeConsentDecision(
+      this._consentKey ? wx.getStorageSync(this._consentKey) : null,
+      initiatingUserId,
+    );
     this._consentDecision = decision;
     const rejected = decision.state === "rejected" || decision.state === "cancelled";
     this.setData({
@@ -53,8 +61,8 @@ Page({
           ? "确认后，微信只会发送这一条做饭提醒。"
           : "请先选择下一次做饭的日期和时间。"
     });
-    if (!isValidSession(session)) return;
-    this.loadReminderConfig(session);
+    if (!isValidSession(session)) return null;
+    return this.loadReminderConfig();
   },
 
   onDateChange(event) {
@@ -92,69 +100,83 @@ Page({
     });
   },
 
-  loadReminderConfig(session) {
-    if (this.data.loading) return;
+  async loadReminderConfig() {
+    if (this.data.loading) return null;
     this.setData({ loading: true });
-    wx.request({
-      url: `${getHumiApiBaseUrl()}/meal-reminders/config?mealRunId=${encodeURIComponent(this.data.mealRunId)}`,
-      method: "GET",
-      header: { Authorization: `Bearer ${session.accessToken}` },
-      success: ({ statusCode, data }) => {
-        if (statusCode >= 200 && statusCode < 300 && data?.enabled && data?.templateId) {
-          if (data.existingReminder?.id) {
-            const existing = data.existingReminder;
-            const scheduledAt = normalizeScheduledAt(existing.scheduledAt);
-            const selected = shanghaiDateTimeParts(scheduledAt);
-            const consumed = {
-              state: "consumed",
-              scheduledAt,
-              reminderId: normalizeText(existing.id, 100),
-            };
-            this._consentDecision = consumed;
-            wx.setStorageSync(this._consentKey, consumed);
-            this.setData({
-              templateId: data.templateId,
-              saved: true,
-              pending: false,
-              scheduledAt,
-              dateKey: normalizeDateKey(existing.dateKey, scheduledAt),
-              selectedDate: selected.date,
-              selectedTime: selected.time,
-              scheduledLabel: formatScheduledAt(scheduledAt),
-              effortTier: normalizeEffortTier(existing.effortTier),
-              permissionAccepted: false,
-              reminderButtonLabel: existingReminderButtonLabel(existing),
-              status: existingReminderStatus(existing),
-            });
-            return;
-          }
-          const patch = { templateId: data.templateId };
-          if (!this.data.rejected) {
-            patch.status = this.data.scheduledAt
-              ? "确认后，微信只会发送这一条做饭提醒。"
-              : "请先选择下一次做饭的日期和时间。";
-          }
-          this.setData(patch);
-          return;
+    try {
+      const data = await requestHumi({
+        path: `/meal-reminders/config?mealRunId=${encodeURIComponent(this.data.mealRunId)}`,
+        expectedUserId: this._initiatingUserId,
+      });
+      if (data?.enabled && data?.templateId) {
+        if (data.existingReminder?.id) {
+          const existing = data.existingReminder;
+          const scheduledAt = normalizeScheduledAt(existing.scheduledAt);
+          const selected = shanghaiDateTimeParts(scheduledAt);
+          const consumed = {
+            state: "consumed",
+            ownerUserId: this._initiatingUserId,
+            scheduledAt,
+            reminderId: normalizeText(existing.id, 100),
+          };
+          this._consentDecision = consumed;
+          wx.setStorageSync(this._consentKey, consumed);
+          this.setData({
+            templateId: data.templateId,
+            saved: true,
+            pending: false,
+            scheduledAt,
+            dateKey: normalizeDateKey(existing.dateKey, scheduledAt),
+            selectedDate: selected.date,
+            selectedTime: selected.time,
+            scheduledLabel: formatScheduledAt(scheduledAt),
+            effortTier: normalizeEffortTier(existing.effortTier),
+            permissionAccepted: false,
+            reminderButtonLabel: existingReminderButtonLabel(existing),
+            status: existingReminderStatus(existing),
+          });
+          return existing;
         }
-        if (!this.data.rejected && !this.data.saved) {
-          this.setData({ status: "做饭提醒暂时没有配置好，可以直接返回 Humi。" });
+        const patch = { templateId: data.templateId, needsLogin: false };
+        if (!this.data.rejected) {
+          patch.status = this.data.scheduledAt
+            ? "确认后，微信只会发送这一条做饭提醒。"
+            : "请先选择下一次做饭的日期和时间。";
         }
-      },
-      fail: () => {
-        if (!this.data.rejected && !this.data.saved) {
-          this.setData({ status: "网络连接失败，暂时没有设置提醒。" });
-        }
-      },
-      complete: () => this.setData({ loading: false })
-    });
+        this.setData(patch);
+        return data;
+      }
+      if (!this.data.rejected && !this.data.saved) {
+        this.setData({ status: "做饭提醒暂时没有配置好，可以直接返回 Humi。" });
+      }
+      return null;
+    } catch (error) {
+      if (error?.code === "session_owner_changed") {
+        this.setData({ needsLogin: false, status: "登录账号已切换，请返回 Humi 后重新打开提醒。" });
+      } else if (error?.status === 401 || error?.code === "invalid_session") {
+        this.setData({ needsLogin: true, status: "登录状态已失效，请重新登录后预约。" });
+      } else if (!this.data.rejected && !this.data.saved) {
+        this.setData({ status: "网络连接失败，暂时没有设置提醒。" });
+      }
+      return null;
+    } finally {
+      this.setData({ loading: false });
+    }
   },
 
-  confirmReminder() {
+  async confirmReminder() {
     if (this.data.pending || this.data.saved || this.data.rejected) return;
-    const session = getApp().globalData?.humiSession;
+    const session = sessionStore.getSession();
     if (!isValidSession(session)) {
       this.setData({ needsLogin: true, status: "先完成微信登录，再由你确认是否接收提醒。" });
+      return;
+    }
+    if (!this._initiatingUserId || session.user.id !== this._initiatingUserId) {
+      this.setData({
+        pending: false,
+        needsLogin: false,
+        status: "登录账号已切换，请返回 Humi 后重新打开提醒。",
+      });
       return;
     }
     if (!this.data.templateId || !this.data.scheduledAt) {
@@ -163,74 +185,85 @@ Page({
     }
     if (this.data.permissionAccepted) {
       this.setData({ pending: true, status: "正在保存这次提醒…" });
-      this.createReminder(session);
-      return;
+      return this.createReminder();
     }
     this.setData({ pending: true, status: "等待你的微信授权…" });
-    wx.requestSubscribeMessage({
-      tmplIds: [this.data.templateId],
-      success: (result) => {
-        const decision = result?.[this.data.templateId];
-        if (decision === "accept") {
-          const consent = { state: "accepted_pending", scheduledAt: this.data.scheduledAt };
-          this._consentDecision = consent;
-          wx.setStorageSync(this._consentKey, consent);
-          this.setData({ permissionAccepted: true });
-          this.createReminder(session);
-          return;
-        }
-        const consent = { state: "rejected" };
-        this._consentDecision = consent;
-        wx.setStorageSync(this._consentKey, consent);
-        this.setData({ pending: false, rejected: true, status: "没有设置提醒。以后 Humi 不会重复索取授权。" });
-      },
-      fail: () => {
-        const consent = { state: "cancelled" };
-        this._consentDecision = consent;
-        wx.setStorageSync(this._consentKey, consent);
-        this.setData({ pending: false, rejected: true, status: "已取消，没有设置提醒。" });
-      }
-    });
+    let result;
+    try {
+      result = await requestSubscription([this.data.templateId]);
+    } catch (_) {
+      const consent = { state: "cancelled", ownerUserId: this._initiatingUserId };
+      this._consentDecision = consent;
+      wx.setStorageSync(this._consentKey, consent);
+      this.setData({ pending: false, rejected: true, status: "已取消，没有设置提醒。" });
+      return null;
+    }
+    const decision = result?.[this.data.templateId];
+    if (decision !== "accept") {
+      const consent = { state: "rejected", ownerUserId: this._initiatingUserId };
+      this._consentDecision = consent;
+      wx.setStorageSync(this._consentKey, consent);
+      this.setData({ pending: false, rejected: true, status: "没有设置提醒。以后 Humi 不会重复索取授权。" });
+      return null;
+    }
+    const consent = {
+      state: "accepted_pending",
+      ownerUserId: this._initiatingUserId,
+      scheduledAt: this.data.scheduledAt,
+    };
+    this._consentDecision = consent;
+    wx.setStorageSync(this._consentKey, consent);
+    this.setData({ permissionAccepted: true });
+    return this.createReminder();
   },
 
-  createReminder(session) {
-    wx.request({
-      url: `${getHumiApiBaseUrl()}/meal-reminders`,
-      method: "POST",
-      header: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`,
-        "X-Humi-Idempotency-Key": `meal-reminder:${this.data.mealRunId}:${this.data.scheduledAt}`
-      },
-      data: {
-        scheduledAt: this.data.scheduledAt,
-        dateKey: this.data.dateKey,
-        effortTier: this.data.effortTier,
-        sourceMealRunId: this.data.mealRunId,
-        templateId: this.data.templateId,
-        accepted: true
-      },
-      success: ({ statusCode, data }) => {
-        if (statusCode >= 200 && statusCode < 300) {
-          const consumed = {
-            state: "consumed",
-            scheduledAt: normalizeScheduledAt(data?.reminder?.scheduledAt || this.data.scheduledAt),
-            reminderId: normalizeText(data?.reminder?.id, 100),
-          };
-          this._consentDecision = consumed;
-          wx.setStorageSync(this._consentKey, consumed);
-          this.setData({
-            pending: false,
-            saved: true,
-            reminderButtonLabel: "已预约",
-            status: "已预约。到时间只会收到这一条提醒。",
-          });
-          return;
-        }
+  async createReminder() {
+    try {
+      const data = await requestHumi({
+        path: "/meal-reminders",
+        method: "POST",
+        idempotencyKey: `meal-reminder:${this.data.mealRunId}:${this.data.scheduledAt}`,
+        expectedUserId: this._initiatingUserId,
+        data: {
+          scheduledAt: this.data.scheduledAt,
+          dateKey: this.data.dateKey,
+          effortTier: this.data.effortTier,
+          sourceMealRunId: this.data.mealRunId,
+          templateId: this.data.templateId,
+          accepted: true
+        },
+      });
+      const consumed = {
+        state: "consumed",
+        ownerUserId: this._initiatingUserId,
+        scheduledAt: normalizeScheduledAt(data?.reminder?.scheduledAt || this.data.scheduledAt),
+        reminderId: normalizeText(data?.reminder?.id, 100),
+      };
+      this._consentDecision = consumed;
+      wx.setStorageSync(this._consentKey, consumed);
+      this.setData({
+        pending: false,
+        saved: true,
+        reminderButtonLabel: "已预约",
+        status: "已预约。到时间只会收到这一条提醒。",
+      });
+      return data?.reminder || null;
+    } catch (error) {
+      if (error?.code === "session_owner_changed") {
+        this.setData({
+          pending: false,
+          needsLogin: false,
+          status: "登录账号已切换，没有创建提醒。请返回 Humi 后重新打开。",
+        });
+      } else if (error?.status === 401 || error?.code === "invalid_session") {
+        this.setData({ pending: false, needsLogin: true, status: "登录状态已失效，请重新登录后保存这次提醒。" });
+      } else if (error?.status === 0 || error?.code === "network_error") {
+        this.setData({ pending: false, status: "网络连接失败，提醒暂时没有保存。" });
+      } else {
         this.setData({ pending: false, status: "授权成功，但提醒暂时没有保存，请稍后重试。" });
-      },
-      fail: () => this.setData({ pending: false, status: "网络连接失败，提醒暂时没有保存。" })
-    });
+      }
+      return null;
+    }
   },
 
   requestReminder() {
@@ -252,16 +285,29 @@ Page({
 });
 
 function isValidSession(session) {
-  return Boolean(session?.accessToken && session.expiresAt > Date.now() && session.user?.profileStatus === "complete");
+  return Boolean(
+    session?.accessToken
+    && session.expiresAt > Date.now()
+    && session.user?.id
+    && session.user?.profileStatus === "complete",
+  );
 }
 
-function normalizeConsentDecision(value) {
+function requestSubscription(tmplIds) {
+  return new Promise((resolve, reject) => wx.requestSubscribeMessage({ tmplIds, success: resolve, fail: reject }));
+}
+
+function normalizeConsentDecision(value, expectedUserId) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { state: "" };
+  if (!expectedUserId || normalizeText(value.ownerUserId, 100) !== expectedUserId) {
+    return { state: "" };
+  }
   const state = ["accepted_pending", "consumed", "rejected", "cancelled"].includes(value.state)
     ? value.state
     : "";
   return {
     state,
+    ownerUserId: expectedUserId,
     scheduledAt: normalizeScheduledAt(value.scheduledAt),
     reminderId: normalizeText(value.reminderId, 100),
   };

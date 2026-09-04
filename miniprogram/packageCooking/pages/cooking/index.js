@@ -102,7 +102,8 @@ const pageDefinition = {
     if (typeof wx.onNetworkStatusChange === "function") wx.onNetworkStatusChange(this._networkListener);
     this.readNetworkStatus();
 
-    if (!guardNativeTab()) return;
+    const allowLocalGuestRun = String(options.mealRunId || "").startsWith("guest:");
+    if (!guardNativeTab({ allowLocalGuestRun })) return;
     try {
       this._mealRunId = normalizeMealRunId(options.mealRunId);
       this._entryAction = options.action === "start" ? "start" : options.action ? "invalid" : "";

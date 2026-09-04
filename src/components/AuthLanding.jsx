@@ -12,20 +12,20 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
         <div className="pt-8 text-center">
           <p className="text-5xl font-black uppercase tracking-[0.02em] text-ink">HUMI</p>
           <p className="mt-3 text-sm font-bold tracking-[0.12em] text-ink/42">
-            {entryIntent === "sessionExpired" ? "登录已过期" : entryIntent === "completeIdentity" ? "完善你的身份" : entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
+            {entryIntent === "sessionExpired" ? "登录已过期" : entryIntent === "loginRetry" ? "登录还没完成" : entryIntent === "completeIdentity" ? "完善你的身份" : entryIntent === "joinFamily" ? "加入这个家" : entryIntent === "startCrave" ? "发起家庭征集" : entryIntent === "startCollaboration" ? "开始家庭协作" : "今晚吃什么"}
           </p>
         </div>
 
         <>
           <div className="mx-auto grid w-full max-w-[390px] place-items-center rounded-[28px] border border-line bg-white px-5 py-6 shadow-card">
             <HumiScene
-              scene={entryIntent === "completeIdentity" ? "wechatLogin" : entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
+              scene={entryIntent === "completeIdentity" || entryIntent === "loginRetry" ? "wechatLogin" : entryIntent === "joinFamily" ? "inviteJoin" : "emptyFamily"}
               size="hero"
               className="w-full"
               eager
             />
             <p className="mt-3 text-sm font-black text-ink">
-              {entryIntent === "sessionExpired" ? "重新登录后可以继续读取你的家庭；也可以先用游客模式。" : entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
+              {entryIntent === "sessionExpired" ? "重新登录后可以继续读取你的家庭；也可以先用游客模式。" : entryIntent === "loginRetry" ? "登录没有完成。请重新打开微信登录；也可以先用游客模式。" : entryIntent === "completeIdentity" ? "把昵称和头像补完整，家人才知道是你" : entryIntent === "joinFamily" ? "和家人一起安排每顿饭" : "先安排今晚，再慢慢记住家里的口味"}
             </p>
           </div>
 
@@ -53,7 +53,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
     const recover = () => {
       globalThis.clearTimeout(recoveryTimerRef.current);
       setLoginPending(false);
-      setStatus("没有打开微信身份页。请退出小程序后重新进入，或更新到最新版本再试。");
+      setStatus("没有打开微信身份页。请重试；如果仍然失败，请更新小程序后再试。");
     };
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram({ onFailure: recover })) {
       setStatus("正在打开微信登录。登录后，菜单、清单和你家的口味偏好会跟着账号保存。");
@@ -79,7 +79,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
             <MessageCircle size={19} className="text-white" />
-            {loginPending ? "正在打开微信登录" : entryIntent === "sessionExpired" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
+            {loginPending ? "正在打开微信登录" : entryIntent === "sessionExpired" || entryIntent === "loginRetry" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
             <button

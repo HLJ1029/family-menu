@@ -33,10 +33,12 @@ assert(miniProgramApp.pages.includes("pages/share/index"), "mini program app.jso
 assert(miniProgramApp.pages.includes("pages/poster/index"), "mini program app.json should include native poster page");
 assert.deepEqual(
   miniProgramApp.subPackages.find((entry) => entry.root === "packageShare")?.pages?.sort(),
-  ["pages/grocery/index", "pages/menu/index"],
-  "menu and grocery recipients must land in the native share subpackage",
+  ["pages/crave/index", "pages/grocery/index", "pages/menu/index", "pages/wish/index"],
+  "collaboration and read-only recipients must land in the native share subpackage",
 );
 for (const [type, token, expectedPath] of [
+  ["crave", "crave_native_snapshot_token_12345", "/packageShare/pages/crave/index?crave=crave_native_snapshot_token_12345&shareSource=crave"],
+  ["wish", "wish_native_snapshot_token_123456", "/packageShare/pages/wish/index?wishShare=wish_native_snapshot_token_123456&shareSource=wish"],
   ["menu", "menu_native_snapshot_token_1234", "/packageShare/pages/menu/index?menuShare=menu_native_snapshot_token_1234&shareSource=menu"],
   ["grocery", "grocery_native_snapshot_123456", "/packageShare/pages/grocery/index?groceryShare=grocery_native_snapshot_123456&shareSource=grocery"],
   ["invite", "invite_native_snapshot_1234567", "/packageFamily/pages/invite/index?token=invite_native_snapshot_1234567&shareSource=invite"],
@@ -473,11 +475,9 @@ const explicitFailureFallback = createRuntimeWindow({
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     fail?.({ errMsg: "navigateTo:fail page stack limit" });
   },
-  redirectTo({ url, success, leavePage }) {
-    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
-    success?.();
-    leavePage();
-  },
+  redirectTo() {},
+  reLaunch() {},
+  postMessage() {},
 });
 globalThis.window = explicitFailureFallback.window;
 assert.equal(
@@ -485,12 +485,12 @@ assert.equal(
     { type: "crave", token: "retry-token" },
     { timeoutMs: 100 },
   ),
-  "handoff",
+  "unavailable",
 );
 assert.deepEqual(
   explicitFailureFallback.calls,
-  ["navigateTo", "redirectTo"],
-  "redirectTo should only run after navigateTo explicitly fails",
+  ["navigateTo"],
+  "native sharing must not fall back to redirectTo, reLaunch, or postMessage",
 );
 
 const callbacklessPageLeave = createRuntimeWindow({
@@ -512,14 +512,9 @@ const callbacklessNavigationFallback = createRuntimeWindow({
   navigateTo() {
     // iOS WeChat can accept this call without firing success, fail, or page-leave.
   },
-  redirectTo({ fail }) {
-    fail?.({ errMsg: "redirectTo:fail callbackless navigateTo recovery" });
-  },
-  reLaunch({ url, success, leavePage }) {
-    assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
-    success?.();
-    leavePage();
-  },
+  redirectTo() {},
+  reLaunch() {},
+  postMessage() {},
 });
 globalThis.window = callbacklessNavigationFallback.window;
 assert.equal(
@@ -527,26 +522,22 @@ assert.equal(
     { type: "invite", token: "invite-token" },
     { timeoutMs: 180, confirmationMs: 20 },
   ),
-  "handoff",
-  "a callbackless navigateTo should advance through redirectTo to reLaunch",
+  "unavailable",
+  "a callbackless navigateTo should fail visibly without trying another bridge method",
 );
 assert.deepEqual(
   callbacklessNavigationFallback.calls,
-  ["navigateTo", "redirectTo", "reLaunch"],
-  "native share fallback should not stop after a callbackless bridge call",
+  ["navigateTo"],
+  "native share must stop after an unconfirmed navigateTo call",
 );
 
 const callbackReceiptIsNotVisibility = createRuntimeWindow({
   navigateTo({ success }) {
     success?.();
   },
-  redirectTo({ success }) {
-    success?.();
-  },
-  reLaunch({ success, leavePage }) {
-    success?.();
-    leavePage();
-  },
+  redirectTo() {},
+  reLaunch() {},
+  postMessage() {},
 });
 const bridgeStages = [];
 globalThis.window = callbackReceiptIsNotVisibility.window;
@@ -559,16 +550,16 @@ assert.equal(
       onStage: (event) => bridgeStages.push(event),
     },
   ),
-  "handoff",
-  "bridge success callbacks must not replace page visibility confirmation",
+  "unavailable",
+  "a success callback without page visibility confirmation must remain unconfirmed",
 );
 assert.deepEqual(
   callbackReceiptIsNotVisibility.calls,
-  ["navigateTo", "redirectTo", "reLaunch"],
-  "an unconfirmed success callback must continue through the native fallback chain",
+  ["navigateTo"],
+  "an unconfirmed share callback must not continue through another bridge method",
 );
 assert(bridgeStages.some((event) => event.stage === "callback_received" && event.method === "navigateTo"));
-assert(bridgeStages.some((event) => event.stage === "page_hidden" && event.method === "reLaunch"));
+assert(bridgeStages.some((event) => event.stage === "handoff_unavailable"));
 assert(!JSON.stringify(bridgeStages).includes("sensitive-menu-token"), "bridge telemetry must not contain share tokens");
 assert(bridgeStages.every((event) => Number.isFinite(event.elapsedMs) && event.elapsedMs >= 0));
 
@@ -676,7 +667,7 @@ function assertShareFeedbackDoesNotClaimUnverifiedSuccess() {
   assert.match(groceryList, /去微信发清单/, "mini-program grocery sharing should set the native handoff expectation");
 }
 
-function createRuntimeWindow({ redirectTo, navigateTo, reLaunch }) {
+function createRuntimeWindow({ redirectTo, navigateTo, reLaunch, postMessage }) {
   const windowListeners = new Map();
   const documentListeners = new Map();
   const calls = [];
@@ -729,6 +720,12 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch }) {
     runtimeWindow.wx.miniProgram.reLaunch = (options) => {
       calls.push("reLaunch");
       reLaunch({ ...options, leavePage });
+    };
+  }
+  if (postMessage) {
+    runtimeWindow.wx.miniProgram.postMessage = (options) => {
+      calls.push("postMessage");
+      postMessage({ ...options, leavePage });
     };
   }
   return { window: runtimeWindow, calls };

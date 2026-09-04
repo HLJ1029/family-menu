@@ -12,7 +12,7 @@
   overflow: hidden;
   border: 4rpx solid transparent;
   border-radius: 999rpx;
-  background: #f2f0ea;
+  background: #f0f0f0;
 }
 
 .avatar-option.selected {

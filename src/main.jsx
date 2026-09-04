@@ -424,7 +424,12 @@ function App() {
         showNotice(`欢迎回来，${normalized.user.displayName}`);
       })
       .catch((error) => {
-        if (active) setAuthStatus(error.message || "登录链接已失效，请重新登录。");
+        if (!active) return;
+        clearHumiSession();
+        setHumiSession(null);
+        setSessionExpired(false);
+        setAuthGateIntent("loginRetry");
+        setAuthStatus(error.message || "登录链接已失效，请重新登录。");
       })
       .finally(() => {
         if (active) setHumiTicketPending(false);
@@ -1626,6 +1631,22 @@ function App() {
     };
   }
 
+  function requestWechatLoginWithNotice(
+    pendingMessage,
+    failureMessage = "没有打开微信身份页，请重试；如果仍然失败，请更新小程序后再试。",
+  ) {
+    let failureShown = false;
+    const showFailure = () => {
+      if (failureShown) return;
+      failureShown = true;
+      showNotice(failureMessage);
+    };
+    const started = requestWechatLoginFromMiniProgram({ onFailure: showFailure });
+    if (started) showNotice(pendingMessage);
+    else showFailure();
+    return started;
+  }
+
   function handleShareSessionRecovery(error, action, context = null) {
     const invalidSession = error?.status === 401 || error?.code === "invalid_session";
     if (!invalidSession || !isWechatMiniProgramWebView()) return false;
@@ -1910,9 +1931,7 @@ function App() {
   async function startCraveRequest(feelingTag, options = {}) {
     if (!signedIn) {
       setEntryRedirectView("dashboard");
-      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
-        showNotice("登录后就能发起征集，家人点卡片仍然免登录");
-      } else {
+      if (!isWechatMiniProgramWebView() || !requestWechatLoginWithNotice("登录后就能发起征集，家人点卡片仍然免登录")) {
         setAuthGateIntent("startCrave");
       }
       return;
@@ -2300,9 +2319,7 @@ function App() {
   async function startWishShareRequest() {
     if (!signedIn) {
       setEntryRedirectView("user");
-      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
-        showNotice("登录后就能分享想吃入口，家人写菜仍然免登录");
-      } else {
+      if (!isWechatMiniProgramWebView() || !requestWechatLoginWithNotice("登录后就能分享想吃入口，家人写菜仍然免登录")) {
         setAuthGateIntent("startCollaboration");
       }
       return;
@@ -3074,8 +3091,9 @@ function App() {
     if (isWechatMiniProgramWebView()) {
       if (!signedIn) {
         setEntryRedirectView("grocery");
-        if (requestWechatLoginFromMiniProgram()) showNotice("登录后就能把清单发给家人，家人打开不用登录");
-        else setAuthGateIntent("startCollaboration");
+        if (!requestWechatLoginWithNotice("登录后就能把清单发给家人，家人打开不用登录")) {
+          setAuthGateIntent("startCollaboration");
+        }
         return;
       }
       if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
@@ -3167,8 +3185,9 @@ function App() {
     if (isWechatMiniProgramWebView()) {
       if (!signedIn) {
         setEntryRedirectView("today");
-        if (requestWechatLoginFromMiniProgram()) showNotice("登录后才能分享家庭菜单");
-        else setAuthGateIntent("startCollaboration");
+        if (!requestWechatLoginWithNotice("登录后才能分享家庭菜单")) {
+          setAuthGateIntent("startCollaboration");
+        }
         return;
       }
       if (isHumiApiSession(humiSession) && family?.role && family.role !== "owner") {
@@ -3413,11 +3432,10 @@ function App() {
       return true;
     }
     if (!isHumiApiSession(humiSession)) {
-      if (requestWechatLoginFromMiniProgram()) {
-        showNotice("登录后重新生成海报，就能保存到相册或发给家人");
-      } else {
-        showNotice("请先在小程序里登录 Humi");
-      }
+      requestWechatLoginWithNotice(
+        "登录后重新生成海报，就能保存到相册或发给家人",
+        "没有打开微信身份页，请重试后再生成海报。",
+      );
       return true;
     }
 
@@ -3994,11 +4012,11 @@ function App() {
   async function createFamilyInviteCard() {
     if (householdInvitePending) return;
     if (!isHumiApiSession(humiSession)) {
-      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
-        showNotice("登录后就能邀请家人");
-      } else {
-        showNotice("请先在小程序里登录 Humi");
+      if (isWechatMiniProgramWebView()) {
+        requestWechatLoginWithNotice("登录后就能邀请家人");
+        return;
       }
+      showNotice("请先在小程序里登录 Humi");
       return;
     }
     if (family?.role && family.role !== "owner") {
@@ -4262,8 +4280,7 @@ function App() {
     setActiveView("user");
     viewHistoryRef.current = ["user"];
     window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
-    if (!signedIn && isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
-      showNotice("正在唤起微信登录，登录后会合并刚才的参与");
+    if (!signedIn && isWechatMiniProgramWebView() && requestWechatLoginWithNotice("正在唤起微信登录，登录后会合并刚才的参与")) {
       return;
     }
     showNotice(signedIn ? "已打开 Humi；这次参与只会绑定到你的身份" : "登录后会把刚才的参与绑定到你的身份");
@@ -4283,8 +4300,7 @@ function App() {
       return;
     }
     if (!signedIn) {
-      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
-        showNotice("正在唤起微信登录");
+      if (isWechatMiniProgramWebView() && requestWechatLoginWithNotice("正在唤起微信登录")) {
       } else {
         showNotice("登录后会把刚才的参与绑定到你的身份");
       }
@@ -4487,7 +4503,10 @@ function App() {
         token={landingMealTaskToken}
         humiSession={humiSession}
         onLogin={() => {
-          if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) return;
+          if (isWechatMiniProgramWebView()) {
+            requestWechatLoginWithNotice("正在打开微信登录");
+            return;
+          }
           setAuthStatus("请从微信小程序打开这张任务卡并完成微信登录。" );
         }}
         onClose={() => closeSharedLanding("mealTask")}

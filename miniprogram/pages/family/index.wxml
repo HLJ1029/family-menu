@@ -29,6 +29,33 @@
         bind:settings="openSettings"
       />
 
+      <view class="section-card crave-section">
+        <text class="section-eyebrow">今晚先听听家人</text>
+        <text class="section-title">还没决定，就问一句</text>
+        <text class="quiet-copy">家人打开微信卡片后不用登录，点一个想吃的感觉就行；已登录的家人会自动带上自己的 Humi 身份。</text>
+        <button
+          wx:if="{{canAskFamily && !preparedShares.crave}}"
+          class="crave-button"
+          bindtap="prepareCrave"
+          loading="{{sharePreparing.crave}}"
+          disabled="{{sharePreparing.crave || !!pendingAction}}"
+        >问问大家想吃啥</button>
+        <button
+          wx:elif="{{canAskFamily}}"
+          class="crave-button"
+          open-type="share"
+          data-share-type="crave"
+          disabled="{{!preparedShares.crave || sharePreparing.crave}}"
+        >选择家人发送</button>
+        <text wx:else class="quiet-empty">家庭创建者可以发起口味征集；你仍然可以一起做饭、领任务和确认上桌。</text>
+        <text
+          wx:if="{{shareErrors.crave}}"
+          class="share-retry"
+          data-share-type="crave"
+          bindtap="retryNativeShare"
+        >分享内容没准备好，点这里重试</text>
+      </view>
+
       <view class="section-card">
         <view class="section-heading">
           <view>
@@ -96,7 +123,7 @@
             <text class="section-eyebrow">最近协作</text>
             <text class="section-title">家里刚刚一起做过</text>
           </view>
-          <text class="section-meta">最近 5 条</text>
+          <button class="text-button" bindtap="openActivity" disabled="{{!!pendingAction}}">查看全部</button>
         </view>
         <collaboration-row wx:for="{{recentCollaborations}}" wx:key="id" item="{{item}}" />
         <text wx:if="{{!recentCollaborations.length && !loadingSections}}" class="quiet-empty">还没有协作记录。正式成员会显示昵称，游客只显示游客身份。</text>

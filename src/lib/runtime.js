@@ -25,7 +25,10 @@ export function buildMiniProgramShareUrl(payload = {}) {
 export function requestMiniProgramShare(payload = {}, options = {}) {
   if (typeof window === "undefined" || !isWechatMiniProgramWebView()) return Promise.resolve("unavailable");
   if (!String(payload.token || "").trim()) return Promise.resolve("unavailable");
-  return requestMiniProgramPage(buildMiniProgramShareUrl(payload), options);
+  return requestMiniProgramPage(buildMiniProgramShareUrl(payload), {
+    ...options,
+    methods: ["navigateTo"],
+  });
 }
 
 export function buildMiniProgramPosterUrl(payload = {}) {
@@ -58,15 +61,15 @@ export function requestMiniProgramReminder(payload = {}, options = {}) {
   return requestMiniProgramPage(buildMiniProgramReminderUrl(payload), options);
 }
 
-export function requestMiniProgramIdentity({ reuseSession = false, ...options } = {}) {
-  if (typeof window === "undefined") return Promise.resolve("unavailable");
-  const url = reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login";
-  return requestMiniProgramPage(url, options);
-}
-
 function requestMiniProgramPage(url, options = {}) {
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram?.redirectTo && !miniProgram?.navigateTo && !miniProgram?.reLaunch) {
+  const methodNames = Array.isArray(options.methods)
+    ? options.methods
+    : ["navigateTo", "redirectTo", "reLaunch"];
+  const attempts = methodNames
+    .map((methodName) => [methodName, miniProgram?.[methodName]])
+    .filter(([, method]) => typeof method === "function");
+  if (attempts.length === 0) {
     return Promise.resolve("unavailable");
   }
 
@@ -122,12 +125,6 @@ function requestMiniProgramPage(url, options = {}) {
       mark("handoff_unavailable", activeMethod, "handoff_timeout");
       finish("unavailable");
     }, timeoutMs);
-
-    const attempts = [
-      ["navigateTo", miniProgram.navigateTo],
-      ["redirectTo", miniProgram.redirectTo],
-      ["reLaunch", miniProgram.reLaunch],
-    ].filter(([, method]) => typeof method === "function");
 
     const runAttempt = (index) => {
       if (settled) return;

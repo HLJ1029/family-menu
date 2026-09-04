@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
-import { createRequire } from "node:module";
-
-const nodeRequire = createRequire(import.meta.url);
 
 const appConfig = JSON.parse(fs.readFileSync("miniprogram/app.json", "utf8"));
 assert.ok(appConfig.pages.includes("pages/identity/index"));
@@ -21,6 +18,39 @@ vm.runInNewContext(fs.readFileSync("miniprogram/utils/user-message.js", "utf8"),
   module: userMessageModule,
   exports: userMessageModule.exports,
 });
+const expectedApprovedAvatarKeys = JSON.parse(
+  fs.readFileSync("api/data/approved-avatar-keys.json", "utf8"),
+);
+
+function loadApprovedAvatarKeys(specifier) {
+  assert.equal(
+    specifier,
+    "../../data/approved-avatar-keys.js",
+    "mini-program runtime code must load the approved avatar contract from a JavaScript module",
+  );
+  const approvedAvatarModule = { exports: {} };
+  vm.runInNewContext(fs.readFileSync("miniprogram/data/approved-avatar-keys.js", "utf8"), {
+    module: approvedAvatarModule,
+    exports: approvedAvatarModule.exports,
+  }, { filename: "miniprogram/data/approved-avatar-keys.js" });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(approvedAvatarModule.exports)),
+    expectedApprovedAvatarKeys,
+    "the runtime JavaScript avatar contract must match the canonical API avatar contract",
+  );
+  return approvedAvatarModule.exports;
+}
+
+let avatarPickerDefinition;
+vm.runInNewContext(fs.readFileSync("miniprogram/components/avatar-picker/index.js", "utf8"), {
+  Component: (definition) => { avatarPickerDefinition = definition; },
+  require: (specifier) => {
+    if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
+    if (specifier.startsWith("../../data/approved-avatar-keys")) return loadApprovedAvatarKeys(specifier);
+    throw new Error(`Unexpected avatar-picker dependency: ${specifier}`);
+  },
+});
+assert.equal(avatarPickerDefinition.data.avatars.length, expectedApprovedAvatarKeys.length);
 assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "invalid_session", message: "invalid_session" }), "登录状态已失效，请重新登录。");
 assert.equal(userMessageModule.exports.toHumiUserMessage({ code: "network_error", message: "network_error" }), "网络连接失败，请检查网络后重试。");
 assert.match(identityWxml, /type="nickname"/);
@@ -36,6 +66,8 @@ const silentLoginSource = identityJs.slice(identityJs.indexOf("async loginWithWe
 assert.doesNotMatch(silentLoginSource, /getUserProfile/, "silent login must not request profile permission");
 assert.match(identityJson, /"avatar-picker": "\/components\/avatar-picker\/index"/, "identity must register approved Humi avatar choices");
 assert.match(identityWxml, /使用微信头像和昵称/);
+assert.match(identityWxml, /微信登录/);
+assert.match(identityWxml, /先体验 Humi/);
 assert.match(identityWxml, /保存并进入 Humi/);
 assert.match(identityWxml, /disabled="\{\{!canSubmit \|\| pending\}\}"/, "identity save must require an explicit name and avatar choice");
 
@@ -139,14 +171,17 @@ globalThis.window = {
         nativeIdentityCalls.push("navigateTo");
         success?.({ errMsg: "navigateTo:ok" });
       },
-      redirectTo({ success }) {
+      redirectTo() {
         nativeIdentityCalls.push("redirectTo");
-        success?.({ errMsg: "redirectTo:ok" });
+        throw new Error("identity login must not redirect the current page");
       },
-      reLaunch({ success }) {
+      reLaunch() {
         nativeIdentityCalls.push("reLaunch");
-        success?.({ errMsg: "reLaunch:ok" });
-        nativeWindowTarget.dispatchEvent(new Event("pagehide"));
+        throw new Error("identity login must not relaunch the mini program");
+      },
+      postMessage() {
+        nativeIdentityCalls.push("postMessage");
+        throw new Error("identity login must not use deferred web-view messages");
       },
     },
   },
@@ -161,9 +196,45 @@ assert.equal(
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.deepEqual(
   nativeIdentityCalls,
-  ["navigateTo", "redirectTo", "reLaunch"],
-  "identity callback receipt must not stop fallback before native page visibility is confirmed",
+  ["navigateTo"],
+  "identity login must invoke only the native identity page navigation",
 );
+delete globalThis.window;
+
+const failedIdentityCalls = [];
+let failedIdentityRecoveries = 0;
+globalThis.window = {
+  wx: {
+    miniProgram: {
+      navigateTo({ fail }) {
+        failedIdentityCalls.push("navigateTo");
+        fail?.({ errMsg: "navigateTo:fail page not found" });
+      },
+      redirectTo() {
+        failedIdentityCalls.push("redirectTo");
+        throw new Error("identity failure must not redirect");
+      },
+      reLaunch() {
+        failedIdentityCalls.push("reLaunch");
+        throw new Error("identity failure must not relaunch");
+      },
+      postMessage() {
+        failedIdentityCalls.push("postMessage");
+        throw new Error("identity failure must not post a deferred message");
+      },
+    },
+  },
+};
+assert.equal(
+  humiIdentity.requestWechatLoginFromMiniProgram({
+    onFailure: () => { failedIdentityRecoveries += 1; },
+  }),
+  true,
+  "an available navigateTo bridge should start synchronously",
+);
+await Promise.resolve();
+assert.deepEqual(failedIdentityCalls, ["navigateTo"], "a failed identity navigation must not invoke another native method");
+assert.equal(failedIdentityRecoveries, 1, "a failed identity navigation must expose one retry callback");
 delete globalThis.window;
 
 function loadIdentityPage({ user, loginResult = null, rejectProfile = false, profileAvatarUrl = "https://thirdwx.qlogo.cn/mmopen/avatar.jpg", requestError = null } = {}) {
@@ -203,7 +274,7 @@ function loadIdentityPage({ user, loginResult = null, rejectProfile = false, pro
     require: (specifier) => {
       if (specifier === "../../utils/config") return { getHumiApiBaseUrl: () => "https://api.example" };
       if (specifier === "../../utils/user-message") return userMessageModule.exports;
-      if (specifier === "../../data/approved-avatar-keys.json") return nodeRequire("../miniprogram/data/approved-avatar-keys.json");
+      if (specifier.startsWith("../../data/approved-avatar-keys")) return loadApprovedAvatarKeys(specifier);
       if (specifier === "../../utils/session") return {
         loginWithWechat: async () => {
           calls.login += 1;
@@ -246,8 +317,20 @@ const firstUse = {
   avatarUrl: "",
   profileStatus: "incomplete"
 };
+const welcomePage = loadIdentityPage({ user: null });
+welcomePage.page.onLoad();
+assert.equal(welcomePage.page.data.mode, "welcome", "first use must show the explicit login/guest choice");
+assert.equal(welcomePage.calls.login, 0, "opening the first-use page must not call wx.login");
+assert.equal(welcomePage.calls.getUserProfile, 0, "opening the first-use page must not request profile permission");
+assert.deepEqual(welcomePage.calls.request, [], "opening the first-use page must not create or update backend data");
+welcomePage.page.continueAsGuest();
+assert.deepEqual(welcomePage.routes, ["/pages/legacy/index?humiGuest=1"], "guest choice must enter the stable local-first H5 path directly");
+
 const firstUsePage = loadIdentityPage({ user: firstUse });
 firstUsePage.page.onLoad();
+assert.equal(firstUsePage.calls.login, 0, "identity page load must not start WeChat login without the explicit login action");
+assert.equal(firstUsePage.calls.getUserProfile, 0, "identity page load must not request profile permission");
+assert.equal(firstUsePage.calls.request.length, 0, "identity page load must not upload or persist profile data");
 assert.equal(firstUse.profileStatus, "incomplete", "silent account login must remain explicitly incomplete");
 assert.equal(firstUsePage.page.data.displayName, "", "first use must not prefill a default nickname");
 assert.equal(firstUsePage.page.data.selectedAvatarKey, "", "a server fallback avatar is not an explicit picker choice");
@@ -299,6 +382,14 @@ assert.equal(firstSilentLogin.app.globalData.humiSession.user.profileStatus, "in
 assert.equal(firstSilentLogin.page.data.displayName, "", "first silent login must not turn the default name into a completed identity");
 assert.equal(firstSilentLogin.page.data.selectedAvatarKey, "", "first silent login must not turn the server fallback avatar into a selected avatar");
 assert.equal(firstSilentLogin.calls.getUserProfile, 0, "silent login must not claim WeChat profile permission");
+
+const firstExplicitLogin = loadIdentityPage({ user: null, loginResult: { accessToken: "first-token", expiresAt: Date.now() + 60_000, user: firstUse } });
+await firstExplicitLogin.page.startWechatLogin();
+assert.equal(firstExplicitLogin.calls.login, 1, "the visible login button must trigger exactly one wx.login flow");
+assert.equal(firstExplicitLogin.calls.getUserProfile, 1, "the same explicit login action should request the WeChat profile once");
+assert.equal(firstExplicitLogin.page.data.mode, "profile", "an incomplete account must continue into identity completion");
+assert.equal(firstExplicitLogin.page.data.displayName, "微信小禾");
+assert.equal(firstExplicitLogin.page.data.localAvatarUrl, "https://thirdwx.qlogo.cn/mmopen/avatar.jpg");
 
 const manualIdentity = loadIdentityPage({ user: firstUse });
 manualIdentity.page.onLoad();

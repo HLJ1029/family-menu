@@ -41,7 +41,9 @@ export function InviteLanding({ token, humiSession, onJoined, onClose }) {
 
   async function joinInvite() {
     if (!isHumiApiSession(humiSession)) {
-      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram()) {
+      if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram({
+        onFailure: () => setStatus("没有打开微信身份页，请点“加入这个家”重试。"),
+      })) {
         setStatus("正在唤起微信登录，登录后会自动加入这个家。");
         return;
       }

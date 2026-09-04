@@ -3,11 +3,12 @@ const { requestHumi } = require("../../utils/request");
 const { clearBootstrapCacheForUser } = require("../../utils/bootstrap");
 const { startSpan } = require("../../utils/telemetry");
 const { toHumiUserMessage } = require("../../utils/user-message");
-const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.json");
+const APPROVED_AVATAR_KEYS = require("../../data/approved-avatar-keys.js");
 const WECHAT_AVATAR_HOSTS = new Set(["thirdwx.qlogo.cn", "wx.qlogo.cn"]);
 
 Page({
   data: {
+    mode: "welcome",
     displayName: "",
     selectedAvatarKey: "",
     avatarUrl: "",
@@ -20,17 +21,28 @@ Page({
   onLoad(options = {}) {
     if (options.action === "login") {
       getApp().clearHumiSession();
+      this.setData({ mode: "welcome" });
       return this.loginWithWechat();
     }
     const user = getApp().globalData?.humiSession?.user;
     if (!user) {
-      wx.reLaunch({ url: "/pages/boot/index" });
+      this.setData({ mode: "welcome" });
       return;
     }
     if (user.profileStatus === "complete") wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
+    else this.setData({ mode: "profile" });
   },
 
-  async loginWithWechat() {
+  startWechatLogin() {
+    return this.loginWithWechat({ requestProfile: true });
+  },
+
+  continueAsGuest() {
+    if (this.data.pending) return;
+    wx.reLaunch({ url: "/pages/legacy/index?humiGuest=1" });
+  },
+
+  async loginWithWechat({ requestProfile = false } = {}) {
     if (this.data.pending) return;
     const span = startSpan("native_login", { page: "identity" });
     this.setData({ pending: true, error: "" });
@@ -40,6 +52,9 @@ Page({
       span.end("completed", { page: "identity" });
       if (session.user?.profileStatus === "complete") {
         wx.reLaunch({ url: "/pages/boot/index?humiResume=1" });
+      } else {
+        this.setData({ mode: "profile" });
+        if (requestProfile) await this.populateWechatProfile();
       }
     } catch (error) {
       span.end("failed", { page: "identity", errorCode: error?.code || "wechat_login_failed" });
@@ -51,6 +66,10 @@ Page({
 
   async useWechatProfile() {
     if (this.data.pending) return;
+    return this.populateWechatProfile();
+  },
+
+  async populateWechatProfile() {
     try {
       const profile = await callWx(wx.getUserProfile, { desc: "用于让家人认出你" });
       const avatarUrl = String(profile?.userInfo?.avatarUrl || "");

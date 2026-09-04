@@ -1,6 +1,5 @@
 {
   "enablePullDownRefresh": true,
-  "enableShareAppMessage": true,
   "usingComponents": {
     "page-state": "/components/page-state/index",
     "household-summary": "/components/household-summary/index",

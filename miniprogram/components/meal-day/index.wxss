@@ -9,6 +9,6 @@
 .readonly { color: #aaa; font-size: 21rpx; }
 .dinner-name { display: block; margin-bottom: 8rpx; font-weight: 700; }
 .empty { color: #999; }
-.missing { display: block; margin-top: 18rpx; color: #8b5a16; font-size: 24rpx; }
+.missing { display: block; margin-top: 18rpx; color: #646464; font-size: 24rpx; }
 .edit-button { margin: 22rpx 0 0; border-radius: 999rpx; background: #f2f2f2; color: #222; font-size: 24rpx; }
 .edit-button::after { border: 0; }

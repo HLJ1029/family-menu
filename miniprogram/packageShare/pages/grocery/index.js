@@ -12,7 +12,8 @@ Page({
   },
 
   onLoad(options = {}) {
-    this._token = normalizeToken(options.groceryShare);
+    this._legacy = Boolean(options.grocery && !options.groceryShare);
+    this._token = normalizeToken(options.groceryShare || options.grocery);
     this.setData({ shareSource: options.shareSource === "grocery" ? "grocery" : "" });
     return this.loadGrocery();
   },
@@ -35,9 +36,11 @@ Page({
     this.setData({ status: "loading", errorText: "" });
     try {
       const payload = await rawRequest({
-        path: `/grocery-share-requests/${encodeURIComponent(this._token)}`,
+        path: this._legacy
+          ? `/grocery-shares/${encodeURIComponent(this._token)}`
+          : `/grocery-share-requests/${encodeURIComponent(this._token)}`,
       });
-      const grocery = payload?.request;
+      const grocery = normalizeGrocery(payload?.request || payload?.share);
       if (!grocery || grocery.status !== "open") throw new Error("grocery_share_unavailable");
       this.setData({ status: "ready", grocery });
       return grocery;
@@ -50,9 +53,29 @@ Page({
   retry() {
     return this.loadGrocery();
   },
+
+  goHome() {
+    const pages = typeof getCurrentPages === "function" ? getCurrentPages() : [];
+    if (pages.length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: "/pages/boot/index" });
+  },
 });
 
 function normalizeToken(value) {
   const token = String(value || "");
   return SHARE_TOKEN.test(token) ? token : "";
+}
+
+function normalizeGrocery(grocery) {
+  if (!grocery) return null;
+  return {
+    ...grocery,
+    items: (Array.isArray(grocery.items) ? grocery.items : []).map((item) => ({
+      ...item,
+      id: String(item.id || item.key || ""),
+    })).filter((item) => item.id),
+  };
 }

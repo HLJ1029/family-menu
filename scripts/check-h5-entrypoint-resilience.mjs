@@ -17,6 +17,7 @@ const expectedChecks = [
   "production hashed lazy chunk 404 shows the same reload recovery",
   "H5 login prefers the native identity page and recovers from navigation failure",
   "one-time H5 ticket is exchanged and removed from the URL",
+  "failed H5 ticket exchange stays on a visible login retry",
   "ticket exchange gates stale-session hydration during silent recovery",
   "legacy serialized session URLs are discarded",
   "legacy incomplete identity can be completed in H5",
@@ -216,19 +217,18 @@ try {
         window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
         payload.fail?.({ errMsg: "navigateTo:fail page not found" });
       },
+      redirectTo: (payload) => window.__humiNativeCalls.push({ method: "redirectTo", payload: { url: payload.url } }),
       postMessage: (payload) => window.__humiNativeCalls.push({ method: "postMessage", payload }),
-      reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload }),
+      reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload: { url: payload.url } }),
     };
   });
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).click();
-  await bridgePage.waitForFunction(() => window.__humiNativeCalls.length > 1, null, { timeout: 2_000 });
+  await bridgePage.getByText("没有打开微信身份页。请重试；如果仍然失败，请更新小程序后再试。").waitFor({ timeout: 8_000 });
   assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls[0]), {
     method: "navigateTo",
     payload: { url: "/pages/identity/index?action=login" },
   });
-  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.method), "reLaunch");
-  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls[1]?.payload?.url), "/pages/identity/index?action=login");
-  await bridgePage.getByRole("button", { name: "微信登录", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
+  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls.length), 1, "failed login must not fall back to another native bridge method");
   assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
 
@@ -272,6 +272,31 @@ try {
   await ticketPage.waitForFunction(() => localStorage.getItem("humi:identity-session:v1")?.includes("user-ticket"));
   assert.equal(new URL(ticketPage.url()).searchParams.has("humiTicket"), false);
   await ticketContext.close();
+
+  const failedTicketContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await failedTicketContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+  });
+  const failedTicketPage = await failedTicketContext.newPage();
+  await failedTicketPage.route("**/auth/h5/exchange", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "temporarily_unavailable", message: "登录服务暂时不可用。" }),
+    });
+  });
+  await failedTicketPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiTicket=failed-ticket`, { waitUntil: "networkidle" });
+  await failedTicketPage.getByText("登录还没完成", { exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+  assert.equal(await failedTicketPage.getByRole("button", { name: "重新微信登录", exact: true }).isVisible(), true);
+  assert.equal(await failedTicketPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  assert.equal(new URL(failedTicketPage.url()).searchParams.has("humiTicket"), false);
+  await failedTicketContext.close();
 
   const ticketRaceContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -535,7 +560,11 @@ try {
   assert.doesNotMatch(mainSource, /createHumiSessionFamily/);
   assert.match(appShellSource, /avatarUrl/);
   assert.match(appShellSource, /avatarKey/);
-  assert.match(identitySource, /postMessage/);
+  assert.doesNotMatch(
+    identitySource,
+    /postMessage/,
+    "identity login must not use the legacy postMessage bridge",
+  );
   assert.match(mainSource, /subscribeHumiSessionInvalid/);
   assert.match(mainSource, /requestMiniProgramLogout\(\{ expired: true \}\)/);
 

@@ -1,0 +1,19 @@
+<page-state status="{{status}}" error-text="{{errorText}}" bind:retry="retry">
+  <view class="activity-page">
+    <view class="heading">
+      <text class="eyebrow">HUMI FAMILY</text>
+      <text class="title">家里一起做过的事</text>
+      <text class="copy">正式成员会显示 Humi 昵称；未登录参与只显示“游客”身份。这里不展示链接、密钥或内部编号。</text>
+    </view>
+
+    <view class="activity-card">
+      <collaboration-row wx:for="{{events}}" wx:key="id" item="{{item}}" />
+      <view wx:if="{{!events.length}}" class="empty">
+        <text class="empty-title">还没有协作记录</text>
+        <text class="empty-copy">从“问问大家”、领取买菜清单或写下想吃的菜开始，记录会自动出现在这里。</text>
+      </view>
+    </view>
+
+    <button class="back-button" bindtap="goBack">返回我的家</button>
+  </view>
+</page-state>
