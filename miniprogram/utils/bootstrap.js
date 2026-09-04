@@ -14,7 +14,7 @@ const SHARE_TOKEN_TYPES = [
 const SHARE_LANDING_TYPES = new Set(SHARE_TOKEN_TYPES.map(([, type]) => type));
 const SAFE_LEGACY_VIEWS = new Set(["today", "user", "grocery"]);
 const SAFE_LEGACY_SOURCES = new Set(["crave", "grocery", "today_menu", "wish", "invite", "meal_task"]);
-const SAFE_LEGACY_FLAGS = ["humiLogout", "humiExpired", "humiResume"];
+const SAFE_LEGACY_FLAGS = ["humiLogout", "humiExpired", "humiResume", "humiGuest"];
 const SHARE_TOKEN = /^[A-Za-z0-9_-]{24,64}$/;
 
 function resolveStartupRoute({ candidate, envelope }) {
@@ -24,6 +24,7 @@ function resolveStartupRoute({ candidate, envelope }) {
     return { route: "/pages/legacy/index", reason: "meal_execution_disabled" };
   }
   if (envelope.user?.profileStatus !== "complete") return { route: "/pages/identity/index", reason: "identity_incomplete" };
+  if (!getHouseholdId(envelope)) return { route: "/pages/family/index", reason: "household_required" };
   return { route: "/pages/tonight/index", reason: "native_enabled" };
 }
 
@@ -36,6 +37,22 @@ function resolveKnownShareRoute(options = {}) {
   if (!landing) return null;
   if (landing.type === "invite") {
     return `/packageFamily/pages/invite/index?token=${encodeURIComponent(landing.token)}&shareSource=invite`;
+  }
+  if (landing.type === "crave") {
+    return `/packageShare/pages/crave/index?crave=${encodeURIComponent(landing.token)}&shareSource=crave`;
+  }
+  if (landing.type === "grocery") {
+    const tokenKey = key === "grocery" ? "grocery" : "groceryShare";
+    return `/packageShare/pages/grocery/index?${tokenKey}=${encodeURIComponent(landing.token)}&shareSource=grocery`;
+  }
+  if (landing.type === "today_menu") {
+    return `/packageShare/pages/menu/index?menuShare=${encodeURIComponent(landing.token)}&shareSource=menu`;
+  }
+  if (landing.type === "wish") {
+    return `/packageShare/pages/wish/index?wishShare=${encodeURIComponent(landing.token)}&shareSource=wish`;
+  }
+  if (landing.type === "meal_task") {
+    return `/packageFamily/pages/task/index?mealTask=${encodeURIComponent(landing.token)}&shareSource=meal_task`;
   }
   const query = [`type=${encodeURIComponent(landing.type)}`, `token=${encodeURIComponent(landing.token)}`, `shareSource=${encodeURIComponent(landing.type)}`];
   return `/pages/share/index?${query.join("&")}`;

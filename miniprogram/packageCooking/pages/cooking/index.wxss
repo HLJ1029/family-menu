@@ -1,6 +1,6 @@
 page {
   min-height: 100vh;
-  background: #f4f2ed;
+  background: #f2f2f2;
   color: #111111;
 }
 
@@ -52,16 +52,16 @@ page {
 .sync-pill {
   padding: 9rpx 15rpx;
   border-radius: 999rpx;
-  background: #e6eadf;
-  color: #415434;
+  background: #e8e8e8;
+  color: #4e4e4e;
   font-size: 20rpx;
   font-weight: 800;
 }
 
 .network-pill.offline,
 .sync-pill {
-  background: #eee2d4;
-  color: #75512d;
+  background: #e4e4e4;
+  color: #585858;
 }
 
 .progress-track {
@@ -98,14 +98,14 @@ page {
 }
 
 .back-warning {
-  background: #eee2d4;
-  color: #75512d;
+  background: #e4e4e4;
+  color: #585858;
 }
 
 .conflict-warning,
 .inline-error {
-  background: #f2dfd9;
-  color: #7a2c20;
+  background: #e3e3e3;
+  color: #464646;
 }
 
 .timer-section,
@@ -141,8 +141,8 @@ page {
   margin: 0;
   padding: 18rpx 25rpx;
   border-radius: 999rpx;
-  background: #e7e1d3;
-  color: #4e4432;
+  background: #e1e1e1;
+  color: #454545;
   font-size: 23rpx;
 }
 
@@ -220,14 +220,14 @@ page {
   margin-top: 14rpx;
   border: 1rpx solid rgba(17, 17, 17, 0.1);
   border-radius: 22rpx;
-  background: #f2f0eb;
+  background: #f0f0f0;
   color: #111111;
   font-size: 23rpx;
   font-weight: 800;
 }
 
 .task-error {
-  color: #7b2929;
+  color: #454545;
   font-weight: 800;
 }
 
@@ -274,8 +274,8 @@ page {
   margin-top: 28rpx;
   padding: 22rpx;
   border-radius: 22rpx;
-  background: #eeece6;
-  color: #4b473e;
+  background: #ececec;
+  color: #474747;
   font-size: 23rpx;
   font-weight: 750;
 }
@@ -318,7 +318,7 @@ page {
   height: 92rpx;
   margin-top: 12rpx;
   border-radius: 24rpx;
-  background: #f2f0eb;
+  background: #f0f0f0;
   color: #111111;
   font-size: 25rpx;
 }

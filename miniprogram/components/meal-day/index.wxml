@@ -25,5 +25,5 @@
     </view>
   </view>
   <text wx:if="{{day.missingIngredientsText}}" class="missing">还缺：{{day.missingIngredientsText}}</text>
-  <button wx:if="{{canEdit && day.dinner.length}}" class="edit-button" disabled="{{busy}}" bindtap="clearDinner">移除这天晚餐</button>
+  <button wx:if="{{canEdit}}" class="edit-button" disabled="{{busy}}" bindtap="openDinnerChooser">{{day.dinner.length ? '调整这天晚餐' : '添加这天晚餐'}}</button>
 </view>

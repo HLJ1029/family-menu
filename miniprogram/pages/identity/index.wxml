@@ -1,6 +1,20 @@
 <view class="identity-shell">
   <view class="brand-mark">Humi</view>
-  <view class="identity-card">
+  <view wx:if="{{mode === 'welcome'}}" class="welcome-card">
+    <view class="eyebrow">今晚吃什么</view>
+    <view class="title">先安排今晚，再慢慢记住家里的口味。</view>
+    <view class="welcome-scene">
+      <view class="welcome-orbit"></view>
+      <view class="welcome-bowl"></view>
+      <view class="welcome-steam welcome-steam-left"></view>
+      <view class="welcome-steam welcome-steam-right"></view>
+    </view>
+    <button class="primary-button welcome-primary" bindtap="startWechatLogin" loading="{{pending}}" disabled="{{pending}}">微信登录</button>
+    <button class="secondary-button" bindtap="continueAsGuest" disabled="{{pending}}">先体验 Humi</button>
+    <view class="privacy-copy">只有点击“微信登录”后才会建立 Humi 账号；游客菜单和清单保存在当前设备。</view>
+    <view wx:if="{{error}}" class="error-text">{{error}}</view>
+  </view>
+  <view wx:else class="identity-card">
     <view class="eyebrow">你的 Humi 身份</view>
     <view class="title">以后家人会这样看到你。</view>
     <button class="wechat-profile-button" bindtap="useWechatProfile" disabled="{{pending}}">使用微信头像和昵称</button>

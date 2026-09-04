@@ -5,12 +5,9 @@ Component({
     busy: { type: Boolean, value: false },
   },
   methods: {
-    clearDinner() {
+    openDinnerChooser() {
       if (!this.properties.canEdit || this.properties.busy || !this.properties.day?.dateKey) return;
-      this.triggerEvent("replace", {
-        dateKey: this.properties.day.dateKey,
-        entries: [],
-      });
+      this.triggerEvent("choose", { dateKey: this.properties.day.dateKey });
     },
   },
 });

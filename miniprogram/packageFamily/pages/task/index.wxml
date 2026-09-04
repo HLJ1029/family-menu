@@ -7,6 +7,7 @@
     <view class="status-card">
       <text class="status-label">{{task.status === 'completed' ? '已经完成' : task.status === 'claimed' ? '已有家人领取' : '等待领取'}}</text>
       <text class="meta">{{task.type === 'buy' ? '买食材' : '帮忙备菜'}}</text>
+      <text wx:if="{{task.claimedByName}}" class="meta">领取人：{{task.claimedByName}}</text>
     </view>
 
     <button

@@ -1,5 +1,3 @@
-import { requestMiniProgramIdentity } from "./runtime.js";
-
 const HUMI_SESSION_KEY = "humi:identity-session:v1";
 const HUMI_SESSION_EXPIRED_KEY = "humi:identity-session-expired:v1";
 
@@ -64,40 +62,31 @@ export function takeHumiTicketFromUrl() {
   return ticket;
 }
 
-export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure, confirmationMs = 600 } = {}) {
+export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure } = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
-  if (!miniProgram) return false;
-
-  const fallbackToLegacyBridge = () => {
-    if (!miniProgram.postMessage) {
-      onFailure?.();
-      return false;
-    }
-    try {
-      miniProgram.postMessage({
-        data: {
-          type: "humi:wechat-login",
-          requestedAt: Date.now(),
-        },
-      });
-      return true;
-    } catch {
-      onFailure?.();
-      return false;
-    }
+  let failureReported = false;
+  const reportFailure = () => {
+    if (failureReported) return;
+    failureReported = true;
+    void Promise.resolve()
+      .then(() => onFailure?.())
+      .catch(() => {});
   };
-
-  const canNavigate = [miniProgram.navigateTo, miniProgram.redirectTo, miniProgram.reLaunch]
-    .some((method) => typeof method === "function");
-  if (!canNavigate) return fallbackToLegacyBridge();
-
-  void requestMiniProgramIdentity({ reuseSession, confirmationMs })
-    .then((status) => {
-      if (status !== "handoff") fallbackToLegacyBridge();
-    })
-    .catch(() => fallbackToLegacyBridge());
-  return true;
+  if (typeof miniProgram?.navigateTo !== "function") {
+    reportFailure();
+    return false;
+  }
+  try {
+    miniProgram.navigateTo({
+      url: reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
+      fail: reportFailure,
+    });
+    return true;
+  } catch {
+    reportFailure();
+    return false;
+  }
 }
 
 export function requestPhoneBindFromMiniProgram() {

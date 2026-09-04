@@ -1,7 +1,7 @@
 const { resolveStartupRoute } = require("./bootstrap");
 const { appStore } = require("./store");
 
-function guardNativeTab() {
+function guardNativeTab({ allowHouseholdSetup = false, allowLocalGuestRun = false } = {}) {
   const envelope = appStore.getState().bootstrap;
   const sessionUserId = String(getApp().globalData?.humiSession?.user?.id || "");
   const bootstrapUserId = String(envelope?.user?.id || "");
@@ -18,6 +18,7 @@ function guardNativeTab() {
     envelope
   });
   if (target.route === "/pages/tonight/index") return true;
+  if ((allowHouseholdSetup || allowLocalGuestRun) && target.route === "/pages/family/index") return true;
   wx.reLaunch({ url: target.route });
   return false;
 }

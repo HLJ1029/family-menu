@@ -153,7 +153,7 @@ Page({
       title: `移除${member.displayName}？`,
       content: "移除后，对方将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: "确认移除",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!confirmation.confirm) return null;
     return this.runMutation(`remove:${memberId}`, async () => {
@@ -179,7 +179,7 @@ Page({
         ? "你是最后一位成员。确认后，这个家及其家庭数据将不再可用。"
         : "离开后，你将不能再查看这个家的菜单、清单和协作记录。",
       confirmText: isOwner ? "确认解散" : "确认离开",
-      confirmColor: "#7b2929",
+      confirmColor: "#454545",
     });
     if (!confirmation.confirm) return null;
     return this.runMutation("leave", async () => {
@@ -215,7 +215,7 @@ Page({
       await operation();
       return true;
     } catch (error) {
-      this.setData({ errorText: error?.message || fallback });
+      this.setData({ errorText: mutationError(error, fallback) });
       return null;
     } finally {
       this.setData({ pendingAction: "" });
@@ -279,6 +279,16 @@ function mutationId(prefix) {
 
 function showModal(options) {
   return new Promise((resolve) => wx.showModal({ ...options, success: resolve, fail: () => resolve({ confirm: false }) }));
+}
+
+function mutationError(error, fallback) {
+  if (error?.status === 409 || error?.code === "state_version_conflict") {
+    return "家庭信息刚刚有更新，你的输入仍保留着。请刷新确认后重试。";
+  }
+  if (error?.status === 401 || error?.code === "invalid_session") {
+    return "登录状态已失效，请重新登录后重试。";
+  }
+  return fallback;
 }
 
 module.exports = { buildFamilyProfilePatch, normalizeMembers, splitPreferences };

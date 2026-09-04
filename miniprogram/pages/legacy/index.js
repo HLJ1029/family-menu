@@ -26,6 +26,7 @@ Page({
   },
 
   onLoad(options = {}) {
+    this._continueAsGuest = options.humiGuest === "1";
     if (options.humiLogout === "1") {
       getApp().clearHumiSession();
       this.setData({ currentSession: null, loginError: "" });
@@ -253,17 +254,6 @@ Page({
       wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] });
       return;
     }
-    if (HUMI_WECHAT_LOGIN_ENABLED && latestMessage?.type === "humi:wechat-login") {
-      const session = this.data.currentSession || getApp().globalData?.humiSession;
-      if (!session?.accessToken || session.expiresAt <= Date.now()) {
-        this.loginWithWechat();
-      } else if (session.user?.profileStatus !== "complete") {
-        wx.navigateTo({ url: "/pages/identity/index" });
-      } else {
-        this.openAuthenticatedH5(session);
-      }
-      return;
-    }
     if (latestMessage?.type === "humi:logout") {
       getApp().clearHumiSession();
       this.setData({ currentSession: null, loginError: "" });
@@ -305,7 +295,9 @@ Page({
   finishInitialLoad() {
     if (this._initialLoadFinished) return;
     this._initialLoadFinished = true;
-    this.openWebView(this.buildH5Url());
+    this.openWebView(this._continueAsGuest
+      ? appendQuery(this.buildH5Url(), { humiGuest: "1" })
+      : this.buildH5Url());
   },
 
   openAuthenticatedH5(session) {

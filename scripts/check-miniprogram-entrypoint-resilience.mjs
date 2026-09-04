@@ -4,6 +4,37 @@ import vm from "node:vm";
 
 const pageSource = fs.readFileSync(new URL("../miniprogram/pages/legacy/index.js", import.meta.url), "utf8");
 const identityPageSource = fs.readFileSync(new URL("../miniprogram/pages/identity/index.js", import.meta.url), "utf8");
+const configModule = { exports: {} };
+vm.runInNewContext(fs.readFileSync(new URL("../miniprogram/utils/config.js", import.meta.url), "utf8"), {
+  module: configModule,
+  exports: configModule.exports,
+  console,
+  wx: { getDeviceInfo: () => ({ platform: "ios" }) }
+});
+const bootstrapModule = { exports: {} };
+vm.runInNewContext(fs.readFileSync(new URL("../miniprogram/utils/bootstrap.js", import.meta.url), "utf8"), {
+  module: bootstrapModule,
+  exports: bootstrapModule.exports,
+  require: (specifier) => {
+    if (specifier === "./cache" || specifier === "./request") return {};
+    assert.fail(`Unexpected bootstrap dependency: ${specifier}`);
+  }
+});
+
+assert.equal(configModule.exports.HUMI_PACKAGE_VERSION, "1.1.79", "the release shell must report version 1.1.79");
+assert.equal(configModule.exports.HUMI_NATIVE_SHELL_CANDIDATE, false, "the release shell must keep native tabs disabled");
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapModule.exports.resolveStartupRoute({
+    candidate: configModule.exports.HUMI_NATIVE_SHELL_CANDIDATE,
+    envelope: {
+      activeHouseholdId: "household-1",
+      capabilities: { nativeShellEnabled: true, mealExecutionEnabled: true },
+      user: { id: "user-1", profileStatus: "complete" }
+    }
+  }))),
+  { route: "/pages/legacy/index", reason: "package_disabled" },
+  "the real package flag must keep authenticated users in the legacy H5 shell"
+);
 
 function createPage(wxOverrides = {}, runtimeOverrides = {}) {
   let definition;
@@ -131,7 +162,7 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
       if (specifier === "../../utils/bootstrap") return { clearBootstrapCacheForUser: () => {} };
       if (specifier === "../../utils/telemetry") return { startSpan: () => ({ end: () => {} }) };
       if (specifier === "../../utils/user-message") return { toHumiUserMessage: (_error, fallback) => fallback };
-      if (specifier === "../../data/approved-avatar-keys.json") return ["humi-avatar-parent-f-01"];
+      if (specifier === "../../data/approved-avatar-keys.js") return ["humi-avatar-parent-f-01"];
       assert.fail(`Unexpected identity dependency: ${specifier}`);
     }
   });
@@ -155,6 +186,17 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
   page.onLoad({});
   assert.equal(loginCalls, 0, "normal startup must not call wx.login");
   assert.equal(changes.filter((patch) => patch.url).length, 1);
+  assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
+}
+
+{
+  let loginCalls = 0;
+  const { page } = createPage({
+    login: () => { loginCalls += 1; }
+  });
+  page.onLoad({ humiGuest: "1" });
+  assert.equal(loginCalls, 0, "explicit guest entry must never call wx.login");
+  assert.match(page.data.url, /[?&]humiGuest=1(?:&|$)/, "native guest choice must bypass the duplicate H5 login gate");
   assert.doesNotMatch(page.data.url, /humiSession=|humiTicket=/);
 }
 
@@ -259,6 +301,19 @@ function createIdentityPage(wxOverrides = {}, runtimeOverrides = {}) {
   page.retryWebView();
   assert.match(page.data.url, /humiRetry=/, "retry should force a fresh web-view navigation");
   assert.equal(page.data.webViewError, "", "retry should clear the native error state");
+}
+
+{
+  let loginCalls = 0;
+  const { page, navigations, requestUrls } = createPage({
+    login: () => { loginCalls += 1; }
+  });
+  page.handleMessage({
+    detail: { data: [{ type: "humi:wechat-login", requestedAt: Date.now() }] }
+  });
+  assert.equal(loginCalls, 0, "legacy web-view messages must never initiate WeChat login");
+  assert.deepEqual(navigations, [], "legacy web-view messages must never open the identity page");
+  assert.deepEqual(requestUrls, [], "legacy web-view messages must never exchange login or H5 tickets");
 }
 
 console.log("Mini-program entrypoint resilience checks passed.");
