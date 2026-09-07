@@ -413,8 +413,7 @@ const REQUIRED_CHECKS = [
     title: "小程序分享使用可确认且保留返回路径的原生子页面跳转",
     path: "src/lib/runtime.js",
     required: [
-      "\"redirectTo\"",
-      "\"navigateTo\"",
+      "methods: [\"navigateTo\", \"redirectTo\"]",
       "\"visibilitychange\"",
       "\"pagehide\"",
       "finish(\"unavailable\")",

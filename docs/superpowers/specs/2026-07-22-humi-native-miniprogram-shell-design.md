@@ -114,7 +114,7 @@ N1 先为已注册的 cooking、settings、invite、task、recipe 和 web-conten
 
 - 菜单、清单或海报 token 只生成一次，原生交接失败时复用；
 - 不把 JS SDK 的 `success` 回调单独视为目标页已打开；
-- 未观察到页面离开时继续走可靠的 `redirectTo/reLaunch`；
+- 未观察到页面离开时继续走保留返回路径的 `redirectTo`；分享不使用会清空页面栈的 `reLaunch`；
 - 记录匿名 bridge 阶段、方法、结果、耗时和错误码；
 - 分享请求 `401` 时静默登录并最多重试一次；
 - 不重复创建分享快照或海报上传。

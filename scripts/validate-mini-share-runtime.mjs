@@ -513,6 +513,22 @@ assert.equal(
   "leaving the web-view should confirm a handoff when the bridge omits callbacks",
 );
 
+const visibilityOnlyPageLeave = createRuntimeWindow({
+  navigateTo({ hidePage }) {
+    hidePage();
+  },
+});
+globalThis.window = visibilityOnlyPageLeave.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "today_menu", token: "visibility-menu-token", title: "今晚菜单" },
+    { timeoutMs: 80 },
+  ),
+  "handoff",
+  "visibilitychange alone should confirm handoff when pagehide is not emitted",
+);
+assert.deepEqual(visibilityOnlyPageLeave.calls, ["navigateTo"]);
+
 const callbacklessNavigationFallback = createRuntimeWindow({
   navigateTo() {
     // iOS WeChat can accept this call without firing success, fail, or page-leave.
@@ -714,32 +730,34 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch, postMessage }) 
     },
   };
   const leavePage = () => {
+    windowListeners.get("pagehide")?.forEach((listener) => listener());
+  };
+  const hidePage = () => {
     document.visibilityState = "hidden";
     documentListeners.get("visibilitychange")?.forEach((listener) => listener());
-    windowListeners.get("pagehide")?.forEach((listener) => listener());
   };
   if (redirectTo) {
     runtimeWindow.wx.miniProgram.redirectTo = (options) => {
       calls.push("redirectTo");
-      redirectTo({ ...options, leavePage });
+      redirectTo({ ...options, hidePage, leavePage });
     };
   }
   if (navigateTo) {
     runtimeWindow.wx.miniProgram.navigateTo = (options) => {
       calls.push("navigateTo");
-      navigateTo({ ...options, leavePage });
+      navigateTo({ ...options, hidePage, leavePage });
     };
   }
   if (reLaunch) {
     runtimeWindow.wx.miniProgram.reLaunch = (options) => {
       calls.push("reLaunch");
-      reLaunch({ ...options, leavePage });
+      reLaunch({ ...options, hidePage, leavePage });
     };
   }
   if (postMessage) {
     runtimeWindow.wx.miniProgram.postMessage = (options) => {
       calls.push("postMessage");
-      postMessage({ ...options, leavePage });
+      postMessage({ ...options, hidePage, leavePage });
     };
   }
   return { window: runtimeWindow, calls };

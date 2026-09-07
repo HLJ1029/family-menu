@@ -71,7 +71,7 @@
 | 黑白灰调色板 | 已完成 | H5、小程序壳、分享页和海报去除彩色主题；`npm run validate:palette` 扫描非中性 hex/RGB/Tailwind 颜色 |
 | 五类分享落地页与游客参与烟测 | 已完成 | `release:collaboration:smoke` 验证征集、清单、邀请的游客参与；五类 landing 取证额外覆盖想吃与今晚菜单 |
 | 小程序分享路径覆盖 `crave`/`invite`/`grocery`/`wish`/`menu` | 已完成 | `miniprogram/pages/index/index.js`、原生分享页与五个 H5 落地组件覆盖对应 token |
-| 五类分享确实进入小程序原生分享页 | 已完成 | `runtime.js` 优先调用 `navigateTo`，只在明确失败时降级 `redirectTo`，成功回调立即确认交接且不会重复派发。`validate:share-bridge` 验证本地实现；当前候选五类原生发送框证据作为外部复核项单独保持开放 |
+| 五类分享确实进入小程序原生分享页 | 已完成 | `runtime.js` 优先调用 `navigateTo`，明确失败或未观察到页面离开时降级 `redirectTo`；success 回调只记录诊断，只有 `visibilitychange` / `pagehide` / `beforeunload` 才确认交接，确认后不会重复派发，也不会用 `reLaunch` 清空返回路径。`validate:share-bridge` 验证本地实现；当前候选五类原生发送框证据作为外部复核项单独保持开放 |
 | 小程序卡片分享与菜单/清单海报入口并存 | 已完成 | 今晚菜单操作区提供“生成菜单海报”，买菜清单分享区提供“生成清单海报”；两者不替换原生小程序卡片分享。`release:product:review` 防止入口再次被 UI 重构隐藏，`release:product:smoke` 实际生成并验证两张海报图片 |
 | 小程序普通启动不被登录墙挡住 | 已完成 | 小程序壳先加载 H5 并后台尝试登录；`docs/launch-day-runbook.md` 把该项列入 P0 真机验收 |
 | 发布材料与当前五入口 UI 一致，不恢复旧库存维护主路径 | 已完成 | 产品 smoke 验证五入口，发布材料以当前重构 UI 为准；库存继续保持隐形流水线 |
