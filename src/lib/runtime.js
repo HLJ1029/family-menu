@@ -61,7 +61,7 @@ export function requestMiniProgramReminder(payload = {}, options = {}) {
   return requestMiniProgramPage(buildMiniProgramReminderUrl(payload), options);
 }
 
-function requestMiniProgramPage(url, options = {}) {
+export function requestMiniProgramPage(url, options = {}) {
   const miniProgram = window.wx?.miniProgram;
   const methodNames = Array.isArray(options.methods)
     ? options.methods

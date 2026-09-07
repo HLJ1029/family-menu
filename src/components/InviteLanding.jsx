@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, UsersRound } from "lucide-react";
 import { isHumiApiSession, joinHouseholdInvite, loadHouseholdInvite } from "../lib/humiApi";
-import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
+import { getWechatLoginFailureMessage, requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { HumiScene } from "./ui/HumiScene";
 
@@ -42,7 +42,10 @@ export function InviteLanding({ token, humiSession, onJoined, onClose }) {
   async function joinInvite() {
     if (!isHumiApiSession(humiSession)) {
       if (isWechatMiniProgramWebView() && requestWechatLoginFromMiniProgram({
-        onFailure: () => setStatus("没有打开微信身份页，请点“加入这个家”重试。"),
+        onFailure: (failure) => setStatus(getWechatLoginFailureMessage(
+          failure,
+          "没有打开微信身份页，请点“加入这个家”重试。",
+        )),
       })) {
         setStatus("正在唤起微信登录，登录后会自动加入这个家。");
         return;
