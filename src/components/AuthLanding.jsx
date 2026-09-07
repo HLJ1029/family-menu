@@ -1,6 +1,6 @@
 import { MessageCircle, Phone } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
+import { useState } from "react";
+import { getWechatLoginFailureMessage, requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
 import { HumiScene } from "./ui/HumiScene";
@@ -40,28 +40,26 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
 function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
   const [status, setStatus] = useState("");
   const [loginPending, setLoginPending] = useState(false);
-  const recoveryTimerRef = useRef(null);
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
   const canUseWechatLogin = wechatLoginEnabled || isWechatMiniProgram || entryIntent === "completeIdentity";
 
-  useEffect(() => () => globalThis.clearTimeout(recoveryTimerRef.current), []);
-
   function handleWechatLogin() {
     if (loginPending) return;
     setLoginPending(true);
-    const recover = () => {
-      globalThis.clearTimeout(recoveryTimerRef.current);
+    const recover = (failure) => {
       setLoginPending(false);
-      setStatus("没有打开微信身份页。请重试；如果仍然失败，请更新小程序后再试。");
+      setStatus(getWechatLoginFailureMessage(failure));
     };
-    if (isWechatMiniProgram && requestWechatLoginFromMiniProgram({ onFailure: recover })) {
+    const resumeRetry = () => {
+      setLoginPending(false);
+      setStatus("微信登录没有完成，请重新尝试。");
+    };
+    if (isWechatMiniProgram && requestWechatLoginFromMiniProgram({ onFailure: recover, onResume: resumeRetry })) {
       setStatus("正在打开微信登录。登录后，菜单、清单和你家的口味偏好会跟着账号保存。");
-      recoveryTimerRef.current = globalThis.setTimeout(recover, 4500);
       return;
     }
-    setLoginPending(false);
-    setStatus("微信登录正在接入。现在可以先体验 Humi，菜单和清单会保存在本机。");
+    recover({ errorCode: "bridge_unavailable" });
   }
 
   function showPhoneReserved() {

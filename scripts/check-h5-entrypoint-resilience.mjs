@@ -15,7 +15,9 @@ const expectedChecks = [
   "legacy WeChat WebView without structuredClone completes React boot",
   "failed lazy chunks show an accessible reload recovery instead of a blank screen",
   "production hashed lazy chunk 404 shows the same reload recovery",
-  "H5 login prefers the native identity page and recovers from navigation failure",
+  "H5 login falls back across native navigation and identifies an old shell",
+  "confirmed native login handoff is not reset by a fixed timer",
+  "aborted native login handoff restores an explicit retry",
   "one-time H5 ticket is exchanged and removed from the URL",
   "failed H5 ticket exchange stays on a visible login retry",
   "ticket exchange gates stale-session hydration during silent recovery",
@@ -217,20 +219,66 @@ try {
         window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
         payload.fail?.({ errMsg: "navigateTo:fail page not found" });
       },
-      redirectTo: (payload) => window.__humiNativeCalls.push({ method: "redirectTo", payload: { url: payload.url } }),
+      redirectTo: (payload) => {
+        window.__humiNativeCalls.push({ method: "redirectTo", payload: { url: payload.url } });
+        payload.fail?.({ errMsg: "redirectTo:fail page not found" });
+      },
       postMessage: (payload) => window.__humiNativeCalls.push({ method: "postMessage", payload }),
-      reLaunch: (payload) => window.__humiNativeCalls.push({ method: "reLaunch", payload: { url: payload.url } }),
+      reLaunch: (payload) => {
+        window.__humiNativeCalls.push({ method: "reLaunch", payload: { url: payload.url } });
+        payload.fail?.({ errMsg: "reLaunch:fail page not found" });
+      },
     };
   });
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).click();
-  await bridgePage.getByText("没有打开微信身份页。请重试；如果仍然失败，请更新小程序后再试。").waitFor({ timeout: 8_000 });
-  assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls[0]), {
-    method: "navigateTo",
-    payload: { url: "/pages/identity/index?action=login" },
-  });
-  assert.equal(await bridgePage.evaluate(() => window.__humiNativeCalls.length), 1, "failed login must not fall back to another native bridge method");
+  await bridgePage.getByText("当前小程序版本不支持微信登录，请更新到最新版本后重试。").waitFor({ timeout: 8_000 });
+  assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls), [
+    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login" } },
+    { method: "redirectTo", payload: { url: "/pages/identity/index?action=login" } },
+    { method: "reLaunch", payload: { url: "/pages/identity/index?action=login" } },
+  ]);
   assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
+
+  const confirmedHandoffContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await confirmedHandoffContext.addInitScript(() => {
+    window.__humiNativeCalls = [];
+  });
+  const confirmedHandoffPage = await confirmedHandoffContext.newPage();
+  await confirmedHandoffPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await confirmedHandoffPage.evaluate(() => {
+    window.wx = window.wx || {};
+    window.wx.miniProgram = {
+      navigateTo: (payload) => {
+        window.__humiNativeCalls.push({ method: "navigateTo", payload: { url: payload.url } });
+        payload.success?.({ errMsg: "navigateTo:ok" });
+        window.dispatchEvent(new Event("pagehide"));
+      },
+    };
+  });
+  await confirmedHandoffPage.getByRole("button", { name: "微信登录", exact: true }).click();
+  await confirmedHandoffPage.waitForTimeout(4_800);
+  assert.deepEqual(await confirmedHandoffPage.evaluate(() => window.__humiNativeCalls), [
+    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login" } },
+  ]);
+  assert.equal(
+    await confirmedHandoffPage.getByRole("button", { name: "正在打开微信登录", exact: true }).isDisabled(),
+    true,
+    "a confirmed native handoff must not be reset by the old 4.5 second recovery timer",
+  );
+  await confirmedHandoffPage.evaluate(() => window.dispatchEvent(new Event("pageshow")));
+  await confirmedHandoffPage.getByText("微信登录没有完成，请重新尝试。").waitFor({ timeout: 2_000 });
+  assert.equal(
+    await confirmedHandoffPage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(),
+    true,
+    "returning from an aborted native identity flow must restore the login retry",
+  );
+  await confirmedHandoffContext.close();
 
   const ticketContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

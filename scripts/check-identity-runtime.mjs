@@ -154,6 +154,8 @@ try {
 }
 
 const nativeIdentityCalls = [];
+let nativeIdentityHandoffs = 0;
+let nativeIdentityFailures = 0;
 const nativeWindowTarget = new EventTarget();
 const nativeDocumentTarget = new EventTarget();
 globalThis.window = {
@@ -167,17 +169,19 @@ globalThis.window = {
   dispatchEvent: nativeWindowTarget.dispatchEvent.bind(nativeWindowTarget),
   wx: {
     miniProgram: {
-      navigateTo({ success }) {
+      navigateTo({ fail }) {
         nativeIdentityCalls.push("navigateTo");
-        success?.({ errMsg: "navigateTo:ok" });
+        fail?.({ errMsg: "navigateTo:fail page stack limit exceeded" });
       },
-      redirectTo() {
+      redirectTo({ success }) {
         nativeIdentityCalls.push("redirectTo");
-        throw new Error("identity login must not redirect the current page");
+        success?.({ errMsg: "redirectTo:ok" });
+        globalThis.window.document.visibilityState = "hidden";
+        nativeDocumentTarget.dispatchEvent(new Event("visibilitychange"));
       },
       reLaunch() {
         nativeIdentityCalls.push("reLaunch");
-        throw new Error("identity login must not relaunch the mini program");
+        throw new Error("a confirmed redirect must stop login fallback");
       },
       postMessage() {
         nativeIdentityCalls.push("postMessage");
@@ -189,34 +193,49 @@ globalThis.window = {
   clearTimeout,
 };
 assert.equal(
-  humiIdentity.requestWechatLoginFromMiniProgram({ confirmationMs: 10 }),
+  humiIdentity.requestWechatLoginFromMiniProgram({
+    confirmationMs: 10,
+    onHandoff: () => { nativeIdentityHandoffs += 1; },
+    onFailure: () => { nativeIdentityFailures += 1; },
+  }),
   true,
   "identity navigation should start synchronously",
 );
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.deepEqual(
   nativeIdentityCalls,
-  ["navigateTo"],
-  "identity login must invoke only the native identity page navigation",
+  ["navigateTo", "redirectTo"],
+  "identity login must replace the web-view page when navigateTo cannot take over",
 );
+assert.equal(nativeIdentityHandoffs, 1, "page visibility must confirm one native identity handoff");
+assert.equal(nativeIdentityFailures, 0, "a confirmed redirect must not report login failure");
 delete globalThis.window;
 
 const failedIdentityCalls = [];
-let failedIdentityRecoveries = 0;
+const failedIdentityRecoveries = [];
 globalThis.window = {
+  document: {
+    visibilityState: "visible",
+    addEventListener() {},
+    removeEventListener() {},
+  },
+  addEventListener() {},
+  removeEventListener() {},
+  setTimeout,
+  clearTimeout,
   wx: {
     miniProgram: {
       navigateTo({ fail }) {
         failedIdentityCalls.push("navigateTo");
         fail?.({ errMsg: "navigateTo:fail page not found" });
       },
-      redirectTo() {
+      redirectTo({ fail }) {
         failedIdentityCalls.push("redirectTo");
-        throw new Error("identity failure must not redirect");
+        fail?.({ errMsg: "redirectTo:fail bridge unavailable" });
       },
-      reLaunch() {
+      reLaunch({ fail }) {
         failedIdentityCalls.push("reLaunch");
-        throw new Error("identity failure must not relaunch");
+        fail?.({ errMsg: "reLaunch:fail unknown bridge error" });
       },
       postMessage() {
         failedIdentityCalls.push("postMessage");
@@ -227,14 +246,24 @@ globalThis.window = {
 };
 assert.equal(
   humiIdentity.requestWechatLoginFromMiniProgram({
-    onFailure: () => { failedIdentityRecoveries += 1; },
+    confirmationMs: 10,
+    timeoutMs: 100,
+    onFailure: (failure) => { failedIdentityRecoveries.push(failure); },
   }),
   true,
   "an available navigateTo bridge should start synchronously",
 );
-await Promise.resolve();
-assert.deepEqual(failedIdentityCalls, ["navigateTo"], "a failed identity navigation must not invoke another native method");
-assert.equal(failedIdentityRecoveries, 1, "a failed identity navigation must expose one retry callback");
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.deepEqual(
+  failedIdentityCalls,
+  ["navigateTo", "redirectTo", "reLaunch"],
+  "identity login must exhaust safe native navigation before declaring failure",
+);
+assert.deepEqual(
+  failedIdentityRecoveries,
+  [{ errorCode: "page_not_found" }],
+  "an old shell without the identity page must report one actionable version failure",
+);
 delete globalThis.window;
 
 function loadIdentityPage({ user, loginResult = null, rejectProfile = false, profileAvatarUrl = "https://thirdwx.qlogo.cn/mmopen/avatar.jpg", requestError = null } = {}) {

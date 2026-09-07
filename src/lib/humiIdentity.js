@@ -1,3 +1,5 @@
+import { requestMiniProgramPage } from "./runtime.js";
+
 const HUMI_SESSION_KEY = "humi:identity-session:v1";
 const HUMI_SESSION_EXPIRED_KEY = "humi:identity-session-expired:v1";
 
@@ -62,31 +64,111 @@ export function takeHumiTicketFromUrl() {
   return ticket;
 }
 
-export function requestWechatLoginFromMiniProgram({ reuseSession = false, onFailure } = {}) {
+export function requestWechatLoginFromMiniProgram({
+  reuseSession = false,
+  onFailure,
+  onHandoff,
+  onResume,
+  onStage,
+  timeoutMs,
+  confirmationMs,
+} = {}) {
   if (typeof window === "undefined") return false;
   const miniProgram = window.wx?.miniProgram;
+  const methods = ["navigateTo", "redirectTo", "reLaunch"];
   let failureReported = false;
-  const reportFailure = () => {
+  let lastErrorCode = "bridge_unavailable";
+  const reportFailure = (failure = { errorCode: lastErrorCode }) => {
     if (failureReported) return;
     failureReported = true;
     void Promise.resolve()
-      .then(() => onFailure?.())
+      .then(() => onFailure?.(failure))
       .catch(() => {});
   };
-  if (typeof miniProgram?.navigateTo !== "function") {
-    reportFailure();
+  if (!methods.some((methodName) => typeof miniProgram?.[methodName] === "function")) {
+    reportFailure({ errorCode: lastErrorCode });
     return false;
   }
-  try {
-    miniProgram.navigateTo({
-      url: reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
-      fail: reportFailure,
-    });
-    return true;
-  } catch {
-    reportFailure();
-    return false;
+  void requestMiniProgramPage(
+    reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
+    {
+      methods,
+      timeoutMs,
+      confirmationMs,
+      onStage(event) {
+        if (getBridgeErrorPriority(event.errorCode) > getBridgeErrorPriority(lastErrorCode)) {
+          lastErrorCode = event.errorCode;
+        }
+        onStage?.(event);
+      },
+    },
+  )
+    .then((status) => {
+      if (status === "handoff") {
+        watchForMiniProgramPageResume(onResume);
+        void Promise.resolve()
+          .then(() => onHandoff?.())
+          .catch(() => {});
+        return;
+      }
+      reportFailure({ errorCode: lastErrorCode });
+    })
+    .catch(() => reportFailure({ errorCode: "bridge_failed" }));
+  return true;
+}
+
+function watchForMiniProgramPageResume(onResume) {
+  if (typeof onResume !== "function") return;
+  const documentRef = window.document;
+  let reported = false;
+  const cleanup = () => {
+    documentRef?.removeEventListener?.("visibilitychange", handleVisibilityChange);
+    window.removeEventListener?.("pageshow", reportResume);
+  };
+  const reportResume = () => {
+    if (reported) return;
+    reported = true;
+    cleanup();
+    void Promise.resolve()
+      .then(() => onResume())
+      .catch(() => {});
+  };
+  const handleVisibilityChange = () => {
+    if (documentRef?.visibilityState === "visible") reportResume();
+  };
+  documentRef?.addEventListener?.("visibilitychange", handleVisibilityChange);
+  window.addEventListener?.("pageshow", reportResume);
+}
+
+function getBridgeErrorPriority(errorCode) {
+  return {
+    page_not_found: 4,
+    permission_denied: 3,
+    page_stack_limit: 3,
+    bridge_failed: 2,
+    bridge_unknown: 1,
+    unconfirmed: 1,
+  }[errorCode] || 0;
+}
+
+export function getWechatLoginFailureMessage(
+  failure,
+  fallback = "没有打开微信身份页，请重新进入小程序后重试。",
+) {
+  const errorCode = String(failure?.errorCode || "");
+  if (errorCode === "page_not_found") {
+    return "当前小程序版本不支持微信登录，请更新到最新版本后重试。";
   }
+  if (errorCode === "page_stack_limit") {
+    return "小程序打开的页面太多，请返回首页后重新登录。";
+  }
+  if (errorCode === "permission_denied") {
+    return "微信没有允许打开身份页，请退出小程序后重新进入。";
+  }
+  if (errorCode === "bridge_unavailable") {
+    return "当前页面无法连接小程序，请从微信里的 Humi 重新进入。";
+  }
+  return fallback;
 }
 
 export function requestPhoneBindFromMiniProgram() {

@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { updateHumiIdentityProfile } from "../lib/humiApi";
-import { requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
+import { getWechatLoginFailureMessage, requestWechatLoginFromMiniProgram } from "../lib/humiIdentity";
 import { isWechatMiniProgramWebView } from "../lib/runtime";
 import { IcpFooter } from "./AppShell";
 import { humiAvatarScenes } from "./ui/brandScenes";
@@ -12,10 +12,7 @@ export function HumiIdentitySetup({ session, onComplete }) {
   const [avatarKey, setAvatarKey] = useState(session?.user?.avatarKey || humiAvatarScenes[0].id);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState("");
-  const nativeTimerRef = useRef(null);
   const isMiniProgram = isWechatMiniProgramWebView();
-
-  useEffect(() => () => globalThis.clearTimeout(nativeTimerRef.current), []);
 
   async function saveIdentity(event) {
     event.preventDefault();
@@ -36,16 +33,17 @@ export function HumiIdentitySetup({ session, onComplete }) {
   }
 
   function openWechatIdentity() {
-    const recover = () => {
-      globalThis.clearTimeout(nativeTimerRef.current);
-      setStatus("当前版本没有打开微信身份页，你仍可在这里填写昵称和选择头像。");
+    const recover = (failure) => {
+      setStatus(getWechatLoginFailureMessage(
+        failure,
+        "没有打开微信身份页，你仍可在这里填写昵称和选择头像。",
+      ));
     };
     setStatus("正在打开微信头像和昵称...");
     if (!requestWechatLoginFromMiniProgram({ reuseSession: true, onFailure: recover })) {
       recover();
       return;
     }
-    nativeTimerRef.current = globalThis.setTimeout(recover, 4500);
   }
 
   return (

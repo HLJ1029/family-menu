@@ -73,7 +73,7 @@ import {
   validateDinnerRecommendationIds,
 } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
-import { clearHumiSession, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
+import { clearHumiSession, getWechatLoginFailureMessage, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
 import { clearGuestParticipantId } from "./lib/collaborationIdentity";
 import {
   abandonHumiMealRun,
@@ -1636,10 +1636,10 @@ function App() {
     failureMessage = "没有打开微信身份页，请重试；如果仍然失败，请更新小程序后再试。",
   ) {
     let failureShown = false;
-    const showFailure = () => {
+    const showFailure = (failure) => {
       if (failureShown) return;
       failureShown = true;
-      showNotice(failureMessage);
+      showNotice(getWechatLoginFailureMessage(failure, failureMessage));
     };
     const started = requestWechatLoginFromMiniProgram({ onFailure: showFailure });
     if (started) showNotice(pendingMessage);

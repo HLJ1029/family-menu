@@ -21,7 +21,7 @@ vm.runInNewContext(fs.readFileSync(new URL("../miniprogram/utils/bootstrap.js", 
   }
 });
 
-assert.equal(configModule.exports.HUMI_PACKAGE_VERSION, "1.1.79", "the release shell must report version 1.1.79");
+assert.equal(configModule.exports.HUMI_PACKAGE_VERSION, "1.1.80", "the release shell must report version 1.1.80");
 assert.equal(configModule.exports.HUMI_NATIVE_SHELL_CANDIDATE, false, "the release shell must keep native tabs disabled");
 assert.deepEqual(
   JSON.parse(JSON.stringify(bootstrapModule.exports.resolveStartupRoute({
