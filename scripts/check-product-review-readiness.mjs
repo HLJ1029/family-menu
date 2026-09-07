@@ -410,11 +410,10 @@ const REQUIRED_CHECKS = [
   },
   {
     key: "native-share-navigation-is-truthful",
-    title: "小程序分享使用单次原生子页面跳转",
+    title: "小程序分享使用可确认且保留返回路径的原生子页面跳转",
     path: "src/lib/runtime.js",
     required: [
-      "\"redirectTo\"",
-      "\"navigateTo\"",
+      "methods: [\"navigateTo\", \"redirectTo\"]",
       "\"visibilitychange\"",
       "\"pagehide\"",
       "finish(\"unavailable\")",
@@ -423,7 +422,7 @@ const REQUIRED_CHECKS = [
     evidence: "scripts/validate-mini-share-runtime.mjs",
     evidenceRequired: [
       "explicitFailureFallback",
-      "redirectTo should only run after navigateTo explicitly fails",
+      "an explicitly failed navigateTo must recover through redirectTo",
       "\"handoff\"",
       "redirectTo",
       "navigateTo",

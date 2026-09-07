@@ -27,7 +27,7 @@ export function requestMiniProgramShare(payload = {}, options = {}) {
   if (!String(payload.token || "").trim()) return Promise.resolve("unavailable");
   return requestMiniProgramPage(buildMiniProgramShareUrl(payload), {
     ...options,
-    methods: ["navigateTo"],
+    methods: ["navigateTo", "redirectTo"],
   });
 }
 

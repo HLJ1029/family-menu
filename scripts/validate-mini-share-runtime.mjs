@@ -475,9 +475,14 @@ const explicitFailureFallback = createRuntimeWindow({
     assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
     fail?.({ errMsg: "navigateTo:fail page stack limit" });
   },
-  redirectTo() {},
-  reLaunch() {},
-  postMessage() {},
+  redirectTo({ url, success, leavePage }) {
+    assert.equal(url, "/pages/share/index?type=crave&token=retry-token");
+    success?.();
+    leavePage();
+  },
+  reLaunch() {
+    assert.fail("share recovery must preserve the return path instead of relaunching the app");
+  },
 });
 globalThis.window = explicitFailureFallback.window;
 assert.equal(
@@ -485,12 +490,12 @@ assert.equal(
     { type: "crave", token: "retry-token" },
     { timeoutMs: 100 },
   ),
-  "unavailable",
+  "handoff",
 );
 assert.deepEqual(
   explicitFailureFallback.calls,
-  ["navigateTo"],
-  "native sharing must not fall back to redirectTo, reLaunch, or postMessage",
+  ["navigateTo", "redirectTo"],
+  "an explicitly failed navigateTo must recover through redirectTo",
 );
 
 const callbacklessPageLeave = createRuntimeWindow({
@@ -508,13 +513,34 @@ assert.equal(
   "leaving the web-view should confirm a handoff when the bridge omits callbacks",
 );
 
+const visibilityOnlyPageLeave = createRuntimeWindow({
+  navigateTo({ hidePage }) {
+    hidePage();
+  },
+});
+globalThis.window = visibilityOnlyPageLeave.window;
+assert.equal(
+  await requestMiniProgramShare(
+    { type: "today_menu", token: "visibility-menu-token", title: "今晚菜单" },
+    { timeoutMs: 80 },
+  ),
+  "handoff",
+  "visibilitychange alone should confirm handoff when pagehide is not emitted",
+);
+assert.deepEqual(visibilityOnlyPageLeave.calls, ["navigateTo"]);
+
 const callbacklessNavigationFallback = createRuntimeWindow({
   navigateTo() {
     // iOS WeChat can accept this call without firing success, fail, or page-leave.
   },
-  redirectTo() {},
-  reLaunch() {},
-  postMessage() {},
+  redirectTo({ url, success, leavePage }) {
+    assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
+    success?.();
+    leavePage();
+  },
+  reLaunch() {
+    assert.fail("share recovery must stop once redirectTo leaves the WebView");
+  },
 });
 globalThis.window = callbacklessNavigationFallback.window;
 assert.equal(
@@ -522,22 +548,26 @@ assert.equal(
     { type: "invite", token: "invite-token" },
     { timeoutMs: 180, confirmationMs: 20 },
   ),
-  "unavailable",
-  "a callbackless navigateTo should fail visibly without trying another bridge method",
+  "handoff",
+  "a callbackless navigateTo should recover through redirectTo",
 );
 assert.deepEqual(
   callbacklessNavigationFallback.calls,
-  ["navigateTo"],
-  "native share must stop after an unconfirmed navigateTo call",
+  ["navigateTo", "redirectTo"],
+  "native share must stop once redirectTo confirms page handoff",
 );
 
 const callbackReceiptIsNotVisibility = createRuntimeWindow({
   navigateTo({ success }) {
     success?.();
   },
-  redirectTo() {},
-  reLaunch() {},
-  postMessage() {},
+  redirectTo({ success, leavePage }) {
+    success?.();
+    leavePage();
+  },
+  reLaunch() {
+    assert.fail("share recovery must not relaunch after redirectTo succeeds");
+  },
 });
 const bridgeStages = [];
 globalThis.window = callbackReceiptIsNotVisibility.window;
@@ -550,16 +580,16 @@ assert.equal(
       onStage: (event) => bridgeStages.push(event),
     },
   ),
-  "unavailable",
-  "a success callback without page visibility confirmation must remain unconfirmed",
+  "handoff",
+  "a success callback without page visibility confirmation must recover through redirectTo",
 );
 assert.deepEqual(
   callbackReceiptIsNotVisibility.calls,
-  ["navigateTo"],
-  "an unconfirmed share callback must not continue through another bridge method",
+  ["navigateTo", "redirectTo"],
+  "an unconfirmed share callback must continue through the non-destructive fallback",
 );
 assert(bridgeStages.some((event) => event.stage === "callback_received" && event.method === "navigateTo"));
-assert(bridgeStages.some((event) => event.stage === "handoff_unavailable"));
+assert(bridgeStages.some((event) => event.stage === "page_hidden" && event.method === "redirectTo"));
 assert(!JSON.stringify(bridgeStages).includes("sensitive-menu-token"), "bridge telemetry must not contain share tokens");
 assert(bridgeStages.every((event) => Number.isFinite(event.elapsedMs) && event.elapsedMs >= 0));
 
@@ -700,32 +730,34 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch, postMessage }) 
     },
   };
   const leavePage = () => {
+    windowListeners.get("pagehide")?.forEach((listener) => listener());
+  };
+  const hidePage = () => {
     document.visibilityState = "hidden";
     documentListeners.get("visibilitychange")?.forEach((listener) => listener());
-    windowListeners.get("pagehide")?.forEach((listener) => listener());
   };
   if (redirectTo) {
     runtimeWindow.wx.miniProgram.redirectTo = (options) => {
       calls.push("redirectTo");
-      redirectTo({ ...options, leavePage });
+      redirectTo({ ...options, hidePage, leavePage });
     };
   }
   if (navigateTo) {
     runtimeWindow.wx.miniProgram.navigateTo = (options) => {
       calls.push("navigateTo");
-      navigateTo({ ...options, leavePage });
+      navigateTo({ ...options, hidePage, leavePage });
     };
   }
   if (reLaunch) {
     runtimeWindow.wx.miniProgram.reLaunch = (options) => {
       calls.push("reLaunch");
-      reLaunch({ ...options, leavePage });
+      reLaunch({ ...options, hidePage, leavePage });
     };
   }
   if (postMessage) {
     runtimeWindow.wx.miniProgram.postMessage = (options) => {
       calls.push("postMessage");
-      postMessage({ ...options, leavePage });
+      postMessage({ ...options, hidePage, leavePage });
     };
   }
   return { window: runtimeWindow, calls };
