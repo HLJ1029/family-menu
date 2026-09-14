@@ -18,6 +18,9 @@ const expectedChecks = [
   "H5 login falls back across native navigation and identifies an old shell",
   "confirmed native login handoff is not reset by a fixed timer",
   "aborted native login handoff restores an explicit retry",
+  "accepted native login without page handoff restores a truthful retry without duplicate navigation",
+  "native guest entry clears old H5 identity before any private account hydration",
+  "guests can retry WeChat login from My Family and reopen login from its avatar",
   "one-time H5 ticket is exchanged and removed from the URL",
   "failed H5 ticket exchange stays on a visible login retry",
   "ticket exchange gates stale-session hydration during silent recovery",
@@ -27,6 +30,7 @@ const expectedChecks = [
   "server-rejected H5 sessions downgrade to logged out",
   "later authenticated writes also downgrade on invalid sessions",
   "local logout succeeds when remote revocation fails",
+  "share-session recovery keeps one pending login and never interrupts it with native logout",
 ];
 
 const entryHtml = fs.readFileSync("index.html", "utf8");
@@ -213,6 +217,7 @@ try {
   const bridgePage = await bridgeContext.newPage();
   await bridgePage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
   await bridgePage.evaluate(() => {
+    window.WeixinJSBridge = { invoke() {} };
     window.wx = window.wx || {};
     window.wx.miniProgram = {
       navigateTo: (payload) => {
@@ -233,9 +238,9 @@ try {
   await bridgePage.getByRole("button", { name: "微信登录", exact: true }).click();
   await bridgePage.getByText("当前小程序版本不支持微信登录，请更新到最新版本后重试。").waitFor({ timeout: 8_000 });
   assert.deepEqual(await bridgePage.evaluate(() => window.__humiNativeCalls), [
-    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login" } },
-    { method: "redirectTo", payload: { url: "/pages/identity/index?action=login" } },
-    { method: "reLaunch", payload: { url: "/pages/identity/index?action=login" } },
+    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login&returnTo=legacy" } },
+    { method: "redirectTo", payload: { url: "/pages/identity/index?action=login&returnTo=legacy" } },
+    { method: "reLaunch", payload: { url: "/pages/identity/index?action=login&returnTo=legacy" } },
   ]);
   assert.equal(await bridgePage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
   await bridgeContext.close();
@@ -252,6 +257,7 @@ try {
   const confirmedHandoffPage = await confirmedHandoffContext.newPage();
   await confirmedHandoffPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
   await confirmedHandoffPage.evaluate(() => {
+    window.WeixinJSBridge = { invoke() {} };
     window.wx = window.wx || {};
     window.wx.miniProgram = {
       navigateTo: (payload) => {
@@ -264,7 +270,7 @@ try {
   await confirmedHandoffPage.getByRole("button", { name: "微信登录", exact: true }).click();
   await confirmedHandoffPage.waitForTimeout(4_800);
   assert.deepEqual(await confirmedHandoffPage.evaluate(() => window.__humiNativeCalls), [
-    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login" } },
+    { method: "navigateTo", payload: { url: "/pages/identity/index?action=login&returnTo=legacy" } },
   ]);
   assert.equal(
     await confirmedHandoffPage.getByRole("button", { name: "正在打开微信登录", exact: true }).isDisabled(),
@@ -279,6 +285,99 @@ try {
     "returning from an aborted native identity flow must restore the login retry",
   );
   await confirmedHandoffContext.close();
+
+  const acceptedContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  const acceptedPage = await acceptedContext.newPage();
+  await acceptedPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await acceptedPage.evaluate(() => {
+    window.WeixinJSBridge = { invoke() {} };
+    window.__humiNativeCalls = [];
+    window.wx.miniProgram = Object.fromEntries(["navigateTo", "redirectTo", "reLaunch"].map((method) => [method, (payload) => {
+      window.__humiNativeCalls.push(method);
+      payload.success?.({ errMsg: `${method}:ok` });
+    }]));
+  });
+  await acceptedPage.getByRole("button", { name: "微信登录", exact: true }).click();
+  await acceptedPage.getByText("微信已接收请求；如果身份页没有打开，请重试。").waitFor({ timeout: 5_000 });
+  assert.equal(await acceptedPage.getByRole("button", { name: "微信登录", exact: true }).isEnabled(), true);
+  assert.deepEqual(await acceptedPage.evaluate(() => window.__humiNativeCalls), ["navigateTo"]);
+  await acceptedContext.close();
+
+  const nativeGuestContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await nativeGuestContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "previous-account-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "previous-account", displayName: "旧账号", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const nativeGuestPage = await nativeGuestContext.newPage();
+  let guestPrivateReads = 0;
+  let guestTicketExchanges = 0;
+  let guestRevocations = 0;
+  await nativeGuestPage.route("**/state", (route) => {
+    guestPrivateReads += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ state: {} }) });
+  });
+  await nativeGuestPage.route("**/auth/h5/exchange", (route) => {
+    guestTicketExchanges += 1;
+    return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "invalid_ticket" }) });
+  });
+  await nativeGuestPage.route("**/auth/logout", (route) => {
+    guestRevocations += 1;
+    return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "temporarily_unavailable" }) });
+  });
+  await nativeGuestPage.goto(`${baseUrl}?channel=wechat-miniprogram&humiGuest=1&humiTicket=discard-old-ticket`, { waitUntil: "networkidle" });
+  assert.equal(await nativeGuestPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  assert.equal(guestPrivateReads, 0, "native guest entry must never hydrate the previously signed-in account");
+  assert.equal(guestTicketExchanges, 0, "native guest entry must not redeem a stale ticket");
+  assert.equal(guestRevocations, 1, "native guest entry revokes the previous H5 bearer once");
+  assert.equal(new URL(nativeGuestPage.url()).searchParams.has("humiTicket"), false);
+  await nativeGuestPage.getByTestId("mobile-nav-user").click();
+  await nativeGuestPage.getByTestId("guest-family-explanation").waitFor({ state: "visible" });
+  const guestLogin = nativeGuestPage.getByTestId("guest-family-explanation").getByRole("button", { name: "微信登录", exact: true });
+  assert.equal(await guestLogin.isVisible(), true, "My Family must provide a usable login entry after choosing guest mode");
+  await nativeGuestPage.evaluate(() => {
+    window.__guestLoginCalls = [];
+    window.WeixinJSBridge = { invoke() {} };
+    window.wx = window.wx || {};
+    window.wx.miniProgram = {
+      navigateTo(payload) {
+        window.__guestLoginCalls.push(payload.url);
+        payload.success?.({ errMsg: "navigateTo:ok" });
+      },
+    };
+  });
+  await guestLogin.click();
+  await nativeGuestPage.getByRole("button", { name: "打开我的家", exact: true }).click();
+  assert.equal(await nativeGuestPage.getByTestId("guest-family-explanation").isVisible(), true,
+    "switching login entry while navigation is pending must not reset its in-flight lock");
+  await nativeGuestPage.getByTestId("mobile-nav-dashboard").click();
+  assert.equal(await nativeGuestPage.getByTestId("guest-family-explanation").isVisible(), true,
+    "changing tabs during login must not unmount the pending navigation and enable another login");
+  await nativeGuestPage.getByText("微信已接收请求；如果身份页没有打开，请重试。").waitFor({ timeout: 8_000 });
+  assert.deepEqual(await nativeGuestPage.evaluate(() => window.__guestLoginCalls), ["/pages/identity/index?action=login&returnTo=legacy"]);
+  assert.equal(await guestLogin.isEnabled(), true, "an unconfirmed handoff must leave the guest login retryable");
+  assert.equal(guestPrivateReads, 0, "navigation acceptance must not be treated as an authenticated account");
+  await nativeGuestPage.getByRole("button", { name: "打开我的家", exact: true }).click();
+  assert.equal(await nativeGuestPage.getByTestId("guest-family-explanation").count(), 0,
+    "the guest avatar must open login even when My Family is already the active page");
+  assert.equal(await nativeGuestPage.getByRole("button", { name: "微信登录", exact: true }).isVisible(), true);
+  await nativeGuestPage.getByRole("button", { name: "先体验 Humi", exact: true }).click();
+  await nativeGuestPage.getByTestId("guest-family-explanation").waitFor({ state: "visible" });
+  await nativeGuestContext.close();
 
   const ticketContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -546,6 +645,63 @@ try {
   await laterUnauthorizedPage.getByRole("button", { name: "重新微信登录", exact: true }).waitFor({ state: "visible", timeout: 10_000 });
   assert.equal(await laterUnauthorizedPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
   await laterUnauthorizedContext.close();
+
+  const shareRecoveryContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    serviceWorkers: "block",
+    userAgent: WECHAT_USER_AGENT,
+  });
+  await shareRecoveryContext.addInitScript(() => {
+    localStorage.setItem("humi:onboarding-complete", "true");
+    localStorage.setItem("humi:profile-onboarding-complete:v1", "true");
+    localStorage.setItem("humi:identity-session:v1", JSON.stringify({
+      accessToken: "share-recovery-test-token",
+      expiresAt: Date.now() + 60_000,
+      user: { id: "share-owner", displayName: "小禾", provider: "wechat", profileStatus: "complete" },
+    }));
+  });
+  const shareRecoveryPage = await shareRecoveryContext.newPage();
+  await shareRecoveryPage.route("**/state", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      state: {},
+      family: { id: "share-household", name: "我们家", ownerId: "share-owner", currentMemberId: "share-owner", role: "owner", members: [] },
+      households: [{ id: "share-household", name: "我们家", role: "owner" }],
+    }),
+  }));
+  await shareRecoveryPage.route("**/household-invites", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "invalid_session" }),
+  }));
+  await shareRecoveryPage.goto(`${baseUrl}?channel=wechat-miniprogram`, { waitUntil: "networkidle" });
+  await shareRecoveryPage.evaluate(() => {
+    window.__shareRecoveryNavigations = [];
+    window.WeixinJSBridge = { invoke() {} };
+    window.wx = window.wx || {};
+    window.wx.miniProgram = Object.fromEntries(["navigateTo", "redirectTo", "reLaunch"].map((method) => [method, (payload) => {
+      window.__shareRecoveryNavigations.push({ method, url: payload.url });
+      payload.success?.({ errMsg: `${method}:ok` });
+    }]));
+  });
+  await shareRecoveryPage.getByTestId("mobile-nav-user").click();
+  await shareRecoveryPage.getByRole("button", { name: "邀请家人", exact: true }).click();
+  await shareRecoveryPage.getByTestId("guest-family-explanation").waitFor({ state: "visible" });
+  const recoveryLoginLocked = !await shareRecoveryPage.getByTestId("guest-family-explanation").getByRole("button", { name: /微信登录/ }).isEnabled();
+  await shareRecoveryPage.getByRole("button", { name: "打开我的家", exact: true }).click();
+  const recoveryEntryPreserved = await shareRecoveryPage.getByTestId("guest-family-explanation").isVisible();
+  await shareRecoveryPage.getByRole("button", { name: "重新微信登录", exact: true }).waitFor({ state: "visible", timeout: 8_000 });
+  assert.deepEqual(await shareRecoveryPage.evaluate(() => window.__shareRecoveryNavigations), [
+    { method: "navigateTo", url: "/pages/identity/index?action=login&returnTo=legacy" },
+  ], "an accepted recovery login must not be interrupted by an automatic native logout navigation");
+  assert.equal(recoveryLoginLocked, true, "share recovery must disable the new guest login while its own navigation is pending");
+  assert.equal(recoveryEntryPreserved, true, "the avatar must not mount another login entry during share recovery");
+  assert.equal(await shareRecoveryPage.getByRole("button", { name: "重新微信登录", exact: true }).isEnabled(), true);
+  assert.equal(await shareRecoveryPage.evaluate(() => localStorage.getItem("humi:identity-session:v1")), null);
+  assert.equal(await shareRecoveryPage.evaluate(() => localStorage.getItem("humi:share-session-recovery:v1")), null);
+  await shareRecoveryContext.close();
 
   const failedLogoutContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

@@ -529,41 +529,38 @@ assert.equal(
 );
 assert.deepEqual(visibilityOnlyPageLeave.calls, ["navigateTo"]);
 
-const callbacklessNavigationFallback = createRuntimeWindow({
+const callbacklessNavigation = createRuntimeWindow({
   navigateTo() {
     // iOS WeChat can accept this call without firing success, fail, or page-leave.
   },
-  redirectTo({ url, success, leavePage }) {
-    assert.equal(url, "/pages/share/index?type=invite&token=invite-token");
-    success?.();
-    leavePage();
+  redirectTo() {
+    assert.fail("a silent native bridge must not trigger a second navigation");
   },
   reLaunch() {
     assert.fail("share recovery must stop once redirectTo leaves the WebView");
   },
 });
-globalThis.window = callbacklessNavigationFallback.window;
+globalThis.window = callbacklessNavigation.window;
 assert.equal(
   await requestMiniProgramShare(
     { type: "invite", token: "invite-token" },
     { timeoutMs: 180, confirmationMs: 20 },
   ),
-  "handoff",
-  "a callbackless navigateTo should recover through redirectTo",
+  "unavailable",
+  "a callbackless navigateTo needs a user retry, not speculative navigation",
 );
 assert.deepEqual(
-  callbacklessNavigationFallback.calls,
-  ["navigateTo", "redirectTo"],
-  "native share must stop once redirectTo confirms page handoff",
+  callbacklessNavigation.calls,
+  ["navigateTo"],
+  "native share must not multiply pages when callback delivery is unknown",
 );
 
 const callbackReceiptIsNotVisibility = createRuntimeWindow({
   navigateTo({ success }) {
     success?.();
   },
-  redirectTo({ success, leavePage }) {
-    success?.();
-    leavePage();
+  redirectTo() {
+    assert.fail("accepted native navigation must not be replaced by a fallback");
   },
   reLaunch() {
     assert.fail("share recovery must not relaunch after redirectTo succeeds");
@@ -580,16 +577,17 @@ assert.equal(
       onStage: (event) => bridgeStages.push(event),
     },
   ),
-  "handoff",
-  "a success callback without page visibility confirmation must recover through redirectTo",
+  "accepted",
+  "a success callback alone must not claim a confirmed page handoff",
 );
 assert.deepEqual(
   callbackReceiptIsNotVisibility.calls,
-  ["navigateTo", "redirectTo"],
-  "an unconfirmed share callback must continue through the non-destructive fallback",
+  ["navigateTo"],
+  "an accepted share callback must stop all automatic navigation",
 );
 assert(bridgeStages.some((event) => event.stage === "callback_received" && event.method === "navigateTo"));
-assert(bridgeStages.some((event) => event.stage === "page_hidden" && event.method === "redirectTo"));
+assert(bridgeStages.some((event) => event.stage === "handoff_unconfirmed" && event.method === "navigateTo"));
+assert(!bridgeStages.some((event) => event.stage === "page_hidden"));
 assert(!JSON.stringify(bridgeStages).includes("sensitive-menu-token"), "bridge telemetry must not contain share tokens");
 assert(bridgeStages.every((event) => Number.isFinite(event.elapsedMs) && event.elapsedMs >= 0));
 
@@ -717,6 +715,7 @@ function createRuntimeWindow({ redirectTo, navigateTo, reLaunch, postMessage }) 
     document,
     setTimeout,
     clearTimeout,
+    WeixinJSBridge: { invoke() {} },
     addEventListener(type, listener) {
       const listeners = windowListeners.get(type) || new Set();
       listeners.add(listener);

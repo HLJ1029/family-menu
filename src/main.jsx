@@ -73,7 +73,7 @@ import {
   validateDinnerRecommendationIds,
 } from "./lib/recommendation/rules";
 import { buildCompactFamilyPrompt, getProfileCompletedCount, getPlanningMode, withPlanningModeDefaults } from "./lib/profile";
-import { clearHumiSession, getWechatLoginFailureMessage, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
+import { clearHumiSession, getWechatLoginFailureMessage, isNativeGuestEntry, readHumiSession, requestMiniProgramLogout, requestWechatLoginFromMiniProgram, saveHumiSession, takeHumiSessionExpiredNotice, takeHumiTicketFromUrl } from "./lib/humiIdentity";
 import { clearGuestParticipantId } from "./lib/collaborationIdentity";
 import {
   abandonHumiMealRun,
@@ -173,6 +173,7 @@ function App() {
   const pendingJoinMergeRef = useRef("");
   const mealRunHydrationRef = useRef("");
   const viewHistoryRef = useRef(["dashboard"]);
+  const wechatLoginPendingRef = useRef(false);
   const swipeStartRef = useRef(null);
   const shareSnapshotCacheRef = useRef(createAsyncSnapshotCache());
   const shareRecoveryReplayRef = useRef("");
@@ -190,6 +191,7 @@ function App() {
   const [landingMealTaskToken, setLandingMealTaskToken] = useState(() => getInitialMealTaskToken());
   const [entryRedirectView, setEntryRedirectView] = useState("dashboard");
   const [authGateIntent, setAuthGateIntent] = useState("");
+  const [wechatLoginPending, setWechatLoginPending] = useState(false);
   const [libraryMealSlot, setLibraryMealSlot] = useState(null);
   const [libraryParentLabel, setLibraryParentLabel] = useState("今晚菜单");
   const [query, setQuery] = useState("");
@@ -1670,21 +1672,20 @@ function App() {
       return true;
     }
     shareSnapshotCacheRef.current.clear();
+    handleLoginPendingChange(true);
     clearHumiSession();
     setHumiSession(null);
     setSessionExpired(false);
     humiStateLoadedRef.current = false;
     humiStateHydratingRef.current = false;
     mealRunHydrationRef.current = "";
+    const restoreLoginRetry = () => expireHumiIdentity({ notifyNative: false });
     const started = requestWechatLoginFromMiniProgram({
-      onFailure: () => {
-        clearShareRecovery();
-        expireHumiIdentity();
-      },
+      onFailure: restoreLoginRetry,
+      onResume: restoreLoginRetry,
     });
     if (!started) {
-      clearShareRecovery();
-      expireHumiIdentity();
+      restoreLoginRetry();
       showNotice("没能重新连接微信登录，请重新进入 Humi");
       return true;
     }
@@ -3628,12 +3629,13 @@ function App() {
     }
   }
 
-  function expireHumiIdentity() {
+  function expireHumiIdentity({ notifyNative = true } = {}) {
+    handleLoginPendingChange(false);
     clearHumiSession();
     shareSnapshotCacheRef.current.clear();
     clearShareRecovery();
     shareRecoveryReplayRef.current = "";
-    requestMiniProgramLogout({ expired: true });
+    if (notifyNative) requestMiniProgramLogout({ expired: true });
     setHumiSession(null);
     setSessionExpired(true);
     humiStateLoadedRef.current = false;
@@ -3828,6 +3830,8 @@ function App() {
     cloudLoading,
     onCreateFamily: createFamily,
     onSignOut: handleSignOut,
+    onLoginPendingChange: handleLoginPendingChange,
+    loginInProgress: wechatLoginPending,
     showNotice,
   };
 
@@ -4177,7 +4181,13 @@ function App() {
     showNotice(`已切换到${getPlanningMode(modeId).label}`);
   }
 
+  function handleLoginPendingChange(pending) {
+    wechatLoginPendingRef.current = pending;
+    setWechatLoginPending(pending);
+  }
+
   function navigateTo(nextView, options = {}) {
+    if (wechatLoginPendingRef.current) return;
     if (!nextView || nextView === activeView) return;
     if (options.replace) {
       viewHistoryRef.current = [...viewHistoryRef.current.slice(0, -1), nextView];
@@ -4191,7 +4201,18 @@ function App() {
     flowMotionTimerRef.current = window.setTimeout(() => setFlowMotion(null), 760);
   }
 
+  function openAccount() {
+    if (wechatLoginPendingRef.current) return;
+    if (!signedIn) {
+      setEntryRedirectView("user");
+      setAuthGateIntent("login");
+      return;
+    }
+    navigateTo("user");
+  }
+
   function goBack() {
+    if (wechatLoginPendingRef.current) return;
     const history = viewHistoryRef.current;
     const previousView = history.length > 1 ? history[history.length - 2] : "dashboard";
     viewHistoryRef.current = history.length > 1 ? history.slice(0, -1) : ["dashboard"];
@@ -4230,6 +4251,7 @@ function App() {
   }
 
   function continueAsGuest() {
+    if (wechatLoginPendingRef.current) return;
     setAuthGateIntent("");
     setSessionExpired(false);
     setEntryMotion(true);
@@ -4528,11 +4550,13 @@ function App() {
     );
   }
 
-  if (!signedIn && (sessionExpired || authGateIntent || !onboardingComplete) && !sharedGuestLanding) {
+  if (!signedIn && (sessionExpired || authGateIntent || (!onboardingComplete && !isNativeGuestEntry())) && !sharedGuestLanding) {
     return (
       <>
         <AuthLanding
           onContinueGuest={continueAsGuest}
+          onLoginPendingChange={handleLoginPendingChange}
+          loginInProgress={wechatLoginPending}
           entryIntent={authGateIntent || (sessionExpired ? "sessionExpired" : entryRedirectView === "user" ? "joinFamily" : "")}
         />
         {entryMotion && <EntryTableMotion />}
@@ -4569,7 +4593,7 @@ function App() {
                 query={query}
                 setQuery={setQuery}
                 session={displaySession}
-              onOpenUserCenter={() => navigateTo("user")}
+              onOpenUserCenter={openAccount}
               onBack={activeView === "grocery" || activeView === "user" ? undefined : goBack}
             />
           )}

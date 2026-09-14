@@ -5,7 +5,7 @@ import { isWechatLoginEnabled, isWechatMiniProgramWebView } from "../lib/runtime
 import { IcpFooter } from "./AppShell";
 import { HumiScene } from "./ui/HumiScene";
 
-export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
+export function AuthLanding({ onContinueGuest, onLoginPendingChange, loginInProgress = false, entryIntent = "" }) {
   return (
     <main className="min-h-screen overflow-hidden bg-canvas px-6 py-8 text-ink">
       <section className="mx-auto grid min-h-[calc(100vh-112px)] max-w-md content-between gap-8">
@@ -29,7 +29,7 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
             </p>
           </div>
 
-          <MobileAuthChoices onContinueGuest={onContinueGuest} entryIntent={entryIntent} />
+          <MobileAuthChoices onContinueGuest={onContinueGuest} onLoginPendingChange={onLoginPendingChange} loginInProgress={loginInProgress} entryIntent={entryIntent} />
         </>
       </section>
       <IcpFooter compact />
@@ -37,22 +37,28 @@ export function AuthLanding({ onContinueGuest, entryIntent = "" }) {
   );
 }
 
-function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
+export function MobileAuthChoices({ onContinueGuest, onLoginPendingChange, loginInProgress = false, entryIntent = "" }) {
   const [status, setStatus] = useState("");
   const [loginPending, setLoginPending] = useState(false);
+  const pending = loginPending || loginInProgress;
   const isWechatMiniProgram = isWechatMiniProgramWebView();
   const wechatLoginEnabled = isWechatLoginEnabled();
   const canUseWechatLogin = wechatLoginEnabled || isWechatMiniProgram || entryIntent === "completeIdentity";
 
+  function updateLoginPending(pending) {
+    setLoginPending(pending);
+    onLoginPendingChange?.(pending);
+  }
+
   function handleWechatLogin() {
-    if (loginPending) return;
-    setLoginPending(true);
+    if (pending) return;
+    updateLoginPending(true);
     const recover = (failure) => {
-      setLoginPending(false);
+      updateLoginPending(false);
       setStatus(getWechatLoginFailureMessage(failure));
     };
     const resumeRetry = () => {
-      setLoginPending(false);
+      updateLoginPending(false);
       setStatus("微信登录没有完成，请重新尝试。");
     };
     if (isWechatMiniProgram && requestWechatLoginFromMiniProgram({ onFailure: recover, onResume: resumeRetry })) {
@@ -73,11 +79,11 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
           <button
             type="button"
             onClick={handleWechatLogin}
-            disabled={loginPending}
+            disabled={pending}
             className="group flex min-h-14 items-center justify-center gap-2 rounded-full bg-ink px-5 text-base font-black text-white shadow-card transition hover:-translate-y-0.5"
           >
             <MessageCircle size={19} className="text-white" />
-            {loginPending ? "正在打开微信登录" : entryIntent === "sessionExpired" || entryIntent === "loginRetry" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
+            {pending ? "正在打开微信登录" : entryIntent === "sessionExpired" || entryIntent === "loginRetry" ? "重新微信登录" : entryIntent === "completeIdentity" ? "继续完善身份" : "微信登录"}
           </button>
           {!isWechatMiniProgram && (
             <button
@@ -95,6 +101,7 @@ function MobileAuthChoices({ onContinueGuest, entryIntent = "" }) {
             <button
               type="button"
               onClick={onContinueGuest}
+              disabled={pending}
               className="min-h-11 rounded-full text-xs font-black text-ink/42 transition hover:text-ink"
             >
               {entryIntent === "startCrave" || entryIntent === "startCollaboration" ? "先不发起，回到 Humi" : "先体验 Humi"}

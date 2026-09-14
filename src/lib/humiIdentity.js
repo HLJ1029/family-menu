@@ -1,4 +1,5 @@
 import { requestMiniProgramPage } from "./runtime.js";
+import { logoutHumiSession } from "./humiApi.js";
 
 const HUMI_SESSION_KEY = "humi:identity-session:v1";
 const HUMI_SESSION_EXPIRED_KEY = "humi:identity-session-expired:v1";
@@ -7,6 +8,17 @@ export function readHumiSession() {
   if (typeof window === "undefined") return null;
   try {
     const value = window.localStorage.getItem(HUMI_SESSION_KEY);
+    if (isNativeSessionResetEntry()) {
+      window.localStorage.removeItem(HUMI_SESSION_KEY);
+      if (value) {
+        try {
+          void logoutHumiSession(normalizeHumiSession(JSON.parse(value))).catch(() => {});
+        } catch {
+          // A corrupt cached session must not prevent entering as a guest.
+        }
+      }
+      return null;
+    }
     if (!value) return null;
     const normalized = normalizeHumiSession(JSON.parse(value));
     if (!normalized.accessToken || !Number.isFinite(normalized.expiresAt) || normalized.expiresAt <= Date.now()) {
@@ -19,6 +31,26 @@ export function readHumiSession() {
     window.localStorage.removeItem(HUMI_SESSION_KEY);
     return null;
   }
+}
+
+function getNativeAuthParams() {
+  if (typeof window === "undefined") return null;
+  try {
+    const params = new URL(window.location.href).searchParams;
+    if (params.get("channel") !== "wechat-miniprogram" && window.__wxjs_environment !== "miniprogram") return null;
+    return params;
+  } catch {
+    return null;
+  }
+}
+
+export function isNativeGuestEntry() {
+  return getNativeAuthParams()?.get("humiGuest") === "1";
+}
+
+function isNativeSessionResetEntry() {
+  const params = getNativeAuthParams();
+  return params?.get("humiGuest") === "1" || Boolean(params?.has("humiLogout"));
 }
 
 export function saveHumiSession(session) {
@@ -44,7 +76,7 @@ export function takeHumiSessionExpiredNotice() {
     }
     const fromStorage = window.sessionStorage?.getItem(HUMI_SESSION_EXPIRED_KEY) === "1";
     window.sessionStorage?.removeItem(HUMI_SESSION_EXPIRED_KEY);
-    return fromNative || fromStorage;
+    return !isNativeGuestEntry() && (fromNative || fromStorage);
   } catch {
     return false;
   }
@@ -53,8 +85,8 @@ export function takeHumiSessionExpiredNotice() {
 export function takeHumiTicketFromUrl() {
   if (typeof window === "undefined") return "";
   const url = new URL(window.location.href);
-  const ticket = url.searchParams.get("humiTicket") || "";
-  const hadSensitiveAuth = ticket || url.searchParams.has("humiSession") || url.searchParams.has("humiLogin");
+  const ticket = isNativeSessionResetEntry() ? "" : url.searchParams.get("humiTicket") || "";
+  const hadSensitiveAuth = url.searchParams.has("humiTicket") || url.searchParams.has("humiSession") || url.searchParams.has("humiLogin");
   url.searchParams.delete("humiTicket");
   url.searchParams.delete("humiSession");
   url.searchParams.delete("humiLogin");
@@ -74,7 +106,6 @@ export function requestWechatLoginFromMiniProgram({
   confirmationMs,
 } = {}) {
   if (typeof window === "undefined") return false;
-  const miniProgram = window.wx?.miniProgram;
   const methods = ["navigateTo", "redirectTo", "reLaunch"];
   let failureReported = false;
   let lastErrorCode = "bridge_unavailable";
@@ -85,12 +116,8 @@ export function requestWechatLoginFromMiniProgram({
       .then(() => onFailure?.(failure))
       .catch(() => {});
   };
-  if (!methods.some((methodName) => typeof miniProgram?.[methodName] === "function")) {
-    reportFailure({ errorCode: lastErrorCode });
-    return false;
-  }
   void requestMiniProgramPage(
-    reuseSession ? "/pages/identity/index" : "/pages/identity/index?action=login",
+    reuseSession ? "/pages/identity/index?returnTo=legacy" : "/pages/identity/index?action=login&returnTo=legacy",
     {
       methods,
       timeoutMs,
@@ -111,7 +138,7 @@ export function requestWechatLoginFromMiniProgram({
           .catch(() => {});
         return;
       }
-      reportFailure({ errorCode: lastErrorCode });
+      reportFailure({ errorCode: status === "accepted" ? "handoff_unconfirmed" : lastErrorCode });
     })
     .catch(() => reportFailure({ errorCode: "bridge_failed" }));
   return true;
@@ -147,6 +174,7 @@ function getBridgeErrorPriority(errorCode) {
     page_stack_limit: 3,
     bridge_failed: 2,
     bridge_unknown: 1,
+    handoff_timeout: 1,
     unconfirmed: 1,
   }[errorCode] || 0;
 }
@@ -167,6 +195,9 @@ export function getWechatLoginFailureMessage(
   }
   if (errorCode === "bridge_unavailable") {
     return "当前页面无法连接小程序，请从微信里的 Humi 重新进入。";
+  }
+  if (errorCode === "handoff_unconfirmed") {
+    return "微信已接收请求；如果身份页没有打开，请重试。";
   }
   return fallback;
 }

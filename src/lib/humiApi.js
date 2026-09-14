@@ -236,6 +236,7 @@ export async function logoutHumiSession(session) {
   await humiApiRequest("/auth/logout", {
     method: "POST",
     session,
+    notifySessionInvalid: false,
   });
 }
 
