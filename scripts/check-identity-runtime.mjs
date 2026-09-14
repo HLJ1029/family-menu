@@ -167,6 +167,7 @@ globalThis.window = {
   addEventListener: nativeWindowTarget.addEventListener.bind(nativeWindowTarget),
   removeEventListener: nativeWindowTarget.removeEventListener.bind(nativeWindowTarget),
   dispatchEvent: nativeWindowTarget.dispatchEvent.bind(nativeWindowTarget),
+  WeixinJSBridge: { invoke() {} },
   wx: {
     miniProgram: {
       navigateTo({ fail }) {
@@ -214,6 +215,7 @@ delete globalThis.window;
 const failedIdentityCalls = [];
 const failedIdentityRecoveries = [];
 globalThis.window = {
+  WeixinJSBridge: { invoke() {} },
   document: {
     visibilityState: "visible",
     addEventListener() {},

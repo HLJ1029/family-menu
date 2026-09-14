@@ -5,6 +5,7 @@ import { HouseholdMembersPage } from "./HouseholdMembersPage";
 import { HouseholdStart } from "./HouseholdStart";
 import { RouteLoadBoundary, RouteLoadingFallback } from "./AppShell";
 import { lazyRoutes } from "../routes/lazyRoutes";
+import { MobileAuthChoices } from "./AuthLanding";
 
 const FamilyActivityPage = lazyRoutes.familyActivity;
 const HouseholdSettingsPage = lazyRoutes.householdSettings;
@@ -65,7 +66,7 @@ export function UserCenter({
   }
 
   if (!signedIn) {
-    return <GuestFamilyExplanation />;
+    return <GuestFamilyExplanation onContinueGuest={() => onViewChange?.("dashboard")} onLoginPendingChange={authProps?.onLoginPendingChange} loginInProgress={authProps?.loginInProgress} />;
   }
 
   if (!family) {
@@ -127,7 +128,7 @@ export function UserCenter({
   );
 }
 
-function GuestFamilyExplanation() {
+function GuestFamilyExplanation({ onContinueGuest, onLoginPendingChange, loginInProgress }) {
   return (
     <section data-testid="guest-family-explanation" className="mx-auto max-w-2xl rounded-[28px] border border-line bg-white p-6 text-ink shadow-card sm:p-8">
       <p className="eyebrow">我的家</p>
@@ -135,6 +136,9 @@ function GuestFamilyExplanation() {
       <p className="mt-3 text-sm font-bold leading-7 text-ink/58">
         游客模式不会创建家庭。登录后，你可以主动创建自己的家，或通过家人发来的邀请加入。
       </p>
+      <div className="mt-6">
+        <MobileAuthChoices onContinueGuest={onContinueGuest} onLoginPendingChange={onLoginPendingChange} loginInProgress={loginInProgress} />
+      </div>
     </section>
   );
 }

@@ -62,28 +62,21 @@ export function requestMiniProgramReminder(payload = {}, options = {}) {
 }
 
 export function requestMiniProgramPage(url, options = {}) {
-  const miniProgram = window.wx?.miniProgram;
+  if (typeof window === "undefined") return Promise.resolve("unavailable");
+  const windowRef = window;
   const methodNames = Array.isArray(options.methods)
     ? options.methods
     : ["navigateTo", "redirectTo", "reLaunch"];
-  const attempts = methodNames
-    .map((methodName) => [methodName, miniProgram?.[methodName]])
-    .filter(([, method]) => typeof method === "function");
-  if (attempts.length === 0) {
-    return Promise.resolve("unavailable");
-  }
-
   const timeoutMs = options.timeoutMs ?? 2400;
-  const confirmationMs = options.confirmationMs ?? 600;
   return new Promise((resolve) => {
     const startedAt = Date.now();
     let settled = false;
     let timeoutTimer = null;
-    let attemptTimer = null;
     let attemptSequence = 0;
     let activeMethod = "";
-    const documentRef = window.document;
-    const supportsPageConfirmation = Boolean(documentRef?.addEventListener && window.addEventListener);
+    let accepted = false;
+    const documentRef = windowRef.document;
+    const supportsPageConfirmation = Boolean(documentRef?.addEventListener && windowRef.addEventListener);
     const mark = (stage, method = "", errorCode = "") => {
       if (typeof options.onStage !== "function") return;
       try {
@@ -100,16 +93,17 @@ export function requestMiniProgramPage(url, options = {}) {
     const finish = (status) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(timeoutTimer);
-      window.clearTimeout(attemptTimer);
+      windowRef.clearTimeout(timeoutTimer);
+      removeReadinessListeners();
       if (supportsPageConfirmation) {
         documentRef.removeEventListener("visibilitychange", handleVisibilityChange);
-        window.removeEventListener("pagehide", handlePageLeave);
-        window.removeEventListener("beforeunload", handlePageLeave);
+        windowRef.removeEventListener("pagehide", handlePageLeave);
+        windowRef.removeEventListener("beforeunload", handlePageLeave);
       }
       resolve(status);
     };
     const handlePageLeave = () => {
+      if (!activeMethod || settled) return;
       mark("page_hidden", activeMethod);
       finish("handoff");
     };
@@ -118,15 +112,16 @@ export function requestMiniProgramPage(url, options = {}) {
     };
     if (supportsPageConfirmation) {
       documentRef.addEventListener("visibilitychange", handleVisibilityChange);
-      window.addEventListener("pagehide", handlePageLeave);
-      window.addEventListener("beforeunload", handlePageLeave);
+      windowRef.addEventListener("pagehide", handlePageLeave);
+      windowRef.addEventListener("beforeunload", handlePageLeave);
     }
-    timeoutTimer = window.setTimeout(() => {
-      mark("handoff_unavailable", activeMethod, "handoff_timeout");
-      finish("unavailable");
+    timeoutTimer = windowRef.setTimeout(() => {
+      const errorCode = accepted ? "handoff_unconfirmed" : activeMethod ? "handoff_timeout" : "bridge_unavailable";
+      mark(accepted ? "handoff_unconfirmed" : "handoff_unavailable", activeMethod, errorCode);
+      finish(accepted ? "accepted" : "unavailable");
     }, timeoutMs);
 
-    const runAttempt = (index) => {
+    const runAttempt = (miniProgram, attempts, index) => {
       if (settled) return;
       const [methodName, method] = attempts[index] ?? [];
       if (!method) {
@@ -137,31 +132,49 @@ export function requestMiniProgramPage(url, options = {}) {
       activeMethod = methodName;
       mark("attempt_started", methodName);
       const attemptId = ++attemptSequence;
-      const advance = (errorCode = "unconfirmed") => {
-        if (settled || attemptId !== attemptSequence) return;
-        window.clearTimeout(attemptTimer);
-        if (errorCode === "unconfirmed") mark("attempt_unconfirmed", methodName, errorCode);
-        runAttempt(index + 1);
+      const failAttempt = (error) => {
+        if (settled || accepted || attemptId !== attemptSequence) return;
+        mark("callback_failed", methodName, normalizeBridgeError(error));
+        runAttempt(miniProgram, attempts, index + 1);
       };
-      attemptTimer = window.setTimeout(advance, confirmationMs);
       try {
         method.call(miniProgram, {
           url,
-          success: () => mark("callback_received", methodName),
-          fail: (error) => {
-            const errorCode = normalizeBridgeError(error);
-            mark("callback_failed", methodName, errorCode);
-            advance(errorCode);
+          success: () => {
+            if (settled || attemptId !== attemptSequence) return;
+            accepted = true;
+            mark("callback_received", methodName);
           },
+          fail: failAttempt,
         });
       } catch (error) {
-        const errorCode = normalizeBridgeError(error);
-        mark("callback_failed", methodName, errorCode);
-        advance(errorCode);
+        failAttempt(error);
       }
     };
 
-    runAttempt(0);
+    function removeReadinessListeners() {
+      documentRef?.removeEventListener?.("WeixinJSBridgeReady", startWhenReady);
+      documentRef?.removeEventListener?.("load", startWhenReady, true);
+      windowRef.removeEventListener?.("load", startWhenReady);
+    }
+    function startWhenReady() {
+      if (settled || activeMethod || typeof windowRef.WeixinJSBridge?.invoke !== "function") return;
+      const miniProgram = windowRef.wx?.miniProgram;
+      const attempts = methodNames
+        .map((methodName) => [methodName, miniProgram?.[methodName]])
+        .filter(([, method]) => typeof method === "function");
+      if (attempts.length === 0) return;
+      removeReadinessListeners();
+      mark("bridge_ready");
+      runAttempt(miniProgram, attempts, 0);
+    }
+
+    // The SDK queues its own callbacks until BridgeReady. Do not enter that queue:
+    // a timed-out request must never perform delayed navigation after user retry.
+    documentRef?.addEventListener?.("WeixinJSBridgeReady", startWhenReady);
+    documentRef?.addEventListener?.("load", startWhenReady, true);
+    windowRef.addEventListener?.("load", startWhenReady);
+    startWhenReady();
   });
 }
 
